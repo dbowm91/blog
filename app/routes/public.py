@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response
+from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response, url_for
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 import logging
@@ -83,7 +83,10 @@ def post(slug):
 
     viewed = session.get("viewed_posts", [])
     if post.id not in viewed:
-        pv = PageView(post_id=post.id)
+        pv = PageView(
+            post_id=post.id,
+            referrer=request.referrer[:512] if request.referrer else None
+        )
         db.session.add(pv)
         db.session.commit()
         viewed.append(post.id)
@@ -295,4 +298,4 @@ def sitemap_xml():
 
 @public.route("/favicon.ico")
 def favicon():
-    return Response(status=204)
+    return Response(status=301, headers={"Location": url_for("static", filename="img/favicon.svg")})

@@ -1,0 +1,48 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Tags | Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Tags</h1>
+    </div>
+
+    <div class="tag-create-form">
+        <form method="POST" action="{{ url_for('admin.create_tag') }}" class="search-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="text" name="name" placeholder="New tag name..." class="search-input" required>
+            <button type="submit" class="btn btn-primary btn-small">Create</button>
+        </form>
+    </div>
+
+    <div class="post-list">
+        <div class="post-list-header">
+            <span>Tag</span>
+            <span class="post-list-header-right">Posts</span>
+        </div>
+        {% for tag in tags %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <form method="POST" action="{{ url_for('admin.rename_tag', tag_id=tag.id) }}" class="search-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="text" name="name" value="{{ tag.name }}" class="search-input" required>
+                        <button type="submit" class="btn btn-small btn-ghost">Rename</button>
+                    </form>
+                </div>
+                <div class="post-list-metrics">
+                    <span class="metric">{{ tag_post_counts.get(tag.id, 0) }} posts</span>
+                </div>
+                <div class="post-list-actions">
+                    <form method="POST" action="{{ url_for('admin.delete_tag', tag_id=tag.id) }}" class="inline-form" data-confirm="Delete tag '{{ tag.name }}'? It will be removed from all posts.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <p class="empty-state">No tags yet.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

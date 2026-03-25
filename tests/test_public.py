@@ -73,9 +73,9 @@ def test_rss_feed(client, db, sample_post):
 
 
 def test_favicon(client):
-    """Test favicon returns 204."""
+    """Test favicon redirects to SVG."""
     response = client.get('/favicon.ico')
-    assert response.status_code == 204
+    assert response.status_code == 301
 
 
 def test_subscribe_valid_email(client, db):

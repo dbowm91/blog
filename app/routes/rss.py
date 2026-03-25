@@ -2,8 +2,15 @@ from flask import Blueprint, Response
 from app.models import Post
 from app.config import APP_TITLE, APP_DESCRIPTION, BASE_URL
 from app.utils import xml_escape, utc_now
+import re
+
+_MARKDOWN_RE = re.compile(r"[#*_`~\[\]\(\)!>|]+")
 
 rss = Blueprint("rss", __name__)
+
+
+def _strip_markdown(text: str) -> str:
+    return _MARKDOWN_RE.sub("", text)
 
 
 @rss.route("/rss")
@@ -19,7 +26,10 @@ def feed():
     for post in posts:
         pub_date = post.created_at.strftime("%a, %d %b %Y %H:%M:%S +0000")
         link = f"{BASE_URL}/post/{post.slug}"
-        summary = post.summary or post.body[:200]
+        if post.summary:
+            summary = post.summary
+        else:
+            summary = _strip_markdown(post.body[:200])
         items.append(f"""    <item>
       <title>{xml_escape(post.title)}</title>
       <link>{link}</link>

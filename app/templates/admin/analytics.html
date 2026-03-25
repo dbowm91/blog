@@ -1,0 +1,119 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Analytics | Admin{% endblock %}
+
+{% block content %}
+<div class="analytics animate-in">
+    <div class="analytics-header">
+        <h1>Analytics</h1>
+        <div class="date-range-selector">
+            <label for="days-select">Time period:</label>
+            <select id="days-select" onchange="window.location.href='/admin/analytics?days=' + this.value">
+                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="stats-cards">
+        <div class="stat-card">
+            <span class="stat-value">{{ total_views }}</span>
+            <span class="stat-label">Page Views</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ total_subscribers }}</span>
+            <span class="stat-label">Total Subscribers</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ confirmed_subscribers }}</span>
+            <span class="stat-label">Confirmed</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ top_posts|length }}</span>
+            <span class="stat-label">Posts Viewed</span>
+        </div>
+    </div>
+
+    <div class="analytics-grid">
+        <div class="analytics-card">
+            <h3>Views Over Time</h3>
+            {% if daily_views %}
+            <div class="mini-chart">
+                {% set max_views = daily_views|map(attribute='views')|max %}
+                {% for day in daily_views %}
+                <div class="chart-bar-container" title="{{ day.date }}: {{ day.views }} views">
+                    <div class="chart-bar" style="height: {% if max_views > 0 %}{{ (day.views / max_views * 100)|round }}{% else %}0{% endif %}%"></div>
+                    <span class="chart-label">{{ day.date.strftime('%b %d') }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">No views in this period</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h3>Traffic Sources</h3>
+            {% if referrer_summary %}
+            <ul class="source-list">
+                {% for source, count in referrer_summary.items() %}
+                <li>
+                    <span class="source-name">{{ source }}</span>
+                    <span class="source-count">{{ count }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No referrer data</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h3>Share Platforms</h3>
+            {% if share_platforms %}
+            <ul class="source-list">
+                {% for platform, count in share_platforms %}
+                <li>
+                    <span class="source-name">{{ platform|title }}</span>
+                    <span class="source-count">{{ count }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No shares yet</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analytics-card full-width">
+        <h3>Top Posts</h3>
+        {% if top_posts %}
+        <table class="analytics-table">
+            <thead>
+                <tr>
+                    <th>Post</th>
+                    <th class="text-right">Views</th>
+                    <th class="text-right">Shares</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post, view_count in top_posts %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('admin.edit_post', post_id=post.id) }}">{{ post.title }}</a>
+                    </td>
+                    <td class="text-right mono">{{ view_count }}</td>
+                    <td class="text-right mono">{{ share_counts.get(post.id, 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No post views in this period</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

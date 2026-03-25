@@ -110,6 +110,7 @@ class PageView(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    referrer = db.Column(db.String(512), nullable=True)
     created_at = db.Column(db.DateTime, default=utc_now)
 
     def __repr__(self):

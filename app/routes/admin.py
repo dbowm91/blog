@@ -2,13 +2,15 @@ import os
 import re
 import uuid
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Response
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
+from datetime import timedelta
+
 from app.extensions import db
-from app.models import Post, Tag, User, PageView, ShareEvent
+from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
 from app.rate_limit import check_rate_limit, record_failed_attempt, clear_attempts
 from app.utils import utc_now
 
@@ -97,8 +99,20 @@ def logout():
 @login_required
 def dashboard():
     page = request.args.get("page", 1, type=int)
+    q = request.args.get("q", "").strip()
+    status = request.args.get("status", "all")
+
+    query = Post.query
+    if q:
+        search_term = f"%{q}%"
+        query = query.filter(Post.title.ilike(search_term))
+    if status == "published":
+        query = query.filter(Post.published == True)
+    elif status == "draft":
+        query = query.filter(Post.published == False)
+
     pagination = (
-        Post.query
+        query
         .order_by(Post.updated_at.desc())
         .paginate(page=page, per_page=20, error_out=False)
     )
@@ -118,12 +132,40 @@ def dashboard():
         .all()
     )
 
+    total_views = db.session.query(func.count(PageView.id)).scalar() or 0
+    total_posts = db.session.query(func.count(Post.id)).filter(Post.published == True).scalar() or 0
+    total_shares = db.session.query(func.count(ShareEvent.id)).scalar() or 0
+    total_subscribers = db.session.query(func.count(Subscriber.id)).filter(Subscriber.confirmed == True).scalar() or 0
+
+    thirty_days_ago = utc_now() - timedelta(days=30)
+    trending = (
+        db.session.query(Post, func.count(PageView.id).label('view_count'))
+        .join(PageView)
+        .filter(Post.published == True)
+        .filter(PageView.created_at >= thirty_days_ago)
+        .group_by(Post.id)
+        .order_by(func.count(PageView.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    new_this_month = db.session.query(func.count(Subscriber.id)).filter(Subscriber.created_at >= month_start).scalar() or 0
+
     return render_template(
         "admin/dashboard.html",
         posts=posts,
         pagination=pagination,
         view_counts=view_counts,
         share_counts=share_counts,
+        total_views=total_views,
+        total_posts=total_posts,
+        total_shares=total_shares,
+        total_subscribers=total_subscribers,
+        trending=trending,
+        new_this_month=new_this_month,
+        q=q,
+        status=status,
     )
 
 
@@ -208,8 +250,19 @@ def edit_post(post_id):
             flash(error, "error")
             return render_template("admin/editor.html", post=post, tag_names=tag_names)
         if image:
+            old_image = post.image
             post.image = image
+            if old_image:
+                try:
+                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
+                except FileNotFoundError:
+                    pass
         elif "remove_image" in request.form:
+            if post.image:
+                try:
+                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], post.image))
+                except FileNotFoundError:
+                    pass
             post.image = None
 
         db.session.commit()
@@ -226,6 +279,11 @@ def delete_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
+    if post.image:
+        try:
+            os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], post.image))
+        except FileNotFoundError:
+            pass
     db.session.delete(post)
     db.session.commit()
     flash("Post deleted.", "success")
@@ -251,3 +309,380 @@ def _get_or_create_tags(names):
     if invalid_tags:
         flash(f"Invalid tag names (skipped): {', '.join(invalid_tags)}", "warning")
     return tags
+
+
+@admin.route("/analytics")
+@login_required
+def analytics():
+    days = request.args.get("days", 30, type=int)
+    days = min(max(days, 7), 365)
+
+    start_date = utc_now() - timedelta(days=days)
+
+    daily_views = db.session.query(
+        func.date(PageView.created_at).label('date'),
+        func.count(PageView.id).label('views')
+    ).filter(
+        PageView.created_at >= start_date
+    ).group_by(
+        func.date(PageView.created_at)
+    ).order_by(
+        func.date(PageView.created_at)
+    ).all()
+
+    total_views = db.session.query(func.count(PageView.id)).filter(
+        PageView.created_at >= start_date
+    ).scalar() or 0
+
+    top_posts = (
+        db.session.query(Post, func.count(PageView.id).label('view_count'))
+        .join(PageView)
+        .filter(Post.published == True)
+        .filter(PageView.created_at >= start_date)
+        .group_by(Post.id)
+        .order_by(func.count(PageView.id).desc())
+        .limit(10)
+        .all()
+    )
+
+    top_post_ids = [p.id for p, _ in top_posts]
+    share_counts_analytics = dict(
+        db.session.query(ShareEvent.post_id, func.count(ShareEvent.id))
+        .filter(ShareEvent.post_id.in_(top_post_ids))
+        .group_by(ShareEvent.post_id)
+        .all()
+    )
+
+    share_platforms = db.session.query(
+        ShareEvent.platform,
+        func.count(ShareEvent.id).label('count')
+    ).group_by(ShareEvent.platform).all()
+
+    referrer_data = db.session.query(
+        PageView.referrer,
+        func.count(PageView.id).label('count')
+    ).filter(
+        PageView.referrer != None,
+        PageView.created_at >= start_date
+    ).group_by(PageView.referrer).order_by(
+        func.count(PageView.id).desc()
+    ).limit(15).all()
+
+    def categorize_referrer(url):
+        if not url:
+            return "Direct"
+        url_lower = url.lower()
+        if "google" in url_lower or "bing" in url_lower or "yahoo" in url_lower or "duckduckgo" in url_lower:
+            return "Search"
+        if "twitter" in url_lower or "facebook" in url_lower or "linkedin" in url_lower or "reddit" in url_lower:
+            return "Social"
+        return "Other"
+
+    referrer_summary = {}
+    for url, count in referrer_data:
+        category = categorize_referrer(url)
+        referrer_summary[category] = referrer_summary.get(category, 0) + count
+
+    total_subscribers = db.session.query(func.count(Subscriber.id)).scalar() or 0
+    confirmed_subscribers = db.session.query(func.count(Subscriber.id)).filter(Subscriber.confirmed == True).scalar() or 0
+
+    return render_template(
+        "admin/analytics.html",
+        days=days,
+        daily_views=daily_views,
+        total_views=total_views,
+        top_posts=top_posts,
+        share_platforms=share_platforms,
+        share_counts=share_counts_analytics,
+        referrer_summary=referrer_summary,
+        total_subscribers=total_subscribers,
+        confirmed_subscribers=confirmed_subscribers,
+    )
+
+
+# --- Item 5: Draft Preview ---
+
+@admin.route("/preview/<int:post_id>")
+@login_required
+def preview_post(post_id):
+    post = db.session.get(Post, post_id)
+    if not post:
+        abort(404)
+    from app.config import BASE_URL
+    short_code = post.short_code()
+    share_url = f"{BASE_URL}/s/{short_code}"
+    return render_template(
+        "admin/preview.html",
+        post=post,
+        related=[],
+        share_url=share_url,
+        short_code=short_code,
+        preview_mode=True,
+    )
+
+
+# --- Item 7: Subscriber Management ---
+
+@admin.route("/subscribers")
+@login_required
+def subscribers():
+    page = request.args.get("page", 1, type=int)
+    filter_status = request.args.get("status", "all")
+
+    query = Subscriber.query
+    if filter_status == "confirmed":
+        query = query.filter(Subscriber.confirmed == True)
+    elif filter_status == "unconfirmed":
+        query = query.filter(Subscriber.confirmed == False)
+
+    pagination = (
+        query.order_by(Subscriber.created_at.desc())
+        .paginate(page=page, per_page=50, error_out=False)
+    )
+    return render_template(
+        "admin/subscribers.html",
+        subscribers=pagination.items,
+        pagination=pagination,
+        filter_status=filter_status,
+    )
+
+
+@admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
+@login_required
+def delete_subscriber(sub_id):
+    sub = db.session.get(Subscriber, sub_id)
+    if not sub:
+        abort(404)
+    email = sub.email
+    db.session.delete(sub)
+    db.session.commit()
+    flash(f"Subscriber {email} deleted.", "success")
+    return redirect(url_for("admin.subscribers"))
+
+
+@admin.route("/subscribers/export")
+@login_required
+def export_subscribers():
+    subs = Subscriber.query.order_by(Subscriber.created_at.desc()).all()
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["email", "confirmed", "created_at", "expires_at"])
+    for s in subs:
+        writer.writerow([
+            s.email,
+            s.confirmed,
+            s.created_at.isoformat() if s.created_at else "",
+            s.expires_at.isoformat() if s.expires_at else "",
+        ])
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=subscribers.csv"},
+    )
+
+
+# --- Item 8: Live Markdown Preview ---
+
+@admin.route("/preview-markdown", methods=["POST"])
+@login_required
+def preview_markdown():
+    data = request.get_json(silent=True)
+    if not data or "text" not in data:
+        return jsonify({"error": "invalid"}), 400
+    import nh3
+    import markdown as md
+    html = md.markdown(data["text"], extensions=["fenced_code", "tables"])
+    allowed_tags = {
+        "p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote",
+        "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "a", "img",
+        "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div",
+    }
+    allowed_attributes = {
+        "a": {"href", "title"},
+        "img": {"src", "alt", "title", "width", "height"},
+        "span": {"class"},
+        "div": {"class"},
+        "*": {"class"},
+    }
+    clean = nh3.clean(html, tags=allowed_tags, attributes=allowed_attributes)
+    return jsonify({"html": clean})
+
+
+# --- Item 11: Media Library ---
+
+@admin.route("/media")
+@login_required
+def media():
+    import glob as globmod
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    files = []
+    for filepath in sorted(globmod.glob(os.path.join(upload_dir, "*")), key=os.path.getmtime, reverse=True):
+        stat = os.stat(filepath)
+        filename = os.path.basename(filepath)
+        files.append({
+            "name": filename,
+            "size": stat.st_size,
+            "mtime": utc_now(),
+        })
+    return render_template("admin/media.html", files=files)
+
+
+@admin.route("/media/delete/<filename>", methods=["POST"])
+@login_required
+def delete_media(filename):
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+    if not os.path.exists(filepath):
+        abort(404)
+    os.remove(filepath)
+    flash(f"Deleted {filename}.", "success")
+    return redirect(url_for("admin.media"))
+
+
+# --- Item 12: Tag Management ---
+
+@admin.route("/tags")
+@login_required
+def tags_list():
+    from app.models import post_tags
+    tags = Tag.query.order_by(Tag.name).all()
+    tag_post_counts = dict(
+        db.session.query(post_tags.c.tag_id, func.count(post_tags.c.post_id))
+        .group_by(post_tags.c.tag_id)
+        .all()
+    )
+    return render_template("admin/tags.html", tags=tags, tag_post_counts=tag_post_counts)
+
+
+@admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
+@login_required
+def rename_tag(tag_id):
+    tag = db.session.get(Tag, tag_id)
+    if not tag:
+        abort(404)
+    new_name = request.form.get("name", "").strip()[:50]
+    if not new_name:
+        flash("Tag name cannot be empty.", "error")
+        return redirect(url_for("admin.tags_list"))
+    if not re.match(r"^[\w\s-]+$", new_name):
+        flash("Invalid tag name.", "error")
+        return redirect(url_for("admin.tags_list"))
+    tag.name = new_name
+    tag.slug = Tag.generate_slug(new_name)
+    db.session.commit()
+    flash(f"Tag renamed to '{new_name}'.", "success")
+    return redirect(url_for("admin.tags_list"))
+
+
+@admin.route("/tags/delete/<int:tag_id>", methods=["POST"])
+@login_required
+def delete_tag(tag_id):
+    tag = db.session.get(Tag, tag_id)
+    if not tag:
+        abort(404)
+    name = tag.name
+    db.session.delete(tag)
+    db.session.commit()
+    flash(f"Tag '{name}' deleted.", "success")
+    return redirect(url_for("admin.tags_list"))
+
+
+@admin.route("/tags/create", methods=["POST"])
+@login_required
+def create_tag():
+    name = request.form.get("name", "").strip()[:50]
+    if not name:
+        flash("Tag name cannot be empty.", "error")
+        return redirect(url_for("admin.tags_list"))
+    if not re.match(r"^[\w\s-]+$", name):
+        flash("Invalid tag name.", "error")
+        return redirect(url_for("admin.tags_list"))
+    slug = Tag.generate_slug(name)
+    existing = Tag.query.filter_by(slug=slug).first()
+    if existing:
+        flash(f"Tag '{name}' already exists.", "warning")
+        return redirect(url_for("admin.tags_list"))
+    tag = Tag(name=name, slug=slug)
+    db.session.add(tag)
+    db.session.commit()
+    flash(f"Tag '{name}' created.", "success")
+    return redirect(url_for("admin.tags_list"))
+
+
+# --- Item 13: Newsletter Test Send ---
+
+@admin.route("/newsletter-test", methods=["POST"])
+@login_required
+def newsletter_test():
+    from app.email import send_newsletter
+    from app.config import APP_TITLE
+    posts = (
+        Post.query.filter_by(published=True)
+        .order_by(Post.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    if not posts:
+        flash("No published posts to send.", "error")
+        return redirect(url_for("admin.dashboard"))
+    from app.models import User
+    admin_user = User.query.first()
+    if not admin_user:
+        flash("No admin user found.", "error")
+        return redirect(url_for("admin.dashboard"))
+    fake_sub = type("FakeSub", (), {
+        "email": admin_user.username + "@example.com",
+        "token": "test",
+    })()
+    try:
+        send_newsletter(posts, [fake_sub])
+        flash("Test newsletter sent.", "success")
+    except Exception as e:
+        flash(f"Failed to send test newsletter: {e}", "error")
+    return redirect(url_for("admin.dashboard"))
+
+
+# --- Item 14: Bulk Post Operations ---
+
+@admin.route("/bulk", methods=["POST"])
+@login_required
+def bulk_operations():
+    action = request.form.get("action")
+    post_ids = request.form.getlist("post_ids")
+    if not post_ids:
+        flash("No posts selected.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    posts = Post.query.filter(Post.id.in_(post_ids)).all()
+    if not posts:
+        flash("No posts found.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if action == "publish":
+        now = utc_now()
+        for post in posts:
+            if not post.published:
+                post.published = True
+                post.published_at = now
+        db.session.commit()
+        flash(f"Published {len(posts)} post(s).", "success")
+    elif action == "unpublish":
+        for post in posts:
+            post.published = False
+        db.session.commit()
+        flash(f"Unpublished {len(posts)} post(s).", "success")
+    elif action == "delete":
+        for post in posts:
+            if post.image:
+                try:
+                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], post.image))
+                except FileNotFoundError:
+                    pass
+            db.session.delete(post)
+        db.session.commit()
+        flash(f"Deleted {len(posts)} post(s).", "success")
+    else:
+        flash("Invalid action.", "error")
+
+    return redirect(url_for("admin.dashboard"))

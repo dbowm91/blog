@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Media Library | Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Media Library</h1>
+    </div>
+
+    {% if files %}
+    <div class="media-grid">
+        {% for f in files %}
+        <div class="media-card">
+            <div class="media-card-img">
+                <img src="{{ url_for('static', filename='uploads/' + f.name) }}" alt="{{ f.name }}" loading="lazy" decoding="async">
+            </div>
+            <div class="media-card-info">
+                <span class="media-name" title="{{ f.name }}">{{ f.name }}</span>
+                <span class="media-size">{{ (f.size / 1024) | round(1) }} KB</span>
+            </div>
+            <div class="media-card-actions">
+                <button class="btn btn-small btn-ghost media-copy-btn" data-url="{{ url_for('static', filename='uploads/' + f.name) }}">Copy URL</button>
+                <form method="POST" action="{{ url_for('admin.delete_media', filename=f.name) }}" class="inline-form" data-confirm="Delete {{ f.name }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No uploaded files.</p>
+    {% endif %}
+</div>
+{% endblock %}

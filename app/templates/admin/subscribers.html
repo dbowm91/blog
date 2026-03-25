@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Subscribers | Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Subscribers</h1>
+        <a href="{{ url_for('admin.export_subscribers') }}" class="btn btn-ghost btn-small">Export CSV</a>
+    </div>
+
+    <div class="filter-bar">
+        <a href="{{ url_for('admin.subscribers', status='all') }}" class="filter-link {% if filter_status == 'all' %}active{% endif %}">All</a>
+        <a href="{{ url_for('admin.subscribers', status='confirmed') }}" class="filter-link {% if filter_status == 'confirmed' %}active{% endif %}">Confirmed</a>
+        <a href="{{ url_for('admin.subscribers', status='unconfirmed') }}" class="filter-link {% if filter_status == 'unconfirmed' %}active{% endif %}">Unconfirmed</a>
+    </div>
+
+    <div class="post-list">
+        <div class="post-list-header">
+            <span>Email</span>
+            <span class="post-list-header-right">Actions</span>
+        </div>
+        {% for sub in subscribers %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <h3>{{ sub.email }}</h3>
+                    <div class="post-list-meta">
+                        <span class="badge badge-{{ 'published' if sub.confirmed else 'draft' }}">
+                            {{ 'Confirmed' if sub.confirmed else 'Unconfirmed' }}
+                        </span>
+                        <time>{{ sub.created_at.strftime('%b %d, %Y') }}</time>
+                        {% if sub.expires_at %}
+                        <span>Expires: {{ sub.expires_at.strftime('%b %d, %Y') }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="post-list-actions">
+                    <form method="POST" action="{{ url_for('admin.delete_subscriber', sub_id=sub.id) }}" class="inline-form" data-confirm="Remove {{ sub.email }}?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <p class="empty-state">No subscribers found.</p>
+        {% endfor %}
+    </div>
+
+    {% if pagination.pages > 1 %}
+        <nav class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('admin.subscribers', page=pagination.prev_num, status=filter_status) }}" class="page-link">&larr; Prev</a>
+            {% endif %}
+            <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+            {% if pagination.has_next %}
+                <a href="{{ url_for('admin.subscribers', page=pagination.next_num, status=filter_status) }}" class="page-link">Next &rarr;</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

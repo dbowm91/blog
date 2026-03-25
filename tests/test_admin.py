@@ -113,3 +113,33 @@ def test_upload_invalid_extension(authenticated_client, db):
     }
     response = authenticated_client.post('/admin/new', data=data, content_type='multipart/form-data', follow_redirects=True)
     assert response.status_code == 200
+
+
+def test_analytics_requires_auth(client):
+    """Test analytics page requires authentication."""
+    response = client.get('/admin/analytics')
+    assert response.status_code == 302
+
+
+def test_analytics_authenticated(authenticated_client):
+    """Test analytics page loads for authenticated users."""
+    response = authenticated_client.get('/admin/analytics')
+    assert response.status_code == 200
+    assert b'Analytics' in response.data
+
+
+def test_analytics_date_range(authenticated_client):
+    """Test analytics page with different date ranges."""
+    response = authenticated_client.get('/admin/analytics?days=7')
+    assert response.status_code == 200
+    response = authenticated_client.get('/admin/analytics?days=90')
+    assert response.status_code == 200
+
+
+def test_dashboard_shows_stats(authenticated_client):
+    """Test dashboard displays stat cards."""
+    response = authenticated_client.get('/admin/')
+    assert response.status_code == 200
+    assert b'Total Views' in response.data
+    assert b'Published Posts' in response.data
+    assert b'Subscribers' in response.data

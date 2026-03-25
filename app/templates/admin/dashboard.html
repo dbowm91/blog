@@ -3,62 +3,141 @@
 {% block content %}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
-        <h1>Posts</h1>
-        <a href="{{ url_for('admin.new_post') }}" class="btn btn-primary">+ New Post</a>
+        <h1>Dashboard</h1>
+        <div style="display:flex;gap:8px;">
+            <form method="POST" action="{{ url_for('admin.newsletter_test') }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-ghost btn-small" title="Send latest 3 posts to admin email">Test Newsletter</button>
+            </form>
+            <a href="{{ url_for('admin.new_post') }}" class="btn btn-primary">+ New Post</a>
+        </div>
     </div>
 
-    <div class="post-list">
-        <div class="post-list-header">
-            <span>Title</span>
-            <span class="post-list-header-right">Metrics</span>
+    <div class="stats-cards">
+        <div class="stat-card">
+            <span class="stat-value">{{ total_views }}</span>
+            <span class="stat-label">Total Views</span>
         </div>
-        {% for post in posts %}
-            <div class="post-list-item">
-                <div class="post-list-info">
-                    <h3><a href="{{ url_for('admin.edit_post', post_id=post.id) }}">{{ post.title }}</a></h3>
-                    <div class="post-list-meta">
-                        <span class="badge badge-{{ 'published' if post.published else 'draft' }}">
-                            {{ 'Published' if post.published else 'Draft' }}
+        <div class="stat-card">
+            <span class="stat-value">{{ total_posts }}</span>
+            <span class="stat-label">Published Posts</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ total_shares }}</span>
+            <span class="stat-label">Total Shares</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ total_subscribers }}</span>
+            <span class="stat-label">Subscribers</span>
+            {% if new_this_month > 0 %}
+            <span class="stat-sub">+{{ new_this_month }} this month</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if trending %}
+    <div class="trending-widget">
+        <h3 class="trending-title">Trending (30 days)</h3>
+        <ul class="trending-list">
+            {% for post, view_count in trending %}
+            <li>
+                <a href="{{ url_for('admin.edit_post', post_id=post.id) }}">{{ post.title }}</a>
+                <span class="trending-views">{{ view_count }} views</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="dashboard-section-header">
+        <h2>All Posts</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <a href="{{ url_for('admin.subscribers') }}" class="btn btn-ghost btn-small">Subscribers</a>
+            <a href="{{ url_for('admin.media') }}" class="btn btn-ghost btn-small">Media</a>
+            <a href="{{ url_for('admin.tags_list') }}" class="btn btn-ghost btn-small">Tags</a>
+            <a href="{{ url_for('admin.analytics') }}" class="btn btn-ghost btn-small">Analytics</a>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <form method="GET" action="{{ url_for('admin.dashboard') }}" class="filter-form">
+            <input type="text" name="q" placeholder="Search titles..." class="search-input" value="{{ q }}">
+            <select name="status" class="filter-select" onchange="this.form.submit()">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+                <option value="published" {% if status == 'published' %}selected{% endif %}>Published</option>
+                <option value="draft" {% if status == 'draft' %}selected{% endif %}>Draft</option>
+            </select>
+            <button type="submit" class="btn btn-small btn-ghost">Filter</button>
+        </form>
+    </div>
+
+    {% if posts %}
+    <form method="POST" action="{{ url_for('admin.bulk_operations') }}" id="bulk-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="bulk-actions">
+            <input type="checkbox" id="select-all" title="Select all">
+            <button type="submit" name="action" value="publish" class="btn btn-small btn-ghost" data-confirm-bulk="Publish selected posts?">Publish</button>
+            <button type="submit" name="action" value="unpublish" class="btn btn-small btn-ghost" data-confirm-bulk="Unpublish selected posts?">Unpublish</button>
+            <button type="submit" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected posts? This cannot be undone.">Delete</button>
+        </div>
+
+        <div class="post-list">
+            <div class="post-list-header">
+                <span>Title</span>
+                <span class="post-list-header-right">Metrics</span>
+            </div>
+            {% for post in posts %}
+                <div class="post-list-item">
+                    <input type="checkbox" name="post_ids" value="{{ post.id }}" class="bulk-checkbox">
+                    <div class="post-list-info">
+                        <h3><a href="{{ url_for('admin.edit_post', post_id=post.id) }}">{{ post.title }}</a></h3>
+                        <div class="post-list-meta">
+                            <span class="badge badge-{{ 'published' if post.published else 'draft' }}">
+                                {{ 'Published' if post.published else 'Draft' }}
+                            </span>
+                            <time>{{ post.updated_at.strftime('%b %d, %Y at %H:%M') }}</time>
+                            <span class="post-list-tags">
+                                {% for tag in post.tags %}
+                                    #{{ tag.name }}{% if not loop.last %} {% endif %}
+                                {% endfor %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="post-list-metrics">
+                        <span class="metric" title="Page views">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                            {{ view_counts.get(post.id, 0) }}
                         </span>
-                        <time>{{ post.updated_at.strftime('%b %d, %Y at %H:%M') }}</time>
-                        <span class="post-list-tags">
-                            {% for tag in post.tags %}
-                                #{{ tag.name }}{% if not loop.last %} {% endif %}
-                            {% endfor %}
+                        <span class="metric" title="Shares">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+                            {{ share_counts.get(post.id, 0) }}
                         </span>
                     </div>
+                    <div class="post-list-actions">
+                        <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-small">Edit</a>
+                        <form method="POST" action="{{ url_for('admin.delete_post', post_id=post.id) }}" class="inline-form" data-confirm="Are you sure you want to delete this post? This cannot be undone.">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="post-list-metrics">
-                    <span class="metric" title="Page views">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                        {{ view_counts.get(post.id, 0) }}
-                    </span>
-                    <span class="metric" title="Shares">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
-                        {{ share_counts.get(post.id, 0) }}
-                    </span>
-                </div>
-                <div class="post-list-actions">
-                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-small">Edit</a>
-                    <form method="POST" action="{{ url_for('admin.delete_post', post_id=post.id) }}" class="inline-form" data-confirm="Are you sure you want to delete this post? This cannot be undone.">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
-                    </form>
-                </div>
-            </div>
-        {% else %}
-            <p class="empty-state">No posts yet. Create your first one.</p>
-        {% endfor %}
-    </div>
+            {% else %}
+                <p class="empty-state">No posts match your search.</p>
+            {% endfor %}
+        </div>
+    </form>
+    {% else %}
+    <p class="empty-state">No posts yet. Create your first one.</p>
+    {% endif %}
 
     {% if pagination.pages > 1 %}
         <nav class="pagination">
             {% if pagination.has_prev %}
-                <a href="{{ url_for('admin.dashboard', page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+                <a href="{{ url_for('admin.dashboard', page=pagination.prev_num, q=q, status=status) }}" class="page-link">&larr; Newer</a>
             {% endif %}
             <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
             {% if pagination.has_next %}
-                <a href="{{ url_for('admin.dashboard', page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+                <a href="{{ url_for('admin.dashboard', page=pagination.next_num, q=q, status=status) }}" class="page-link">Older &rarr;</a>
             {% endif %}
         </nav>
     {% endif %}

@@ -159,3 +159,59 @@ The `set_security_headers` after-request handler sets:
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
 - `Content-Security-Policy` (self-only sources, no `unsafe-inline`)
 - `Cache-Control: public, max-age=31536000, immutable` (static assets only)
+
+## Dark/Light Mode
+
+- Theme toggle uses `[data-theme="light"]` on `<html>` element
+- Light mode CSS variables override dark defaults in `style.css`
+- Default dark mode: no `data-theme` attribute (uses `:root` variables)
+- Preference stored in `localStorage` key `theme`; defaults to `prefers-color-scheme`
+- Toggle button injected into navbar via JS (both public and admin)
+- SVG sun/moon icons swap on toggle
+
+## Draft Autosave
+
+- Saved to `localStorage` with key `draft-<post_id>` or `draft-new`
+- Throttled to every 5 seconds on any editor input
+- On load: if draft exists and textarea is empty, prompts to restore
+- Cleared on successful form submit
+
+## Live Markdown Preview
+
+- Split editor layout: textarea left, preview right (CSS grid `1fr 1fr`)
+- Debounced 300ms rendering via `POST /admin/preview-markdown`
+- Reuses the same `nh3.clean()` config as `markdown_safe_filter`
+- Preview pane uses `.prose` class for consistent styling
+
+## File Upload Cleanup
+
+- `edit_post()`: when replacing an image, old file is removed with `os.remove()` + `FileNotFoundError` guard
+- `delete_post()`: removes image file before deleting post record
+- `bulk_operations()`: removes images for deleted posts
+
+## Dashboard Search/Filter
+
+- Search query param `?q=` filters posts by title using `ilike`
+- Status param `?status=published|draft|all` filters by publication state
+- Pagination preserves both `q` and `status` params in links
+
+## Preview Mode
+
+- Route: `GET /admin/preview/<post_id>` (login required)
+- Renders `_post_content.html` partial via `{% include %}`
+- Shows yellow `.preview-banner` above content
+- Works for both drafts and published posts
+
+## Template Partials
+
+- `_post_content.html` contains the article markup shared between `post.html` and `admin/preview.html`
+- Uses `{% include %}` (not `{% extends %}`) so it doesn't conflict with base template blocks
+- Relies on `author_name`, `author_avatar`, `author_role` from context processor
+
+## Bulk Operations
+
+- Dashboard has checkboxes on each post row + "Select All" toggle
+- Form wraps the entire post list with `action="/admin/bulk"`
+- Three submit buttons: Publish, Unpublish, Delete — each sends `action` value
+- Destructive actions use `data-confirm-bulk` attribute (not inline `onclick`)
+- Image cleanup included for bulk delete

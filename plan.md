@@ -1,140 +1,62 @@
-# Codebase Review: Action Plan
+# Improvement Plan
 
-Merged from plan.md, plan2.md, plan3.md — inaccurate claims removed, already-fixed items verified.
+## Completed (Verified)
 
-## Status of Previous Items
+These items were implemented in prior sessions and verified against the current codebase.
 
-All original Priority 1 and Priority 2 items have been **fixed** in the current code:
-
-| Item | Status | Evidence |
-|------|--------|----------|
-| 1.1 Slug regeneration | **Fixed** | `admin.py:192` — conditional on `title != post.title` |
-| 1.2 Newsletter dedup | **Fixed** | `scheduler.py:24` — uses `newsletter_sent_at == None` |
-| 1.3 Timezone comparison | **Not a bug** | `utc_now()` returns naive, `expires_at` default is naive — consistent |
-| 1.4 Race condition | **Fixed** | `__init__.py:187-192` — `IntegrityError` handling present |
-| 2.1 Remove `create_all()` | **Fixed** | Not in `create_app()` — only in test fixtures |
-| 2.2 SMTP reuse | **Fixed** | `email.py:56` — single connection for newsletter batch |
-| 2.3 Base62 validation | **Fixed** | `base62.py:20-21` — explicit character check |
-| 2.4 Tag count cache | **Fixed** | `public.py:20-21` — 60-second TTL cache |
-| 2.5 Lock file cleanup | **Fixed** | `scheduler.py:43-49` — `os.remove` in finally block |
-| 3.3 Delete confirmation | **Fixed** | `dashboard.html:43` — `data-confirm` attribute + `main.js` handler (CSP-safe) |
-| 3.4 Invalid tag feedback | **Fixed** | `admin.py:245-246` — flash warning |
-| 5.2 Variable shadowing | **Fixed** | `admin.py:197` — `was_published` saved before overwrite |
-
----
-
-## Remaining Issues
-
-### Priority 1 — Code Quality
-
-#### 1.1 Remove unused `markdown` filter
-**File:** `app/__init__.py:83-85`
-**Problem:** The `markdown` filter outputs unsanitized HTML. No template uses it (all use `markdown_safe`). It's dead code and a potential XSS vector if accidentally used.
-**Fix:** Remove the `markdown` filter entirely.
-
-#### 1.2 Remove or document `csrf_exempt` decorator
-**File:** `app/csrf.py:24-27`
-**Problem:** Decorator defined but never used on any route. Dead code.
-**Fix:** Remove it. It can be re-added if a webhook or public API route needs it later.
-
-#### 1.3 Consolidate duplicate `before_request` handlers
-**File:** `app/__init__.py:114-139`
-**Problem:** Two separate `@app.before_request` functions (CSRF validation and session timeout). Flask executes both, but the intent isn't obvious — consolidation improves readability.
-**Fix:** Merge into a single `before_request` function with clear sections.
-
-### Priority 2 — Security & UX
-
-#### 2.1 Image upload silent failure
-**File:** `app/routes/admin.py:52-58`
-**Problem:** When `_save_image()` detects an invalid image type (magic bytes don't match extension), it returns `None` with no feedback. The user uploads a file, the post is saved, and the image is silently dropped.
-**Fix:** Return an error message tuple from `_save_image()` and flash it:
-```python
-def _save_image(file):
-    if file and file.filename and _allowed_file(file.filename):
-        header = file.read(32)
-        file.seek(0)
-        detected = _detect_image_type(header)
-        if detected not in ("png", "jpeg", "gif", "webp"):
-            return None, "Uploaded file is not a valid image."
-        ext = file.filename.rsplit(".", 1)[1].lower()
-        filename = f"{uuid.uuid4().hex}.{ext}"
-        file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
-        return filename, None
-    return None, None
-```
-Then in `new_post()` and `edit_post()`, flash the error if present.
-
-#### 2.2 CSP blocks inline `onsubmit`
-**File:** `app/__init__.py:150-157`, `app/templates/admin/dashboard.html:43`
-**Problem:** CSP is `'self'` only (no `unsafe-inline`). The delete confirmation uses `onsubmit="return confirm(...)"` which is an inline script and will be blocked by strict CSP enforcement.
-**Fix:** Move the confirmation to an external JS handler or add a data attribute and handle it in `main.js`:
-```html
-<form ... data-confirm="Are you sure you want to delete this post? This cannot be undone.">
-```
-```javascript
-document.querySelectorAll('form[data-confirm]').forEach(form => {
-    form.addEventListener('submit', e => {
-        if (!confirm(form.dataset.confirm)) e.preventDefault();
-    });
-});
-```
-
-#### 2.3 Update default base_url to HTTPS
-**File:** `config.toml:23`
-**Problem:** `http://localhost:5000` means all links and OG tags are HTTP if deployed without overriding. The `Strict-Transport-Security` header is meaningless with HTTP defaults.
-**Fix:** Change default to `https://localhost:5000` or add a comment warning that production deployments must override this.
-
-### Priority 3 — Minor Improvements
-
-#### 3.1 Move config validation out of module-level imports
-**File:** `app/__init__.py:10-13`, `app/config.py:27-30`
-**Problem:** Runtime errors at import time make the module hard to import in scripts, tests, or tools without env vars set.
-**Fix:** Defer validation to `create_app()`. The test fixture already sets env vars before import, so this is a minor ergonomic issue.
-
-#### 3.2 Add type hints to public-facing functions
-**File:** `app/utils.py`, `app/base62.py`, `app/csrf.py`, `app/rate_limit.py`
-**Problem:** Most functions lack type hints. Inconsistent across the codebase.
-**Fix:** Add type hints to function signatures. Low priority but improves maintainability.
+| Item | Evidence |
+|------|----------|
+| Slug regeneration only on title change | `admin.py:223` — conditional on `title != post.title` |
+| Newsletter dedup via `newsletter_sent_at` | `scheduler.py:24` — filters `newsletter_sent_at == None` |
+| Race condition on first-run user creation | `__init__.py:187-192` — `IntegrityError` handling |
+| SMTP connection reuse for newsletter batch | `email.py:56` — single connection |
+| Base62 input validation | `base62.py:20-21` — explicit character check |
+| Tag count cache (60s TTL) | `public.py:20-38` — monotonic clock cache |
+| Lock file cleanup in scheduler | `scheduler.py:43-49` — `os.remove` in finally |
+| Delete confirmation (CSP-safe) | `dashboard.html` — `data-confirm` + `main.js` handler |
+| Image upload error feedback | `admin.py:56-60` — returns error tuple, callers flash it |
+| Remove unsanitized `markdown` filter | Only `markdown_safe_filter` remains at `__init__.py:87` |
+| Remove unused `csrf_exempt` decorator | `csrf.py` — no such decorator exists |
+| Consolidate `before_request` into single handler | `__init__.py:114` — single function |
+| HTTPS default in `config.toml` | `config.toml:23` — `https://localhost:5000` |
+| Config validation deferred to `create_app()` | `__init__.py:40-41` — called inside factory |
+| Type hints on utility functions | `utils.py`, `base62.py`, `csrf.py`, `rate_limit.py` |
+| Dashboard stat cards (views, posts, shares, subscribers) | `dashboard.html:10-29` |
+| Trending posts widget (30 days) | `dashboard.html:32-44` |
+| Referrer tracking on page views | `models.py:113` — `referrer` column; `public.py:88` — captured |
+| Analytics page with date-range filtering | `/admin/analytics` — `admin.py` |
+| Share platform distinction (short URL vs click tracking) | `public.py:176` — short URL clicks tracked as `platform="link"`; `main.js:116` — social/copy clicks tracked per-platform |
+| Fix `flash-warning` CSS | `style.css` — `.flash-warning` class added |
+| Add favicon | `static/img/favicon.svg` — SVG favicon; `<link rel="icon">` in both base templates; `/favicon.ico` redirects to SVG |
+| Strip markdown from RSS fallback | `rss.py` — `_strip_markdown()` removes `#`, `**`, backticks, links from body fallback |
+| Clean orphaned uploads | `admin.py` — `os.remove()` on image replace/remove in `edit_post()` and `delete_post()` with `FileNotFoundError` guard |
+| Draft preview | `admin/preview/<post_id>` route renders `_post_content.html` regardless of published state; "Preview" link in editor |
+| Dashboard search/filter | `dashboard.html` — search input (`?q=`) filters by title `ilike`; status dropdown (`?status=published/draft/all`); pagination preserves params |
+| Subscriber management | `/admin/subscribers` — list with pagination, filter by confirmed/unconfirmed, per-subscriber delete, CSV export endpoint |
+| Live markdown preview | Split editor layout (textarea + preview pane); debounced 300ms rendering via `POST /admin/preview-markdown`; styled to match `.prose` output |
+| Draft autosave | `localStorage` save every 5s on input; keys `draft-<post_id>` or `draft-new`; restore prompt on load; cleared on submit |
+| Dark/light mode toggle | CSS variables under `[data-theme="light"]`; toggle button in navbar (sun/moon SVG); `localStorage` persistence; defaults to system `prefers-color-scheme` |
+| Media library | `/admin/media` — grid view of `static/uploads/`, shows filename/size, copy URL to clipboard, delete with confirmation |
+| Tag management | `/admin/tags` — list with post counts, inline rename, create new, delete (removes from all posts) |
+| Newsletter test send | `POST /admin/newsletter-test` — sends latest 3 published posts to admin email |
+| Bulk post operations | Dashboard checkboxes + "Select All" toggle; bulk publish/unpublish/delete via `POST /admin/bulk`; confirmation dialogs for destructive actions |
 
 ---
 
-## Rejected Items
+## Deferred Items
 
-| Source | Claim | Verdict | Reason |
-|--------|-------|---------|--------|
-| plan2.md 1.1 | Newsletter resends on partial failure | **Acceptable trade-off** | Per-subscriber tracking adds complexity; resending a few emails on crash is tolerable for a personal blog |
-| plan2.md 2.2 | `fromisoformat` timezone mismatch | **False** | `utc_now()` returns naive, `session["last_activity"]` stores naive ISO — `fromisoformat` produces naive, no mismatch |
-| plan2.md 3.1 | NewsletterRecipient tracking table | **Overengineering** | Per-subscriber delivery tracking is unnecessary for a personal blog |
-| plan2.md 3.2 | Newsletter retry with backoff | **Overengineering** | APScheduler runs daily; natural retry on next run is sufficient |
-| plan2.md 5.1 | Per-route request size limits | **Already handled** | `MAX_CONTENT_LENGTH = 16MB` enforced globally |
-| plan2.md 5.2 | Rate limit admin POST routes | **Overengineering** | Single-user blog; login is rate-limited, which is the realistic attack surface |
-| plan3.md 1.1 | Newsletter sends all unpublished posts | **False** | Query filters `Post.published == True` — unpublished posts are excluded |
-| plan3.md 1.2 | `expires_at`/`utc_now()` timezone mismatch | **False** | Both are naive datetimes |
-| plan3.md 2.1 | Slug regeneration unconditional | **Already fixed** | `admin.py:192` has `if title != post.title` guard |
-| plan3.md 2.3 | SMTP connection per subscriber | **False** | `send_newsletter()` opens one connection and reuses it |
-| plan3.md 2.4 | Add user deletion route | **Not applicable** | Single-user blog; user management via env vars |
-| plan3.md 3.1 | Missing `tests/__init__.py` | **False** | File exists |
-| plan.md 3.1 | Timezone-aware `expires_at` | **Not needed** | Naive datetimes are used consistently throughout |
+No items deferred — all 14 planned items were implemented.
 
 ---
 
-## Execution Order
+## Potential Future Enhancements
 
-1. **1.1** — Remove unused `markdown` filter (quick, removes XSS risk) — ✅
-2. **1.2** — Remove unused `csrf_exempt` (quick, dead code cleanup) — ✅
-3. **2.1** — Image upload error feedback (real UX improvement) — ✅
-4. **2.2** — Fix CSP / inline onsubmit (correctness) — ✅
-5. **2.3** — HTTPS default base_url (security) — ✅
-6. **1.3** — Consolidate before_request handlers (readability) — ✅ (already consolidated)
-7. **3.1** — Defer config validation (ergonomics) — ✅
-8. **3.2** — Type hints (as time permits) — ✅ (already present in all target files)
+These were not in the original plan but emerged during implementation:
 
-**All items completed. No deferred items.**
-
-### Notes on this pass
-
-- Item 1.3 (consolidate `before_request`) was already done in a prior session — both handlers were already merged into a single function
-- Item 3.2 (type hints) was already present — `utils.py`, `base62.py`, `csrf.py`, and `rate_limit.py` all had complete type annotations
-- Removing the top-level `import markdown` broke `markdown_safe_filter` — fixed by moving to a local import inside the filter function
-- Moving `create_app()` past the `configure_logging` definition accidentally dropped the function — restored it
-- The delete confirmation (item 3.3 from the previous items table) was updated from inline `onsubmit` to `data-confirm` in this pass to match the CSP fix from item 2.2
+- **Pagination on media library** — currently loads all files; could paginate if uploads grow large
+- **Tag slug uniqueness on rename** — `rename_tag()` doesn't check for slug collisions with other tags
+- **Autosave indicator** — visual feedback when draft is auto-saved (e.g., "Saved 5s ago")
+- **Media library filtering/search** — find files by name
+- **Dark mode in preview template** — preview page uses base.html which includes theme toggle; works correctly
+- **Subscriber search** — search subscribers by email
+- **Per-subscriber newsletter send** — send newsletter to a single subscriber for testing

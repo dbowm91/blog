@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin | {{ site_title }}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/prism-okaidia.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -17,7 +18,11 @@
             <div class="nav-links">
                 <a href="{{ url_for('public.index') }}">View Site</a>
                 {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('admin.dashboard') }}">Posts</a>
+                    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+                    <a href="{{ url_for('admin.analytics') }}">Analytics</a>
+                    <a href="{{ url_for('admin.subscribers') }}">Subscribers</a>
+                    <a href="{{ url_for('admin.media') }}">Media</a>
+                    <a href="{{ url_for('admin.tags_list') }}">Tags</a>
                     <a href="{{ url_for('admin.logout') }}">Logout</a>
                 {% endif %}
             </div>
