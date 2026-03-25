@@ -17,7 +17,7 @@ All original Priority 1 and Priority 2 items have been **fixed** in the current 
 | 2.3 Base62 validation | **Fixed** | `base62.py:20-21` — explicit character check |
 | 2.4 Tag count cache | **Fixed** | `public.py:20-21` — 60-second TTL cache |
 | 2.5 Lock file cleanup | **Fixed** | `scheduler.py:43-49` — `os.remove` in finally block |
-| 3.3 Delete confirmation | **Fixed** | `dashboard.html:43` — `confirm()` onsubmit |
+| 3.3 Delete confirmation | **Fixed** | `dashboard.html:43` — `data-confirm` attribute + `main.js` handler (CSP-safe) |
 | 3.4 Invalid tag feedback | **Fixed** | `admin.py:245-246` — flash warning |
 | 5.2 Variable shadowing | **Fixed** | `admin.py:197` — `was_published` saved before overwrite |
 
@@ -120,11 +120,21 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
 
 ## Execution Order
 
-1. **1.1** — Remove unused `markdown` filter (quick, removes XSS risk)
-2. **1.2** — Remove unused `csrf_exempt` (quick, dead code cleanup)
-3. **2.1** — Image upload error feedback (real UX improvement)
-4. **2.2** — Fix CSP / inline onsubmit (correctness)
-5. **2.3** — HTTPS default base_url (security)
-6. **1.3** — Consolidate before_request handlers (readability)
-7. **3.1** — Defer config validation (ergonomics)
-8. **3.2** — Type hints (as time permits)
+1. **1.1** — Remove unused `markdown` filter (quick, removes XSS risk) — ✅
+2. **1.2** — Remove unused `csrf_exempt` (quick, dead code cleanup) — ✅
+3. **2.1** — Image upload error feedback (real UX improvement) — ✅
+4. **2.2** — Fix CSP / inline onsubmit (correctness) — ✅
+5. **2.3** — HTTPS default base_url (security) — ✅
+6. **1.3** — Consolidate before_request handlers (readability) — ✅ (already consolidated)
+7. **3.1** — Defer config validation (ergonomics) — ✅
+8. **3.2** — Type hints (as time permits) — ✅ (already present in all target files)
+
+**All items completed. No deferred items.**
+
+### Notes on this pass
+
+- Item 1.3 (consolidate `before_request`) was already done in a prior session — both handlers were already merged into a single function
+- Item 3.2 (type hints) was already present — `utils.py`, `base62.py`, `csrf.py`, and `rate_limit.py` all had complete type annotations
+- Removing the top-level `import markdown` broke `markdown_safe_filter` — fixed by moving to a local import inside the filter function
+- Moving `create_app()` past the `configure_logging` definition accidentally dropped the function — restored it
+- The delete confirmation (item 3.3 from the previous items table) was updated from inline `onsubmit` to `data-confirm` in this pass to match the CSP fix from item 2.2
