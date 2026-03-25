@@ -20,8 +20,3 @@ def validate_csrf_token() -> None:
     if not token or token != session.get("csrf_token"):
         abort(403)
 
-
-def csrf_exempt(f):
-    """Decorator to exempt a route from CSRF validation."""
-    f._csrf_exempt = True
-    return f

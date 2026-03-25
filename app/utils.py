@@ -1,7 +1,13 @@
 import re
 import unicodedata
+from datetime import datetime, timezone
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+
+
+def utc_now() -> datetime:
+    """Return current UTC time as a naive datetime (matching SQLite storage)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def is_valid_email(email: str) -> bool:

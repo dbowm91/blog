@@ -8,7 +8,7 @@ Quick reference for AI agents working on this codebase.
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 ```
 
-Both `ADMIN_PASSWORD` and `SECRET_KEY` environment variables are **required**—the app raises `RuntimeError` at import time without them.
+Both `ADMIN_PASSWORD` and `SECRET_KEY` environment variables are **required**—the app raises `RuntimeError` when `create_app()` is called without them.
 
 ## Project Structure
 
@@ -49,15 +49,20 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
 - Both `Post.generate_slug()` and `Tag.generate_slug()` delegate to this utility
+- `_generate_unique_slug()` in `app/routes/admin.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
+- In `edit_post()`, slug is only regenerated when `title != post.title`
 
 ### Session
 - `session["viewed_posts"]` tracks viewed post IDs to avoid double-counting page views—capped at 100 entries (keeps most recent)
 - Admin session expires after 24 hours of inactivity (`check_session_timeout` in `__init__.py`)
 
 ### CSRF
-- All POST routes require CSRF token unless decorated with `@csrf_exempt`
+- All POST routes require CSRF token
 - Tests disable CSRF via `CSRF_ENABLED=False` in config
 - Token injected into templates via `context_processor`
+- The `validate_csrf_token()` in `__init__.py` checks both form data (`csrf_token`) and HTTP header (`X-CSRF-Token`)
+- `main.js` sends `X-CSRF-Token` header for the `/api/track-share` JSON endpoint (reads from `<meta name="csrf-token">`)
+- The `before_request` handler in `__init__.py` handles both CSRF validation and session timeout
 
 ### Rate Limiting
 - In-memory dicts—state lost on restart, **not shared across workers**
@@ -66,7 +71,7 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 
 ### Configuration
 - `config.toml` for site settings (title, author, email, etc.)
-- Config is validated at import time (`_validate_config` in `config.py`)
+- Config validation is deferred to `create_app()` (not import time), so `config.py` can be imported without env vars set
 - Environment variables override config values:
   - `SECRET_KEY` (required)
   - `ADMIN_PASSWORD` (required)
@@ -96,6 +101,8 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - **In-memory rate limiting**—resets on restart, doesn't share across workers
 - **File uploads**—stored locally in `static/uploads/`, no S3 support
 - **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only)
+- **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
+- **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
 
 ## Assets
 
@@ -116,7 +123,15 @@ See `requirements.txt`. Key packages:
 
 - Uses `smtplib` directly (no Celery/Redis dependency)
 - SMTP connection uses `starttls()` with `ssl.create_default_context()` for TLS certificate verification
+- Newsletter sending reuses a single SMTP connection for the entire batch
 - Newsletter sending has per-subscriber exception handling; failures are logged but don't stop the batch
+
+## Admin Routes
+
+- Tag names validated against `^[\w\s-]+$` regex; invalid names flash a warning to the user
+- Image uploads validated via magic byte detection (`_detect_image_type` in `admin.py`) — no Pillow dependency required
+- `_save_image()` returns `(filename, error_message)` tuple; callers flash the error if present
+- Allowed extensions: `png, jpg, jpeg, gif, webp`
 
 ## Templates
 
@@ -126,11 +141,11 @@ See `requirements.txt`. Key packages:
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
 - CSP header: `'self'` only for styles and fonts (fonts are self-hosted)
+- **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance)
 
 ## CSRF
 
-- `csrf_exempt` decorator is defined in `app/csrf.py` but not used on any routes
-- The `before_request` handler in `__init__.py` checks for `_csrf_exempt` attribute on view functions
+- The `before_request` handler checks for `_csrf_exempt` attribute on view functions (currently unused by any route)
 - Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config
 
 ## Security Headers
@@ -142,5 +157,5 @@ The `set_security_headers` after-request handler sets:
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy` (self-only sources)
+- `Content-Security-Policy` (self-only sources, no `unsafe-inline`)
 - `Cache-Control: public, max-age=31536000, immutable` (static assets only)

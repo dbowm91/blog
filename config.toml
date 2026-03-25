@@ -20,7 +20,7 @@ role = "Software Engineer"
 avatar = ""
 
 [site]
-base_url = "http://localhost:5000"
+base_url = "https://localhost:5000"
 related_posts_count = 3
 
 [email]

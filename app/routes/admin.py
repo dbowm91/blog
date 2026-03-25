@@ -1,7 +1,6 @@
 import os
 import re
 import uuid
-from datetime import datetime, timezone
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort
 from flask_login import login_user, logout_user, login_required, current_user
@@ -11,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent
 from app.rate_limit import check_rate_limit, record_failed_attempt, clear_attempts
+from app.utils import utc_now
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
@@ -55,12 +55,12 @@ def _save_image(file):
         file.seek(0)
         detected = _detect_image_type(header)
         if detected not in ("png", "jpeg", "gif", "webp"):
-            return None
+            return None, "Uploaded file is not a valid image."
         ext = file.filename.rsplit(".", 1)[1].lower()
         filename = f"{uuid.uuid4().hex}.{ext}"
         file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
-        return filename
-    return None
+        return filename, None
+    return None, None
 
 
 @admin.route("/login", methods=["GET", "POST"])
@@ -142,9 +142,12 @@ def new_post():
             return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
         slug = _generate_unique_slug(title)
-        image = _save_image(request.files.get("image"))
+        image, error = _save_image(request.files.get("image"))
+        if error:
+            flash(error, "error")
+            return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         post = Post(
             title=title, slug=slug, body=body, summary=summary,
             published=published, image=image,
@@ -189,17 +192,21 @@ def edit_post(post_id):
             flash("Title and body are required.", "error")
             return render_template("admin/editor.html", post=post, tag_names=tag_names)
 
+        if title != post.title:
+            post.slug = _generate_unique_slug(title, exclude_id=post.id)
         post.title = title
-        new_slug = _generate_unique_slug(title, exclude_id=post.id)
-        post.slug = new_slug
         post.body = body
         post.summary = summary
+        was_published = post.published
         post.published = published
-        if published and not post.published_at:
-            post.published_at = datetime.now(timezone.utc)
+        if published and not was_published:
+            post.published_at = utc_now()
         post.tags = _get_or_create_tags(tag_names)
 
-        image = _save_image(request.files.get("image"))
+        image, error = _save_image(request.files.get("image"))
+        if error:
+            flash(error, "error")
+            return render_template("admin/editor.html", post=post, tag_names=tag_names)
         if image:
             post.image = image
         elif "remove_image" in request.form:
@@ -227,11 +234,13 @@ def delete_post(post_id):
 
 def _get_or_create_tags(names):
     tags = []
+    invalid_tags = []
     for name in names:
         name = name.strip()[:50]
         if not name:
             continue
         if not re.match(r"^[\w\s-]+$", name):
+            invalid_tags.append(name)
             continue
         slug = Tag.generate_slug(name)
         tag = Tag.query.filter_by(slug=slug).first()
@@ -239,4 +248,6 @@ def _get_or_create_tags(names):
             tag = Tag(name=name, slug=slug)
             db.session.add(tag)
         tags.append(tag)
+    if invalid_tags:
+        flash(f"Invalid tag names (skipped): {', '.join(invalid_tags)}", "warning")
     return tags

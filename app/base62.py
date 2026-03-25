@@ -17,5 +17,7 @@ def decode(s: str) -> int:
     """Decode a base62 string to integer."""
     n = 0
     for char in s:
+        if char not in ALPHABET:
+            raise ValueError(f"Invalid base62 character: {char!r}")
         n = n * BASE + ALPHABET.index(char)
     return n

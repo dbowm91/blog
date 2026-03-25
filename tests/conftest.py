@@ -1,15 +1,15 @@
 import os
 import tempfile
-from datetime import datetime, timezone
 import pytest
 from app import create_app
 from app.extensions import db as _db
 from app.models import User, Post, Tag
+from app.utils import utc_now
 
 
-def _datetime_now() -> datetime:
+def _datetime_now():
     """Get current UTC datetime."""
-    return datetime.now(timezone.utc)
+    return utc_now()
 
 
 @pytest.fixture(scope='session')

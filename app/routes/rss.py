@@ -1,8 +1,7 @@
 from flask import Blueprint, Response
 from app.models import Post
 from app.config import APP_TITLE, APP_DESCRIPTION, BASE_URL
-from app.utils import xml_escape
-from datetime import datetime, timezone
+from app.utils import xml_escape, utc_now
 
 rss = Blueprint("rss", __name__)
 
@@ -36,7 +35,7 @@ def feed():
     <link>{BASE_URL}</link>
     <description>{xml_escape(APP_DESCRIPTION)}</description>
     <language>en-us</language>
-    <lastBuildDate>{datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")}</lastBuildDate>
+    <lastBuildDate>{utc_now().strftime("%a, %d %b %Y %H:%M:%S +0000")}</lastBuildDate>
     <atom:link href="{BASE_URL}/rss" rel="self" type="application/rss+xml"/>
 {"".join(items)}
   </channel>

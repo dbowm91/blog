@@ -1,26 +1,18 @@
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-import markdown
 from flask import Flask
 from app.extensions import db, login_manager, migrate
 from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
 from app.csrf import generate_csrf_token, validate_csrf_token
 
-if not ADMIN_PASSWORD:
-    raise RuntimeError(
-        "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
-    )
-
 
 def configure_logging(app):
     """Configure application logging."""
     if not app.debug and not app.testing:
-        # Create logs directory if it doesn't exist
         log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
         os.makedirs(log_dir, exist_ok=True)
-        
-        # File handler - rotates at 10MB, keeps 10 backups
+
         file_handler = RotatingFileHandler(
             os.path.join(log_dir, 'blog.log'),
             maxBytes=10240000,
@@ -31,12 +23,23 @@ def configure_logging(app):
         ))
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
-        
+
         app.logger.setLevel(logging.INFO)
         app.logger.info('Blog startup')
 
 
 def create_app():
+    if not SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY is required. Set it via the SECRET_KEY environment variable."
+        )
+    if not ADMIN_PASSWORD:
+        raise RuntimeError(
+            "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
+        )
+    from app.config import _validate_config, _config as _raw_config
+    _validate_config(_raw_config)
+
     app = Flask(__name__, instance_relative_config=True)
     app.config["SECRET_KEY"] = SECRET_KEY
     app.config["UPLOAD_FOLDER"] = os.path.join(
@@ -80,12 +83,9 @@ def create_app():
 
     import nh3
 
-    @app.template_filter("markdown")
-    def markdown_filter(text):
-        return markdown.markdown(text, extensions=["fenced_code", "tables"])
-
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text):
+        import markdown
         html = markdown.markdown(text, extensions=["fenced_code", "tables"])
         allowed_tags = {
             "p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote",
@@ -109,15 +109,34 @@ def create_app():
         minutes = max(1, round(words / 200))
         return f"{minutes} min read"
 
+    SESSION_LIFETIME_SECONDS = 24 * 60 * 60
+
     @app.before_request
-    def check_csrf():
-        from flask import request as req
+    def before_request_handler():
+        from flask import request as req, session, redirect, url_for, flash
+        from flask_login import current_user, logout_user
+        from datetime import datetime
+        from app.utils import utc_now
+
+        # CSRF validation for POST requests
         if req.method == "POST":
             endpoint = req.endpoint or ""
             view_func = app.view_functions.get(endpoint)
             if view_func and getattr(view_func, "_csrf_exempt", False):
-                return
-            validate_csrf_token()
+                pass
+            else:
+                validate_csrf_token()
+
+        # Session timeout check for authenticated users
+        if current_user.is_authenticated:
+            last_activity = session.get("last_activity")
+            if last_activity:
+                last = datetime.fromisoformat(last_activity)
+                if (utc_now() - last).total_seconds() > SESSION_LIFETIME_SECONDS:
+                    logout_user()
+                    flash("Session expired. Please log in again.", "info")
+                    return redirect(url_for("admin.login"))
+            session["last_activity"] = utc_now().isoformat()
 
     @app.after_request
     def set_security_headers(response):
@@ -158,36 +177,23 @@ def create_app():
 
     with app.app_context():
         from app.models import User
+        from sqlalchemy.exc import IntegrityError, OperationalError
 
-        db.create_all()
-        if not User.query.first():
-            user = User(username=ADMIN_USERNAME)
-            user.set_password(ADMIN_PASSWORD)
-            db.session.add(user)
-            db.session.commit()
+        try:
+            if not User.query.first():
+                user = User(username=ADMIN_USERNAME)
+                user.set_password(ADMIN_PASSWORD)
+                db.session.add(user)
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+        except OperationalError:
+            db.session.rollback()
 
     configure_logging(app)
 
     from app.scheduler import init_scheduler
     init_scheduler(app)
-
-    from datetime import datetime, timezone
-    from flask import session, redirect, url_for, flash
-    from flask_login import logout_user
-
-    SESSION_LIFETIME_SECONDS = 24 * 60 * 60
-
-    @app.before_request
-    def check_session_timeout():
-        from flask_login import current_user
-        if current_user.is_authenticated:
-            last_activity = session.get("last_activity")
-            if last_activity:
-                last = datetime.fromisoformat(last_activity)
-                if (datetime.now(timezone.utc) - last).total_seconds() > SESSION_LIFETIME_SECONDS:
-                    logout_user()
-                    flash("Session expired. Please log in again.", "info")
-                    return redirect(url_for("admin.login"))
-            session["last_activity"] = datetime.now(timezone.utc).isoformat()
 
     return app

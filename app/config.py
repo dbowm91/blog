@@ -24,10 +24,6 @@ APP_TITLE = _config["app"]["title"]
 APP_DESCRIPTION = _config["app"]["description"]
 POSTS_PER_PAGE = _config["app"]["posts_per_page"]
 SECRET_KEY = _env("SECRET_KEY", _config["app"].get("secret_key", ""))
-if not SECRET_KEY:
-    raise RuntimeError(
-        "SECRET_KEY is required. Set it via the SECRET_KEY environment variable."
-    )
 
 ADMIN_USERNAME = _env("ADMIN_USERNAME", _config["admin"]["username"])
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD")
@@ -71,4 +67,4 @@ def _validate_config(config: dict) -> None:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))
 
 
-_validate_config(_config)
+

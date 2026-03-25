@@ -1,4 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // --- Form delete confirmation via data-confirm attribute ---
+    document.querySelectorAll('form[data-confirm]').forEach(form => {
+        form.addEventListener('submit', e => {
+            if (!confirm(form.dataset.confirm)) e.preventDefault();
+        });
+    });
+
     // --- Element references ---
     const navbar = document.querySelector(".navbar");
     const progressBar = document.getElementById("reading-progress");

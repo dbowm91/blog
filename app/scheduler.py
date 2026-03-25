@@ -1,6 +1,5 @@
 import fcntl
 import os
-from datetime import datetime, timedelta, timezone
 
 
 def send_daily_newsletter(app):
@@ -15,13 +14,14 @@ def send_daily_newsletter(app):
         with app.app_context():
             from app.models import Post, Subscriber
             from app.email import send_newsletter
+            from app.extensions import db
+            from app.utils import utc_now
 
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             posts = (
                 Post.query.filter(
                     Post.published == True,
                     Post.published_at != None,
-                    Post.published_at >= yesterday,
+                    Post.newsletter_sent_at == None,
                 )
                 .order_by(Post.published_at.desc())
                 .all()
@@ -35,9 +35,18 @@ def send_daily_newsletter(app):
                 return
 
             send_newsletter(posts, subscribers)
+
+            now = utc_now()
+            for post in posts:
+                post.newsletter_sent_at = now
+            db.session.commit()
     finally:
         fcntl.flock(lock_file, fcntl.LOCK_UN)
         lock_file.close()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
 
 
 def init_scheduler(app):

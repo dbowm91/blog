@@ -1,12 +1,12 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db, login_manager
 from app.base62 import encode
-from app.utils import generate_slug
+from app.utils import generate_slug, utc_now
 
 post_tags = db.Table(
     "post_tags",
@@ -61,14 +61,15 @@ class Post(db.Model):
     body = db.Column(db.Text, nullable=False)
     summary = db.Column(db.String(500), default="")
     image = db.Column(db.String(256), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(
         db.DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=utc_now,
+        onupdate=utc_now,
     )
     published = db.Column(db.Boolean, default=False)
     published_at = db.Column(db.DateTime, nullable=True)
+    newsletter_sent_at = db.Column(db.DateTime, nullable=True)
 
     tags = db.relationship("Tag", secondary=post_tags, backref=db.backref("posts", lazy="dynamic"))
     page_views = db.relationship("PageView", backref="post", lazy="dynamic", cascade="all, delete-orphan")
@@ -97,8 +98,8 @@ class Subscriber(db.Model):
     email = db.Column(db.String(256), unique=True, nullable=False)
     token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex)
     confirmed = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    expires_at = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc) + timedelta(days=365))
+    created_at = db.Column(db.DateTime, default=utc_now)
+    expires_at = db.Column(db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(days=365))
 
     def __repr__(self):
         return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
@@ -109,7 +110,7 @@ class PageView(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=utc_now)
 
     def __repr__(self):
         return f"<PageView post_id={self.post_id}>"
@@ -121,7 +122,7 @@ class ShareEvent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
     platform = db.Column(db.String(32), nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=utc_now)
 
     def __repr__(self):
         return f"<ShareEvent post_id={self.post_id} platform={self.platform!r}>"

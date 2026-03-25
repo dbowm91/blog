@@ -53,24 +53,38 @@ def send_newsletter(posts, subscribers):
     if not posts or not subscribers:
         return
 
-    for sub in subscribers:
-        unsub_url = f"{BASE_URL}/unsubscribe/{sub.token}"
-        html = render_template(
-            "email/newsletter.html",
-            posts=posts,
-            site_title=APP_TITLE,
-            base_url=BASE_URL,
-            unsubscribe_url=unsub_url,
-        )
-        text = (
-            f"Latest from {APP_TITLE}\n\n"
-            + "\n\n".join(
-                f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}"
-                for p in posts
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+        server.ehlo()
+        context = ssl.create_default_context()
+        server.starttls(context=context)
+        server.ehlo()
+        if SMTP_USER:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+
+        for sub in subscribers:
+            unsub_url = f"{BASE_URL}/unsubscribe/{sub.token}"
+            html = render_template(
+                "email/newsletter.html",
+                posts=posts,
+                site_title=APP_TITLE,
+                base_url=BASE_URL,
+                unsubscribe_url=unsub_url,
             )
-            + f"\n\nUnsubscribe: {unsub_url}"
-        )
-        try:
-            _send_email(sub.email, f"Latest from {APP_TITLE}", html, text)
-        except Exception:
-            logger.exception("Failed to send newsletter to %s", sub.email)
+            text = (
+                f"Latest from {APP_TITLE}\n\n"
+                + "\n\n".join(
+                    f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}"
+                    for p in posts
+                )
+                + f"\n\nUnsubscribe: {unsub_url}"
+            )
+            msg = MIMEMultipart("alternative")
+            msg["From"] = FROM_ADDRESS
+            msg["To"] = sub.email
+            msg["Subject"] = f"Latest from {APP_TITLE}"
+            msg.attach(MIMEText(text, "plain"))
+            msg.attach(MIMEText(html, "html"))
+            try:
+                server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
+            except Exception:
+                logger.exception("Failed to send newsletter to %s", sub.email)
