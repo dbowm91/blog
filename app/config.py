@@ -50,3 +50,25 @@ SMTP_PASSWORD = _env("SMTP_PASSWORD", _config["email"].get("smtp_password", ""))
 FROM_ADDRESS = _config["email"]["from_address"]
 
 NEWSLETTER_SEND_TIME = _config["newsletter"]["send_time"]
+
+
+def _validate_config(config: dict) -> None:
+    errors = []
+    send_time = config.get("newsletter", {}).get("send_time", "08:00")
+    try:
+        parts = send_time.split(":")
+        h, m = int(parts[0]), int(parts[1])
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            raise ValueError
+    except (ValueError, IndexError):
+        errors.append(f"Invalid newsletter send_time: {send_time}. Expected HH:MM")
+
+    per_page = config.get("app", {}).get("posts_per_page", 10)
+    if not isinstance(per_page, int) or per_page < 1 or per_page > 100:
+        errors.append(f"Invalid posts_per_page: {per_page}. Must be 1-100")
+
+    if errors:
+        raise RuntimeError("Config errors:\n" + "\n".join(errors))
+
+
+_validate_config(_config)

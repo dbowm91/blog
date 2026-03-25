@@ -1,30 +1,43 @@
+import fcntl
+import os
 from datetime import datetime, timedelta, timezone
 
 
 def send_daily_newsletter(app):
-    with app.app_context():
-        from app.models import Post, Subscriber
-        from app.email import send_newsletter
+    lock_path = os.path.join(app.instance_path, "newsletter.lock")
+    try:
+        lock_file = open(lock_path, "w")
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        return
 
-        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-        posts = (
-            Post.query.filter(
-                Post.published == True,
-                Post.published_at != None,
-                Post.published_at >= yesterday,
+    try:
+        with app.app_context():
+            from app.models import Post, Subscriber
+            from app.email import send_newsletter
+
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+            posts = (
+                Post.query.filter(
+                    Post.published == True,
+                    Post.published_at != None,
+                    Post.published_at >= yesterday,
+                )
+                .order_by(Post.published_at.desc())
+                .all()
             )
-            .order_by(Post.published_at.desc())
-            .all()
-        )
 
-        if not posts:
-            return
+            if not posts:
+                return
 
-        subscribers = Subscriber.query.filter_by(confirmed=True).all()
-        if not subscribers:
-            return
+            subscribers = Subscriber.query.filter_by(confirmed=True).all()
+            if not subscribers:
+                return
 
-        send_newsletter(posts, subscribers)
+            send_newsletter(posts, subscribers)
+    finally:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
 
 
 def init_scheduler(app):

@@ -76,3 +76,70 @@ def test_favicon(client):
     """Test favicon returns 204."""
     response = client.get('/favicon.ico')
     assert response.status_code == 204
+
+
+def test_subscribe_valid_email(client, db):
+    """Test subscribing with a valid email."""
+    response = client.post('/subscribe', data={'email': 'test@example.com'}, follow_redirects=True)
+    assert response.status_code == 200
+
+
+def test_subscribe_invalid_email(client, db):
+    """Test subscribing with an invalid email."""
+    response = client.post('/subscribe', data={'email': 'invalid'}, follow_redirects=True)
+    assert b'valid email' in response.data
+
+
+def test_subscribe_duplicate(client, db):
+    """Test subscribing with an already-subscribed email."""
+    from app.models import Subscriber
+    sub = Subscriber(email='test@example.com')
+    db.session.add(sub)
+    db.session.commit()
+    response = client.post('/subscribe', data={'email': 'test@example.com'}, follow_redirects=True)
+    assert response.status_code == 200
+
+
+def test_confirm_subscription(client, db):
+    """Test confirming a subscription."""
+    from app.models import Subscriber
+    sub = Subscriber(email='test@example.com')
+    db.session.add(sub)
+    db.session.commit()
+    response = client.get(f'/confirm/{sub.token}', follow_redirects=True)
+    assert response.status_code == 200
+
+
+def test_unsubscribe(client, db):
+    """Test unsubscribing."""
+    from app.models import Subscriber
+    sub = Subscriber(email='test@example.com', confirmed=True)
+    db.session.add(sub)
+    db.session.commit()
+    response = client.get(f'/unsubscribe/{sub.token}', follow_redirects=True)
+    assert response.status_code == 200
+
+
+def test_short_url_redirect(client, db, sample_post):
+    """Test short URL redirects to post."""
+    from app.base62 import encode
+    code = encode(sample_post.id)
+    response = client.get(f'/s/{code}')
+    assert response.status_code == 302
+    assert f'/post/{sample_post.slug}' in response.headers['Location']
+
+
+def test_short_url_records_share_event(client, db, sample_post):
+    """Test short URL records a share event."""
+    from app.base62 import encode
+    from app.models import ShareEvent
+    code = encode(sample_post.id)
+    client.get(f'/s/{code}')
+    event = ShareEvent.query.filter_by(post_id=sample_post.id, platform='link').first()
+    assert event is not None
+
+
+def test_short_url_invalid_code(client):
+    """Test short URL with invalid code redirects home."""
+    response = client.get('/s/invalid')
+    assert response.status_code == 302

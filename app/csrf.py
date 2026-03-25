@@ -13,7 +13,7 @@ def generate_csrf_token() -> str:
 def validate_csrf_token() -> None:
     """Validate the CSRF token from the request."""
     # Skip CSRF validation if testing
-    if current_app.config.get('TESTING') and current_app.config.get('CSRF_ENABLED', True) is False:
+    if current_app.config.get('TESTING') and not current_app.config.get('CSRF_ENABLED', True):
         return
     
     token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")

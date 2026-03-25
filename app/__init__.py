@@ -66,9 +66,40 @@ def create_app():
         from flask import render_template
         return render_template("404.html"), 404
 
+    @app.errorhandler(500)
+    def internal_error(e):
+        from flask import render_template
+        db.session.rollback()
+        return render_template("500.html"), 500
+
+    @app.errorhandler(413)
+    def handle_large_request(e):
+        from flask import redirect, url_for, request as req, flash
+        flash("File too large. Maximum upload size is 16MB.", "error")
+        return redirect(req.referrer or url_for("admin.dashboard"))
+
+    import nh3
+
     @app.template_filter("markdown")
     def markdown_filter(text):
         return markdown.markdown(text, extensions=["fenced_code", "tables"])
+
+    @app.template_filter("markdown_safe")
+    def markdown_safe_filter(text):
+        html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+        allowed_tags = {
+            "p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote",
+            "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "a", "img",
+            "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div",
+        }
+        allowed_attributes = {
+            "a": {"href", "title"},
+            "img": {"src", "alt", "title", "width", "height"},
+            "span": {"class"},
+            "div": {"class"},
+            "*": {"class"},
+        }
+        return nh3.clean(html, tags=allowed_tags, attributes=allowed_attributes)
 
     @app.template_filter("reading_time")
     def reading_time_filter(text):
@@ -90,19 +121,23 @@ def create_app():
 
     @app.after_request
     def set_security_headers(response):
+        from flask import request as req
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "style-src 'self' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
+            "style-src 'self'; "
+            "font-src 'self'; "
             "img-src 'self' data:; "
             "script-src 'self'; "
             "frame-ancestors 'none'"
         )
+        if req.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
     @app.context_processor
@@ -135,5 +170,24 @@ def create_app():
 
     from app.scheduler import init_scheduler
     init_scheduler(app)
+
+    from datetime import datetime, timezone
+    from flask import session, redirect, url_for, flash
+    from flask_login import logout_user
+
+    SESSION_LIFETIME_SECONDS = 24 * 60 * 60
+
+    @app.before_request
+    def check_session_timeout():
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            last_activity = session.get("last_activity")
+            if last_activity:
+                last = datetime.fromisoformat(last_activity)
+                if (datetime.now(timezone.utc) - last).total_seconds() > SESSION_LIFETIME_SECONDS:
+                    logout_user()
+                    flash("Session expired. Please log in again.", "info")
+                    return redirect(url_for("admin.login"))
+            session["last_activity"] = datetime.now(timezone.utc).isoformat()
 
     return app

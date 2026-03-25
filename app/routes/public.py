@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
@@ -7,7 +9,8 @@ from app.extensions import db
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent, post_tags
 from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT
 from app.rate_limit import api_rate_limit
-from app.utils import xml_escape
+from app.email import send_confirmation
+from app.utils import xml_escape, is_valid_email
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +69,16 @@ def index():
 def post(slug):
     post = Post.query.filter_by(slug=slug, published=True).first_or_404()
 
+    MAX_VIEWED_POSTS = 100
+
     viewed = session.get("viewed_posts", [])
     if post.id not in viewed:
         pv = PageView(post_id=post.id)
         db.session.add(pv)
         db.session.commit()
         viewed.append(post.id)
+        if len(viewed) > MAX_VIEWED_POSTS:
+            viewed = viewed[-MAX_VIEWED_POSTS:]
         session["viewed_posts"] = viewed
 
     related = _get_related_posts(post)
@@ -183,7 +190,7 @@ def track_share():
 @public.route("/subscribe", methods=["POST"])
 def subscribe():
     email = request.form.get("email", "").strip().lower()
-    if not email or "@" not in email:
+    if not is_valid_email(email):
         flash("Please enter a valid email address.", "error")
         return redirect(request.referrer or "/")
 
@@ -200,7 +207,6 @@ def subscribe():
     db.session.commit()
 
     try:
-        from app.email import send_confirmation
         send_confirmation(sub)
         flash("Check your inbox to confirm your subscription.", "success")
     except Exception:
@@ -222,6 +228,9 @@ def confirm(token):
 @public.route("/unsubscribe/<token>")
 def unsubscribe(token):
     sub = Subscriber.query.filter_by(token=token).first_or_404()
+    if sub.expires_at and sub.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+        flash("This unsubscribe link has expired.", "error")
+        return redirect("/")
     email = sub.email
     db.session.delete(sub)
     db.session.commit()

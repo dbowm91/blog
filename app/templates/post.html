@@ -58,7 +58,7 @@
     {% endif %}
 
     <div class="post-body prose">
-        {{ post.body | markdown | safe }}
+        {{ post.body | markdown_safe | safe }}
     </div>
 
     <div class="author-card">

@@ -1,6 +1,13 @@
 import re
 import unicodedata
 
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+
+
+def is_valid_email(email: str) -> bool:
+    """Check if an email address is valid."""
+    return bool(email and EMAIL_REGEX.match(email))
+
 
 def generate_slug(name: str) -> str:
     """Generate a URL-friendly slug from a string."""

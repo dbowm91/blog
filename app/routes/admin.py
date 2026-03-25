@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -95,15 +96,24 @@ def logout():
 @admin.route("/")
 @login_required
 def dashboard():
-    posts = Post.query.order_by(Post.updated_at.desc()).all()
+    page = request.args.get("page", 1, type=int)
+    pagination = (
+        Post.query
+        .order_by(Post.updated_at.desc())
+        .paginate(page=page, per_page=20, error_out=False)
+    )
+    posts = pagination.items
 
+    post_ids = [p.id for p in posts]
     view_counts = dict(
         db.session.query(PageView.post_id, func.count(PageView.id))
+        .filter(PageView.post_id.in_(post_ids))
         .group_by(PageView.post_id)
         .all()
     )
     share_counts = dict(
         db.session.query(ShareEvent.post_id, func.count(ShareEvent.id))
+        .filter(ShareEvent.post_id.in_(post_ids))
         .group_by(ShareEvent.post_id)
         .all()
     )
@@ -111,6 +121,7 @@ def dashboard():
     return render_template(
         "admin/dashboard.html",
         posts=posts,
+        pagination=pagination,
         view_counts=view_counts,
         share_counts=share_counts,
     )
@@ -217,6 +228,11 @@ def delete_post(post_id):
 def _get_or_create_tags(names):
     tags = []
     for name in names:
+        name = name.strip()[:50]
+        if not name:
+            continue
+        if not re.match(r"^[\w\s-]+$", name):
+            continue
         slug = Tag.generate_slug(name)
         tag = Tag.query.filter_by(slug=slug).first()
         if not tag:

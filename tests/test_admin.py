@@ -88,3 +88,28 @@ def test_logout(authenticated_client):
     """Test logout."""
     response = authenticated_client.get('/admin/logout', follow_redirects=True)
     assert response.status_code == 200
+
+
+import io
+
+
+def test_upload_valid_image(authenticated_client, db):
+    """Test uploading a valid image with a post."""
+    data = {
+        'title': 'Post with Image',
+        'body': 'Content',
+        'image': (io.BytesIO(b'\x89PNG\r\n\x1a\n' + b'\x00' * 50), 'test.png'),
+    }
+    response = authenticated_client.post('/admin/new', data=data, content_type='multipart/form-data', follow_redirects=True)
+    assert response.status_code == 200
+
+
+def test_upload_invalid_extension(authenticated_client, db):
+    """Test uploading a file with invalid extension."""
+    data = {
+        'title': 'Post',
+        'body': 'Content',
+        'image': (io.BytesIO(b'not an image'), 'test.exe'),
+    }
+    response = authenticated_client.post('/admin/new', data=data, content_type='multipart/form-data', follow_redirects=True)
+    assert response.status_code == 200

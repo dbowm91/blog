@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -23,9 +24,10 @@ def _send_email(to, subject, html_body, text_body=None):
         msg.attach(MIMEText(text_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
         server.ehlo()
-        server.starttls()
+        context = ssl.create_default_context()
+        server.starttls(context=context)
         server.ehlo()
         if SMTP_USER:
             server.login(SMTP_USER, SMTP_PASSWORD)

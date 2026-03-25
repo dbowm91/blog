@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error | {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="error-page animate-in">
+    <div class="error-code">500</div>
+    <h1 class="error-title">Internal Server Error</h1>
+    <p class="error-message">Something went wrong. Please try again later.</p>
+    <a href="{{ url_for('public.index') }}" class="btn btn-primary">Back to home</a>
+</div>
+{% endblock %}
