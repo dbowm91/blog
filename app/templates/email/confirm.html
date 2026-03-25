@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#e6edf3;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d1117;padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;">
+  <tr>
+    <td style="padding:32px 40px;border-bottom:1px solid #30363d;">
+      <h1 style="margin:0;font-size:20px;color:#e6edf3;font-family:monospace;">Confirm your subscription</h1>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:32px 40px;">
+      <p style="color:#8b949e;font-size:15px;line-height:1.6;margin:0 0 24px;">
+        You're signing up to receive updates from <strong style="color:#e6edf3;">{{ site_title }}</strong>.
+        Click the button below to confirm your email address.
+      </p>
+      <table cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="background:#58a6ff;border-radius:8px;">
+            <a href="{{ base_url }}/confirm/{{ subscriber.token }}" style="display:inline-block;padding:12px 32px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">
+              Confirm Subscription
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="color:#484f58;font-size:13px;margin:24px 0 0;">
+        If you didn't request this, you can safely ignore this email.
+      </p>
+    </td>
+  </tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

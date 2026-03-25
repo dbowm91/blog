@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+blog.db
+*.db
+instance/
+.venv/
+venv/
+.env
+.env.local
+logs/

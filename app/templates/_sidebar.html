@@ -1,0 +1,29 @@
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <h3 class="sidebar-title">Subscribe</h3>
+        <form method="POST" action="{{ url_for('public.subscribe') }}" class="subscribe-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="email" name="email" placeholder="you@example.com" required>
+            <button type="submit" class="btn btn-primary btn-small">Subscribe</button>
+        </form>
+    </div>
+    <div class="sidebar-section">
+        <h3 class="sidebar-title">Tags</h3>
+        <div class="tag-cloud">
+            {% for tag in tags %}
+                {% if tag_counts.get(tag.id, 0) > 0 %}
+                <a href="{{ url_for('public.tag', slug=tag.slug) }}" class="tag tag-sidebar{% if active_tag_id is defined and tag.id == active_tag_id %} tag-active{% endif %}">
+                    #{{ tag.name }}
+                    <span class="tag-count">{{ tag_counts.get(tag.id, 0) }}</span>
+                </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    <div class="sidebar-section">
+        <a href="{{ url_for('rss.feed') }}" class="rss-link">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1z"/></svg>
+            RSS Feed
+        </a>
+    </div>
+</aside>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#e6edf3;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d1117;padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;">
+  <tr>
+    <td style="padding:32px 40px;border-bottom:1px solid #30363d;">
+      <h1 style="margin:0;font-size:20px;color:#e6edf3;font-family:monospace;">
+        <span style="color:#58a6ff">{</span>{{ site_title }}<span style="color:#58a6ff">}</span>
+      </h1>
+      <p style="color:#8b949e;font-size:14px;margin:8px 0 0;">Latest posts</p>
+    </td>
+  </tr>
+
+  {% for post in posts %}
+  <tr>
+    <td style="padding:24px 40px;{% if not loop.last %}border-bottom:1px solid #30363d;{% endif %}">
+      {% if post.image %}
+      <img src="{{ base_url }}/static/uploads/{{ post.image }}" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="">
+      {% else %}
+      <img src="{{ base_url }}/static/img/default-post.svg" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="">
+      {% endif %}
+      <h2 style="margin:0 0 8px;">
+        <a href="{{ base_url }}/post/{{ post.slug }}" style="color:#e6edf3;text-decoration:none;font-size:18px;">{{ post.title }}</a>
+      </h2>
+      {% if post.summary %}
+      <p style="color:#8b949e;font-size:14px;line-height:1.5;margin:0 0 12px;">{{ post.summary }}</p>
+      {% endif %}
+      <a href="{{ base_url }}/post/{{ post.slug }}" style="color:#58a6ff;font-size:14px;font-weight:500;text-decoration:none;">Read more &rarr;</a>
+    </td>
+  </tr>
+  {% endfor %}
+
+  <tr>
+    <td style="padding:24px 40px;border-top:1px solid #30363d;">
+      <p style="color:#484f58;font-size:13px;margin:0;text-align:center;">
+        <a href="{{ unsubscribe_url }}" style="color:#8b949e;text-decoration:underline;">Unsubscribe</a>
+      </p>
+    </td>
+  </tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

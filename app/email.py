@@ -1,0 +1,74 @@
+import smtplib
+import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from flask import render_template
+
+from app.config import (
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD,
+    FROM_ADDRESS, APP_TITLE, BASE_URL,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _send_email(to, subject, html_body, text_body=None):
+    msg = MIMEMultipart("alternative")
+    msg["From"] = FROM_ADDRESS
+    msg["To"] = to
+    msg["Subject"] = subject
+
+    if text_body:
+        msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        if SMTP_USER:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(FROM_ADDRESS, to, msg.as_string())
+
+
+def send_confirmation(subscriber):
+    html = render_template(
+        "email/confirm.html",
+        subscriber=subscriber,
+        site_title=APP_TITLE,
+        base_url=BASE_URL,
+    )
+    text = (
+        f"Confirm your subscription to {APP_TITLE}\n\n"
+        f"Click this link to confirm: {BASE_URL}/confirm/{subscriber.token}\n\n"
+        f"If you didn't request this, ignore this email."
+    )
+    _send_email(subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text)
+
+
+def send_newsletter(posts, subscribers):
+    if not posts or not subscribers:
+        return
+
+    for sub in subscribers:
+        unsub_url = f"{BASE_URL}/unsubscribe/{sub.token}"
+        html = render_template(
+            "email/newsletter.html",
+            posts=posts,
+            site_title=APP_TITLE,
+            base_url=BASE_URL,
+            unsubscribe_url=unsub_url,
+        )
+        text = (
+            f"Latest from {APP_TITLE}\n\n"
+            + "\n\n".join(
+                f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}"
+                for p in posts
+            )
+            + f"\n\nUnsubscribe: {unsub_url}"
+        )
+        try:
+            _send_email(sub.email, f"Latest from {APP_TITLE}", html, text)
+        except Exception:
+            logger.exception("Failed to send newsletter to %s", sub.email)
