@@ -1236,6 +1236,151 @@ a:hover {
     background: var(--accent-hover);
 }
 
+/* --- Accessibility --- */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    z-index: 10000;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: var(--radius);
+}
+
+.skip-link:focus {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    width: auto;
+    height: auto;
+    overflow: visible;
+}
+
+/* Focus styles for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Remove default outline for mouse users */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    /* Disable only potentially disruptive animations */
+    .animate-in {
+        animation: none !important;
+    }
+    
+    .navbar, .back-to-top, .flash {
+        transition: none !important;
+    }
+    
+    /* Keep subtle hover effects */
+    a, button {
+        transition: color 0.1s ease, background-color 0.1s ease !important;
+    }
+    
+    html {
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Reading progress bar */
+.reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+    z-index: 9999;
+    transition: width 0.1s ease;
+}
+
+/* Back to top button */
+.back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition);
+    z-index: 1000;
+}
+
+.back-to-top:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Anchor links for headings */
+.heading-anchor {
+    position: relative;
+    display: inline-block;
+}
+
+.heading-anchor .anchor-link {
+    position: absolute;
+    left: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity var(--transition);
+    font-weight: normal;
+}
+
+.heading-anchor:hover .anchor-link {
+    opacity: 1;
+}
+
+.heading-anchor .anchor-link:hover {
+    color: var(--accent);
+}
+
+/* Mobile hamburger menu */
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 8px;
+    margin-left: 16px;
+}
+
+.mobile-menu-toggle svg {
+    width: 24px;
+    height: 24px;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
     .content-layout {
@@ -1268,11 +1413,30 @@ a:hover {
     }
 
     .nav-links {
-        gap: 16px;
+        display: none;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        width: 100%;
+        padding: 16px 0;
+        border-top: 1px solid var(--border);
+    }
+    
+    .nav-links.open {
+        display: flex;
+    }
+    
+    .mobile-menu-toggle {
+        display: block;
     }
 
     .search-form {
-        display: none;
+        width: 100%;
+        margin-top: 16px;
+    }
+    
+    .search-input {
+        width: calc(100% - 80px);
     }
 
     .post-card-img {
@@ -1316,5 +1480,12 @@ a:hover {
     .author-card {
         flex-direction: column;
         text-align: center;
+    }
+
+    .back-to-top {
+        bottom: 20px;
+        right: 20px;
+        bottom: max(20px, env(safe-area-inset-bottom));
+        right: max(20px, env(safe-area-inset-right));
     }
 }

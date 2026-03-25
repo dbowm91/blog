@@ -13,9 +13,9 @@
         {% for post in posts %}
             <article class="post-card animate-in" style="--delay: {{ loop.index0 * 0.08 }}s">
                 {% if post.image %}
-                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img">
+                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async">
                 {% else %}
-                    <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img">
+                    <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async">
                 {% endif %}
                 <div class="post-card-body">
                     <div class="post-meta">

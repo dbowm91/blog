@@ -85,6 +85,7 @@ app/email.py            # SMTP email sending
 ## Assets
 
 - **No external assets**—all fonts (Inter, JetBrains Mono) are self-hosted in `app/static/fonts/`
+- **Prism.js** is self-hosted (`app/static/js/prism.min.js` and `app/static/js/prism-languages.js`) with extended language definitions (Python, Bash, JSON, Markdown, SQL, TypeScript, Go, Rust, C/C++, YAML, TOML, Docker, PHP, Ruby, Swift)
 - Do not add external CDN links (Google Fonts, CDNs, etc.)
 
 ## Dependencies (Python 3.14 compatible)

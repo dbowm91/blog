@@ -68,7 +68,7 @@ def create_app():
 
     @app.template_filter("markdown")
     def markdown_filter(text):
-        return markdown.markdown(text, extensions=["fenced_code", "codehilite", "tables"])
+        return markdown.markdown(text, extensions=["fenced_code", "tables"])
 
     @app.template_filter("reading_time")
     def reading_time_filter(text):
