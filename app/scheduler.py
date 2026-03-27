@@ -1,13 +1,22 @@
-import fcntl
 import os
+
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
 
 
 def send_daily_newsletter(app):
     lock_path = os.path.join(app.instance_path, "newsletter.lock")
+    lock_file = None
     try:
         lock_file = open(lock_path, "w")
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if HAS_FCNTL:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
+        if lock_file:
+            lock_file.close()
         return
 
     try:
@@ -41,12 +50,14 @@ def send_daily_newsletter(app):
                 post.newsletter_sent_at = now
             db.session.commit()
     finally:
-        fcntl.flock(lock_file, fcntl.LOCK_UN)
-        lock_file.close()
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
+        if lock_file:
+            if HAS_FCNTL:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+            try:
+                os.remove(lock_path)
+            except FileNotFoundError:
+                pass
 
 
 def init_scheduler(app):
@@ -54,7 +65,11 @@ def init_scheduler(app):
     from apscheduler.triggers.cron import CronTrigger
     import atexit
 
-    from app.config import NEWSLETTER_SEND_TIME
+    from app.config import NEWSLETTER_SEND_TIME, SMTP_HOST
+
+    if not SMTP_HOST:
+        app.logger.info("SMTP_HOST not configured; newsletter scheduler disabled")
+        return None
 
     hour, minute = map(int, NEWSLETTER_SEND_TIME.split(":"))
 

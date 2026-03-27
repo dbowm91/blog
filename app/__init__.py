@@ -3,7 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask
 from app.extensions import db, login_manager, migrate
-from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
+from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SESSION_LIFETIME_HOURS
 from app.csrf import generate_csrf_token, validate_csrf_token
 
 
@@ -51,6 +51,8 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+    app.config["SESSION_COOKIE_SECURE"] = not app.debug
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -109,7 +111,7 @@ def create_app():
         minutes = max(1, round(words / 200))
         return f"{minutes} min read"
 
-    SESSION_LIFETIME_SECONDS = 24 * 60 * 60
+    SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
 
     @app.before_request
     def before_request_handler():
@@ -180,7 +182,8 @@ def create_app():
         from sqlalchemy.exc import IntegrityError, OperationalError
 
         try:
-            if not User.query.first():
+            existing_user = User.query.first()
+            if not existing_user:
                 user = User(username=ADMIN_USERNAME)
                 user.set_password(ADMIN_PASSWORD)
                 db.session.add(user)
@@ -188,6 +191,12 @@ def create_app():
                     db.session.commit()
                 except IntegrityError:
                     db.session.rollback()
+            elif not existing_user.check_password(ADMIN_PASSWORD):
+                app.logger.warning(
+                    "ADMIN_PASSWORD env var does not match the password hash for user '%s'. "
+                    "The stored password has not been changed.",
+                    existing_user.username,
+                )
         except OperationalError:
             db.session.rollback()
 

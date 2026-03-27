@@ -14,8 +14,14 @@ def _env(key: str, default: Any = None) -> Any:
 def load_config() -> dict[str, Any]:
     """Load configuration from TOML file."""
     config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")
-    with open(config_path, "rb") as f:
-        return tomllib.load(f)
+    try:
+        with open(config_path, "rb") as f:
+            return tomllib.load(f)
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"Configuration file not found: {config_path}\n"
+            "Copy config.toml.example to config.toml and edit it."
+        )
 
 
 _config = load_config()
@@ -23,7 +29,9 @@ _config = load_config()
 APP_TITLE = _config["app"]["title"]
 APP_DESCRIPTION = _config["app"]["description"]
 POSTS_PER_PAGE = _config["app"]["posts_per_page"]
-SECRET_KEY = _env("SECRET_KEY", _config["app"].get("secret_key", ""))
+SECRET_KEY = _env("SECRET_KEY", "")
+MAX_VIEWED_POSTS = int(_config["app"].get("max_viewed_posts", 100))
+SESSION_LIFETIME_HOURS = int(_config["app"].get("session_lifetime_hours", 24))
 
 ADMIN_USERNAME = _env("ADMIN_USERNAME", _config["admin"]["username"])
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD")

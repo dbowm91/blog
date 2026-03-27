@@ -4,6 +4,7 @@ import uuid
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Response
 from flask_login import login_user, logout_user, login_required, current_user
+from werkzeug.utils import secure_filename
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -13,6 +14,7 @@ from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
 from app.rate_limit import check_rate_limit, record_failed_attempt, clear_attempts
 from app.utils import utc_now
+from app.routes.public import invalidate_tag_cache
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
@@ -86,6 +88,20 @@ def login():
         flash("Invalid credentials.", "error")
 
     return render_template("admin/login.html")
+
+
+# --- Item C6: Newsletter Resend Support ---
+
+@admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
+@login_required
+def newsletter_reset(post_id):
+    post = db.session.get(Post, post_id)
+    if not post:
+        abort(404)
+    post.newsletter_sent_at = None
+    db.session.commit()
+    flash(f"Newsletter flag reset for '{post.title}'. It will be included in the next newsletter.", "success")
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin.route("/logout")
@@ -532,10 +548,15 @@ def media():
 @admin.route("/media/delete/<filename>", methods=["POST"])
 @login_required
 def delete_media(filename):
+    filename = secure_filename(filename)
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    if not os.path.exists(filepath):
+    real_path = os.path.realpath(filepath)
+    upload_dir = os.path.realpath(current_app.config["UPLOAD_FOLDER"])
+    if not real_path.startswith(upload_dir + os.sep):
+        abort(400)
+    if not os.path.exists(real_path):
         abort(404)
-    os.remove(filepath)
+    os.remove(real_path)
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("admin.media"))
 
@@ -568,9 +589,15 @@ def rename_tag(tag_id):
     if not re.match(r"^[\w\s-]+$", new_name):
         flash("Invalid tag name.", "error")
         return redirect(url_for("admin.tags_list"))
+    slug = Tag.generate_slug(new_name)
+    existing = Tag.query.filter(Tag.slug == slug, Tag.id != tag.id).first()
+    if existing:
+        flash(f"Tag '{new_name}' already exists.", "warning")
+        return redirect(url_for("admin.tags_list"))
     tag.name = new_name
-    tag.slug = Tag.generate_slug(new_name)
+    tag.slug = slug
     db.session.commit()
+    invalidate_tag_cache()
     flash(f"Tag renamed to '{new_name}'.", "success")
     return redirect(url_for("admin.tags_list"))
 
@@ -584,6 +611,7 @@ def delete_tag(tag_id):
     name = tag.name
     db.session.delete(tag)
     db.session.commit()
+    invalidate_tag_cache()
     flash(f"Tag '{name}' deleted.", "success")
     return redirect(url_for("admin.tags_list"))
 
@@ -606,6 +634,7 @@ def create_tag():
     tag = Tag(name=name, slug=slug)
     db.session.add(tag)
     db.session.commit()
+    invalidate_tag_cache()
     flash(f"Tag '{name}' created.", "success")
     return redirect(url_for("admin.tags_list"))
 

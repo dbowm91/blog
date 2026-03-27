@@ -1,5 +1,4 @@
 import os
-import tempfile
 import pytest
 from app import create_app
 from app.extensions import db as _db
@@ -13,27 +12,24 @@ def _datetime_now():
 
 
 @pytest.fixture(scope='session')
-def app():
+def app(tmp_path_factory):
     """Create application for the test session."""
-    # Create a temporary database file
-    db_fd, db_path = tempfile.mkstemp()
-    
+    db_dir = tmp_path_factory.mktemp("blog_test")
+    db_path = db_dir / "test.db"
+
     os.environ['SECRET_KEY'] = 'test-secret-key'
     os.environ['ADMIN_PASSWORD'] = 'test-password'
-    
+
     app = create_app()
     app.config.update({
         'TESTING': True,
         'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
         'CSRF_ENABLED': False,
     })
-    
+
     with app.app_context():
         _db.create_all()
         yield app
-    
-    os.close(db_fd)
-    os.unlink(db_path)
 
 
 @pytest.fixture(scope='function')

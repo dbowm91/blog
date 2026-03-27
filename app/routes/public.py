@@ -4,11 +4,11 @@ from flask import Blueprint, render_template, request, redirect, jsonify, flash,
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 import logging
-import time
+import time as _time
 
 from app.extensions import db
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent, post_tags
-from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT
+from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED_POSTS
 from app.rate_limit import api_rate_limit
 from app.email import send_confirmation
 from app.utils import xml_escape, is_valid_email, utc_now
@@ -21,8 +21,14 @@ _TAG_COUNTS_CACHE = {"data": None, "timestamp": 0}
 _TAG_COUNTS_TTL = 60
 
 
+def invalidate_tag_cache():
+    """Invalidate the tag counts cache."""
+    _TAG_COUNTS_CACHE["data"] = None
+    _TAG_COUNTS_CACHE["timestamp"] = 0
+
+
 def _get_tag_counts():
-    now = time.monotonic()
+    now = _time.monotonic()
     if _TAG_COUNTS_CACHE["data"] is not None and (now - _TAG_COUNTS_CACHE["timestamp"]) < _TAG_COUNTS_TTL:
         return _TAG_COUNTS_CACHE["data"]
     counts = (
@@ -79,8 +85,6 @@ def index():
 def post(slug):
     post = Post.query.filter_by(slug=slug, published=True).first_or_404()
 
-    MAX_VIEWED_POSTS = 100
-
     viewed = session.get("viewed_posts", [])
     if post.id not in viewed:
         pv = PageView(
@@ -133,7 +137,7 @@ def tag(slug):
 
 @public.route("/search")
 def search():
-    query = request.args.get("q", "").strip()
+    query = request.args.get("q", "", type=str)[:200].strip()
     page = request.args.get("page", 1, type=int)
     
     if not query:
@@ -191,7 +195,7 @@ def track_share():
         return jsonify({"error": "invalid"}), 400
 
     post = db.session.get(Post, data["post_id"])
-    if not post:
+    if not post or not post.published:
         return jsonify({"error": "not found"}), 404
 
     event = ShareEvent(post_id=post.id, platform=data["platform"])
@@ -202,6 +206,10 @@ def track_share():
 
 @public.route("/subscribe", methods=["POST"])
 def subscribe():
+    limited = api_rate_limit(max_requests=10, window=300)
+    if limited:
+        return limited
+
     email = request.form.get("email", "").strip().lower()
     if not is_valid_email(email):
         flash("Please enter a valid email address.", "error")
@@ -240,14 +248,23 @@ def confirm(token):
 
 @public.route("/unsubscribe/<token>")
 def unsubscribe(token):
-    sub = Subscriber.query.filter_by(token=token).first_or_404()
+    sub = Subscriber.query.filter_by(token=token).first()
+    if not sub:
+        _time.sleep(0.1)
+        logger.warning("Unsubscribe enumeration attempt with invalid token from %s", request.remote_addr)
+        flash("You have been unsubscribed.", "success")
+        return redirect("/")
     if sub.expires_at and sub.expires_at < utc_now():
-        flash("This unsubscribe link has expired.", "error")
+        # expires_at is an unsubscribe-link security measure (365 days),
+        # not a subscription duration — treat expired links like valid ones.
+        _time.sleep(0.1)
+        logger.warning("Unsubscribe attempt with expired token from %s for %s", request.remote_addr, sub.email)
+        flash("You have been unsubscribed.", "success")
         return redirect("/")
     email = sub.email
     db.session.delete(sub)
     db.session.commit()
-    flash(f"{email} has been unsubscribed.", "success")
+    flash("You have been unsubscribed.", "success")
     return redirect("/")
 
 

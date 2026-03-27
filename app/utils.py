@@ -17,6 +17,8 @@ def is_valid_email(email: str) -> bool:
 
 def generate_slug(name: str) -> str:
     """Generate a URL-friendly slug from a string."""
+    if not name:
+        return "untitled"
     # Normalize unicode (e.g., é -> e)
     slug = unicodedata.normalize("NFKD", name)
     slug = slug.encode("ascii", "ignore").decode("ascii")
@@ -24,7 +26,7 @@ def generate_slug(name: str) -> str:
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[\s_]+", "-", slug)
     slug = re.sub(r"-+", "-", slug).strip("-")
-    return slug
+    return slug if slug else "untitled"
 
 
 def xml_escape(s: str) -> str:

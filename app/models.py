@@ -99,7 +99,10 @@ class Subscriber(db.Model):
     token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex)
     confirmed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=utc_now)
-    expires_at = db.Column(db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(days=365))
+    expires_at = db.Column(
+        db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(days=365),
+        doc="Unsubscribe link expiry for security (not subscription duration).",
+    )
 
     def __repr__(self):
         return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
