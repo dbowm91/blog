@@ -53,8 +53,10 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - In `edit_post()`, slug is only regenerated when `title != post.title`
 
 ### Session
-- `session["viewed_posts"]` tracks viewed post IDs to avoid double-counting page views—capped at 100 entries (keeps most recent)
-- Admin session expires after 24 hours of inactivity (`check_session_timeout` in `__init__.py`)
+- `session["viewed_posts"]` tracks viewed post IDs to avoid double-counting page views—capped at `MAX_VIEWED_POSTS` entries from config (default 100, keeps most recent)
+- Admin session expires after `SESSION_LIFETIME_HOURS` hours of inactivity (configurable in `config.toml`, default 24)
+- `SESSION_COOKIE_SECURE` is set to `not app.debug` (HTTPS only in production)
+- `SESSION_COOKIE_SAMESITE` is set to `"Lax"`
 
 ### CSRF
 - All POST routes require CSRF token
@@ -72,11 +74,13 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 ### Configuration
 - `config.toml` for site settings (title, author, email, etc.)
 - Config validation is deferred to `create_app()` (not import time), so `config.py` can be imported without env vars set
+- `SECRET_KEY` falls back to empty string; `RuntimeError` in `create_app()` catches the missing case
 - Environment variables override config values:
   - `SECRET_KEY` (required)
   - `ADMIN_PASSWORD` (required)
   - `ADMIN_USERNAME` (optional, default: admin)
   - `SMTP_USER`, `SMTP_PASSWORD` (optional)
+- `MAX_VIEWED_POSTS` and `SESSION_LIFETIME_HOURS` are loaded from `config.toml [app]` section
 
 ## Common Tasks
 
@@ -100,9 +104,23 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - **SQLite only**—no PostgreSQL/MySQL support configured
 - **In-memory rate limiting**—resets on restart, doesn't share across workers
 - **File uploads**—stored locally in `static/uploads/`, no S3 support
-- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only)
+- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows.
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
+
+## Lessons Learned
+
+### SMTP Context Manager Gotcha
+`with smtplib.SMTP() as server:` binds `server` at `__enter__` time. Reassigning `server` inside the block (e.g., for reconnection) creates a new local variable—the `with` statement's `__exit__` still calls the **original** object. For reconnectable connections, use manual `try/finally` instead.
+
+### Cross-Blueprint Imports
+`admin.py` imports `invalidate_tag_cache` from `app.routes.public`. This works because `public.py` does not import from `admin.py`, avoiding circular imports. If you add imports going the other direction, extract shared code into a separate module (e.g., `app/cache.py`).
+
+### `generate_slug` Edge Cases
+Empty string and whitespace-only input both fall back to `"untitled"`. The initial `if not name` check catches `""`, and the final `return slug if slug else "untitled"` catches whitespace that becomes empty after processing.
+
+### Edit Tool Matching
+The `edit` tool matches `oldString` literally. Be careful with edits that insert code at a boundary—match enough surrounding context to avoid hitting unintended locations (e.g., `return redirect(...)` appears in multiple functions).
 
 ## Assets
 
@@ -125,6 +143,10 @@ See `requirements.txt`. Key packages:
 - SMTP connection uses `starttls()` with `ssl.create_default_context()` for TLS certificate verification
 - Newsletter sending reuses a single SMTP connection for the entire batch
 - Newsletter sending has per-subscriber exception handling; failures are logged but don't stop the batch
+- Newsletter sending reuses a single SMTP connection via `_connect_smtp()` helper in `email.py`
+- On `SMTPServerDisconnected`, reconnects and retries the failed send; aborts if reconnection fails
+- **Do not use `with smtplib.SMTP() as server:` for newsletter batch** — reassigning `server` inside the `with` block doesn't affect the context manager's exit handler. Use manual `try/finally` instead (see `send_newsletter()`).
+- Progress logged every 50 subscribers for operational visibility
 
 ## Admin Routes
 
@@ -132,6 +154,12 @@ See `requirements.txt`. Key packages:
 - Image uploads validated via magic byte detection (`_detect_image_type` in `admin.py`) — no Pillow dependency required
 - `_save_image()` returns `(filename, error_message)` tuple; callers flash the error if present
 - Allowed extensions: `png, jpg, jpeg, gif, webp`
+
+## Newsletter Reset
+
+- Route: `POST /admin/newsletter-reset/<post_id>` (login required)
+- Resets `newsletter_sent_at` to `None` so the post is picked up by the next newsletter run
+- Dashboard shows "Reset NL" button on posts that have already been sent
 
 ## Templates
 
