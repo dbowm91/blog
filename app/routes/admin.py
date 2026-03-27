@@ -90,8 +90,6 @@ def login():
     return render_template("admin/login.html")
 
 
-# --- Item C6: Newsletter Resend Support ---
-
 @admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
 @login_required
 def newsletter_reset(post_id):
@@ -416,8 +414,6 @@ def analytics():
     )
 
 
-# --- Item 5: Draft Preview ---
-
 @admin.route("/preview/<int:post_id>")
 @login_required
 def preview_post(post_id):
@@ -436,8 +432,6 @@ def preview_post(post_id):
         preview_mode=True,
     )
 
-
-# --- Item 7: Subscriber Management ---
 
 @admin.route("/subscribers")
 @login_required
@@ -499,8 +493,6 @@ def export_subscribers():
     )
 
 
-# --- Item 8: Live Markdown Preview ---
-
 @admin.route("/preview-markdown", methods=["POST"])
 @login_required
 def preview_markdown():
@@ -525,8 +517,6 @@ def preview_markdown():
     clean = nh3.clean(html, tags=allowed_tags, attributes=allowed_attributes)
     return jsonify({"html": clean})
 
-
-# --- Item 11: Media Library ---
 
 @admin.route("/media")
 @login_required
@@ -560,8 +550,6 @@ def delete_media(filename):
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("admin.media"))
 
-
-# --- Item 12: Tag Management ---
 
 @admin.route("/tags")
 @login_required
@@ -639,8 +627,6 @@ def create_tag():
     return redirect(url_for("admin.tags_list"))
 
 
-# --- Item 13: Newsletter Test Send ---
-
 @admin.route("/newsletter-test", methods=["POST"])
 @login_required
 def newsletter_test():
@@ -671,8 +657,6 @@ def newsletter_test():
         flash(f"Failed to send test newsletter: {e}", "error")
     return redirect(url_for("admin.dashboard"))
 
-
-# --- Item 14: Bulk Post Operations ---
 
 @admin.route("/bulk", methods=["POST"])
 @login_required

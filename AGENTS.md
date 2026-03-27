@@ -141,9 +141,9 @@ See `requirements.txt`. Key packages:
 
 - Uses `smtplib` directly (no Celery/Redis dependency)
 - SMTP connection uses `starttls()` with `ssl.create_default_context()` for TLS certificate verification
-- Newsletter sending reuses a single SMTP connection for the entire batch
-- Newsletter sending has per-subscriber exception handling; failures are logged but don't stop the batch
-- Newsletter sending reuses a single SMTP connection via `_connect_smtp()` helper in `email.py`
+- Individual emails (`_send_email()`) open a fresh SMTP connection per call
+- Newsletter batch (`send_newsletter()`) reuses a single SMTP connection via `_connect_smtp()` helper in `email.py`
+- Per-subscriber exception handling; failures are logged but don't stop the batch
 - On `SMTPServerDisconnected`, reconnects and retries the failed send; aborts if reconnection fails
 - **Do not use `with smtplib.SMTP() as server:` for newsletter batch** — reassigning `server` inside the `with` block doesn't affect the context manager's exit handler. Use manual `try/finally` instead (see `send_newsletter()`).
 - Progress logged every 50 subscribers for operational visibility
@@ -168,7 +168,7 @@ See `requirements.txt`. Key packages:
 - Allowed attributes: `a[href,title]`, `img[src,alt,title,width,height]`, `span/div[*][class]`
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
-- CSP header: `'self'` only for styles and fonts (fonts are self-hosted)
+- CSP header: `default-src 'self'` with `style-src 'self'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `frame-ancestors 'none'`
 - **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance)
 
 ## CSRF
