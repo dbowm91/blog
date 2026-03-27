@@ -2,6 +2,8 @@
 
 Quick reference for AI agents working on this codebase.
 
+**See `plan.md` for the comprehensive improvement plan with all pending work items, organized by priority.**
+
 ## Running Tests
 
 ```bash
@@ -45,6 +47,7 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - `Subscriber.expires_at` defaults to 365 days; checked in the unsubscribe route
 - All models have `__repr__` methods for debugging
 - Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_slug` on `slug`
+- `PageView` and `ShareEvent` have no indexes—analytics queries may be slow at scale (see plan.md item 3.2)
 
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
@@ -108,6 +111,12 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
 
+## Known Bugs
+
+- **GIF89a rejected**: `_detect_image_type()` in `app/routes/admin.py:27` only matches GIF87a. GIF89a uploads (the most common GIF format) are rejected. See plan.md item 1.3.
+- **Media mtime wrong**: `media()` route in `app/routes/admin.py:533` calls `os.stat()` but ignores `st_mtime`, using `utc_now()` instead. See plan.md item 1.2.
+- **Broken migration**: `migrations/versions/f439f3e05654_add_referrer_column_to_pageview.py` recreates all tables instead of just adding the `referrer` column. Fails on any database that has run the initial migration. See plan.md item 1.1.
+
 ## Lessons Learned
 
 ### SMTP Context Manager Gotcha
@@ -121,6 +130,15 @@ Empty string and whitespace-only input both fall back to `"untitled"`. The initi
 
 ### Edit Tool Matching
 The `edit` tool matches `oldString` literally. Be careful with edits that insert code at a boundary—match enough surrounding context to avoid hitting unintended locations (e.g., `return redirect(...)` appears in multiple functions).
+
+### `nh3` Config Duplication
+The `nh3.clean()` allowed tags/attributes are duplicated between `app/__init__.py:92-103` (markdown_safe filter) and `app/routes/admin.py:505-516` (preview endpoint). When modifying allowed tags or attributes, update **both** locations. See plan.md item 3.1 for the fix (extract to shared config).
+
+### Subscribe Exception Handling
+The `subscribe()` route in `public.py:233` catches bare `Exception` from `send_confirmation()`. This intentionally masks email failures from the user (they're already subscribed in the DB), but be aware it also swallows programming errors. See plan.md item 2.2 for the fix.
+
+### Test Private State Access
+`tests/test_rate_limit.py` imports private `_attempts` and `_lockouts` dicts to reset state between tests. This couples tests to implementation details. See plan.md item 4.2 for the fix (add `clear_all()` function).
 
 ## Assets
 
