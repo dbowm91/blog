@@ -276,3 +276,56 @@ def test_delete_media_authenticated(authenticated_client, db):
     upload_folder = current_app.config['UPLOAD_FOLDER']
     filepath = os.path.join(upload_folder, filename)
     assert not os.path.exists(filepath)
+
+
+def test_export_subscribers_requires_auth(client):
+    """Test subscribers export requires authentication."""
+    response = client.get('/admin/subscribers/export')
+    assert response.status_code == 302  # redirect to login
+
+
+def test_export_subscribers_csv(authenticated_client, db):
+    """Test subscribers export returns CSV with correct data."""
+    from app.models import Subscriber
+    from datetime import datetime, timedelta, timezone
+    sub1 = Subscriber(email='test1@example.com', confirmed=True,
+                      created_at=datetime.now(timezone.utc) - timedelta(days=1))
+    sub2 = Subscriber(email='test2@example.com', confirmed=False,
+                      created_at=datetime.now(timezone.utc))
+    db.session.add_all([sub1, sub2])
+    db.session.commit()
+    response = authenticated_client.get('/admin/subscribers/export')
+    assert response.status_code == 200
+    assert response.mimetype == 'text/csv'
+    assert 'attachment; filename=subscribers.csv' in response.headers['Content-Disposition']
+    # CSV uses \r\n line endings; replace them
+    csv_text = response.data.decode('utf-8').replace('\r\n', '\n').strip()
+    lines = csv_text.split('\n')
+    # header row
+    assert lines[0] == 'email,confirmed,created_at,expires_at'
+    # data rows (order may be by created_at desc)
+    assert len(lines) == 3  # header + 2 subscribers
+    # check both emails appear in the two data rows
+    emails = [lines[1], lines[2]]
+    assert any('test1@example.com' in row for row in emails)
+    assert any('test2@example.com' in row for row in emails)
+
+
+def test_delete_subscriber_requires_auth(client):
+    """Test subscriber delete requires authentication."""
+    response = client.post('/admin/subscribers/delete/1')
+    assert response.status_code == 302  # redirect to login
+
+
+def test_delete_subscriber_authenticated(authenticated_client, db):
+    """Test authenticated user can delete a subscriber."""
+    from app.models import Subscriber
+    sub = Subscriber(email='todelete@example.com', confirmed=True)
+    db.session.add(sub)
+    db.session.commit()
+    sub_id = sub.id
+    response = authenticated_client.post(f'/admin/subscribers/delete/{sub_id}', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Subscriber todelete@example.com deleted' in response.data
+    # Verify subscriber is gone
+    assert db.session.get(Subscriber, sub_id) is None

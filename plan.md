@@ -374,20 +374,20 @@ Extended `tests/test_coverage.py` and other test files for untested scenarios:
 | Tag validation (Unicode, long names, duplicates) | `test_coverage.py` | ✅ Already covered (`test_create_tag_invalid_name`) |
 | Newsletter reset for unsent post | `test_coverage.py` | ✅ Already covered (`test_newsletter_reset`) |
 | Expired subscriber token unsubscribe | `test_coverage.py` | ✅ Already covered (included in timing test) |
-| SMTP failure mock in newsletter sending | `test_email.py` | ⏳ Not yet added (low priority) |
+| SMTP failure mock in newsletter sending | `test_email.py` | ✅ Added `test_send_newsletter_smtp_failure`, `test_send_newsletter_smtp_disconnected`, `test_send_newsletter_generic_smtp_error` |
 | Image upload with corrupted headers | `test_admin.py` | ✅ Added `test_upload_invalid_gif_header` |
 | API rate limiting (`/api/track-share`) | `test_rate_limit.py` | ✅ Added `test_api_rate_limit` |
 | `POST /admin/preview-markdown` valid/invalid input | `test_admin.py` | ✅ Added `test_preview_markdown`, `test_preview_markdown_invalid` |
 | `POST /admin/media/delete/<filename>` auth, traversal, 404 | `test_admin.py` | ✅ Added `test_delete_media_requires_auth`, `test_delete_media_authenticated` |
-| `GET /admin/subscribers/export` CSV output | `test_coverage.py` | ⏳ Not yet added (low priority) |
-| `POST /admin/subscribers/delete/<id>` auth required | `test_coverage.py` | ⏳ Not yet added (low priority) |
+| `GET /admin/subscribers/export` CSV output | `test_admin.py` | ✅ Added `test_export_subscribers_requires_auth`, `test_export_subscribers_csv` |
+| `POST /admin/subscribers/delete/<id>` auth required | `test_admin.py` | ✅ Added `test_delete_subscriber_requires_auth`, `test_delete_subscriber_authenticated` |
 
 Run tests:
 ```bash
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 ```
 
-**Status:** Completed (75 tests pass). Remaining low‑priority tests (SMTP failure mock, subscribers export/delete) can be added later.
+**Status:** Completed (82 tests pass). All low‑priority tests added.
 
 ---
 
