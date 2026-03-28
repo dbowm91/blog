@@ -57,6 +57,12 @@ def clear_attempts() -> None:
     _lockouts.pop(ip, None)
 
 
+def clear_all() -> None:
+    """Clear all rate limit state. For testing only."""
+    _attempts.clear()
+    _lockouts.clear()
+
+
 def api_rate_limit(max_requests: int = 60, window: int = 60) -> Optional[tuple]:
     """Rate limit API requests."""
     _cleanup_expired_entries(window)

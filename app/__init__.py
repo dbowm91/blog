@@ -84,24 +84,13 @@ def create_app():
         return redirect(req.referrer or url_for("admin.dashboard"))
 
     import nh3
+    from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text):
         import markdown
         html = markdown.markdown(text, extensions=["fenced_code", "tables"])
-        allowed_tags = {
-            "p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote",
-            "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "a", "img",
-            "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div",
-        }
-        allowed_attributes = {
-            "a": {"href", "title"},
-            "img": {"src", "alt", "title", "width", "height"},
-            "span": {"class"},
-            "div": {"class"},
-            "*": {"class"},
-        }
-        return nh3.clean(html, tags=allowed_tags, attributes=allowed_attributes)
+        return nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
 
     @app.template_filter("reading_time")
     def reading_time_filter(text):
@@ -117,7 +106,8 @@ def create_app():
     def before_request_handler():
         from flask import request as req, session, redirect, url_for, flash
         from flask_login import current_user, logout_user
-        from datetime import datetime
+        from datetime import datetime, timezone
+        import time
         from app.utils import utc_now
 
         # CSRF validation for POST requests
@@ -132,13 +122,25 @@ def create_app():
         # Session timeout check for authenticated users
         if current_user.is_authenticated:
             last_activity = session.get("last_activity")
+            now = time.time()
             if last_activity:
-                last = datetime.fromisoformat(last_activity)
-                if (utc_now() - last).total_seconds() > SESSION_LIFETIME_SECONDS:
+                # Support both old ISO format (UTC naive) and new float timestamp
+                if isinstance(last_activity, str):
+                    try:
+                        last_dt = datetime.fromisoformat(last_activity)
+                        last_dt = last_dt.replace(tzinfo=timezone.utc)
+                        last = last_dt.timestamp()
+                    except ValueError:
+                        # Malformed, treat as expired
+                        last = 0.0
+                else:
+                    # Assume float timestamp
+                    last = float(last_activity)
+                if (now - last) > SESSION_LIFETIME_SECONDS:
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))
-            session["last_activity"] = utc_now().isoformat()
+            session["last_activity"] = now
 
     @app.after_request
     def set_security_headers(response):

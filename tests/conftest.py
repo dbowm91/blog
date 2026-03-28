@@ -6,11 +6,6 @@ from app.models import User, Post, Tag
 from app.utils import utc_now
 
 
-def _datetime_now():
-    """Get current UTC datetime."""
-    return utc_now()
-
-
 @pytest.fixture(scope='session')
 def app(tmp_path_factory):
     """Create application for the test session."""
@@ -77,7 +72,7 @@ def sample_post(db, admin_user):
         body='# Hello World\n\nThis is a test post.',
         summary='A test post summary',
         published=True,
-        published_at=_datetime_now()
+        published_at=utc_now()
     )
     db.session.add(post)
     db.session.commit()

@@ -103,6 +103,7 @@ class Subscriber(db.Model):
         db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(days=365),
         doc="Unsubscribe link expiry for security (not subscription duration).",
     )
+    unsubscribed_at = db.Column(db.DateTime, nullable=True)
 
     def __repr__(self):
         return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
@@ -116,6 +117,11 @@ class PageView(db.Model):
     referrer = db.Column(db.String(512), nullable=True)
     created_at = db.Column(db.DateTime, default=utc_now)
 
+    __table_args__ = (
+        db.Index("ix_page_views_post_id", "post_id"),
+        db.Index("ix_page_views_created_at", "created_at"),
+    )
+
     def __repr__(self):
         return f"<PageView post_id={self.post_id}>"
 
@@ -127,6 +133,10 @@ class ShareEvent(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
     platform = db.Column(db.String(32), nullable=False)
     created_at = db.Column(db.DateTime, default=utc_now)
+
+    __table_args__ = (
+        db.Index("ix_share_events_post_id", "post_id"),
+    )
 
     def __repr__(self):
         return f"<ShareEvent post_id={self.post_id} platform={self.platform!r}>"

@@ -8,8 +8,8 @@ PYTHON_VERSION=$(python3 --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
 PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d'.' -f1)
 PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d'.' -f2)
 
-if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 11 ]); then
-    echo "Error: Python 3.11 or higher is required. Found: Python $PYTHON_VERSION"
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 12 ]); then
+    echo "Error: Python 3.12 or higher is required. Found: Python $PYTHON_VERSION"
     exit 1
 fi
 
@@ -33,7 +33,7 @@ pip install --upgrade pip
 
 # Install requirements
 echo "Installing dependencies..."
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # Generate .env if it doesn't exist
 if [ ! -f ".env" ]; then

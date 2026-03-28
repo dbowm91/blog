@@ -1,7 +1,10 @@
 from datetime import datetime
+import smtplib
+import uuid
+from datetime import timedelta
 
 from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response, url_for
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import joinedload
 import logging
 import time as _time
@@ -217,7 +220,20 @@ def subscribe():
 
     existing = Subscriber.query.filter_by(email=email).first()
     if existing:
-        if existing.confirmed:
+        if existing.unsubscribed_at:
+            # Re-activate previously unsubscribed user
+            existing.unsubscribed_at = None
+            existing.confirmed = False
+            existing.token = uuid.uuid4().hex
+            existing.expires_at = utc_now() + timedelta(days=365)
+            db.session.commit()
+            try:
+                send_confirmation(existing)
+                flash("Check your inbox to confirm your subscription.", "success")
+            except (smtplib.SMTPException, ConnectionError, OSError):
+                logger.exception("Failed to send confirmation email to %s", email)
+                flash("Subscribed, but confirmation email could not be sent.", "error")
+        elif existing.confirmed:
             flash("You're already subscribed.", "success")
         else:
             flash("Check your inbox to confirm your subscription.", "success")
@@ -230,7 +246,7 @@ def subscribe():
     try:
         send_confirmation(sub)
         flash("Check your inbox to confirm your subscription.", "success")
-    except Exception:
+    except (smtplib.SMTPException, ConnectionError, OSError):
         logger.exception("Failed to send confirmation email to %s", email)
         flash("Subscribed, but confirmation email could not be sent.", "error")
 
@@ -249,20 +265,20 @@ def confirm(token):
 @public.route("/unsubscribe/<token>")
 def unsubscribe(token):
     sub = Subscriber.query.filter_by(token=token).first()
+    _time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
-        _time.sleep(0.1)
         logger.warning("Unsubscribe enumeration attempt with invalid token from %s", request.remote_addr)
         flash("You have been unsubscribed.", "success")
         return redirect("/")
     if sub.expires_at and sub.expires_at < utc_now():
         # expires_at is an unsubscribe-link security measure (365 days),
         # not a subscription duration — treat expired links like valid ones.
-        _time.sleep(0.1)
         logger.warning("Unsubscribe attempt with expired token from %s for %s", request.remote_addr, sub.email)
         flash("You have been unsubscribed.", "success")
         return redirect("/")
-    email = sub.email
-    db.session.delete(sub)
+    # Soft delete: set unsubscribed_at and mark unconfirmed
+    sub.unsubscribed_at = utc_now()
+    sub.confirmed = False
     db.session.commit()
     flash("You have been unsubscribed.", "success")
     return redirect("/")
@@ -316,3 +332,19 @@ def sitemap_xml():
 @public.route("/favicon.ico")
 def favicon():
     return Response(status=301, headers={"Location": url_for("static", filename="img/favicon.svg")})
+
+
+@public.route("/health")
+def health_check():
+    """Health check endpoint for monitoring."""
+    try:
+        db.session.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception:
+        db_status = "disconnected"
+    
+    return jsonify({
+        "status": "ok" if db_status == "connected" else "error",
+        "database": db_status,
+        "timestamp": utc_now().isoformat() + "Z",
+    })

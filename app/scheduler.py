@@ -39,7 +39,9 @@ def send_daily_newsletter(app):
             if not posts:
                 return
 
-            subscribers = Subscriber.query.filter_by(confirmed=True).all()
+            subscribers = Subscriber.query.filter_by(confirmed=True).filter(
+                Subscriber.unsubscribed_at.is_(None)
+            ).all()
             if not subscribers:
                 return
 

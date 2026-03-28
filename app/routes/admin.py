@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
@@ -24,7 +24,7 @@ def _detect_image_type(header):
         return "png"
     if header[:3] == b"\xff\xd8\xff":
         return "jpeg"
-    if header[:4] == b"GIF8" and header[5:6] == b"a":
+    if header[:3] == b"GIF" and header[3:6] in (b"87a", b"89a"):
         return "gif"
     if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
         return "webp"
@@ -444,6 +444,8 @@ def subscribers():
         query = query.filter(Subscriber.confirmed == True)
     elif filter_status == "unconfirmed":
         query = query.filter(Subscriber.confirmed == False)
+    elif filter_status == "unsubscribed":
+        query = query.filter(Subscriber.unsubscribed_at.isnot(None))
 
     pagination = (
         query.order_by(Subscriber.created_at.desc())
@@ -501,20 +503,9 @@ def preview_markdown():
         return jsonify({"error": "invalid"}), 400
     import nh3
     import markdown as md
+    from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
     html = md.markdown(data["text"], extensions=["fenced_code", "tables"])
-    allowed_tags = {
-        "p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote",
-        "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "a", "img",
-        "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div",
-    }
-    allowed_attributes = {
-        "a": {"href", "title"},
-        "img": {"src", "alt", "title", "width", "height"},
-        "span": {"class"},
-        "div": {"class"},
-        "*": {"class"},
-    }
-    clean = nh3.clean(html, tags=allowed_tags, attributes=allowed_attributes)
+    clean = nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
     return jsonify({"html": clean})
 
 
@@ -530,7 +521,7 @@ def media():
         files.append({
             "name": filename,
             "size": stat.st_size,
-            "mtime": utc_now(),
+            "mtime": datetime.fromtimestamp(stat.st_mtime),
         })
     return render_template("admin/media.html", files=files)
 

@@ -120,6 +120,47 @@ def test_unsubscribe(client, db):
     assert response.status_code == 200
 
 
+def test_unsubscribe_timing_constant(client, db):
+    """Test that unsubscribe always sleeps 0.1 seconds regardless of token validity."""
+    from app.models import Subscriber
+    from app.utils import utc_now
+    from datetime import timedelta
+    from unittest.mock import patch
+    
+    # Create a valid subscriber
+    sub = Subscriber(email='valid@example.com', confirmed=True)
+    db.session.add(sub)
+    db.session.commit()
+    valid_token = sub.token
+    
+    # Create an expired subscriber (expires_at in past)
+    expired_sub = Subscriber(email='expired@example.com', confirmed=True,
+                             expires_at=utc_now() - timedelta(days=1))
+    db.session.add(expired_sub)
+    db.session.commit()
+    expired_token = expired_sub.token
+    
+    invalid_token = 'invalid-token-12345'
+    
+    with patch('app.routes.public._time.sleep') as mock_sleep:
+        # Valid token
+        response = client.get(f'/unsubscribe/{valid_token}')
+        assert response.status_code == 302  # redirect
+        mock_sleep.assert_called_once_with(0.1)
+        mock_sleep.reset_mock()
+        
+        # Expired token
+        response = client.get(f'/unsubscribe/{expired_token}')
+        assert response.status_code == 302
+        mock_sleep.assert_called_once_with(0.1)
+        mock_sleep.reset_mock()
+        
+        # Invalid token
+        response = client.get(f'/unsubscribe/{invalid_token}')
+        assert response.status_code == 302
+        mock_sleep.assert_called_once_with(0.1)
+
+
 def test_short_url_redirect(client, db, sample_post):
     """Test short URL redirects to post."""
     from app.base62 import encode
