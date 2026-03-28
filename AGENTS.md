@@ -2,8 +2,6 @@
 
 Quick reference for AI agents working on this codebase.
 
-**See `plan.md` for the comprehensive improvement plan with all pending work items, organized by priority.**
-
 ## Running Tests
 
 ```bash
@@ -29,6 +27,7 @@ app/utils.py            # Slug generation, email validation, XML escaping
 app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
 app/email.py            # SMTP email sending (with TLS via ssl.create_default_context)
+app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown rendering
 ```
 
 ## Key Patterns
@@ -47,7 +46,7 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - `Subscriber.expires_at` defaults to 365 days; checked in the unsubscribe route
 - All models have `__repr__` methods for debugging
 - Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_slug` on `slug`
-- `PageView` and `ShareEvent` have no indexes—analytics queries may be slow at scale (see plan.md item 3.2)
+- `PageView` and `ShareEvent` have no indexes—analytics queries may be slow at scale
 
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
@@ -63,11 +62,12 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 
 ### CSRF
 - All POST routes require CSRF token
-- Tests disable CSRF via `CSRF_ENABLED=False` in config
+- Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config
 - Token injected into templates via `context_processor`
 - The `validate_csrf_token()` in `__init__.py` checks both form data (`csrf_token`) and HTTP header (`X-CSRF-Token`)
 - `main.js` sends `X-CSRF-Token` header for the `/api/track-share` JSON endpoint (reads from `<meta name="csrf-token">`)
 - The `before_request` handler in `__init__.py` handles both CSRF validation and session timeout
+- The handler checks for `_csrf_exempt` attribute on view functions (currently unused by any route)
 
 ### Rate Limiting
 - In-memory dicts—state lost on restart, **not shared across workers**
@@ -111,12 +111,6 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
 
-## Known Bugs
-
-- **GIF89a rejected**: `_detect_image_type()` in `app/routes/admin.py:27` only matches GIF87a. GIF89a uploads (the most common GIF format) are rejected. See plan.md item 1.3.
-- **Media mtime wrong**: `media()` route in `app/routes/admin.py:533` calls `os.stat()` but ignores `st_mtime`, using `utc_now()` instead. See plan.md item 1.2.
-- **Broken migration**: `migrations/versions/f439f3e05654_add_referrer_column_to_pageview.py` recreates all tables instead of just adding the `referrer` column. Fails on any database that has run the initial migration. See plan.md item 1.1.
-
 ## Lessons Learned
 
 ### SMTP Context Manager Gotcha
@@ -131,14 +125,14 @@ Empty string and whitespace-only input both fall back to `"untitled"`. The initi
 ### Edit Tool Matching
 The `edit` tool matches `oldString` literally. Be careful with edits that insert code at a boundary—match enough surrounding context to avoid hitting unintended locations (e.g., `return redirect(...)` appears in multiple functions).
 
-### `nh3` Config Duplication
-The `nh3.clean()` allowed tags/attributes are duplicated between `app/__init__.py:92-103` (markdown_safe filter) and `app/routes/admin.py:505-516` (preview endpoint). When modifying allowed tags or attributes, update **both** locations. See plan.md item 3.1 for the fix (extract to shared config).
+### `nh3` Config
+The `nh3.clean()` allowed tags/attributes are defined in `app/markdown_config.py` and shared by `app/__init__.py` (markdown_safe filter) and `app/routes/admin.py` (preview endpoint). Modify allowed tags/attributes in the shared config only.
 
 ### Subscribe Exception Handling
-The `subscribe()` route in `public.py:233` catches bare `Exception` from `send_confirmation()`. This intentionally masks email failures from the user (they're already subscribed in the DB), but be aware it also swallows programming errors. See plan.md item 2.2 for the fix.
+The `subscribe()` route in `public.py` catches specific SMTP/connection exceptions from `send_confirmation()` to mask email failures from users (they're already subscribed in the DB). Programming errors are no longer swallowed.
 
 ### Test Private State Access
-`tests/test_rate_limit.py` imports private `_attempts` and `_lockouts` dicts to reset state between tests. This couples tests to implementation details. See plan.md item 4.2 for the fix (add `clear_all()` function).
+`tests/test_rate_limit.py` uses the public `clear_all()` function from `app.rate_limit` to reset state between tests, rather than importing private dicts directly.
 
 ## Assets
 
@@ -188,11 +182,6 @@ See `requirements.txt`. Key packages:
 - OG image meta tag is already implemented in `post.html:8`
 - CSP header: `default-src 'self'` with `style-src 'self'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `frame-ancestors 'none'`
 - **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance)
-
-## CSRF
-
-- The `before_request` handler checks for `_csrf_exempt` attribute on view functions (currently unused by any route)
-- Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config
 
 ## Security Headers
 
