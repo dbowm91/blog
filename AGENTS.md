@@ -250,3 +250,42 @@ The `set_security_headers` after-request handler sets:
 - Three submit buttons: Publish, Unpublish, Delete — each sends `action` value
 - Destructive actions use `data-confirm-bulk` attribute (not inline `onclick`)
 - Image cleanup included for bulk delete
+
+## Tag Caching
+
+- `_get_tag_counts()` in public.py uses an in-memory cache with 60-second TTL
+- Cache is protected by `threading.Lock` for thread-safe operations
+- `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
+- Cache returns a copy to prevent external mutation
+
+## Token Enumeration Prevention
+
+- `/confirm/<token>` now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
+- Invalid tokens return success (not 404) to avoid revealing valid tokens
+- Same pattern as unsubscribe endpoint
+
+## Newsletter Test Email
+
+- Test newsletter sends to `FROM_ADDRESS` (parsed from config to extract email)
+- Uses `FROM_ADDRESS.split("<")[-1].rstrip(">")` to extract email from "Name <email>" format
+
+## XML Escaping
+
+- `xml_escape()` in utils.py escapes: `&`, `<`, `>`, `"`, and `'`
+- Uses `&apos;` for single quotes
+
+## Session Security
+
+- `SESSION_COOKIE_HTTPONLY` explicitly set to `True`
+- `SESSION_COOKIE_SECURE` set to `not app.debug`
+- `SESSION_COOKIE_SAMESITE` set to `"Lax"`
+
+## RSS Feed Ordering
+
+- Orders by `published_at.desc().nullslast()` then `created_at.desc()`
+- PubDate uses `published_at` if available, falls back to `created_at`
+
+## Media Gallery Pagination
+
+- Media gallery uses pagination with 50 items per page
+- Template shows "Page X of Y" with Previous/Next links

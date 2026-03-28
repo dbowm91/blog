@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
+__all__ = ["utc_now", "is_valid_email", "generate_slug", "xml_escape"]
+
 
 def utc_now() -> datetime:
     """Return current UTC time as a naive datetime (matching SQLite storage)."""
@@ -33,4 +35,4 @@ def xml_escape(s: str) -> str:
     """Escape special characters for XML output."""
     if not s:
         return ""
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&apos;")

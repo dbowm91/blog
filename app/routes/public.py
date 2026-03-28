@@ -2,6 +2,7 @@ from datetime import datetime
 import smtplib
 import uuid
 from datetime import timedelta
+import threading
 
 from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response, url_for
 from sqlalchemy import func, or_, text
@@ -22,29 +23,32 @@ public = Blueprint("public", __name__)
 
 _TAG_COUNTS_CACHE = {"data": None, "timestamp": 0}
 _TAG_COUNTS_TTL = 60
+_TAG_CACHE_LOCK = threading.Lock()
 
 
 def invalidate_tag_cache():
     """Invalidate the tag counts cache."""
-    _TAG_COUNTS_CACHE["data"] = None
-    _TAG_COUNTS_CACHE["timestamp"] = 0
+    with _TAG_CACHE_LOCK:
+        _TAG_COUNTS_CACHE["data"] = None
+        _TAG_COUNTS_CACHE["timestamp"] = 0
 
 
 def _get_tag_counts():
-    now = _time.monotonic()
-    if _TAG_COUNTS_CACHE["data"] is not None and (now - _TAG_COUNTS_CACHE["timestamp"]) < _TAG_COUNTS_TTL:
-        return _TAG_COUNTS_CACHE["data"]
-    counts = (
-        db.session.query(post_tags.c.tag_id, func.count(post_tags.c.post_id))
-        .join(Post, Post.id == post_tags.c.post_id)
-        .filter(Post.published == True)
-        .group_by(post_tags.c.tag_id)
-        .all()
-    )
-    result = {row[0]: row[1] for row in counts}
-    _TAG_COUNTS_CACHE["data"] = result
-    _TAG_COUNTS_CACHE["timestamp"] = now
-    return result
+    with _TAG_CACHE_LOCK:
+        now = _time.monotonic()
+        if _TAG_COUNTS_CACHE["data"] is not None and (now - _TAG_COUNTS_CACHE["timestamp"]) < _TAG_COUNTS_TTL:
+            return _TAG_COUNTS_CACHE["data"].copy()
+        counts = (
+            db.session.query(post_tags.c.tag_id, func.count(post_tags.c.post_id))
+            .join(Post, Post.id == post_tags.c.post_id)
+            .filter(Post.published == True)
+            .group_by(post_tags.c.tag_id)
+            .all()
+        )
+        result = {row[0]: row[1] for row in counts}
+        _TAG_COUNTS_CACHE["data"] = result
+        _TAG_COUNTS_CACHE["timestamp"] = now
+        return result
 
 
 def _get_related_posts(post):
@@ -236,7 +240,15 @@ def subscribe():
         elif existing.confirmed:
             flash("You're already subscribed.", "success")
         else:
-            flash("Check your inbox to confirm your subscription.", "success")
+            existing.token = uuid.uuid4().hex
+            existing.expires_at = utc_now() + timedelta(days=365)
+            db.session.commit()
+            try:
+                send_confirmation(existing)
+                flash("Check your inbox to confirm your subscription.", "success")
+            except (smtplib.SMTPException, ConnectionError, OSError):
+                logger.exception("Failed to send confirmation email to %s", email)
+                flash("Subscribed, but confirmation email could not be sent.", "error")
         return redirect(request.referrer or "/")
 
     sub = Subscriber(email=email)
@@ -255,7 +267,12 @@ def subscribe():
 
 @public.route("/confirm/<token>")
 def confirm(token):
-    sub = Subscriber.query.filter_by(token=token).first_or_404()
+    sub = Subscriber.query.filter_by(token=token).first()
+    _time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
+    if not sub:
+        logger.warning("Confirm enumeration attempt with invalid token from %s", request.remote_addr)
+        flash("Subscription confirmed! You'll receive our newsletter.", "success")
+        return redirect("/")
     sub.confirmed = True
     db.session.commit()
     flash("Subscription confirmed! You'll receive our newsletter.", "success")

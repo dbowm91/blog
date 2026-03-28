@@ -17,6 +17,14 @@ from app.utils import utc_now
 from app.routes.public import invalidate_tag_cache
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+TAG_NAME_REGEX = re.compile(r"^[\w\s-]+$")
+
+
+def validate_tag_name(name: str) -> tuple[bool, str]:
+    """Validate tag name against allowed pattern. Returns (is_valid, error_message)."""
+    if not name or not TAG_NAME_REGEX.match(name):
+        return False, "Invalid tag name."
+    return True, ""
 
 
 def _detect_image_type(header):
@@ -225,6 +233,7 @@ def new_post():
             db.session.add(post)
             db.session.commit()
         flash("Post created.", "success")
+        invalidate_tag_cache()
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
@@ -279,7 +288,13 @@ def edit_post(post_id):
                     pass
             post.image = None
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            post.slug = _generate_unique_slug(title, exclude_id=post.id)
+            db.session.commit()
+        invalidate_tag_cache()
         flash("Post updated.", "success")
         return redirect(url_for("admin.dashboard"))
 
@@ -300,6 +315,7 @@ def delete_post(post_id):
             pass
     db.session.delete(post)
     db.session.commit()
+    invalidate_tag_cache()
     flash("Post deleted.", "success")
     return redirect(url_for("admin.dashboard"))
 
@@ -311,7 +327,8 @@ def _get_or_create_tags(names):
         name = name.strip()[:50]
         if not name:
             continue
-        if not re.match(r"^[\w\s-]+$", name):
+        is_valid, _ = validate_tag_name(name)
+        if not is_valid:
             invalid_tags.append(name)
             continue
         slug = Tag.generate_slug(name)
@@ -513,17 +530,24 @@ def preview_markdown():
 @login_required
 def media():
     import glob as globmod
+    page = request.args.get("page", 1, type=int)
+    per_page = 50
     upload_dir = current_app.config["UPLOAD_FOLDER"]
-    files = []
+    all_files = []
     for filepath in sorted(globmod.glob(os.path.join(upload_dir, "*")), key=os.path.getmtime, reverse=True):
         stat = os.stat(filepath)
         filename = os.path.basename(filepath)
-        files.append({
+        all_files.append({
             "name": filename,
             "size": stat.st_size,
             "mtime": datetime.fromtimestamp(stat.st_mtime),
         })
-    return render_template("admin/media.html", files=files)
+    total = len(all_files)
+    start = (page - 1) * per_page
+    end = start + per_page
+    files = all_files[start:end]
+    total_pages = (total + per_page - 1) // per_page
+    return render_template("admin/media.html", files=files, page=page, total_pages=total_pages)
 
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
@@ -565,8 +589,9 @@ def rename_tag(tag_id):
     if not new_name:
         flash("Tag name cannot be empty.", "error")
         return redirect(url_for("admin.tags_list"))
-    if not re.match(r"^[\w\s-]+$", new_name):
-        flash("Invalid tag name.", "error")
+    is_valid, error_msg = validate_tag_name(new_name)
+    if not is_valid:
+        flash(error_msg, "error")
         return redirect(url_for("admin.tags_list"))
     slug = Tag.generate_slug(new_name)
     existing = Tag.query.filter(Tag.slug == slug, Tag.id != tag.id).first()
@@ -602,8 +627,9 @@ def create_tag():
     if not name:
         flash("Tag name cannot be empty.", "error")
         return redirect(url_for("admin.tags_list"))
-    if not re.match(r"^[\w\s-]+$", name):
-        flash("Invalid tag name.", "error")
+    is_valid, error_msg = validate_tag_name(name)
+    if not is_valid:
+        flash(error_msg, "error")
         return redirect(url_for("admin.tags_list"))
     slug = Tag.generate_slug(name)
     existing = Tag.query.filter_by(slug=slug).first()
@@ -622,7 +648,7 @@ def create_tag():
 @login_required
 def newsletter_test():
     from app.email import send_newsletter
-    from app.config import APP_TITLE
+    from app.config import APP_TITLE, FROM_ADDRESS
     posts = (
         Post.query.filter_by(published=True)
         .order_by(Post.created_at.desc())
@@ -637,8 +663,9 @@ def newsletter_test():
     if not admin_user:
         flash("No admin user found.", "error")
         return redirect(url_for("admin.dashboard"))
+    test_email = FROM_ADDRESS.split("<")[-1].rstrip(">") if "<" in FROM_ADDRESS else FROM_ADDRESS
     fake_sub = type("FakeSub", (), {
-        "email": admin_user.username + "@example.com",
+        "email": test_email,
         "token": "test",
     })()
     try:
@@ -670,11 +697,13 @@ def bulk_operations():
                 post.published = True
                 post.published_at = now
         db.session.commit()
+        invalidate_tag_cache()
         flash(f"Published {len(posts)} post(s).", "success")
     elif action == "unpublish":
         for post in posts:
             post.published = False
         db.session.commit()
+        invalidate_tag_cache()
         flash(f"Unpublished {len(posts)} post(s).", "success")
     elif action == "delete":
         for post in posts:
@@ -685,6 +714,7 @@ def bulk_operations():
                     pass
             db.session.delete(post)
         db.session.commit()
+        invalidate_tag_cache()
         flash(f"Deleted {len(posts)} post(s).", "success")
     else:
         flash("Invalid action.", "error")

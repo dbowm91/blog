@@ -17,14 +17,14 @@ def _strip_markdown(text: str) -> str:
 def feed():
     posts = (
         Post.query.filter_by(published=True)
-        .order_by(Post.created_at.desc())
+        .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
         .limit(20)
         .all()
     )
 
     items = []
     for post in posts:
-        pub_date = post.created_at.strftime("%a, %d %b %Y %H:%M:%S +0000")
+        pub_date = (post.published_at or post.created_at).strftime("%a, %d %b %Y %H:%M:%S +0000")
         link = f"{BASE_URL}/post/{post.slug}"
         if post.summary:
             summary = post.summary

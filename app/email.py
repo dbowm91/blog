@@ -114,9 +114,9 @@ def send_newsletter(posts, subscribers):
                     break
                 try:
                     server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
-                except Exception:
+                except smtplib.SMTPException:
                     logger.exception("Failed to send newsletter to %s after reconnect", sub.email)
-            except Exception:
+            except smtplib.SMTPException:
                 logger.exception("Failed to send newsletter to %s", sub.email)
     finally:
         try:
