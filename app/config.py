@@ -8,6 +8,7 @@ __all__ = [
     "SERVER_HOST", "SERVER_PORT", "DEBUG", "AUTHOR_NAME", "AUTHOR_ROLE",
     "AUTHOR_AVATAR", "BASE_URL", "RELATED_POSTS_COUNT", "SMTP_HOST", "SMTP_PORT",
     "SMTP_USER", "SMTP_PASSWORD", "FROM_ADDRESS", "NEWSLETTER_SEND_TIME",
+    "CONFIRMATION_EXPIRY_HOURS",
 ]
 
 
@@ -62,6 +63,7 @@ SMTP_PASSWORD = _env("SMTP_PASSWORD", _config["email"].get("smtp_password", ""))
 FROM_ADDRESS = _config["email"]["from_address"]
 
 NEWSLETTER_SEND_TIME = _config["newsletter"]["send_time"]
+CONFIRMATION_EXPIRY_HOURS = int(_config["newsletter"].get("confirmation_expiry_hours", 1))
 
 
 def _validate_config(config: dict) -> None:
@@ -78,6 +80,14 @@ def _validate_config(config: dict) -> None:
     per_page = config.get("app", {}).get("posts_per_page", 10)
     if not isinstance(per_page, int) or per_page < 1 or per_page > 100:
         errors.append(f"Invalid posts_per_page: {per_page}. Must be 1-100")
+
+    expiry_hours = config.get("newsletter", {}).get("confirmation_expiry_hours", 1)
+    try:
+        expiry_hours = int(expiry_hours)
+        if expiry_hours < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        errors.append(f"Invalid confirmation_expiry_hours: {expiry_hours}. Must be a positive integer")
 
     if errors:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))

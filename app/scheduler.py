@@ -62,6 +62,49 @@ def send_daily_newsletter(app):
                 pass
 
 
+def cleanup_expired_subscribers(app):
+    """Remove unconfirmed subscribers whose confirmation window has expired."""
+    lock_path = os.path.join(app.instance_path, "cleanup.lock")
+    lock_file = None
+    try:
+        lock_file = open(lock_path, "w")
+        if HAS_FCNTL:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        if lock_file:
+            lock_file.close()
+        return
+
+    try:
+        with app.app_context():
+            from app.models import Subscriber
+            from app.extensions import db
+            from app.utils import utc_now
+
+            expired = Subscriber.query.filter(
+                Subscriber.confirmed == False,
+                Subscriber.expires_at != None,
+                Subscriber.expires_at < utc_now(),
+            ).all()
+
+            if not expired:
+                return
+
+            for sub in expired:
+                db.session.delete(sub)
+            db.session.commit()
+            app.logger.info("Cleaned up %d expired unconfirmed subscribers", len(expired))
+    finally:
+        if lock_file:
+            if HAS_FCNTL:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+            try:
+                os.remove(lock_path)
+            except FileNotFoundError:
+                pass
+
+
 def init_scheduler(app):
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
@@ -81,6 +124,13 @@ def init_scheduler(app):
         CronTrigger(hour=hour, minute=minute),
         args=[app],
         id="daily_newsletter",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        cleanup_expired_subscribers,
+        CronTrigger(minute="*/5"),
+        args=[app],
+        id="cleanup_expired_subscribers",
         replace_existing=True,
     )
     scheduler.start()

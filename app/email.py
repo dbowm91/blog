@@ -35,16 +35,18 @@ def _send_email(to, subject, html_body, text_body=None):
 
 
 def send_confirmation(subscriber):
+    unsub_url = f"{BASE_URL}/unsubscribe/{subscriber.token}"
     html = render_template(
         "email/confirm.html",
         subscriber=subscriber,
         site_title=APP_TITLE,
         base_url=BASE_URL,
+        unsubscribe_url=unsub_url,
     )
     text = (
         f"Confirm your subscription to {APP_TITLE}\n\n"
         f"Click this link to confirm: {BASE_URL}/confirm/{subscriber.token}\n\n"
-        f"If you didn't request this, ignore this email."
+        f"If you didn't request this, you can unsubscribe: {unsub_url}"
     )
     _send_email(subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text)
 

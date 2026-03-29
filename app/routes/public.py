@@ -12,7 +12,7 @@ import time as _time
 
 from app.extensions import db
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent, post_tags
-from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED_POSTS
+from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED_POSTS, CONFIRMATION_EXPIRY_HOURS
 from app.rate_limit import api_rate_limit
 from app.email import send_confirmation
 from app.utils import xml_escape, is_valid_email, utc_now
@@ -229,7 +229,7 @@ def subscribe():
             existing.unsubscribed_at = None
             existing.confirmed = False
             existing.token = uuid.uuid4().hex
-            existing.expires_at = utc_now() + timedelta(days=365)
+            existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
             db.session.commit()
             try:
                 send_confirmation(existing)
@@ -241,7 +241,7 @@ def subscribe():
             flash("You're already subscribed.", "success")
         else:
             existing.token = uuid.uuid4().hex
-            existing.expires_at = utc_now() + timedelta(days=365)
+            existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
             db.session.commit()
             try:
                 send_confirmation(existing)
@@ -251,7 +251,7 @@ def subscribe():
                 flash("Subscribed, but confirmation email could not be sent.", "error")
         return redirect(request.referrer or "/")
 
-    sub = Subscriber(email=email)
+    sub = Subscriber(email=email, expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS))
     db.session.add(sub)
     db.session.commit()
 
@@ -273,6 +273,13 @@ def confirm(token):
         logger.warning("Confirm enumeration attempt with invalid token from %s", request.remote_addr)
         flash("Subscription confirmed! You'll receive our newsletter.", "success")
         return redirect("/")
+    if sub.expires_at and sub.expires_at < utc_now():
+        # Confirmation window expired — remove the subscriber
+        db.session.delete(sub)
+        db.session.commit()
+        logger.info("Removed expired unconfirmed subscriber: %s", sub.email)
+        flash("Subscription confirmed! You'll receive our newsletter.", "success")
+        return redirect("/")
     sub.confirmed = True
     db.session.commit()
     flash("Subscription confirmed! You'll receive our newsletter.", "success")
@@ -285,12 +292,6 @@ def unsubscribe(token):
     _time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
         logger.warning("Unsubscribe enumeration attempt with invalid token from %s", request.remote_addr)
-        flash("You have been unsubscribed.", "success")
-        return redirect("/")
-    if sub.expires_at and sub.expires_at < utc_now():
-        # expires_at is an unsubscribe-link security measure (365 days),
-        # not a subscription duration — treat expired links like valid ones.
-        logger.warning("Unsubscribe attempt with expired token from %s for %s", request.remote_addr, sub.email)
         flash("You have been unsubscribed.", "success")
         return redirect("/")
     # Soft delete: set unsubscribed_at and mark unconfirmed

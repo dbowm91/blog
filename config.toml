@@ -34,3 +34,4 @@ from_address = "blog@example.com"
 
 [newsletter]
 send_time = "08:00"
+confirmation_expiry_hours = 1
