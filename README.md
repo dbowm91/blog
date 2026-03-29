@@ -28,9 +28,15 @@ A personal blog platform built with Flask, featuring an admin dashboard, newslet
 This will:
 - Check Python version (3.14+ required)
 - Create a virtual environment
-- Install dependencies
+- Install production dependencies
 - Generate `.env` with random `SECRET_KEY` and `ADMIN_PASSWORD`
 - Create required directories (`instance/`, `logs/`, `static/uploads/`)
+
+For development (includes pytest):
+
+```bash
+./setup.sh --dev
+```
 
 ### Manual Setup
 

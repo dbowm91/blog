@@ -63,20 +63,26 @@ def create_backup(db_path, backup_dir, compress=False, keep=7):
     try:
         # Use SQLite's backup API for consistent snapshot
         source = sqlite3.connect(db_path)
-        dest = sqlite3.connect(backup_path if not compress else ":memory:")
-        
+        dest = sqlite3.connect(backup_path)
+
         try:
             source.backup(dest)
         finally:
             dest.close()
             source.close()
-        
+
         # Compress if requested
         if compress:
-            with open(backup_path, "rb") as f_in:
-                with gzip.open(backup_path + ".tmp", "wb") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            os.replace(backup_path + ".tmp", backup_path)
+            tmp_path = backup_path + ".tmp"
+            try:
+                with open(backup_path, "rb") as f_in:
+                    with gzip.open(tmp_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                os.replace(tmp_path, backup_path)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                raise
         
         print(f"Backup created: {backup_path}")
         
