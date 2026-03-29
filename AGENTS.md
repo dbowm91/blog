@@ -22,7 +22,6 @@ app/routes/public.py    # Public-facing routes
 app/routes/admin.py     # Admin routes (requires login)
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
-app/rate_limit.py       # In-memory rate limiting
 app/utils.py            # Slug generation, email validation, XML escaping
 app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
@@ -43,10 +42,10 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
-- `Subscriber.expires_at` defaults to 365 days; checked in the unsubscribe route
+- `Subscriber.expires_at` defaults to 1 hour in the model; the subscribe route overrides from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
 - Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_slug` on `slug`
-- `PageView` and `ShareEvent` have no indexes—analytics queries may be slow at scale
+- `PageView` has indexes on `post_id` and `created_at` (separate); `ShareEvent` has an index on `post_id`
 
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
@@ -68,11 +67,6 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - `main.js` sends `X-CSRF-Token` header for the `/api/track-share` JSON endpoint (reads from `<meta name="csrf-token">`)
 - The `before_request` handler in `__init__.py` handles both CSRF validation and session timeout
 - The handler checks for `_csrf_exempt` attribute on view functions (currently unused by any route)
-
-### Rate Limiting
-- In-memory dicts—state lost on restart, **not shared across workers**
-- `check_rate_limit()` for login, `api_rate_limit()` for API endpoints
-- Uses `request.remote_addr` for IP identification—proxy setups need `ProxyFix` middleware
 
 ### Configuration
 - `config.toml` for site settings (title, author, email, etc.)
@@ -105,7 +99,6 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 ## Known Limitations
 
 - **SQLite only**—no PostgreSQL/MySQL support configured
-- **In-memory rate limiting**—resets on restart, doesn't share across workers
 - **File uploads**—stored locally in `static/uploads/`, no S3 support
 - **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows.
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
@@ -131,8 +124,14 @@ The `nh3.clean()` allowed tags/attributes are defined in `app/markdown_config.py
 ### Subscribe Exception Handling
 The `subscribe()` route in `public.py` catches specific SMTP/connection exceptions from `send_confirmation()` to mask email failures from users (they're already subscribed in the DB). Programming errors are no longer swallowed.
 
-### Test Private State Access
-`tests/test_rate_limit.py` uses the public `clear_all()` function from `app.rate_limit` to reset state between tests, rather than importing private dicts directly.
+### IntegrityError Rollback Gotcha
+In `edit_post()`, `db.session.rollback()` reverts ALL session changes, not just the failing commit. After rollback, SQLAlchemy marks all attributes as expired and will re-read from DB on next access. If you only re-set one field (e.g., slug) and commit, all other edits are silently lost. Always reapply all field changes after rollback.
+
+### Newsletter Send Success Tracking
+`send_newsletter()` should return a success/failure boolean. The scheduler must check this before marking posts as `newsletter_sent_at`. Without this, SMTP failures mid-batch result in lost emails with no retry.
+
+### Double-Checked Locking for Caches
+When using `threading.Lock` to protect a cached DB query, hold the lock only for cache reads/writes — run the DB query outside the lock. Otherwise a slow query blocks all concurrent requests. See `_get_tag_counts()` in `public.py` for the pattern.
 
 ## Assets
 
