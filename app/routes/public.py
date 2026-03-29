@@ -1,4 +1,3 @@
-from datetime import datetime
 import smtplib
 import uuid
 from datetime import timedelta
@@ -278,7 +277,7 @@ def confirm(token):
         db.session.delete(sub)
         db.session.commit()
         logger.info("Removed expired unconfirmed subscriber: %s", sub.email)
-        flash("Subscription confirmed! You'll receive our newsletter.", "success")
+        flash("This confirmation link has expired. Please subscribe again.", "warning")
         return redirect("/")
     sub.confirmed = True
     db.session.commit()

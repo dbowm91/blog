@@ -1,4 +1,5 @@
 import secrets
+import hmac
 
 from flask import session, request, abort, current_app
 
@@ -17,6 +18,6 @@ def validate_csrf_token() -> None:
         return
     
     token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
-    if not token or token != session.get("csrf_token"):
+    if not token or not hmac.compare_digest(token, session.get("csrf_token", "")):
         abort(403)
 

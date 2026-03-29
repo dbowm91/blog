@@ -223,6 +223,11 @@ def new_post():
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
+            if image:
+                try:
+                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+                except FileNotFoundError:
+                    pass
             slug = _generate_unique_slug(title + "-post")
             post = Post(
                 title=title, slug=slug, body=body, summary=summary,
@@ -292,7 +297,22 @@ def edit_post(post_id):
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
+            if image:
+                try:
+                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+                except FileNotFoundError:
+                    pass
+            post = db.session.get(Post, post_id)
+            post.title = title
+            post.body = body
+            post.summary = summary
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
+            post.published = published
+            if published and not was_published:
+                post.published_at = utc_now()
+            post.tags = _get_or_create_tags(tag_names)
+            if image:
+                post.image = image
             db.session.commit()
         invalidate_tag_cache()
         flash("Post updated.", "success")

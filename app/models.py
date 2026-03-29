@@ -100,7 +100,7 @@ class Subscriber(db.Model):
     confirmed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=utc_now)
     expires_at = db.Column(
-        db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(hours=1),
+        db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(days=365),
         doc="Confirmation deadline. Subscribers removed if not confirmed before this time.",
     )
     unsubscribed_at = db.Column(db.DateTime, nullable=True)

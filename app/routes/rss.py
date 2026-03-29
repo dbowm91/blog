@@ -25,7 +25,7 @@ def feed():
     items = []
     for post in posts:
         pub_date = (post.published_at or post.created_at).strftime("%a, %d %b %Y %H:%M:%S +0000")
-        link = f"{BASE_URL}/post/{post.slug}"
+        link = xml_escape(f"{BASE_URL}/post/{post.slug}")
         if post.summary:
             summary = post.summary
         else:
@@ -42,11 +42,11 @@ def feed():
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>{xml_escape(APP_TITLE)}</title>
-    <link>{BASE_URL}</link>
+    <link>{xml_escape(BASE_URL)}</link>
     <description>{xml_escape(APP_DESCRIPTION)}</description>
     <language>en-us</language>
     <lastBuildDate>{utc_now().strftime("%a, %d %b %Y %H:%M:%S +0000")}</lastBuildDate>
-    <atom:link href="{BASE_URL}/rss" rel="self" type="application/rss+xml"/>
+    <atom:link href="{xml_escape(BASE_URL)}/rss" rel="self" type="application/rss+xml"/>
 {"".join(items)}
   </channel>
 </rss>"""
