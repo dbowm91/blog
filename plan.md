@@ -1,526 +1,286 @@
-# DevLog Blog Platform — Consolidated Improvement Plan
+# Blog Application Improvement Plan
 
-Consolidated from plan2/plan3/plan4/plan5. All rate limiting items have been removed — rate limiting is handled by the reverse proxy.
+Consolidated plan from code review. Items organized by priority.
 
----
-
-## Phase 1: Security Fixes (Priority: HIGH)
-
-### 1.1 CSRF constant-time comparison
-
-**File:** `app/csrf.py:20`
-
-**Problem:** `token != session.get("csrf_token")` uses Python's short-circuit comparison, enabling timing side-channel attacks.
-
-**Fix:** Use `hmac.compare_digest()` (add `import hmac` at top of file).
-
-```python
-if not token or not hmac.compare_digest(token, session.get("csrf_token", "")):
-    abort(403)
-```
-
-**Tests:** Existing CSRF tests pass — behavior identical, just timing-safe.
+**Excluded:** Rate limiting (handled by reverse proxy/WAF), HTTPS redirect (handled by reverse proxy), GET→POST migration for confirm/unsubscribe (breaking change for email links), separate unsubscribe tokens (breaking change for existing subscribers).
 
 ---
 
-### 1.2 HSTS conditional on debug mode
+## Phase 1: Critical Security Fixes
 
-**File:** `app/__init__.py:153`
+### 1.1 CSRF on Logout
 
-**Problem:** `Strict-Transport-Security` is sent unconditionally. In local HTTP dev, browsers cache HSTS and block future HTTP access.
+**Problem:** Logout uses `GET /admin/logout` (`admin.py:107`), allowing session termination via CSRF (e.g., `<img src="/admin/logout">`).
 
-**Fix:** Only set when not in debug mode.
+**Solution:** Change to POST with CSRF token.
 
-```python
-if not current_app.debug:
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-```
+- `app/routes/admin.py:107` — change `@admin.route("/logout")` to `@admin.route("/logout", methods=["POST"])`
+- `app/templates/admin/dashboard.html` — change logout link to POST form with `csrf_token`
+- `app/templates/base.html` — same if logout link exists there
 
-**Tests:** Verify header absent when `app.debug=True`, present when `False`.
+### 1.2 Premature File Deletion on Rollback
 
----
+**Problem:** In `edit_post()` (`admin.py:277-281`) and `bulk_operations()` (`admin.py:744-749`), image files are deleted before `db.session.commit()`. If commit fails and rolls back, the database references missing files.
 
-### 1.3 RSS link/guid XML escaping
+**Solution:** Delete image files only after successful commit.
 
-**File:** `app/routes/rss.py:28,35-36,45,49`
+- `app/routes/admin.py` (`edit_post`, lines 275-310) — store old image filename, commit first, then delete file after successful commit. Wrap deletion in `try/except FileNotFoundError`.
+- `app/routes/admin.py` (`bulk_operations`, lines 743-751) — collect image paths, commit, then delete files in a separate loop.
 
-**Problem:** `<link>` and `<guid>` values are inserted raw without `xml_escape()`. Inconsistent with `title` and `description` which are escaped. `BASE_URL` comes from config and could contain characters needing escaping.
+### 1.3 CSP Inline Style Blocking
 
-**Fix:** Apply `xml_escape()` to link values in both item-level and channel-level elements.
+**Problem:** CSP header `style-src 'self'` (`__init__.py:163`) blocks inline `style` attributes used in public templates (e.g., `--delay` CSS custom properties in `index.html:15`, `tag.html:14`, `search.html:21`) and admin templates (`editor.html:9`, `dashboard.html:7`, `analytics.html:48`, `media.html:36`).
 
-**Tests:** Add test with a URL containing `&` to verify escaping.
+**Solution:** Add `'unsafe-inline'` to `style-src` directive. Long-term goal: refactor inline styles to CSS classes.
 
----
-
-### 1.4 confirm() — accurate message for expired tokens
-
-**File:** `app/routes/public.py:276-282`
-
-**Problem:** Expired confirmation deletes the subscriber but shows "Subscription confirmed!" — misleading.
-
-**Fix:** Show accurate message:
-
-```python
-flash("This confirmation link has expired. Please subscribe again.", "warning")
-```
-
-**Tests:** Verify expired token shows warning instead of success.
+- `app/__init__.py:163` — change to `style-src 'self' 'unsafe-inline';`
+- `app/templates/admin/editor.html`, `dashboard.html`, `media.html`, `analytics.html` — extract common inline styles to CSS utility classes (`.flex-row`, `.gap-sm`, `.gap-md`, etc.) in `style.css`
+- `app/static/css/style.css` — add utility classes
 
 ---
 
-## Phase 2: Bug Fixes (Priority: HIGH)
+## Phase 2: Security Hardening
 
-### 2.1 edit_post() IntegrityError rollback loses user edits
+### 2.1 Subscriber Enumeration Fix
 
-**File:** `app/routes/admin.py:291-296`
+**Problem:** The subscribe endpoint (`public.py:180-227`) reveals whether an email exists: "You're already subscribed." vs "Check your inbox to confirm your subscription."
 
-**Problem:** On slug collision `IntegrityError`, `db.session.rollback()` reverts ALL changes (title, body, summary, tags, image, published state). The retry only sets a new slug and commits — the user's edits are silently lost because SQLAlchemy expires attributes after rollback and re-reads from DB.
+**Solution:** Return a unified message regardless of subscriber state.
 
-**Fix:** After rollback, re-query the post and reapply all field changes before committing:
+- `app/routes/public.py:202-203` — change `flash("You're already subscribed.", "success")` to `flash("Check your inbox to confirm your subscription.", "success")`
+- Internal log messages should still differentiate for debugging
 
-```python
-except IntegrityError:
-    db.session.rollback()
-    post = db.session.get(Post, post_id)
-    post.title = title
-    post.body = body
-    post.summary = summary
-    post.slug = _generate_unique_slug(title, exclude_id=post.id)
-    post.published = published
-    if published and not was_published:
-        post.published_at = utc_now()
-    post.tags = _get_or_create_tags(tag_names)
-    if image:
-        post.image = image
-    db.session.commit()
-```
+### 2.2 Referrer Logging Sanitization
 
-**Tests:** Edit a post triggering slug collision; verify body/summary/tags preserved.
+**Problem:** Full referrer URLs logged to database (`public.py:69`). Could contain sensitive query parameters (tokens, search terms).
 
----
+**Solution:** Strip query parameters, keep only origin/path.
 
-### 2.2 new_post() IntegrityError — orphaned image cleanup
+- `app/routes/public.py:69` — parse `request.referrer` with `urllib.parse.urlparse`, reconstruct without query string, truncate to 512 chars
+- Apply same sanitization to any other referrer logging
 
-**File:** `app/routes/admin.py:224-234`
+### 2.3 Open Redirect via request.referrer
 
-**Problem:** If the first commit fails, the uploaded image file exists on disk. If the retry also fails or the code is refactored, the orphaned image stays.
+**Problem:** After subscription, redirect uses `request.referrer or "/"` (`public.py:185,214,227`). Attacker can spoof Referer header to redirect users to external sites.
 
-**Fix:** After rollback, delete the uploaded image before retrying with a fresh `_save_image()` call:
+**Solution:** Validate referrer host matches `request.host`, or hardcode redirect URL.
 
-```python
-except IntegrityError:
-    db.session.rollback()
-    if image:
-        try:
-            os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
-        except FileNotFoundError:
-            pass
-    slug = _generate_unique_slug(title + "-post")
-    image, error = _save_image(request.files.get("image"))
-    # ... recreate post ...
-```
+- `app/routes/public.py` (`subscribe`) — parse `request.referrer`, check `urlparse(referrer).netloc == request.host` (or empty for same-origin). Fall back to `url_for("public.index")` if mismatch.
+- Apply to all three redirect locations in `subscribe()`: lines 185, 214, 227
 
-**Tests:** Test that new_post handles IntegrityError and creates the post with correct image.
+### 2.4 Input Validation
+
+**Problem:** Several routes lack input validation — unvalidated types, missing length limits.
+
+- `app/routes/public.py` (`track_share`, ~line 164) — convert `post_id` to `int()`, handle `ValueError` with 400; truncate `platform` to 32 chars
+- `app/routes/public.py` (`subscribe`, line 182) — truncate email to 256 chars (already `.strip().lower()`)
+- `app/routes/admin.py` (`bulk_operations`) — validate each `post_id` is integer, handle `ValueError`
+- `app/routes/admin.py` (create/edit post) — truncate title to 200, summary to 500 chars before saving
+
+### 2.5 CSP connect-src Directive
+
+**Problem:** CSP header doesn't specify `connect-src`, which defaults to `'self'`. Adding explicit directive improves clarity and prevents silent breakage if defaults change.
+
+**Solution:** Add explicit `connect-src 'self'` to CSP.
+
+- `app/__init__.py:161-168` — append `"connect-src 'self'; "` to CSP string
 
 ---
 
-### 2.3 Subscriber model default expires_at
+## Phase 3: Data Integrity
 
-**File:** `app/models.py:103`
+### 3.1 Newsletter Retry Loop & Per-Subscriber Tracking
 
-**Problem:** Model default is `timedelta(hours=1)`. The subscribe route always overrides this from config, so the default is misleading dead code.
+**Problem:** When `send_newsletter()` returns `False` (SMTP failures), posts are retried every day forever with no retry limit. No per-subscriber tracking — partial sends could result in duplicates on retry.
 
-**Fix:** Change to 365 days to serve as a sensible fallback:
+**Solution:** Add `newsletter_attempts` column to `Post`. Skip after N failed attempts. Admin can reset via existing `/admin/newsletter-reset/<post_id>` route.
 
-```python
-default=lambda: utc_now() + timedelta(days=365)
-```
+**Changes:**
 
-**Tests:** Existing subscriber tests pass — default is overridden in all code paths.
-
----
-
-### 2.4 Remove unused datetime import
-
-**File:** `app/routes/public.py:1`
-
-**Problem:** Line 1 imports `datetime` class but it is never used in the file. Only `timedelta` (line 4) is used.
-
-**Fix:** Remove `from datetime import datetime` on line 1.
-
----
-
-## Phase 3: Performance Improvements (Priority: HIGH)
-
-### 3.1 Add composite indexes on PageView and ShareEvent
-
-**File:** `app/models.py`
-
-**Current state:** `PageView` has separate indexes on `post_id` and `created_at`. `ShareEvent` has an index on `post_id` only. Analytics queries that filter by both columns would benefit from composite indexes.
-
-**Action:**
-- Replace individual indexes with composite: `db.Index("ix_page_views_post_created", "post_id", "created_at")`
-- Add composite: `db.Index("ix_share_events_post_created", "post_id", "created_at")`
-
-**Migration:** `flask db migrate -m "Add composite indexes on PageView and ShareEvent" && flask db upgrade`
-
----
-
-### 3.2 Add index on Post.published_at
-
-**File:** `app/models.py`
-
-**Problem:** Newsletter and analytics queries filter on `published_at` without an index.
-
-**Action:** Add `db.Index("ix_posts_published_at", "published_at")` to `Post.__table_args__`.
-
-**Migration:** `flask db migrate -m "Add index on Post.published_at" && flask db upgrade`
-
----
-
-### 3.3 Tag count query — double-checked locking
-
-**File:** `app/routes/public.py:37-51`
-
-**Problem:** The DB query runs inside `_TAG_CACHE_LOCK`. If the query is slow, all concurrent requests block waiting for the lock.
-
-**Fix:** Use double-checked locking — only hold the lock for cache reads/writes, run the query outside:
-
-```python
-def _get_tag_counts():
-    with _TAG_CACHE_LOCK:
-        now = _time.monotonic()
-        if _TAG_COUNTS_CACHE["data"] is not None and (now - _TAG_COUNTS_CACHE["timestamp"]) < _TAG_COUNTS_TTL:
-            return _TAG_COUNTS_CACHE["data"].copy()
-
-    counts = (...)  # DB query outside lock
-    result = {row[0]: row[1] for row in counts}
-
-    with _TAG_CACHE_LOCK:
-        now = _time.monotonic()
-        if _TAG_COUNTS_CACHE["data"] is None or (now - _TAG_COUNTS_CACHE["timestamp"]) >= _TAG_COUNTS_TTL:
-            _TAG_COUNTS_CACHE["data"] = result
-            _TAG_COUNTS_CACHE["timestamp"] = now
-            return result.copy()
-        return _TAG_COUNTS_CACHE["data"].copy()
-```
-
-**Tests:** Existing cache tests pass.
-
----
-
-### 3.4 Optimize media gallery — cap file count
-
-**File:** `app/routes/admin.py:537`
-
-**Problem:** All files are loaded and sorted into memory. With thousands of uploads this is slow and unbounded.
-
-**Fix:** Cap at 1000 files. Use `os.scandir()` instead of `glob.glob()` for better performance. Show notice in template when truncated.
-
-**Tests:** Existing media page test continues to pass.
-
----
-
-### 3.5 Optimize search query
-
-**File:** `app/routes/public.py:145-173`
-
-**Problem:** Searching on `body` column via `ILIKE` is slow with large content.
-
-**Options:**
-- **Option A:** Add SQLite FTS (Full-Text Search) — no breaking changes
-- **Option B:** Remove body from search, limit to title and summary
-
----
-
-### 3.6 Add database connection pooling config
-
-**File:** `app/__init__.py`
-
-**Action:**
-
-```python
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 300,
-}
-```
-
----
-
-### 3.7 Add ProxyFix middleware
-
-**File:** `app/__init__.py`
-
-**Problem:** `request.remote_addr` returns the proxy IP, not the client IP, behind reverse proxies.
-
-**Fix:**
-
-```python
-from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-```
-
----
-
-## Phase 4: Newsletter Reliability (Priority: HIGH)
-
-### 4.1 send_newsletter() — return success/failure
-
-**File:** `app/email.py:70-127`
-
-**Problem:** `send_newsletter()` returns `None`. No signal to the caller about success.
-
-**Fix:** Return `True` (all sent) or `False` (some failures). Track per-subscriber success.
-
----
-
-### 4.2 Scheduler — only mark sent on success
-
-**File:** `app/scheduler.py:48-53`
-
-**Problem:** Scheduler unconditionally marks posts as sent after calling `send_newsletter()`, regardless of whether emails were actually delivered.
-
-**Fix:**
-
-```python
-success = send_newsletter(posts, subscribers)
-if success:
-    now = utc_now()
-    for post in posts:
-        post.newsletter_sent_at = now
-    db.session.commit()
-else:
-    logger.warning("Newsletter had failures; posts will be retried on next run")
-```
-
-**Tests:** Test that send_newsletter returns False on SMTP failure; posts not marked as sent.
-
----
-
-## Phase 5: Code Quality (Priority: MEDIUM)
-
-### 5.1 Extract tag cache to separate module
-
-**File:** Create `app/cache.py`, modify `app/routes/public.py`, `app/routes/admin.py`
-
-**Problem:** Cross-blueprint import (`admin.py` imports `invalidate_tag_cache` from `public.py`) creates coupling.
-
-**Action:** Extract `_TAG_COUNTS_CACHE`, `_TAG_COUNTS_TTL`, `_TAG_CACHE_LOCK`, `invalidate_tag_cache()`, and `_get_tag_counts()` into `app/cache.py`. Update imports in both route modules.
-
----
-
-### 5.2 Add ProxyFix (see 3.7)
-
-Already covered above.
-
----
-
-### 5.3 config.toml base_url — use http for localhost
-
-**File:** `config.toml:25`
-
-**Problem:** `base_url = "https://localhost:5000"` with no TLS configured. Combined with HSTS, this breaks browsers.
-
-**Fix:** Change to `http://localhost:5000`. Users set real HTTPS URL in production.
-
----
-
-### 5.4 Improve admin user creation error handling
-
-**File:** `app/__init__.py:186-203`
-
-**Problem:** Ambiguous behavior when `ADMIN_PASSWORD` env var doesn't match stored password.
-
-**Fix:** Add explicit logging when password mismatch detected. Make error handling more explicit.
-
----
-
-### 5.5 Add type hints to utility functions
-
-**Files:** `app/utils.py`, `app/base62.py`, `app/email.py`
-
-**Action:** Add complete type hints for better IDE support and documentation.
-
----
-
-## Phase 6: Observability (Priority: MEDIUM)
-
-### 6.1 Add request ID tracking
-
-**File:** `app/__init__.py`
-
-**Action:** Add middleware that generates a unique ID per request (`X-Request-ID` header), includes it in log output.
-
----
-
-### 6.2 Add request timing middleware
-
-**File:** `app/__init__.py`
-
-**Action:** Log requests that take >1s with method, path, and duration.
-
----
-
-### 6.3 Enhance logging
-
-**Files:** `app/__init__.py`, various modules
-
-**Actions:**
-- Add structured logging (JSON format option)
-- Add performance logging for slow queries
-
----
-
-## Phase 7: Testing (Priority: HIGH)
-
-### 7.1 Add newsletter scheduler tests
-
-**File:** Create `tests/test_newsletter.py`
+- `app/models.py` — add `newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)` after `newsletter_sent_at`
+- `app/scheduler.py:29-36` — add `Post.newsletter_attempts < 5` to query filter
+- `app/scheduler.py:50-54` — on success, reset `newsletter_attempts = 0` alongside `newsletter_sent_at`
+- `app/scheduler.py:55-56` — on failure, increment `newsletter_attempts` per post
+- `app/routes/admin.py` (`newsletter_reset`) — also reset `post.newsletter_attempts = 0`
+- `app/templates/admin/dashboard.html` — update "Reset NL" button tooltip to show attempt count when > 0
+- Migration: `flask db migrate -m "add newsletter_attempts to posts"` / `flask db upgrade`
 
 **Tests:**
-- `test_scheduler_sends_to_confirmed_only()` — only confirmed, unsubscribed=None receive
-- `test_scheduler_excludes_expired_subscribers()` — expired expires_at excluded
-- `test_newsletter_sent_at_prevents_duplicates()` — flag set after sending
-- `test_newsletter_test_endpoint()` — POST /admin/newsletter-test works
-- `test_newsletter_reset_endpoint()` — POST /admin/newsletter-reset/<id> clears flag
-- `test_newsletter_returns_false_on_smtp_failure()` — send_newsletter returns False
+- Posts with `newsletter_attempts >= 5` are skipped
+- Successful send resets attempts to 0
+- Failure increments attempts
+- SMTP disconnect mid-batch does not mark posts as sent
+
+### 3.2 Subscriber expires_at Default Mismatch
+
+**Problem:** `Subscriber.expires_at` model default is 365 days (`models.py:104`), but `subscribe()` route overrides to `CONFIRMATION_EXPIRY_HOURS` (default 1 hour). Model default is misleading — new subscribers created outside the route get a 365-day window.
+
+**Solution:** Remove the model default; require explicit `expires_at` assignment.
+
+- `app/models.py:104` — remove `default=lambda: utc_now() + timedelta(days=365)` from `expires_at`. Keep `nullable=True`.
+- `app/routes/public.py` (`subscribe`) — already sets `expires_at` explicitly on all paths. No changes needed.
+- `app/scheduler.py` (`cleanup_expired_subscribers`) — already filters `Subscriber.expires_at != None` before comparing. No changes needed.
+
+### 3.3 IntegrityError Loop in edit_post()
+
+**Problem:** After rollback in `edit_post()` (`admin.py:292-310`), all fields are re-applied. Per the IntegrityError rollback gotcha in AGENTS.md: `db.session.rollback()` expires all attributes. If another error occurs during retry, original data is lost.
+
+**Solution:** Use `db.session.begin_nested()` (savepoint) before the outer commit, or fetch fresh object after rollback and only update slug.
+
+- `app/routes/admin.py:290-310` — wrap in nested transaction. On `IntegrityError`, rollback to savepoint, regenerate slug only, retry commit.
 
 ---
 
-### 7.2 Add security header tests
+## Phase 4: Performance
 
-**File:** Create `tests/test_security.py`
+### 4.1 Database Index Optimization
 
-**Tests:**
-- `test_csp_header()` — CSP header present and correct
-- `test_hsts_conditional()` — HSTS absent in debug, present in production
-- `test_csrf_protection()` — POST without token fails
-- `test_x_frame_options()` — X-Frame-Options is DENY
-- `test_referrer_policy()` — Referrer-Policy header present
+**Problem:** Missing indexes cause full table scans; redundant indexes waste storage.
 
----
+**Add:**
+- `Post.newsletter_sent_at` — index for newsletter query filter (`scheduler.py:33`)
+- `Subscriber` composite index on `(confirmed, unsubscribed_at)` — for newsletter subscriber query (`scheduler.py:42-44`)
+- `Post` composite index on `(published, updated_at)` — if used for ordering
 
-### 7.3 Add page view deduplication tests
+**Remove (redundant):**
+- `Index('ix_posts_slug', 'slug')` — unique constraint already creates an index
+- `Index('ix_share_events_post_id', 'post_id')` — covered by composite `ix_share_events_post_created`
 
-**File:** Add to `tests/test_public.py`
+**Changes:**
+- `app/models.py` — add/remove index definitions
+- Migration: `flask db migrate -m "optimize database indexes"` / `flask db upgrade`
 
-**Tests:**
-- `test_page_view_deduplication()` — same session, same post = 1 view only
-- `test_max_viewed_posts_cap()` — session capped at MAX_VIEWED_POSTS
+### 4.2 setup.sh Directory Path Fix
 
----
+**Problem:** `setup.sh:75` creates `static/uploads` relative to project root, but the app expects uploads at `app/static/uploads/`.
 
-## Phase 8: Robustness (Priority: LOW)
+**Solution:**
+- `setup.sh:75` — change to `mkdir -p instance logs app/static/uploads`
 
-### 8.1 Orphan tag cleanup
+### 4.3 base62 O(1) Decode Lookup
 
-**File:** `app/routes/admin.py` (delete_post, edit_post, bulk_operations)
+**Problem:** `ALPHABET.index(char)` in `app/base62.py` is O(n). Negligible for 62 chars but unclean.
 
-**Problem:** When posts are deleted or tags removed, tag records with zero posts remain in DB.
-
-**Fix:** Add `_cleanup_orphan_tags()` helper. Call after `invalidate_tag_cache()` in delete_post, edit_post, and bulk_operations delete branch.
-
-**Tests:** Create post with tags, delete post, verify orphaned tags removed.
+**Solution:**
+- `app/base62.py` — add `_DECODE_MAP = {c: i for i, c in enumerate(ALPHABET)}`, use in decode function
 
 ---
 
-### 8.2 Validate image dimensions
+## Phase 5: Code Quality & Cleanup
 
-**File:** `app/routes/admin.py`
+### 5.1 Remove Legacy Session Timestamp Parsing
 
-**Action:** Add optional dimension checking in `_save_image()`.
+**Problem:** `app/__init__.py:~134-150` handles old ISO string format for `last_activity` (backward compat). All sessions should now use float timestamps.
 
----
+**Solution:** Remove legacy ISO string parsing code, simplify to float-only comparison.
 
-### 8.3 Scheduler graceful shutdown
+### 5.2 Move Inline Template Imports to Top-Level
 
-**File:** `app/scheduler.py`
+**Problem:** `render_template` is imported inside error handlers (`__init__.py:~78,83,89`) instead of at top of file.
 
-**Action:** Verify scheduler shuts down on app teardown.
+**Solution:** Move `from flask import render_template` to top-level imports in `create_app()`.
 
----
+### 5.3 Update Legacy SQLAlchemy API
 
-## Phase 9: User Experience (Priority: LOW)
+**Problem:** `User.query.first()` in admin user creation uses legacy API.
 
-### 9.1 Add search result count
+**Solution:**
+- `app/__init__.py` (`create_admin_user`) — change to `db.session.execute(db.select(User)).scalar_one_or_none()`
 
-**File:** `app/templates/search.html`
+### 5.4 Tag Cache Double-Checked Locking Comment
 
-**Action:** Display "Found X result(s)" before pagination.
+**Problem:** The double-checked locking pattern in `_get_tag_counts()` (`cache.py`) releases lock, queries DB, then re-acquires. Between releases, another thread could populate the cache, wasting the DB query.
 
----
+**Solution:** No code change needed — current implementation is correct (second check under lock ensures correctness). Add comment explaining the tradeoff.
 
-### 9.2 Add auto-save indicator
+- `app/cache.py` — add comment before DB query section explaining the pattern
 
-**File:** `app/templates/admin/editor.html`
+### 5.5 Missing `__init__.py` in Migrations Folder
 
-**Action:** Show "Saving..." / "Saved" indicator during draft autosave.
+**Problem:** The `migrations/` folder lacks an `__init__.py` file, which is non-standard.
 
----
+**Solution:**
+- Create `migrations/__init__.py` as an empty file
 
-## Phase 10: Features (Priority: LOW)
+### 5.6 backup.py --keep 0 Guard
 
-### 10.1 Add password change endpoint
+**Problem:** `--keep 0` is allowed, deleting all backups immediately after creation.
 
-**File:** `app/routes/admin.py`, `app/templates/admin/password.html`
+**Solution:**
+- `backup.py:~122` — add `if args.keep < 1: parser.error("--keep must be at least 1")`
 
-**Action:** Add `GET/POST /admin/password` route with current password verification.
+### 5.7 Magic Numbers to Config
 
----
+**Problem:** Various magic numbers throughout code (tag cache TTL, etc.) should be configurable.
 
-### 10.2 Add post scheduling
+**Solution:** Add to `config.toml [app]` section and load in `config.py`.
 
-**File:** `app/models.py`, `app/routes/admin.py`, `app/scheduler.py`
-
-**Action:** Add `scheduled_at` column, scheduler job, and UI for scheduling.
-
----
-
-### 10.3 Add export functionality
-
-**File:** `app/routes/admin.py`
-
-**Action:** Export posts as Markdown or JSON for backup.
+- Identify all magic numbers suitable for configuration (tag cache TTL, newsletter retry limit, etc.)
+- Add to `config.toml` with appropriate defaults
+- Update code to use config values
 
 ---
 
-## Execution Order
+## Phase 6: UX & Accessibility
 
-### Sprint 1: Security & Bug Fixes (1-2 days)
-1. CSRF constant-time comparison (1.1)
-2. HSTS conditional on debug (1.2)
-3. config.toml base_url fix (5.3)
-4. Remove unused import (2.4)
-5. RSS XML escaping (1.3)
-6. confirm() expired message (1.4)
-7. Subscriber default expires_at (2.3)
-8. edit_post IntegrityError fix (2.1)
-9. new_post IntegrityError image cleanup (2.2)
+### 6.1 Accessibility Improvements
 
-### Sprint 2: Performance (1-2 days)
-10. Composite indexes on PageView/ShareEvent (3.1)
-11. Index on Post.published_at (3.2)
-12. Tag count query double-checked locking (3.3)
-13. Media gallery file cap (3.4)
-14. ProxyFix middleware (3.7)
-15. DB connection pooling (3.6)
+- `app/templates/_sidebar.html` — add `aria-label="Email address"` to email input
+- `app/templates/base.html` — reduce skip links to one (main content); add `rel="noopener"` to all `target="_blank"` links
+- `app/templates/admin/editor.html` — add `rel="noopener"` to preview and view post links
 
-### Sprint 3: Newsletter & Testing (2-3 days)
-16. send_newsletter return value (4.1)
-17. Scheduler success check (4.2)
-18. Newsletter scheduler tests (7.1)
-19. Security header tests (7.2)
-20. Page view dedup tests (7.3)
+### 6.2 Search Page Broken Sidebar
 
-### Sprint 4: Code Quality & UX (1-2 days)
-21. Extract tag cache (5.1)
-22. Admin user error handling (5.4)
-23. Request ID tracking (6.1)
-24. Request timing (6.2)
-25. Search result count (9.1)
-26. Auto-save indicator (9.2)
+**Problem:** Search template includes `{% include "_sidebar.html" %}` (`search.html:62`) but doesn't pass required `tags` and `tag_counts` variables. Sidebar is broken/empty on search results page.
+
+**Solution:**
+- `app/routes/public.py` (search route) — add `tags = Tag.query.order_by(Tag.name).all()` and `tag_counts = _get_tag_counts()` to template context
 
 ---
 
-After each change: `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v`
+## Phase 7: Testing
+
+### 7.1 Expanded Test Coverage
+
+**New test files:**
+- `tests/test_cache.py` — tag count cache, double-checked locking, invalidation
+- `tests/test_csrf.py` — CSRF token generation and validation
+- `tests/test_base62.py` — encode/decode round-trip, edge cases
+- `tests/test_utils.py` — email validation, XML escaping, slug generation
+- `tests/test_scheduler.py` — newsletter job, file locking, duplicate prevention
+
+**Expand existing:**
+- `tests/test_newsletter.py` — SMTP disconnect mid-batch, partial failure, retry logic
+- `tests/test_admin.py` — preview endpoint, subscriber list, orphan tag cleanup, bulk operations with image cleanup, session timeout
+- `tests/test_public.py` — RSS ordering, media gallery pagination, subscriber enumeration (unified response), subscriber expiration
+- `tests/test_security.py` — CSP assertions (connect-src, style-src), token enumeration timing
+
+---
+
+## Phase 8: Future / Low Priority
+
+- **Timezone-aware datetimes** — `utc_now()` returns naive datetime for SQLite compat. Migrate to aware datetimes if moving to PostgreSQL.
+- **Search performance** — LIKE queries on body could be slow at scale. Consider full-text search or limiting body search to first N characters.
+- **Multi-admin support** — Currently single admin user. Add `is_admin` field to User model, admin creation command.
+- **Backup/restore UI** — Admin UI for manual backup trigger, automatic scheduled backups.
+- **Subscriber expiry timezone** — All datetime comparisons use naive datetimes (consistent but anti-pattern).
+
+---
+
+## Testing
+
+```bash
+ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
+```
+
+Run after each phase. Maintain 78%+ coverage.
+
+---
+
+## Migration Summary
+
+1. `flask db migrate -m "add newsletter_attempts to posts"`
+2. `flask db migrate -m "optimize database indexes"`
+3. `flask db upgrade`
+
+Run all migrations after completing Phases 1-3.

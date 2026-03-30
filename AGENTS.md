@@ -2,6 +2,8 @@
 
 Quick reference for AI agents working on this codebase.
 
+See `plan.md` for the consolidated improvement plan (merged from code review).
+
 ## Running Tests
 
 ```bash
@@ -141,6 +143,12 @@ In `edit_post()`, `db.session.rollback()` reverts ALL session changes, not just 
 ### Newsletter Send Success Tracking
 `send_newsletter()` returns `True` (all sent) or `False` (some failures). The scheduler checks this before marking posts as `newsletter_sent_at`. SMTP failures mid-batch trigger reconnection with retry; posts are only marked sent if all subscribers received the email.
 
+### File Deletion Timing in edit_post() and bulk_operations()
+Old image files are deleted *before* `db.session.commit()`. If the commit fails and rolls back, the database still references the now-deleted file. When modifying this code, always delete files *after* a successful commit.
+
+### CSP Inline Styles
+The CSP header uses `style-src 'self'` which blocks inline `style` attributes. Several templates use inline styles (animation delays, flex layouts). Plan.md item 1.3 addresses adding `'unsafe-inline'` as a stopgap; long-term goal is extracting to CSS classes.
+
 ### Double-Checked Locking for Caches
 `_get_tag_counts()` in `app/cache.py` uses double-checked locking — the lock is held only for cache reads/writes, and the DB query runs outside the lock. This prevents slow queries from blocking all concurrent requests.
 
@@ -182,6 +190,7 @@ See `requirements.txt`. Key packages:
 - Route: `POST /admin/newsletter-reset/<post_id>` (login required)
 - Resets `newsletter_sent_at` to `None` so the post is picked up by the next newsletter run
 - Dashboard shows "Reset NL" button on posts that have already been sent
+- Plan.md item 3.1 adds `newsletter_attempts` column — reset route should also clear this
 
 ## Templates
 
@@ -272,7 +281,6 @@ The `set_security_headers` after-request handler sets:
 - `_get_tag_counts()` in `app/cache.py` uses an in-memory cache with 60-second TTL
 - Cache uses double-checked locking for thread-safe operations
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
-- Cache returns a copy to prevent external mutation
 - Cache returns a copy to prevent external mutation
 
 ## Token Enumeration Prevention
