@@ -11,7 +11,7 @@ import time as _time
 from app.extensions import db
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent, post_tags
 from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED_POSTS, CONFIRMATION_EXPIRY_HOURS
-from app.rate_limit import api_rate_limit
+
 from app.email import send_confirmation
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.cache import invalidate_tag_cache, _get_tag_counts
@@ -163,10 +163,6 @@ def short_url_redirect(code):
 
 @public.route("/api/track-share", methods=["POST"])
 def track_share():
-    limited = api_rate_limit()
-    if limited:
-        return limited
-
     data = request.get_json(silent=True)
     if not data or "post_id" not in data or "platform" not in data:
         return jsonify({"error": "invalid"}), 400
@@ -183,10 +179,6 @@ def track_share():
 
 @public.route("/subscribe", methods=["POST"])
 def subscribe():
-    limited = api_rate_limit(max_requests=10, window=300)
-    if limited:
-        return limited
-
     email = request.form.get("email", "").strip().lower()
     if not is_valid_email(email):
         flash("Please enter a valid email address.", "error")

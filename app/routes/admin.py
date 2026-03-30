@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
-from app.rate_limit import check_rate_limit, record_failed_attempt, clear_attempts
+
 from app.utils import utc_now
 from app.cache import invalidate_tag_cache
 
@@ -81,18 +81,12 @@ def login():
         return redirect(url_for("admin.dashboard"))
 
     if request.method == "POST":
-        limited = check_rate_limit()
-        if limited:
-            return limited
-
         username = request.form.get("username", "")
         password = request.form.get("password", "")
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
-            clear_attempts()
             login_user(user)
             return redirect(url_for("admin.dashboard"))
-        record_failed_attempt()
         flash("Invalid credentials.", "error")
 
     return render_template("admin/login.html")

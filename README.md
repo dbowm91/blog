@@ -170,7 +170,6 @@ blog/
 │   ├── models.py            # SQLAlchemy models
 │   ├── extensions.py        # Flask extensions (db, login, migrate)
 │   ├── csrf.py              # CSRF token generation/validation
-│   ├── rate_limit.py        # Login and API rate limiting
 │   ├── email.py             # SMTP email sending
 │   ├── utils.py             # Slug generation, XML escaping
 │   ├── base62.py            # Short URL encoding
@@ -241,7 +240,6 @@ flask db upgrade
 ## Known Limitations
 
 - **SQLite only** — No PostgreSQL/MySQL support configured
-- **In-memory rate limiting** — Rate limit state is stored in per-process dicts and is not shared across workers. Restarting the server clears all rate limit data. For production multi-worker deployments, consider Redis-based rate limiting.
 - **File uploads** — Stored locally in `static/uploads/`, no S3/cloud storage support
 - **Newsletter scheduler** — Runs in-process via APScheduler; not suitable for multi-worker setups (file locking prevents duplicate sends on Unix)
 

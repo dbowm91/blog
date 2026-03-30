@@ -105,6 +105,16 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
 
+## Rate Limiting
+
+This codebase intentionally **does not include application-level rate limiting**. Rate limiting is expected to be handled by the reverse proxy, WAF, or CDN sitting in front of this application. Reasons:
+
+- **Already handled upstream** — A properly configured reverse proxy (nginx, Caddy, traefik) or cloud provider (Cloudflare, AWS WAF, etc.) provides mature, tested rate limiting
+- **Simplicity** — Application-level rate limiting adds complexity and overhead (in-memory state not shared across workers, memory growth concerns)
+- **Single responsibility** — The app focuses on its core function (blogging); infrastructure concerns like rate limiting belong at the infrastructure layer
+
+**Do not add rate limiting code to this project.** If you need per-IP or per-user rate limiting, configure it at the proxy/WAF level.
+
 ## Lessons Learned
 
 ### SMTP Context Manager Gotcha
