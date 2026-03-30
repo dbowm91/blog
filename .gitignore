@@ -9,3 +9,5 @@ venv/
 .env
 .env.local
 logs/
+.DS_Store
+app/static/uploads/

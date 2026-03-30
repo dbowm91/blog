@@ -69,13 +69,14 @@ def _connect_smtp():
 
 def send_newsletter(posts, subscribers):
     if not posts or not subscribers:
-        return
+        return True
 
     server = _connect_smtp()
     if not server:
         logger.error("Cannot send newsletter: SMTP connection failed")
-        return
+        return False
 
+    all_sent = True
     try:
         for i, sub in enumerate(subscribers, 1):
             unsub_url = f"{BASE_URL}/unsubscribe/{sub.token}"
@@ -106,6 +107,7 @@ def send_newsletter(posts, subscribers):
                     logger.info("Newsletter progress: %d/%d sent", i, len(subscribers))
             except smtplib.SMTPServerDisconnected:
                 logger.exception("SMTP disconnected while sending to %s; reconnecting", sub.email)
+                all_sent = False
                 try:
                     server.quit()
                 except Exception:
@@ -120,8 +122,10 @@ def send_newsletter(posts, subscribers):
                     logger.exception("Failed to send newsletter to %s after reconnect", sub.email)
             except smtplib.SMTPException:
                 logger.exception("Failed to send newsletter to %s", sub.email)
+                all_sent = False
     finally:
         try:
             server.quit()
         except Exception:
             pass
+    return all_sent

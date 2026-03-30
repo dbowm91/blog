@@ -14,7 +14,7 @@ from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
 from app.rate_limit import check_rate_limit, record_failed_attempt, clear_attempts
 from app.utils import utc_now
-from app.routes.public import invalidate_tag_cache
+from app.cache import invalidate_tag_cache
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 TAG_NAME_REGEX = re.compile(r"^[\w\s-]+$")
@@ -315,6 +315,7 @@ def edit_post(post_id):
                 post.image = image
             db.session.commit()
         invalidate_tag_cache()
+        _cleanup_orphan_tags()
         flash("Post updated.", "success")
         return redirect(url_for("admin.dashboard"))
 
@@ -336,8 +337,24 @@ def delete_post(post_id):
     db.session.delete(post)
     db.session.commit()
     invalidate_tag_cache()
+    _cleanup_orphan_tags()
     flash("Post deleted.", "success")
     return redirect(url_for("admin.dashboard"))
+
+
+def _cleanup_orphan_tags():
+    """Remove tags that have no associated posts."""
+    from app.models import post_tags
+    orphan_tag_ids = (
+        db.session.query(Tag.id)
+        .outerjoin(post_tags, Tag.id == post_tags.c.tag_id)
+        .filter(post_tags.c.post_id.is_(None))
+        .all()
+    )
+    if orphan_tag_ids:
+        ids = [row[0] for row in orphan_tag_ids]
+        Tag.query.filter(Tag.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
 
 
 def _get_or_create_tags(names):
@@ -552,6 +569,7 @@ def media():
     import glob as globmod
     page = request.args.get("page", 1, type=int)
     per_page = 50
+    max_files = 1000
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     all_files = []
     for filepath in sorted(globmod.glob(os.path.join(upload_dir, "*")), key=os.path.getmtime, reverse=True):
@@ -562,12 +580,15 @@ def media():
             "size": stat.st_size,
             "mtime": datetime.fromtimestamp(stat.st_mtime),
         })
+        if len(all_files) >= max_files:
+            break
     total = len(all_files)
     start = (page - 1) * per_page
     end = start + per_page
     files = all_files[start:end]
     total_pages = (total + per_page - 1) // per_page
-    return render_template("admin/media.html", files=files, page=page, total_pages=total_pages)
+    truncated = total >= max_files
+    return render_template("admin/media.html", files=files, page=page, total_pages=total_pages, truncated=truncated)
 
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
@@ -735,6 +756,7 @@ def bulk_operations():
             db.session.delete(post)
         db.session.commit()
         invalidate_tag_cache()
+        _cleanup_orphan_tags()
         flash(f"Deleted {len(posts)} post(s).", "success")
     else:
         flash("Invalid action.", "error")

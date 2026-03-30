@@ -1,4 +1,5 @@
 import pytest
+from app.utils import utc_now
 
 
 def test_index(client, db, sample_post):
@@ -184,3 +185,51 @@ def test_short_url_invalid_code(client):
     """Test short URL with invalid code redirects home."""
     response = client.get('/s/invalid')
     assert response.status_code == 302
+
+
+def test_page_view_deduplication(client, db, sample_post):
+    """Test that same session, same post = 1 view only."""
+    from app.models import PageView
+
+    # First visit - should create a page view
+    client.get(f'/post/{sample_post.slug}')
+    count_after_first = PageView.query.filter_by(post_id=sample_post.id).count()
+    assert count_after_first == 1
+
+    # Second visit from same session - should NOT create another
+    client.get(f'/post/{sample_post.slug}')
+    count_after_second = PageView.query.filter_by(post_id=sample_post.id).count()
+    assert count_after_second == 1
+
+
+def test_max_viewed_posts_cap(client, db, admin_user):
+    """Test session capped at MAX_VIEWED_POSTS."""
+    from app.models import Post, PageView
+    from app.config import MAX_VIEWED_POSTS
+
+    # Create more posts than the cap
+    posts = []
+    for i in range(MAX_VIEWED_POSTS + 3):
+        post = Post(
+            title=f'Post {i}',
+            slug=f'post-{i}',
+            body=f'Content {i}',
+            published=True,
+            published_at=utc_now(),
+        )
+        posts.append(post)
+    db.session.add_all(posts)
+    db.session.commit()
+
+    # Visit all posts
+    for post in posts:
+        client.get(f'/post/{post.slug}')
+
+    # Should have created views for all posts
+    total_views = PageView.query.count()
+    assert total_views == MAX_VIEWED_POSTS + 3
+
+    # Check session has at most MAX_VIEWED_POSTS entries
+    with client.session_transaction() as sess:
+        viewed = sess.get('viewed_posts', [])
+        assert len(viewed) <= MAX_VIEWED_POSTS

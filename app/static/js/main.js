@@ -311,8 +311,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Save draft on input (throttled every 5s)
+        const autosaveStatus = document.getElementById('autosave-status');
         const saveDraft = () => {
             clearTimeout(autosaveTimer);
+            if (autosaveStatus) {
+                autosaveStatus.textContent = 'Saving...';
+                autosaveStatus.style.opacity = '1';
+            }
             autosaveTimer = setTimeout(() => {
                 const titleInput = document.getElementById('title');
                 const summaryInput = document.getElementById('summary');
@@ -324,6 +329,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
                 try {
                     localStorage.setItem(draftKey, JSON.stringify(draft));
+                    if (autosaveStatus) {
+                        autosaveStatus.textContent = 'Draft saved';
+                        setTimeout(() => { autosaveStatus.style.opacity = '0'; }, 2000);
+                    }
                 } catch (e) {}
             }, 5000);
         };

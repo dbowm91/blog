@@ -29,6 +29,9 @@
         </div>
         {% endfor %}
     </div>
+    {% if truncated %}
+    <p class="flash flash-warning" style="margin-top: 1rem;">Showing first 1000 files only.</p>
+    {% endif %}
     {% if total_pages > 1 %}
     <div class="pagination" style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;">
         {% if page > 1 %}

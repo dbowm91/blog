@@ -45,12 +45,15 @@ def send_daily_newsletter(app):
             if not subscribers:
                 return
 
-            send_newsletter(posts, subscribers)
+            success = send_newsletter(posts, subscribers)
 
-            now = utc_now()
-            for post in posts:
-                post.newsletter_sent_at = now
-            db.session.commit()
+            if success:
+                now = utc_now()
+                for post in posts:
+                    post.newsletter_sent_at = now
+                db.session.commit()
+            else:
+                app.logger.warning("Newsletter had failures; posts will be retried on next run")
     finally:
         if lock_file:
             if HAS_FCNTL:

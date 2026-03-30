@@ -78,6 +78,7 @@ class Post(db.Model):
     __table_args__ = (
         db.Index("ix_posts_published_created", "published", "created_at"),
         db.Index("ix_posts_slug", "slug"),
+        db.Index("ix_posts_published_at", "published_at"),
     )
 
     @staticmethod
@@ -118,8 +119,7 @@ class PageView(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now)
 
     __table_args__ = (
-        db.Index("ix_page_views_post_id", "post_id"),
-        db.Index("ix_page_views_created_at", "created_at"),
+        db.Index("ix_page_views_post_created", "post_id", "created_at"),
     )
 
     def __repr__(self):
@@ -135,6 +135,7 @@ class ShareEvent(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now)
 
     __table_args__ = (
+        db.Index("ix_share_events_post_created", "post_id", "created_at"),
         db.Index("ix_share_events_post_id", "post_id"),
     )
 

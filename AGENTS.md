@@ -22,6 +22,7 @@ app/routes/public.py    # Public-facing routes
 app/routes/admin.py     # Admin routes (requires login)
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
+app/cache.py            # Tag count cache (double-checked locking)
 app/utils.py            # Slug generation, email validation, XML escaping
 app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
@@ -42,10 +43,10 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
-- `Subscriber.expires_at` defaults to 1 hour in the model; the subscribe route overrides from config (`confirmation_expiry_hours`)
+- `Subscriber.expires_at` defaults to 365 days in the model; the subscribe route overrides from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
-- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_slug` on `slug`
-- `PageView` has indexes on `post_id` and `created_at` (separate); `ShareEvent` has an index on `post_id`
+- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_slug` on `slug`, `ix_posts_published_at` on `published_at`
+- `PageView` has composite index `ix_page_views_post_created` on `(post_id, created_at)`; `ShareEvent` has `ix_share_events_post_created` on `(post_id, created_at)` plus `ix_share_events_post_id` on `post_id`
 
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
@@ -110,7 +111,7 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 `with smtplib.SMTP() as server:` binds `server` at `__enter__` time. Reassigning `server` inside the block (e.g., for reconnection) creates a new local variable—the `with` statement's `__exit__` still calls the **original** object. For reconnectable connections, use manual `try/finally` instead.
 
 ### Cross-Blueprint Imports
-`admin.py` imports `invalidate_tag_cache` from `app.routes.public`. This works because `public.py` does not import from `admin.py`, avoiding circular imports. If you add imports going the other direction, extract shared code into a separate module (e.g., `app/cache.py`).
+Both `admin.py` and `public.py` import `invalidate_tag_cache` and `_get_tag_counts` from `app.cache` (extracted from `public.py` to avoid coupling). No cross-blueprint imports remain.
 
 ### `generate_slug` Edge Cases
 Empty string and whitespace-only input both fall back to `"untitled"`. The initial `if not name` check catches `""`, and the final `return slug if slug else "untitled"` catches whitespace that becomes empty after processing.
@@ -128,10 +129,10 @@ The `subscribe()` route in `public.py` catches specific SMTP/connection exceptio
 In `edit_post()`, `db.session.rollback()` reverts ALL session changes, not just the failing commit. After rollback, SQLAlchemy marks all attributes as expired and will re-read from DB on next access. If you only re-set one field (e.g., slug) and commit, all other edits are silently lost. Always reapply all field changes after rollback.
 
 ### Newsletter Send Success Tracking
-`send_newsletter()` should return a success/failure boolean. The scheduler must check this before marking posts as `newsletter_sent_at`. Without this, SMTP failures mid-batch result in lost emails with no retry.
+`send_newsletter()` returns `True` (all sent) or `False` (some failures). The scheduler checks this before marking posts as `newsletter_sent_at`. SMTP failures mid-batch trigger reconnection with retry; posts are only marked sent if all subscribers received the email.
 
 ### Double-Checked Locking for Caches
-When using `threading.Lock` to protect a cached DB query, hold the lock only for cache reads/writes — run the DB query outside the lock. Otherwise a slow query blocks all concurrent requests. See `_get_tag_counts()` in `public.py` for the pattern.
+`_get_tag_counts()` in `app/cache.py` uses double-checked locking — the lock is held only for cache reads/writes, and the DB query runs outside the lock. This prevents slow queries from blocking all concurrent requests.
 
 ## Assets
 
@@ -209,6 +210,7 @@ The `set_security_headers` after-request handler sets:
 - Throttled to every 5 seconds on any editor input
 - On load: if draft exists and textarea is empty, prompts to restore
 - Cleared on successful form submit
+- Shows "Saving..." / "Draft saved" indicator via `#autosave-status` element
 
 ## Live Markdown Preview
 
@@ -222,6 +224,11 @@ The `set_security_headers` after-request handler sets:
 - `edit_post()`: when replacing an image, old file is removed with `os.remove()` + `FileNotFoundError` guard
 - `delete_post()`: removes image file before deleting post record
 - `bulk_operations()`: removes images for deleted posts
+
+## Orphan Tag Cleanup
+
+- `_cleanup_orphan_tags()` in `admin.py` removes tags with zero associated posts
+- Called after `invalidate_tag_cache()` in `delete_post()`, `edit_post()`, and `bulk_operations()` delete branch
 
 ## Dashboard Search/Filter
 
@@ -252,9 +259,10 @@ The `set_security_headers` after-request handler sets:
 
 ## Tag Caching
 
-- `_get_tag_counts()` in public.py uses an in-memory cache with 60-second TTL
-- Cache is protected by `threading.Lock` for thread-safe operations
+- `_get_tag_counts()` in `app/cache.py` uses an in-memory cache with 60-second TTL
+- Cache uses double-checked locking for thread-safe operations
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
+- Cache returns a copy to prevent external mutation
 - Cache returns a copy to prevent external mutation
 
 ## Token Enumeration Prevention
@@ -288,3 +296,5 @@ The `set_security_headers` after-request handler sets:
 
 - Media gallery uses pagination with 50 items per page
 - Template shows "Page X of Y" with Previous/Next links
+- Capped at 1000 files to prevent unbounded memory usage
+- Shows truncation notice when limit reached
