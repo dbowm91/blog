@@ -1,4 +1,5 @@
 import pytest
+from app.utils import utc_now
 
 
 def test_login_page(client):
@@ -86,7 +87,7 @@ def test_delete_post(authenticated_client, db, sample_post):
 
 def test_logout(authenticated_client):
     """Test logout."""
-    response = authenticated_client.get('/admin/logout', follow_redirects=True)
+    response = authenticated_client.post('/admin/logout', follow_redirects=True)
     assert response.status_code == 200
 
 
@@ -329,3 +330,73 @@ def test_delete_subscriber_authenticated(authenticated_client, db):
     assert b'Subscriber todelete@example.com deleted' in response.data
     # Verify subscriber is gone
     assert db.session.get(Subscriber, sub_id) is None
+
+
+def test_preview_endpoint(authenticated_client, db, sample_post):
+    """Test preview endpoint works for published posts."""
+    response = authenticated_client.get(f'/admin/preview/{sample_post.id}')
+    assert response.status_code == 200
+    assert b'Test Post' in response.data
+    assert b'preview-banner' in response.data
+
+
+def test_bulk_delete(authenticated_client, db):
+    """Test bulk delete removes posts and cleans up images."""
+    from app.models import Post
+    post1 = Post(title='Bulk 1', slug='bulk-1', body='Content', published=True)
+    post2 = Post(title='Bulk 2', slug='bulk-2', body='Content', published=True)
+    db.session.add_all([post1, post2])
+    db.session.commit()
+    ids = [post1.id, post2.id]
+
+    response = authenticated_client.post('/admin/bulk', data={
+        'action': 'delete',
+        'post_ids': ids,
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Deleted 2 post(s)' in response.data
+    assert Post.query.filter(Post.id.in_(ids)).count() == 0
+
+
+def test_bulk_publish(authenticated_client, db):
+    """Test bulk publish sets published flag and published_at."""
+    from app.models import Post
+    post = Post(title='Draft', slug='draft-bulk', body='Content', published=False)
+    db.session.add(post)
+    db.session.commit()
+
+    response = authenticated_client.post('/admin/bulk', data={
+        'action': 'publish',
+        'post_ids': [post.id],
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Published 1 post(s)' in response.data
+    post = db.session.get(Post, post.id)
+    assert post.published is True
+    assert post.published_at is not None
+
+
+def test_bulk_invalid_post_ids(authenticated_client, db):
+    """Test bulk operations rejects non-integer post IDs."""
+    response = authenticated_client.post('/admin/bulk', data={
+        'action': 'delete',
+        'post_ids': ['abc', 'def'],
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Invalid post ID' in response.data
+
+
+def test_newsletter_reset_clears_attempts(authenticated_client, db, sample_post):
+    """Test newsletter reset clears both flag and attempts."""
+    sample_post.newsletter_sent_at = utc_now()
+    sample_post.newsletter_attempts = 3
+    db.session.commit()
+
+    response = authenticated_client.post(
+        f'/admin/newsletter-reset/{sample_post.id}',
+        follow_redirects=True)
+    assert response.status_code == 200
+    from app.models import Post
+    post = db.session.get(Post, sample_post.id)
+    assert post.newsletter_sent_at is None
+    assert post.newsletter_attempts == 0

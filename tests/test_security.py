@@ -8,6 +8,7 @@ def test_csp_header(client):
     assert csp is not None
     assert "default-src 'self'" in csp
     assert "frame-ancestors 'none'" in csp
+    assert "style-src 'self' 'unsafe-inline'" in csp
 
 
 def test_hsts_conditional_debug(client):
@@ -75,3 +76,20 @@ def test_static_cache_control(client):
     response = client.get('/static/img/favicon.svg')
     if response.status_code == 200:
         assert response.headers.get('Cache-Control') == 'public, max-age=31536000, immutable'
+
+
+def test_csp_connect_src(client):
+    """Test CSP has explicit connect-src directive."""
+    response = client.get('/')
+    csp = response.headers.get('Content-Security-Policy')
+    assert "connect-src 'self'" in csp
+
+
+def test_logout_is_post_only(client, admin_user):
+    """Test that GET /admin/logout returns 405 (method not allowed)."""
+    client.post('/admin/login', data={
+        'username': 'admin',
+        'password': 'testpassword',
+    })
+    response = client.get('/admin/logout')
+    assert response.status_code == 405

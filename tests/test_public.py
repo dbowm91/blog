@@ -92,13 +92,15 @@ def test_subscribe_invalid_email(client, db):
 
 
 def test_subscribe_duplicate(client, db):
-    """Test subscribing with an already-subscribed email."""
+    """Test subscribing with an already-subscribed email returns unified message."""
     from app.models import Subscriber
-    sub = Subscriber(email='test@example.com')
+    sub = Subscriber(email='test@example.com', confirmed=True)
     db.session.add(sub)
     db.session.commit()
     response = client.post('/subscribe', data={'email': 'test@example.com'}, follow_redirects=True)
     assert response.status_code == 200
+    # Should return unified message, not "already subscribed"
+    assert b'Check your inbox to confirm your subscription' in response.data
 
 
 def test_confirm_subscription(client, db):
@@ -233,3 +235,54 @@ def test_max_viewed_posts_cap(client, db, admin_user):
     with client.session_transaction() as sess:
         viewed = sess.get('viewed_posts', [])
         assert len(viewed) <= MAX_VIEWED_POSTS
+
+
+def test_search_has_sidebar_tags(client, db, sample_post, sample_tag):
+    """Test search page includes tags and tag_counts for sidebar."""
+    sample_post.tags.append(sample_tag)
+    db.session.commit()
+    response = client.get('/search?q=test')
+    assert response.status_code == 200
+    assert b'Tags' in response.data
+    assert b'#Python' in response.data
+
+
+def test_subscribe_open_redirect_prevented(client, db):
+    """Test subscribe does not redirect to external sites via spoofed Referer."""
+    response = client.post('/subscribe',
+                           data={'email': 'test@example.com'},
+                           headers={'Referer': 'http://evil.com/phishing'},
+                           follow_redirects=True)
+    assert response.status_code == 200
+    # Should redirect to index, not to evil.com
+
+
+def test_track_share_validates_post_id(client, db):
+    """Test track_share rejects non-integer post_ids."""
+    response = client.post('/api/track-share',
+                           json={"post_id": "abc", "platform": "twitter"},
+                           content_type='application/json')
+    assert response.status_code == 400
+
+
+def test_track_share_truncates_platform(client, db, sample_post):
+    """Test track_share truncates long platform names."""
+    long_platform = "x" * 100
+    response = client.post('/api/track-share',
+                           json={"post_id": sample_post.id, "platform": long_platform},
+                           content_type='application/json')
+    assert response.status_code == 200
+    from app.models import ShareEvent
+    event = ShareEvent.query.filter_by(post_id=sample_post.id).first()
+    assert len(event.platform) == 32
+
+
+def test_referrer_sanitized(client, db, sample_post):
+    """Test referrer query params are stripped before storing."""
+    response = client.get(f'/post/{sample_post.slug}',
+                          headers={'Referer': 'http://example.com/page?secret=token&foo=bar'})
+    from app.models import PageView
+    pv = PageView.query.filter_by(post_id=sample_post.id).first()
+    assert pv.referrer == 'http://example.com/page'
+    assert 'secret' not in (pv.referrer or '')
+    assert 'token' not in (pv.referrer or '')

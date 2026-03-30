@@ -99,12 +99,13 @@ def newsletter_reset(post_id):
     if not post:
         abort(404)
     post.newsletter_sent_at = None
+    post.newsletter_attempts = 0
     db.session.commit()
     flash(f"Newsletter flag reset for '{post.title}'. It will be included in the next newsletter.", "success")
     return redirect(url_for("admin.dashboard"))
 
 
-@admin.route("/logout")
+@admin.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()
@@ -189,9 +190,9 @@ def dashboard():
 @login_required
 def new_post():
     if request.method == "POST":
-        title = request.form.get("title", "").strip()
+        title = request.form.get("title", "").strip()[:200]
         body = request.form.get("body", "").strip()
-        summary = request.form.get("summary", "").strip()
+        summary = request.form.get("summary", "").strip()[:500]
         tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
         published = "published" in request.form
 
@@ -246,9 +247,9 @@ def edit_post(post_id):
         abort(404)
 
     if request.method == "POST":
-        title = request.form.get("title", "").strip()
+        title = request.form.get("title", "").strip()[:200]
         body = request.form.get("body", "").strip()
-        summary = request.form.get("summary", "").strip()
+        summary = request.form.get("summary", "").strip()[:500]
         tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
         published = "published" in request.form
 
@@ -271,20 +272,12 @@ def edit_post(post_id):
         if error:
             flash(error, "error")
             return render_template("admin/editor.html", post=post, tag_names=tag_names)
+        old_image = None
         if image:
             old_image = post.image
             post.image = image
-            if old_image:
-                try:
-                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
-                except FileNotFoundError:
-                    pass
         elif "remove_image" in request.form:
-            if post.image:
-                try:
-                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], post.image))
-                except FileNotFoundError:
-                    pass
+            old_image = post.image
             post.image = None
 
         try:
@@ -297,17 +290,14 @@ def edit_post(post_id):
                 except FileNotFoundError:
                     pass
             post = db.session.get(Post, post_id)
-            post.title = title
-            post.body = body
-            post.summary = summary
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
-            post.published = published
-            if published and not was_published:
-                post.published_at = utc_now()
-            post.tags = _get_or_create_tags(tag_names)
-            if image:
-                post.image = image
             db.session.commit()
+        # Delete old image file only after successful commit
+        if old_image:
+            try:
+                os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
+            except FileNotFoundError:
+                pass
         invalidate_tag_cache()
         _cleanup_orphan_tags()
         flash("Post updated.", "success")
@@ -323,13 +313,14 @@ def delete_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
-    if post.image:
-        try:
-            os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], post.image))
-        except FileNotFoundError:
-            pass
+    old_image = post.image
     db.session.delete(post)
     db.session.commit()
+    if old_image:
+        try:
+            os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
+        except FileNotFoundError:
+            pass
     invalidate_tag_cache()
     _cleanup_orphan_tags()
     flash("Post deleted.", "success")
@@ -720,7 +711,16 @@ def bulk_operations():
         flash("No posts selected.", "error")
         return redirect(url_for("admin.dashboard"))
 
-    posts = Post.query.filter(Post.id.in_(post_ids)).all()
+    # Validate all post_ids are integers
+    valid_ids = []
+    for pid in post_ids:
+        try:
+            valid_ids.append(int(pid))
+        except (ValueError, TypeError):
+            flash("Invalid post ID.", "error")
+            return redirect(url_for("admin.dashboard"))
+
+    posts = Post.query.filter(Post.id.in_(valid_ids)).all()
     if not posts:
         flash("No posts found.", "error")
         return redirect(url_for("admin.dashboard"))
@@ -741,14 +741,17 @@ def bulk_operations():
         invalidate_tag_cache()
         flash(f"Unpublished {len(posts)} post(s).", "success")
     elif action == "delete":
+        images_to_delete = []
         for post in posts:
             if post.image:
-                try:
-                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], post.image))
-                except FileNotFoundError:
-                    pass
+                images_to_delete.append(post.image)
             db.session.delete(post)
         db.session.commit()
+        for img in images_to_delete:
+            try:
+                os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], img))
+            except FileNotFoundError:
+                pass
         invalidate_tag_cache()
         _cleanup_orphan_tags()
         flash(f"Deleted {len(posts)} post(s).", "success")

@@ -72,7 +72,7 @@ else
 fi
 
 # Create required directories
-mkdir -p instance logs static/uploads
+mkdir -p instance logs app/static/uploads
 
 echo ""
 echo "=== Setup Complete ==="

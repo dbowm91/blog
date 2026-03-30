@@ -105,3 +105,42 @@ def test_newsletter_returns_true_for_empty(app, db):
     assert send_newsletter([], []) is True
     assert send_newsletter([1], []) is True
     assert send_newsletter([], [1]) is True
+
+
+def test_newsletter_attempts_skip_after_max(app, db):
+    """Test posts with >= max retry attempts are skipped."""
+    max_attempts = 5
+    exhausted = Post(title='Exhausted', slug='exhausted', body='Content',
+                     published=True, published_at=utc_now(),
+                     newsletter_attempts=max_attempts)
+    fresh = Post(title='Fresh', slug='fresh', body='Content',
+                 published=True, published_at=utc_now(),
+                 newsletter_attempts=0)
+    db.session.add_all([exhausted, fresh])
+    db.session.commit()
+
+    posts = Post.query.filter(
+        Post.published == True,
+        Post.published_at != None,
+        Post.newsletter_sent_at == None,
+        Post.newsletter_attempts < max_attempts,
+    ).all()
+    slugs = [p.slug for p in posts]
+    assert 'fresh' in slugs
+    assert 'exhausted' not in slugs
+
+
+def test_newsletter_reset_clears_attempts(authenticated_client, db, sample_post):
+    """Test newsletter reset also clears attempt count."""
+    sample_post.newsletter_sent_at = utc_now()
+    sample_post.newsletter_attempts = 3
+    db.session.commit()
+
+    authenticated_client.post(
+        f'/admin/newsletter-reset/{sample_post.id}',
+        follow_redirects=True)
+
+    from app.models import Post
+    post = db.session.get(Post, sample_post.id)
+    assert post.newsletter_attempts == 0
+    assert post.newsletter_sent_at is None

@@ -124,7 +124,10 @@ def main():
     parser.add_argument("--dir", type=str, default="backups", help="Backup directory (default: backups)")
     
     args = parser.parse_args()
-    
+
+    if args.keep < 1:
+        parser.error("--keep must be at least 1")
+
     db_path = args.db or get_db_path()
     backup_dir = args.dir
     

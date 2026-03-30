@@ -8,7 +8,7 @@ __all__ = [
     "SERVER_HOST", "SERVER_PORT", "DEBUG", "AUTHOR_NAME", "AUTHOR_ROLE",
     "AUTHOR_AVATAR", "BASE_URL", "RELATED_POSTS_COUNT", "SMTP_HOST", "SMTP_PORT",
     "SMTP_USER", "SMTP_PASSWORD", "FROM_ADDRESS", "NEWSLETTER_SEND_TIME",
-    "CONFIRMATION_EXPIRY_HOURS",
+    "CONFIRMATION_EXPIRY_HOURS", "TAG_CACHE_TTL_SECONDS", "NEWSLETTER_MAX_RETRY_ATTEMPTS",
 ]
 
 
@@ -64,6 +64,8 @@ FROM_ADDRESS = _config["email"]["from_address"]
 
 NEWSLETTER_SEND_TIME = _config["newsletter"]["send_time"]
 CONFIRMATION_EXPIRY_HOURS = int(_config["newsletter"].get("confirmation_expiry_hours", 1))
+NEWSLETTER_MAX_RETRY_ATTEMPTS = int(_config["newsletter"].get("max_retry_attempts", 5))
+TAG_CACHE_TTL_SECONDS = int(_config["app"].get("tag_cache_ttl_seconds", 60))
 
 
 def _validate_config(config: dict) -> None:

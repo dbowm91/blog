@@ -4,6 +4,7 @@ description = "A place for thoughts on code, systems, and the craft of building 
 posts_per_page = 10
 max_viewed_posts = 100
 session_lifetime_hours = 24
+tag_cache_ttl_seconds = 60
 # secret_key, admin credentials, and SMTP creds are read from environment variables.
 # See .env.example for required variables.
 
@@ -35,3 +36,4 @@ from_address = "blog@example.com"
 [newsletter]
 send_time = "08:00"
 confirmation_expiry_hours = 1
+max_retry_attempts = 5

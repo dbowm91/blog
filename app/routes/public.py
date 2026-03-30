@@ -1,6 +1,7 @@
 import smtplib
 import uuid
 from datetime import timedelta
+from urllib.parse import urlparse, urlunparse
 
 from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response, url_for
 from sqlalchemy import func, or_, text
@@ -9,7 +10,7 @@ import logging
 import time as _time
 
 from app.extensions import db
-from app.models import Post, Tag, Subscriber, PageView, ShareEvent, post_tags
+from app.models import Post, Tag, Subscriber, PageView, ShareEvent
 from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED_POSTS, CONFIRMATION_EXPIRY_HOURS
 
 from app.email import send_confirmation
@@ -19,6 +20,16 @@ from app.cache import invalidate_tag_cache, _get_tag_counts
 logger = logging.getLogger(__name__)
 
 public = Blueprint("public", __name__)
+
+
+def _safe_redirect_url():
+    """Return a safe redirect URL, preventing open redirects via spoofed Referer header."""
+    referrer = request.referrer
+    if referrer:
+        parsed = urlparse(referrer)
+        if parsed.netloc == "" or parsed.netloc == request.host:
+            return referrer
+    return url_for("public.index")
 
 
 def _get_related_posts(post):
@@ -64,9 +75,14 @@ def post(slug):
 
     viewed = session.get("viewed_posts", [])
     if post.id not in viewed:
+        referrer = None
+        if request.referrer:
+            parsed = urlparse(request.referrer)
+            sanitized = urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+            referrer = sanitized[:512] if sanitized else None
         pv = PageView(
             post_id=post.id,
-            referrer=request.referrer[:512] if request.referrer else None
+            referrer=referrer,
         )
         db.session.add(pv)
         db.session.commit()
@@ -140,6 +156,8 @@ def search():
         query=query,
         posts=pagination.items,
         pagination=pagination,
+        tags=Tag.query.order_by(Tag.name).all(),
+        tag_counts=_get_tag_counts(),
     )
 
 
@@ -167,11 +185,18 @@ def track_share():
     if not data or "post_id" not in data or "platform" not in data:
         return jsonify({"error": "invalid"}), 400
 
-    post = db.session.get(Post, data["post_id"])
+    try:
+        post_id = int(data["post_id"])
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid"}), 400
+
+    platform = str(data["platform"])[:32]
+
+    post = db.session.get(Post, post_id)
     if not post or not post.published:
         return jsonify({"error": "not found"}), 404
 
-    event = ShareEvent(post_id=post.id, platform=data["platform"])
+    event = ShareEvent(post_id=post.id, platform=platform)
     db.session.add(event)
     db.session.commit()
     return jsonify({"ok": True})
@@ -179,10 +204,10 @@ def track_share():
 
 @public.route("/subscribe", methods=["POST"])
 def subscribe():
-    email = request.form.get("email", "").strip().lower()
+    email = request.form.get("email", "").strip().lower()[:256]
     if not is_valid_email(email):
         flash("Please enter a valid email address.", "error")
-        return redirect(request.referrer or "/")
+        return redirect(_safe_redirect_url())
 
     existing = Subscriber.query.filter_by(email=email).first()
     if existing:
@@ -200,7 +225,8 @@ def subscribe():
                 logger.exception("Failed to send confirmation email to %s", email)
                 flash("Subscribed, but confirmation email could not be sent.", "error")
         elif existing.confirmed:
-            flash("You're already subscribed.", "success")
+            logger.info("Already-subscribed user %s attempted to resubscribe", email)
+            flash("Check your inbox to confirm your subscription.", "success")
         else:
             existing.token = uuid.uuid4().hex
             existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
@@ -211,7 +237,7 @@ def subscribe():
             except (smtplib.SMTPException, ConnectionError, OSError):
                 logger.exception("Failed to send confirmation email to %s", email)
                 flash("Subscribed, but confirmation email could not be sent.", "error")
-        return redirect(request.referrer or "/")
+        return redirect(_safe_redirect_url())
 
     sub = Subscriber(email=email, expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS))
     db.session.add(sub)
@@ -224,7 +250,7 @@ def subscribe():
         logger.exception("Failed to send confirmation email to %s", email)
         flash("Subscribed, but confirmation email could not be sent.", "error")
 
-    return redirect(request.referrer or "/")
+    return redirect(_safe_redirect_url())
 
 
 @public.route("/confirm/<token>")

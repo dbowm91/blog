@@ -45,10 +45,11 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
-- `Subscriber.expires_at` defaults to 365 days in the model; the subscribe route overrides from config (`confirmation_expiry_hours`)
+- `Subscriber.expires_at` has no model default; the subscribe route sets it explicitly from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
-- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_slug` on `slug`, `ix_posts_published_at` on `published_at`
-- `PageView` has composite index `ix_page_views_post_created` on `(post_id, created_at)`; `ShareEvent` has `ix_share_events_post_created` on `(post_id, created_at)` plus `ix_share_events_post_id` on `post_id`
+- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_published_at` on `published_at`, `ix_posts_newsletter_sent_at` on `newsletter_sent_at`, `ix_posts_published_updated` on `(published, updated_at)`
+- `PageView` has composite index `ix_page_views_post_created` on `(post_id, created_at)`; `ShareEvent` has `ix_share_events_post_created` on `(post_id, created_at)`
+- `Subscriber` has composite index `ix_subscribers_confirmed_unsubscribed` on `(confirmed, unsubscribed_at)`
 
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
@@ -144,10 +145,12 @@ In `edit_post()`, `db.session.rollback()` reverts ALL session changes, not just 
 `send_newsletter()` returns `True` (all sent) or `False` (some failures). The scheduler checks this before marking posts as `newsletter_sent_at`. SMTP failures mid-batch trigger reconnection with retry; posts are only marked sent if all subscribers received the email.
 
 ### File Deletion Timing in edit_post() and bulk_operations()
-Old image files are deleted *before* `db.session.commit()`. If the commit fails and rolls back, the database still references the now-deleted file. When modifying this code, always delete files *after* a successful commit.
+Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. In `edit_post()`, the old image filename is stored before mutation, then deleted only after a successful commit. In `bulk_operations()`, image paths are collected, the batch is committed, then files are removed in a separate loop. In `delete_post()`, the image is stored, the post record is deleted and committed, then the file is removed.
 
-### CSP Inline Styles
-The CSP header uses `style-src 'self'` which blocks inline `style` attributes. Several templates use inline styles (animation delays, flex layouts). Plan.md item 1.3 addresses adding `'unsafe-inline'` as a stopgap; long-term goal is extracting to CSS classes.
+### Token Enumeration Prevention
+`/confirm/<token>` now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
+- Invalid tokens return success (not 404) to avoid revealing valid tokens
+- Same pattern as unsubscribe endpoint
 
 ### Double-Checked Locking for Caches
 `_get_tag_counts()` in `app/cache.py` uses double-checked locking — the lock is held only for cache reads/writes, and the DB query runs outside the lock. This prevents slow queries from blocking all concurrent requests.
@@ -188,9 +191,9 @@ See `requirements.txt`. Key packages:
 ## Newsletter Reset
 
 - Route: `POST /admin/newsletter-reset/<post_id>` (login required)
-- Resets `newsletter_sent_at` to `None` so the post is picked up by the next newsletter run
+- Resets `newsletter_sent_at` to `None` and `newsletter_attempts` to `0` so the post is picked up by the next newsletter run
 - Dashboard shows "Reset NL" button on posts that have already been sent
-- Plan.md item 3.1 adds `newsletter_attempts` column — reset route should also clear this
+- Tooltip shows attempt count when > 0
 
 ## Templates
 
@@ -199,7 +202,7 @@ See `requirements.txt`. Key packages:
 - Allowed attributes: `a[href,title]`, `img[src,alt,title,width,height]`, `span/div[*][class]`
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
-- CSP header: `default-src 'self'` with `style-src 'self'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `frame-ancestors 'none'`
+- CSP header: `default-src 'self'` with `style-src 'self' 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `connect-src 'self'`, `frame-ancestors 'none'`
 - **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance)
 
 ## Security Headers
@@ -211,7 +214,7 @@ The `set_security_headers` after-request handler sets:
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy` (self-only sources, no `unsafe-inline`)
+- `Content-Security-Policy` (self-only sources, `style-src` includes `'unsafe-inline'` for CSS custom properties used in animation delays)
 - `Cache-Control: public, max-age=31536000, immutable` (static assets only)
 
 ## Dark/Light Mode
@@ -240,9 +243,9 @@ The `set_security_headers` after-request handler sets:
 
 ## File Upload Cleanup
 
-- `edit_post()`: when replacing an image, old file is removed with `os.remove()` + `FileNotFoundError` guard
-- `delete_post()`: removes image file before deleting post record
-- `bulk_operations()`: removes images for deleted posts
+- `edit_post()`: when replacing an image, old file is removed *after* successful commit
+- `delete_post()`: removes image file *after* successful post deletion commit
+- `bulk_operations()`: collects image paths, commits deletions, then removes files
 
 ## Orphan Tag Cleanup
 
@@ -278,7 +281,7 @@ The `set_security_headers` after-request handler sets:
 
 ## Tag Caching
 
-- `_get_tag_counts()` in `app/cache.py` uses an in-memory cache with 60-second TTL
+- `_get_tag_counts()` in `app/cache.py` uses an in-memory cache with configurable TTL (default 60s, via `tag_cache_ttl_seconds` in `config.toml [app]`)
 - Cache uses double-checked locking for thread-safe operations
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
 - Cache returns a copy to prevent external mutation

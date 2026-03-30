@@ -1,5 +1,6 @@
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 BASE = len(ALPHABET)
+_DECODE_MAP = {c: i for i, c in enumerate(ALPHABET)}
 
 
 def encode(n: int) -> str:
@@ -17,7 +18,7 @@ def decode(s: str) -> int:
     """Decode a base62 string to integer."""
     n = 0
     for char in s:
-        if char not in ALPHABET:
+        if char not in _DECODE_MAP:
             raise ValueError(f"Invalid base62 character: {char!r}")
-        n = n * BASE + ALPHABET.index(char)
+        n = n * BASE + _DECODE_MAP[char]
     return n

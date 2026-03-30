@@ -174,6 +174,21 @@ a:hover {
     color: var(--text);
 }
 
+.nav-link-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    transition: color var(--transition);
+}
+
+.nav-link-btn:hover {
+    color: var(--text);
+}
+
 /* --- Hero (homepage) --- */
 .hero {
     padding: 64px 0 40px;
@@ -1659,6 +1674,22 @@ a:hover {
 
 .inline-form {
     display: inline;
+}
+
+/* --- Utility classes (replacing inline styles for CSP compliance) --- */
+.flex-row {
+    display: flex;
+}
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.items-center { align-items: center; }
+.ml-auto { margin-left: auto; }
+.mt-sm { margin-top: 0.5rem; }
+.mt-md { margin-top: 1rem; }
+.autosave-status-base {
+    opacity: 0;
+    transition: opacity 0.3s;
 }
 
 /* --- Editor --- */

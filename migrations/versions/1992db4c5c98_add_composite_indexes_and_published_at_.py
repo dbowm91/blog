@@ -16,26 +16,12 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('page_views', schema=None) as batch_op:
-        batch_op.drop_index('ix_page_views_post_id')
-        batch_op.drop_index('ix_page_views_created_at')
-        batch_op.create_index('ix_page_views_post_created', ['post_id', 'created_at'], unique=False)
-
-    with op.batch_alter_table('share_events', schema=None) as batch_op:
-        batch_op.create_index('ix_share_events_post_created', ['post_id', 'created_at'], unique=False)
-
-    with op.batch_alter_table('posts', schema=None) as batch_op:
-        batch_op.create_index('ix_posts_published_at', ['published_at'], unique=False)
+    op.create_index('ix_page_views_post_created', 'page_views', ['post_id', 'created_at'], unique=False, if_not_exists=True)
+    op.create_index('ix_share_events_post_created', 'share_events', ['post_id', 'created_at'], unique=False, if_not_exists=True)
+    op.create_index('ix_posts_published_at', 'posts', ['published_at'], unique=False, if_not_exists=True)
 
 
 def downgrade():
-    with op.batch_alter_table('posts', schema=None) as batch_op:
-        batch_op.drop_index('ix_posts_published_at')
-
-    with op.batch_alter_table('share_events', schema=None) as batch_op:
-        batch_op.drop_index('ix_share_events_post_created')
-
-    with op.batch_alter_table('page_views', schema=None) as batch_op:
-        batch_op.drop_index('ix_page_views_post_created')
-        batch_op.create_index('ix_page_views_created_at', ['created_at'], unique=False)
-        batch_op.create_index('ix_page_views_post_id', ['post_id'], unique=False)
+    op.drop_index('ix_posts_published_at', table_name='posts', if_exists=True)
+    op.drop_index('ix_share_events_post_created', table_name='share_events', if_exists=True)
+    op.drop_index('ix_page_views_post_created', table_name='page_views', if_exists=True)

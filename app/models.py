@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -70,6 +70,7 @@ class Post(db.Model):
     published = db.Column(db.Boolean, default=False)
     published_at = db.Column(db.DateTime, nullable=True)
     newsletter_sent_at = db.Column(db.DateTime, nullable=True)
+    newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
     tags = db.relationship("Tag", secondary=post_tags, backref=db.backref("posts", lazy="dynamic"))
     page_views = db.relationship("PageView", backref="post", lazy="dynamic", cascade="all, delete-orphan")
@@ -77,8 +78,9 @@ class Post(db.Model):
 
     __table_args__ = (
         db.Index("ix_posts_published_created", "published", "created_at"),
-        db.Index("ix_posts_slug", "slug"),
         db.Index("ix_posts_published_at", "published_at"),
+        db.Index("ix_posts_newsletter_sent_at", "newsletter_sent_at"),
+        db.Index("ix_posts_published_updated", "published", "updated_at"),
     )
 
     @staticmethod
@@ -101,10 +103,14 @@ class Subscriber(db.Model):
     confirmed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=utc_now)
     expires_at = db.Column(
-        db.DateTime, nullable=True, default=lambda: utc_now() + timedelta(days=365),
+        db.DateTime, nullable=True,
         doc="Confirmation deadline. Subscribers removed if not confirmed before this time.",
     )
     unsubscribed_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.Index("ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"),
+    )
 
     def __repr__(self):
         return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
@@ -136,7 +142,6 @@ class ShareEvent(db.Model):
 
     __table_args__ = (
         db.Index("ix_share_events_post_created", "post_id", "created_at"),
-        db.Index("ix_share_events_post_id", "post_id"),
     )
 
     def __repr__(self):

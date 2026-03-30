@@ -25,12 +25,14 @@ def send_daily_newsletter(app):
             from app.email import send_newsletter
             from app.extensions import db
             from app.utils import utc_now
+            from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
 
             posts = (
                 Post.query.filter(
                     Post.published == True,
                     Post.published_at != None,
                     Post.newsletter_sent_at == None,
+                    Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
                 )
                 .order_by(Post.published_at.desc())
                 .all()
@@ -51,9 +53,13 @@ def send_daily_newsletter(app):
                 now = utc_now()
                 for post in posts:
                     post.newsletter_sent_at = now
+                    post.newsletter_attempts = 0
                 db.session.commit()
             else:
-                app.logger.warning("Newsletter had failures; posts will be retried on next run")
+                for post in posts:
+                    post.newsletter_attempts = (post.newsletter_attempts or 0) + 1
+                db.session.commit()
+                app.logger.warning("Newsletter had failures; %d posts will be retried (attempts incremented)", len(posts))
     finally:
         if lock_file:
             if HAS_FCNTL:

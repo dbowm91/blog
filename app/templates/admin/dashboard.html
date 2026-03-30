@@ -4,7 +4,7 @@
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Dashboard</h1>
-        <div style="display:flex;gap:8px;">
+        <div class="flex-row gap-sm">
             <form method="POST" action="{{ url_for('admin.newsletter_test') }}" class="inline-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-ghost btn-small" title="Send latest 3 posts to admin email">Test Newsletter</button>
@@ -51,7 +51,7 @@
 
     <div class="dashboard-section-header">
         <h2>All Posts</h2>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div class="flex-row gap-sm items-center">
             <a href="{{ url_for('admin.subscribers') }}" class="btn btn-ghost btn-small">Subscribers</a>
             <a href="{{ url_for('admin.media') }}" class="btn btn-ghost btn-small">Media</a>
             <a href="{{ url_for('admin.tags_list') }}" class="btn btn-ghost btn-small">Tags</a>
@@ -118,7 +118,7 @@
                         {% if post.newsletter_sent_at %}
                         <form method="POST" action="{{ url_for('admin.newsletter_reset', post_id=post.id) }}" class="inline-form" data-confirm="Reset newsletter flag for this post?">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn btn-small btn-ghost" title="Reset newsletter flag">Reset NL</button>
+                            <button type="submit" class="btn btn-small btn-ghost" title="Reset newsletter flag{% if post.newsletter_attempts > 0 %} ({{ post.newsletter_attempts }} failed attempts){% endif %}">Reset NL</button>
                         </form>
                         {% endif %}
                         <form method="POST" action="{{ url_for('admin.delete_post', post_id=post.id) }}" class="inline-form" data-confirm="Are you sure you want to delete this post? This cannot be undone.">

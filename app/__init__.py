@@ -1,7 +1,7 @@
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask
+from flask import Flask, render_template, redirect, url_for, request as req, flash
 from werkzeug.middleware.proxy_fix import ProxyFix
 from app.extensions import db, login_manager, migrate
 from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SESSION_LIFETIME_HOURS
@@ -75,18 +75,15 @@ def create_app():
 
     @app.errorhandler(404)
     def not_found(e):
-        from flask import render_template
         return render_template("404.html"), 404
 
     @app.errorhandler(500)
     def internal_error(e):
-        from flask import render_template
         db.session.rollback()
         return render_template("500.html"), 500
 
     @app.errorhandler(413)
     def handle_large_request(e):
-        from flask import redirect, url_for, request as req, flash
         flash("File too large. Maximum upload size is 16MB.", "error")
         return redirect(req.referrer or url_for("admin.dashboard"))
 
@@ -113,7 +110,6 @@ def create_app():
     def before_request_handler():
         from flask import request as req, session, redirect, url_for, flash
         from flask_login import current_user, logout_user
-        from datetime import datetime, timezone
         import time
         from app.utils import utc_now
 
@@ -131,18 +127,10 @@ def create_app():
             last_activity = session.get("last_activity")
             now = time.time()
             if last_activity:
-                # Support both old ISO format (UTC naive) and new float timestamp
-                if isinstance(last_activity, str):
-                    try:
-                        last_dt = datetime.fromisoformat(last_activity)
-                        last_dt = last_dt.replace(tzinfo=timezone.utc)
-                        last = last_dt.timestamp()
-                    except ValueError:
-                        # Malformed, treat as expired
-                        last = 0.0
-                else:
-                    # Assume float timestamp
+                try:
                     last = float(last_activity)
+                except (ValueError, TypeError):
+                    last = 0.0  # Legacy format or corrupted; treat as expired
                 if (now - last) > SESSION_LIFETIME_SECONDS:
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
@@ -160,10 +148,11 @@ def create_app():
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "style-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
             "font-src 'self'; "
             "img-src 'self' data:; "
             "script-src 'self'; "
+            "connect-src 'self'; "
             "frame-ancestors 'none'"
         )
         if req.path.startswith("/static/"):
@@ -191,7 +180,7 @@ def create_app():
         from sqlalchemy.exc import IntegrityError, OperationalError
 
         try:
-            existing_user = User.query.first()
+            existing_user = db.session.execute(db.select(User)).scalar_one_or_none()
             if not existing_user:
                 user = User(username=ADMIN_USERNAME)
                 user.set_password(ADMIN_PASSWORD)
