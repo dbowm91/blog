@@ -23,6 +23,8 @@
                     <a href="{{ url_for('admin.subscribers') }}">Subscribers</a>
                     <a href="{{ url_for('admin.media') }}">Media</a>
                     <a href="{{ url_for('admin.tags_list') }}">Tags</a>
+                    <a href="{{ url_for('admin.users_list') }}">Users</a>
+                    <a href="{{ url_for('admin.backup') }}">Backups</a>
                     <form method="POST" action="{{ url_for('admin.logout') }}" class="inline-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="nav-link-btn">Logout</button>

@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db, login_manager
 from app.base62 import encode
-from app.utils import generate_slug, utc_now
+from app.utils import generate_slug, utc_now, UTCDateTime
 
 post_tags = db.Table(
     "post_tags",
@@ -21,6 +21,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -29,7 +30,7 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f"<User {self.username!r}>"
+        return f"<User {self.username!r} admin={self.is_admin}>"
 
 
 @login_manager.user_loader
@@ -61,15 +62,15 @@ class Post(db.Model):
     body = db.Column(db.Text, nullable=False)
     summary = db.Column(db.String(500), default="")
     image = db.Column(db.String(256), nullable=True)
-    created_at = db.Column(db.DateTime, default=utc_now)
+    created_at = db.Column(UTCDateTime, default=utc_now)
     updated_at = db.Column(
-        db.DateTime,
+        UTCDateTime,
         default=utc_now,
         onupdate=utc_now,
     )
     published = db.Column(db.Boolean, default=False)
-    published_at = db.Column(db.DateTime, nullable=True)
-    newsletter_sent_at = db.Column(db.DateTime, nullable=True)
+    published_at = db.Column(UTCDateTime, nullable=True)
+    newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
     newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
     tags = db.relationship("Tag", secondary=post_tags, backref=db.backref("posts", lazy="dynamic"))
@@ -101,12 +102,12 @@ class Subscriber(db.Model):
     email = db.Column(db.String(256), unique=True, nullable=False)
     token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex)
     confirmed = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=utc_now)
+    created_at = db.Column(UTCDateTime, default=utc_now)
     expires_at = db.Column(
-        db.DateTime, nullable=True,
+        UTCDateTime, nullable=True,
         doc="Confirmation deadline. Subscribers removed if not confirmed before this time.",
     )
-    unsubscribed_at = db.Column(db.DateTime, nullable=True)
+    unsubscribed_at = db.Column(UTCDateTime, nullable=True)
 
     __table_args__ = (
         db.Index("ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"),
@@ -122,7 +123,7 @@ class PageView(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
     referrer = db.Column(db.String(512), nullable=True)
-    created_at = db.Column(db.DateTime, default=utc_now)
+    created_at = db.Column(UTCDateTime, default=utc_now)
 
     __table_args__ = (
         db.Index("ix_page_views_post_created", "post_id", "created_at"),
@@ -138,7 +139,7 @@ class ShareEvent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
     platform = db.Column(db.String(32), nullable=False)
-    created_at = db.Column(db.DateTime, default=utc_now)
+    created_at = db.Column(UTCDateTime, default=utc_now)
 
     __table_args__ = (
         db.Index("ix_share_events_post_created", "post_id", "created_at"),

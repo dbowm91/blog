@@ -4,7 +4,7 @@ Consolidated plan from code review. Items organized by priority.
 
 **Excluded:** Rate limiting (handled by reverse proxy/WAF), HTTPS redirect (handled by reverse proxy), GET→POST migration for confirm/unsubscribe (breaking change for email links), separate unsubscribe tokens (breaking change for existing subscribers).
 
-**Status:** Phases 1-7 complete. All 149 tests passing.
+**Status:** Phases 1-8 complete. All 182 tests passing.
 
 ---
 
@@ -175,13 +175,49 @@ Consolidated plan from code review. Items organized by priority.
 
 ---
 
-## Phase 8: Future / Low Priority
+## Phase 8: Future / Low Priority ✅
 
-- **Timezone-aware datetimes** — `utc_now()` returns naive datetime for SQLite compat. Migrate to aware datetimes if moving to PostgreSQL.
-- **Search performance** — LIKE queries on body could be slow at scale. Consider full-text search or limiting body search to first N characters.
-- **Multi-admin support** — Currently single admin user. Add `is_admin` field to User model, admin creation command.
-- **Backup/restore UI** — Admin UI for manual backup trigger, automatic scheduled backups.
-- **Subscriber expiry timezone** — All datetime comparisons use naive datetimes (consistent but anti-pattern).
+### 8.1 Timezone-Aware Datetimes ✅
+
+- `app/utils.py` — `utc_now()` now returns timezone-aware UTC datetime
+- Added `UTCDateTime` TypeDecorator — stores naive UTC in SQLite, returns aware UTC on read
+- All model DateTime columns updated: `Post.created_at/updated_at/published_at/newsletter_sent_at`, `Subscriber.created_at/expires_at/unsubscribed_at`, `PageView.created_at`, `ShareEvent.created_at`
+- Existing naive rows auto-converted to aware on read (interpreted as UTC)
+- `app/routes/public.py` — health check uses `utc_now().isoformat()` (includes timezone offset)
+
+### 8.2 Search Performance (FTS5) ✅
+
+- `app/search.py` — new module with `init_fts()`, `rebuild_fts()`, `sync_fts()`, `remove_fts()`
+- `app/routes/public.py` — `_fts_search()` uses FTS5 MATCH with fallback to LIKE
+- FTS5 index synced on post create/edit/delete and bulk operations
+- LIKE fallback filters by `Post.published == True` (graceful degradation when FTS unavailable)
+- FTS table check via `sqlite_master` before attempting MATCH query
+
+### 8.3 Multi-Admin Support ✅
+
+- `app/models.py` — `User.is_admin = db.Column(db.Boolean, default=False, nullable=False)`
+- `app/__init__.py` — first user auto-promoted to admin; `flask create-admin` CLI command
+- `app/routes/admin.py` — user management routes: list, create, delete, change password
+- `app/templates/admin/users.html` — user management UI
+- Safety: cannot delete own account, cannot delete last admin, min 8-char password
+- `migrations/versions/1eed0a59a445_add_is_admin_to_users.py` — migration
+
+### 8.4 Backup/Restore UI ✅
+
+- `app/routes/admin.py` — backup routes: create, list, download, restore, delete
+- `app/templates/admin/backup.html` — backup management UI
+- Backups stored in `instance/backups/` directory
+- Compressed backup support (gzip)
+- Filename validation via `BACKUP_FILENAME_RE` regex (path traversal prevention)
+- `download_backup` uses `send_file()` (no file handle leak)
+- Restore copies backup over current DB (app restart required)
+- Dashboard and nav links to Users and Backups pages
+
+### 8.5 Subscriber Expiry Timezone ✅
+
+- Handled by 8.1: `utc_now()` returns aware datetimes, `UTCDateTime` ensures all DB reads return aware
+- All datetime comparisons (`expires_at < utc_now()`) now timezone-aware
+- `CONFIRMATION_EXPIRY_HOURS` calculation produces aware datetimes
 
 ---
 
@@ -191,7 +227,7 @@ Consolidated plan from code review. Items organized by priority.
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 ```
 
-149 tests passing. Maintain 78%+ coverage.
+182 tests passing. Maintain 78%+ coverage.
 
 ---
 
@@ -199,5 +235,6 @@ ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 
 1. `1992db4c5c98` — composite indexes and published_at index (fixed from broken original)
 2. `89a922eae517` — newsletter_attempts, index optimization
+3. `1eed0a59a445` — add is_admin to users
 
 Run: `flask db upgrade`

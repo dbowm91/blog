@@ -1687,6 +1687,7 @@ a:hover {
 .ml-auto { margin-left: auto; }
 .mt-sm { margin-top: 0.5rem; }
 .mt-md { margin-top: 1rem; }
+.mt-lg { margin-top: 2rem; }
 .autosave-status-base {
     opacity: 0;
     transition: opacity 0.3s;
@@ -2087,4 +2088,14 @@ a:hover {
         bottom: max(20px, env(safe-area-inset-bottom));
         right: max(20px, env(safe-area-inset-right));
     }
+}
+
+/* --- Phase 8: User management & backup --- */
+.pw-input {
+    width: 150px;
+}
+
+.create-user-form {
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }

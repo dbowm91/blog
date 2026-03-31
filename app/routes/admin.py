@@ -2,7 +2,7 @@ import os
 import re
 import uuid
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Response
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Response, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
@@ -15,9 +15,11 @@ from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
 
 from app.utils import utc_now
 from app.cache import invalidate_tag_cache
+from app.search import sync_fts, remove_fts
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 TAG_NAME_REGEX = re.compile(r"^[\w\s-]+$")
+BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
 
 
 def validate_tag_name(name: str) -> tuple[bool, str]:
@@ -234,6 +236,7 @@ def new_post():
             db.session.commit()
         flash("Post created.", "success")
         invalidate_tag_cache()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
@@ -300,6 +303,7 @@ def edit_post(post_id):
                 pass
         invalidate_tag_cache()
         _cleanup_orphan_tags()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
         flash("Post updated.", "success")
         return redirect(url_for("admin.dashboard"))
 
@@ -314,8 +318,10 @@ def delete_post(post_id):
     if not post:
         abort(404)
     old_image = post.image
+    post_id_for_fts = post.id
     db.session.delete(post)
     db.session.commit()
+    remove_fts(post_id_for_fts)
     if old_image:
         try:
             os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
@@ -733,20 +739,28 @@ def bulk_operations():
                 post.published_at = now
         db.session.commit()
         invalidate_tag_cache()
+        for post in posts:
+            sync_fts(post.id, post.title, post.body, post.summary, post.published)
         flash(f"Published {len(posts)} post(s).", "success")
     elif action == "unpublish":
         for post in posts:
             post.published = False
         db.session.commit()
         invalidate_tag_cache()
+        for post in posts:
+            sync_fts(post.id, post.title, post.body, post.summary, post.published)
         flash(f"Unpublished {len(posts)} post(s).", "success")
     elif action == "delete":
         images_to_delete = []
+        deleted_post_ids = []
         for post in posts:
             if post.image:
                 images_to_delete.append(post.image)
+            deleted_post_ids.append(post.id)
             db.session.delete(post)
         db.session.commit()
+        for pid in deleted_post_ids:
+            remove_fts(pid)
         for img in images_to_delete:
             try:
                 os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], img))
@@ -759,3 +773,163 @@ def bulk_operations():
         flash("Invalid action.", "error")
 
     return redirect(url_for("admin.dashboard"))
+
+
+@admin.route("/users")
+@login_required
+def users_list():
+    users = User.query.order_by(User.username).all()
+    return render_template("admin/users.html", users=users)
+
+
+@admin.route("/users/create", methods=["POST"])
+@login_required
+def create_user():
+    username = request.form.get("username", "").strip()[:80]
+    password = request.form.get("password", "").strip()
+    is_admin = "is_admin" in request.form
+
+    if not username or not password:
+        flash("Username and password are required.", "error")
+        return redirect(url_for("admin.users_list"))
+
+    if len(password) < 8:
+        flash("Password must be at least 8 characters.", "error")
+        return redirect(url_for("admin.users_list"))
+
+    existing = User.query.filter_by(username=username).first()
+    if existing:
+        flash(f"User '{username}' already exists.", "error")
+        return redirect(url_for("admin.users_list"))
+
+    user = User(username=username, is_admin=is_admin)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    flash(f"User '{username}' created.", "success")
+    return redirect(url_for("admin.users_list"))
+
+
+@admin.route("/users/delete/<int:user_id>", methods=["POST"])
+@login_required
+def delete_user(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    if user.id == current_user.id:
+        flash("Cannot delete your own account.", "error")
+        return redirect(url_for("admin.users_list"))
+    admin_count = User.query.filter_by(is_admin=True).count()
+    if user.is_admin and admin_count <= 1:
+        flash("Cannot delete the last admin user.", "error")
+        return redirect(url_for("admin.users_list"))
+    username = user.username
+    db.session.delete(user)
+    db.session.commit()
+    flash(f"User '{username}' deleted.", "success")
+    return redirect(url_for("admin.users_list"))
+
+
+@admin.route("/users/password/<int:user_id>", methods=["POST"])
+@login_required
+def change_password(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    password = request.form.get("password", "").strip()
+    if not password or len(password) < 8:
+        flash("Password must be at least 8 characters.", "error")
+        return redirect(url_for("admin.users_list"))
+    user.set_password(password)
+    db.session.commit()
+    flash(f"Password changed for '{user.username}'.", "success")
+    return redirect(url_for("admin.users_list"))
+
+
+def _get_backup_dir():
+    return os.path.join(current_app.instance_path, "backups")
+
+
+@admin.route("/backup")
+@login_required
+def backup():
+    backup_dir = _get_backup_dir()
+    backups = []
+    if os.path.isdir(backup_dir):
+        for fname in sorted(os.listdir(backup_dir), reverse=True):
+            if fname.startswith("blog_") and (fname.endswith(".db") or fname.endswith(".db.gz")):
+                fpath = os.path.join(backup_dir, fname)
+                stat = os.stat(fpath)
+                backups.append({
+                    "name": fname,
+                    "size": stat.st_size,
+                    "mtime": datetime.fromtimestamp(stat.st_mtime),
+                })
+    return render_template("admin/backup.html", backups=backups)
+
+
+@admin.route("/backup/create", methods=["POST"])
+@login_required
+def create_backup():
+    from backup import create_backup as _create_backup
+    compress = "compress" in request.form
+    db_path = os.path.join(current_app.instance_path, "blog.db")
+    backup_dir = _get_backup_dir()
+    result = _create_backup(db_path, backup_dir, compress=compress, keep=10)
+    if result:
+        flash("Backup created successfully.", "success")
+    else:
+        flash("Backup failed.", "error")
+    return redirect(url_for("admin.backup"))
+
+
+@admin.route("/backup/download/<filename>")
+@login_required
+def download_backup(filename):
+    if not BACKUP_FILENAME_RE.match(filename):
+        abort(400)
+    backup_dir = _get_backup_dir()
+    filepath = os.path.join(backup_dir, filename)
+    real_path = os.path.realpath(filepath)
+    if not real_path.startswith(os.path.realpath(backup_dir) + os.sep):
+        abort(400)
+    if not os.path.exists(real_path):
+        abort(404)
+    return send_file(real_path, as_attachment=True, download_name=filename)
+
+
+@admin.route("/backup/restore/<filename>", methods=["POST"])
+@login_required
+def restore_backup(filename):
+    import shutil as _shutil
+    if not BACKUP_FILENAME_RE.match(filename):
+        abort(400)
+    backup_dir = _get_backup_dir()
+    filepath = os.path.join(backup_dir, filename)
+    real_path = os.path.realpath(filepath)
+    if not real_path.startswith(os.path.realpath(backup_dir) + os.sep):
+        abort(400)
+    if not os.path.exists(real_path):
+        abort(404)
+    db_path = os.path.join(current_app.instance_path, "blog.db")
+    _shutil.copy2(real_path, db_path)
+    flash(f"Database restored from {filename}.", "success")
+    return redirect(url_for("admin.backup"))
+
+
+@admin.route("/backup/delete/<filename>", methods=["POST"])
+@login_required
+def delete_backup(filename):
+    if not BACKUP_FILENAME_RE.match(filename):
+        abort(400)
+    backup_dir = _get_backup_dir()
+    filepath = os.path.join(backup_dir, filename)
+    real_path = os.path.realpath(filepath)
+    if not real_path.startswith(os.path.realpath(backup_dir) + os.sep):
+        abort(400)
+    if os.path.exists(real_path):
+        os.remove(real_path)
+        flash(f"Backup {filename} deleted.", "success")
+    else:
+        abort(404)
+    return redirect(url_for("admin.backup"))

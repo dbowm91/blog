@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Users</h1>
+    </div>
+
+    <div class="post-list">
+        <div class="post-list-header">
+            <span>Username</span>
+            <span class="post-list-header-right">Actions</span>
+        </div>
+        {% for user in users %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <h3>{{ user.username }}</h3>
+                    <div class="post-list-meta">
+                        {% if user.is_admin %}
+                        <span class="badge badge-published">Admin</span>
+                        {% else %}
+                        <span class="badge badge-draft">User</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="post-list-actions">
+                    <form method="POST" action="{{ url_for('admin.change_password', user_id=user.id) }}" class="inline-form" data-confirm="Change password for {{ user.username }}?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="password" name="password" placeholder="New password" required minlength="8" class="search-input pw-input">
+                        <button type="submit" class="btn btn-small btn-ghost">Change PW</button>
+                    </form>
+                    {% if user.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" class="inline-form" data-confirm="Delete user '{{ user.username }}'? This cannot be undone.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="dashboard-section-header mt-lg">
+        <h2>Create User</h2>
+    </div>
+    <form method="POST" action="{{ url_for('admin.create_user') }}" class="filter-bar create-user-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="text" name="username" placeholder="Username" required maxlength="80" class="search-input">
+        <input type="password" name="password" placeholder="Password (min 8 chars)" required minlength="8" class="search-input">
+        <label class="flex-row items-center gap-xs" style="color:var(--text-muted)">
+            <input type="checkbox" name="is_admin"> Admin
+        </label>
+        <button type="submit" class="btn btn-primary">Create</button>
+    </form>
+</div>
+{% endblock %}

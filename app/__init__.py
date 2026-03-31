@@ -177,12 +177,13 @@ def create_app():
 
     with app.app_context():
         from app.models import User
+        from app.search import init_fts
         from sqlalchemy.exc import IntegrityError, OperationalError
 
         try:
             existing_user = db.session.execute(db.select(User)).scalar_one_or_none()
             if not existing_user:
-                user = User(username=ADMIN_USERNAME)
+                user = User(username=ADMIN_USERNAME, is_admin=True)
                 user.set_password(ADMIN_PASSWORD)
                 db.session.add(user)
                 try:
@@ -195,6 +196,16 @@ def create_app():
                     "The stored password has not been changed.",
                     existing_user.username,
                 )
+            else:
+                # Ensure first user is always admin
+                if not existing_user.is_admin:
+                    existing_user.is_admin = True
+                    db.session.commit()
+        except OperationalError:
+            db.session.rollback()
+
+        try:
+            init_fts()
         except OperationalError:
             db.session.rollback()
 
@@ -202,5 +213,26 @@ def create_app():
 
     from app.scheduler import init_scheduler
     init_scheduler(app)
+
+    @app.cli.command("create-admin")
+    def create_admin_command():
+        """Create a new admin user or promote an existing user."""
+        import click
+        username = click.prompt("Username")
+        password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
+
+        from app.models import User
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            existing.is_admin = True
+            existing.set_password(password)
+            db.session.commit()
+            click.echo(f"User '{username}' promoted to admin.")
+        else:
+            user = User(username=username, is_admin=True)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            click.echo(f"Admin user '{username}' created.")
 
     return app

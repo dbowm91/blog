@@ -25,7 +25,8 @@ app/routes/admin.py     # Admin routes (requires login)
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
 app/cache.py            # Tag count cache (double-checked locking)
-app/utils.py            # Slug generation, email validation, XML escaping
+app/search.py           # FTS5 full-text search with LIKE fallback
+app/utils.py            # Slug generation, email validation, XML escaping, UTCDateTime type
 app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
 app/email.py            # SMTP email sending (with TLS via ssl.create_default_context)
@@ -50,6 +51,9 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_published_at` on `published_at`, `ix_posts_newsletter_sent_at` on `newsletter_sent_at`, `ix_posts_published_updated` on `(published, updated_at)`
 - `PageView` has composite index `ix_page_views_post_created` on `(post_id, created_at)`; `ShareEvent` has `ix_share_events_post_created` on `(post_id, created_at)`
 - `Subscriber` has composite index `ix_subscribers_confirmed_unsubscribed` on `(confirmed, unsubscribed_at)`
+- `User.is_admin` — boolean, default False; first user auto-promoted to admin
+- All DateTime columns use `UTCDateTime` TypeDecorator (stores naive UTC in SQLite, returns timezone-aware UTC on read)
+- `utc_now()` returns timezone-aware UTC datetime
 
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
@@ -155,6 +159,26 @@ Old image files are deleted *after* `db.session.commit()` to prevent dangling fi
 ### Double-Checked Locking for Caches
 `_get_tag_counts()` in `app/cache.py` uses double-checked locking — the lock is held only for cache reads/writes, and the DB query runs outside the lock. This prevents slow queries from blocking all concurrent requests.
 
+### FTS5 Search
+- `app/search.py` — `init_fts()` creates FTS5 virtual table `posts_fts` (title, body, summary)
+- FTS index synced via `sync_fts()` on post create/edit/publish/unpublish/delete
+- `rebuild_fts()` does full index rebuild (`posts_fts rebuild`)
+- Search route (`app/routes/public.py`) tries FTS5 MATCH first, falls back to LIKE on any error
+- LIKE fallback filters by `Post.published == True` (FTS doesn't have a published column)
+- FTS table check via `sqlite_master` query before attempting MATCH (avoids error spam)
+
+### Multi-Admin
+- `flask create-admin` CLI command creates or promotes admin users (prompts for username/password)
+- User management UI at `/admin/users` (list, create, delete, change password)
+- Safety guards: cannot delete own account, cannot delete last admin, min 8-char password
+- First user auto-promoted to admin in `create_app()`
+
+### UTCDateTime TypeDecorator
+`UTCDateTime` in `app/utils.py` stores naive UTC in SQLite but always returns timezone-aware UTC. On bind, it strips timezone info (`.replace(tzinfo=None)`). On result, it adds UTC timezone to naive values. Existing naive rows are interpreted as UTC on read. This ensures all comparisons are timezone-aware while SQLite compatibility is maintained.
+
+### FTS5 Empty Table Edge Case
+`init_fts()` runs `CREATE VIRTUAL TABLE IF NOT EXISTS` then `INSERT OR IGNORE`. If the INSERT fails (e.g., `posts` table doesn't exist yet), the FTS table still exists but is empty. The search route checks `sqlite_master` for table existence before MATCH, but an empty FTS table returns no results. `_fts_search()` returns `[]` (not `None`) in this case, so the LIKE fallback kicks in via the `if post_ids:` check.
+
 ## Assets
 
 - **No external assets**—all fonts (Inter, JetBrains Mono) are self-hosted in `app/static/fonts/`
@@ -194,6 +218,16 @@ See `requirements.txt`. Key packages:
 - Resets `newsletter_sent_at` to `None` and `newsletter_attempts` to `0` so the post is picked up by the next newsletter run
 - Dashboard shows "Reset NL" button on posts that have already been sent
 - Tooltip shows attempt count when > 0
+
+## Backup/Restore
+
+- Route: `GET /admin/backup` (login required) — lists all backups
+- `POST /admin/backup/create` — creates backup (optional `compress` checkbox for gzip)
+- `GET /admin/backup/download/<filename>` — downloads backup file
+- `POST /admin/backup/restore/<filename>` — restores database from backup (requires app restart)
+- `POST /admin/backup/delete/<filename>` — deletes a backup file
+- Backups stored in `instance/backups/` directory
+- Filename validation via `^blog_\d{8}_\d{6}\.db(\.gz)?$` regex (prevents path traversal)
 
 ## Templates
 

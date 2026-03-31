@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Backups</h1>
+        <form method="POST" action="{{ url_for('admin.create_backup') }}" class="inline-form flex-row gap-sm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label class="flex-row items-center gap-xs" style="color:var(--text-muted)">
+                <input type="checkbox" name="compress"> Compress
+            </label>
+            <button type="submit" class="btn btn-primary">Create Backup</button>
+        </form>
+    </div>
+
+    {% if backups %}
+    <div class="post-list">
+        <div class="post-list-header">
+            <span>Backup</span>
+            <span class="post-list-header-right">Actions</span>
+        </div>
+        {% for b in backups %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <h3>{{ b.name }}</h3>
+                    <div class="post-list-meta">
+                        <time>{{ b.mtime.strftime('%b %d, %Y at %H:%M') }}</time>
+                        <span>{{ "%.1f"|format(b.size / 1024) }} KB</span>
+                    </div>
+                </div>
+                <div class="post-list-actions">
+                    <a href="{{ url_for('admin.download_backup', filename=b.name) }}" class="btn btn-small btn-ghost">Download</a>
+                    <form method="POST" action="{{ url_for('admin.restore_backup', filename=b.name) }}" class="inline-form" data-confirm="Restore database from {{ b.name }}? Current data will be overwritten.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small">Restore</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.delete_backup', filename=b.name) }}" class="inline-form" data-confirm="Delete backup {{ b.name }}?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No backups yet. Create your first backup.</p>
+    {% endif %}
+</div>
+{% endblock %}

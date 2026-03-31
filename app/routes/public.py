@@ -132,33 +132,66 @@ def tag(slug):
 def search():
     query = request.args.get("q", "", type=str)[:200].strip()
     page = request.args.get("page", 1, type=int)
-    
+
     if not query:
         return redirect("/")
-    
-    search_term = f"%{query}%"
-    pagination = (
-        Post.query.options(joinedload(Post.tags))
-        .filter(
-            Post.published == True,
-            or_(
-                Post.title.ilike(search_term),
-                Post.body.ilike(search_term),
-                Post.summary.ilike(search_term),
-            )
+
+    tags = Tag.query.order_by(Tag.name).all()
+    tag_counts = _get_tag_counts()
+
+    post_ids = _fts_search(query)
+    if post_ids:
+        id_list = ",".join(str(i) for i in post_ids)
+        pagination = (
+            Post.query.options(joinedload(Post.tags))
+            .filter(Post.published == True, Post.id.in_(post_ids))
+            .order_by(db.text(f"CASE posts.id { ' '.join(f'WHEN {i} THEN {n}' for n, i in enumerate(post_ids)) } END"))
+            .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
         )
-        .order_by(Post.created_at.desc())
-        .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
-    )
-    
+    else:
+        search_term = f"%{query}%"
+        pagination = (
+            Post.query.options(joinedload(Post.tags))
+            .filter(
+                Post.published == True,
+                or_(
+                    Post.title.ilike(search_term),
+                    Post.body.ilike(search_term),
+                    Post.summary.ilike(search_term),
+                )
+            )
+            .order_by(Post.created_at.desc())
+            .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
+        )
+
     return render_template(
         "search.html",
         query=query,
         posts=pagination.items,
         pagination=pagination,
-        tags=Tag.query.order_by(Tag.name).all(),
-        tag_counts=_get_tag_counts(),
+        tags=tags,
+        tag_counts=tag_counts,
     )
+
+
+def _fts_search(query: str):
+    """Search using FTS5. Returns list of post IDs or empty list if unavailable."""
+    try:
+        check = db.session.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
+        )).fetchone()
+        if not check:
+            return []
+
+        fts_query = " OR ".join(f'"{w}"' for w in query.split() if w)
+        if not fts_query:
+            return []
+        result = db.session.execute(text(
+            "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank"
+        ), {"q": fts_query}).fetchall()
+        return [row[0] for row in result]
+    except Exception:
+        return []
 
 
 @public.route("/s/<code>")
@@ -352,5 +385,5 @@ def health_check():
     return jsonify({
         "status": "ok" if db_status == "connected" else "error",
         "database": db_status,
-        "timestamp": utc_now().isoformat() + "Z",
+        "timestamp": utc_now().isoformat(),
     })
