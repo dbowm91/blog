@@ -1,3 +1,9 @@
+"""In-memory tag count cache with double-checked locking and configurable TTL.
+
+_tag_counts() queries the DB for per-tag post counts and caches the result.
+The cache uses a threading lock held only for reads/writes — the DB query runs
+outside the lock to prevent slow queries from blocking concurrent requests.
+"""
 import threading
 import time as _time
 

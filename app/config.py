@@ -9,6 +9,7 @@ __all__ = [
     "AUTHOR_AVATAR", "BASE_URL", "RELATED_POSTS_COUNT", "SMTP_HOST", "SMTP_PORT",
     "SMTP_USER", "SMTP_PASSWORD", "FROM_ADDRESS", "NEWSLETTER_SEND_TIME",
     "CONFIRMATION_EXPIRY_HOURS", "TAG_CACHE_TTL_SECONDS", "NEWSLETTER_MAX_RETRY_ATTEMPTS",
+    "DASHBOARD_PER_PAGE", "SUBSCRIBERS_PER_PAGE", "MEDIA_PER_PAGE", "MEDIA_MAX_FILES",
 ]
 
 
@@ -67,6 +68,11 @@ CONFIRMATION_EXPIRY_HOURS = int(_config["newsletter"].get("confirmation_expiry_h
 NEWSLETTER_MAX_RETRY_ATTEMPTS = int(_config["newsletter"].get("max_retry_attempts", 5))
 TAG_CACHE_TTL_SECONDS = int(_config["app"].get("tag_cache_ttl_seconds", 60))
 
+DASHBOARD_PER_PAGE = int(_config["app"].get("dashboard_per_page", 20))
+SUBSCRIBERS_PER_PAGE = int(_config["app"].get("subscribers_per_page", 50))
+MEDIA_PER_PAGE = int(_config["app"].get("media_per_page", 50))
+MEDIA_MAX_FILES = int(_config["app"].get("media_max_files", 1000))
+
 
 def _validate_config(config: dict) -> None:
     errors = []
@@ -90,6 +96,17 @@ def _validate_config(config: dict) -> None:
             raise ValueError
     except (ValueError, TypeError):
         errors.append(f"Invalid confirmation_expiry_hours: {expiry_hours}. Must be a positive integer")
+
+    # SMTP config validation
+    smtp_host = config.get("email", {}).get("smtp_host", "")
+    smtp_port = config.get("email", {}).get("smtp_port", 587)
+    if smtp_host:
+        try:
+            smtp_port = int(smtp_port)
+            if not (1 <= smtp_port <= 65535):
+                raise ValueError
+        except (ValueError, TypeError):
+            errors.append(f"Invalid smtp_port: {smtp_port}. Must be 1-65535")
 
     if errors:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))

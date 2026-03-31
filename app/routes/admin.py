@@ -18,6 +18,7 @@ from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
 
 from app.utils import utc_now, safe_delete_file
+from app.config import DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE, MEDIA_PER_PAGE, MEDIA_MAX_FILES
 from app.cache import invalidate_tag_cache
 from app.search import sync_fts, remove_fts
 
@@ -148,7 +149,7 @@ def dashboard():
     pagination = (
         query
         .order_by(Post.updated_at.desc())
-        .paginate(page=page, per_page=20, error_out=False)
+        .paginate(page=page, per_page=DASHBOARD_PER_PAGE, error_out=False)
     )
     posts = pagination.items
 
@@ -525,7 +526,7 @@ def subscribers():
 
     pagination = (
         query.order_by(Subscriber.created_at.desc())
-        .paginate(page=page, per_page=50, error_out=False)
+        .paginate(page=page, per_page=SUBSCRIBERS_PER_PAGE, error_out=False)
     )
     return render_template(
         "admin/subscribers.html",
@@ -587,8 +588,8 @@ def preview_markdown():
 @admin_required
 def media():
     page = request.args.get("page", 1, type=int)
-    per_page = 50
-    max_files = 1000
+    per_page = MEDIA_PER_PAGE
+    max_files = MEDIA_MAX_FILES
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     all_files = []
     with os.scandir(upload_dir) as entries:

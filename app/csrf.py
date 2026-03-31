@@ -1,3 +1,10 @@
+"""CSRF token generation and validation.
+
+Tokens are stored in the Flask session and checked on every POST request.
+The token is available both as a form field (csrf_token) and as an HTTP
+header (X-CSRF-Token) for JSON API calls. Validation is skipped when
+TESTING=True and CSRF_ENABLED=False.
+"""
 import secrets
 import hmac
 

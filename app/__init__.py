@@ -190,17 +190,10 @@ def create_app():
                     db.session.commit()
                 except IntegrityError:
                     db.session.rollback()
-            elif not existing_user.check_password(ADMIN_PASSWORD):
-                app.logger.warning(
-                    "ADMIN_PASSWORD env var does not match the password hash for user '%s'. "
-                    "The stored password has not been changed.",
-                    existing_user.username,
-                )
-            else:
-                # Ensure first user is always admin
-                if not existing_user.is_admin:
-                    existing_user.is_admin = True
-                    db.session.commit()
+            elif not existing_user.is_admin:
+                # Promote first user to admin if not already
+                existing_user.is_admin = True
+                db.session.commit()
         except OperationalError:
             db.session.rollback()
 

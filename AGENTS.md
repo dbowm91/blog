@@ -85,7 +85,7 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
   - `ADMIN_PASSWORD` (required)
   - `ADMIN_USERNAME` (optional, default: admin)
   - `SMTP_USER`, `SMTP_PASSWORD` (optional)
-- `MAX_VIEWED_POSTS` and `SESSION_LIFETIME_HOURS` are loaded from `config.toml [app]` section
+- Pagination and limits loaded from `config.toml [app]`: `max_viewed_posts`, `session_lifetime_hours`, `tag_cache_ttl_seconds`, `dashboard_per_page`, `subscribers_per_page`, `media_per_page`, `media_max_files`
 
 ### Authorization
 - `admin_required` decorator in `app/routes/admin.py` combines `@login_required` with `is_admin` check
@@ -127,6 +127,25 @@ This codebase intentionally **does not include application-level rate limiting**
 - **Single responsibility** — The app focuses on its core function (blogging); infrastructure concerns like rate limiting belong at the infrastructure layer
 
 **Do not add rate limiting code to this project.** If you need per-IP or per-user rate limiting, configure it at the proxy/WAF level.
+
+### Recommended Proxy Rules for Login Protection
+
+The `/admin/login` endpoint is the primary attack surface. Configure your reverse proxy with these minimum rules:
+
+```nginx
+# nginx example
+location /admin/login {
+    limit_req zone=login burst=5 nodelay;
+    limit_req_status 429;
+}
+```
+
+Suggested thresholds:
+- **5 requests per minute** per IP for `/admin/login`
+- **20 requests per minute** per IP for other `/admin/*` routes
+- **100 requests per minute** per IP for public routes
+
+For Cloudflare, use a WAF custom rule matching `http.request.uri.path eq "/admin/login"` with managed challenge action.
 
 ## Lessons Learned
 
@@ -378,7 +397,12 @@ This project had multiple improvement plans (`plan2.md` through `plan5.md`) crea
 
 ## Media Gallery Pagination
 
-- Media gallery uses pagination with 50 items per page
+- Media gallery uses pagination with configurable `media_per_page` (default 50, from `config.toml [app]`)
 - Template shows "Page X of Y" with Previous/Next links
-- Capped at 1000 files to prevent unbounded memory usage
+- Capped at `media_max_files` (default 1000, from `config.toml [app]`) to prevent unbounded memory usage
 - Shows truncation notice when limit reached
+
+## Sitemap
+
+- `/sitemap.xml` uses a streaming generator to avoid loading all posts/tags into memory
+- Posts and tags are yielded in batches of 100

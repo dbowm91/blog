@@ -1,3 +1,8 @@
+"""Base62 encoding/decoding for short URL generation.
+
+Used by Post.short_code() to create compact share URLs (/s/<code>).
+The alphabet is 0-9, a-z, A-Z (62 characters).
+"""
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 BASE = len(ALPHABET)
 _DECODE_MAP = {c: i for i, c in enumerate(ALPHABET)}

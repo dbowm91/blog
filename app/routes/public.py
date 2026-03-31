@@ -37,7 +37,8 @@ def _get_related_posts(post):
         return []
     tag_ids = [t.id for t in post.tags]
     related = (
-        Post.query.filter(
+        Post.query.options(joinedload(Post.tags))
+        .filter(
             Post.published == True,
             Post.id != post.id,
             Post.tags.any(Tag.id.in_(tag_ids)),
@@ -333,43 +334,37 @@ def robots_txt():
     return Response(content, mimetype="text/plain")
 
 
-@public.route("/sitemap.xml")
-def sitemap_xml():
-    posts = Post.query.filter_by(published=True).order_by(Post.updated_at.desc()).all()
-    tags = Tag.query.all()
-    
-    urls = []
+def _generate_sitemap():
+    yield '<?xml version="1.0" encoding="UTF-8"?>\n'
+    yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     # Homepage
-    urls.append(f"""  <url>
+    yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>""")
-    
-    # Posts
-    for post in posts:
+  </url>\n"""
+    # Posts — yield one at a time to avoid loading all into memory
+    for post in Post.query.filter_by(published=True).order_by(Post.updated_at.desc()).yield_per(100):
         lastmod = post.updated_at.strftime("%Y-%m-%d") if post.updated_at else ""
-        urls.append(f"""  <url>
+        yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/post/{xml_escape(post.slug)}</loc>
     <lastmod>{lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-  </url>""")
-    
+  </url>\n"""
     # Tags
-    for tag in tags:
-        urls.append(f"""  <url>
+    for tag in Tag.query.yield_per(100):
+        yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/tag/{xml_escape(tag.slug)}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
-  </url>""")
-    
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{"".join(urls)}
-</urlset>"""
-    
-    return Response(xml, mimetype="application/xml")
+  </url>\n"""
+    yield '</urlset>\n'
+
+
+@public.route("/sitemap.xml")
+def sitemap_xml():
+    return Response(_generate_sitemap(), mimetype="application/xml")
 
 
 @public.route("/favicon.ico")
