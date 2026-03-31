@@ -2,7 +2,7 @@
 
 Quick reference for AI agents working on this codebase.
 
-See `plan.md` for the consolidated improvement plan (merged from plan2–plan5).
+See `plan.md` for the consolidated improvement plan.
 
 ## Running Tests
 
@@ -194,9 +194,7 @@ Post.title.ilike(search_term, escape="\\")
 `_save_image()` uses the detected magic byte type for the file extension, not the user-provided extension. This prevents Content-Type mismatches (e.g., JPEG saved as `.webp`).
 
 ### Token Enumeration Prevention
-`/confirm/<token>` now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
-- Invalid tokens return success (not 404) to avoid revealing valid tokens
-- Same pattern as unsubscribe endpoint
+/confirm/<token> now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
 - Invalid tokens return success (not 404) to avoid revealing valid tokens
 - Same pattern as unsubscribe endpoint
 
@@ -225,6 +223,12 @@ Post.title.ilike(search_term, escape="\\")
 
 ### FTS5 Empty Table Edge Case
 `init_fts()` runs `CREATE VIRTUAL TABLE IF NOT EXISTS` then `INSERT OR IGNORE`. If the INSERT fails (e.g., `posts` table doesn't exist yet), the FTS table still exists but is empty. The search route checks `sqlite_master` for table existence before MATCH, but an empty FTS table returns no results. `_fts_search()` returns `[]` (not `None`) in this case, so the LIKE fallback kicks in via the `if post_ids:` check.
+
+### Standalone Utility Scripts
+`backup.py` is a standalone utility script (not part of the Flask app). It should not import from `app.*` modules since it needs to work independently. Use hardcoded defaults or CLI args rather than config imports.
+
+### Dependencies
+`pygments` is listed in `requirements.txt` but never used — Prism.js handles all syntax highlighting. Do not add pygments imports; remove the dependency if cleaning up.
 
 ## Assets
 
@@ -369,9 +373,19 @@ The `set_security_headers` after-request handler sets:
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
 - Cache returns a copy to prevent external mutation
 
-## Plan History
+## Remaining Plan Items
 
-This project had multiple improvement plans (`plan2.md` through `plan5.md`) created at different times. They were consolidated into `plan.md` with items deduplicated, re-prioritized, and organized into parallelizable phases. The original plan files were removed.
+The following items from `plan.md` are still pending:
+- **Wave 1**: 7 trivial cleanup items (dead code, dependency removal, minor fixes)
+- **Wave 2**: 2 security/robustness items (X-XSS-Protection header, FTS5 assertion)
+- **Wave 3**: SQLAlchemy 2.0 migration (~51 occurrences across 6 files + tests)
+- **Wave 4**: Page view optimization (deferred/monitoring only)
+
+Already completed from previous plan iterations:
+- IntegrityError retry paths in `new_post()`/`edit_post()` — done
+- Security headers (most), bug fixes, performance improvements — done
+- Timezone-aware datetimes, FTS5 search, multi-admin, backup/restore UI — done
+- Sitemap streaming, eager loading, centralized pagination, SMTP validation — done
 
 ## Newsletter Test Email
 
@@ -383,12 +397,6 @@ This project had multiple improvement plans (`plan2.md` through `plan5.md`) crea
 
 - `xml_escape()` in utils.py escapes: `&`, `<`, `>`, `"`, and `'`
 - Uses `&apos;` for single quotes
-
-## Session Security
-
-- `SESSION_COOKIE_HTTPONLY` explicitly set to `True`
-- `SESSION_COOKIE_SECURE` set to `not app.debug`
-- `SESSION_COOKIE_SAMESITE` set to `"Lax"`
 
 ## RSS Feed Ordering
 
