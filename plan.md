@@ -1,6 +1,6 @@
 # Consolidated Improvement Plan
 
-Created 2026-03-31. All items completed 2026-03-31.
+Created 2026-03-31. Last updated 2026-03-31.
 
 ---
 
@@ -89,8 +89,8 @@ Created 2026-03-31. All items completed 2026-03-31.
 ## Wave 4: Performance ✅
 
 ### 4.1: Add eager loading to dashboard post queries ✅
-- **File**: `app/routes/admin.py:140`
-- **Status**: Added `.options(joinedload(Post.tags))` to dashboard query.
+- **File**: `app/routes/admin.py:139`
+- **Status**: Added `.options(joinedload(Post.tags))` to dashboard query. Implemented 2026-03-31.
 
 ---
 

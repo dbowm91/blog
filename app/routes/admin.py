@@ -10,6 +10,7 @@ from flask import Blueprint, abort, render_template, redirect, url_for, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import delete, func, select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 
 from datetime import datetime, timedelta, timezone
@@ -136,7 +137,7 @@ def dashboard():
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all")
 
-    base_q = select(Post)
+    base_q = select(Post).options(joinedload(Post.tags))
     if q:
         escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         search_term = f"%{escaped}%"
