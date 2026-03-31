@@ -119,6 +119,13 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows.
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
+- **No upper version bounds** in `requirements.txt`—all dependencies use `>=` only
+- **ProxyFix hardcoded** to `x_for=1, x_proto=1, x_host=1` in `app/__init__.py`
+- **Dashboard N+1**—`Post.tags` relationship is lazy-loaded in dashboard query (no `joinedload`)
+- **`_cleanup_orphan_tags()`** calls its own `db.session.commit()`—callers should be aware
+- **`confirm` endpoint** does not check if subscriber is already confirmed before writing
+- **`restore_backup`** does not close DB connections before overwriting the database file
+- **Email templates** use hardcoded GitHub-dark colors (`#0d1117`, `#161b22`, `#e6edf3`)—not suitable for light-mode email clients
 
 ## Rate Limiting
 
@@ -396,31 +403,3 @@ Previously completed from earlier plan iterations:
 - Security headers, bug fixes, performance improvements — done
 - Timezone-aware datetimes, FTS5 search, multi-admin, backup/restore UI — done
 - Sitemap streaming, eager loading, centralized pagination, SMTP validation — done
-
-## Newsletter Test Email
-
-- Test newsletter sends to `FROM_ADDRESS` (parsed from config to extract email) by default
-- Optional `test_email` form field allows specifying a custom test address
-- Uses `FROM_ADDRESS.split("<")[-1].rstrip(">")` to extract email from "Name <email>" format
-
-## XML Escaping
-
-- `xml_escape()` in utils.py escapes: `&`, `<`, `>`, `"`, and `'`
-- Uses `&apos;` for single quotes
-
-## RSS Feed Ordering
-
-- Orders by `published_at.desc().nullslast()` then `created_at.desc()`
-- PubDate uses `published_at` if available, falls back to `created_at`
-
-## Media Gallery Pagination
-
-- Media gallery uses pagination with configurable `media_per_page` (default 50, from `config.toml [app]`)
-- Template shows "Page X of Y" with Previous/Next links
-- Capped at `media_max_files` (default 1000, from `config.toml [app]`) to prevent unbounded memory usage
-- Shows truncation notice when limit reached
-
-## Sitemap
-
-- `/sitemap.xml` uses a streaming generator to avoid loading all posts/tags into memory
-- Posts and tags are yielded in batches of 100
