@@ -22,16 +22,7 @@ from pathlib import Path
 
 
 def get_db_path():
-    """Get the database path from config or default location."""
-    # Try to import from app config
-    try:
-        sys.path.insert(0, os.path.dirname(__file__))
-        from app.config import _config
-        instance_path = _config.get("app", {}).get("instance_path", "instance")
-        return os.path.join(instance_path, "blog.db")
-    except Exception:
-        pass
-    # Fallback to default location
+    """Get the database path."""
     return os.path.join("instance", "blog.db")
 
 

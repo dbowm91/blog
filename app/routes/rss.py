@@ -1,5 +1,7 @@
 from flask import Blueprint, Response
+from sqlalchemy import select
 from app.models import Post
+from app.extensions import db
 from app.config import APP_TITLE, APP_DESCRIPTION, BASE_URL
 from app.utils import xml_escape, utc_now
 import re
@@ -16,10 +18,12 @@ def _strip_markdown(text: str) -> str:
 @rss.route("/rss")
 def feed():
     posts = (
-        Post.query.filter_by(published=True)
-        .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
-        .limit(20)
-        .all()
+        db.session.execute(
+            select(Post)
+            .filter_by(published=True)
+            .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
+            .limit(20)
+        ).scalars().all()
     )
 
     items = []

@@ -23,7 +23,7 @@ def upgrade():
         batch_op.drop_index(batch_op.f('ix_page_views_post_id'))
 
     with op.batch_alter_table('posts', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('newsletter_attempts', sa.Integer(), nullable=False))
+        batch_op.add_column(sa.Column('newsletter_attempts', sa.Integer(), nullable=False, server_default='0'))
         batch_op.drop_index(batch_op.f('ix_posts_slug'))
         batch_op.create_index('ix_posts_newsletter_sent_at', ['newsletter_sent_at'], unique=False)
         batch_op.create_index('ix_posts_published_updated', ['published', 'updated_at'], unique=False)

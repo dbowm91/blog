@@ -90,11 +90,11 @@ def create_app():
         return redirect(req.referrer or url_for("admin.dashboard"))
 
     import nh3
+    import markdown
     from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text):
-        import markdown
         html = markdown.markdown(text, extensions=["fenced_code", "tables"])
         return nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
 
@@ -141,6 +141,7 @@ def create_app():
         from flask import current_app
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if not current_app.debug:
@@ -215,7 +216,7 @@ def create_app():
         password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
 
         from app.models import User
-        existing = User.query.filter_by(username=username).first()
+        existing = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
         if existing:
             existing.is_admin = True
             existing.set_password(password)

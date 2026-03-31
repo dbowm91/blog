@@ -6,13 +6,13 @@ import uuid
 
 from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Response, send_file
+from flask import Blueprint, abort, render_template, redirect, url_for, request, flash, current_app, jsonify, Response, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
@@ -68,10 +68,10 @@ def _generate_unique_slug(title, exclude_id=None):
     base_slug = slug
     counter = 2
     while True:
-        query = Post.query.filter(Post.slug == slug)
+        q = select(Post).filter(Post.slug == slug)
         if exclude_id is not None:
-            query = query.filter(Post.id != exclude_id)
-        if not query.first():
+            q = q.filter(Post.id != exclude_id)
+        if not db.session.execute(q).scalar_one_or_none():
             break
         slug = f"{base_slug}-{counter}"
         counter += 1
@@ -100,7 +100,7 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        user = User.query.filter_by(username=username).first()
+        user = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
         if user and user.check_password(password) and user.is_admin:
             login_user(user)
             return redirect(url_for("admin.dashboard"))
@@ -136,20 +136,21 @@ def dashboard():
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all")
 
-    query = Post.query
+    base_q = select(Post)
     if q:
         escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         search_term = f"%{escaped}%"
-        query = query.filter(Post.title.ilike(search_term, escape="\\"))
+        base_q = base_q.filter(Post.title.ilike(search_term, escape="\\"))
     if status == "published":
-        query = query.filter(Post.published == True)
+        base_q = base_q.filter(Post.published == True)
     elif status == "draft":
-        query = query.filter(Post.published == False)
+        base_q = base_q.filter(Post.published == False)
 
-    pagination = (
-        query
-        .order_by(Post.updated_at.desc())
-        .paginate(page=page, per_page=DASHBOARD_PER_PAGE, error_out=False)
+    pagination = db.paginate(
+        base_q.order_by(Post.updated_at.desc()),
+        page=page,
+        per_page=DASHBOARD_PER_PAGE,
+        error_out=False
     )
     posts = pagination.items
 
@@ -179,25 +180,26 @@ def dashboard():
         view_counts = {}
         share_counts = {}
 
-    total_views = db.session.query(func.count(PageView.id)).scalar() or 0
-    total_posts = db.session.query(func.count(Post.id)).filter(Post.published == True).scalar() or 0
-    total_shares = db.session.query(func.count(ShareEvent.id)).scalar() or 0
-    total_subscribers = db.session.query(func.count(Subscriber.id)).filter(Subscriber.confirmed == True).scalar() or 0
+    total_views = db.session.execute(select(func.count(PageView.id))).scalar_one() or 0
+    total_posts = db.session.execute(select(func.count(Post.id)).filter(Post.published == True)).scalar_one() or 0
+    total_shares = db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
+    total_subscribers = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)).scalar_one() or 0
 
     thirty_days_ago = utc_now() - timedelta(days=30)
     trending = (
-        db.session.query(Post, func.count(PageView.id).label('view_count'))
-        .join(PageView)
-        .filter(Post.published == True)
-        .filter(PageView.created_at >= thirty_days_ago)
-        .group_by(Post.id)
-        .order_by(func.count(PageView.id).desc())
-        .limit(5)
-        .all()
+        db.session.execute(
+            select(Post, func.count(PageView.id).label('view_count'))
+            .join(PageView)
+            .filter(Post.published == True)
+            .filter(PageView.created_at >= thirty_days_ago)
+            .group_by(Post.id)
+            .order_by(func.count(PageView.id).desc())
+            .limit(5)
+        ).all()
     )
 
     month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    new_this_month = db.session.query(func.count(Subscriber.id)).filter(Subscriber.created_at >= month_start).scalar() or 0
+    new_this_month = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.created_at >= month_start)).scalar_one() or 0
 
     return render_template(
         "admin/dashboard.html",
@@ -369,14 +371,14 @@ def _cleanup_orphan_tags():
     """Remove tags that have no associated posts."""
     from app.models import post_tags
     orphan_tag_ids = (
-        db.session.query(Tag.id)
-        .outerjoin(post_tags, Tag.id == post_tags.c.tag_id)
-        .filter(post_tags.c.post_id.is_(None))
-        .all()
+        db.session.execute(
+            select(Tag.id)
+            .outerjoin(post_tags, Tag.id == post_tags.c.tag_id)
+            .filter(post_tags.c.post_id.is_(None))
+        ).scalars().all()
     )
     if orphan_tag_ids:
-        ids = [row[0] for row in orphan_tag_ids]
-        Tag.query.filter(Tag.id.in_(ids)).delete(synchronize_session=False)
+        db.session.execute(delete(Tag).where(Tag.id.in_(orphan_tag_ids)))
         db.session.commit()
 
 
@@ -392,7 +394,7 @@ def _get_or_create_tags(names):
             invalid_tags.append(name)
             continue
         slug = Tag.generate_slug(name)
-        tag = Tag.query.filter_by(slug=slug).first()
+        tag = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
         if not tag:
             tag = Tag(name=name, slug=slug)
             db.session.add(tag)
@@ -410,54 +412,64 @@ def analytics():
 
     start_date = utc_now() - timedelta(days=days)
 
-    daily_views = db.session.query(
-        func.date(PageView.created_at).label('date'),
-        func.count(PageView.id).label('views')
-    ).filter(
-        PageView.created_at >= start_date
-    ).group_by(
-        func.date(PageView.created_at)
-    ).order_by(
-        func.date(PageView.created_at)
-    ).all()
+    daily_views = (
+        db.session.execute(
+            select(
+                func.date(PageView.created_at).label('date'),
+                func.count(PageView.id).label('views')
+            ).filter(
+                PageView.created_at >= start_date
+            ).group_by(
+                func.date(PageView.created_at)
+            ).order_by(
+                func.date(PageView.created_at)
+            )
+        ).all()
+    )
 
-    total_views = db.session.query(func.count(PageView.id)).filter(
+    total_views = db.session.execute(select(func.count(PageView.id)).filter(
         PageView.created_at >= start_date
-    ).scalar() or 0
+    )).scalar_one() or 0
 
     top_posts = (
-        db.session.query(Post, func.count(PageView.id).label('view_count'))
-        .join(PageView)
-        .filter(Post.published == True)
-        .filter(PageView.created_at >= start_date)
-        .group_by(Post.id)
-        .order_by(func.count(PageView.id).desc())
-        .limit(10)
-        .all()
+        db.session.execute(
+            select(Post, func.count(PageView.id).label('view_count'))
+            .join(PageView)
+            .filter(Post.published == True)
+            .filter(PageView.created_at >= start_date)
+            .group_by(Post.id)
+            .order_by(func.count(PageView.id).desc())
+            .limit(10)
+        ).all()
     )
 
     top_post_ids = [p.id for p, _ in top_posts]
     share_counts_analytics = dict(
-        db.session.query(ShareEvent.post_id, func.count(ShareEvent.id))
-        .filter(ShareEvent.post_id.in_(top_post_ids))
-        .group_by(ShareEvent.post_id)
-        .all()
+        db.session.execute(
+            select(ShareEvent.post_id, func.count(ShareEvent.id))
+            .filter(ShareEvent.post_id.in_(top_post_ids))
+            .group_by(ShareEvent.post_id)
+        ).all()
     )
 
-    share_platforms = db.session.query(
-        ShareEvent.platform,
-        func.count(ShareEvent.id).label('count')
-    ).group_by(ShareEvent.platform).all()
+    share_platforms = (
+        db.session.execute(
+            select(ShareEvent.platform, func.count(ShareEvent.id).label('count'))
+            .group_by(ShareEvent.platform)
+        ).all()
+    )
 
-    referrer_data = db.session.query(
-        PageView.referrer,
-        func.count(PageView.id).label('count')
-    ).filter(
-        PageView.referrer != None,
-        PageView.created_at >= start_date
-    ).group_by(PageView.referrer).order_by(
-        func.count(PageView.id).desc()
-    ).limit(15).all()
+    referrer_data = (
+        db.session.execute(
+            select(PageView.referrer, func.count(PageView.id).label('count'))
+            .filter(
+                PageView.referrer != None,
+                PageView.created_at >= start_date
+            ).group_by(PageView.referrer).order_by(
+                func.count(PageView.id).desc()
+            ).limit(15)
+        ).all()
+    )
 
     def categorize_referrer(url):
         if not url:
@@ -474,8 +486,8 @@ def analytics():
         category = categorize_referrer(url)
         referrer_summary[category] = referrer_summary.get(category, 0) + count
 
-    total_subscribers = db.session.query(func.count(Subscriber.id)).scalar() or 0
-    confirmed_subscribers = db.session.query(func.count(Subscriber.id)).filter(Subscriber.confirmed == True).scalar() or 0
+    total_subscribers = db.session.execute(select(func.count(Subscriber.id))).scalar_one() or 0
+    confirmed_subscribers = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)).scalar_one() or 0
 
     return render_template(
         "admin/analytics.html",
@@ -516,17 +528,19 @@ def subscribers():
     page = request.args.get("page", 1, type=int)
     filter_status = request.args.get("status", "all")
 
-    query = Subscriber.query
+    base_q = select(Subscriber)
     if filter_status == "confirmed":
-        query = query.filter(Subscriber.confirmed == True)
+        base_q = base_q.filter(Subscriber.confirmed == True)
     elif filter_status == "unconfirmed":
-        query = query.filter(Subscriber.confirmed == False)
+        base_q = base_q.filter(Subscriber.confirmed == False)
     elif filter_status == "unsubscribed":
-        query = query.filter(Subscriber.unsubscribed_at.isnot(None))
+        base_q = base_q.filter(Subscriber.unsubscribed_at.isnot(None))
 
-    pagination = (
-        query.order_by(Subscriber.created_at.desc())
-        .paginate(page=page, per_page=SUBSCRIBERS_PER_PAGE, error_out=False)
+    pagination = db.paginate(
+        base_q.order_by(Subscriber.created_at.desc()),
+        page=page,
+        per_page=SUBSCRIBERS_PER_PAGE,
+        error_out=False
     )
     return render_template(
         "admin/subscribers.html",
@@ -552,7 +566,7 @@ def delete_subscriber(sub_id):
 @admin.route("/subscribers/export")
 @admin_required
 def export_subscribers():
-    subs = Subscriber.query.order_by(Subscriber.created_at.desc()).all()
+    subs = db.session.execute(select(Subscriber).order_by(Subscriber.created_at.desc())).scalars().all()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["email", "confirmed", "created_at", "expires_at"])
@@ -600,7 +614,7 @@ def media():
             all_files.append({
                 "name": entry.name,
                 "size": stat.st_size,
-                "mtime": datetime.fromtimestamp(stat.st_mtime),
+                "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
             })
         all_files.sort(key=lambda f: f["mtime"], reverse=True)
     if len(all_files) > max_files:
@@ -636,11 +650,12 @@ def delete_media(filename):
 @admin_required
 def tags_list():
     from app.models import post_tags
-    tags = Tag.query.order_by(Tag.name).all()
+    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_post_counts = dict(
-        db.session.query(post_tags.c.tag_id, func.count(post_tags.c.post_id))
-        .group_by(post_tags.c.tag_id)
-        .all()
+        db.session.execute(
+            select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt"))
+            .group_by(post_tags.c.tag_id)
+        ).all()
     )
     return render_template("admin/tags.html", tags=tags, tag_post_counts=tag_post_counts)
 
@@ -660,7 +675,7 @@ def rename_tag(tag_id):
         flash(error_msg, "error")
         return redirect(url_for("admin.tags_list"))
     slug = Tag.generate_slug(new_name)
-    existing = Tag.query.filter(Tag.slug == slug, Tag.id != tag.id).first()
+    existing = db.session.execute(select(Tag).filter(Tag.slug == slug, Tag.id != tag.id)).scalar_one_or_none()
     if existing:
         flash(f"Tag '{new_name}' already exists.", "warning")
         return redirect(url_for("admin.tags_list"))
@@ -698,7 +713,7 @@ def create_tag():
         flash(error_msg, "error")
         return redirect(url_for("admin.tags_list"))
     slug = Tag.generate_slug(name)
-    existing = Tag.query.filter_by(slug=slug).first()
+    existing = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
     if existing:
         flash(f"Tag '{name}' already exists.", "warning")
         return redirect(url_for("admin.tags_list"))
@@ -716,16 +731,18 @@ def newsletter_test():
     from app.email import send_newsletter
     from app.config import APP_TITLE, FROM_ADDRESS
     posts = (
-        Post.query.filter_by(published=True)
-        .order_by(Post.created_at.desc())
-        .limit(3)
-        .all()
+        db.session.execute(
+            select(Post)
+            .filter_by(published=True)
+            .order_by(Post.created_at.desc())
+            .limit(3)
+        ).scalars().all()
     )
     if not posts:
         flash("No published posts to send.", "error")
         return redirect(url_for("admin.dashboard"))
     from app.models import User
-    admin_user = User.query.first()
+    admin_user = db.session.execute(select(User)).scalars().first()
     if not admin_user:
         flash("No admin user found.", "error")
         return redirect(url_for("admin.dashboard"))
@@ -762,7 +779,7 @@ def bulk_operations():
             flash("Invalid post ID.", "error")
             return redirect(url_for("admin.dashboard"))
 
-    posts = Post.query.filter(Post.id.in_(valid_ids)).all()
+    posts = db.session.execute(select(Post).filter(Post.id.in_(valid_ids))).scalars().all()
     if not posts:
         flash("No posts found.", "error")
         return redirect(url_for("admin.dashboard"))
@@ -811,7 +828,7 @@ def bulk_operations():
 @admin.route("/users")
 @admin_required
 def users_list():
-    users = User.query.order_by(User.username).all()
+    users = db.session.execute(select(User).order_by(User.username)).scalars().all()
     return render_template("admin/users.html", users=users)
 
 
@@ -830,7 +847,7 @@ def create_user():
         flash("Password must be at least 8 characters.", "error")
         return redirect(url_for("admin.users_list"))
 
-    existing = User.query.filter_by(username=username).first()
+    existing = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
     if existing:
         flash(f"User '{username}' already exists.", "error")
         return redirect(url_for("admin.users_list"))
@@ -852,7 +869,7 @@ def delete_user(user_id):
     if user.id == current_user.id:
         flash("Cannot delete your own account.", "error")
         return redirect(url_for("admin.users_list"))
-    admin_count = User.query.filter_by(is_admin=True).count()
+    admin_count = db.session.execute(select(func.count(User.id)).filter_by(is_admin=True)).scalar_one()
     if user.is_admin and admin_count <= 1:
         flash("Cannot delete the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
@@ -896,7 +913,7 @@ def backup():
                 backups.append({
                     "name": fname,
                     "size": stat.st_size,
-                    "mtime": datetime.fromtimestamp(stat.st_mtime),
+                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
                 })
     return render_template("admin/backup.html", backups=backups)
 

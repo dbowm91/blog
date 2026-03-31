@@ -7,9 +7,9 @@ outside the lock to prevent slow queries from blocking concurrent requests.
 import threading
 import time as _time
 
+from sqlalchemy import select, func
 from app.extensions import db
 from app.models import Post, post_tags
-from sqlalchemy import func
 
 _TAG_COUNTS_CACHE = {"data": None, "timestamp": 0}
 _TAG_CACHE_LOCK = threading.Lock()
@@ -39,11 +39,12 @@ def _get_tag_counts():
     # by a slow query. Another thread may populate the cache while we query;
     # the second check below (under lock) handles that correctly.
     counts = (
-        db.session.query(post_tags.c.tag_id, func.count(post_tags.c.post_id))
-        .join(Post, Post.id == post_tags.c.post_id)
-        .filter(Post.published == True)
-        .group_by(post_tags.c.tag_id)
-        .all()
+        db.session.execute(
+            select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt"))
+            .join(Post, Post.id == post_tags.c.post_id)
+            .filter(Post.published == True)
+            .group_by(post_tags.c.tag_id)
+        ).all()
     )
     result = {row[0]: row[1] for row in counts}
 

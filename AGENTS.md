@@ -38,7 +38,9 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 ### Database
 - SQLite stored in `instance/blog.db` (auto-created)
 - Uses Flask-SQLAlchemy + Flask-Migrate (Alembic)
+- Uses SQLAlchemy 2.0 patterns exclusively — `db.session.execute(select(Model).filter(...))` instead of `Model.query.filter(...)`
 - Use `db.session.get(Model, id)` instead of `Model.query.get(id)` (avoids LegacyAPIWarning)
+- Use `db.paginate(select(...), page=..., per_page=..., error_out=False)` for pagination
 
 ### Models
 - `Post.slug` must be unique—use `_generate_unique_slug()` in admin.py
@@ -224,11 +226,19 @@ Post.title.ilike(search_term, escape="\\")
 ### FTS5 Empty Table Edge Case
 `init_fts()` runs `CREATE VIRTUAL TABLE IF NOT EXISTS` then `INSERT OR IGNORE`. If the INSERT fails (e.g., `posts` table doesn't exist yet), the FTS table still exists but is empty. The search route checks `sqlite_master` for table existence before MATCH, but an empty FTS table returns no results. `_fts_search()` returns `[]` (not `None`) in this case, so the LIKE fallback kicks in via the `if post_ids:` check.
 
+### SQLAlchemy 2.0 Query Patterns
+All database queries use SQLAlchemy 2.0 style:
+- `db.session.execute(select(Model).filter(...)).scalar_one_or_none()` for single results
+- `db.session.execute(select(Model).filter_by(...)).scalars().all()` for multiple results
+- `db.session.execute(select(func.count(...))).scalar_one()` for counts
+- `db.session.execute(delete(Model).where(...))` for deletes
+- `db.paginate(select(...), page=..., per_page=..., error_out=False)` for pagination
+
 ### Standalone Utility Scripts
 `backup.py` is a standalone utility script (not part of the Flask app). It should not import from `app.*` modules since it needs to work independently. Use hardcoded defaults or CLI args rather than config imports.
 
 ### Dependencies
-`pygments` is listed in `requirements.txt` but never used — Prism.js handles all syntax highlighting. Do not add pygments imports; remove the dependency if cleaning up.
+`pygments` was previously listed in `requirements.txt` but is no longer installed — Prism.js handles all syntax highlighting.
 
 ## Assets
 
@@ -375,15 +385,15 @@ The `set_security_headers` after-request handler sets:
 
 ## Remaining Plan Items
 
-The following items from `plan.md` are still pending:
-- **Wave 1**: 7 trivial cleanup items (dead code, dependency removal, minor fixes)
-- **Wave 2**: 2 security/robustness items (X-XSS-Protection header, FTS5 assertion)
-- **Wave 3**: SQLAlchemy 2.0 migration (~51 occurrences across 6 files + tests)
+All items from `plan.md` have been completed:
+- **Wave 1**: 7 trivial cleanup items (dead code, dependency removal, minor fixes) ✅
+- **Wave 2**: 2 security/robustness items (X-XSS-Protection header, FTS5 assertion) ✅
+- **Wave 3**: SQLAlchemy 2.0 migration (~51 occurrences across 6 files) ✅
 - **Wave 4**: Page view optimization (deferred/monitoring only)
 
-Already completed from previous plan iterations:
+Previously completed from earlier plan iterations:
 - IntegrityError retry paths in `new_post()`/`edit_post()` — done
-- Security headers (most), bug fixes, performance improvements — done
+- Security headers, bug fixes, performance improvements — done
 - Timezone-aware datetimes, FTS5 search, multi-admin, backup/restore UI — done
 - Sitemap streaming, eager loading, centralized pagination, SMTP validation — done
 

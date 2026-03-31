@@ -4,8 +4,8 @@ import uuid
 from datetime import timedelta
 from urllib.parse import urlparse, urlunparse
 
-from flask import Blueprint, render_template, request, redirect, jsonify, flash, session, Response, url_for
-from sqlalchemy import func, or_, text
+from flask import Blueprint, abort, render_template, request, redirect, jsonify, flash, session, Response, url_for
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import joinedload
 import logging
 
@@ -37,15 +37,17 @@ def _get_related_posts(post):
         return []
     tag_ids = [t.id for t in post.tags]
     related = (
-        Post.query.options(joinedload(Post.tags))
-        .filter(
-            Post.published == True,
-            Post.id != post.id,
-            Post.tags.any(Tag.id.in_(tag_ids)),
-        )
-        .order_by(Post.created_at.desc())
-        .limit(RELATED_POSTS_COUNT)
-        .all()
+        db.session.execute(
+            select(Post)
+            .options(joinedload(Post.tags))
+            .filter(
+                Post.published == True,
+                Post.id != post.id,
+                Post.tags.any(Tag.id.in_(tag_ids)),
+            )
+            .order_by(Post.created_at.desc())
+            .limit(RELATED_POSTS_COUNT)
+        ).unique().scalars().all()
     )
     return related
 
@@ -53,13 +55,16 @@ def _get_related_posts(post):
 @public.route("/")
 def index():
     page = request.args.get("page", 1, type=int)
-    pagination = (
-        Post.query.options(joinedload(Post.tags))
+    pagination = db.paginate(
+        select(Post)
+        .options(joinedload(Post.tags))
         .filter_by(published=True)
-        .order_by(Post.created_at.desc())
-        .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
+        .order_by(Post.created_at.desc()),
+        page=page,
+        per_page=POSTS_PER_PAGE,
+        error_out=False
     )
-    tags = Tag.query.order_by(Tag.name).all()
+    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_counts = _get_tag_counts()
     return render_template(
         "index.html",
@@ -72,7 +77,9 @@ def index():
 
 @public.route("/post/<slug>")
 def post(slug):
-    post = Post.query.filter_by(slug=slug, published=True).first_or_404()
+    post = db.session.execute(select(Post).filter_by(slug=slug, published=True)).scalar_one_or_none()
+    if not post:
+        abort(404)
 
     viewed = session.get("viewed_posts", [])
     if post.id not in viewed:
@@ -107,16 +114,21 @@ def post(slug):
 
 @public.route("/tag/<slug>")
 def tag(slug):
-    tag = Tag.query.filter_by(slug=slug).first_or_404()
+    tag = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
+    if not tag:
+        abort(404)
     page = request.args.get("page", 1, type=int)
-    pagination = (
-        Post.query.options(joinedload(Post.tags))
+    pagination = db.paginate(
+        select(Post)
+        .options(joinedload(Post.tags))
         .filter(Post.published == True, Post.tags.any(Tag.id == tag.id))
-        .order_by(Post.created_at.desc())
-        .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
+        .order_by(Post.created_at.desc()),
+        page=page,
+        per_page=POSTS_PER_PAGE,
+        error_out=False
     )
     total_posts = pagination.total
-    tags = Tag.query.order_by(Tag.name).all()
+    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_counts = _get_tag_counts()
     return render_template(
         "tag.html",
@@ -137,23 +149,27 @@ def search():
     if not query:
         return redirect("/")
 
-    tags = Tag.query.order_by(Tag.name).all()
+    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_counts = _get_tag_counts()
 
     post_ids = _fts_search(query)
     if post_ids:
-        id_list = ",".join(str(i) for i in post_ids)
-        pagination = (
-            Post.query.options(joinedload(Post.tags))
+        assert all(isinstance(i, int) for i in post_ids)
+        pagination = db.paginate(
+            select(Post)
+            .options(joinedload(Post.tags))
             .filter(Post.published == True, Post.id.in_(post_ids))
-            .order_by(db.text(f"CASE posts.id { ' '.join(f'WHEN {i} THEN {n}' for n, i in enumerate(post_ids)) } END"))
-            .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
+            .order_by(db.text(f"CASE posts.id { ' '.join(f'WHEN {i} THEN {n}' for n, i in enumerate(post_ids)) } END")),
+            page=page,
+            per_page=POSTS_PER_PAGE,
+            error_out=False
         )
     else:
         escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         search_term = f"%{escaped}%"
-        pagination = (
-            Post.query.options(joinedload(Post.tags))
+        pagination = db.paginate(
+            select(Post)
+            .options(joinedload(Post.tags))
             .filter(
                 Post.published == True,
                 or_(
@@ -162,8 +178,10 @@ def search():
                     Post.summary.ilike(search_term, escape="\\"),
                 )
             )
-            .order_by(Post.created_at.desc())
-            .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
+            .order_by(Post.created_at.desc()),
+            page=page,
+            per_page=POSTS_PER_PAGE,
+            error_out=False
         )
 
     return render_template(
@@ -254,7 +272,7 @@ def subscribe():
         flash("Please enter a valid email address.", "error")
         return redirect(_safe_redirect_url())
 
-    existing = Subscriber.query.filter_by(email=email).first()
+    existing = db.session.execute(select(Subscriber).filter_by(email=email)).scalar_one_or_none()
     if existing:
         if existing.unsubscribed_at:
             existing.unsubscribed_at = None
@@ -293,7 +311,7 @@ def subscribe():
 
 @public.route("/confirm/<token>")
 def confirm(token):
-    sub = Subscriber.query.filter_by(token=token).first()
+    sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
     time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
         logger.warning("Confirm enumeration attempt with invalid token from %s", request.remote_addr)
@@ -314,7 +332,7 @@ def confirm(token):
 
 @public.route("/unsubscribe/<token>")
 def unsubscribe(token):
-    sub = Subscriber.query.filter_by(token=token).first()
+    sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
     time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
         logger.warning("Unsubscribe enumeration attempt with invalid token from %s", request.remote_addr)
@@ -344,7 +362,7 @@ def _generate_sitemap():
     <priority>1.0</priority>
   </url>\n"""
     # Posts — yield one at a time to avoid loading all into memory
-    for post in Post.query.filter_by(published=True).order_by(Post.updated_at.desc()).yield_per(100):
+    for post in db.session.execute(select(Post).filter_by(published=True).order_by(Post.updated_at.desc()).execution_options(yield_per=100)).scalars().yield_per(100):
         lastmod = post.updated_at.strftime("%Y-%m-%d") if post.updated_at else ""
         yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/post/{xml_escape(post.slug)}</loc>
@@ -353,7 +371,7 @@ def _generate_sitemap():
     <priority>0.8</priority>
   </url>\n"""
     # Tags
-    for tag in Tag.query.yield_per(100):
+    for tag in db.session.execute(select(Tag).execution_options(yield_per=100)).scalars().yield_per(100):
         yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/tag/{xml_escape(tag.slug)}</loc>
     <changefreq>weekly</changefreq>

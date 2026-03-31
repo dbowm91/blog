@@ -1,5 +1,7 @@
 import os
 
+from sqlalchemy import select
+
 try:
     import fcntl
     HAS_FCNTL = True
@@ -21,7 +23,7 @@ def send_daily_newsletter(app):
         lock_file = open(lock_path, "w")
         if HAS_FCNTL:
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError:
+    except OSError:
         if lock_file:
             lock_file.close()
         return
@@ -35,22 +37,28 @@ def send_daily_newsletter(app):
             from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
 
             posts = (
-                Post.query.filter(
-                    Post.published == True,
-                    Post.published_at != None,
-                    Post.newsletter_sent_at == None,
-                    Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
-                )
-                .order_by(Post.published_at.desc())
-                .all()
+                db.session.execute(
+                    select(Post)
+                    .filter(
+                        Post.published == True,
+                        Post.published_at != None,
+                        Post.newsletter_sent_at == None,
+                        Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
+                    )
+                    .order_by(Post.published_at.desc())
+                ).scalars().all()
             )
 
             if not posts:
                 return
 
-            subscribers = Subscriber.query.filter_by(confirmed=True).filter(
-                Subscriber.unsubscribed_at.is_(None)
-            ).all()
+            subscribers = (
+                db.session.execute(
+                    select(Subscriber)
+                    .filter_by(confirmed=True)
+                    .filter(Subscriber.unsubscribed_at.is_(None))
+                ).scalars().all()
+            )
             if not subscribers:
                 return
 
@@ -86,7 +94,7 @@ def cleanup_expired_subscribers(app):
         lock_file = open(lock_path, "w")
         if HAS_FCNTL:
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError:
+    except OSError:
         if lock_file:
             lock_file.close()
         return
@@ -97,11 +105,16 @@ def cleanup_expired_subscribers(app):
             from app.extensions import db
             from app.utils import utc_now
 
-            expired = Subscriber.query.filter(
-                Subscriber.confirmed == False,
-                Subscriber.expires_at != None,
-                Subscriber.expires_at < utc_now(),
-            ).all()
+            expired = (
+                db.session.execute(
+                    select(Subscriber)
+                    .filter(
+                        Subscriber.confirmed == False,
+                        Subscriber.expires_at != None,
+                        Subscriber.expires_at < utc_now(),
+                    )
+                ).scalars().all()
+            )
 
             if not expired:
                 return
