@@ -6,6 +6,13 @@ try:
 except ImportError:
     HAS_FCNTL = False
 
+_scheduler_running = False
+
+
+def get_scheduler_status():
+    """Return whether the scheduler is running."""
+    return _scheduler_running
+
 
 def send_daily_newsletter(app):
     lock_path = os.path.join(app.instance_path, "newsletter.lock")
@@ -143,5 +150,7 @@ def init_scheduler(app):
         replace_existing=True,
     )
     scheduler.start()
+    global _scheduler_running
+    _scheduler_running = True
     atexit.register(lambda: scheduler.shutdown(wait=False))
     return scheduler

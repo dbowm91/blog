@@ -46,7 +46,7 @@ def client(app, db):
 @pytest.fixture(scope='function')
 def admin_user(db):
     """Create an admin user."""
-    user = User(username='admin')
+    user = User(username='admin', is_admin=True)
     user.set_password('testpassword')
     db.session.add(user)
     db.session.commit()

@@ -1,240 +1,403 @@
-# Blog Application Improvement Plan
+# Consolidated Improvement Plan
 
-Consolidated plan from code review. Items organized by priority.
-
-**Excluded:** Rate limiting (handled by reverse proxy/WAF), HTTPS redirect (handled by reverse proxy), GET→POST migration for confirm/unsubscribe (breaking change for email links), separate unsubscribe tokens (breaking change for existing subscribers).
-
-**Status:** Phases 1-8 complete. All 182 tests passing.
+Merged from plan2–plan5. Organized by priority with parallelization guidance for sub-agents.
 
 ---
 
-## Phase 1: Critical Security Fixes ✅
+## Phase 1: Critical Security & Bugs
 
-### 1.1 CSRF on Logout ✅
+### 1. Admin Authorization — Privilege Escalation
+**Priority:** Critical | **Status:** ✅ Done | **Files:** `app/routes/admin.py`, `app/__init__.py`, `tests/conftest.py`, `tests/test_security.py`
 
-- `app/routes/admin.py` — changed to `@admin.route("/logout", methods=["POST"])`
-- `app/templates/base.html` — logout link changed to POST form with `csrf_token`
-- `app/templates/admin/base.html` — same
-- `app/static/css/style.css` — added `.nav-link-btn` styling
-- `tests/test_admin.py` — updated `test_logout` to use POST
+All admin routes use `@login_required` but none check `current_user.is_admin`. Any authenticated user (including non-admin) has full access.
 
-### 1.2 Premature File Deletion on Rollback ✅
+1. Create `admin_required` decorator in `app/routes/admin.py`:
+   ```python
+   def admin_required(f):
+       @wraps(f)
+       @login_required
+       def decorated(*args, **kwargs):
+           if not current_user.is_admin:
+               abort(403)
+           return f(*args, **kwargs)
+       return decorated
+   ```
+2. Replace `@login_required` with `@admin_required` on all admin routes except `login()` and `logout()`.
+3. Add `is_admin` check in `login()` route — reject non-admin users with "Invalid credentials" (same message as bad password to avoid username enumeration).
+4. Fix `admin_user` fixture in `tests/conftest.py`: set `is_admin=True` on the user.
+5. Add authorization tests in `tests/test_security.py`: non-admin gets 403 on admin routes, non-admin cannot log in.
 
-- `app/routes/admin.py` (`edit_post`) — old image filename stored before mutation, deleted only after successful commit
-- `app/routes/admin.py` (`bulk_operations`) — image paths collected, batch committed, then files removed
-- `app/routes/admin.py` (`delete_post`) — same fix applied (was also broken)
+### 2. IntegrityError Rollback — Data Loss in `edit_post()`
+**Priority:** Critical | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
 
-### 1.3 CSP Inline Style Blocking ✅
+After `db.session.rollback()` in `edit_post()` (line 286), only `slug` is re-applied. All other form field changes (`title`, `body`, `summary`, `published`, `tags`, `published_at`) are silently lost because `db.session.get()` reloads stale DB values.
 
-- `app/__init__.py` — changed to `style-src 'self' 'unsafe-inline'`
-- `app/static/css/style.css` — added utility classes: `.flex-row`, `.gap-xs/sm/md`, `.items-center`, `.ml-auto`, `.mt-sm/md`, `.autosave-status-base`
-- Templates updated: `editor.html`, `dashboard.html`, `media.html`
-- Dynamic inline styles (animation delays, chart heights) remain inline
+1. In `edit_post()`, capture all form values before the commit so they survive rollback. Refactor the IntegrityError handler to reapply all fields after re-fetching the post.
+2. Apply same pattern to `new_post()` IntegrityError handler — retry with `_generate_unique_slug(title)` which appends counter suffixes.
+3. Add tests: editing a post with slug collision preserves all fields; creating a post with slug collision succeeds.
 
----
+### 3. Newsletter `all_sent` Bug — Duplicate Sends
+**Priority:** Critical | **Status:** ✅ Done | **Files:** `app/email.py`
 
-## Phase 2: Security Hardening ✅
+In `send_newsletter()`, when `SMTPServerDisconnected` occurs (line 108), `all_sent` is set to `False` (line 110). If reconnection and retry succeed (line 120), `all_sent` is never reset to `True`. The function returns `False`, causing the scheduler to skip marking posts as `newsletter_sent_at` — leading to duplicate newsletter sends on the next run.
 
-### 2.1 Subscriber Enumeration Fix ✅
+1. After a successful retry `sendmail` (line 120), add `all_sent = True`.
+2. Add test verifying `send_newsletter` returns `True` after successful reconnection.
 
-- `app/routes/public.py` — "already subscribed" now returns same message as new subscription
-- Added `logger.info()` for debugging
+### 4. Image Upload Extension/Content Mismatch
+**Priority:** Critical | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
 
-### 2.2 Referrer Logging Sanitization ✅
+`_save_image()` (line 66) validates magic bytes but stores the file with the user-provided extension. A JPEG could be saved as `.webp`, causing incorrect Content-Type headers.
 
-- `app/routes/public.py` — referrer parsed with `urlparse`, query string stripped via `urlunparse`, truncated to 512 chars
+1. Use `detected` type for the extension instead of the user-provided one:
+   ```python
+   ext = detected  # Use detected type, not user-provided extension
+   filename = f"{uuid.uuid4().hex}.{ext}"
+   ```
 
-### 2.3 Open Redirect via request.referrer ✅
+### 5. Test Fixture Issues
+**Priority:** Critical | **Status:** ✅ Done | **Files:** `tests/conftest.py`
 
-- `app/routes/public.py` — added `_safe_redirect_url()` helper
-- Validates `urlparse(referrer).netloc == request.host` (or empty for same-origin)
-- Falls back to `url_for("public.index")` on mismatch
-- Applied to all three redirect locations in `subscribe()`
+`admin_user` fixture creates a User without `is_admin=True`. Tests may pass/fail inconsistently depending on database state from prior runs or `create_app()` auto-promotion.
 
-### 2.4 Input Validation ✅
-
-- `track_share` — validates `post_id` as `int()`, returns 400 on `ValueError`; truncates `platform` to 32 chars
-- `subscribe` — email truncated to 256 chars
-- `bulk_operations` — validates each `post_id` is integer
-- `new_post` / `edit_post` — title truncated to 200, summary to 500 chars
-
-### 2.5 CSP connect-src Directive ✅
-
-- `app/__init__.py` — added `"connect-src 'self'; "` to CSP string
-
----
-
-## Phase 3: Data Integrity ✅
-
-### 3.1 Newsletter Retry Loop & Per-Subscriber Tracking ✅
-
-- `app/models.py` — added `newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)`
-- `app/scheduler.py` — filter includes `Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS`; on success resets attempts to 0; on failure increments attempts
-- `app/routes/admin.py` (`newsletter_reset`) — also resets `post.newsletter_attempts = 0`
-- `app/templates/admin/dashboard.html` — tooltip shows attempt count when > 0
-- `app/config.py` — added `NEWSLETTER_MAX_RETRY_ATTEMPTS` config
-- `config.toml` — added `max_retry_attempts = 5`
-
-### 3.2 Subscriber expires_at Default Mismatch ✅
-
-- `app/models.py` — removed `default=lambda: utc_now() + timedelta(days=365)` from `expires_at`
-- Removed unused `timedelta` import from models.py
-
-### 3.3 IntegrityError Loop in edit_post() ✅
-
-- `app/routes/admin.py` (`edit_post`) — simplified to only re-apply slug after rollback (slug collision is the only IntegrityError source)
+1. Set `is_admin=True` in `admin_user` fixture.
+2. Review all test fixtures for proper cleanup and isolation.
+3. Ensure `db.session.flush()` is used where IDs are needed before commit.
 
 ---
 
-## Phase 4: Performance ✅
+## Phase 2: Security Hardening
 
-### 4.1 Database Index Optimization ✅
+### 6. Session Fixation Protection
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/extensions.py`
 
-- Added: `ix_posts_newsletter_sent_at`, `ix_posts_published_updated`, `ix_subscribers_confirmed_unsubscribed`
-- Removed: `ix_posts_slug` (redundant with unique constraint), `ix_share_events_post_id` (covered by composite)
-- Migration: `89a922eae517`
+Flask-Login doesn't regenerate session ID on login by default.
 
-### 4.2 setup.sh Directory Path Fix ✅
+1. Set `login_manager.session_protection = "strong"` in `app/extensions.py`.
 
-- Changed to `mkdir -p instance logs app/static/uploads`
+### 7. Backup Delete — Missing Error Handling
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
 
-### 4.3 base62 O(1) Decode Lookup ✅
+`os.remove(real_path)` at line 931 has no try/except — permission errors cause 500.
 
-- Added `_DECODE_MAP = {c: i for i, c in enumerate(ALPHABET)}`
+1. Wrap in try/except OSError with logging and user-facing flash message.
 
----
+### 8. Media Delete — Missing Error Handling
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
 
-## Phase 5: Code Quality & Cleanup ✅
+`os.remove(real_path)` at line 596 has no try/except — same issue as backup delete.
 
-### 5.1 Remove Legacy Session Timestamp Parsing ✅
+1. Wrap in try/except OSError with logging and user-facing flash message.
 
-- Simplified to `float(last_activity)` with `try/except (ValueError, TypeError)` fallback
+### 9. CSP `frame-src` Directive
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/__init__.py`
 
-### 5.2 Move Inline Template Imports to Top-Level ✅
+CSP has `frame-ancestors 'none'` (prevents framing this site) but lacks `frame-src` (controls what this site can embed). Falls back to `default-src 'self'` which blocks external iframes implicitly.
 
-- Added `render_template, redirect, url_for, request as req, flash` to module-level imports
+1. Add `frame-src 'none'` to CSP string in `set_security_headers()`.
 
-### 5.3 Update Legacy SQLAlchemy API ✅
+### 10. Escape LIKE Wildcards in Search
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/public.py`
 
-- Changed `User.query.first()` to `db.session.execute(db.select(User)).scalar_one_or_none()`
+Search input containing `%` or `_` causes unexpected pattern matching (e.g., searching `100%` matches `100` followed by anything).
 
-### 5.4 Tag Cache Double-Checked Locking Comment ✅
-
-- Added explanatory comments before DB query section
-
-### 5.5 Missing `__init__.py` in Migrations Folder ✅
-
-- Created `migrations/__init__.py`
-
-### 5.6 backup.py --keep 0 Guard ✅
-
-- Added `if args.keep < 1: parser.error("--keep must be at least 1")`
-
-### 5.7 Magic Numbers to Config ✅
-
-- Added `tag_cache_ttl_seconds = 60` to `config.toml [app]`
-- Added `max_retry_attempts = 5` to `config.toml [newsletter]`
-- `app/cache.py` — reads TTL from config via `_get_tag_ttl()`
-- `app/scheduler.py` — reads retry limit from config
+1. Escape `\`, `%`, and `_` in search query before interpolating into LIKE pattern.
 
 ---
 
-## Phase 6: UX & Accessibility ✅
+## Phase 3: Performance
 
-### 6.1 Accessibility Improvements ✅
+### 11. Dashboard Query Consolidation
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
 
-- `_sidebar.html` — added `aria-label="Email address"` to email input
-- `base.html` — reduced skip links to one (main content)
-- `editor.html` — added `rel="noopener"` to Preview and View Post links
+Dashboard runs 2 separate queries for per-post `view_counts` and `share_counts` (lines 141–152) plus 5 aggregate queries.
 
-### 6.2 Search Page Broken Sidebar ✅
+1. Replace the two separate count queries with a single query using subqueries:
+   ```python
+   view_counts_sq = (
+       select(PageView.post_id, func.count(PageView.id).label("cnt"))
+       .where(PageView.post_id.in_(post_ids))
+       .group_by(PageView.post_id).subquery()
+   )
+   share_counts_sq = (
+       select(ShareEvent.post_id, func.count(ShareEvent.id).label("cnt"))
+       .where(ShareEvent.post_id.in_(post_ids))
+       .group_by(ShareEvent.post_id).subquery()
+   )
+   rows = db.session.execute(
+       select(Post.id,
+              func.coalesce(view_counts_sq.c.cnt, 0).label("views"),
+              func.coalesce(share_counts_sq.c.cnt, 0).label("shares"))
+       .outerjoin(view_counts_sq, Post.id == view_counts_sq.c.post_id)
+       .outerjoin(share_counts_sq, Post.id == share_counts_sq.c.post_id)
+       .where(Post.id.in_(post_ids))
+   ).all()
+   ```
 
-- `app/routes/public.py` (search route) — passes `tags` and `tag_counts` to template
+### 12. FTS Result Cap
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/public.py`, `app/search.py`
 
----
+`_fts_search()` has no LIMIT — returns all matches. The `CASE WHEN` ordering clause in the search route builds one condition per result, which grows unbounded.
 
-## Phase 7: Testing ✅
+1. Add `LIMIT 100` to the FTS MATCH query in `_fts_search()`.
 
-### 7.1 Expanded Test Coverage ✅
+### 13. Media Gallery — Use `os.scandir()`
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
 
-**New test files:**
-- `tests/test_cache.py` — tag count cache, invalidation, TTL expiry, copy protection
-- `tests/test_base62.py` — encode/decode round-trip, edge cases, decode map consistency
-- `tests/test_utils.py` — email validation, XML escaping, slug generation
+`media()` uses `glob.glob()` + `os.path.getmtime()` sort, doing one `os.stat()` syscall per file. With 1000 files, that's 1000+ extra syscalls.
 
-**Expanded existing:**
-- `tests/test_newsletter.py` — retry logic, attempt tracking, reset clears attempts
-- `tests/test_admin.py` — preview endpoint, bulk publish/delete, invalid post IDs, newsletter reset with attempts
-- `tests/test_public.py` — subscriber enumeration unified response, open redirect prevention, track_share validation, referrer sanitization, search sidebar tags
-- `tests/test_security.py` — CSP connect-src, style-src unsafe-inline, logout POST-only
+1. Replace with `os.scandir()` which caches stat info from directory entries.
+2. Remove `import glob as globmod` from inside the function.
 
-**Not yet implemented:**
-- `tests/test_csrf.py` — separate CSRF test file (covered by existing `test_csrf_protection`)
-- `tests/test_scheduler.py` — scheduler-specific tests
-- SMTP disconnect mid-batch tests, RSS ordering tests, session timeout tests
+### 14. Sitemap Memory Usage
+**Priority:** Low | **Status:** Pending | **Files:** `app/routes/public.py`
 
----
+`sitemap_xml()` loads all published posts and tags into memory. For large blogs, this could cause memory issues.
 
-## Phase 8: Future / Low Priority ✅
+1. Consider paginated sitemap index or streaming response.
 
-### 8.1 Timezone-Aware Datetimes ✅
+### 15. Related Posts Query Performance
+**Priority:** Low | **Status:** Pending | **Files:** `app/routes/public.py`
 
-- `app/utils.py` — `utc_now()` now returns timezone-aware UTC datetime
-- Added `UTCDateTime` TypeDecorator — stores naive UTC in SQLite, returns aware UTC on read
-- All model DateTime columns updated: `Post.created_at/updated_at/published_at/newsletter_sent_at`, `Subscriber.created_at/expires_at/unsubscribed_at`, `PageView.created_at`, `ShareEvent.created_at`
-- Existing naive rows auto-converted to aware on read (interpreted as UTC)
-- `app/routes/public.py` — health check uses `utc_now().isoformat()` (includes timezone offset)
+`_get_related_posts()` uses a subquery that could be slow with many tags.
 
-### 8.2 Search Performance (FTS5) ✅
-
-- `app/search.py` — new module with `init_fts()`, `rebuild_fts()`, `sync_fts()`, `remove_fts()`
-- `app/routes/public.py` — `_fts_search()` uses FTS5 MATCH with fallback to LIKE
-- FTS5 index synced on post create/edit/delete and bulk operations
-- LIKE fallback filters by `Post.published == True` (graceful degradation when FTS unavailable)
-- FTS table check via `sqlite_master` before attempting MATCH query
-
-### 8.3 Multi-Admin Support ✅
-
-- `app/models.py` — `User.is_admin = db.Column(db.Boolean, default=False, nullable=False)`
-- `app/__init__.py` — first user auto-promoted to admin; `flask create-admin` CLI command
-- `app/routes/admin.py` — user management routes: list, create, delete, change password
-- `app/templates/admin/users.html` — user management UI
-- Safety: cannot delete own account, cannot delete last admin, min 8-char password
-- `migrations/versions/1eed0a59a445_add_is_admin_to_users.py` — migration
-
-### 8.4 Backup/Restore UI ✅
-
-- `app/routes/admin.py` — backup routes: create, list, download, restore, delete
-- `app/templates/admin/backup.html` — backup management UI
-- Backups stored in `instance/backups/` directory
-- Compressed backup support (gzip)
-- Filename validation via `BACKUP_FILENAME_RE` regex (path traversal prevention)
-- `download_backup` uses `send_file()` (no file handle leak)
-- Restore copies backup over current DB (app restart required)
-- Dashboard and nav links to Users and Backups pages
-
-### 8.5 Subscriber Expiry Timezone ✅
-
-- Handled by 8.1: `utc_now()` returns aware datetimes, `UTCDateTime` ensures all DB reads return aware
-- All datetime comparisons (`expires_at < utc_now()`) now timezone-aware
-- `CONFIRMATION_EXPIRY_HOURS` calculation produces aware datetimes
+1. Consider adding an index on `post_tags` table or caching related posts.
 
 ---
 
-## Testing
+## Phase 4: Code Quality
 
+### 16. Consolidate `subscribe()` Exception Handling
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/public.py`
+
+Three nearly identical try/except blocks for SMTP errors in `subscribe()` (lines 238–286).
+
+1. Extract a `_try_send_confirmation(subscriber)` helper that returns `True`/`False`.
+2. Simplify the route to call the helper.
+
+### 17. Remove Duplicate Imports
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/__init__.py`, `app/routes/public.py`
+
+`before_request_handler` re-imports Flask and flask_login names already available at module level. `public.py` uses `import time as _time` unnecessarily.
+
+1. Move all needed names to module-level imports in `__init__.py`.
+2. Remove inner imports from `before_request_handler` and `set_security_headers`.
+3. Change `import time as _time` to `import time` in `public.py`.
+
+### 18. Centralize Magic Numbers
+**Priority:** Low | **Status:** Pending | **Files:** `app/routes/admin.py`, `app/config.py`, `config.toml`
+
+Pagination sizes hardcoded: dashboard=20, subscribers=50, media=50, media max=1000.
+
+1. Add keys to `config.toml` `[app]` section with defaults.
+2. Load in `app/config.py` and add to `__all__`.
+3. Replace hardcoded values in `admin.py`.
+
+### 19. Move `import csv` to Module Level
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
+
+`export_subscribers()` has `import csv` and `import io` inside the function body.
+
+1. Move both to top-level imports.
+
+### 20. Centralize File Deletion
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/admin.py`, `app/utils.py`
+
+Similar try/except pattern for `os.remove()` across `new_post()`, `edit_post()`, `delete_post()`, `bulk_operations()`, `delete_media()`, `delete_backup()`.
+
+1. Create `_safe_delete_file(filepath)` utility in `app/utils.py` that wraps `os.remove()` with try/except and logging.
+2. Use across all routes that delete files.
+
+### 21. Newsletter Test Email — Allow Custom Address
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
+
+Test newsletter sends to `FROM_ADDRESS` (admin email). No way to specify a different test address.
+
+1. Add a form field to specify test email address on the newsletter test endpoint.
+
+---
+
+## Phase 5: Architecture
+
+### 22. FTS Sync Before Commit
+**Priority:** Medium | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
+
+`sync_fts()` is called after `db.session.commit()`. Its docstring says "Call before commit." If sync fails, DB and FTS are out of sync with no recovery.
+
+1. Move `sync_fts()` calls BEFORE `db.session.commit()` in `edit_post()`, `new_post()`, and `bulk_operations()` publish/unpublish branches.
+2. For delete routes, `remove_fts()` should stay AFTER commit — stale FTS entries are handled gracefully by LIKE fallback.
+
+### 23. Conditional `sync_fts` — Only When Searchable Fields Change
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/admin.py`
+
+`sync_fts()` runs DELETE + INSERT even when only tags or image changed (which don't affect FTS content).
+
+1. In `edit_post()`, capture original `title`, `body`, `summary`, `published` before mutation.
+2. Only call `sync_fts()` if any searchable field changed.
+
+### 24. Health Check Enhancement
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/public.py`, `app/scheduler.py`
+
+`/health` only checks DB connectivity. No visibility into scheduler status.
+
+1. Add `_scheduler_running` flag in `scheduler.py`, set to `True` after `scheduler.start()`.
+2. Add `get_scheduler_status()` getter.
+3. Include scheduler status in health check JSON response.
+
+### 25. Split `admin.py` into Modules
+**Priority:** Low | **Status:** Pending | **Files:** `app/routes/admin.py`, `app/__init__.py`
+
+`admin.py` is ~935 lines covering multiple concerns.
+
+1. Create `app/routes/admin/` package with modules: `auth.py`, `posts.py`, `media.py`, `subscribers.py`, `analytics.py`, `tags.py`, `backup.py`, `users.py`.
+2. Move blueprint definition to `__init__.py` with shared imports/utilities.
+3. Update `app/__init__.py` to register blueprint from new location.
+
+---
+
+## Phase 6: Documentation & Low-Priority
+
+### 26. README.md — Remove Rate Limiting Claim
+**Priority:** High | **Status:** ✅ Done | **Files:** `README.md`
+
+README line 12 claims "Rate limiting — Login and API endpoint protection" but the codebase intentionally does not implement application-level rate limiting.
+
+1. Remove or correct the rate limiting feature claim.
+
+### 27. Document Login Protection Requirements
+**Priority:** Medium | **Status:** Pending | **Files:** `AGENTS.md`
+
+Per project philosophy, rate limiting belongs at the proxy level. Document recommended proxy rules for `/admin/login`.
+
+1. Add section to `AGENTS.md` with suggested reverse proxy rate limiting rules.
+2. Add comment in `admin.py` login route referencing the documentation.
+
+### 28. Session `last_activity` Corruption
+**Priority:** Low | **Status:** No Action Needed | **Files:** `app/__init__.py`
+
+If `last_activity` is non-numeric, the user is logged out (treated as expired). On the next visit, the session has a valid `last_activity` value. Current behavior is acceptable — no code change needed.
+
+### 29. Add `requirements-dev.txt`
+**Priority:** Low | **Status:** ✅ Done | **Files:** `requirements-dev.txt`
+
+Test dependencies not documented separately.
+
+1. Create `requirements-dev.txt` with pytest and pytest-cov.
+
+### 30. Add Module-Level Docstrings
+**Priority:** Low | **Status:** Pending | **Files:** `app/cache.py`, `app/csrf.py`, `app/base62.py`, `app/markdown_config.py`
+
+1. Add docstrings explaining purpose/caching strategy for each module.
+
+### 31. Favicon Redirect Status Code
+**Priority:** Low | **Status:** ✅ Done | **Files:** `app/routes/public.py`
+
+Favicon redirect returns 301 (permanent). Consider 302 (temporary) if the favicon location might change.
+
+### 32. Config Validation for Email Settings
+**Priority:** Low | **Status:** Pending | **Files:** `app/config.py`
+
+Newsletter settings are validated but SMTP host/port are not validated until runtime.
+
+1. Add validation for required email config at startup if newsletter is enabled.
+
+### 33. Hardcoded Admin User Promotion at Startup
+**Priority:** Low | **Status:** Pending | **Files:** `app/__init__.py`
+
+First user auto-promotion logic runs every startup. Consider moving to CLI command instead.
+
+---
+
+## Resolved / No Action Needed
+
+- **Subscriber Email Index** — `unique=True` creates implicit index
+- **CSRF Token in Meta Tag** — intentional for JS API calls
+- **Unsubscribe Token Exposure** — UUID hex is sufficiently hard to guess
+- **Unauthenticated Health Check** — intentional; protect at proxy level
+- **Cache Race Condition** — double-checked locking is acceptable
+- **Tag Slug Collision Handling** — already handled correctly
+- **Session Viewed Posts Storage** — already capped at `MAX_VIEWED_POSTS`
+- **Email Validation Regex** — sufficient for typical use
+- **Backup Filename Regex** — current behavior is safe
+- **Debug Mode Security** — acceptable for current use case
+
+---
+
+## Parallelization Strategy
+
+Sub-agents can work on independent items simultaneously. Group by file to avoid merge conflicts:
+
+**Group A — `app/routes/admin.py` (sequential within group):**
+Items 1, 2, 4, 7, 8, 11, 13, 18, 19, 20, 21, 22, 23, 25 all modify `admin.py`. Execute sequentially or in careful batches. Recommended order:
+- 1 (admin_required decorator + route changes) — largest change, do first
+- 2 (IntegrityError fix) — touches edit_post and new_post
+- 4 (image extension) — small, isolated to _save_image
+- 7, 8 (error handling) — small, isolated functions
+- 11 (dashboard queries) — isolated to dashboard function
+- 13 (media scandir) — isolated to media function
+- 22 (FTS sync before commit) — touches multiple functions
+- 23 (conditional sync_fts) — depends on 22
+- 18 (centralize magic numbers) — touches multiple functions
+- 19 (csv import) — trivial
+- 20 (safe_delete_file) — touches multiple functions, do after 7/8
+- 21 (newsletter test email) — isolated to newsletter_test
+- 25 (split admin.py) — do last, after all other admin.py changes
+
+**Group B — `app/email.py` (sequential):**
+Item 3 (all_sent bug). Small, isolated fix.
+
+**Group C — `tests/` (sequential):**
+Items 1 (auth tests), 3 (newsletter test), 5 (fixture fix). Can be done in parallel with Group A/B since test files don't conflict with source files.
+
+**Group D — Independent files (fully parallel):**
+- 6 (`app/extensions.py`) — session fixation
+- 9 (`app/__init__.py`) — CSP frame-src
+- 10 (`app/routes/public.py`) — LIKE escaping
+- 12 (`app/routes/public.py` or `app/search.py`) — FTS cap
+- 14 (`app/routes/public.py`) — sitemap memory
+- 15 (`app/routes/public.py`) — related posts
+- 16 (`app/routes/public.py`) — subscribe refactor
+- 17 (`app/__init__.py`, `app/routes/public.py`) — duplicate imports
+- 24 (`app/routes/public.py`, `app/scheduler.py`) — health check
+- 26 (`README.md`) — rate limiting claim
+- 27 (`AGENTS.md`, `app/routes/admin.py`) — login docs
+- 29 (`requirements-dev.txt`) — new file
+- 30 (multiple modules) — docstrings
+- 31 (`app/routes/public.py`) — favicon redirect
+- 32 (`app/config.py`) — email validation
+- 33 (`app/__init__.py`) — admin promotion
+
+Note: Items 10, 12, 14, 15, 16, 17, 24, 31 all touch `app/routes/public.py` — execute sequentially within this group or assign to one agent.
+
+### Recommended Sub-Agent Assignment
+
+| Agent | Scope | Items |
+|-------|-------|-------|
+| Agent 1 | Security (admin.py + tests) | 1, 2, 4, 5, 7, 8 |
+| Agent 2 | Performance (admin.py + public.py) | 11, 12, 13, 14, 15 |
+| Agent 3 | Code quality (public.py + __init__.py) | 10, 16, 17, 24, 31 |
+| Agent 4 | Bug fixes (email.py + extensions.py + config) | 3, 6, 9, 32 |
+| Agent 5 | Documentation + cleanup | 18, 19, 20, 21, 22, 23, 25, 26, 27, 29, 30, 33 |
+
+Agents 1–4 can run fully in parallel. Agent 5 should run after Agent 1 (for admin.py stability). All agents verify with:
 ```bash
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 ```
 
-182 tests passing. Maintain 78%+ coverage.
-
 ---
 
-## Migration Summary
+## Verification
 
-1. `1992db4c5c98` — composite indexes and published_at index (fixed from broken original)
-2. `89a922eae517` — newsletter_attempts, index optimization
-3. `1eed0a59a445` — add is_admin to users
+After all changes:
+```bash
+ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
+```
 
-Run: `flask db upgrade`
+Key test areas:
+- Authorization: non-admin gets 403 on all admin routes, cannot log in
+- IntegrityError: all fields preserved on slug collision
+- Newsletter: `send_newsletter` returns `True` after successful reconnection
+- Search: special characters (`%`, `_`, `\`) handled correctly in LIKE fallback
+- Security headers: CSP includes `frame-src`
+- Session: `session_protection = "strong"` active
+- Existing tests still pass after each change

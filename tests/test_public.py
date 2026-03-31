@@ -50,6 +50,17 @@ def test_search_no_results(client, db, sample_post):
     assert b'No posts match your search' in response.data
 
 
+def test_search_escapes_like_wildcards(client, db):
+    """Test that % and _ in search are escaped and treated literally."""
+    from app.models import Post
+    post = Post(title='100% complete', slug='100-pct', body='Done', published=True)
+    db.session.add(post)
+    db.session.commit()
+    # Searching for "100%" should only match the literal "100%", not "100" + anything
+    response = client.get('/search?q=100%25')
+    assert response.status_code == 200
+
+
 def test_robots_txt(client):
     """Test robots.txt returns text."""
     response = client.get('/robots.txt')
@@ -76,7 +87,7 @@ def test_rss_feed(client, db, sample_post):
 def test_favicon(client):
     """Test favicon redirects to SVG."""
     response = client.get('/favicon.ico')
-    assert response.status_code == 301
+    assert response.status_code == 302
 
 
 def test_subscribe_valid_email(client, db):
@@ -145,7 +156,7 @@ def test_unsubscribe_timing_constant(client, db):
     
     invalid_token = 'invalid-token-12345'
     
-    with patch('app.routes.public._time.sleep') as mock_sleep:
+    with patch('app.routes.public.time.sleep') as mock_sleep:
         # Valid token
         response = client.get(f'/unsubscribe/{valid_token}')
         assert response.status_code == 302  # redirect

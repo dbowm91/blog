@@ -1,3 +1,4 @@
+import os
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -6,7 +7,21 @@ from sqlalchemy import TypeDecorator, DateTime
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
-__all__ = ["utc_now", "UTCDateTime", "is_valid_email", "generate_slug", "xml_escape"]
+__all__ = ["utc_now", "UTCDateTime", "is_valid_email", "generate_slug", "xml_escape", "safe_delete_file"]
+
+
+def safe_delete_file(filepath: str) -> bool:
+    """Delete a file, returning True if deleted or False on error. Logs failures."""
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        os.remove(filepath)
+        return True
+    except FileNotFoundError:
+        return True  # Already gone, treat as success
+    except OSError as e:
+        logger.error("Failed to delete file %s: %s", filepath, e)
+        return False
 
 
 def utc_now() -> datetime:

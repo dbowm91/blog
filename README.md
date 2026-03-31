@@ -9,7 +9,6 @@ A personal blog platform built with Flask, featuring an admin dashboard, newslet
 - **Newsletter** — Email subscriptions with confirmation and daily digest (scheduler starts automatically)
 - **RSS feed** — Auto-generated feed at `/rss`
 - **Search** — Full-text search across posts
-- **Rate limiting** — Login and API endpoint protection
 - **Security** — CSRF protection, security headers, password hashing
 
 ## Requirements

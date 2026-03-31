@@ -144,3 +144,28 @@ def test_newsletter_reset_clears_attempts(authenticated_client, db, sample_post)
     post = db.session.get(Post, sample_post.id)
     assert post.newsletter_attempts == 0
     assert post.newsletter_sent_at is None
+
+
+def test_newsletter_returns_true_after_reconnect(app, db):
+    """Test send_newsletter returns True after successful SMTP reconnection."""
+    import smtplib
+    from app.email import send_newsletter
+
+    post = Post(title='Post', slug='post-reconnect', body='Content',
+                published=True, published_at=utc_now())
+    sub = Subscriber(email='test@example.com', confirmed=True)
+    db.session.add_all([post, sub])
+    db.session.commit()
+
+    mock_server = MagicMock()
+    # First call raises disconnect, second succeeds
+    mock_server.sendmail.side_effect = [
+        smtplib.SMTPServerDisconnected(),
+        None,  # retry sendmail succeeds
+    ]
+    with patch('app.email.render_template', return_value='<html>Mock</html>'):
+        with patch('app.email._connect_smtp') as mock_connect:
+            mock_connect.return_value = mock_server
+            result = send_newsletter([post], [sub])
+
+    assert result is True

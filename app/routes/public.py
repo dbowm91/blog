@@ -1,4 +1,5 @@
 import smtplib
+import time
 import uuid
 from datetime import timedelta
 from urllib.parse import urlparse, urlunparse
@@ -7,7 +8,6 @@ from flask import Blueprint, render_template, request, redirect, jsonify, flash,
 from sqlalchemy import func, or_, text
 from sqlalchemy.orm import joinedload
 import logging
-import time as _time
 
 from app.extensions import db
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent
@@ -149,15 +149,16 @@ def search():
             .paginate(page=page, per_page=POSTS_PER_PAGE, error_out=False)
         )
     else:
-        search_term = f"%{query}%"
+        escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_term = f"%{escaped}%"
         pagination = (
             Post.query.options(joinedload(Post.tags))
             .filter(
                 Post.published == True,
                 or_(
-                    Post.title.ilike(search_term),
-                    Post.body.ilike(search_term),
-                    Post.summary.ilike(search_term),
+                    Post.title.ilike(search_term, escape="\\"),
+                    Post.body.ilike(search_term, escape="\\"),
+                    Post.summary.ilike(search_term, escape="\\"),
                 )
             )
             .order_by(Post.created_at.desc())
@@ -187,7 +188,7 @@ def _fts_search(query: str):
         if not fts_query:
             return []
         result = db.session.execute(text(
-            "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank"
+            "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT 100"
         ), {"q": fts_query}).fetchall()
         return [row[0] for row in result]
     except Exception:
@@ -235,6 +236,16 @@ def track_share():
     return jsonify({"ok": True})
 
 
+def _try_send_confirmation(subscriber):
+    """Send confirmation email. Returns True on success, False on SMTP failure."""
+    try:
+        send_confirmation(subscriber)
+        return True
+    except (smtplib.SMTPException, ConnectionError, OSError):
+        logger.exception("Failed to send confirmation email to %s", subscriber.email)
+        return False
+
+
 @public.route("/subscribe", methods=["POST"])
 def subscribe():
     email = request.form.get("email", "").strip().lower()[:256]
@@ -245,17 +256,14 @@ def subscribe():
     existing = Subscriber.query.filter_by(email=email).first()
     if existing:
         if existing.unsubscribed_at:
-            # Re-activate previously unsubscribed user
             existing.unsubscribed_at = None
             existing.confirmed = False
             existing.token = uuid.uuid4().hex
             existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
             db.session.commit()
-            try:
-                send_confirmation(existing)
+            if _try_send_confirmation(existing):
                 flash("Check your inbox to confirm your subscription.", "success")
-            except (smtplib.SMTPException, ConnectionError, OSError):
-                logger.exception("Failed to send confirmation email to %s", email)
+            else:
                 flash("Subscribed, but confirmation email could not be sent.", "error")
         elif existing.confirmed:
             logger.info("Already-subscribed user %s attempted to resubscribe", email)
@@ -264,11 +272,9 @@ def subscribe():
             existing.token = uuid.uuid4().hex
             existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
             db.session.commit()
-            try:
-                send_confirmation(existing)
+            if _try_send_confirmation(existing):
                 flash("Check your inbox to confirm your subscription.", "success")
-            except (smtplib.SMTPException, ConnectionError, OSError):
-                logger.exception("Failed to send confirmation email to %s", email)
+            else:
                 flash("Subscribed, but confirmation email could not be sent.", "error")
         return redirect(_safe_redirect_url())
 
@@ -276,11 +282,9 @@ def subscribe():
     db.session.add(sub)
     db.session.commit()
 
-    try:
-        send_confirmation(sub)
+    if _try_send_confirmation(sub):
         flash("Check your inbox to confirm your subscription.", "success")
-    except (smtplib.SMTPException, ConnectionError, OSError):
-        logger.exception("Failed to send confirmation email to %s", email)
+    else:
         flash("Subscribed, but confirmation email could not be sent.", "error")
 
     return redirect(_safe_redirect_url())
@@ -289,7 +293,7 @@ def subscribe():
 @public.route("/confirm/<token>")
 def confirm(token):
     sub = Subscriber.query.filter_by(token=token).first()
-    _time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
+    time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
         logger.warning("Confirm enumeration attempt with invalid token from %s", request.remote_addr)
         flash("Subscription confirmed! You'll receive our newsletter.", "success")
@@ -310,7 +314,7 @@ def confirm(token):
 @public.route("/unsubscribe/<token>")
 def unsubscribe(token):
     sub = Subscriber.query.filter_by(token=token).first()
-    _time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
+    time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
         logger.warning("Unsubscribe enumeration attempt with invalid token from %s", request.remote_addr)
         flash("You have been unsubscribed.", "success")
@@ -370,12 +374,13 @@ def sitemap_xml():
 
 @public.route("/favicon.ico")
 def favicon():
-    return Response(status=301, headers={"Location": url_for("static", filename="img/favicon.svg")})
+    return Response(status=302, headers={"Location": url_for("static", filename="img/favicon.svg")})
 
 
 @public.route("/health")
 def health_check():
     """Health check endpoint for monitoring."""
+    from app.scheduler import get_scheduler_status
     try:
         db.session.execute(text("SELECT 1"))
         db_status = "connected"
@@ -385,5 +390,6 @@ def health_check():
     return jsonify({
         "status": "ok" if db_status == "connected" else "error",
         "database": db_status,
+        "scheduler": "running" if get_scheduler_status() else "stopped",
         "timestamp": utc_now().isoformat(),
     })

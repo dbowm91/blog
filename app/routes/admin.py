@@ -1,11 +1,15 @@
+import csv
+import io
 import os
 import re
 import uuid
 
+from functools import wraps
+
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Response, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from datetime import datetime, timedelta
@@ -13,7 +17,7 @@ from datetime import datetime, timedelta
 from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
 
-from app.utils import utc_now
+from app.utils import utc_now, safe_delete_file
 from app.cache import invalidate_tag_cache
 from app.search import sync_fts, remove_fts
 
@@ -43,6 +47,16 @@ def _detect_image_type(header):
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
 
+def admin_required(f):
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
+
 def _allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -70,7 +84,7 @@ def _save_image(file):
         detected = _detect_image_type(header)
         if detected not in ("png", "jpeg", "gif", "webp"):
             return None, "Uploaded file is not a valid image."
-        ext = file.filename.rsplit(".", 1)[1].lower()
+        ext = detected
         filename = f"{uuid.uuid4().hex}.{ext}"
         file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
         return filename, None
@@ -86,7 +100,7 @@ def login():
         username = request.form.get("username", "")
         password = request.form.get("password", "")
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
+        if user and user.check_password(password) and user.is_admin:
             login_user(user)
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials.", "error")
@@ -95,7 +109,7 @@ def login():
 
 
 @admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
-@login_required
+@admin_required
 def newsletter_reset(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -115,7 +129,7 @@ def logout():
 
 
 @admin.route("/")
-@login_required
+@admin_required
 def dashboard():
     page = request.args.get("page", 1, type=int)
     q = request.args.get("q", "").strip()
@@ -123,8 +137,9 @@ def dashboard():
 
     query = Post.query
     if q:
-        search_term = f"%{q}%"
-        query = query.filter(Post.title.ilike(search_term))
+        escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_term = f"%{escaped}%"
+        query = query.filter(Post.title.ilike(search_term, escape="\\"))
     if status == "published":
         query = query.filter(Post.published == True)
     elif status == "draft":
@@ -138,18 +153,30 @@ def dashboard():
     posts = pagination.items
 
     post_ids = [p.id for p in posts]
-    view_counts = dict(
-        db.session.query(PageView.post_id, func.count(PageView.id))
-        .filter(PageView.post_id.in_(post_ids))
-        .group_by(PageView.post_id)
-        .all()
-    )
-    share_counts = dict(
-        db.session.query(ShareEvent.post_id, func.count(ShareEvent.id))
-        .filter(ShareEvent.post_id.in_(post_ids))
-        .group_by(ShareEvent.post_id)
-        .all()
-    )
+    if post_ids:
+        view_counts_sq = (
+            select(PageView.post_id, func.count(PageView.id).label("cnt"))
+            .where(PageView.post_id.in_(post_ids))
+            .group_by(PageView.post_id).subquery()
+        )
+        share_counts_sq = (
+            select(ShareEvent.post_id, func.count(ShareEvent.id).label("cnt"))
+            .where(ShareEvent.post_id.in_(post_ids))
+            .group_by(ShareEvent.post_id).subquery()
+        )
+        rows = db.session.execute(
+            select(Post.id,
+                   func.coalesce(view_counts_sq.c.cnt, 0).label("views"),
+                   func.coalesce(share_counts_sq.c.cnt, 0).label("shares"))
+            .outerjoin(view_counts_sq, Post.id == view_counts_sq.c.post_id)
+            .outerjoin(share_counts_sq, Post.id == share_counts_sq.c.post_id)
+            .where(Post.id.in_(post_ids))
+        ).all()
+        view_counts = {row.id: row.views for row in rows}
+        share_counts = {row.id: row.shares for row in rows}
+    else:
+        view_counts = {}
+        share_counts = {}
 
     total_views = db.session.query(func.count(PageView.id)).scalar() or 0
     total_posts = db.session.query(func.count(Post.id)).filter(Post.published == True).scalar() or 0
@@ -189,7 +216,7 @@ def dashboard():
 
 
 @admin.route("/new", methods=["GET", "POST"])
-@login_required
+@admin_required
 def new_post():
     if request.method == "POST":
         title = request.form.get("title", "").strip()[:200]
@@ -217,15 +244,14 @@ def new_post():
         post.tags = _get_or_create_tags(tag_names)
         db.session.add(post)
         try:
+            db.session.flush()
+            sync_fts(post.id, post.title, post.body, post.summary, post.published)
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
             if image:
-                try:
-                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
-                except FileNotFoundError:
-                    pass
-            slug = _generate_unique_slug(title + "-post")
+                safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+            slug = _generate_unique_slug(title)
             post = Post(
                 title=title, slug=slug, body=body, summary=summary,
                 published=published, image=image,
@@ -233,17 +259,18 @@ def new_post():
             )
             post.tags = _get_or_create_tags(tag_names)
             db.session.add(post)
+            db.session.flush()
+            sync_fts(post.id, post.title, post.body, post.summary, post.published)
             db.session.commit()
         flash("Post created.", "success")
         invalidate_tag_cache()
-        sync_fts(post.id, post.title, post.body, post.summary, post.published)
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
 
 
 @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
-@login_required
+@admin_required
 def edit_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -260,6 +287,10 @@ def edit_post(post_id):
             flash("Title and body are required.", "error")
             return render_template("admin/editor.html", post=post, tag_names=tag_names)
 
+        searchable_changed = (
+            title != post.title or body != post.body or
+            summary != post.summary or published != post.published
+        )
         if title != post.title:
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
         post.title = title
@@ -284,26 +315,29 @@ def edit_post(post_id):
             post.image = None
 
         try:
+            if searchable_changed:
+                sync_fts(post.id, post.title, post.body, post.summary, post.published)
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
             if image:
-                try:
-                    os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
-                except FileNotFoundError:
-                    pass
+                safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
             post = db.session.get(Post, post_id)
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
+            post.title = title
+            post.body = body
+            post.summary = summary
+            post.published = published
+            if published and not was_published:
+                post.published_at = utc_now()
+            post.tags = _get_or_create_tags(tag_names)
+            sync_fts(post.id, post.title, post.body, post.summary, post.published)
             db.session.commit()
         # Delete old image file only after successful commit
         if old_image:
-            try:
-                os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
-            except FileNotFoundError:
-                pass
+            safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
         invalidate_tag_cache()
         _cleanup_orphan_tags()
-        sync_fts(post.id, post.title, post.body, post.summary, post.published)
         flash("Post updated.", "success")
         return redirect(url_for("admin.dashboard"))
 
@@ -312,7 +346,7 @@ def edit_post(post_id):
 
 
 @admin.route("/delete/<int:post_id>", methods=["POST"])
-@login_required
+@admin_required
 def delete_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -323,10 +357,7 @@ def delete_post(post_id):
     db.session.commit()
     remove_fts(post_id_for_fts)
     if old_image:
-        try:
-            os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
-        except FileNotFoundError:
-            pass
+        safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
     invalidate_tag_cache()
     _cleanup_orphan_tags()
     flash("Post deleted.", "success")
@@ -371,7 +402,7 @@ def _get_or_create_tags(names):
 
 
 @admin.route("/analytics")
-@login_required
+@admin_required
 def analytics():
     days = request.args.get("days", 30, type=int)
     days = min(max(days, 7), 365)
@@ -460,7 +491,7 @@ def analytics():
 
 
 @admin.route("/preview/<int:post_id>")
-@login_required
+@admin_required
 def preview_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -479,7 +510,7 @@ def preview_post(post_id):
 
 
 @admin.route("/subscribers")
-@login_required
+@admin_required
 def subscribers():
     page = request.args.get("page", 1, type=int)
     filter_status = request.args.get("status", "all")
@@ -505,7 +536,7 @@ def subscribers():
 
 
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
-@login_required
+@admin_required
 def delete_subscriber(sub_id):
     sub = db.session.get(Subscriber, sub_id)
     if not sub:
@@ -518,11 +549,9 @@ def delete_subscriber(sub_id):
 
 
 @admin.route("/subscribers/export")
-@login_required
+@admin_required
 def export_subscribers():
     subs = Subscriber.query.order_by(Subscriber.created_at.desc()).all()
-    import csv
-    import io
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["email", "confirmed", "created_at", "expires_at"])
@@ -541,7 +570,7 @@ def export_subscribers():
 
 
 @admin.route("/preview-markdown", methods=["POST"])
-@login_required
+@admin_required
 def preview_markdown():
     data = request.get_json(silent=True)
     if not data or "text" not in data:
@@ -555,35 +584,37 @@ def preview_markdown():
 
 
 @admin.route("/media")
-@login_required
+@admin_required
 def media():
-    import glob as globmod
     page = request.args.get("page", 1, type=int)
     per_page = 50
     max_files = 1000
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     all_files = []
-    for filepath in sorted(globmod.glob(os.path.join(upload_dir, "*")), key=os.path.getmtime, reverse=True):
-        stat = os.stat(filepath)
-        filename = os.path.basename(filepath)
-        all_files.append({
-            "name": filename,
-            "size": stat.st_size,
-            "mtime": datetime.fromtimestamp(stat.st_mtime),
-        })
-        if len(all_files) >= max_files:
-            break
+    with os.scandir(upload_dir) as entries:
+        for entry in entries:
+            if not entry.is_file():
+                continue
+            stat = entry.stat()
+            all_files.append({
+                "name": entry.name,
+                "size": stat.st_size,
+                "mtime": datetime.fromtimestamp(stat.st_mtime),
+            })
+        all_files.sort(key=lambda f: f["mtime"], reverse=True)
+    if len(all_files) > max_files:
+        all_files = all_files[:max_files]
+    truncated = len(all_files) >= max_files
     total = len(all_files)
     start = (page - 1) * per_page
     end = start + per_page
     files = all_files[start:end]
     total_pages = (total + per_page - 1) // per_page
-    truncated = total >= max_files
     return render_template("admin/media.html", files=files, page=page, total_pages=total_pages, truncated=truncated)
 
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
-@login_required
+@admin_required
 def delete_media(filename):
     filename = secure_filename(filename)
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
@@ -593,13 +624,15 @@ def delete_media(filename):
         abort(400)
     if not os.path.exists(real_path):
         abort(404)
-    os.remove(real_path)
+    if not safe_delete_file(real_path):
+        flash("Failed to delete file.", "error")
+        return redirect(url_for("admin.media"))
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("admin.media"))
 
 
 @admin.route("/tags")
-@login_required
+@admin_required
 def tags_list():
     from app.models import post_tags
     tags = Tag.query.order_by(Tag.name).all()
@@ -612,7 +645,7 @@ def tags_list():
 
 
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
-@login_required
+@admin_required
 def rename_tag(tag_id):
     tag = db.session.get(Tag, tag_id)
     if not tag:
@@ -639,7 +672,7 @@ def rename_tag(tag_id):
 
 
 @admin.route("/tags/delete/<int:tag_id>", methods=["POST"])
-@login_required
+@admin_required
 def delete_tag(tag_id):
     tag = db.session.get(Tag, tag_id)
     if not tag:
@@ -653,7 +686,7 @@ def delete_tag(tag_id):
 
 
 @admin.route("/tags/create", methods=["POST"])
-@login_required
+@admin_required
 def create_tag():
     name = request.form.get("name", "").strip()[:50]
     if not name:
@@ -677,7 +710,7 @@ def create_tag():
 
 
 @admin.route("/newsletter-test", methods=["POST"])
-@login_required
+@admin_required
 def newsletter_test():
     from app.email import send_newsletter
     from app.config import APP_TITLE, FROM_ADDRESS
@@ -695,21 +728,23 @@ def newsletter_test():
     if not admin_user:
         flash("No admin user found.", "error")
         return redirect(url_for("admin.dashboard"))
-    test_email = FROM_ADDRESS.split("<")[-1].rstrip(">") if "<" in FROM_ADDRESS else FROM_ADDRESS
+    test_email = request.form.get("test_email", "").strip()
+    if not test_email:
+        test_email = FROM_ADDRESS.split("<")[-1].rstrip(">") if "<" in FROM_ADDRESS else FROM_ADDRESS
     fake_sub = type("FakeSub", (), {
         "email": test_email,
         "token": "test",
     })()
     try:
         send_newsletter(posts, [fake_sub])
-        flash("Test newsletter sent.", "success")
+        flash(f"Test newsletter sent to {test_email}.", "success")
     except Exception as e:
         flash(f"Failed to send test newsletter: {e}", "error")
     return redirect(url_for("admin.dashboard"))
 
 
 @admin.route("/bulk", methods=["POST"])
-@login_required
+@admin_required
 def bulk_operations():
     action = request.form.get("action")
     post_ids = request.form.getlist("post_ids")
@@ -737,18 +772,18 @@ def bulk_operations():
             if not post.published:
                 post.published = True
                 post.published_at = now
-        db.session.commit()
-        invalidate_tag_cache()
         for post in posts:
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        db.session.commit()
+        invalidate_tag_cache()
         flash(f"Published {len(posts)} post(s).", "success")
     elif action == "unpublish":
         for post in posts:
             post.published = False
-        db.session.commit()
-        invalidate_tag_cache()
         for post in posts:
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        db.session.commit()
+        invalidate_tag_cache()
         flash(f"Unpublished {len(posts)} post(s).", "success")
     elif action == "delete":
         images_to_delete = []
@@ -762,10 +797,7 @@ def bulk_operations():
         for pid in deleted_post_ids:
             remove_fts(pid)
         for img in images_to_delete:
-            try:
-                os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], img))
-            except FileNotFoundError:
-                pass
+            safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], img))
         invalidate_tag_cache()
         _cleanup_orphan_tags()
         flash(f"Deleted {len(posts)} post(s).", "success")
@@ -776,14 +808,14 @@ def bulk_operations():
 
 
 @admin.route("/users")
-@login_required
+@admin_required
 def users_list():
     users = User.query.order_by(User.username).all()
     return render_template("admin/users.html", users=users)
 
 
 @admin.route("/users/create", methods=["POST"])
-@login_required
+@admin_required
 def create_user():
     username = request.form.get("username", "").strip()[:80]
     password = request.form.get("password", "").strip()
@@ -811,7 +843,7 @@ def create_user():
 
 
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
-@login_required
+@admin_required
 def delete_user(user_id):
     user = db.session.get(User, user_id)
     if not user:
@@ -831,7 +863,7 @@ def delete_user(user_id):
 
 
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
-@login_required
+@admin_required
 def change_password(user_id):
     user = db.session.get(User, user_id)
     if not user:
@@ -851,7 +883,7 @@ def _get_backup_dir():
 
 
 @admin.route("/backup")
-@login_required
+@admin_required
 def backup():
     backup_dir = _get_backup_dir()
     backups = []
@@ -869,7 +901,7 @@ def backup():
 
 
 @admin.route("/backup/create", methods=["POST"])
-@login_required
+@admin_required
 def create_backup():
     from backup import create_backup as _create_backup
     compress = "compress" in request.form
@@ -884,7 +916,7 @@ def create_backup():
 
 
 @admin.route("/backup/download/<filename>")
-@login_required
+@admin_required
 def download_backup(filename):
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
@@ -899,7 +931,7 @@ def download_backup(filename):
 
 
 @admin.route("/backup/restore/<filename>", methods=["POST"])
-@login_required
+@admin_required
 def restore_backup(filename):
     import shutil as _shutil
     if not BACKUP_FILENAME_RE.match(filename):
@@ -918,7 +950,7 @@ def restore_backup(filename):
 
 
 @admin.route("/backup/delete/<filename>", methods=["POST"])
-@login_required
+@admin_required
 def delete_backup(filename):
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
@@ -928,8 +960,10 @@ def delete_backup(filename):
     if not real_path.startswith(os.path.realpath(backup_dir) + os.sep):
         abort(400)
     if os.path.exists(real_path):
-        os.remove(real_path)
-        flash(f"Backup {filename} deleted.", "success")
+        if safe_delete_file(real_path):
+            flash(f"Backup {filename} deleted.", "success")
+        else:
+            flash("Failed to delete backup file.", "error")
     else:
         abort(404)
     return redirect(url_for("admin.backup"))

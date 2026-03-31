@@ -2,7 +2,7 @@
 
 Quick reference for AI agents working on this codebase.
 
-See `plan.md` for the consolidated improvement plan (merged from code review).
+See `plan.md` for the consolidated improvement plan (merged from plan2–plan5).
 
 ## Running Tests
 
@@ -87,12 +87,18 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
   - `SMTP_USER`, `SMTP_PASSWORD` (optional)
 - `MAX_VIEWED_POSTS` and `SESSION_LIFETIME_HOURS` are loaded from `config.toml [app]` section
 
+### Authorization
+- `admin_required` decorator in `app/routes/admin.py` combines `@login_required` with `is_admin` check
+- Non-admin users get 403 on all admin routes (except login/logout)
+- Login route rejects non-admin users with same "Invalid credentials" message as bad passwords
+- `logout()` uses `@login_required` alone so non-admin authenticated users can still log out
+
 ## Common Tasks
 
 ### Add a new route
 1. Add handler to `app/routes/public.py` or `app/routes/admin.py`
 2. Create template in `app/templates/`
-3. Admin routes need `@login_required` decorator
+3. Admin routes need `@admin_required` decorator (not `@login_required`)
 
 ### Add a new model
 1. Define in `app/models.py`
@@ -130,6 +136,9 @@ This codebase intentionally **does not include application-level rate limiting**
 ### Cross-Blueprint Imports
 Both `admin.py` and `public.py` import `invalidate_tag_cache` and `_get_tag_counts` from `app.cache` (extracted from `public.py` to avoid coupling). No cross-blueprint imports remain.
 
+### Admin Routes Use `@admin_required`
+All admin routes (except `login()` and `logout()`) use `@admin_required`, which combines `@login_required` with an `is_admin` check. Non-admin users get 403. The login route rejects non-admin users with "Invalid credentials" (same message as bad password to avoid username enumeration). `logout()` uses `@login_required` alone so non-admin authenticated users can still log out.
+
 ### `generate_slug` Edge Cases
 Empty string and whitespace-only input both fall back to `"untitled"`. The initial `if not name` check catches `""`, and the final `return slug if slug else "untitled"` catches whitespace that becomes empty after processing.
 
@@ -151,8 +160,24 @@ In `edit_post()`, `db.session.rollback()` reverts ALL session changes, not just 
 ### File Deletion Timing in edit_post() and bulk_operations()
 Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. In `edit_post()`, the old image filename is stored before mutation, then deleted only after a successful commit. In `bulk_operations()`, image paths are collected, the batch is committed, then files are removed in a separate loop. In `delete_post()`, the image is stored, the post record is deleted and committed, then the file is removed.
 
+### `safe_delete_file` Utility
+`safe_delete_file(filepath)` in `app/utils.py` wraps `os.remove()` with `FileNotFoundError` handling (returns `True`) and `OSError` logging (returns `False`). Use this instead of inline try/except blocks.
+
+### LIKE Wildcard Escaping
+Search input containing `%` or `_` causes unexpected pattern matching. Escape them before interpolating into LIKE patterns:
+```python
+escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+search_term = f"%{escaped}%"
+Post.title.ilike(search_term, escape="\\")
+```
+
+### Image Upload Extension
+`_save_image()` uses the detected magic byte type for the file extension, not the user-provided extension. This prevents Content-Type mismatches (e.g., JPEG saved as `.webp`).
+
 ### Token Enumeration Prevention
 `/confirm/<token>` now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
+- Invalid tokens return success (not 404) to avoid revealing valid tokens
+- Same pattern as unsubscribe endpoint
 - Invalid tokens return success (not 404) to avoid revealing valid tokens
 - Same pattern as unsubscribe endpoint
 
@@ -166,6 +191,9 @@ Old image files are deleted *after* `db.session.commit()` to prevent dangling fi
 - Search route (`app/routes/public.py`) tries FTS5 MATCH first, falls back to LIKE on any error
 - LIKE fallback filters by `Post.published == True` (FTS doesn't have a published column)
 - FTS table check via `sqlite_master` query before attempting MATCH (avoids error spam)
+- FTS MATCH query has `LIMIT 100` to prevent unbounded results
+- `sync_fts()` is called BEFORE `db.session.commit()` in `new_post()`, `edit_post()`, and `bulk_operations()` publish/unpublish branches — if sync fails, the transaction rolls back cleanly. For delete routes, `remove_fts()` stays AFTER commit — stale FTS entries are handled gracefully by LIKE fallback.
+- In `edit_post()`, `sync_fts()` is only called when searchable fields (title, body, summary, published) change
 
 ### Multi-Admin
 - `flask create-admin` CLI command creates or promotes admin users (prompts for username/password)
@@ -236,7 +264,7 @@ See `requirements.txt`. Key packages:
 - Allowed attributes: `a[href,title]`, `img[src,alt,title,width,height]`, `span/div[*][class]`
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
-- CSP header: `default-src 'self'` with `style-src 'self' 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `connect-src 'self'`, `frame-ancestors 'none'`
+- CSP header: `default-src 'self'` with `style-src 'self' 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `connect-src 'self'`, `frame-src 'none'`, `frame-ancestors 'none'`
 - **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance)
 
 ## Security Headers
@@ -248,7 +276,7 @@ The `set_security_headers` after-request handler sets:
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy` (self-only sources, `style-src` includes `'unsafe-inline'` for CSS custom properties used in animation delays)
+- `Content-Security-Policy` (self-only sources, `style-src` includes `'unsafe-inline'` for CSS custom properties used in animation delays, `frame-src 'none'` blocks all iframe embedding)
 - `Cache-Control: public, max-age=31536000, immutable` (static assets only)
 
 ## Dark/Light Mode
@@ -280,6 +308,7 @@ The `set_security_headers` after-request handler sets:
 - `edit_post()`: when replacing an image, old file is removed *after* successful commit
 - `delete_post()`: removes image file *after* successful post deletion commit
 - `bulk_operations()`: collects image paths, commits deletions, then removes files
+- All file deletions use `safe_delete_file()` from `app/utils.py`
 
 ## Orphan Tag Cleanup
 
@@ -291,6 +320,7 @@ The `set_security_headers` after-request handler sets:
 - Search query param `?q=` filters posts by title using `ilike`
 - Status param `?status=published|draft|all` filters by publication state
 - Pagination preserves both `q` and `status` params in links
+- LIKE wildcards (`%`, `_`) are escaped in dashboard search input
 
 ## Preview Mode
 
@@ -320,15 +350,14 @@ The `set_security_headers` after-request handler sets:
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
 - Cache returns a copy to prevent external mutation
 
-## Token Enumeration Prevention
+## Plan History
 
-- `/confirm/<token>` now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
-- Invalid tokens return success (not 404) to avoid revealing valid tokens
-- Same pattern as unsubscribe endpoint
+This project had multiple improvement plans (`plan2.md` through `plan5.md`) created at different times. They were consolidated into `plan.md` with items deduplicated, re-prioritized, and organized into parallelizable phases. The original plan files were removed.
 
 ## Newsletter Test Email
 
-- Test newsletter sends to `FROM_ADDRESS` (parsed from config to extract email)
+- Test newsletter sends to `FROM_ADDRESS` (parsed from config to extract email) by default
+- Optional `test_email` form field allows specifying a custom test address
 - Uses `FROM_ADDRESS.split("<")[-1].rstrip(">")` to extract email from "Name <email>" format
 
 ## XML Escaping

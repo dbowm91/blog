@@ -8,6 +8,7 @@ def test_csp_header(client):
     assert csp is not None
     assert "default-src 'self'" in csp
     assert "frame-ancestors 'none'" in csp
+    assert "frame-src 'none'" in csp
     assert "style-src 'self' 'unsafe-inline'" in csp
 
 
@@ -93,3 +94,54 @@ def test_logout_is_post_only(client, admin_user):
     })
     response = client.get('/admin/logout')
     assert response.status_code == 405
+
+
+def test_non_admin_cannot_log_in(app, db, client):
+    """Test that non-admin users cannot log in to admin panel."""
+    from app.models import User
+    user = User(username='regular', is_admin=False)
+    user.set_password('testpassword')
+    db.session.add(user)
+    db.session.commit()
+
+    response = client.post('/admin/login', data={
+        'username': 'regular',
+        'password': 'testpassword',
+    }, follow_redirects=True)
+    assert b'Invalid credentials' in response.data
+
+
+def test_non_admin_gets_403_on_admin_routes(app, db, client):
+    """Test that authenticated non-admin users get 403 on admin routes."""
+    from app.models import User
+    user = User(username='regular', is_admin=False)
+    user.set_password('testpassword')
+    db.session.add(user)
+    db.session.commit()
+
+    # Login as admin first to create the session, then check non-admin access
+    # Actually, we can't log in as non-admin (blocked by login check).
+    # Instead, manually log in via login_user and test access.
+    with app.test_request_context():
+        from flask_login import login_user
+        login_user(user)
+        # This won't work outside request context for client tests.
+    # We'll test via a different approach: create an admin, log in, 
+    # then set is_admin=False on the user and try accessing routes.
+    admin = User(username='admin2', is_admin=True)
+    admin.set_password('testpassword')
+    db.session.add(admin)
+    db.session.commit()
+
+    client.post('/admin/login', data={
+        'username': 'admin2',
+        'password': 'testpassword',
+    })
+    # Demote user to non-admin
+    admin.is_admin = False
+    db.session.commit()
+
+    # These routes should now return 403
+    for path in ['/admin/', '/admin/new', '/admin/analytics', '/admin/subscribers']:
+        response = client.get(path)
+        assert response.status_code == 403, f"Expected 403 for {path}, got {response.status_code}"

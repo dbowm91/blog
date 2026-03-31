@@ -1,8 +1,10 @@
 import os
+import time
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, render_template, redirect, url_for, request as req, flash
+from flask import Flask, render_template, redirect, url_for, request as req, flash, session
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_login import current_user, logout_user
 from app.extensions import db, login_manager, migrate
 from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SESSION_LIFETIME_HOURS
 from app.csrf import generate_csrf_token, validate_csrf_token
@@ -108,9 +110,6 @@ def create_app():
 
     @app.before_request
     def before_request_handler():
-        from flask import request as req, session, redirect, url_for, flash
-        from flask_login import current_user, logout_user
-        import time
         from app.utils import utc_now
 
         # CSRF validation for POST requests
@@ -139,7 +138,7 @@ def create_app():
 
     @app.after_request
     def set_security_headers(response):
-        from flask import request as req, current_app
+        from flask import current_app
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -153,6 +152,7 @@ def create_app():
             "img-src 'self' data:; "
             "script-src 'self'; "
             "connect-src 'self'; "
+            "frame-src 'none'; "
             "frame-ancestors 'none'"
         )
         if req.path.startswith("/static/"):
