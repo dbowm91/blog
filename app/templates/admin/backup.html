@@ -6,7 +6,7 @@
         <h1>Backups</h1>
         <form method="POST" action="{{ url_for('admin.create_backup') }}" class="inline-form flex-row gap-sm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label class="flex-row items-center gap-xs" style="color:var(--text-muted)">
+            <label class="flex-row items-center gap-xs text-muted">
                 <input type="checkbox" name="compress"> Compress
             </label>
             <button type="submit" class="btn btn-primary">Create Backup</button>

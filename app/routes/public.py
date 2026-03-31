@@ -324,6 +324,9 @@ def confirm(token):
         logger.info("Removed expired unconfirmed subscriber: %s", sub.email)
         flash("This confirmation link has expired. Please subscribe again.", "warning")
         return redirect("/")
+    if sub.confirmed:
+        flash("Already confirmed.", "info")
+        return redirect("/")
     sub.confirmed = True
     db.session.commit()
     flash("Subscription confirmed! You'll receive our newsletter.", "success")

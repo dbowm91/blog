@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
+from sqlalchemy import select
 from app.models import Post, Subscriber
 from app.utils import utc_now
 from datetime import timedelta
@@ -17,13 +18,13 @@ def test_scheduler_filters_unsent_posts(app, db):
     db.session.commit()
 
     # Manually replicate the scheduler query
-    posts = (
-        Post.query.filter(
+    posts = db.session.execute(
+        select(Post).filter(
             Post.published == True,
             Post.published_at != None,
             Post.newsletter_sent_at == None,
-        ).all()
-    )
+        )
+    ).scalars().all()
     slugs = [p.slug for p in posts]
     assert 'unsent' in slugs
     assert 'sent' not in slugs
@@ -38,9 +39,11 @@ def test_scheduler_confirmed_subscriber_filter(app, db):
     db.session.add_all([confirmed, unconfirmed, unsubscribed])
     db.session.commit()
 
-    subs = Subscriber.query.filter_by(confirmed=True).filter(
-        Subscriber.unsubscribed_at.is_(None)
-    ).all()
+    subs = db.session.execute(
+        select(Subscriber).filter_by(confirmed=True).filter(
+            Subscriber.unsubscribed_at.is_(None)
+        )
+    ).scalars().all()
     emails = [s.email for s in subs]
     assert emails == ['confirmed@example.com']
 
@@ -119,12 +122,14 @@ def test_newsletter_attempts_skip_after_max(app, db):
     db.session.add_all([exhausted, fresh])
     db.session.commit()
 
-    posts = Post.query.filter(
-        Post.published == True,
-        Post.published_at != None,
-        Post.newsletter_sent_at == None,
-        Post.newsletter_attempts < max_attempts,
-    ).all()
+    posts = db.session.execute(
+        select(Post).filter(
+            Post.published == True,
+            Post.published_at != None,
+            Post.newsletter_sent_at == None,
+            Post.newsletter_attempts < max_attempts,
+        )
+    ).scalars().all()
     slugs = [p.slug for p in posts]
     assert 'fresh' in slugs
     assert 'exhausted' not in slugs

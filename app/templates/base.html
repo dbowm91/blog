@@ -26,6 +26,11 @@
             }
         </style>
     </noscript>
+    <noscript>
+        <div class="noscript-warning">
+            JavaScript is disabled. Some features (theme toggle, draft autosave, live preview) require JavaScript.
+        </div>
+    </noscript>
 </head>
 <body class="public-body">
     <div class="reading-progress" id="reading-progress"></div>
@@ -39,7 +44,7 @@
                 <a href="{{ url_for('public.index') }}">Posts</a>
                 <form action="{{ url_for('public.search') }}" method="GET" class="search-form" aria-label="Search posts">
                     <input type="text" name="q" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
-                    <button type="submit" class="search-btn" aria-label="Submit search">Search</button>
+                    <button type="submit" class="search-btn" aria-label="Submit search"><span class="btn-text">Search</span></button>
                 </form>
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
@@ -62,7 +67,7 @@
         {% endif %}
     {% endwith %}
 
-    <main id="main-content" class="container">
+    <main id="main-content" class="container" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
 

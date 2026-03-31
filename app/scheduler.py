@@ -2,6 +2,8 @@ import os
 
 from sqlalchemy import select
 
+__all__ = ["init_scheduler", "get_scheduler_status"]
+
 try:
     import fcntl
     HAS_FCNTL = True

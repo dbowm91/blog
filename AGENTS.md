@@ -119,13 +119,8 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows.
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
-- **No upper version bounds** in `requirements.txt`—all dependencies use `>=` only
-- **ProxyFix hardcoded** to `x_for=1, x_proto=1, x_host=1` in `app/__init__.py`
-- **Dashboard N+1**—`Post.tags` relationship is lazy-loaded in dashboard query (no `joinedload`)
-- **`_cleanup_orphan_tags()`** calls its own `db.session.commit()`—callers should be aware
-- **`confirm` endpoint** does not check if subscriber is already confirmed before writing
-- **`restore_backup`** does not close DB connections before overwriting the database file
-- **Email templates** use hardcoded GitHub-dark colors (`#0d1117`, `#161b22`, `#e6edf3`)—not suitable for light-mode email clients
+- **ProxyFix configurable** via `PROXY_COUNT` env var (defaults to 1) in `app/__init__.py`
+- **Email templates** use light-friendly colors (`#f6f8fa`, `#ffffff`, `#24292f`, `#0969da`)
 
 ## Rate Limiting
 
@@ -203,8 +198,9 @@ Post.title.ilike(search_term, escape="\\")
 `_save_image()` uses the detected magic byte type for the file extension, not the user-provided extension. This prevents Content-Type mismatches (e.g., JPEG saved as `.webp`).
 
 ### Token Enumeration Prevention
-/confirm/<token> now uses `first()` + `time.sleep(0.1)` to prevent token enumeration
+/confirm/<token> uses `scalar_one_or_none()` + `time.sleep(0.1)` to prevent token enumeration
 - Invalid tokens return success (not 404) to avoid revealing valid tokens
+- Already-confirmed subscribers get "Already confirmed." flash and redirect
 - Same pattern as unsubscribe endpoint
 
 ### Double-Checked Locking for Caches
@@ -353,6 +349,7 @@ The `set_security_headers` after-request handler sets:
 ## Orphan Tag Cleanup
 
 - `_cleanup_orphan_tags()` in `admin.py` removes tags with zero associated posts
+- Does NOT call `db.session.commit()` — callers are responsible for committing
 - Called after `invalidate_tag_cache()` in `delete_post()`, `edit_post()`, and `bulk_operations()` delete branch
 
 ## Dashboard Search/Filter
@@ -393,10 +390,14 @@ The `set_security_headers` after-request handler sets:
 ## Remaining Plan Items
 
 All items from `plan.md` have been completed:
-- **Wave 1**: 7 trivial cleanup items (dead code, dependency removal, minor fixes) ✅
-- **Wave 2**: 2 security/robustness items (X-XSS-Protection header, FTS5 assertion) ✅
-- **Wave 3**: SQLAlchemy 2.0 migration (~51 occurrences across 6 files) ✅
-- **Wave 4**: Page view optimization (deferred/monitoring only)
+- **Wave 1**: 5 bug fixes (FTS5 logging, backup restore DB close, orphan tag commit, confirm already-confirmed, select import) ✅
+- **Wave 2**: Test migration to SQLAlchemy 2.0 (17 patterns), utc_now in email tests, last-admin test restructure ✅
+- **Wave 3**: __all__ exports, upper version bounds, base_url/pagination config validation, ProxyFix env var ✅
+- **Wave 4**: Dashboard eager loading with joinedload(Post.tags) ✅
+- **Wave 5**: CSS/JS cleanup (duplicate properties, dead class, text-muted, variable rename) ✅
+- **Wave 6**: Visual consistency (tag hero, media pagination, tag rename input, dashboard buttons, preview loading) ✅
+- **Wave 7**: Accessibility/UX (theme listener, mobile menu close, tabindex, users pagination, email light-mode, noscript warning, search button mobile) ✅
+- **Wave 8**: All 23 CSS/JS polish items ✅
 
 Previously completed from earlier plan iterations:
 - IntegrityError retry paths in `new_post()`/`edit_post()` — done

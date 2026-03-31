@@ -49,18 +49,6 @@
     </div>
     {% endif %}
 
-    <div class="dashboard-section-header">
-        <h2>All Posts</h2>
-        <div class="flex-row gap-sm items-center">
-            <a href="{{ url_for('admin.subscribers') }}" class="btn btn-ghost btn-small">Subscribers</a>
-            <a href="{{ url_for('admin.media') }}" class="btn btn-ghost btn-small">Media</a>
-            <a href="{{ url_for('admin.tags_list') }}" class="btn btn-ghost btn-small">Tags</a>
-            <a href="{{ url_for('admin.analytics') }}" class="btn btn-ghost btn-small">Analytics</a>
-            <a href="{{ url_for('admin.users_list') }}" class="btn btn-ghost btn-small">Users</a>
-            <a href="{{ url_for('admin.backup') }}" class="btn btn-ghost btn-small">Backups</a>
-        </div>
-    </div>
-
     <div class="filter-bar">
         <form method="GET" action="{{ url_for('admin.dashboard') }}" class="filter-form">
             <input type="text" name="q" placeholder="Search titles..." class="search-input" value="{{ q }}">

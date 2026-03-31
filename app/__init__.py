@@ -8,6 +8,7 @@ from flask_login import current_user, logout_user
 from app.extensions import db, login_manager, migrate
 from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SESSION_LIFETIME_HOURS
 from app.csrf import generate_csrf_token, validate_csrf_token
+from sqlalchemy import select
 
 
 def configure_logging(app):
@@ -61,7 +62,8 @@ def create_app():
     app.config["SESSION_COOKIE_SECURE"] = not app.debug
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    proxy_count = int(os.environ.get("PROXY_COUNT", 1))
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)
 
     db.init_app(app)
     login_manager.init_app(app)

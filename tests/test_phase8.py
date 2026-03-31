@@ -3,6 +3,7 @@
 import os
 import pytest
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import select
 from app.models import User, Post
 from app.utils import utc_now, UTCDateTime
 
@@ -59,7 +60,7 @@ class TestTimezoneAwareDatetimes:
         )
         db.session.add(post)
         db.session.commit()
-        loaded = Post.query.filter_by(slug='tz-test').first()
+        loaded = db.session.execute(select(Post).filter_by(slug='tz-test')).scalar_one_or_none()
         assert loaded.created_at.tzinfo == timezone.utc
         assert loaded.published_at.tzinfo == timezone.utc
         assert loaded.updated_at.tzinfo == timezone.utc
@@ -138,7 +139,7 @@ class TestMultiAdmin:
             'password': 'password123',
         }, follow_redirects=True)
         assert response.status_code == 200
-        user = User.query.filter_by(username='newuser').first()
+        user = db.session.execute(select(User).filter_by(username='newuser')).scalar_one_or_none()
         assert user is not None
         assert user.is_admin is False
 
@@ -150,7 +151,7 @@ class TestMultiAdmin:
             'is_admin': 'on',
         }, follow_redirects=True)
         assert response.status_code == 200
-        user = User.query.filter_by(username='newadmin').first()
+        user = db.session.execute(select(User).filter_by(username='newadmin')).scalar_one_or_none()
         assert user is not None
         assert user.is_admin is True
 
@@ -183,7 +184,7 @@ class TestMultiAdmin:
         response = authenticated_client.post(f'/admin/users/delete/{user2.id}',
                                               follow_redirects=True)
         assert response.status_code == 200
-        assert User.query.filter_by(username='deleteable').first() is None
+        assert db.session.execute(select(User).filter_by(username='deleteable')).scalar_one_or_none() is None
 
     def test_cannot_delete_self(self, client, db, authenticated_client, admin_user):
         """Cannot delete your own account."""
@@ -193,18 +194,43 @@ class TestMultiAdmin:
 
     def test_cannot_delete_last_admin(self, client, db, authenticated_client, admin_user):
         """Cannot delete the last admin user."""
+        from sqlalchemy import select, func
+        # First, make admin_user is an admin
         admin_user.is_admin = True
         db.session.commit()
-        # Create another non-admin user so we're not trying to delete self
+        
+        # Create another admin user (user2)
         user2 = User(username='otheruser')
         user2.set_password('password123')
         user2.is_admin = True
         db.session.add(user2)
         db.session.commit()
-        # Delete the other admin
+        
+        # Count admins before - should be 2
+        admin_count_before = db.session.execute(select(func.count(User.id)).filter_by(is_admin=True)).scalar_one()
+        assert admin_count_before == 2
+        
+        # Delete user2 first (should succeed)
         response = authenticated_client.post(f'/admin/users/delete/{user2.id}',
                                               follow_redirects=True)
         assert response.status_code == 200
+        
+        # Verify user2 is deleted
+        user2_exists = db.session.execute(select(User).filter_by(id=user2.id)).scalar_one_or_none()
+        assert user2_exists is None
+        
+        # Count admins after - should be 1
+        admin_count_after = db.session.execute(select(func.count(User.id)).filter_by(is_admin=True)).scalar_one()
+        assert admin_count_after == 1
+        
+        # Attempt to delete admin_user (the last admin) - should be blocked
+        response = authenticated_client.post(f'/admin/users/delete/{admin_user.id}',
+                                              follow_redirects=True)
+        # The response should redirect to users_list
+        assert response.status_code == 200
+        # Verify admin_user still exists
+        admin_still_exists = db.session.execute(select(User).filter_by(id=admin_user.id)).scalar_one_or_none()
+        assert admin_still_exists is not None
 
     def test_change_password(self, client, db, authenticated_client, admin_user):
         """Admin can change a user's password."""

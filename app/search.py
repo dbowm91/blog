@@ -1,5 +1,7 @@
 """Full-text search using SQLite FTS5 with LIKE fallback."""
 
+__all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts"]
+
 import logging
 from sqlalchemy import text
 from app.extensions import db
@@ -43,13 +45,13 @@ def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool)
             db.session.execute(text(
                 "INSERT INTO posts_fts(rowid, title, body, summary) VALUES(:id, :title, :body, :summary)"
             ), {"id": post_id, "title": title, "body": body, "summary": summary})
-    except Exception:
-        logger.debug("FTS sync failed for post %s; index may be stale", post_id)
+    except Exception as e:
+        logger.warning("FTS sync failed for post %s: %s", post_id, e)
 
 
 def remove_fts(post_id: int):
     """Remove a post from the FTS index. Call before db.session.commit()."""
     try:
         db.session.execute(text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id})
-    except Exception:
-        logger.debug("FTS remove failed for post %s", post_id)
+    except Exception as e:
+        logger.warning("FTS remove failed for post %s: %s", post_id, e)

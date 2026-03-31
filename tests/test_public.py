@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import select, func
 from app.utils import utc_now
 
 
@@ -190,7 +191,7 @@ def test_short_url_records_share_event(client, db, sample_post):
     from app.models import ShareEvent
     code = encode(sample_post.id)
     client.get(f'/s/{code}')
-    event = ShareEvent.query.filter_by(post_id=sample_post.id, platform='link').first()
+    event = db.session.execute(select(ShareEvent).filter_by(post_id=sample_post.id, platform='link')).scalar_one_or_none()
     assert event is not None
 
 
@@ -203,15 +204,16 @@ def test_short_url_invalid_code(client):
 def test_page_view_deduplication(client, db, sample_post):
     """Test that same session, same post = 1 view only."""
     from app.models import PageView
+    from sqlalchemy import func
 
     # First visit - should create a page view
     client.get(f'/post/{sample_post.slug}')
-    count_after_first = PageView.query.filter_by(post_id=sample_post.id).count()
+    count_after_first = db.session.execute(select(func.count()).select_from(PageView).filter_by(post_id=sample_post.id)).scalar_one()
     assert count_after_first == 1
 
     # Second visit from same session - should NOT create another
     client.get(f'/post/{sample_post.slug}')
-    count_after_second = PageView.query.filter_by(post_id=sample_post.id).count()
+    count_after_second = db.session.execute(select(func.count()).select_from(PageView).filter_by(post_id=sample_post.id)).scalar_one()
     assert count_after_second == 1
 
 
@@ -239,7 +241,7 @@ def test_max_viewed_posts_cap(client, db, admin_user):
         client.get(f'/post/{post.slug}')
 
     # Should have created views for all posts
-    total_views = PageView.query.count()
+    total_views = db.session.execute(select(func.count()).select_from(PageView)).scalar_one()
     assert total_views == MAX_VIEWED_POSTS + 3
 
     # Check session has at most MAX_VIEWED_POSTS entries
@@ -284,7 +286,7 @@ def test_track_share_truncates_platform(client, db, sample_post):
                            content_type='application/json')
     assert response.status_code == 200
     from app.models import ShareEvent
-    event = ShareEvent.query.filter_by(post_id=sample_post.id).first()
+    event = db.session.execute(select(ShareEvent).filter_by(post_id=sample_post.id)).scalar_one_or_none()
     assert len(event.platform) == 32
 
 
@@ -293,7 +295,7 @@ def test_referrer_sanitized(client, db, sample_post):
     response = client.get(f'/post/{sample_post.slug}',
                           headers={'Referer': 'http://example.com/page?secret=token&foo=bar'})
     from app.models import PageView
-    pv = PageView.query.filter_by(post_id=sample_post.id).first()
+    pv = db.session.execute(select(PageView).filter_by(post_id=sample_post.id)).scalar_one_or_none()
     assert pv.referrer == 'http://example.com/page'
     assert 'secret' not in (pv.referrer or '')
     assert 'token' not in (pv.referrer or '')

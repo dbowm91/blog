@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from app.email import send_newsletter
 from app.models import Post, Subscriber
+from app.utils import utc_now
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ def test_send_newsletter_smtp_failure(app, db, mock_render):
         slug='test-post',
         body='Test body',
         published=True,
-        published_at=db.func.now(),
+        published_at=utc_now(),
     )
     sub = Subscriber(email='test@example.com', confirmed=True)
     db.session.add_all([post, sub])
@@ -43,7 +44,7 @@ def test_send_newsletter_smtp_disconnected(app, db, mock_render):
         slug='test-post-2',
         body='Test body',
         published=True,
-        published_at=db.func.now(),
+        published_at=utc_now(),
     )
     sub = Subscriber(email='test2@example.com', confirmed=True)
     db.session.add_all([post, sub])
@@ -71,7 +72,7 @@ def test_send_newsletter_generic_smtp_error(app, db, mock_render):
         slug='test-post-3',
         body='Test body',
         published=True,
-        published_at=db.func.now(),
+        published_at=utc_now(),
     )
     sub = Subscriber(email='test3@example.com', confirmed=True)
     db.session.add_all([post, sub])

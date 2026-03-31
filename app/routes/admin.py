@@ -368,7 +368,7 @@ def delete_post(post_id):
 
 
 def _cleanup_orphan_tags():
-    """Remove tags that have no associated posts."""
+    """Remove tags that have no associated posts. Callers are responsible for committing."""
     from app.models import post_tags
     orphan_tag_ids = (
         db.session.execute(
@@ -379,7 +379,6 @@ def _cleanup_orphan_tags():
     )
     if orphan_tag_ids:
         db.session.execute(delete(Tag).where(Tag.id.in_(orphan_tag_ids)))
-        db.session.commit()
 
 
 def _get_or_create_tags(names):
@@ -828,8 +827,10 @@ def bulk_operations():
 @admin.route("/users")
 @admin_required
 def users_list():
-    users = db.session.execute(select(User).order_by(User.username)).scalars().all()
-    return render_template("admin/users.html", users=users)
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+    pagination = db.paginate(select(User).order_by(User.username), page=page, per_page=per_page, error_out=False)
+    return render_template("admin/users.html", users=pagination.items, pagination=pagination)
 
 
 @admin.route("/users/create", methods=["POST"])
@@ -962,8 +963,10 @@ def restore_backup(filename):
     if not os.path.exists(real_path):
         abort(404)
     db_path = os.path.join(current_app.instance_path, "blog.db")
+    db.session.close_all()
+    db.engine.dispose()
     _shutil.copy2(real_path, db_path)
-    flash(f"Database restored from {filename}.", "success")
+    flash(f"Database restored from {filename}. You may need to restart the app for all changes to take effect.", "success")
     return redirect(url_for("admin.backup"))
 
 

@@ -14,11 +14,11 @@ def app(tmp_path_factory):
 
     os.environ['SECRET_KEY'] = 'test-secret-key'
     os.environ['ADMIN_PASSWORD'] = 'test-password'
+    os.environ['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
     app = create_app()
     app.config.update({
         'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
         'CSRF_ENABLED': False,
     })
 

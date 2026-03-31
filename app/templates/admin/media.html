@@ -33,15 +33,15 @@
     <p class="flash flash-warning mt-md">Showing first 1000 files only.</p>
     {% endif %}
     {% if total_pages > 1 %}
-    <div class="pagination mt-md flex-row gap-sm items-center">
+    <nav class="pagination mt-md">
         {% if page > 1 %}
-        <a href="{{ url_for('admin.media', page=page-1) }}" class="btn btn-small">Previous</a>
+        <a href="{{ url_for('admin.media', page=page-1) }}" class="page-link">Previous</a>
         {% endif %}
         <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
         {% if page < total_pages %}
-        <a href="{{ url_for('admin.media', page=page+1) }}" class="btn btn-small">Next</a>
+        <a href="{{ url_for('admin.media', page=page+1) }}" class="page-link">Next</a>
         {% endif %}
-    </div>
+    </nav>
     {% endif %}
     {% else %}
     <p class="empty-state">No uploaded files.</p>

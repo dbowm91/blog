@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import select, func
 from app.utils import utc_now
 
 
@@ -199,7 +200,7 @@ def test_slug_collision_handling(authenticated_client, db):
     assert b'Post created' in response1.data
     # Extract slug from response? Not easy. Instead query the post.
     from app.models import Post
-    post1 = Post.query.filter_by(title='Duplicate Title').first()
+    post1 = db.session.execute(select(Post).filter_by(title='Duplicate Title')).scalar_one_or_none()
     assert post1 is not None
     assert post1.slug == 'duplicate-title'
     
@@ -211,7 +212,7 @@ def test_slug_collision_handling(authenticated_client, db):
     }, follow_redirects=True)
     assert response2.status_code == 200
     assert b'Post created' in response2.data
-    post2 = Post.query.filter_by(title='Duplicate Title').order_by(Post.id.desc()).first()
+    post2 = db.session.execute(select(Post).filter_by(title='Duplicate Title').order_by(Post.id.desc())).scalars().first()
     assert post2 is not None
     assert post2.slug == 'duplicate-title-2'
     assert post2.id != post1.id
@@ -266,7 +267,7 @@ def test_delete_media_authenticated(authenticated_client, db):
     assert response.status_code == 200
     # Extract the saved filename from the database (post.image)
     from app.models import Post
-    post = Post.query.filter_by(title='Post with Image').first()
+    post = db.session.execute(select(Post).filter_by(title='Post with Image')).scalar_one_or_none()
     assert post is not None
     assert post.image is not None
     filename = post.image
@@ -355,7 +356,7 @@ def test_bulk_delete(authenticated_client, db):
     }, follow_redirects=True)
     assert response.status_code == 200
     assert b'Deleted 2 post(s)' in response.data
-    assert Post.query.filter(Post.id.in_(ids)).count() == 0
+    assert db.session.execute(select(func.count()).select_from(Post).filter(Post.id.in_(ids))).scalar_one() == 0
 
 
 def test_bulk_publish(authenticated_client, db):

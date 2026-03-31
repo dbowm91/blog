@@ -108,6 +108,29 @@ def _validate_config(config: dict) -> None:
         except (ValueError, TypeError):
             errors.append(f"Invalid smtp_port: {smtp_port}. Must be 1-65535")
 
+    # Pagination config validation
+    for key in ["dashboard_per_page", "subscribers_per_page", "media_per_page", "media_max_files"]:
+        val = config.get("app", {}).get(key)
+        if val is not None:
+            try:
+                val_int = int(val)
+                if val_int < 1:
+                    raise ValueError
+            except (ValueError, TypeError):
+                errors.append(f"Invalid {key}: {val}. Must be a positive integer")
+
+    if errors:
+        raise RuntimeError("Config errors:\n" + "\n".join(errors))
+
+    # base_url validation
+    base_url = config.get("site", {}).get("base_url", "")
+    if base_url:
+        if not base_url.startswith(("http://", "https://")):
+            errors.append(f"Invalid base_url: {base_url}. Must start with http:// or https://")
+        elif "localhost" in base_url:
+            import warnings
+            warnings.warn(f"Warning: base_url contains 'localhost': {base_url}. This may not work in production.")
+
     if errors:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))
 

@@ -4,12 +4,12 @@
 
 {% block content %}
 <div class="content-layout">
-    <section class="posts-list">
-        <div class="tag-page-header animate-in">
-            <h1><span class="tag-prefix">#</span>{{ tag.name }}</h1>
-            <p>{{ total_posts }} post{% if total_posts != 1 %}s{% endif %}</p>
-        </div>
+    <div class="tag-hero animate-in">
+        <h1><span class="tag-prefix">#</span>{{ tag.name }}</h1>
+        <p>{{ total_posts }} post{% if total_posts != 1 %}s{% endif %}</p>
+    </div>
 
+    <section class="posts-list">
         {% for post in posts %}
             <article class="post-card animate-in" style="--delay: {{ loop.index0 * 0.08 }}s">
                 {% if post.image %}

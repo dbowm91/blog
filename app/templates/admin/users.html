@@ -40,6 +40,18 @@
         {% endfor %}
     </div>
 
+    {% if pagination.pages > 1 %}
+        <nav class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('admin.users_list', page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+            {% endif %}
+            <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+            {% if pagination.has_next %}
+                <a href="{{ url_for('admin.users_list', page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+
     <div class="dashboard-section-header mt-lg">
         <h2>Create User</h2>
     </div>
@@ -47,7 +59,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="text" name="username" placeholder="Username" required maxlength="80" class="search-input">
         <input type="password" name="password" placeholder="Password (min 8 chars)" required minlength="8" class="search-input">
-        <label class="flex-row items-center gap-xs" style="color:var(--text-muted)">
+        <label class="flex-row items-center gap-xs text-muted">
             <input type="checkbox" name="is_admin"> Admin
         </label>
         <button type="submit" class="btn btn-primary">Create</button>
