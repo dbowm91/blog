@@ -2,7 +2,7 @@
 
 Quick reference for AI agents working on this codebase.
 
-See `plan.md` for the improvement plan.
+See `plan.md` for the consolidated improvement plan.
 
 ## Running Tests
 
@@ -301,13 +301,14 @@ All image uploads validated against 10MB limit. Magic byte detection rejects fil
 ### Session Timeout
 Admin sessions expire after inactivity (default 24 hours, configurable via `session_lifetime_hours`). Timeout checked on every request in `before_request` handler. Session extended on activity.
 
-### Tests for FTS5 and Deprecations
-- Tests for FTS5 special character handling (double quotes, wildcards)
-- Tests for SQLAlchemy deprecation warnings (`scalar_one_or_none`, `close_all`, etc.)
-- Tests verify LIKE fallback works correctly
-
 ### CSS Variable Deduplication
 The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `--text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
+
+### CSV Export Pitfalls
+CSV exports in `export_subscribers()` and `subscribers_bulk()` use f-string formatting, which breaks on emails containing commas or quotes. When fixing, use `csv.writer` — the `csv` module is already imported but unused. Also consider CSV formula injection protection (prefix `=`, `+`, `-`, `@` with `'`).
+
+### Mobile Nav Class Mismatch
+CSS animation is defined on `.nav-links.active` but JS toggles `.nav-links.open`. The `slideInRight` animation never fires. When fixing, change CSS to match `.nav-links.open`, and gate the `::before` backdrop overlay on `.nav-links.open::before` (currently it shows unconditionally in mobile media query).
 
 ## Assets
 
@@ -421,6 +422,7 @@ The `set_security_headers` after-request handler sets:
 
 - `_cleanup_orphan_tags()` in `admin.py` removes tags with zero associated posts
 - Does NOT call `db.session.commit()` — callers are responsible for committing
+- **Known bug:** Currently called AFTER `db.session.commit()` in all three callers (`edit_post`, `delete_post`, `bulk_operations`), so orphan deletions are never persisted. Must be moved BEFORE commit.
 - Called after `invalidate_tag_cache()` in `delete_post()`, `edit_post()`, and `bulk_operations()` delete branch
 
 ## Dashboard Search/Filter
@@ -473,28 +475,4 @@ The `set_security_headers` after-request handler sets:
 - Log format includes `[%(request_id)s]` for correlating log entries per request
 - `RequestIdFilter` in `configure_logging()` safely handles missing request context
 
-## Completed Work
 
-Original plan.md waves 1–8 are complete:
-- Bug fixes (FTS5 logging, backup restore DB close, orphan tag commit, confirm already-confirmed, select import)
-- Test migration to SQLAlchemy 2.0 patterns
-- Config validation, `__all__` exports, upper version bounds, ProxyFix env var
-- Dashboard eager loading with `joinedload(Post.tags)`
-- CSS/JS cleanup (duplicate properties, dead classes, variable renames)
-- Visual consistency (tag hero, media pagination, dashboard buttons, preview loading)
-- Accessibility/UX (theme listener, mobile menu close, tabindex, noscript warning)
-- CSS/JS polish items
-
-Deferred items completed:
-- **4.5** CSP with nonces (per-request nonce, nonce on style/script blocks, style-src-attr for inline attributes)
-- **4.6** Admin session tracking (AdminSession model, login/logout tracking, sessions management UI)
-- **5A.4** Composite database indexes (ix_posts_published_slug migration)
-- **5B.1** Post scheduling (scheduled_publish_at field, scheduler job, editor UI)
-- **5B.3** Mobile responsiveness (CSS improvements: touch targets, iOS zoom prevention, safe area insets)
-- **6A.1** Integration tests (11 tests covering post lifecycle, subscription, search, tags, bulk ops, media, users)
-- **6A.4** Health check enhanced (checks dict with database, scheduler, search; 503 on degradation)
-- **6A.5** Request context logging (request_id per request, filter for log records)
-- **7.1** Type hints (added to models, cache, key utility functions)
-- **7.3** Deployment guide (DEPLOY.md with Granian, nginx, systemd, security checklist)
-
-See `plan.md` for detailed status.
