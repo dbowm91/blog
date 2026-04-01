@@ -2,7 +2,7 @@
 
 Quick reference for AI agents working on this codebase.
 
-See `plan.md` for the consolidated improvement plan.
+See `plan.md` for the improvement plan.
 
 ## Running Tests
 
@@ -243,6 +243,18 @@ All database queries use SQLAlchemy 2.0 style:
 ### Dependencies
 `pygments` was previously listed in `requirements.txt` but is no longer installed — Prism.js handles all syntax highlighting.
 
+### `assert` Statements Under `python -O`
+`assert` is stripped when Python runs with `-O` (optimize flag). Never use `assert` for runtime safety checks — use `if not ... :` with proper error handling instead. The search route previously used `assert` to validate FTS5 results, which would silently fail in optimized deployments.
+
+### `db.session.close_all()` Deprecation
+`db.session.close_all()` is deprecated since SQLAlchemy 1.3 and will be removed. Use `db.engine.dispose()` instead — it closes all connections in the pool, making `close_all()` redundant.
+
+### FTS5 Special Character Escaping
+FTS5 MATCH queries treat `"` as a phrase delimiter. Unescaped double quotes in user input cause `OperationalError: unterminated string`. Escape by doubling: `"` → `""`. Other FTS5 special characters (`*`, `:`, `-`, `NEAR`, `AND`, `OR`, `NOT`) should also be handled — the current code has an `except Exception` fallback to LIKE, but proper escaping improves search quality.
+
+### CSS Variable Deduplication
+The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `--text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
+
 ## Assets
 
 - **No external assets**—all fonts (Inter, JetBrains Mono) are self-hosted in `app/static/fonts/`
@@ -301,7 +313,7 @@ See `requirements.txt`. Key packages:
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
 - CSP header: `default-src 'self'` with `style-src 'self' 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `connect-src 'self'`, `frame-src 'none'`, `frame-ancestors 'none'`
-- **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance)
+- **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance). Note: `dashboard.html` and `analytics.html` have `onchange` handlers that should be migrated to `main.js` (tracked in plan.md).
 
 ## Security Headers
 
@@ -387,20 +399,16 @@ The `set_security_headers` after-request handler sets:
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
 - Cache returns a copy to prevent external mutation
 
-## Remaining Plan Items
+## Completed Work
 
-All items from `plan.md` have been completed:
-- **Wave 1**: 5 bug fixes (FTS5 logging, backup restore DB close, orphan tag commit, confirm already-confirmed, select import) ✅
-- **Wave 2**: Test migration to SQLAlchemy 2.0 (17 patterns), utc_now in email tests, last-admin test restructure ✅
-- **Wave 3**: __all__ exports, upper version bounds, base_url/pagination config validation, ProxyFix env var ✅
-- **Wave 4**: Dashboard eager loading with joinedload(Post.tags) ✅
-- **Wave 5**: CSS/JS cleanup (duplicate properties, dead class, text-muted, variable rename) ✅
-- **Wave 6**: Visual consistency (tag hero, media pagination, tag rename input, dashboard buttons, preview loading) ✅
-- **Wave 7**: Accessibility/UX (theme listener, mobile menu close, tabindex, users pagination, email light-mode, noscript warning, search button mobile) ✅
-- **Wave 8**: All 23 CSS/JS polish items ✅
+Original plan.md waves 1–8 are complete:
+- Bug fixes (FTS5 logging, backup restore DB close, orphan tag commit, confirm already-confirmed, select import)
+- Test migration to SQLAlchemy 2.0 patterns
+- Config validation, `__all__` exports, upper version bounds, ProxyFix env var
+- Dashboard eager loading with `joinedload(Post.tags)`
+- CSS/JS cleanup (duplicate properties, dead classes, variable renames)
+- Visual consistency (tag hero, media pagination, dashboard buttons, preview loading)
+- Accessibility/UX (theme listener, mobile menu close, tabindex, noscript warning)
+- CSS/JS polish items
 
-Previously completed from earlier plan iterations:
-- IntegrityError retry paths in `new_post()`/`edit_post()` — done
-- Security headers, bug fixes, performance improvements — done
-- Timezone-aware datetimes, FTS5 search, multi-admin, backup/restore UI — done
-- Sitemap streaming, eager loading, centralized pagination, SMTP validation — done
+See `plan.md` for remaining work.
