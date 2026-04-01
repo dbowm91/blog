@@ -60,7 +60,7 @@ All items from the consolidated plan have been addressed. This file reflects the
 - **6B.2** ✅ Improved test fixture organization
 
 ### Wave 7: Documentation & Type Safety
-- **7.2** ✅ Added API docstrings
+- **7.2** ✅ Added API docstrings to key endpoints
 - **7.4** ✅ Updated AGENTS.md with new patterns
 
 ---

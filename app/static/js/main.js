@@ -480,6 +480,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
         
+        // Ctrl+Shift+P: Toggle preview pane
+        if (e.ctrlKey && e.shiftKey && e.key === 'P' && !isInput) {
+            e.preventDefault();
+            const split = document.querySelector('.editor-split');
+            if (split) {
+                split.classList.toggle('preview-hidden');
+            }
+        }
+
         // ?: Show help
         if (e.key === '?' && !isInput) {
             e.preventDefault();

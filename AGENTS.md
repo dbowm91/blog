@@ -265,14 +265,13 @@ Dashboard analytics queries are cached in-memory with a 5-minute TTL to prevent 
 `/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.
 
 ### Subscriber Bulk Operations
-- `POST /admin/subscribers/bulk-delete` — deletes selected subscribers
-- `POST /admin/subscribers/bulk-resend` — resends confirmation emails to unconfirmed subscribers
+- `POST /admin/subscribers/bulk` — handles `delete` and `export` actions for selected subscribers
 - Checkbox selection on subscribers page with "Select All" toggle
 
 ### Admin Keyboard Shortcuts
-- `Ctrl+S` / `Cmd+S` — save post
-- `Ctrl+Shift+P` — toggle preview mode
-- `Ctrl+Enter` — save and continue editing
+- `Ctrl+S` / `Cmd+S` — save draft
+- `Ctrl+Shift+P` — toggle preview pane
+- `Ctrl+Enter` — publish post
 - `?` — show keyboard shortcuts modal
 
 ### Test Fixture Organization

@@ -1160,6 +1160,14 @@ pre:hover .copy-code-btn { opacity: 1; }
     line-height: 1.6;
 }
 
+.editor-split.preview-hidden {
+    grid-template-columns: 1fr;
+}
+
+.editor-split.preview-hidden .markdown-preview {
+    display: none;
+}
+
 /* --- Tag Create Form --- */
 .tag-create-form {
     margin-bottom: 16px;
@@ -1823,10 +1831,6 @@ pre:hover .copy-code-btn { opacity: 1; }
 .badge-draft {
     background: rgba(210, 153, 34, 0.15);
     color: var(--yellow);
-}
-
-/* --- Badge --- */
-    display: inline;
 }
 
 /* --- Utility classes (replacing inline styles for CSP compliance) --- */

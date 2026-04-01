@@ -143,6 +143,16 @@ def tag(slug):
 
 @public.route("/search")
 def search():
+    """Full-text search for published posts.
+
+    Query params:
+        q: Search query (max 200 chars, trimmed)
+        page: Page number (default 1)
+
+    Response:
+        Renders search results template with pagination.
+        Falls back to LIKE matching if FTS5 unavailable.
+    """
     query = request.args.get("q", "", type=str)[:200].strip()
     page = request.args.get("page", 1, type=int)
 
@@ -280,6 +290,15 @@ def _try_send_confirmation(subscriber):
 
 @public.route("/subscribe", methods=["POST"])
 def subscribe():
+    """Subscribe to the newsletter.
+
+    Form params:
+        email: Subscriber email address
+
+    Response:
+        Redirects with flash message. Sends confirmation email.
+        Re-subscribes previously unsubscribed users.
+    """
     email = request.form.get("email", "").strip().lower()[:256]
     if not is_valid_email(email):
         flash("Please enter a valid email address.", "error")
@@ -324,6 +343,15 @@ def subscribe():
 
 @public.route("/confirm/<token>")
 def confirm(token):
+    """Confirm newsletter subscription via token.
+
+    Path params:
+        token: UUID hex token from confirmation email
+
+    Security:
+        Uses constant-time delay to prevent token enumeration.
+        Invalid tokens return success (not 404).
+    """
     sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
     time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
@@ -348,6 +376,15 @@ def confirm(token):
 
 @public.route("/unsubscribe/<token>")
 def unsubscribe(token):
+    """Unsubscribe from the newsletter via token.
+
+    Path params:
+        token: UUID hex token from email
+
+    Security:
+        Uses constant-time delay to prevent token enumeration.
+        Invalid tokens return success (not 404).
+    """
     sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
     time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:

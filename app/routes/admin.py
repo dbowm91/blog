@@ -246,6 +246,15 @@ def login():
 @admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
 @admin_required
 def newsletter_reset(post_id):
+    """Reset newsletter sent flag for a post.
+
+    Path params:
+        post_id: Post ID
+
+    Response:
+        Redirects to dashboard with flash message.
+        Sets newsletter_sent_at to None and newsletter_attempts to 0.
+    """
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -639,6 +648,16 @@ def export_subscribers():
 @admin.route("/subscribers/bulk")
 @admin_required
 def subscribers_bulk():
+    """Bulk operations on selected subscribers.
+
+    Form params:
+        action: 'delete' or 'export'
+        sub_ids: List of subscriber IDs
+
+    Response:
+        delete: Redirects with flash count.
+        export: Streams CSV of selected subscribers.
+    """
     action = request.form.get("action")
     sub_ids = request.form.getlist("sub_ids")
     filter_status = request.args.get("status", "all")
@@ -865,6 +884,16 @@ def newsletter_test():
 @admin.route("/bulk", methods=["POST"])
 @admin_required
 def bulk_operations():
+    """Bulk publish, unpublish, or delete posts.
+
+    Form params:
+        action: 'publish', 'unpublish', or 'delete'
+        post_ids: List of post IDs
+
+    Response:
+        Redirects to dashboard with flash message.
+        Removes image files on delete. Cleans up orphan tags.
+    """
     action = request.form.get("action")
     post_ids = request.form.getlist("post_ids")
     if not post_ids:
