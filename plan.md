@@ -63,6 +63,10 @@ All items from the consolidated plan have been addressed. This file reflects the
 - **7.2** ✅ Added API docstrings to key endpoints
 - **7.4** ✅ Updated AGENTS.md with new patterns
 
+### Post-Review Fixes
+- **6B.1-fix** Fixed keyboard shortcuts: added `#keyboard-help` modal HTML in `admin/base.html`, added `metaKey` check for macOS Cmd+S/Cmd+Enter/Cmd+Shift+P, added click-outside-to-close on modal overlay
+- **7.2-fix** Expanded docstrings to cover all `@route`-decorated view functions (not just helpers)
+
 ---
 
 ## Skipped Items (Not Implemented)

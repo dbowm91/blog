@@ -456,32 +456,32 @@ document.addEventListener("DOMContentLoaded", () => {
         // Ignore if user is typing in an input/textarea
         const tag = e.target.tagName;
         const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
-        
-        // Ctrl+S: Save draft
-        if (e.ctrlKey && e.key === 's' && !isInput) {
+        const mod = e.ctrlKey || e.metaKey;
+
+        // Ctrl/Cmd+S: Save draft
+        if (mod && e.key === 's' && !isInput) {
             e.preventDefault();
             const saveBtn = document.querySelector('button[name="action"][value="save"]');
             if (saveBtn) saveBtn.click();
         }
-        
-        // Ctrl+Enter: Publish
-        if (e.ctrlKey && e.key === 'Enter' && !isInput) {
+
+        // Ctrl/Cmd+Enter: Publish
+        if (mod && e.key === 'Enter' && !isInput) {
             e.preventDefault();
             const publishBtn = document.querySelector('button[name="action"][value="publish"]');
             if (publishBtn) publishBtn.click();
         }
-        
+
         // Escape: Close modals
         if (e.key === 'Escape') {
-            const modal = document.querySelector('.modal, .modal-overlay');
+            const modal = document.querySelector('.modal-overlay[style*="flex"]');
             if (modal) {
-                const closeBtn = modal.querySelector('[data-close]') || modal.querySelector('.close-btn');
-                if (closeBtn) closeBtn.click();
+                modal.style.display = 'none';
             }
         }
-        
-        // Ctrl+Shift+P: Toggle preview pane
-        if (e.ctrlKey && e.shiftKey && e.key === 'P' && !isInput) {
+
+        // Ctrl/Cmd+Shift+P: Toggle preview pane
+        if (mod && e.shiftKey && e.key === 'P' && !isInput) {
             e.preventDefault();
             const split = document.querySelector('.editor-split');
             if (split) {
@@ -495,10 +495,23 @@ document.addEventListener("DOMContentLoaded", () => {
             const helpModal = document.getElementById('keyboard-help');
             if (helpModal) {
                 helpModal.style.display = 'flex';
-                helpModal.querySelector('.close-btn')?.addEventListener('click', () => {
-                    helpModal.style.display = 'none';
-                }, { once: true });
             }
         }
+    });
+
+    // Modal close button handler
+    document.querySelectorAll('.modal-overlay .close-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.closest('.modal-overlay').style.display = 'none';
+        });
+    });
+
+    // Click outside modal content to close
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.style.display = 'none';
+            }
+        });
     });
 });

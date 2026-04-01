@@ -270,9 +270,14 @@ Dashboard analytics queries are cached in-memory with a 5-minute TTL to prevent 
 
 ### Admin Keyboard Shortcuts
 - `Ctrl+S` / `Cmd+S` — save draft
-- `Ctrl+Shift+P` — toggle preview pane
-- `Ctrl+Enter` — publish post
+- `Ctrl+Shift+P` / `Cmd+Shift+P` — toggle preview pane
+- `Ctrl+Enter` / `Cmd+Enter` — publish post
 - `?` — show keyboard shortcuts modal
+- `Esc` — close modal
+- Modal defined in `app/templates/admin/base.html` (`#keyboard-help` with `.modal-overlay` class)
+- JS handlers in `app/static/js/main.js` use `(e.ctrlKey || e.metaKey)` for cross-platform support
+- Close button and click-outside-to-close bound once on page load (not on each `?` press)
+- Modal CSS in `style.css` under "Keyboard Shortcuts Modal" section (CSP-compliant, no inline styles)
 
 ### Test Fixture Organization
 - `tests/conftest.py` defines fixtures
@@ -356,7 +361,7 @@ See `requirements.txt`. Key packages:
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
 - CSP header: `default-src 'self'` with `style-src 'self' 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `connect-src 'self'`, `frame-src 'none'`, `frame-ancestors 'none'`
-- **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance). Note: `dashboard.html` and `analytics.html` have `onchange` handlers that should be migrated to `main.js` (tracked in plan.md).
+- **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance). All inline `onchange` handlers have been migrated to `main.js`.
 
 ## Security Headers
 

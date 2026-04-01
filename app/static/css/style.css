@@ -2257,6 +2257,88 @@ pre:hover .copy-code-btn { opacity: 1; }
 
 .text-muted { color: var(--text-muted); }
 
+/* --- Keyboard Shortcuts Modal --- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 480px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-content h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 20px;
+}
+
+.shortcut-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.shortcut-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.shortcut-list li:last-child {
+    border-bottom: none;
+}
+
+.shortcut-list kbd {
+    display: inline-block;
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    min-width: 24px;
+    text-align: center;
+}
+
+.shortcut-keys {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.shortcut-keys span {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+}
+
+.shortcut-desc {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.modal-close-btn {
+    margin-top: 16px;
+    width: 100%;
+}
+
 /* --- Phase 8: User management & backup --- */
 .pw-input {
     width: 150px;

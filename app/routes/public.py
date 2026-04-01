@@ -54,6 +54,7 @@ def _get_related_posts(post):
 
 @public.route("/")
 def index():
+    """Paginated list of published posts with tag sidebar."""
     page = request.args.get("page", 1, type=int)
     pagination = db.paginate(
         select(Post)
@@ -77,6 +78,7 @@ def index():
 
 @public.route("/post/<slug>")
 def post(slug):
+    """Single post page with related posts and share tracking."""
     post = db.session.execute(select(Post).filter_by(slug=slug, published=True)).scalar_one_or_none()
     if not post:
         abort(404)
@@ -114,6 +116,7 @@ def post(slug):
 
 @public.route("/tag/<slug>")
 def tag(slug):
+    """Posts filtered by tag with pagination."""
     tag = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
     if not tag:
         abort(404)
@@ -229,6 +232,7 @@ def _fts_search(query: str):
 
 @public.route("/s/<code>")
 def short_url_redirect(code):
+    """Redirect short URL (base62-encoded post ID) to canonical post URL."""
     from app.base62 import decode
     try:
         post_id = decode(code)
@@ -401,6 +405,7 @@ def unsubscribe(token):
 
 @public.route("/robots.txt")
 def robots_txt():
+    """Serve robots.txt with sitemap URL."""
     content = f"User-agent: *\nAllow: /\nSitemap: {BASE_URL}/sitemap.xml\n"
     return Response(content, mimetype="text/plain")
 
@@ -435,11 +440,13 @@ def _generate_sitemap():
 
 @public.route("/sitemap.xml")
 def sitemap_xml():
+    """Stream sitemap XML for all published posts and tags."""
     return Response(_generate_sitemap(), mimetype="application/xml")
 
 
 @public.route("/favicon.ico")
 def favicon():
+    """Redirect to SVG favicon."""
     return Response(status=302, headers={"Location": url_for("static", filename="img/favicon.svg")})
 
 

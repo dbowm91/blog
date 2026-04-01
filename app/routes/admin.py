@@ -228,6 +228,7 @@ def _save_image(file):
 
 @admin.route("/login", methods=["GET", "POST"])
 def login():
+    """Admin login page. POST authenticates admin users only."""
     if current_user.is_authenticated:
         return redirect(url_for("admin.dashboard"))
 
@@ -268,6 +269,7 @@ def newsletter_reset(post_id):
 @admin.route("/logout", methods=["POST"])
 @login_required
 def logout():
+    """Log out the current user and redirect to homepage."""
     logout_user()
     return redirect(url_for("public.index"))
 
@@ -275,6 +277,7 @@ def logout():
 @admin.route("/")
 @admin_required
 def dashboard():
+    """Admin dashboard with post list, search, filter, and site stats."""
     page = request.args.get("page", 1, type=int)
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all")
@@ -356,6 +359,7 @@ def dashboard():
 @admin.route("/new", methods=["GET", "POST"])
 @admin_required
 def new_post():
+    """Create a new post. GET shows editor, POST saves the post."""
     if request.method == "POST":
         title = request.form.get("title", "").strip()[:200]
         body = request.form.get("body", "").strip()
@@ -410,6 +414,7 @@ def new_post():
 @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
 @admin_required
 def edit_post(post_id):
+    """Edit an existing post. GET shows editor with current data, POST saves changes."""
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -486,6 +491,7 @@ def edit_post(post_id):
 @admin.route("/delete/<int:post_id>", methods=["POST"])
 @admin_required
 def delete_post(post_id):
+    """Delete a post and its image file. Cleans up FTS index and orphan tags."""
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -541,6 +547,7 @@ def _get_or_create_tags(names):
 @admin.route("/analytics")
 @admin_required
 def analytics():
+    """Analytics dashboard with views, top posts, referrers, and subscriber stats."""
     days = request.args.get("days", 30, type=int)
     days = min(max(days, 7), 365)
 
@@ -563,6 +570,7 @@ def analytics():
 @admin.route("/preview/<int:post_id>")
 @admin_required
 def preview_post(post_id):
+    """Preview a post (draft or published) with a yellow preview banner."""
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -582,6 +590,7 @@ def preview_post(post_id):
 @admin.route("/subscribers")
 @admin_required
 def subscribers():
+    """Subscriber list with status filter and pagination."""
     page = request.args.get("page", 1, type=int)
     filter_status = request.args.get("status", "all")
 
@@ -610,6 +619,7 @@ def subscribers():
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
 @admin_required
 def delete_subscriber(sub_id):
+    """Delete a single subscriber by ID."""
     sub = db.session.get(Subscriber, sub_id)
     if not sub:
         abort(404)
@@ -623,6 +633,7 @@ def delete_subscriber(sub_id):
 @admin.route("/subscribers/export")
 @admin_required
 def export_subscribers():
+    """Stream CSV export of all subscribers."""
     def generate():
         yield "email,confirmed,created_at,expires_at\n"
         offset = 0
@@ -721,6 +732,7 @@ def preview_markdown():
 @admin.route("/media")
 @admin_required
 def media():
+    """Uploaded media file browser with pagination."""
     page = request.args.get("page", 1, type=int)
     per_page = MEDIA_PER_PAGE
     max_files = MEDIA_MAX_FILES
@@ -751,6 +763,7 @@ def media():
 @admin.route("/media/delete/<filename>", methods=["POST"])
 @admin_required
 def delete_media(filename):
+    """Delete an uploaded media file after path traversal validation."""
     filename = secure_filename(filename)
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     real_path = os.path.realpath(filepath)
@@ -769,6 +782,7 @@ def delete_media(filename):
 @admin.route("/tags")
 @admin_required
 def tags_list():
+    """Tag management page with post counts."""
     from app.models import post_tags
     tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_post_counts = dict(
@@ -783,6 +797,7 @@ def tags_list():
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
 @admin_required
 def rename_tag(tag_id):
+    """Rename a tag, validating uniqueness and name format."""
     tag = db.session.get(Tag, tag_id)
     if not tag:
         abort(404)
@@ -810,6 +825,7 @@ def rename_tag(tag_id):
 @admin.route("/tags/delete/<int:tag_id>", methods=["POST"])
 @admin_required
 def delete_tag(tag_id):
+    """Delete a tag and invalidate the tag cache."""
     tag = db.session.get(Tag, tag_id)
     if not tag:
         abort(404)
@@ -824,6 +840,7 @@ def delete_tag(tag_id):
 @admin.route("/tags/create", methods=["POST"])
 @admin_required
 def create_tag():
+    """Create a new tag with validated name."""
     name = request.form.get("name", "").strip()[:50]
     if not name:
         flash("Tag name cannot be empty.", "error")
@@ -848,6 +865,7 @@ def create_tag():
 @admin.route("/newsletter-test", methods=["POST"])
 @admin_required
 def newsletter_test():
+    """Send a test newsletter to a specified email address."""
     from app.email import send_newsletter
     from app.config import APP_TITLE, FROM_ADDRESS
     posts = (
@@ -958,6 +976,7 @@ def bulk_operations():
 @admin.route("/users")
 @admin_required
 def users_list():
+    """User management page with pagination."""
     page = request.args.get("page", 1, type=int)
     per_page = 20
     pagination = db.paginate(select(User).order_by(User.username), page=page, per_page=per_page, error_out=False)
@@ -967,6 +986,7 @@ def users_list():
 @admin.route("/users/create", methods=["POST"])
 @admin_required
 def create_user():
+    """Create a new user with optional admin privileges."""
     username = request.form.get("username", "").strip()[:80]
     password = request.form.get("password", "").strip()
     is_admin = "is_admin" in request.form
@@ -995,6 +1015,7 @@ def create_user():
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
 def delete_user(user_id):
+    """Delete a user. Prevents self-deletion and last admin removal."""
     user = db.session.get(User, user_id)
     if not user:
         abort(404)
@@ -1015,6 +1036,7 @@ def delete_user(user_id):
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
 def change_password(user_id):
+    """Change a user's password (minimum 8 characters)."""
     user = db.session.get(User, user_id)
     if not user:
         abort(404)
@@ -1035,6 +1057,7 @@ def _get_backup_dir():
 @admin.route("/backup")
 @admin_required
 def backup():
+    """List all database backups with size and modification time."""
     backup_dir = _get_backup_dir()
     backups = []
     if os.path.isdir(backup_dir):
@@ -1053,6 +1076,7 @@ def backup():
 @admin.route("/backup/create", methods=["POST"])
 @admin_required
 def create_backup():
+    """Create a database backup, optionally gzip-compressed."""
     from backup import create_backup as _create_backup
     compress = "compress" in request.form
     db_path = os.path.join(current_app.instance_path, "blog.db")
@@ -1068,6 +1092,7 @@ def create_backup():
 @admin.route("/backup/download/<filename>")
 @admin_required
 def download_backup(filename):
+    """Download a backup file after filename and path validation."""
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()
@@ -1083,6 +1108,7 @@ def download_backup(filename):
 @admin.route("/backup/restore/<filename>", methods=["POST"])
 @admin_required
 def restore_backup(filename):
+    """Restore database from a backup file. Requires app restart."""
     import shutil as _shutil
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
@@ -1103,6 +1129,7 @@ def restore_backup(filename):
 @admin.route("/backup/delete/<filename>", methods=["POST"])
 @admin_required
 def delete_backup(filename):
+    """Delete a backup file after filename and path validation."""
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()

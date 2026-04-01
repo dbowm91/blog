@@ -48,6 +48,35 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div id="keyboard-help" class="modal-overlay" style="display: none;" role="dialog" aria-label="Keyboard shortcuts">
+        <div class="modal-content">
+            <h2>Keyboard Shortcuts</h2>
+            <ul class="shortcut-list">
+                <li>
+                    <span class="shortcut-desc">Save draft</span>
+                    <span class="shortcut-keys"><kbd>Ctrl</kbd><span>+</span><kbd>S</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Publish post</span>
+                    <span class="shortcut-keys"><kbd>Ctrl</kbd><span>+</span><kbd>Enter</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Toggle preview</span>
+                    <span class="shortcut-keys"><kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>P</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Show this help</span>
+                    <span class="shortcut-keys"><kbd>?</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Close modal</span>
+                    <span class="shortcut-keys"><kbd>Esc</kbd></span>
+                </li>
+            </ul>
+            <button class="close-btn btn btn-ghost modal-close-btn">Close</button>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/prism.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/prism-languages.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
