@@ -1,9 +1,9 @@
 <article class="post-full animate-in">
     <div class="post-hero">
         {% if post.image %}
-            <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-hero-img" decoding="async">
+            <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% else %}
-            <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-hero-img" decoding="async">
+            <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% endif %}
         <div class="post-hero-overlay"></div>
         <div class="post-hero-content">
@@ -35,7 +35,7 @@
 
     <div class="author-card">
         {% if author_avatar %}
-            <img src="{{ author_avatar }}" alt="{{ author_name }}" class="author-avatar" decoding="async">
+            <img src="{{ author_avatar }}" alt="{{ author_name }}" class="author-avatar" loading="lazy" decoding="async" width="56" height="56">
         {% else %}
             <div class="author-avatar author-avatar-placeholder">
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>

@@ -1,6 +1,10 @@
 import os
+from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import select
+
+if TYPE_CHECKING:
+    from apscheduler.schedulers.background import BackgroundScheduler
 
 __all__ = ["init_scheduler", "get_scheduler_status"]
 
@@ -13,12 +17,12 @@ except ImportError:
 _scheduler_running = False
 
 
-def get_scheduler_status():
+def get_scheduler_status() -> bool:
     """Return whether the scheduler is running."""
     return _scheduler_running
 
 
-def send_daily_newsletter(app):
+def send_daily_newsletter(app) -> None:
     lock_path = os.path.join(app.instance_path, "newsletter.lock")
     lock_file = None
     try:
@@ -59,10 +63,9 @@ def send_daily_newsletter(app):
                     select(Subscriber)
                     .filter_by(confirmed=True)
                     .filter(Subscriber.unsubscribed_at.is_(None))
-                ).scalars().all()
+                    .yield_per(500)
+                ).scalars()
             )
-            if not subscribers:
-                return
 
             success = send_newsletter(posts, subscribers)
 
@@ -88,7 +91,7 @@ def send_daily_newsletter(app):
                 pass
 
 
-def cleanup_expired_subscribers(app):
+def cleanup_expired_subscribers(app) -> None:
     """Remove unconfirmed subscribers whose confirmation window has expired."""
     lock_path = os.path.join(app.instance_path, "cleanup.lock")
     lock_file = None
@@ -136,7 +139,7 @@ def cleanup_expired_subscribers(app):
                 pass
 
 
-def publish_scheduled_posts(app):
+def publish_scheduled_posts(app) -> None:
     """Auto-publish posts whose scheduled_publish_at time has passed."""
     lock_path = os.path.join(app.instance_path, "scheduled.lock")
     lock_file = None
@@ -192,7 +195,7 @@ def publish_scheduled_posts(app):
                 pass
 
 
-def init_scheduler(app):
+def init_scheduler(app) -> Optional["BackgroundScheduler"]:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
     import atexit

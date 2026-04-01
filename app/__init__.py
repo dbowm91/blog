@@ -93,12 +93,21 @@ def create_app():
 
     @app.errorhandler(404)
     def not_found(e):
-        return render_template("404.html"), 404
+        from app.models import Post
+        recent_posts = db.session.execute(
+            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(5)
+        ).scalars().all()
+        return render_template("404.html", recent_posts=recent_posts), 404
 
     @app.errorhandler(500)
     def internal_error(e):
+        from app.models import Post
         db.session.rollback()
-        return render_template("500.html"), 500
+        app.logger.exception("Unhandled exception on %s", req.path)
+        recent_posts = db.session.execute(
+            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(5)
+        ).scalars().all()
+        return render_template("500.html", recent_posts=recent_posts), 500
 
     @app.errorhandler(413)
     def handle_large_request(e):
@@ -212,7 +221,37 @@ def create_app():
             "author_role": AUTHOR_ROLE,
             "author_avatar": AUTHOR_AVATAR,
             "base_url": BASE_URL,
+            "current_year": 2026,
         }
+
+    @app.context_processor
+    def inject_footer_data():
+        from datetime import datetime
+        from app.models import Post, Tag
+        from app.cache import _get_tag_counts
+        try:
+            recent_posts = db.session.execute(
+                select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(3)
+            ).scalars().all()
+            footer_tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+            tag_counts = _get_tag_counts()
+            return {
+                "recent_posts_footer": recent_posts,
+                "footer_tags": footer_tags,
+                "footer_tag_counts": tag_counts,
+            }
+        except Exception:
+            return {
+                "recent_posts_footer": [],
+                "footer_tags": [],
+                "footer_tag_counts": {},
+            }
+
+    @app.context_processor
+    def inject_show_footer_posts():
+        from flask import request
+        path = request.path
+        return {"show_footer_posts": not (path.startswith("/search") or path.startswith("/tag/"))}
 
     with app.app_context():
         from app.models import User
@@ -220,7 +259,7 @@ def create_app():
         from sqlalchemy.exc import IntegrityError, OperationalError
 
         try:
-            existing_user = db.session.execute(db.select(User)).scalar_one_or_none()
+            existing_user = db.session.execute(db.select(User).order_by(User.id)).scalar_one_or_none()
             if not existing_user:
                 user = User(username=ADMIN_USERNAME, is_admin=True)
                 user.set_password(ADMIN_PASSWORD)

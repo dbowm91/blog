@@ -136,7 +136,7 @@ class TestMultiAdmin:
         """Admin can create a new user."""
         response = authenticated_client.post('/admin/users/create', data={
             'username': 'newuser',
-            'password': 'password123',
+            'password': 'Password123!',
         }, follow_redirects=True)
         assert response.status_code == 200
         user = db.session.execute(select(User).filter_by(username='newuser')).scalar_one_or_none()
@@ -147,7 +147,7 @@ class TestMultiAdmin:
         """Admin can create a new admin user."""
         response = authenticated_client.post('/admin/users/create', data={
             'username': 'newadmin',
-            'password': 'password123',
+            'password': 'Password123!',
             'is_admin': 'on',
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -159,11 +159,11 @@ class TestMultiAdmin:
         """Cannot create user with existing username."""
         authenticated_client.post('/admin/users/create', data={
             'username': 'dupuser',
-            'password': 'password123',
+            'password': 'Password123!',
         })
         response = authenticated_client.post('/admin/users/create', data={
             'username': 'dupuser',
-            'password': 'password456',
+            'password': 'Password456!',
         }, follow_redirects=True)
         assert b'already exists' in response.data
 
@@ -236,11 +236,11 @@ class TestMultiAdmin:
         """Admin can change a user's password."""
         response = authenticated_client.post(
             f'/admin/users/password/{admin_user.id}',
-            data={'password': 'newpassword123'},
+            data={'password': 'Newpassword123!'},
             follow_redirects=True,
         )
         assert response.status_code == 200
-        assert admin_user.check_password('newpassword123')
+        assert admin_user.check_password('Newpassword123!')
 
     def test_change_password_short(self, client, db, authenticated_client, admin_user):
         """Cannot set a short password."""

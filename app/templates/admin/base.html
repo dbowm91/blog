@@ -10,22 +10,27 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="admin-body">
+    <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <nav class="navbar admin-nav">
         <div class="container nav-container">
-            <a href="{{ url_for('admin.dashboard') }}" class="nav-logo">
-                <span class="logo-bracket">{</span>Admin<span class="logo-bracket">}</span>
-            </a>
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-logo">
+                    <span class="logo-bracket">{</span>Admin<span class="logo-bracket">}</span>
+                </a>
             <div class="nav-links">
-                <a href="{{ url_for('public.index') }}">View Site</a>
+                <a href="{{ url_for('public.index') }}" {% if request.endpoint and not request.endpoint.startswith('admin.') %}aria-current="page" class="active"{% endif %}>View Site</a>
                 {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
-                    <a href="{{ url_for('admin.analytics') }}">Analytics</a>
-                    <a href="{{ url_for('admin.subscribers') }}">Subscribers</a>
-                    <a href="{{ url_for('admin.media') }}">Media</a>
-                    <a href="{{ url_for('admin.tags_list') }}">Tags</a>
-                    <a href="{{ url_for('admin.users_list') }}">Users</a>
-                    <a href="{{ url_for('admin.sessions_list') }}">Sessions</a>
-                    <a href="{{ url_for('admin.backup') }}">Backups</a>
+                    <span class="nav-separator" aria-hidden="true"></span>
+                    <a href="{{ url_for('admin.dashboard') }}" {% if request.endpoint == 'admin.dashboard' %}aria-current="page" class="active"{% endif %}>Dashboard</a>
+                    <a href="{{ url_for('admin.analytics') }}" {% if request.endpoint == 'admin.analytics' %}aria-current="page" class="active"{% endif %}>Analytics</a>
+                    <span class="nav-separator" aria-hidden="true"></span>
+                    <a href="{{ url_for('admin.subscribers') }}" {% if request.endpoint == 'admin.subscribers' %}aria-current="page" class="active"{% endif %}>Subscribers</a>
+                    <a href="{{ url_for('admin.media') }}" {% if request.endpoint == 'admin.media' %}aria-current="page" class="active"{% endif %}>Media</a>
+                    <span class="nav-separator" aria-hidden="true"></span>
+                    <a href="{{ url_for('admin.tags_list') }}" {% if request.endpoint == 'admin.tags_list' %}aria-current="page" class="active"{% endif %}>Tags</a>
+                    <a href="{{ url_for('admin.users_list') }}" {% if request.endpoint == 'admin.users_list' %}aria-current="page" class="active"{% endif %}>Users</a>
+                    <a href="{{ url_for('admin.sessions_list') }}" {% if request.endpoint == 'admin.sessions_list' %}aria-current="page" class="active"{% endif %}>Sessions</a>
+                    <a href="{{ url_for('admin.backup') }}" {% if request.endpoint == 'admin.backup' %}aria-current="page" class="active"{% endif %}>Backups</a>
+                    <span class="nav-separator" aria-hidden="true"></span>
                     <form method="POST" action="{{ url_for('admin.logout') }}" class="inline-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="nav-link-btn">Logout</button>

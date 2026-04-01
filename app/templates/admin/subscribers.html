@@ -52,7 +52,10 @@
                     </div>
                 </div>
             {% else %}
-                <p class="empty-state">No subscribers found.</p>
+                <div class="empty-state">
+                    <h3>No subscribers yet</h3>
+                    <p>Share your blog to start building an audience.</p>
+                </div>
             {% endfor %}
         </div>
     </form>
@@ -80,6 +83,8 @@
         var checked = form.querySelectorAll('.bulk-checkbox:checked');
         if (checked.length > 0) {
             bulkActions.classList.remove('hidden');
+            var srAnnounce = document.getElementById('sr-announce');
+            if (srAnnounce) srAnnounce.textContent = checked.length + ' subscriber' + (checked.length === 1 ? '' : 's') + ' selected';
         } else {
             bulkActions.classList.add('hidden');
         }

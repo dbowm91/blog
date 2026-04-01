@@ -1,11 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Search: {{ query }} - {{ site_title }}{% endblock %}
-
 {% block content %}
     <section class="hero">
         <h1 class="hero-title">Search Results</h1>
-        <p class="hero-description">
+        <p class="hero-description" aria-live="polite" id="search-result-count">
             {% if posts %}
                 Found {{ pagination.total }} result{{ 's' if pagination.total != 1 }} for "{{ query }}"
             {% else %}
@@ -19,9 +17,9 @@
             {% for post in posts %}
                 <article class="post-card animate-in">
                     {% if post.image %}
-                        <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async">
+                        <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
                     {% else %}
-                        <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async">
+                        <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
                     {% endif %}
                     <div class="post-card-body">
                         <div class="post-meta">
@@ -60,4 +58,14 @@
 
         {% include "_sidebar.html" %}
     </div>
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var el = document.getElementById('search-result-count');
+    if (el) {
+        var text = el.textContent.trim();
+        var live = document.getElementById('sr-announce');
+        if (live) live.textContent = text;
+    }
+})();
+</script>
 {% endblock %}

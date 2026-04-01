@@ -180,6 +180,9 @@ The `nh3.clean()` allowed tags/attributes are defined in `app/markdown_config.py
 ### Subscribe Exception Handling
 The `subscribe()` route in `public.py` catches specific SMTP/connection exceptions from `send_confirmation()` to mask email failures from users (they're already subscribed in the DB). Programming errors are no longer swallowed.
 
+### Subscribe Race Condition
+Two concurrent subscribe requests with the same email can both pass the `scalar_one_or_none()` check, then both try to insert. The unique constraint causes an unhandled `IntegrityError` → 500. Fixed by wrapping insert + commit in `try/except IntegrityError` and re-querying on collision.
+
 ### IntegrityError Rollback Gotcha
 In `edit_post()`, `db.session.rollback()` reverts ALL session changes, not just the failing commit. After rollback, SQLAlchemy marks all attributes as expired and will re-read from DB on next access. If you only re-set one field (e.g., slug) and commit, all other edits are silently lost. Always reapply all field changes after rollback.
 
@@ -216,7 +219,8 @@ Post.title.ilike(search_term, escape="\\")
 - `app/search.py` — `init_fts()` creates FTS5 virtual table `posts_fts` (title, body, summary)
 - FTS index synced via `sync_fts()` on post create/edit/publish/unpublish/delete
 - `rebuild_fts()` does full index rebuild (`posts_fts rebuild`)
-- Search route (`app/routes/public.py`) tries FTS5 MATCH first, falls back to LIKE on any error
+- `search(query)` in `app/search.py` returns matching post IDs from FTS5
+- Search route (`app/routes/public.py`) imports `search` from `app/search.py`, falls back to LIKE on any error
 - LIKE fallback filters by `Post.published == True` (FTS doesn't have a published column)
 - FTS table check via `sqlite_master` query before attempting MATCH (avoids error spam)
 - FTS MATCH query has `LIMIT 100` to prevent unbounded results
@@ -227,7 +231,8 @@ Post.title.ilike(search_term, escape="\\")
 - `flask create-admin` CLI command creates or promotes admin users (prompts for username/password)
 - User management UI at `/admin/users` (list, create, delete, change password)
 - Safety guards: cannot delete own account, cannot delete last admin, min 8-char password
-- First user auto-promoted to admin in `create_app()`
+- First user auto-promoted to admin in `create_app()` (deterministic: `order_by(User.id)`)
+- **Password complexity:** Requires at least 3 of 4 character classes (lowercase, uppercase, digit, special). Minimum 8 characters. Existing tests use passwords like `Password123!` to meet requirements.
 
 ### UTCDateTime TypeDecorator
 `UTCDateTime` in `app/utils.py` stores naive UTC in SQLite but always returns timezone-aware UTC. On bind, it strips timezone info (`.replace(tzinfo=None)`). On result, it adds UTC timezone to naive values. Existing naive rows are interpreted as UTC on read. This ensures all comparisons are timezone-aware while SQLite compatibility is maintained.
@@ -265,10 +270,14 @@ SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads
 `flask rebuild-search` command rebuilds the FTS5 search index from scratch. Useful after importing data or recovering from index corruption.
 
 ### Analytics Caching
-Dashboard analytics queries are cached in-memory with a 5-minute TTL to prevent slow page loads. Cache is invalidated whenever post data changes.
+Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in admin.py) to prevent slow page loads. Cache key is the `days` parameter. Cache is invalidated whenever post data changes. In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key.
 
 ### Subscriber CSV Export
 `/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.
+
+### Subscriber Bulk Operations
+- `POST /admin/subscribers/bulk` — handles `delete` and `export` actions for selected subscribers
+- Checkbox selection on subscribers page with "Select All" toggle
 
 ### Subscriber Bulk Operations
 - `POST /admin/subscribers/bulk` — handles `delete` and `export` actions for selected subscribers
@@ -280,8 +289,10 @@ Dashboard analytics queries are cached in-memory with a 5-minute TTL to prevent 
 - `Ctrl+Enter` / `Cmd+Enter` — publish post
 - `?` — show keyboard shortcuts modal
 - `Esc` — close modal
+- `g` then `d/p/s/t` — vim-style navigation (Dashboard, Posts, Subscribers, Tags). 500ms timeout between keys.
 - Modal defined in `app/templates/admin/base.html` (`#keyboard-help` with `.modal-overlay` class)
 - JS handlers in `app/static/js/main.js` use `(e.ctrlKey || e.metaKey)` for cross-platform support
+- `e.preventDefault()` scoped inside each `if (target)` block — only prevents default when target element exists
 - Close button and click-outside-to-close bound once on page load (not on each `?` press)
 - Modal CSS in `style.css` under "Keyboard Shortcuts Modal" section (CSP-compliant, no inline styles)
 
@@ -304,11 +315,11 @@ Admin sessions expire after inactivity (default 24 hours, configurable via `sess
 ### CSS Variable Deduplication
 The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `--text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
 
-### CSV Export Pitfalls
-CSV exports in `export_subscribers()` and `subscribers_bulk()` use f-string formatting, which breaks on emails containing commas or quotes. When fixing, use `csv.writer` — the `csv` module is already imported but unused. Also consider CSV formula injection protection (prefix `=`, `+`, `-`, `@` with `'`).
+### CSV Export
+CSV exports in `export_subscribers()` and `subscribers_bulk()` use `csv.writer` via `io.StringIO`. Cells starting with `=`, `+`, `-`, `@` are prefixed with `'` to prevent CSV formula injection.
 
-### Mobile Nav Class Mismatch
-CSS animation is defined on `.nav-links.active` but JS toggles `.nav-links.open`. The `slideInRight` animation never fires. When fixing, change CSS to match `.nav-links.open`, and gate the `::before` backdrop overlay on `.nav-links.open::before` (currently it shows unconditionally in mobile media query).
+### Mobile Nav Class
+CSS animation is defined on `.nav-links.open` (matches JS toggle). The `::before` backdrop overlay is gated on `.nav-links.open::before`.
 
 ## Assets
 
@@ -359,6 +370,7 @@ See `requirements.txt`. Key packages:
 - `POST /admin/backup/delete/<filename>` — deletes a backup file
 - Backups stored in `instance/backups/` directory
 - Filename validation via `^blog_\d{8}_\d{6}\.db(\.gz)?$` regex (prevents path traversal)
+- Compressed backup restore: detects `.gz` suffix and decompresses via `gzip` to temp file before copying
 
 ## Templates
 
@@ -396,6 +408,19 @@ The `set_security_headers` after-request handler sets:
 - Toggle button injected into navbar via JS (both public and admin)
 - SVG sun/moon icons swap on toggle
 
+## Navbar Scroll Behavior
+
+- CSS class toggle `.navbar-shrunk` replaces inline style manipulation
+- `transition: padding 0.2s ease` on `.navbar` (disabled via `prefers-reduced-motion`)
+- `navbar.classList.toggle('navbar-shrunk', window.scrollY > 60)` in scroll handler
+
+## Post Enhancements
+
+- **Table of Contents:** Generated from `.prose h2/h3` headings, sticky sidebar on desktop, IntersectionObserver highlights current section. Appears when article has 3+ headings.
+- **Last Updated Indicator:** Shows "Updated: {date}" when `post.updated_at > post.created_at`.
+- **Image Lightbox:** Click `.prose img` opens full-size overlay. Escape/click-outside to close.
+- **Breadcrumbs:** Home > Tag > Post Title trail on post and tag pages.
+
 ## Draft Autosave
 
 - Saved to `localStorage` with key `draft-<post_id>` or `draft-new`
@@ -422,7 +447,7 @@ The `set_security_headers` after-request handler sets:
 
 - `_cleanup_orphan_tags()` in `admin.py` removes tags with zero associated posts
 - Does NOT call `db.session.commit()` — callers are responsible for committing
-- **Known bug:** Currently called AFTER `db.session.commit()` in all three callers (`edit_post`, `delete_post`, `bulk_operations`), so orphan deletions are never persisted. Must be moved BEFORE commit.
+- Called BEFORE `db.session.commit()` in `edit_post`, `delete_post`, and `bulk_operations` (delete branch)
 - Called after `invalidate_tag_cache()` in `delete_post()`, `edit_post()`, and `bulk_operations()` delete branch
 
 ## Dashboard Search/Filter

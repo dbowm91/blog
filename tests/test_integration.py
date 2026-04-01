@@ -313,7 +313,7 @@ class TestUserManagement:
         # -- Create user --
         resp = authenticated_client.post('/admin/users/create', data={
             'username': 'editor',
-            'password': 'editorpass123',
+            'password': 'Editorpass123!',
         }, follow_redirects=True)
         assert resp.status_code == 200
         assert b'User' in resp.data and b'created' in resp.data
@@ -326,14 +326,14 @@ class TestUserManagement:
         # -- Change password --
         resp = authenticated_client.post(
             f'/admin/users/password/{new_user.id}',
-            data={'password': 'newpassword456'},
+            data={'password': 'Newpassword456!'},
             follow_redirects=True)
         assert resp.status_code == 200
         assert b'Password changed' in resp.data
 
         db.session.refresh(new_user)
-        assert new_user.check_password('newpassword456')
-        assert not new_user.check_password('editorpass123')
+        assert new_user.check_password('Newpassword456!')
+        assert not new_user.check_password('Editorpass123!')
 
         # -- Delete user --
         resp = authenticated_client.post(

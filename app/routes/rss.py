@@ -16,7 +16,7 @@ def _strip_markdown(text: str) -> str:
 
 
 @rss.route("/rss")
-def feed():
+def feed() -> Response:
     posts = (
         db.session.execute(
             select(Post)

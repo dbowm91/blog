@@ -76,6 +76,7 @@ MEDIA_MAX_FILES = int(_config["app"].get("media_max_files", 1000))
 
 def _validate_config(config: dict) -> None:
     errors = []
+
     send_time = config.get("newsletter", {}).get("send_time", "08:00")
     try:
         parts = send_time.split(":")
@@ -97,7 +98,6 @@ def _validate_config(config: dict) -> None:
     except (ValueError, TypeError):
         errors.append(f"Invalid confirmation_expiry_hours: {expiry_hours}. Must be a positive integer")
 
-    # SMTP config validation
     smtp_host = config.get("email", {}).get("smtp_host", "")
     smtp_port = config.get("email", {}).get("smtp_port", 587)
     if smtp_host:
@@ -108,7 +108,6 @@ def _validate_config(config: dict) -> None:
         except (ValueError, TypeError):
             errors.append(f"Invalid smtp_port: {smtp_port}. Must be 1-65535")
 
-    # Pagination config validation
     for key in ["dashboard_per_page", "subscribers_per_page", "media_per_page", "media_max_files"]:
         val = config.get("app", {}).get(key)
         if val is not None:
@@ -119,14 +118,9 @@ def _validate_config(config: dict) -> None:
             except (ValueError, TypeError):
                 errors.append(f"Invalid {key}: {val}. Must be a positive integer")
 
-    if errors:
-        raise RuntimeError("Config errors:\n" + "\n".join(errors))
-
-    # base_url validation
     base_url = config.get("site", {}).get("base_url", "")
-    if base_url:
-        if not base_url.startswith(("http://", "https://")):
-            errors.append(f"Invalid base_url: {base_url}. Must start with http:// or https://")
+    if base_url and not base_url.startswith(("http://", "https://")):
+        errors.append(f"Invalid base_url: {base_url}. Must start with http:// or https://")
 
     if errors:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))

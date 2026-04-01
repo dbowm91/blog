@@ -34,6 +34,7 @@
 </head>
 <body class="public-body">
     <div class="reading-progress" id="reading-progress"></div>
+    <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <nav class="navbar">
         <div class="container nav-container">
@@ -41,13 +42,13 @@
                 <span class="logo-bracket">{</span>{{ site_title }}<span class="logo-bracket">}</span>
             </a>
             <div class="nav-links">
-                <a href="{{ url_for('public.index') }}">Posts</a>
+                <a href="{{ url_for('public.index') }}" {% if request.endpoint == 'public.index' %}aria-current="page" class="active"{% endif %}>Posts</a>
                 <form action="{{ url_for('public.search') }}" method="GET" class="search-form" aria-label="Search posts">
                     <input type="text" name="q" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
                     <button type="submit" class="search-btn" aria-label="Submit search"><span class="btn-text">Search</span></button>
                 </form>
                 {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+                    <a href="{{ url_for('admin.dashboard') }}" {% if request.endpoint and request.endpoint.startswith('admin.') %}aria-current="page" class="active"{% endif %}>Dashboard</a>
                     <form method="POST" action="{{ url_for('admin.logout') }}" class="inline-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="nav-link-btn">Logout</button>
@@ -72,8 +73,37 @@
     </main>
 
     <footer class="footer" id="footer">
-        <div class="container footer-content">
-            <p>&copy; {{ site_title }}. Built with Flask.</p>
+        <div class="container footer-grid">
+            {% if show_footer_posts %}
+            <div class="footer-section">
+                <h3 class="footer-heading">Recent Posts</h3>
+                <ul class="footer-links">
+                    {% for post in recent_posts_footer %}
+                    <li><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            <div class="footer-section">
+                <h3 class="footer-heading">Tags</h3>
+                <div class="footer-tags">
+                    {% for tag in footer_tags[:10] %}
+                    <a href="{{ url_for('public.tag', slug=tag.slug) }}" class="tag tag-sidebar">{{ tag.name }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3 class="footer-heading">Subscribe</h3>
+                <p class="footer-subscribe-text">Get notified of new posts via email.</p>
+                <form action="{{ url_for('public.subscribe') }}" method="POST" class="subscribe-form-footer">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="email" name="email" placeholder="your@email.com" required aria-label="Email address">
+                    <button type="submit" class="btn btn-primary btn-small">Subscribe</button>
+                </form>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <p>&copy; {% if current_year and current_year != 2026 %}{{ current_year }} - {% endif %}{{ current_year }} {{ site_title }}. Built with Flask.</p>
         </div>
     </footer>
 

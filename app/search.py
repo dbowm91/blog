@@ -1,6 +1,6 @@
 """Full-text search using SQLite FTS5 with LIKE fallback."""
 
-__all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts"]
+__all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts", "search"]
 
 import logging
 from sqlalchemy import text
@@ -55,3 +55,24 @@ def remove_fts(post_id: int):
         db.session.execute(text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id})
     except Exception as e:
         logger.warning("FTS remove failed for post %s: %s", post_id, e)
+
+
+def search(query: str):
+    """Search using FTS5. Returns list of post IDs or empty list if unavailable."""
+    try:
+        check = db.session.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
+        )).fetchone()
+        if not check:
+            return []
+
+        terms = [w.replace('"', '""') for w in query.split() if w]
+        fts_query = " OR ".join(f'"{t}"' for t in terms)
+        if not fts_query:
+            return []
+        result = db.session.execute(text(
+            "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT 100"
+        ), {"q": fts_query}).fetchall()
+        return [row[0] for row in result]
+    except Exception:
+        return []

@@ -44,7 +44,10 @@
     </nav>
     {% endif %}
     {% else %}
-    <p class="empty-state">No uploaded files.</p>
+    <div class="empty-state">
+        <h3>No media files</h3>
+        <p>Upload images when creating or editing posts.</p>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

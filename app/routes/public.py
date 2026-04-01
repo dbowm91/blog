@@ -6,6 +6,7 @@ from urllib.parse import urlparse, urlunparse
 
 from flask import Blueprint, abort, render_template, request, redirect, jsonify, flash, session, Response, url_for
 from sqlalchemy import func, or_, select, text
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 import logging
 
@@ -15,7 +16,8 @@ from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED
 
 from app.email import send_confirmation
 from app.utils import xml_escape, is_valid_email, utc_now
-from app.cache import invalidate_tag_cache, _get_tag_counts
+from app.cache import _get_tag_counts
+from app.search import search as _fts_search
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,7 @@ def _get_related_posts(post):
 
 
 @public.route("/")
-def index():
+def index() -> Response:
     """Paginated list of published posts with tag sidebar."""
     page = request.args.get("page", 1, type=int)
     pagination = db.paginate(
@@ -77,7 +79,7 @@ def index():
 
 
 @public.route("/post/<slug>")
-def post(slug):
+def post(slug) -> Response:
     """Single post page with related posts and share tracking."""
     post = db.session.execute(select(Post).filter_by(slug=slug, published=True)).scalar_one_or_none()
     if not post:
@@ -95,7 +97,10 @@ def post(slug):
             referrer=referrer,
         )
         db.session.add(pv)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
         viewed.append(post.id)
         if len(viewed) > MAX_VIEWED_POSTS:
             viewed = viewed[-MAX_VIEWED_POSTS:]
@@ -115,7 +120,7 @@ def post(slug):
 
 
 @public.route("/tag/<slug>")
-def tag(slug):
+def tag(slug) -> Response:
     """Posts filtered by tag with pagination."""
     tag = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
     if not tag:
@@ -145,7 +150,7 @@ def tag(slug):
 
 
 @public.route("/search")
-def search():
+def search() -> Response:
     """Full-text search for published posts.
 
     Query params:
@@ -209,29 +214,8 @@ def search():
     )
 
 
-def _fts_search(query: str):
-    """Search using FTS5. Returns list of post IDs or empty list if unavailable."""
-    try:
-        check = db.session.execute(text(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
-        )).fetchone()
-        if not check:
-            return []
-
-        terms = [w.replace('"', '""') for w in query.split() if w]
-        fts_query = " OR ".join(f'"{t}"' for t in terms)
-        if not fts_query:
-            return []
-        result = db.session.execute(text(
-            "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT 100"
-        ), {"q": fts_query}).fetchall()
-        return [row[0] for row in result]
-    except Exception:
-        return []
-
-
 @public.route("/s/<code>")
-def short_url_redirect(code):
+def short_url_redirect(code) -> Response:
     """Redirect short URL (base62-encoded post ID) to canonical post URL."""
     from app.base62 import decode
     try:
@@ -250,7 +234,7 @@ def short_url_redirect(code):
 
 
 @public.route("/api/track-share", methods=["POST"])
-def track_share():
+def track_share() -> Response:
     """Track social share events.
     
     Request body (JSON):
@@ -278,7 +262,11 @@ def track_share():
 
     event = ShareEvent(post_id=post.id, platform=platform)
     db.session.add(event)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        return jsonify({"error": "database error"}), 500
     return jsonify({"ok": True})
 
 
@@ -293,7 +281,7 @@ def _try_send_confirmation(subscriber):
 
 
 @public.route("/subscribe", methods=["POST"])
-def subscribe():
+def subscribe() -> Response:
     """Subscribe to the newsletter.
 
     Form params:
@@ -335,7 +323,25 @@ def subscribe():
 
     sub = Subscriber(email=email, expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS))
     db.session.add(sub)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existing = db.session.execute(select(Subscriber).filter_by(email=email)).scalar_one_or_none()
+        if existing:
+            if existing.confirmed:
+                flash("Check your inbox to confirm your subscription.", "success")
+            else:
+                existing.token = uuid.uuid4().hex
+                existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
+                db.session.commit()
+                if _try_send_confirmation(existing):
+                    flash("Check your inbox to confirm your subscription.", "success")
+                else:
+                    flash("Subscribed, but confirmation email could not be sent.", "error")
+        else:
+            flash("Please enter a valid email address.", "error")
+        return redirect(_safe_redirect_url())
 
     if _try_send_confirmation(sub):
         flash("Check your inbox to confirm your subscription.", "success")
@@ -346,7 +352,7 @@ def subscribe():
 
 
 @public.route("/confirm/<token>")
-def confirm(token):
+def confirm(token) -> Response:
     """Confirm newsletter subscription via token.
 
     Path params:
@@ -379,7 +385,7 @@ def confirm(token):
 
 
 @public.route("/unsubscribe/<token>")
-def unsubscribe(token):
+def unsubscribe(token) -> Response:
     """Unsubscribe from the newsletter via token.
 
     Path params:
@@ -396,15 +402,17 @@ def unsubscribe(token):
         flash("You have been unsubscribed.", "success")
         return redirect("/")
     # Soft delete: set unsubscribed_at and mark unconfirmed
+    sub_email = sub.email
     sub.unsubscribed_at = utc_now()
     sub.confirmed = False
     db.session.commit()
+    logger.info("Unsubscribed: email=%s", sub_email)
     flash("You have been unsubscribed.", "success")
     return redirect("/")
 
 
 @public.route("/robots.txt")
-def robots_txt():
+def robots_txt() -> Response:
     """Serve robots.txt with sitemap URL."""
     content = f"User-agent: *\nAllow: /\nSitemap: {BASE_URL}/sitemap.xml\n"
     return Response(content, mimetype="text/plain")
@@ -439,19 +447,19 @@ def _generate_sitemap():
 
 
 @public.route("/sitemap.xml")
-def sitemap_xml():
+def sitemap_xml() -> Response:
     """Stream sitemap XML for all published posts and tags."""
     return Response(_generate_sitemap(), mimetype="application/xml")
 
 
 @public.route("/favicon.ico")
-def favicon():
+def favicon() -> Response:
     """Redirect to SVG favicon."""
     return Response(status=302, headers={"Location": url_for("static", filename="img/favicon.svg")})
 
 
 @public.route("/health")
-def health_check():
+def health_check() -> Response:
     """Health check endpoint for monitoring.
 
     Response:

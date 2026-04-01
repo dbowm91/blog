@@ -3,6 +3,7 @@ import ssl
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Optional
 
 from flask import render_template
 
@@ -14,7 +15,7 @@ from app.config import (
 logger = logging.getLogger(__name__)
 
 
-def _send_email(to, subject, html_body, text_body=None):
+def _send_email(to: str, subject: str, html_body: str, text_body: Optional[str] = None) -> None:
     msg = MIMEMultipart("alternative")
     msg["From"] = FROM_ADDRESS
     msg["To"] = to
@@ -34,7 +35,7 @@ def _send_email(to, subject, html_body, text_body=None):
         server.sendmail(FROM_ADDRESS, to, msg.as_string())
 
 
-def send_confirmation(subscriber):
+def send_confirmation(subscriber) -> None:
     unsub_url = f"{BASE_URL}/unsubscribe/{subscriber.token}"
     html = render_template(
         "email/confirm.html",
@@ -51,7 +52,7 @@ def send_confirmation(subscriber):
     _send_email(subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text)
 
 
-def _connect_smtp():
+def _connect_smtp() -> Optional[smtplib.SMTP]:
     """Open an authenticated SMTP connection. Returns None on failure."""
     try:
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
@@ -67,7 +68,7 @@ def _connect_smtp():
         return None
 
 
-def send_newsletter(posts, subscribers):
+def send_newsletter(posts, subscribers) -> bool:
     if not posts or not subscribers:
         return True
 

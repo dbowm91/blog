@@ -2,9 +2,11 @@ import csv
 import io
 import os
 import re
+import secrets
 import uuid
 import time
 import threading
+import logging
 
 from functools import wraps
 
@@ -13,7 +15,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from datetime import datetime, timedelta, timezone
 
@@ -29,9 +31,33 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 TAG_NAME_REGEX = re.compile(r"^[\w\s-]+$")
 BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
 
+logger = logging.getLogger(__name__)
+
 _analytics_cache = {}
 _analytics_cache_lock = threading.Lock()
 _ANALYTICS_CACHE_TTL = 300
+
+
+def _categorize_referrer(url):
+    if not url:
+        return "Direct"
+    url_lower = url.lower()
+    if "google" in url_lower or "bing" in url_lower or "yahoo" in url_lower or "duckduckgo" in url_lower:
+        return "Search"
+    if "twitter" in url_lower or "facebook" in url_lower or "linkedin" in url_lower or "reddit" in url_lower:
+        return "Social"
+    return "Other"
+
+
+def _check_password_complexity(password: str) -> bool:
+    """Check password has at least 3 of 4: lowercase, uppercase, digit, special."""
+    if len(password) < 8:
+        return False
+    has_lower = any(c.islower() for c in password)
+    has_upper = any(c.isupper() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(not c.isalnum() for c in password)
+    return sum([has_lower, has_upper, has_digit, has_special]) >= 3
 
 
 def _get_posts_query(status: str, search: str, order_by=None):
@@ -121,19 +147,9 @@ def _get_analytics_data(days: int):
         ).all()
     )
 
-    def categorize_referrer(url):
-        if not url:
-            return "Direct"
-        url_lower = url.lower()
-        if "google" in url_lower or "bing" in url_lower or "yahoo" in url_lower or "duckduckgo" in url_lower:
-            return "Search"
-        if "twitter" in url_lower or "facebook" in url_lower or "linkedin" in url_lower or "reddit" in url_lower:
-            return "Social"
-        return "Other"
-
     referrer_summary = {}
     for url, count in referrer_data:
-        category = categorize_referrer(url)
+        category = _categorize_referrer(url)
         referrer_summary[category] = referrer_summary.get(category, 0) + count
 
     total_subscribers = db.session.execute(select(func.count(Subscriber.id))).scalar_one() or 0
@@ -227,7 +243,7 @@ def _save_image(file):
 
 
 @admin.route("/login", methods=["GET", "POST"])
-def login():
+def login() -> Response:
     """Admin login page. POST authenticates admin users only."""
     if current_user.is_authenticated:
         return redirect(url_for("admin.dashboard"))
@@ -239,7 +255,6 @@ def login():
         if user and user.check_password(password) and user.is_admin:
             login_user(user)
             # Track admin session
-            import secrets
             sid = secrets.token_hex(32)
             admin_session = AdminSession(
                 user_id=user.id,
@@ -258,7 +273,7 @@ def login():
 
 @admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
 @admin_required
-def newsletter_reset(post_id):
+def newsletter_reset(post_id) -> Response:
     """Reset newsletter sent flag for a post.
 
     Path params:
@@ -273,14 +288,19 @@ def newsletter_reset(post_id):
         abort(404)
     post.newsletter_sent_at = None
     post.newsletter_attempts = 0
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.dashboard"))
     flash(f"Newsletter flag reset for '{post.title}'. It will be included in the next newsletter.", "success")
     return redirect(url_for("admin.dashboard"))
 
 
 @admin.route("/logout", methods=["POST"])
 @login_required
-def logout():
+def logout() -> Response:
     """Log out the current user and redirect to homepage."""
     # Remove admin session tracking
     sid = session.pop("admin_session_id", None)
@@ -290,14 +310,17 @@ def logout():
         ).scalar_one_or_none()
         if admin_session:
             db.session.delete(admin_session)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
     logout_user()
     return redirect(url_for("public.index"))
 
 
 @admin.route("/")
 @admin_required
-def dashboard():
+def dashboard() -> Response:
     """Admin dashboard with post list, search, filter, and site stats."""
     page = request.args.get("page", 1, type=int)
     q = request.args.get("q", "").strip()
@@ -379,7 +402,7 @@ def dashboard():
 
 @admin.route("/new", methods=["GET", "POST"])
 @admin_required
-def new_post():
+def new_post() -> Response:
     """Create a new post. GET shows editor, POST saves the post."""
     if request.method == "POST":
         title = request.form.get("title", "").strip()[:200]
@@ -446,7 +469,7 @@ def new_post():
 
 @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
 @admin_required
-def edit_post(post_id):
+def edit_post(post_id) -> Response:
     """Edit an existing post. GET shows editor with current data, POST saves changes."""
     post = db.session.get(Post, post_id)
     if not post:
@@ -504,6 +527,8 @@ def edit_post(post_id):
         try:
             if searchable_changed:
                 sync_fts(post.id, post.title, post.body, post.summary, post.published)
+            invalidate_tag_cache()
+            _cleanup_orphan_tags()
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
@@ -520,12 +545,12 @@ def edit_post(post_id):
                 post.published_at = utc_now()
             post.tags = _get_or_create_tags(tag_names)
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
+            invalidate_tag_cache()
+            _cleanup_orphan_tags()
             db.session.commit()
         # Delete old image file only after successful commit
         if old_image:
             safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
-        invalidate_tag_cache()
-        _cleanup_orphan_tags()
         flash("Post updated.", "success")
         return redirect(url_for("admin.dashboard"))
 
@@ -535,20 +560,22 @@ def edit_post(post_id):
 
 @admin.route("/delete/<int:post_id>", methods=["POST"])
 @admin_required
-def delete_post(post_id):
+def delete_post(post_id) -> Response:
     """Delete a post and its image file. Cleans up FTS index and orphan tags."""
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
     old_image = post.image
     post_id_for_fts = post.id
+    post_title = post.title
     db.session.delete(post)
+    invalidate_tag_cache()
+    _cleanup_orphan_tags()
     db.session.commit()
     remove_fts(post_id_for_fts)
     if old_image:
         safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
-    invalidate_tag_cache()
-    _cleanup_orphan_tags()
+    logger.info("Post deleted: id=%d title=%s", post_id, post_title)
     flash("Post deleted.", "success")
     return redirect(url_for("admin.dashboard"))
 
@@ -591,7 +618,7 @@ def _get_or_create_tags(names):
 
 @admin.route("/analytics")
 @admin_required
-def analytics():
+def analytics() -> Response:
     """Analytics dashboard with views, top posts, referrers, and subscriber stats."""
     days = request.args.get("days", 30, type=int)
     days = min(max(days, 7), 365)
@@ -614,7 +641,7 @@ def analytics():
 
 @admin.route("/preview/<int:post_id>")
 @admin_required
-def preview_post(post_id):
+def preview_post(post_id) -> Response:
     """Preview a post (draft or published) with a yellow preview banner."""
     post = db.session.get(Post, post_id)
     if not post:
@@ -634,7 +661,7 @@ def preview_post(post_id):
 
 @admin.route("/subscribers")
 @admin_required
-def subscribers():
+def subscribers() -> Response:
     """Subscriber list with status filter and pagination."""
     page = request.args.get("page", 1, type=int)
     filter_status = request.args.get("status", "all")
@@ -663,24 +690,36 @@ def subscribers():
 
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
 @admin_required
-def delete_subscriber(sub_id):
+def delete_subscriber(sub_id) -> Response:
     """Delete a single subscriber by ID."""
     sub = db.session.get(Subscriber, sub_id)
     if not sub:
         abort(404)
     email = sub.email
     db.session.delete(sub)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.subscribers"))
+    logger.info("Subscriber deleted: sub_id=%d email=%s", sub_id, email)
     flash(f"Subscriber {email} deleted.", "success")
     return redirect(url_for("admin.subscribers"))
 
 
 @admin.route("/subscribers/export")
 @admin_required
-def export_subscribers():
+def export_subscribers() -> Response:
     """Stream CSV export of all subscribers."""
     def generate():
-        yield "email,confirmed,created_at,expires_at\n"
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["email", "confirmed", "created_at", "expires_at"])
+        yield buffer.getvalue()
+        buffer.truncate(0)
+        buffer.seek(0)
+
         offset = 0
         batch_size = 500
         while True:
@@ -695,15 +734,23 @@ def export_subscribers():
             if not rows:
                 break
             for s in rows:
-                yield f'{s.email},{s.confirmed},{s.created_at.isoformat() if s.created_at else ""},{s.expires_at.isoformat() if s.expires_at else ""}\n'
+                writer.writerow([
+                    (s.email if not s.email.startswith(("=", "+", "-", "@")) else "'" + s.email),
+                    s.confirmed,
+                    s.created_at.isoformat() if s.created_at else "",
+                    s.expires_at.isoformat() if s.expires_at else ""
+                ])
+                yield buffer.getvalue()
+                buffer.truncate(0)
+                buffer.seek(0)
             offset += batch_size
 
     return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers.csv"})
 
 
-@admin.route("/subscribers/bulk")
+@admin.route("/subscribers/bulk", methods=["POST"])
 @admin_required
-def subscribers_bulk():
+def subscribers_bulk() -> Response:
     """Bulk operations on selected subscribers.
 
     Form params:
@@ -740,12 +787,26 @@ def subscribers_bulk():
             flash(f"Deleted {count} subscriber(s).", "success")
         elif action == "export":
             def generate():
-                yield "email,confirmed,created_at,expires_at\n"
+                buffer = io.StringIO()
+                writer = csv.writer(buffer)
+                writer.writerow(["email", "confirmed", "created_at", "expires_at"])
+                yield buffer.getvalue()
+                buffer.truncate(0)
+                buffer.seek(0)
+
                 subs = db.session.execute(
                     select(Subscriber).filter(Subscriber.id.in_(valid_ids)).order_by(Subscriber.created_at.desc())
                 ).scalars().all()
                 for s in subs:
-                    yield f'{s.email},{s.confirmed},{s.created_at.isoformat() if s.created_at else ""},{s.expires_at.isoformat() if s.expires_at else ""}\n'
+                    writer.writerow([
+                        (s.email if not s.email.startswith(("=", "+", "-", "@")) else "'" + s.email),
+                        s.confirmed,
+                        s.created_at.isoformat() if s.created_at else "",
+                        s.expires_at.isoformat() if s.expires_at else ""
+                    ])
+                    yield buffer.getvalue()
+                    buffer.truncate(0)
+                    buffer.seek(0)
             return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers_selected.csv"})
 
     return redirect(url_for("admin.subscribers", status=filter_status))
@@ -753,7 +814,7 @@ def subscribers_bulk():
 
 @admin.route("/preview-markdown", methods=["POST"])
 @admin_required
-def preview_markdown():
+def preview_markdown() -> Response:
     """Render markdown for live preview.
     
     Request body (JSON):
@@ -763,6 +824,8 @@ def preview_markdown():
         200: {"html": str} - sanitized HTML
         400: {"error": "invalid"}
     """
+    if request.content_length and request.content_length > 1024 * 1024:
+        return jsonify({"error": "payload too large"}), 413
     data = request.get_json(silent=True)
     if not data or "text" not in data:
         return jsonify({"error": "invalid"}), 400
@@ -776,7 +839,7 @@ def preview_markdown():
 
 @admin.route("/media")
 @admin_required
-def media():
+def media() -> Response:
     """Uploaded media file browser with pagination."""
     page = request.args.get("page", 1, type=int)
     per_page = MEDIA_PER_PAGE
@@ -807,7 +870,7 @@ def media():
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
 @admin_required
-def delete_media(filename):
+def delete_media(filename) -> Response:
     """Delete an uploaded media file after path traversal validation."""
     filename = secure_filename(filename)
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
@@ -826,7 +889,7 @@ def delete_media(filename):
 
 @admin.route("/tags")
 @admin_required
-def tags_list():
+def tags_list() -> Response:
     """Tag management page with post counts."""
     from app.models import post_tags
     tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
@@ -841,7 +904,7 @@ def tags_list():
 
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
 @admin_required
-def rename_tag(tag_id):
+def rename_tag(tag_id) -> Response:
     """Rename a tag, validating uniqueness and name format."""
     tag = db.session.get(Tag, tag_id)
     if not tag:
@@ -861,30 +924,43 @@ def rename_tag(tag_id):
         return redirect(url_for("admin.tags_list"))
     tag.name = new_name
     tag.slug = slug
-    db.session.commit()
+    old_name = tag.name
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
+    logger.info("Tag renamed: id=%d old_name=%s new_name=%s", tag_id, old_name, new_name)
     flash(f"Tag renamed to '{new_name}'.", "success")
     return redirect(url_for("admin.tags_list"))
 
 
 @admin.route("/tags/delete/<int:tag_id>", methods=["POST"])
 @admin_required
-def delete_tag(tag_id):
+def delete_tag(tag_id) -> Response:
     """Delete a tag and invalidate the tag cache."""
     tag = db.session.get(Tag, tag_id)
     if not tag:
         abort(404)
     name = tag.name
     db.session.delete(tag)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
+    logger.info("Tag deleted: id=%d name=%s", tag_id, name)
     flash(f"Tag '{name}' deleted.", "success")
     return redirect(url_for("admin.tags_list"))
 
 
 @admin.route("/tags/create", methods=["POST"])
 @admin_required
-def create_tag():
+def create_tag() -> Response:
     """Create a new tag with validated name."""
     name = request.form.get("name", "").strip()[:50]
     if not name:
@@ -901,15 +977,21 @@ def create_tag():
         return redirect(url_for("admin.tags_list"))
     tag = Tag(name=name, slug=slug)
     db.session.add(tag)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
+    logger.info("Tag created: id=%d name=%s", tag.id, name)
     flash(f"Tag '{name}' created.", "success")
     return redirect(url_for("admin.tags_list"))
 
 
 @admin.route("/newsletter-test", methods=["POST"])
 @admin_required
-def newsletter_test():
+def newsletter_test() -> Response:
     """Send a test newsletter to a specified email address."""
     from app.email import send_newsletter
     from app.config import APP_TITLE, FROM_ADDRESS
@@ -946,7 +1028,7 @@ def newsletter_test():
 
 @admin.route("/bulk", methods=["POST"])
 @admin_required
-def bulk_operations():
+def bulk_operations() -> Response:
     """Bulk publish, unpublish, or delete posts.
 
     Form params:
@@ -985,16 +1067,25 @@ def bulk_operations():
                 post.published_at = now
         for post in posts:
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
-        db.session.commit()
         invalidate_tag_cache()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash('Database error occurred. Please try again.', 'error')
+            return redirect(url_for("admin.dashboard"))
         flash(f"Published {len(posts)} post(s).", "success")
     elif action == "unpublish":
         for post in posts:
             post.published = False
         for post in posts:
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
-        db.session.commit()
-        invalidate_tag_cache()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash('Database error occurred. Please try again.', 'error')
+            return redirect(url_for("admin.dashboard"))
         flash(f"Unpublished {len(posts)} post(s).", "success")
     elif action == "delete":
         images_to_delete = []
@@ -1004,13 +1095,18 @@ def bulk_operations():
                 images_to_delete.append(post.image)
             deleted_post_ids.append(post.id)
             db.session.delete(post)
-        db.session.commit()
+        invalidate_tag_cache()
+        _cleanup_orphan_tags()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash('Database error occurred. Please try again.', 'error')
+            return redirect(url_for("admin.dashboard"))
         for pid in deleted_post_ids:
             remove_fts(pid)
         for img in images_to_delete:
             safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], img))
-        invalidate_tag_cache()
-        _cleanup_orphan_tags()
         flash(f"Deleted {len(posts)} post(s).", "success")
     else:
         flash("Invalid action.", "error")
@@ -1020,7 +1116,7 @@ def bulk_operations():
 
 @admin.route("/users")
 @admin_required
-def users_list():
+def users_list() -> Response:
     """User management page with pagination."""
     page = request.args.get("page", 1, type=int)
     per_page = 20
@@ -1030,7 +1126,7 @@ def users_list():
 
 @admin.route("/users/create", methods=["POST"])
 @admin_required
-def create_user():
+def create_user() -> Response:
     """Create a new user with optional admin privileges."""
     username = request.form.get("username", "").strip()[:80]
     password = request.form.get("password", "").strip()
@@ -1040,8 +1136,8 @@ def create_user():
         flash("Username and password are required.", "error")
         return redirect(url_for("admin.users_list"))
 
-    if len(password) < 8:
-        flash("Password must be at least 8 characters.", "error")
+    if not _check_password_complexity(password):
+        flash("Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.", "error")
         return redirect(url_for("admin.users_list"))
 
     existing = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
@@ -1052,14 +1148,20 @@ def create_user():
     user = User(username=username, is_admin=is_admin)
     user.set_password(password)
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.users_list"))
+    logger.info("User created: id=%d username=%s is_admin=%s", user.id, username, is_admin)
     flash(f"User '{username}' created.", "success")
     return redirect(url_for("admin.users_list"))
 
 
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
-def delete_user(user_id):
+def delete_user(user_id) -> Response:
     """Delete a user. Prevents self-deletion and last admin removal."""
     user = db.session.get(User, user_id)
     if not user:
@@ -1072,32 +1174,45 @@ def delete_user(user_id):
         flash("Cannot delete the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
     username = user.username
+    is_admin = user.is_admin
     db.session.delete(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.users_list"))
+    logger.info("User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin)
     flash(f"User '{username}' deleted.", "success")
     return redirect(url_for("admin.users_list"))
 
 
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
-def change_password(user_id):
+def change_password(user_id) -> Response:
     """Change a user's password (minimum 8 characters)."""
     user = db.session.get(User, user_id)
     if not user:
         abort(404)
     password = request.form.get("password", "").strip()
-    if not password or len(password) < 8:
-        flash("Password must be at least 8 characters.", "error")
+    if not _check_password_complexity(password):
+        flash("Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.", "error")
         return redirect(url_for("admin.users_list"))
     user.set_password(password)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.users_list"))
+    logger.info("Password changed: user_id=%d username=%s", user_id, user.username)
     flash(f"Password changed for '{user.username}'.", "success")
     return redirect(url_for("admin.users_list"))
 
 
 @admin.route("/sessions")
 @admin_required
-def sessions_list():
+def sessions_list() -> Response:
     """View active admin sessions. Only admins can see all sessions."""
     sessions = (
         db.session.execute(
@@ -1116,7 +1231,7 @@ def sessions_list():
 
 @admin.route("/sessions/revoke/<int:sess_id>", methods=["POST"])
 @admin_required
-def revoke_session(sess_id):
+def revoke_session(sess_id) -> Response:
     """Revoke a specific admin session."""
     admin_session = db.session.get(AdminSession, sess_id)
     if not admin_session:
@@ -1126,7 +1241,13 @@ def revoke_session(sess_id):
         flash("Cannot revoke your own current session. Use logout instead.", "error")
         return redirect(url_for("admin.sessions_list"))
     db.session.delete(admin_session)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash('Database error occurred. Please try again.', 'error')
+        return redirect(url_for("admin.sessions_list"))
+    logger.info("Session revoked: sess_id=%d", sess_id)
     flash("Session revoked.", "success")
     return redirect(url_for("admin.sessions_list"))
 
@@ -1137,7 +1258,7 @@ def _get_backup_dir():
 
 @admin.route("/backup")
 @admin_required
-def backup():
+def backup() -> Response:
     """List all database backups with size and modification time."""
     backup_dir = _get_backup_dir()
     backups = []
@@ -1156,7 +1277,7 @@ def backup():
 
 @admin.route("/backup/create", methods=["POST"])
 @admin_required
-def create_backup():
+def create_backup() -> Response:
     """Create a database backup, optionally gzip-compressed."""
     from backup import create_backup as _create_backup
     compress = "compress" in request.form
@@ -1172,7 +1293,7 @@ def create_backup():
 
 @admin.route("/backup/download/<filename>")
 @admin_required
-def download_backup(filename):
+def download_backup(filename) -> Response:
     """Download a backup file after filename and path validation."""
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
@@ -1188,9 +1309,11 @@ def download_backup(filename):
 
 @admin.route("/backup/restore/<filename>", methods=["POST"])
 @admin_required
-def restore_backup(filename):
+def restore_backup(filename) -> Response:
     """Restore database from a backup file. Requires app restart."""
     import shutil as _shutil
+    import gzip
+    import tempfile
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()
@@ -1202,14 +1325,23 @@ def restore_backup(filename):
         abort(404)
     db_path = os.path.join(current_app.instance_path, "blog.db")
     db.engine.dispose()
-    _shutil.copy2(real_path, db_path)
+    if filename.endswith(".gz"):
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            tmp_path = tmp.name
+        with gzip.open(real_path, "rb") as f_in:
+            with open(tmp_path, "wb") as f_out:
+                _shutil.copyfileobj(f_in, f_out)
+        _shutil.copy2(tmp_path, db_path)
+        os.unlink(tmp_path)
+    else:
+        _shutil.copy2(real_path, db_path)
     flash(f"Database restored from {filename}. You may need to restart the app for all changes to take effect.", "success")
     return redirect(url_for("admin.backup"))
 
 
 @admin.route("/backup/delete/<filename>", methods=["POST"])
 @admin_required
-def delete_backup(filename):
+def delete_backup(filename) -> Response:
     """Delete a backup file after filename and path validation."""
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)

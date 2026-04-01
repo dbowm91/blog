@@ -41,7 +41,10 @@
         {% endfor %}
     </div>
     {% else %}
-    <p class="empty-state">No active sessions.</p>
+    <div class="empty-state">
+        <h3>No active sessions</h3>
+        <p>Other admin sessions will appear here when they log in.</p>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

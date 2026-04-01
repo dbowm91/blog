@@ -1,10 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // --- Screen reader announcement helper ---
+    function announce(message) {
+        const el = document.getElementById('sr-announce');
+        if (el) {
+            el.textContent = '';
+            setTimeout(() => { el.textContent = message; }, 50);
+        }
+    }
+
     // --- Form delete confirmation via data-confirm attribute ---
-    document.querySelectorAll('form[data-confirm]').forEach(form => {
-        form.addEventListener('submit', e => {
-            if (!confirm(form.dataset.confirm)) e.preventDefault();
-        });
-    });
 
     // --- Bulk action confirmation via data-confirm-bulk ---
     document.querySelectorAll('button[data-confirm-bulk]').forEach(btn => {
@@ -15,6 +19,46 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             if (!confirm(btn.dataset.confirmBulk)) e.preventDefault();
+        });
+    });
+
+    // --- 5B.2: Bulk operation progress bar ---
+    document.querySelectorAll('form[id="bulk-form"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const action = this.querySelector('button[type="submit"][name="action"]:focus');
+            if (!action) return;
+            
+            const checked = this.querySelectorAll('.bulk-checkbox:checked');
+            if (checked.length === 0) return;
+
+            let progressContainer = document.getElementById('bulk-progress');
+            if (!progressContainer) {
+                progressContainer = document.createElement('div');
+                progressContainer.id = 'bulk-progress';
+                progressContainer.innerHTML = `
+                    <div class="bulk-progress-bar">
+                        <div class="bulk-progress-fill"></div>
+                    </div>
+                    <span class="bulk-progress-text">Processing 0 of ${checked.length}...</span>
+                `;
+                this.appendChild(progressContainer);
+            }
+
+            const fill = progressContainer.querySelector('.bulk-progress-fill');
+            const text = progressContainer.querySelector('.bulk-progress-text');
+            fill.style.width = '0%';
+            progressContainer.style.display = 'block';
+
+            let processed = 0;
+            const updateProgress = () => {
+                processed++;
+                const percent = (processed / checked.length) * 100;
+                fill.style.width = percent + '%';
+                text.textContent = `Processing ${processed} of ${checked.length}...`;
+            };
+
+            const observer = new MutationObserver(updateProgress);
+            checked.forEach(cb => observer.observe(cb, { attributes: true, attributeFilter: ['checked'] }));
         });
     });
 
@@ -38,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
             scrollTimeout = null;
             
             if (navbar) {
-                navbar.style.padding = window.scrollY > 60 ? "10px 0" : "16px 0";
+                navbar.classList.toggle('navbar-shrunk', window.scrollY > 60);
             }
             
             if (progressBar) {
@@ -230,6 +274,23 @@ document.addEventListener("DOMContentLoaded", () => {
         anchor.href = `#${heading.id}`;
         anchor.innerHTML = '#';
         anchor.setAttribute('aria-label', 'Link to this section');
+        anchor.addEventListener('click', (e) => {
+            e.preventDefault();
+            const fullUrl = window.location.origin + window.location.pathname + anchor.href;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(fullUrl).then(() => {
+                    const toast = document.createElement('div');
+                    toast.className = 'toast';
+                    toast.textContent = 'Link copied!';
+                    document.body.appendChild(toast);
+                    requestAnimationFrame(() => toast.classList.add('visible'));
+                    setTimeout(() => {
+                        toast.classList.remove('visible');
+                        setTimeout(() => toast.remove(), 300);
+                    }, 2000);
+                });
+            }
+        });
         
         while (heading.firstChild) {
             wrapper.appendChild(heading.firstChild);
@@ -243,11 +304,21 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!('loading' in HTMLImageElement.prototype)) {
         document.querySelectorAll('img:not([loading])').forEach((img) => {
             const rect = img.getBoundingClientRect();
-            if (rect.top > window.innerHeight * 1.5) {
+            if (rect.top > window.innerHeight * 3) {
                 img.setAttribute('loading', 'lazy');
             }
         });
     }
+
+    // Fade in lazy images on load
+    document.querySelectorAll('img[loading="lazy"]').forEach((img) => {
+        if (img.complete) {
+            img.classList.add('loaded');
+        } else {
+            img.addEventListener('load', () => img.classList.add('loaded'));
+            img.addEventListener('error', () => img.classList.add('loaded'));
+        }
+    });
 
     // --- Item 8: Live Markdown Preview ---
     const bodyTextarea = document.getElementById('body');
@@ -338,6 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     localStorage.setItem(draftKey, JSON.stringify(draft));
                     if (autosaveStatus) {
                         autosaveStatus.textContent = 'Draft saved';
+                        announce('Draft saved');
                         setTimeout(() => { autosaveStatus.style.opacity = '0'; }, 2000);
                     }
                 } catch (e) {}
@@ -417,6 +489,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // --- 5B.1: Loading state for admin forms ---
+    document.querySelectorAll('form.editor-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+                submitBtn.disabled = true;
+                submitBtn.dataset.originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Saving...';
+            }
+        });
+    });
+
     // --- Media Copy URL ---
     document.querySelectorAll('.media-copy-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -451,6 +535,40 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // --- Vim-style keyboard navigation (admin only) ---
+    let vimKey = null;
+    let vimTimer = null;
+
+    document.addEventListener('keydown', (e) => {
+        // Clear vim state on any non-g key (unless modifier is held)
+        if (vimKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+            if (vimKey === 'g' && e.key !== 'd' && e.key !== 'p' && e.key !== 's' && e.key !== 't') {
+                vimKey = null;
+                clearTimeout(vimTimer);
+            }
+        }
+
+        // g key: prime for vim-style nav
+        if (!vimKey && e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            const tag = e.target.tagName;
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !e.target.isContentEditable) {
+                vimKey = 'g';
+                clearTimeout(vimTimer);
+                vimTimer = setTimeout(() => { vimKey = null; }, 500);
+            }
+        }
+
+        // gd = Dashboard, gp = Posts, gs = Subscribers, gt = Tags
+        if (vimKey === 'g') {
+            const routes = { d: '/admin/', p: '/admin/posts', s: '/admin/subscribers', t: '/admin/tags' };
+            if (routes[e.key]) {
+                window.location.href = routes[e.key];
+                vimKey = null;
+                clearTimeout(vimTimer);
+            }
+        }
+    });
+
     // --- Keyboard shortcuts for admin ---
     document.addEventListener('keydown', (e) => {
         // Ignore if user is typing in an input/textarea
@@ -460,16 +578,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Ctrl/Cmd+S: Save draft
         if (mod && e.key === 's' && !isInput) {
-            e.preventDefault();
             const saveBtn = document.querySelector('button[name="action"][value="save"]');
-            if (saveBtn) saveBtn.click();
+            if (saveBtn) {
+                e.preventDefault();
+                saveBtn.click();
+            }
         }
 
         // Ctrl/Cmd+Enter: Publish
         if (mod && e.key === 'Enter' && !isInput) {
-            e.preventDefault();
             const publishBtn = document.querySelector('button[name="action"][value="publish"]');
-            if (publishBtn) publishBtn.click();
+            if (publishBtn) {
+                e.preventDefault();
+                publishBtn.click();
+            }
         }
 
         // Escape: Close modals
@@ -482,9 +604,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Ctrl/Cmd+Shift+P: Toggle preview pane
         if (mod && e.shiftKey && e.key === 'P' && !isInput) {
-            e.preventDefault();
             const split = document.querySelector('.editor-split');
             if (split) {
+                e.preventDefault();
                 split.classList.toggle('preview-hidden');
             }
         }
@@ -513,5 +635,142 @@ document.addEventListener("DOMContentLoaded", () => {
                 overlay.classList.add('hidden');
             }
         });
+    });
+
+    // --- 4B.1: Table of Contents with IntersectionObserver ---
+    const tocContainer = document.querySelector('.post-toc-container');
+    if (tocContainer) {
+        const headings = document.querySelectorAll('.prose h2, .prose h3');
+        if (headings.length >= 3) {
+            const toc = document.createElement('nav');
+            toc.className = 'post-toc';
+            toc.setAttribute('aria-label', 'Table of contents');
+
+            const title = document.createElement('div');
+            title.className = 'post-toc-title';
+            title.textContent = 'On This Page';
+            toc.appendChild(title);
+
+            const ul = document.createElement('ul');
+            headings.forEach((heading, index) => {
+                if (!heading.id) {
+                    heading.id = `heading-${index}`;
+                }
+                const li = document.createElement('li');
+                li.className = heading.tagName === 'H3' ? 'toc-h3' : '';
+                const a = document.createElement('a');
+                a.href = `#${heading.id}`;
+                a.textContent = heading.textContent;
+                a.dataset.section = heading.id;
+                li.appendChild(a);
+                ul.appendChild(li);
+            });
+            toc.appendChild(ul);
+            tocContainer.appendChild(toc);
+            tocContainer.style.display = 'block';
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const id = entry.target.id;
+                    const link = toc.querySelector(`a[data-section="${id}"]`);
+                    if (link) {
+                        link.classList.toggle('active', entry.isIntersecting);
+                    }
+                });
+            }, {
+                rootMargin: '-80px 0px -70% 0px',
+                threshold: 0
+            });
+
+            headings.forEach(h => observer.observe(h));
+        }
+    }
+
+    // --- 4B.3: Image Lightbox ---
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = lightbox?.querySelector('.lightbox-img');
+    const lightboxClose = lightbox?.querySelector('.lightbox-close');
+
+    if (lightbox && lightboxImg) {
+        document.querySelectorAll('.prose img').forEach(img => {
+            img.style.cursor = 'zoom-in';
+            img.addEventListener('click', () => {
+                lightboxImg.src = img.src;
+                lightboxImg.alt = img.alt;
+                lightbox.classList.add('open');
+                lightbox.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        const closeLightbox = () => {
+            lightbox.classList.remove('open');
+            lightbox.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        };
+
+        lightboxClose?.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox.classList.contains('open')) {
+                closeLightbox();
+            }
+        });
+    }
+
+    // --- 4B.6: Share button color flash ---
+    document.querySelectorAll('.share-btn[data-platform]:not([data-platform="copy"])').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            const originalBg = this.style.backgroundColor;
+            const originalColor = this.style.color;
+            const originalBorder = this.style.borderColor;
+
+            this.style.transition = 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease';
+
+            const platform = this.dataset.platform;
+            const colors = {
+                twitter: { bg: '#1da1f2', color: 'white', border: '#1da1f2' },
+                facebook: { bg: '#1877f2', color: 'white', border: '#1877f2' },
+                linkedin: { bg: '#0a66c2', color: 'white', border: '#0a66c2' },
+                hn: { bg: '#ff6600', color: 'white', border: '#ff6600' },
+                reddit: { bg: '#ff4500', color: 'white', border: '#ff4500' },
+                email: { bg: 'var(--green)', color: 'white', border: 'var(--green)' }
+            };
+
+            if (colors[platform]) {
+                this.style.backgroundColor = colors[platform].bg;
+                this.style.color = colors[platform].color;
+                this.style.borderColor = colors[platform].border;
+            }
+
+            setTimeout(() => {
+                this.style.backgroundColor = originalBg;
+                this.style.color = originalColor;
+                this.style.borderColor = originalBorder;
+            }, 150);
+        });
+    });
+
+    // --- 5C.2: Prefetch likely next pages ---
+    const prefetchedUrls = new Set();
+    let prefetchTimer = null;
+
+    document.querySelectorAll('a[href]').forEach(link => {
+        const url = link.href;
+        if (!url || prefetchedUrls.has(url) || url.startsWith('mailto:') || url.startsWith('tel:')) return;
+
+        link.addEventListener('mouseenter', () => {
+            clearTimeout(prefetchTimer);
+            prefetchTimer = setTimeout(() => {
+                if (prefetchedUrls.has(url)) return;
+                prefetchedUrls.add(url);
+                const prefetch = document.createElement('link');
+                prefetch.rel = 'prefetch';
+                prefetch.href = url;
+                document.head.appendChild(prefetch);
+            }, 100);
+        }, { passive: true });
     });
 });
