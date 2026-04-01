@@ -22,9 +22,9 @@ def init_fts():
             "SELECT id, title, body, summary FROM posts WHERE published = 1"
         ))
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        logger.warning("FTS5 initialization failed; search will use LIKE fallback")
+        logger.warning("FTS5 initialization failed; search will use LIKE fallback (post_ids=%s, operation=init)", e)
 
 
 def rebuild_fts():
@@ -32,9 +32,9 @@ def rebuild_fts():
     try:
         db.session.execute(text("INSERT INTO posts_fts(posts_fts) VALUES('rebuild')"))
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        logger.warning("FTS5 rebuild failed")
+        logger.warning("FTS5 rebuild failed (operation=rebuild): %s", e)
 
 
 def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool):

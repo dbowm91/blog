@@ -125,6 +125,39 @@ def test_confirm_subscription(client, db):
     assert response.status_code == 200
 
 
+def test_confirm_already_confirmed(client, db):
+    """Test confirming an already-confirmed subscription."""
+    from app.models import Subscriber
+    sub = Subscriber(email='test@example.com', confirmed=True)
+    db.session.add(sub)
+    db.session.commit()
+    response = client.get(f'/confirm/{sub.token}', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Already confirmed' in response.data
+
+
+def test_confirm_expired_token(client, db):
+    """Test confirming a subscription with expired token."""
+    from app.models import Subscriber
+    from datetime import timedelta
+    sub = Subscriber(email='test@example.com', expires_at=utc_now() - timedelta(days=1))
+    db.session.add(sub)
+    db.session.commit()
+    response = client.get(f'/confirm/{sub.token}', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'expired' in response.data.lower()
+
+
+def test_health_check(client, db):
+    """Test health check endpoint returns OK."""
+    response = client.get('/health')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['status'] == 'ok'
+    assert data['database'] == 'connected'
+    assert 'timestamp' in data
+
+
 def test_unsubscribe(client, db):
     """Test unsubscribing."""
     from app.models import Subscriber
@@ -299,3 +332,27 @@ def test_referrer_sanitized(client, db, sample_post):
     assert pv.referrer == 'http://example.com/page'
     assert 'secret' not in (pv.referrer or '')
     assert 'token' not in (pv.referrer or '')
+
+
+def test_search_fts5_special_characters_double_quote(client, db, sample_post):
+    """Test FTS5 handles double quote in search without 500 error."""
+    response = client.get('/search?q="test')
+    assert response.status_code == 200
+
+
+def test_search_fts5_special_characters_asterisk(client, db, sample_post):
+    """Test FTS5 handles asterisk in search without 500 error."""
+    response = client.get('/search?q=test*')
+    assert response.status_code == 200
+
+
+def test_search_fts5_special_characters_colon(client, db, sample_post):
+    """Test FTS5 handles colon in search without 500 error."""
+    response = client.get('/search?q=test:foo')
+    assert response.status_code == 200
+
+
+def test_search_fts5_special_characters_hyphen(client, db, sample_post):
+    """Test FTS5 handles hyphen in search without 500 error."""
+    response = client.get('/search?q=test-foo')
+    assert response.status_code == 200

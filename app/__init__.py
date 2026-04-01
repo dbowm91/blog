@@ -8,7 +8,7 @@ from flask_login import current_user, logout_user
 from app.extensions import db, login_manager, migrate
 from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SESSION_LIFETIME_HOURS
 from app.csrf import generate_csrf_token, validate_csrf_token
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 
 def configure_logging(app):
@@ -54,10 +54,6 @@ def create_app():
     db_path = os.path.join(app.instance_path, "blog.db")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-    }
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
     app.config["SESSION_COOKIE_SECURE"] = not app.debug
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -66,6 +62,12 @@ def create_app():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)
 
     db.init_app(app)
+
+    with app.app_context():
+        db.session.execute(text("PRAGMA journal_mode=WAL"))
+        db.session.execute(text("PRAGMA busy_timeout=5000"))
+        db.session.commit()
+
     login_manager.init_app(app)
     migrate.init_app(app, db)
 
@@ -124,6 +126,9 @@ def create_app():
                 validate_csrf_token()
 
         # Session timeout check for authenticated users
+        # Uses custom sliding expiration based on last_activity stored in session.
+        # Each request updates last_activity if within SESSION_LIFETIME_SECONDS.
+        # If more than SESSION_LIFETIME_SECONDS pass without activity, user is logged out.
         if current_user.is_authenticated:
             last_activity = session.get("last_activity")
             now = time.time()
@@ -144,6 +149,8 @@ def create_app():
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["X-Download-Options"] = "noopen"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if not current_app.debug:
@@ -209,6 +216,15 @@ def create_app():
 
     from app.scheduler import init_scheduler
     init_scheduler(app)
+
+    import click
+
+    @app.cli.command("rebuild-search")
+    def rebuild_search_command():
+        """Rebuild the FTS5 search index."""
+        from app.search import rebuild_fts
+        rebuild_fts()
+        click.echo("Search index rebuilt.")
 
     @app.cli.command("create-admin")
     def create_admin_command():

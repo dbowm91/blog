@@ -252,6 +252,50 @@ All database queries use SQLAlchemy 2.0 style:
 ### FTS5 Special Character Escaping
 FTS5 MATCH queries treat `"` as a phrase delimiter. Unescaped double quotes in user input cause `OperationalError: unterminated string`. Escape by doubling: `"` → `""`. Other FTS5 special characters (`*`, `:`, `-`, `NEAR`, `AND`, `OR`, `NOT`) should also be handled — the current code has an `except Exception` fallback to LIKE, but proper escaping improves search quality.
 
+### WAL Mode
+SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads during writes and improving performance. Enabled via `PRAGMA journal_mode=WAL` on database connection.
+
+### Flask Rebuild Search CLI
+`flask rebuild-search` command rebuilds the FTS5 search index from scratch. Useful after importing data or recovering from index corruption.
+
+### Analytics Caching
+Dashboard analytics queries are cached in-memory with a 5-minute TTL to prevent slow page loads. Cache is invalidated whenever post data changes.
+
+### Subscriber CSV Export
+`/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.
+
+### Subscriber Bulk Operations
+- `POST /admin/subscribers/bulk-delete` — deletes selected subscribers
+- `POST /admin/subscribers/bulk-resend` — resends confirmation emails to unconfirmed subscribers
+- Checkbox selection on subscribers page with "Select All" toggle
+
+### Admin Keyboard Shortcuts
+- `Ctrl+S` / `Cmd+S` — save post
+- `Ctrl+Shift+P` — toggle preview mode
+- `Ctrl+Enter` — save and continue editing
+- `?` — show keyboard shortcuts modal
+
+### Test Fixture Organization
+- `tests/conftest.py` defines fixtures
+- Use `@pytest.fixture` with descriptive names
+- Fixtures should be scoped appropriately (`function`, `session`)
+- Avoid importing app fixtures in unit test files that don't need them
+
+### Security Headers (Additional)
+- `X-Download-Options: noopen` — prevents file execution in download context
+- `X-Permitted-Cross-Domain-Policies: none` — prevents Adobe Flash cross-domain requests
+
+### Upload File Size Validation
+All image uploads validated against 10MB limit. Magic byte detection rejects files that exceed this limit before processing. Configurable via `max_upload_size` in `config.toml [app]`.
+
+### Session Timeout
+Admin sessions expire after inactivity (default 24 hours, configurable via `session_lifetime_hours`). Timeout checked on every request in `before_request` handler. Session extended on activity.
+
+### Tests for FTS5 and Deprecations
+- Tests for FTS5 special character handling (double quotes, wildcards)
+- Tests for SQLAlchemy deprecation warnings (`scalar_one_or_none`, `close_all`, etc.)
+- Tests verify LIKE fallback works correctly
+
 ### CSS Variable Deduplication
 The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `--text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
 

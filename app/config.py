@@ -127,12 +127,7 @@ def _validate_config(config: dict) -> None:
     if base_url:
         if not base_url.startswith(("http://", "https://")):
             errors.append(f"Invalid base_url: {base_url}. Must start with http:// or https://")
-        elif "localhost" in base_url:
-            import warnings
-            warnings.warn(f"Warning: base_url contains 'localhost': {base_url}. This may not work in production.")
 
     if errors:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))
-
-
 

@@ -70,12 +70,10 @@
     --bg: #0d1117;
     --bg-surface: #161b22;
     --bg-elevated: #1c2128;
-    --bg-primary: #0d1117;
     --border: #30363d;
     --text: #e6edf3;
     --text-muted: #8b949e;
     --text-dim: #484f58;
-    --text-secondary: #8b949e;
     --accent: #58a6ff;
     --accent-hover: #79c0ff;
     --accent-dim: rgba(88, 166, 255, 0.1);
@@ -687,6 +685,10 @@ a:hover {
     text-underline-offset: 3px;
 }
 
+.prose a:focus-visible {
+    outline-offset: 2px;
+}
+
 .prose ul, .prose ol {
     margin-bottom: 1.25em;
     padding-left: 1.5em;
@@ -855,6 +857,7 @@ pre:hover .copy-code-btn { opacity: 1; }
 .btn-ghost:hover {
     color: var(--text);
     border-color: var(--text-dim);
+    background: var(--bg-surface);
 }
 
 .btn-small {
@@ -875,8 +878,6 @@ pre:hover .copy-code-btn { opacity: 1; }
 /* Button enhancements */
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn:active { transform: scale(0.98); }
-.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-.btn-ghost:hover { background: var(--bg-surface); }
 
 /* --- Flash Messages --- */
 .flash-container {
@@ -923,13 +924,6 @@ pre:hover .copy-code-btn { opacity: 1; }
     animation: spin 0.6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.loading-skeleton {
-    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-primary) 50%, var(--bg-surface) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 4px;
-}
-@keyframes shimmer { to { background-position: -200% 0; } }
 
 /* Flash message progress */
 .flash {
@@ -1070,6 +1064,13 @@ pre:hover .copy-code-btn { opacity: 1; }
     accent-color: var(--accent);
     cursor: pointer;
     flex-shrink: 0;
+}
+
+.checkbox-cell {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    margin-right: 12px;
 }
 
 /* --- Media Grid --- */
@@ -1278,11 +1279,11 @@ pre:hover .copy-code-btn { opacity: 1; }
 .form-group.error input,
 .form-group.error textarea,
 .form-group.error select {
-    border-color: #dc3545;
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px var(--red-dim);
 }
 .form-error {
-    color: #dc3545;
+    color: var(--red);
     font-size: 13px;
     margin-top: 4px;
     display: flex;
@@ -1400,39 +1401,37 @@ pre:hover .copy-code-btn { opacity: 1; }
     border-radius: var(--radius);
     padding: 20px;
     text-align: center;
-    transition: border-color var(--transition);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color var(--transition);
 }
 
 .stat-card:hover {
     border-color: var(--text-dim);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 
 .stat-value {
     display: block;
-    font-size: 1.8rem;
+    font-size: 28px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--text);
     font-family: var(--font-mono);
     line-height: 1.2;
 }
 
 .stat-label {
     display: block;
-    font-size: 0.75rem;
+    font-size: 13px;
     color: var(--text-muted);
     margin-top: 6px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.5px;
 }
 
-/* Stat card hover */
-.stat-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+.stat-trend {
+    font-size: 12px;
+    color: var(--accent);
 }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-.stat-card .stat-label { color: var(--text-secondary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
-.stat-card .stat-trend { font-size: 12px; color: var(--accent); }
 
 .stat-sub {
     display: block;
@@ -1826,17 +1825,7 @@ pre:hover .copy-code-btn { opacity: 1; }
     color: var(--yellow);
 }
 
-/* Status badges */
-.status-badge {
-    padding: 4px 10px;
-    border-radius: 100px;
-    font-size: 12px;
-    font-weight: 500;
-}
-.status-badge.published { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
-.status-badge.draft { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
-
-.inline-form {
+/* --- Badge --- */
     display: inline;
 }
 
@@ -1881,7 +1870,7 @@ pre:hover .copy-code-btn { opacity: 1; }
 .empty-state {
     text-align: center;
     padding: 60px 20px;
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 .empty-state::before { content: "📭"; font-size: 48px; display: block; margin-bottom: 16px; }
 .empty-state h3 { font-size: 18px; margin: 0 0 8px; }
@@ -1947,40 +1936,11 @@ pre:hover .copy-code-btn { opacity: 1; }
 }
 
 /* --- Animations --- */
-.animate-in {
-    opacity: 0;
-    transform: translateY(16px);
-    animation: fadeSlideIn 0.5s ease forwards;
-    animation-delay: var(--delay, 0s);
-}
-
-@keyframes fadeSlideIn {
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Image lazy loading */
-img[data-src] { opacity: 0; transition: opacity 0.3s ease; }
-img[data-src].img-loaded { opacity: 1; }
-.img-loading { opacity: 0.5; }
-
-/* Animate-in and reduced motion */
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.animate-in { animation: fadeInUp 0.5s ease forwards; }
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-}
 
-/* --- Search Form --- */
 .search-form {
     display: flex;
     gap: 8px;
@@ -2064,22 +2024,16 @@ img[data-src].img-loaded { opacity: 1; }
 }
 
 .noscript-warning {
-    background: #fff3cd;
-    color: #856404;
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--yellow);
     padding: 12px 20px;
     text-align: center;
     font-size: 14px;
 }
 
-/* Focus styles for keyboard navigation */
-:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
-/* Remove default outline for mouse users */
-:focus:not(:focus-visible) {
-    outline: none;
+:root:not([data-theme="light"]) .noscript-warning {
+    background: #3b2e00;
+    color: #d4a017;
 }
 
 /* Reduced motion */

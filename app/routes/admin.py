@@ -3,6 +3,8 @@ import io
 import os
 import re
 import uuid
+import time
+import threading
 
 from functools import wraps
 
@@ -26,6 +28,132 @@ from app.search import sync_fts, remove_fts
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 TAG_NAME_REGEX = re.compile(r"^[\w\s-]+$")
 BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
+
+_analytics_cache = {}
+_analytics_cache_lock = threading.Lock()
+_ANALYTICS_CACHE_TTL = 300
+
+
+def _get_posts_query(status: str, search: str, order_by=None):
+    """Common post query builder with joinedload and optional filtering."""
+    base_q = select(Post).options(joinedload(Post.tags))
+    if search:
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_term = f"%{escaped}%"
+        base_q = base_q.filter(Post.title.ilike(search_term, escape="\\"))
+    if status == "published":
+        base_q = base_q.filter(Post.published == True)
+    elif status == "draft":
+        base_q = base_q.filter(Post.published == False)
+    if order_by is None:
+        order_by = Post.updated_at.desc()
+    return base_q.order_by(order_by)
+
+
+def _get_analytics_data(days: int):
+    """Get analytics data with simple in-memory caching."""
+    cache_key = days
+    now = time.time()
+
+    with _analytics_cache_lock:
+        cached = _analytics_cache.get(cache_key)
+        if cached and (now - cached["timestamp"]) < _ANALYTICS_CACHE_TTL:
+            return cached["data"]
+
+    start_date = utc_now() - timedelta(days=days)
+
+    daily_views = (
+        db.session.execute(
+            select(
+                func.date(PageView.created_at).label('date'),
+                func.count(PageView.id).label('views')
+            ).filter(
+                PageView.created_at >= start_date
+            ).group_by(
+                func.date(PageView.created_at)
+            ).order_by(
+                func.date(PageView.created_at)
+            )
+        ).all()
+    )
+
+    total_views = db.session.execute(select(func.count(PageView.id)).filter(
+        PageView.created_at >= start_date
+    )).scalar_one() or 0
+
+    top_posts = (
+        db.session.execute(
+            select(Post, func.count(PageView.id).label('view_count'))
+            .join(PageView)
+            .filter(Post.published == True)
+            .filter(PageView.created_at >= start_date)
+            .group_by(Post.id)
+            .order_by(func.count(PageView.id).desc())
+            .limit(10)
+        ).all()
+    )
+
+    top_post_ids = [p.id for p, _ in top_posts]
+    share_counts_analytics = dict(
+        db.session.execute(
+            select(ShareEvent.post_id, func.count(ShareEvent.id))
+            .filter(ShareEvent.post_id.in_(top_post_ids))
+            .group_by(ShareEvent.post_id)
+        ).all()
+    )
+
+    share_platforms = (
+        db.session.execute(
+            select(ShareEvent.platform, func.count(ShareEvent.id).label('count'))
+            .group_by(ShareEvent.platform)
+        ).all()
+    )
+
+    referrer_data = (
+        db.session.execute(
+            select(PageView.referrer, func.count(PageView.id).label('count'))
+            .filter(
+                PageView.referrer != None,
+                PageView.created_at >= start_date
+            ).group_by(PageView.referrer).order_by(
+                func.count(PageView.id).desc()
+            ).limit(15)
+        ).all()
+    )
+
+    def categorize_referrer(url):
+        if not url:
+            return "Direct"
+        url_lower = url.lower()
+        if "google" in url_lower or "bing" in url_lower or "yahoo" in url_lower or "duckduckgo" in url_lower:
+            return "Search"
+        if "twitter" in url_lower or "facebook" in url_lower or "linkedin" in url_lower or "reddit" in url_lower:
+            return "Social"
+        return "Other"
+
+    referrer_summary = {}
+    for url, count in referrer_data:
+        category = categorize_referrer(url)
+        referrer_summary[category] = referrer_summary.get(category, 0) + count
+
+    total_subscribers = db.session.execute(select(func.count(Subscriber.id))).scalar_one() or 0
+    confirmed_subscribers = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)).scalar_one() or 0
+
+    data = {
+        "daily_views": daily_views,
+        "total_views": total_views,
+        "top_posts": top_posts,
+        "share_platforms": share_platforms,
+        "share_counts_analytics": share_counts_analytics,
+        "referrer_summary": referrer_summary,
+        "total_subscribers": total_subscribers,
+        "confirmed_subscribers": confirmed_subscribers,
+    }
+
+    with _analytics_cache_lock:
+        _analytics_cache[cache_key] = {"timestamp": now, "data": data}
+
+    return data
 
 
 def validate_tag_name(name: str) -> tuple[bool, str]:
@@ -81,6 +209,11 @@ def _generate_unique_slug(title, exclude_id=None):
 
 def _save_image(file):
     if file and file.filename and _allowed_file(file.filename):
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > 10 * 1024 * 1024:
+            return None, "File too large. Maximum size is 10MB."
         header = file.read(32)
         file.seek(0)
         detected = _detect_image_type(header)
@@ -137,18 +270,10 @@ def dashboard():
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all")
 
-    base_q = select(Post).options(joinedload(Post.tags))
-    if q:
-        escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        search_term = f"%{escaped}%"
-        base_q = base_q.filter(Post.title.ilike(search_term, escape="\\"))
-    if status == "published":
-        base_q = base_q.filter(Post.published == True)
-    elif status == "draft":
-        base_q = base_q.filter(Post.published == False)
+    base_q = _get_posts_query(status, q)
 
     pagination = db.paginate(
-        base_q.order_by(Post.updated_at.desc()),
+        base_q,
         page=page,
         per_page=DASHBOARD_PER_PAGE,
         error_out=False
@@ -410,96 +535,19 @@ def analytics():
     days = request.args.get("days", 30, type=int)
     days = min(max(days, 7), 365)
 
-    start_date = utc_now() - timedelta(days=days)
-
-    daily_views = (
-        db.session.execute(
-            select(
-                func.date(PageView.created_at).label('date'),
-                func.count(PageView.id).label('views')
-            ).filter(
-                PageView.created_at >= start_date
-            ).group_by(
-                func.date(PageView.created_at)
-            ).order_by(
-                func.date(PageView.created_at)
-            )
-        ).all()
-    )
-
-    total_views = db.session.execute(select(func.count(PageView.id)).filter(
-        PageView.created_at >= start_date
-    )).scalar_one() or 0
-
-    top_posts = (
-        db.session.execute(
-            select(Post, func.count(PageView.id).label('view_count'))
-            .join(PageView)
-            .filter(Post.published == True)
-            .filter(PageView.created_at >= start_date)
-            .group_by(Post.id)
-            .order_by(func.count(PageView.id).desc())
-            .limit(10)
-        ).all()
-    )
-
-    top_post_ids = [p.id for p, _ in top_posts]
-    share_counts_analytics = dict(
-        db.session.execute(
-            select(ShareEvent.post_id, func.count(ShareEvent.id))
-            .filter(ShareEvent.post_id.in_(top_post_ids))
-            .group_by(ShareEvent.post_id)
-        ).all()
-    )
-
-    share_platforms = (
-        db.session.execute(
-            select(ShareEvent.platform, func.count(ShareEvent.id).label('count'))
-            .group_by(ShareEvent.platform)
-        ).all()
-    )
-
-    referrer_data = (
-        db.session.execute(
-            select(PageView.referrer, func.count(PageView.id).label('count'))
-            .filter(
-                PageView.referrer != None,
-                PageView.created_at >= start_date
-            ).group_by(PageView.referrer).order_by(
-                func.count(PageView.id).desc()
-            ).limit(15)
-        ).all()
-    )
-
-    def categorize_referrer(url):
-        if not url:
-            return "Direct"
-        url_lower = url.lower()
-        if "google" in url_lower or "bing" in url_lower or "yahoo" in url_lower or "duckduckgo" in url_lower:
-            return "Search"
-        if "twitter" in url_lower or "facebook" in url_lower or "linkedin" in url_lower or "reddit" in url_lower:
-            return "Social"
-        return "Other"
-
-    referrer_summary = {}
-    for url, count in referrer_data:
-        category = categorize_referrer(url)
-        referrer_summary[category] = referrer_summary.get(category, 0) + count
-
-    total_subscribers = db.session.execute(select(func.count(Subscriber.id))).scalar_one() or 0
-    confirmed_subscribers = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)).scalar_one() or 0
+    data = _get_analytics_data(days)
 
     return render_template(
         "admin/analytics.html",
         days=days,
-        daily_views=daily_views,
-        total_views=total_views,
-        top_posts=top_posts,
-        share_platforms=share_platforms,
-        share_counts=share_counts_analytics,
-        referrer_summary=referrer_summary,
-        total_subscribers=total_subscribers,
-        confirmed_subscribers=confirmed_subscribers,
+        daily_views=data["daily_views"],
+        total_views=data["total_views"],
+        top_posts=data["top_posts"],
+        share_platforms=data["share_platforms"],
+        share_counts=data["share_counts_analytics"],
+        referrer_summary=data["referrer_summary"],
+        total_subscribers=data["total_subscribers"],
+        confirmed_subscribers=data["confirmed_subscribers"],
     )
 
 
@@ -566,27 +614,80 @@ def delete_subscriber(sub_id):
 @admin.route("/subscribers/export")
 @admin_required
 def export_subscribers():
-    subs = db.session.execute(select(Subscriber).order_by(Subscriber.created_at.desc())).scalars().all()
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["email", "confirmed", "created_at", "expires_at"])
-    for s in subs:
-        writer.writerow([
-            s.email,
-            s.confirmed,
-            s.created_at.isoformat() if s.created_at else "",
-            s.expires_at.isoformat() if s.expires_at else "",
-        ])
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=subscribers.csv"},
-    )
+    def generate():
+        yield "email,confirmed,created_at,expires_at\n"
+        offset = 0
+        batch_size = 500
+        while True:
+            rows = (
+                db.session.execute(
+                    select(Subscriber)
+                    .order_by(Subscriber.created_at.desc())
+                    .offset(offset)
+                    .limit(batch_size)
+                ).scalars().all()
+            )
+            if not rows:
+                break
+            for s in rows:
+                yield f'{s.email},{s.confirmed},{s.created_at.isoformat() if s.created_at else ""},{s.expires_at.isoformat() if s.expires_at else ""}\n'
+            offset += batch_size
+
+    return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers.csv"})
+
+
+@admin.route("/subscribers/bulk")
+@admin_required
+def subscribers_bulk():
+    action = request.form.get("action")
+    sub_ids = request.form.getlist("sub_ids")
+    filter_status = request.args.get("status", "all")
+
+    if action in ("delete", "export"):
+        if not sub_ids:
+            flash("No subscribers selected.", "error")
+            return redirect(url_for("admin.subscribers", status=filter_status))
+
+        valid_ids = []
+        for sid in sub_ids:
+            try:
+                valid_ids.append(int(sid))
+            except (ValueError, TypeError):
+                flash("Invalid subscriber ID.", "error")
+                return redirect(url_for("admin.subscribers", status=filter_status))
+
+        if action == "delete":
+            subs = db.session.execute(select(Subscriber).filter(Subscriber.id.in_(valid_ids))).scalars().all()
+            count = len(subs)
+            for sub in subs:
+                db.session.delete(sub)
+            db.session.commit()
+            flash(f"Deleted {count} subscriber(s).", "success")
+        elif action == "export":
+            def generate():
+                yield "email,confirmed,created_at,expires_at\n"
+                subs = db.session.execute(
+                    select(Subscriber).filter(Subscriber.id.in_(valid_ids)).order_by(Subscriber.created_at.desc())
+                ).scalars().all()
+                for s in subs:
+                    yield f'{s.email},{s.confirmed},{s.created_at.isoformat() if s.created_at else ""},{s.expires_at.isoformat() if s.expires_at else ""}\n'
+            return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers_selected.csv"})
+
+    return redirect(url_for("admin.subscribers", status=filter_status))
 
 
 @admin.route("/preview-markdown", methods=["POST"])
 @admin_required
 def preview_markdown():
+    """Render markdown for live preview.
+    
+    Request body (JSON):
+        {"text": str}
+    
+    Response:
+        200: {"html": str} - sanitized HTML
+        400: {"error": "invalid"}
+    """
     data = request.get_json(silent=True)
     if not data or "text" not in data:
         return jsonify({"error": "invalid"}), 400
@@ -964,7 +1065,6 @@ def restore_backup(filename):
     if not os.path.exists(real_path):
         abort(404)
     db_path = os.path.join(current_app.instance_path, "blog.db")
-    db.session.close_all()
     db.engine.dispose()
     _shutil.copy2(real_path, db_path)
     flash(f"Database restored from {filename}. You may need to restart the app for all changes to take effect.", "success")

@@ -6,7 +6,7 @@
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Subscribers</h1>
-        <a href="{{ url_for('admin.export_subscribers') }}" class="btn btn-ghost btn-small">Export CSV</a>
+        <a href="{{ url_for('admin.export_subscribers') }}" class="btn btn-ghost btn-small">Export All</a>
     </div>
 
     <div class="filter-bar">
@@ -15,47 +15,88 @@
         <a href="{{ url_for('admin.subscribers', status='unconfirmed') }}" class="filter-link {% if filter_status == 'unconfirmed' %}active{% endif %}">Unconfirmed</a>
     </div>
 
-    <div class="post-list">
-        <div class="post-list-header">
-            <span>Email</span>
-            <span class="post-list-header-right">Actions</span>
+    <form method="POST" action="{{ url_for('admin.subscribers_bulk', status=filter_status) }}" id="bulk-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="bulk-actions" id="bulk-actions" style="display:none;">
+            <input type="checkbox" id="select-all" aria-label="Select all subscribers">
+            <button type="submit" name="action" value="export" class="btn btn-small btn-ghost">Export Selected</button>
+            <button type="submit" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected subscribers? This cannot be undone.">Delete Selected</button>
         </div>
-        {% for sub in subscribers %}
-            <div class="post-list-item">
-                <div class="post-list-info">
-                    <h3>{{ sub.email }}</h3>
-                    <div class="post-list-meta">
-                        <span class="badge badge-{{ 'published' if sub.confirmed else 'draft' }}">
-                            {{ 'Confirmed' if sub.confirmed else 'Unconfirmed' }}
-                        </span>
-                        <time>{{ sub.created_at.strftime('%b %d, %Y') }}</time>
-                        {% if sub.expires_at %}
-                        <span>Expires: {{ sub.expires_at.strftime('%b %d, %Y') }}</span>
-                        {% endif %}
+
+        <div class="post-list">
+            <div class="post-list-header">
+                <span>Email</span>
+                <span class="post-list-header-right">Actions</span>
+            </div>
+            {% for sub in subscribers %}
+                <div class="post-list-item">
+                    <input type="checkbox" name="sub_ids" value="{{ sub.id }}" class="bulk-checkbox" aria-label="Select {{ sub.email }}">
+                    <div class="post-list-info">
+                        <h3>{{ sub.email }}</h3>
+                        <div class="post-list-meta">
+                            <span class="badge badge-{{ 'published' if sub.confirmed else 'draft' }}">
+                                {{ 'Confirmed' if sub.confirmed else 'Unconfirmed' }}
+                            </span>
+                            <time>{{ sub.created_at.strftime('%b %d, %Y') }}</time>
+                            {% if sub.expires_at %}
+                            <span>Expires: {{ sub.expires_at.strftime('%b %d, %Y') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="post-list-actions">
+                        <form method="POST" action="{{ url_for('admin.delete_subscriber', sub_id=sub.id) }}" class="inline-form" data-confirm="Remove {{ sub.email }}?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                        </form>
                     </div>
                 </div>
-                <div class="post-list-actions">
-                    <form method="POST" action="{{ url_for('admin.delete_subscriber', sub_id=sub.id) }}" class="inline-form" data-confirm="Remove {{ sub.email }}?">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
-                    </form>
-                </div>
-            </div>
-        {% else %}
-            <p class="empty-state">No subscribers found.</p>
-        {% endfor %}
-    </div>
+            {% else %}
+                <p class="empty-state">No subscribers found.</p>
+            {% endfor %}
+        </div>
+    </form>
 
     {% if pagination.pages > 1 %}
         <nav class="pagination">
             {% if pagination.has_prev %}
-                <a href="{{ url_for('admin.subscribers', page=pagination.prev_num, status=filter_status) }}" class="page-link">&larr; Prev</a>
+                <a href="{{ url_for('admin.subscribers', page=pagination.prev_num, status=filter_status) }}" class="page-link">&larr; Newer</a>
             {% endif %}
             <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
             {% if pagination.has_next %}
-                <a href="{{ url_for('admin.subscribers', page=pagination.next_num, status=filter_status) }}" class="page-link">Next &rarr;</a>
+                <a href="{{ url_for('admin.subscribers', page=pagination.next_num, status=filter_status) }}" class="page-link">Older &rarr;</a>
             {% endif %}
         </nav>
     {% endif %}
 </div>
+
+<script>
+(function() {
+    var form = document.getElementById('bulk-form');
+    var bulkActions = document.getElementById('bulk-actions');
+    var selectAll = document.getElementById('select-all');
+
+    function updateBulkUI() {
+        var checked = form.querySelectorAll('.bulk-checkbox:checked');
+        if (checked.length > 0) {
+            bulkActions.style.display = 'flex';
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+
+    form.querySelectorAll('.bulk-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', updateBulkUI);
+    });
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            form.querySelectorAll('.bulk-checkbox').forEach(function(cb) {
+                cb.checked = selectAll.checked;
+            });
+            updateBulkUI();
+        });
+    }
+})();
+</script>
 {% endblock %}

@@ -5,13 +5,6 @@ from app.models import Post, Subscriber
 from app.utils import utc_now
 
 
-@pytest.fixture
-def mock_render():
-    with patch('app.email.render_template') as mock:
-        mock.return_value = '<html>Mock</html>'
-        yield mock
-
-
 def test_send_newsletter_smtp_failure(app, db, mock_render):
     """Test send_newsletter logs error and does not crash on SMTP failure."""
     # Create a dummy post and subscriber

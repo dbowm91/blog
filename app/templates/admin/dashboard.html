@@ -52,7 +52,7 @@
     <div class="filter-bar">
         <form method="GET" action="{{ url_for('admin.dashboard') }}" class="filter-form">
             <input type="text" name="q" placeholder="Search titles..." class="search-input" value="{{ q }}">
-            <select name="status" class="filter-select" onchange="this.form.submit()">
+            <select name="status" class="filter-select">
                 <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
                 <option value="published" {% if status == 'published' %}selected{% endif %}>Published</option>
                 <option value="draft" {% if status == 'draft' %}selected{% endif %}>Draft</option>
@@ -65,7 +65,7 @@
     <form method="POST" action="{{ url_for('admin.bulk_operations') }}" id="bulk-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="bulk-actions">
-            <input type="checkbox" id="select-all" title="Select all">
+            <input type="checkbox" id="select-all" aria-label="Select all posts">
             <button type="submit" name="action" value="publish" class="btn btn-small btn-ghost" data-confirm-bulk="Publish selected posts?">Publish</button>
             <button type="submit" name="action" value="unpublish" class="btn btn-small btn-ghost" data-confirm-bulk="Unpublish selected posts?">Unpublish</button>
             <button type="submit" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected posts? This cannot be undone.">Delete</button>

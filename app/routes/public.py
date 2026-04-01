@@ -154,7 +154,9 @@ def search():
 
     post_ids = _fts_search(query)
     if post_ids:
-        assert all(isinstance(i, int) for i in post_ids)
+        if not all(isinstance(i, int) for i in post_ids):
+            logging.warning(f"FTS returned invalid post_ids: {post_ids}")
+            post_ids = []
         pagination = db.paginate(
             select(Post)
             .options(joinedload(Post.tags))
@@ -203,7 +205,8 @@ def _fts_search(query: str):
         if not check:
             return []
 
-        fts_query = " OR ".join(f'"{w}"' for w in query.split() if w)
+        terms = [w.replace('"', '""') for w in query.split() if w]
+        fts_query = " OR ".join(f'"{t}"' for t in terms)
         if not fts_query:
             return []
         result = db.session.execute(text(
@@ -234,6 +237,16 @@ def short_url_redirect(code):
 
 @public.route("/api/track-share", methods=["POST"])
 def track_share():
+    """Track social share events.
+    
+    Request body (JSON):
+        {"post_id": int, "platform": str}
+    
+    Response:
+        200: {"ok": True}
+        400: {"error": "invalid"}
+        404: {"error": "not found"}
+    """
     data = request.get_json(silent=True)
     if not data or "post_id" not in data or "platform" not in data:
         return jsonify({"error": "invalid"}), 400

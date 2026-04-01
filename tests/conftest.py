@@ -1,5 +1,6 @@
 import os
 import pytest
+from unittest.mock import patch
 from app import create_app
 from app.extensions import db as _db
 from app.models import User, Post, Tag
@@ -22,9 +23,7 @@ def app(tmp_path_factory):
         'CSRF_ENABLED': False,
     })
 
-    with app.app_context():
-        _db.create_all()
-        yield app
+    yield app
 
 
 @pytest.fixture(scope='function')
@@ -86,3 +85,11 @@ def sample_tag(db):
     db.session.add(tag)
     db.session.commit()
     return tag
+
+
+@pytest.fixture(scope='function')
+def mock_render():
+    """Mock for email template rendering."""
+    with patch('app.email.render_template') as mock:
+        mock.return_value = '<html>Mock</html>'
+        yield mock

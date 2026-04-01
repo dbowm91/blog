@@ -48,6 +48,8 @@
     </div>
 
     <footer class="post-footer">
+        {% if current_user.is_authenticated and current_user.is_admin %}
         <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="back-link">&larr; Back to editor</a>
+        {% endif %}
     </footer>
 </article>

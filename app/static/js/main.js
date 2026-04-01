@@ -90,17 +90,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const copyToClipboard = (text) => {
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             return navigator.clipboard.writeText(text);
-                        } else {
-                            return new Promise((resolve) => {
-                                const textarea = document.createElement('textarea');
-                                textarea.value = text;
-                                document.body.appendChild(textarea);
-                                textarea.select();
-                                document.execCommand('copy');
-                                document.body.removeChild(textarea);
-                                resolve();
-                            });
                         }
+                        throw new Error('Clipboard API not available');
                     };
                     
                     copyToClipboard(shareUrl).then(() => {
@@ -108,7 +99,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
                         setTimeout(() => { btn.innerHTML = original; }, 1500);
                     }).catch(() => {
-                        console.warn('Failed to copy to clipboard');
+                        btn.textContent = 'Failed';
+                        setTimeout(() => { btn.innerHTML = original; }, 1500);
                     });
                     return;
                 }
@@ -139,23 +131,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         button.textContent = 'Copied!';
                         setTimeout(() => { button.textContent = 'Copy'; }, 2000);
                     }).catch(() => {
-                        const textarea = document.createElement('textarea');
-                        textarea.value = code.textContent;
-                        document.body.appendChild(textarea);
-                        textarea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textarea);
-                        button.textContent = 'Copied!';
+                        button.textContent = 'Failed';
                         setTimeout(() => { button.textContent = 'Copy'; }, 2000);
                     });
                 } else {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = code.textContent;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    button.textContent = 'Copied!';
+                    button.textContent = 'Failed';
                     setTimeout(() => { button.textContent = 'Copy'; }, 2000);
                 }
             }
@@ -421,7 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Listen for OS theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         const stored = localStorage.getItem('theme');
-        if (!stored || stored === 'auto') {
+        if (!stored) {
             document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
             setThemeIcon(e.matches);
         }
@@ -446,8 +426,70 @@ document.addEventListener("DOMContentLoaded", () => {
                 navigator.clipboard.writeText(url).then(() => {
                     btn.textContent = 'Copied!';
                     setTimeout(() => { btn.textContent = 'Copy URL'; }, 1500);
-                }).catch(() => {});
+                }).catch(() => {
+                    btn.textContent = 'Failed';
+                    setTimeout(() => { btn.textContent = 'Copy URL'; }, 1500);
+                });
+            } else {
+                btn.textContent = 'Failed';
+                setTimeout(() => { btn.textContent = 'Copy URL'; }, 1500);
             }
         });
+    });
+
+    // --- Dashboard filter select auto-submit ---
+    document.querySelectorAll('.filter-select').forEach(select => {
+        select.addEventListener('change', () => {
+            select.form.submit();
+        });
+    });
+
+    // --- Analytics select auto-submit ---
+    document.querySelectorAll('[data-auto-submit]').forEach(select => {
+        select.addEventListener('change', () => {
+            window.location.href = '/admin/analytics?days=' + select.value;
+        });
+    });
+
+    // --- Keyboard shortcuts for admin ---
+    document.addEventListener('keydown', (e) => {
+        // Ignore if user is typing in an input/textarea
+        const tag = e.target.tagName;
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
+        
+        // Ctrl+S: Save draft
+        if (e.ctrlKey && e.key === 's' && !isInput) {
+            e.preventDefault();
+            const saveBtn = document.querySelector('button[name="action"][value="save"]');
+            if (saveBtn) saveBtn.click();
+        }
+        
+        // Ctrl+Enter: Publish
+        if (e.ctrlKey && e.key === 'Enter' && !isInput) {
+            e.preventDefault();
+            const publishBtn = document.querySelector('button[name="action"][value="publish"]');
+            if (publishBtn) publishBtn.click();
+        }
+        
+        // Escape: Close modals
+        if (e.key === 'Escape') {
+            const modal = document.querySelector('.modal, .modal-overlay');
+            if (modal) {
+                const closeBtn = modal.querySelector('[data-close]') || modal.querySelector('.close-btn');
+                if (closeBtn) closeBtn.click();
+            }
+        }
+        
+        // ?: Show help
+        if (e.key === '?' && !isInput) {
+            e.preventDefault();
+            const helpModal = document.getElementById('keyboard-help');
+            if (helpModal) {
+                helpModal.style.display = 'flex';
+                helpModal.querySelector('.close-btn')?.addEventListener('click', () => {
+                    helpModal.style.display = 'none';
+                }, { once: true });
+            }
+        }
     });
 });

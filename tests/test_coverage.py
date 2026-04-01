@@ -42,7 +42,7 @@ def test_rss_feed_excludes_drafts(client, db, admin_user):
 
 # --- Bulk Operations Tests ---
 
-def test_bulk_publish(authenticated_client, db, admin_user):
+def test_bulk_publish_coverage(authenticated_client, db, admin_user):
     """Test bulk publishing posts."""
     post1 = Post(title='Draft 1', slug='draft-1', body='Content', published=False)
     post2 = Post(title='Draft 2', slug='draft-2', body='Content', published=False)
@@ -57,7 +57,7 @@ def test_bulk_publish(authenticated_client, db, admin_user):
     assert b'Published 2 post' in response.data
 
 
-def test_bulk_delete(authenticated_client, db, admin_user):
+def test_bulk_delete_coverage(authenticated_client, db, admin_user):
     """Test bulk deleting posts."""
     post1 = Post(title='Delete Me 1', slug='delete-1', body='Content', published=False)
     post2 = Post(title='Delete Me 2', slug='delete-2', body='Content', published=False)
@@ -209,7 +209,7 @@ def test_track_share_published_post(client, db, sample_post):
 
 # --- Newsletter Reset Tests ---
 
-def test_newsletter_reset(authenticated_client, db, sample_post):
+def test_newsletter_reset_coverage(authenticated_client, db, sample_post):
     """Test resetting newsletter flag on a post."""
     sample_post.newsletter_sent_at = utc_now()
     db.session.commit()

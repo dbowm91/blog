@@ -8,7 +8,7 @@
         <h1>Analytics</h1>
         <div class="date-range-selector">
             <label for="days-select">Time period:</label>
-            <select id="days-select" onchange="window.location.href='/admin/analytics?days=' + this.value">
+            <select id="days-select" data-auto-submit>
                 <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
                 <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
                 <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>

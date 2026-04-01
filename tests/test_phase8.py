@@ -323,3 +323,34 @@ class TestBackupRestore:
         """Cannot delete with invalid filename."""
         response = authenticated_client.post('/admin/backup/delete/evil.sh')
         assert response.status_code == 400
+
+    def test_restore_no_deprecation_warning(self, client, db, authenticated_client, app):
+        """Restore does not emit DeprecationWarning."""
+        import warnings
+        import io
+        import sys
+
+        # Create a backup first
+        authenticated_client.post('/admin/backup/create')
+
+        # Get the backup filename
+        backup_dir = os.path.join(app.instance_path, 'backups')
+        backups = [f for f in os.listdir(backup_dir) if f.startswith('blog_')]
+        assert len(backups) >= 1
+        filename = backups[0]
+
+        # Capture warnings
+        old_stderr = sys.stderr
+        sys.stderr = io.StringIO()
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            # Trigger restore path - we can't actually restore (would corrupt DB)
+            # but we can call the route handler to exercise the code path
+            response = authenticated_client.post(f'/admin/backup/restore/{filename}')
+            # Response will be a redirect (success) or error - we're checking for warnings
+
+        sys.stderr = old_stderr
+
+        deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+        assert len(deprecation_warnings) == 0, f"DeprecationWarning found: {[str(x.message) for x in deprecation_warnings]}"
