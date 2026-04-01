@@ -11,7 +11,7 @@
     <div class="content-layout">
         <section class="posts-list">
             {% for post in posts %}
-                <article class="post-card animate-in" style="--delay: {{ loop.index0 * 0.08 }}s">
+                <article class="post-card animate-in">
                     {% if post.image %}
                         <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async">
                     {% else %}

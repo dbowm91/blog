@@ -1,8 +1,9 @@
 import os
 import time
+import secrets
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, render_template, redirect, url_for, request as req, flash, session
+from flask import Flask, render_template, redirect, url_for, request as req, flash, session, g
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import current_user, logout_user
 from app.extensions import db, login_manager, migrate
@@ -12,7 +13,17 @@ from sqlalchemy import select, text
 
 
 def configure_logging(app):
-    """Configure application logging."""
+    """Configure application logging with request context."""
+
+    class RequestIdFilter(logging.Filter):
+        """Inject request_id into log records."""
+        def filter(self, record):
+            try:
+                record.request_id = getattr(g, 'request_id', '-')
+            except RuntimeError:
+                record.request_id = '-'
+            return True
+
     if not app.debug and not app.testing:
         log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
         os.makedirs(log_dir, exist_ok=True)
@@ -23,8 +34,9 @@ def configure_logging(app):
             backupCount=10
         )
         file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+            '%(asctime)s %(levelname)s [%(request_id)s] %(message)s [in %(pathname)s:%(lineno)d]'
         ))
+        file_handler.addFilter(RequestIdFilter())
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
 
@@ -116,6 +128,10 @@ def create_app():
     def before_request_handler():
         from app.utils import utc_now
 
+        # Generate request ID and CSP nonce for this request
+        g.request_id = secrets.token_hex(4)
+        g.csp_nonce = secrets.token_urlsafe(16)
+
         # CSRF validation for POST requests
         if req.method == "POST":
             endpoint = req.endpoint or ""
@@ -138,6 +154,16 @@ def create_app():
                 except (ValueError, TypeError):
                     last = 0.0  # Legacy format or corrupted; treat as expired
                 if (now - last) > SESSION_LIFETIME_SECONDS:
+                    # Clean up admin session tracking
+                    sid = session.pop("admin_session_id", None)
+                    if sid:
+                        from app.models import AdminSession
+                        admin_session = db.session.execute(
+                            select(AdminSession).filter_by(session_id=sid)
+                        ).scalar_one_or_none()
+                        if admin_session:
+                            db.session.delete(admin_session)
+                            db.session.commit()
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))
@@ -146,6 +172,7 @@ def create_app():
     @app.after_request
     def set_security_headers(response):
         from flask import current_app
+        nonce = getattr(g, 'csp_nonce', '')
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -156,14 +183,15 @@ def create_app():
         if not current_app.debug:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "font-src 'self'; "
-            "img-src 'self' data:; "
-            "script-src 'self'; "
-            "connect-src 'self'; "
-            "frame-src 'none'; "
-            "frame-ancestors 'none'"
+            f"default-src 'self'; "
+            f"style-src 'self' 'nonce-{nonce}'; "
+            f"style-src-attr 'unsafe-inline'; "
+            f"font-src 'self'; "
+            f"img-src 'self' data:; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            f"connect-src 'self'; "
+            f"frame-src 'none'; "
+            f"frame-ancestors 'none'"
         )
         if req.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
@@ -171,7 +199,8 @@ def create_app():
 
     @app.context_processor
     def inject_csrf():
-        return {"csrf_token": generate_csrf_token()}
+        nonce = getattr(g, 'csp_nonce', '')
+        return {"csrf_token": generate_csrf_token(), "csp_nonce": nonce}
 
     @app.context_processor
     def inject_config():

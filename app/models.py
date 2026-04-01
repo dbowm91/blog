@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
 
+from typing import Optional
+
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -23,18 +25,18 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
-    def set_password(self, password):
+    def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User {self.username!r} admin={self.is_admin}>"
 
 
 @login_manager.user_loader
-def load_user(user_id):
+def load_user(user_id: str) -> Optional[User]:
     return db.session.get(User, int(user_id))
 
 
@@ -46,10 +48,10 @@ class Tag(db.Model):
     slug = db.Column(db.String(50), unique=True, nullable=False)
 
     @staticmethod
-    def generate_slug(name):
+    def generate_slug(name: str) -> str:
         return generate_slug(name)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Tag {self.name!r}>"
 
 
@@ -70,6 +72,7 @@ class Post(db.Model):
     )
     published = db.Column(db.Boolean, default=False)
     published_at = db.Column(UTCDateTime, nullable=True)
+    scheduled_publish_at = db.Column(UTCDateTime, nullable=True)
     newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
     newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
@@ -85,13 +88,13 @@ class Post(db.Model):
     )
 
     @staticmethod
-    def generate_slug(title):
+    def generate_slug(title: str) -> str:
         return generate_slug(title)
 
-    def short_code(self):
+    def short_code(self) -> str:
         return encode(self.id)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Post {self.title!r} published={self.published}>"
 
 
@@ -113,7 +116,7 @@ class Subscriber(db.Model):
         db.Index("ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
 
 
@@ -129,7 +132,7 @@ class PageView(db.Model):
         db.Index("ix_page_views_post_created", "post_id", "created_at"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<PageView post_id={self.post_id}>"
 
 
@@ -145,5 +148,26 @@ class ShareEvent(db.Model):
         db.Index("ix_share_events_post_created", "post_id", "created_at"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ShareEvent post_id={self.post_id} platform={self.platform!r}>"
+
+
+class AdminSession(db.Model):
+    __tablename__ = "admin_sessions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    session_id = db.Column(db.String(64), unique=True, nullable=False)
+    ip_address = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.String(256), nullable=True)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    last_activity = db.Column(UTCDateTime, default=utc_now)
+
+    user = db.relationship("User", backref=db.backref("admin_sessions", lazy="dynamic"))
+
+    __table_args__ = (
+        db.Index("ix_admin_sessions_user_id", "user_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AdminSession user_id={self.user_id} ip={self.ip_address!r}>"

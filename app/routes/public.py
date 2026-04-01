@@ -452,17 +452,46 @@ def favicon():
 
 @public.route("/health")
 def health_check():
-    """Health check endpoint for monitoring."""
+    """Health check endpoint for monitoring.
+
+    Response:
+        200: All services healthy
+        503: One or more services degraded
+    """
+    import sys
     from app.scheduler import get_scheduler_status
+    from app.config import SMTP_HOST
+    checks = {}
+    status_code = 200
+
+    # Database check
     try:
         db.session.execute(text("SELECT 1"))
-        db_status = "connected"
+        checks["database"] = "ok"
     except Exception:
-        db_status = "disconnected"
-    
+        checks["database"] = "error"
+        status_code = 503
+
+    # Scheduler check (only relevant if SMTP configured)
+    if SMTP_HOST:
+        checks["scheduler"] = "running" if get_scheduler_status() else "stopped"
+    else:
+        checks["scheduler"] = "disabled"
+
+    # FTS check
+    try:
+        has_fts = db.session.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
+        )).fetchone()
+        checks["search"] = "ok" if has_fts else "unavailable"
+    except Exception:
+        checks["search"] = "error"
+
+    overall = "ok" if all(v in ("ok", "running", "disabled") for v in checks.values()) else "degraded"
+
     return jsonify({
-        "status": "ok" if db_status == "connected" else "error",
-        "database": db_status,
-        "scheduler": "running" if get_scheduler_status() else "stopped",
+        "status": overall,
+        "version": sys.version.split()[0],
+        "checks": checks,
         "timestamp": utc_now().isoformat(),
-    })
+    }), status_code

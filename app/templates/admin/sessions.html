@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Active Sessions | Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Active Sessions</h1>
+    </div>
+
+    {% if sessions %}
+    <div class="post-list">
+        <div class="post-list-header">
+            <span>User / IP</span>
+            <span class="post-list-header-right">Actions</span>
+        </div>
+        {% for sess in sessions %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <h3>{{ sess.user.username if sess.user else 'Unknown' }}</h3>
+                    <div class="post-list-meta">
+                        <span>{{ sess.ip_address or 'N/A' }}</span>
+                        <time>Last active: {{ sess.last_activity.strftime('%b %d, %Y %H:%M') if sess.last_activity else 'N/A' }}</time>
+                        {% if sess.session_id == current_session_id %}
+                            <span class="badge badge-published">Current</span>
+                        {% endif %}
+                    </div>
+                    <div class="post-list-meta mt-sm">
+                        <span class="text-muted" style="font-size: 0.75rem;">{{ sess.user_agent[:80] if sess.user_agent else 'N/A' }}{% if sess.user_agent and sess.user_agent|length > 80 %}...{% endif %}</span>
+                    </div>
+                </div>
+                <div class="post-list-actions">
+                    {% if sess.session_id != current_session_id %}
+                    <form method="POST" action="{{ url_for('admin.revoke_session', sess_id=sess.id) }}" class="inline-form" data-confirm="Revoke this session? The user will be logged out.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Revoke</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No active sessions.</p>
+    {% endif %}
+</div>
+{% endblock %}

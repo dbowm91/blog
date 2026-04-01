@@ -14,23 +14,23 @@ from sqlalchemy import select, func
 from app.extensions import db
 from app.models import Post, post_tags
 
-_TAG_COUNTS_CACHE = {"data": None, "timestamp": 0}
+_TAG_COUNTS_CACHE: dict[str, object] = {"data": None, "timestamp": 0}
 _TAG_CACHE_LOCK = threading.Lock()
 
 
-def _get_tag_ttl():
+def _get_tag_ttl() -> int:
     from app.config import TAG_CACHE_TTL_SECONDS
     return TAG_CACHE_TTL_SECONDS
 
 
-def invalidate_tag_cache():
+def invalidate_tag_cache() -> None:
     """Invalidate the tag counts cache."""
     with _TAG_CACHE_LOCK:
         _TAG_COUNTS_CACHE["data"] = None
         _TAG_COUNTS_CACHE["timestamp"] = 0
 
 
-def _get_tag_counts():
+def _get_tag_counts() -> dict[int, int]:
     ttl = _get_tag_ttl()
     # Fast path: return cached copy if still valid
     with _TAG_CACHE_LOCK:

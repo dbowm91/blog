@@ -8,7 +8,7 @@ import threading
 
 from functools import wraps
 
-from flask import Blueprint, abort, render_template, redirect, url_for, request, flash, current_app, jsonify, Response, send_file
+from flask import Blueprint, abort, render_template, redirect, url_for, request, flash, current_app, jsonify, Response, send_file, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import delete, func, select
@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 
 from app.extensions import db
-from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber
+from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber, AdminSession
 
 from app.utils import utc_now, safe_delete_file
 from app.config import DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE, MEDIA_PER_PAGE, MEDIA_MAX_FILES
@@ -238,6 +238,18 @@ def login():
         user = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
         if user and user.check_password(password) and user.is_admin:
             login_user(user)
+            # Track admin session
+            import secrets
+            sid = secrets.token_hex(32)
+            admin_session = AdminSession(
+                user_id=user.id,
+                session_id=sid,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent", "")[:256],
+            )
+            db.session.add(admin_session)
+            db.session.commit()
+            session["admin_session_id"] = sid
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials.", "error")
 
@@ -270,6 +282,15 @@ def newsletter_reset(post_id):
 @login_required
 def logout():
     """Log out the current user and redirect to homepage."""
+    # Remove admin session tracking
+    sid = session.pop("admin_session_id", None)
+    if sid:
+        admin_session = db.session.execute(
+            select(AdminSession).filter_by(session_id=sid)
+        ).scalar_one_or_none()
+        if admin_session:
+            db.session.delete(admin_session)
+            db.session.commit()
     logout_user()
     return redirect(url_for("public.index"))
 
@@ -366,6 +387,16 @@ def new_post():
         summary = request.form.get("summary", "").strip()[:500]
         tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
         published = "published" in request.form
+        scheduled_str = request.form.get("scheduled_publish_at", "").strip()
+        scheduled_publish_at = None
+        if scheduled_str:
+            try:
+                scheduled_publish_at = datetime.fromisoformat(scheduled_str)
+                if scheduled_publish_at.tzinfo is None:
+                    scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                flash("Invalid schedule date format.", "error")
+                return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
         if not title or not body:
             flash("Title and body are required.", "error")
@@ -382,6 +413,7 @@ def new_post():
             title=title, slug=slug, body=body, summary=summary,
             published=published, image=image,
             published_at=now if published else None,
+            scheduled_publish_at=scheduled_publish_at,
         )
         post.tags = _get_or_create_tags(tag_names)
         db.session.add(post)
@@ -398,6 +430,7 @@ def new_post():
                 title=title, slug=slug, body=body, summary=summary,
                 published=published, image=image,
                 published_at=now if published else None,
+                scheduled_publish_at=scheduled_publish_at,
             )
             post.tags = _get_or_create_tags(tag_names)
             db.session.add(post)
@@ -425,6 +458,16 @@ def edit_post(post_id):
         summary = request.form.get("summary", "").strip()[:500]
         tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
         published = "published" in request.form
+        scheduled_str = request.form.get("scheduled_publish_at", "").strip()
+        scheduled_publish_at = None
+        if scheduled_str:
+            try:
+                scheduled_publish_at = datetime.fromisoformat(scheduled_str)
+                if scheduled_publish_at.tzinfo is None:
+                    scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                flash("Invalid schedule date format.", "error")
+                return render_template("admin/editor.html", post=post, tag_names=tag_names)
 
         if not title or not body:
             flash("Title and body are required.", "error")
@@ -441,6 +484,7 @@ def edit_post(post_id):
         post.summary = summary
         was_published = post.published
         post.published = published
+        post.scheduled_publish_at = scheduled_publish_at
         if published and not was_published:
             post.published_at = utc_now()
         post.tags = _get_or_create_tags(tag_names)
@@ -471,6 +515,7 @@ def edit_post(post_id):
             post.body = body
             post.summary = summary
             post.published = published
+            post.scheduled_publish_at = scheduled_publish_at
             if published and not was_published:
                 post.published_at = utc_now()
             post.tags = _get_or_create_tags(tag_names)
@@ -1048,6 +1093,42 @@ def change_password(user_id):
     db.session.commit()
     flash(f"Password changed for '{user.username}'.", "success")
     return redirect(url_for("admin.users_list"))
+
+
+@admin.route("/sessions")
+@admin_required
+def sessions_list():
+    """View active admin sessions. Only admins can see all sessions."""
+    sessions = (
+        db.session.execute(
+            select(AdminSession)
+            .options(joinedload(AdminSession.user))
+            .order_by(AdminSession.last_activity.desc())
+        ).unique().scalars().all()
+    )
+    current_session_id = session.get("admin_session_id", "")
+    return render_template(
+        "admin/sessions.html",
+        sessions=sessions,
+        current_session_id=current_session_id,
+    )
+
+
+@admin.route("/sessions/revoke/<int:sess_id>", methods=["POST"])
+@admin_required
+def revoke_session(sess_id):
+    """Revoke a specific admin session."""
+    admin_session = db.session.get(AdminSession, sess_id)
+    if not admin_session:
+        abort(404)
+    # Prevent revoking own current session
+    if admin_session.session_id == session.get("admin_session_id"):
+        flash("Cannot revoke your own current session. Use logout instead.", "error")
+        return redirect(url_for("admin.sessions_list"))
+    db.session.delete(admin_session)
+    db.session.commit()
+    flash("Session revoked.", "success")
+    return redirect(url_for("admin.sessions_list"))
 
 
 def _get_backup_dir():

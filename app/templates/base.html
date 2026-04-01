@@ -19,7 +19,7 @@
     <link rel="preload" href="{{ url_for('static', filename='fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="{{ url_for('static', filename='fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <noscript>
-        <style>
+        <style nonce="{{ csp_nonce }}">
             @media (max-width: 768px) {
                 .nav-links { display: flex !important; }
                 .mobile-menu-toggle { display: none !important; }

@@ -136,6 +136,62 @@ def cleanup_expired_subscribers(app):
                 pass
 
 
+def publish_scheduled_posts(app):
+    """Auto-publish posts whose scheduled_publish_at time has passed."""
+    lock_path = os.path.join(app.instance_path, "scheduled.lock")
+    lock_file = None
+    try:
+        lock_file = open(lock_path, "w")
+        if HAS_FCNTL:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        if lock_file:
+            lock_file.close()
+        return
+
+    try:
+        with app.app_context():
+            from app.models import Post
+            from app.extensions import db
+            from app.utils import utc_now
+            from app.search import sync_fts
+            from app.cache import invalidate_tag_cache
+
+            now = utc_now()
+            posts = (
+                db.session.execute(
+                    select(Post)
+                    .filter(
+                        Post.published == False,
+                        Post.scheduled_publish_at != None,
+                        Post.scheduled_publish_at <= now,
+                    )
+                ).scalars().all()
+            )
+
+            if not posts:
+                return
+
+            for post in posts:
+                post.published = True
+                post.published_at = now
+                post.scheduled_publish_at = None
+                sync_fts(post.id, post.title, post.body, post.summary, True)
+
+            db.session.commit()
+            invalidate_tag_cache()
+            app.logger.info("Auto-published %d scheduled post(s)", len(posts))
+    finally:
+        if lock_file:
+            if HAS_FCNTL:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+            try:
+                os.remove(lock_path)
+            except FileNotFoundError:
+                pass
+
+
 def init_scheduler(app):
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
@@ -162,6 +218,13 @@ def init_scheduler(app):
         CronTrigger(minute="*/5"),
         args=[app],
         id="cleanup_expired_subscribers",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        publish_scheduled_posts,
+        CronTrigger(minute="*"),
+        args=[app],
+        id="publish_scheduled_posts",
         replace_existing=True,
     )
     scheduler.start()

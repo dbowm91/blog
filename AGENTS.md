@@ -18,7 +18,7 @@ Both `ADMIN_PASSWORD` and `SECRET_KEY` environment variables are **required**—
 run.py                  # Entry point—exports `app` (WSGI) and `asgi_app` (ASGI)
 app/__init__.py         # App factory (`create_app()`), middleware, logging setup
 app/config.py           # All config loaded from `config.toml` + env vars (+ validation)
-app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent)
+app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession)
 app/extensions.py       # Flask extensions (db, login_manager, migrate)
 app/routes/public.py    # Public-facing routes
 app/routes/admin.py     # Admin routes (requires login)
@@ -31,6 +31,7 @@ app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
 app/email.py            # SMTP email sending (with TLS via ssl.create_default_context)
 app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown rendering
+DEPLOY.md               # Deployment guide
 ```
 
 ## Key Patterns
@@ -47,12 +48,14 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - `Post.updated_at` has automatic `onupdate` trigger in the model
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
+- `Post.scheduled_publish_at` — optional datetime for scheduled auto-publish (scheduler checks every minute)
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
 - `Subscriber.expires_at` has no model default; the subscribe route sets it explicitly from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
-- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_published_at` on `published_at`, `ix_posts_newsletter_sent_at` on `newsletter_sent_at`, `ix_posts_published_updated` on `(published, updated_at)`
+- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_published_at` on `published_at`, `ix_posts_newsletter_sent_at` on `newsletter_sent_at`, `ix_posts_published_updated` on `(published, updated_at)`, `ix_posts_published_slug` on `(published, slug)`
 - `PageView` has composite index `ix_page_views_post_created` on `(post_id, created_at)`; `ShareEvent` has `ix_share_events_post_created` on `(post_id, created_at)`
 - `Subscriber` has composite index `ix_subscribers_confirmed_unsubscribed` on `(confirmed, unsubscribed_at)`
+- `AdminSession` tracks active admin sessions with `session_id`, `ip_address`, `user_agent`, `created_at`, `last_activity`; has index `ix_admin_sessions_user_id` on `user_id`
 - `User.is_admin` — boolean, default False; first user auto-promoted to admin
 - All DateTime columns use `UTCDateTime` TypeDecorator (stores naive UTC in SQLite, returns timezone-aware UTC on read)
 - `utc_now()` returns timezone-aware UTC datetime
@@ -68,6 +71,9 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 - Admin session expires after `SESSION_LIFETIME_HOURS` hours of inactivity (configurable in `config.toml`, default 24)
 - `SESSION_COOKIE_SECURE` is set to `not app.debug` (HTTPS only in production)
 - `SESSION_COOKIE_SAMESITE` is set to `"Lax"`
+- Login creates an `AdminSession` record (tracks `session_id`, `ip_address`, `user_agent`); logout deletes it
+- Session timeout also cleans up `AdminSession` record on expiry
+- Sessions management UI at `/admin/sessions` (view, revoke)
 
 ### CSRF
 - All POST routes require CSRF token
@@ -360,8 +366,11 @@ See `requirements.txt`. Key packages:
 - Allowed attributes: `a[href,title]`, `img[src,alt,title,width,height]`, `span/div[*][class]`
 - **nh3 note**: The `rel` attribute for `<a>` tags is managed automatically by nh3—do not include it in allowed attributes (causes a panic)
 - OG image meta tag is already implemented in `post.html:8`
-- CSP header: `default-src 'self'` with `style-src 'self' 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self'`, `connect-src 'self'`, `frame-src 'none'`, `frame-ancestors 'none'`
+- CSP header: `default-src 'self'` with `style-src 'self' 'nonce-<random>'`, `style-src-attr 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `script-src 'self' 'nonce-<random>'`, `connect-src 'self'`, `frame-src 'none'`, `frame-ancestors 'none'`
 - **No inline event handlers** — delete confirmation uses `data-confirm` attribute handled by `main.js` (CSP compliance). All inline `onchange` handlers have been migrated to `main.js`.
+- Nonce generated per-request in `before_request` handler via `g.csp_nonce`, injected into templates via `context_processor` as `csp_nonce`
+- `<style>` and `<script>` tags in templates use `nonce="{{ csp_nonce }}"` attribute
+- Inline `style=""` attributes allowed via `style-src-attr 'unsafe-inline'` for data-driven styles (chart heights)
 
 ## Security Headers
 
@@ -369,10 +378,12 @@ The `set_security_headers` after-request handler sets:
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `X-XSS-Protection: 1; mode=block`
+- `X-Download-Options: noopen`
+- `X-Permitted-Cross-Domain-Policies: none`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy` (self-only sources, `style-src` includes `'unsafe-inline'` for CSS custom properties used in animation delays, `frame-src 'none'` blocks all iframe embedding)
+- `Content-Security-Policy` (self-only sources, `style-src` uses nonces, `style-src-attr 'unsafe-inline'` for data-driven styles, `frame-src 'none'` blocks all iframe embedding)
 - `Cache-Control: public, max-age=31536000, immutable` (static assets only)
 
 ## Dark/Light Mode
@@ -447,6 +458,21 @@ The `set_security_headers` after-request handler sets:
 - `invalidate_tag_cache()` called on tag create/rename/delete and post CRUD operations
 - Cache returns a copy to prevent external mutation
 
+## Post Scheduling
+
+- `Post.scheduled_publish_at` — optional datetime for scheduled auto-publish
+- Scheduler checks every minute (`publish_scheduled_posts` in `scheduler.py`)
+- Auto-publishes posts where `published == False` and `scheduled_publish_at <= now`
+- Sets `published = True`, `published_at = now`, clears `scheduled_publish_at`, syncs FTS
+- Editor has `datetime-local` input for scheduling; leave empty for immediate publishing
+- Both `new_post()` and `edit_post()` handle `scheduled_publish_at` from form data
+
+## Request ID Logging
+
+- Each request gets a unique 8-char hex ID (`g.request_id`)
+- Log format includes `[%(request_id)s]` for correlating log entries per request
+- `RequestIdFilter` in `configure_logging()` safely handles missing request context
+
 ## Completed Work
 
 Original plan.md waves 1–8 are complete:
@@ -459,4 +485,16 @@ Original plan.md waves 1–8 are complete:
 - Accessibility/UX (theme listener, mobile menu close, tabindex, noscript warning)
 - CSS/JS polish items
 
-See `plan.md` for remaining work.
+Deferred items completed:
+- **4.5** CSP with nonces (per-request nonce, nonce on style/script blocks, style-src-attr for inline attributes)
+- **4.6** Admin session tracking (AdminSession model, login/logout tracking, sessions management UI)
+- **5A.4** Composite database indexes (ix_posts_published_slug migration)
+- **5B.1** Post scheduling (scheduled_publish_at field, scheduler job, editor UI)
+- **5B.3** Mobile responsiveness (CSS improvements: touch targets, iOS zoom prevention, safe area insets)
+- **6A.1** Integration tests (11 tests covering post lifecycle, subscription, search, tags, bulk ops, media, users)
+- **6A.4** Health check enhanced (checks dict with database, scheduler, search; 503 on degradation)
+- **6A.5** Request context logging (request_id per request, filter for log records)
+- **7.1** Type hints (added to models, cache, key utility functions)
+- **7.3** Deployment guide (DEPLOY.md with Granian, nginx, systemd, security checklist)
+
+See `plan.md` for detailed status.

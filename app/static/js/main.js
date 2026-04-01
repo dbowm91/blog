@@ -474,9 +474,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Escape: Close modals
         if (e.key === 'Escape') {
-            const modal = document.querySelector('.modal-overlay[style*="flex"]');
+            const modal = document.querySelector('.modal-overlay:not(.hidden)');
             if (modal) {
-                modal.style.display = 'none';
+                modal.classList.add('hidden');
             }
         }
 
@@ -494,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             const helpModal = document.getElementById('keyboard-help');
             if (helpModal) {
-                helpModal.style.display = 'flex';
+                helpModal.classList.remove('hidden');
             }
         }
     });
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Modal close button handler
     document.querySelectorAll('.modal-overlay .close-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            btn.closest('.modal-overlay').style.display = 'none';
+            btn.closest('.modal-overlay').classList.add('hidden');
         });
     });
 
@@ -510,7 +510,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
-                overlay.style.display = 'none';
+                overlay.classList.add('hidden');
             }
         });
     });

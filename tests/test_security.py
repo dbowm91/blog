@@ -9,7 +9,8 @@ def test_csp_header(client):
     assert "default-src 'self'" in csp
     assert "frame-ancestors 'none'" in csp
     assert "frame-src 'none'" in csp
-    assert "style-src 'self' 'unsafe-inline'" in csp
+    assert "style-src 'self' 'nonce-" in csp
+    assert "script-src 'self' 'nonce-" in csp
 
 
 def test_hsts_conditional_debug(client):
