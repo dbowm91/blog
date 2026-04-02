@@ -1,393 +1,419 @@
 # Consolidated Improvement Plan
 
-Generated from codebase review on 2026-04-01. All items verified against current code.
-Supersedes plan2.md, plan3.md, plan4.md, plan5.md, plan6.md.
+Consolidated from `plan2.md` (code quality), `plan4.md` (UI fixes), `plan5.md` (accessibility/UX), and `plan6.md` (enhancements).
 
-**Status: All waves complete. All 228 tests pass.**
+All items verified against the codebase as of 2026-04-02.
 
-Each wave builds on the previous. Sub-agents within a wave can run in parallel since they touch different files/domains.
+## Testing
 
----
-
-## Wave 1 — Critical Bugs & Dead Code ✅
-
-Two independent sub-agents: **Backend** and **CSS/JS**.
-
-### Sub-Agent A: Backend Bugs
-
-#### 1A.1 Fix `subscribers_bulk` route accepting GET ✅
-
-**File:** `app/routes/admin.py`
-**Problem:** Route decorator defaults to GET-only but reads `request.form`, which is empty on GET.
-**Fix:** Added `methods=["POST"]` to the route decorator.
-
-#### 1A.2 Fix subscribe race condition (IntegrityError) ✅
-
-**File:** `app/routes/public.py`
-**Problem:** Two concurrent subscribe requests with the same email both pass check, then both try to insert → unhandled IntegrityError.
-**Fix:** Wrapped insert + commit in `try/except IntegrityError`. On collision, re-queries existing subscriber.
-
-#### 1A.3 Fix CSV export field escaping ✅
-
-**Files:** `app/routes/admin.py`
-**Problem:** CSV built with f-strings. Commas, quotes, or newlines in emails break CSV formatting.
-**Fix:** Used `csv.writer` via `io.StringIO`. Cells starting with `=`, `+`, `-`, `@` prefixed with `'` to prevent CSV formula injection.
-
-#### 1A.4 Fix orphan tag cleanup never persisting ✅
-
-**Files:** `app/routes/admin.py`
-**Problem:** `_cleanup_orphan_tags()` was called *after* `db.session.commit()` in all three callers.
-**Fix:** Moved `_cleanup_orphan_tags()` and `invalidate_tag_cache()` to before `db.session.commit()`.
-
-#### 1A.5 Fix backup restore doesn't decompress .db.gz ✅
-
-**File:** `app/routes/admin.py`
-**Problem:** Restore used `shutil.copy2()` directly for .db.gz backups, copying compressed bytes as the database.
-**Fix:** Added gzip decompression to temp file before copying for .gz files.
-
-#### 1A.6 Fix base URL validation unreachable ✅
-
-**File:** `app/config.py`
-**Problem:** `raise RuntimeError` fired before the base_url check.
-**Fix:** Moved base_url validation before the first `if errors: raise`.
-
-#### 1A.7 Remove unused imports ✅
-
-**Files:** `app/routes/admin.py`, `app/routes/public.py`
-**Fix:** Removed unused `csv`, `io` from admin.py; removed unused `invalidate_tag_cache` from public.py import.
-
-### Sub-Agent B: CSS/JS Dead Code
-
-#### 1B.1 Fix mobile nav animation class mismatch ✅
-
-**Files:** `app/static/css/style.css`, `app/static/js/main.js`
-**Problem:** CSS defined `.nav-links.active` but JS toggles `.open`.
-**Fix:** Changed CSS to `.nav-links.open`, gated `::before` backdrop on `.nav-links.open::before`.
-
-#### 1B.2 Remove duplicate prose heading sizes ✅
-
-**Fix:** Removed duplicate `.prose h1/h2/h3` sizes that were overwritten.
-
-#### 1B.3 Remove duplicate `.copy-code-btn` in style.css ✅
-
-**Fix:** Removed duplicate definition (prism-okaidia.css has the complete version).
-
-#### 1B.4 Remove duplicate mobile `.post-card-body` padding ✅
-
-**Fix:** Removed duplicate padding definition.
-
-#### 1B.5 Remove deprecated vendor prefixes ✅
-
-**File:** `app/static/css/prism-okaidia.css`
-**Fix:** Removed `-webkit-hyphens`, `-moz-hyphens`, `-ms-hyphens`.
-
-#### 1B.6 Remove orphan mobile editor CSS ✅
-
-**Fix:** Removed CSS referencing non-existent classes.
-
----
-
-## Wave 2 — Error Handling, Logging & JS Fixes ✅
-
-Two independent sub-agents.
-
-### Sub-Agent A: Error Handling & Logging
-
-#### 2A.1 Add error handling to unguarded `db.session.commit()` calls ✅
-
-Multiple admin routes wrapped with `try/except IntegrityError/OperationalError`:
-- `newsletter_reset()`, `logout()`, `delete_subscriber()`, `rename_tag()`, `delete_tag()`, `create_tag()`
-- `bulk_operations()` publish/unpublish/delete branches
-- `create_user()`, `delete_user()`, `change_password()`, `revoke_session()`
-- Public routes: page view tracking, share tracking
-
-#### 2A.2 Log exceptions in the 500 error handler ✅
-
-**File:** `app/__init__.py`
-**Fix:** Added `app.logger.exception("Unhandled exception on %s", req.path)` before returning 500 response.
-
-#### 2A.3 Add logging for admin actions ✅
-
-Added `logger.info()` calls for: post deleted, tag created/renamed/deleted, user created/deleted, password changed, subscriber deleted, session revoked, unsubscribe.
-
-### Sub-Agent B: JS Fixes & Improvements
-
-#### 2B.1 Replace inline navbar padding with CSS class toggle ✅
-
-**Fix:** Added `.navbar-shrunk { padding: 10px 0; }` class with `transition: padding 0.2s ease`, replaced inline style with `classList.toggle('navbar-shrunk', ...)`.
-
-#### 2B.2 Scope editor keyboard shortcuts to editor pages ✅
-
-**Fix:** Moved `e.preventDefault()` inside each `if (target)` block for Ctrl+S, Ctrl+Enter, Ctrl+Shift+P.
-
-#### 2B.3 Increase lazy loading viewport threshold ✅
-
-**Fix:** Changed from `1.5 * window.innerHeight` to `3 * window.innerHeight`.
-
----
-
-## Wave 3 — Code Quality & Testing ✅
-
-Two independent sub-agents.
-
-### Sub-Agent A: Code Quality
-
-#### 3A.1 Move FTS search logic into `app/search.py` ✅
-
-**Fix:** Added `search(query: str)` to `app/search.py`. Updated `public.py` to import it. Removed local `_fts_search()`.
-
-#### 3A.2 First user promotion is non-deterministic ✅
-
-**Fix:** Added `.order_by(User.id)` to query in `app/__init__.py`.
-
-#### 3A.3 Move `import secrets` to module level ✅
-
-**Fix:** Moved from inside `login()` function body to top of admin.py.
-
-#### 3A.4 Extract nested `categorize_referrer()` to module level ✅
-
-**Fix:** Created `_categorize_referrer(url)` at module level in `admin.py`.
-
-#### 3A.5 Improve password complexity requirements ✅
-
-**Fix:** Added `_check_password_complexity()` requiring at least 3 of 4 character classes (lowercase, uppercase, digit, special). Minimum 8 characters.
-
-#### 3A.6 Simplify config validation flow ✅
-
-**Fix:** Refactored for single raise point at the end.
-
-#### 3A.7 Add type hints to route handlers and utility modules ✅
-
-**Scope:** Added return type annotations to all route handlers and utility functions.
-
-### Sub-Agent B: Test Coverage
-
-#### 3B.1 Test `subscribers_bulk` route ✅
-
-Bulk delete, bulk export, empty selection, invalid action.
-
-#### 3B.2 Test admin session management ✅
-
-Session list returns 200, revoke deletes session, revoked session causes login redirect.
-
-#### 3B.3 Test post scheduling ✅
-
-Future-scheduled post stays draft, `publish_scheduled_posts()` publishes past-due posts, clears `scheduled_publish_at`.
-
-#### 3B.4 Test resubscribe flows ✅
-
-Unsubscribed user re-subscribes, unconfirmed re-subscribes (new token), expired unconfirmed re-subscribes.
-
-#### 3B.5 Test CSV export correctness ✅
-
-Comma in email, double quote, formula injection chars prefixed.
-
-#### 3B.6 Test compressed backup restore ✅
-
-Create .db.gz backup, decompress and verify SQLite validity. Uncompressed backup still works.
-
-#### 3B.7 Test analytics data correctness ✅
-
-Page view counts, share event referrer categorization, top posts ranking.
-
----
-
-## Wave 4 — Accessibility & Content ✅
-
-Two independent sub-agents.
-
-### Sub-Agent A: Accessibility
-
-#### 4A.1 Add `aria-current` to active nav links ✅
-
-Applied `aria-current="page"` and `.active` class to matching nav links in public and admin templates.
-
-#### 4A.2 Improve focus indicators ✅
-
-Added stronger `:focus-visible` outlines (2px solid accent, 2px offset).
-
-#### 4A.3 Add screen reader announcements ✅
-
-Added `aria-live="polite"` region. Announces: search result count, bulk operation completion, autosave status.
-
-#### 4A.4 Enhance keyboard navigation ✅
-
-Added `g` then `d/p/s/t` vim-style navigation (Dashboard, Posts, Subscribers, Tags). 500ms timeout between keys.
-
-#### 4A.5 Widen navbar search input ✅
-
-Default from 150px→200px, focus from 200px→260px.
-
-#### 4A.6 Visible focus for share buttons ✅
-
-Added `.share-btn:focus-visible` outline rule.
-
-#### 4A.7 Improve form labels and hints ✅
-
-Added `aria-describedby` hints, proper `<label>` associations in editor.
-
-#### 4A.8 Increase touch target sizes (44x44px WCAG) ✅
-
-Set `min-height`/`min-width: 44px` on `.btn`, `.nav-links a`, `.tag`, `.share-btn`.
-
-### Sub-Agent B: Content Enhancements
-
-#### 4B.1 Add table of contents for long articles ✅
-
-Sticky TOC sidebar from `.prose h2/h3`. IntersectionObserver highlights current section.
-
-#### 4B.2 Add "Last Updated" indicator ✅
-
-Shows "Updated: {date}" when `post.updated_at > post.created_at`.
-
-#### 4B.3 Add image lightbox ✅
-
-CSS + JS lightbox for `.prose img`. Click opens full-size overlay. Escape/click-outside to close.
-
-#### 4B.4 Add breadcrumb navigation ✅
-
-Home > Tag > Post Title trail on post and tag pages.
-
-#### 4B.5 Improve editor preview loading state ✅
-
-Added spinner animation with "Rendering preview…" text.
-
-#### 4B.6 Add visual feedback for share buttons ✅
-
-Brief `:active` scale transform. Color flash before opening link.
-
-#### 4B.7 Smooth theme transition ✅
-
-Added `transition: background-color 0.3s ease, color 0.3s ease` to body.
-
-#### 4B.8 Mobile typography improvements ✅
-
-Prose `line-height: 1.7` on mobile. Larger tap targets for inline links.
-
----
-
-## Wave 5 — UI Polish, Admin UX & Perf ✅
-
-Three independent sub-agents.
-
-### Sub-Agent A: Visual Polish
-
-#### 5A.1 Refine dark mode colors for WCAG contrast ✅
-
-Adjusted `--text-dim` from `#484f58` to `#656d76` for 4.5:1 contrast.
-
-#### 5A.2 Add subtle CSS animations ✅
-
-Extended `prefers-reduced-motion` to disable animations on interactive elements.
-
-#### 5A.3 Image loading states ✅
-
-Added `.img-skeleton` shimmer animation. Lazy images get opacity transition on load.
-
-#### 5A.4 Consistent spacing system ✅
-
-Defined `--space-xs/sm/md/lg/xl/2xl/3xl` variables. Applied to footer, buttons, components.
-
-#### 5A.5 Unified button styles ✅
-
-All buttons use `display: inline-flex` with consistent gap/padding/radius via variables.
-
-#### 5A.6 Print stylesheet ✅
-
-`@media print` hides navbar, sidebar, share bar, footer. Forces light colors.
-
-#### 5A.7 Enhance footer ✅
-
-Three-column grid: Recent Posts, Tags, Subscribe form. Copyright shows year range.
-
-#### 5A.8 Copy-permalink toast for heading anchors ✅
-
-Clicking anchor copies full URL to clipboard. Shows "Link copied!" toast.
-
-### Sub-Agent B: Admin UX
-
-#### 5B.1 Add loading states to admin forms ✅
-
-Disables submit button on click, shows "Saving..." text.
-
-#### 5B.2 Better bulk operation feedback ✅
-
-Progress bar during bulk operations.
-
-#### 5B.3 Improve empty states ✅
-
-Contextual empty states for subscribers, media, sessions pages.
-
-#### 5B.4 Add dashboard visual hierarchy ✅
-
-Left-border accent colors on stat cards (views=blue, posts=green, shares=purple, subscribers=orange).
-
-#### 5B.5 Better error pages ✅
-
-404 and 500 pages now include search box and recent posts.
-
-#### 5B.6 Improve admin navigation ✅
-
-Active state indicators, visual separators for grouping related items.
-
-### Sub-Agent C: Performance
-
-#### 5C.1 Optimize image loading attributes ✅
-
-Added `loading="lazy"`, `decoding="async"`, explicit `width`/`height` to all post images.
-
-#### 5C.2 Prefetch likely next pages ✅
-
-`<link rel="prefetch">` on link hover (debounced 100ms, once per link).
-
-#### 5C.3 Limit newsletter batch size ✅
-
-Uses `yield_per(500)` to stream subscribers in batches.
-
-#### 5C.4 Request body size validation for preview ✅
-
-Added 1MB body size check before processing preview-markdown endpoint.
-
----
-
-## Execution Order
-
-```
-Wave 1 ─┬─ Sub-Agent A: Backend bugs (1A.1–1A.7)
-         └─ Sub-Agent B: CSS/JS dead code (1B.1–1B.6)
-              │
-Wave 2 ─┬─ Sub-Agent A: Error handling & logging (2A.1–2A.3)
-         └─ Sub-Agent B: JS fixes (2B.1–2B.3)
-              │
-Wave 3 ─┬─ Sub-Agent A: Code quality (3A.1–3A.7)
-         └─ Sub-Agent B: Test coverage (3B.1–3B.7)
-              │
-Wave 4 ─┬─ Sub-Agent A: Accessibility (4A.1–4A.8)
-         └─ Sub-Agent B: Content enhancements (4B.1–4B.8)
-              │
-Wave 5 ─┬─ Sub-Agent A: Visual polish (5A.1–5A.8)
-         ├─ Sub-Agent B: Admin UX (5B.1–5B.6)
-         └─ Sub-Agent C: Performance (5C.1–5C.4)
+```bash
+ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 ```
 
-**Dependencies:**
-- Wave 2 depends on Wave 1 (error handling protects the fixed routes)
-- Wave 3 depends on Wave 1 (tests validate fixes; code quality follows bug fixes)
-- Wave 4 depends on Wave 1 (CSS changes build on cleanup)
-- Wave 5 depends on Waves 2–4 (polish on top of solid foundation)
+---
 
-Within each wave, sub-agents are fully independent and touch different files/domains.
+## Wave 1: Bugs, Dead Code, and CSS Cleanup
+
+All items in this wave are independent and can be implemented in parallel by separate agents.
+
+### 1.1 Fix `rename_tag()` bug
+
+**Verified:** `old_name = tag.name` is set AFTER `tag.name = new_name` (admin.py:927), so the log always shows the new name.
+
+**Fix:** Move `old_name = tag.name` before `tag.name = new_name`.
+
+- File: `app/routes/admin.py:925-927`
+
+### 1.2 Fix `data-confirm` handler — broken feature
+
+**Verified:** Line 11 of `main.js` has a comment `// --- Form delete confirmation via data-confirm attribute ---` but no code follows. All delete/restore/reset buttons use `data-confirm` attributes but no confirmation dialog ever appears — destructive actions execute immediately.
+
+**Fix:** Insert form submit handler after line 11:
+
+```js
+document.querySelectorAll('form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', e => {
+        if (!confirm(form.dataset.confirm)) e.preventDefault();
+    });
+});
+```
+
+- File: `app/static/js/main.js:11`
+
+### 1.3 Remove dead bulk progress bar
+
+**Verified:** Lines 25-63 inject a "Processing 0 of N..." progress bar during bulk form submit. The `MutationObserver` watches checkbox `checked` attribute changes, but the form submits via full page reload — the observer callback never fires.
+
+**Fix:** Delete lines 25-63 entirely.
+
+- File: `app/static/js/main.js:25-63`
+
+### 1.4 Guard Ctrl+S and vim navigation to admin pages only
+
+**Verified:** Both vim navigation (lines 538-570) and Ctrl+S (lines 572-622) fire on all pages. Ctrl+S blocks the browser's native "Save Page As" on public pages. Vim `g+d` navigates to `/admin/` from public pages. The `<body>` in admin/base.html has `class="admin-body"` but no JS checks it.
+
+**Fix:** Wrap both handlers in `if (document.body.classList.contains('admin-body'))` guards. Also move modal close handlers (lines 624-638) inside the guard since the modal only exists on admin pages.
+
+- File: `app/static/js/main.js:538-638`
+
+### 1.5 Fix lazy image opacity fallback
+
+**Verified:** CSS sets `img[loading="lazy"] { opacity: 0 }` (style.css:2254). JS adds `.loaded` class on load. But there's no `.js` class gate — if JS fails, all lazy images remain invisible.
+
+**Fix:**
+1. Add `document.documentElement.classList.add('js');` as first line of main.js (before `DOMContentLoaded`)
+2. Gate the CSS: prefix `img[loading="lazy"]` rules with `.js`
+
+- Files: `app/static/js/main.js` (line 1), `app/static/css/style.css:2254-2262`
+
+### 1.6 Fix `--text-dim` contrast ratio — WCAG AA failure
+
+**Verified:** `--text-dim: #656d76` on dark background `#0d1117` gives ~4.2:1 contrast. WCAG AA requires 4.5:1 for normal text.
+
+**Fix:** `--text-dim: #7d8590` (gives ~4.6:1).
+
+- File: `app/static/css/style.css:76`
+
+### 1.7 Fix dark mode post card hover shadow
+
+**Verified:** `.post-card:hover` uses `box-shadow: 0 12px 24px rgba(0,0,0,0.1)` — nearly invisible on dark background. No border-color transition.
+
+**Fix:**
+```css
+.post-card {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color var(--transition);
+}
+.post-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--text-dim);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+}
+[data-theme="light"] .post-card:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+```
+
+- File: `app/static/css/style.css:302-313`
+
+### 1.8 Merge duplicate `.flash` CSS rule
+
+**Verified:** Two separate `.flash` blocks exist (lines 1067-1073 with visual properties, lines 1109-1112 with layout properties). Should be merged.
+
+**Fix:** Add `position: relative; overflow: hidden;` to the first block, delete the second block.
+
+- File: `app/static/css/style.css:1067-1112`
+
+### 1.9 Remove dead CSS rules
+
+**Verified:** `.share-btn.twitter:hover`, `.share-btn.facebook:hover`, `.share-btn.linkedin:hover` on lines 572-574 never match — actual HTML uses `.share-btn.share-twitter` etc. Correctly-named rules already exist at lines 576-581.
+
+**Fix:** Delete lines 572-574.
+
+- File: `app/static/css/style.css:572-574`
+
+### 1.10 Fix footer year logic
+
+**Verified:** Footer shows `{% if current_year and current_year != 2026 %}{{ current_year }} - {% endif %}{{ current_year }}`. When year is 2027, shows "2027 - 2027".
+
+**Fix:** Hardcode 2026 as start year:
+```html
+<p>&copy; 2026{% if current_year and current_year > 2026 %} - {{ current_year }}{% endif %} {{ site_title }}. Built with Flask.</p>
+```
+
+- File: `app/templates/base.html:106`
 
 ---
 
-## Summary
+## Wave 2: Accessibility (WCAG Compliance)
 
-| Wave | Focus | Items | Priority | Status |
-|------|-------|-------|----------|--------|
-| 1 | Critical bugs & dead code | 13 | High | ✅ Complete |
-| 2 | Error handling & JS fixes | 6 | High | ✅ Complete |
-| 3 | Code quality & tests | 14 | Medium | ✅ Complete |
-| 4 | Accessibility & content | 16 | Medium | ✅ Complete |
-| 5 | UI polish & perf | 18 | Low-Medium | ✅ Complete |
+All items are template changes to different files or CSS — fully parallelizable.
 
-**Total: 67 items — All complete. 228 tests passing.**
+### 2.1 Add `aria-label` to form inputs
+
+**Verified:** Dashboard search/filter inputs, tag create/rename inputs, and user password/username inputs all lack `aria-label`.
+
+**Changes:**
+- `app/templates/admin/dashboard.html:54` — add `aria-label="Search posts by title"` to search input
+- `app/templates/admin/dashboard.html:55` — add `aria-label="Filter by status"` to filter select
+- `app/templates/admin/tags.html:14` — add `aria-label="New tag name"` to create input
+- `app/templates/admin/tags.html:29` — add `aria-label="Rename tag {{ tag.name }}"` to rename input
+- `app/templates/admin/users.html:29` — add `aria-label="New password for {{ user.username }}"` to password input
+- `app/templates/admin/users.html:60` — add `aria-label="Username"` to username input
+- `app/templates/admin/users.html:61` — add `aria-label="Password"` to password input
+
+### 2.2 Add `aria-label` to `<nav>` elements
+
+**Verified:** Neither `base.html` nor `admin/base.html` have `aria-label` on their `<nav>` elements.
+
+**Changes:**
+- `app/templates/base.html:39` — `aria-label="Main navigation"`
+- `app/templates/admin/base.html:14` — `aria-label="Admin navigation"`
+- Add `aria-label="Pagination"` to all pagination `<nav>` elements in: `dashboard.html`, `subscribers.html`, `users.html`, `index.html`, `tag.html`, `search.html`
+
+### 2.3 Fix keyboard shortcuts modal ARIA
+
+**Verified:** Modal has `role="dialog"` and `aria-label` but is missing `aria-modal="true"` and `aria-labelledby`. The `<h2>` has no `id`.
+
+**Fix:**
+- Add `aria-modal="true" aria-labelledby="keyboard-help-title"` to `#keyboard-help`
+- Add `id="keyboard-help-title"` to the `<h2>`
+
+- File: `app/templates/admin/base.html:57-59`
+
+### 2.4 Add vim navigation shortcuts to modal
+
+**Verified:** Keyboard shortcuts modal doesn't list the vim navigation shortcuts (g+d, g+p, g+s, g+t).
+
+**Fix:** Add navigation section to modal before Close button.
+
+- File: `app/templates/admin/base.html` (before Close button)
+- File: `app/static/css/style.css` — add `.shortcut-divider` styles
+
+### 2.5 Add `datetime` attribute to `<time>` elements
+
+**Verified:** `_post_content.html:12` and `post.html:110` (related posts) are missing `datetime` attributes.
+
+**Changes:**
+- `app/templates/_post_content.html:12` — add `datetime="{{ post.created_at.isoformat() }}"`
+- `app/templates/post.html:110` — add `datetime="{{ rp.created_at.isoformat() }}"`
+
+### 2.6 Add missing `{% block title %}` to admin templates
+
+**Verified:** `users.html` and `backup.html` lack `{% block title %}`, so browser tabs show generic "Admin | {site_title}".
+
+**Changes:**
+- `app/templates/admin/users.html` — add `{% block title %}Users | Admin{% endblock %}`
+- `app/templates/admin/backup.html` — add `{% block title %}Backups | Admin{% endblock %}`
+
+---
+
+## Wave 3: UX Improvements and Features
+
+### 3.1 Fix nested forms in dashboard (invalid HTML)
+
+**Verified:** The bulk `<form id="bulk-form">` wraps the entire post list (lines 65-124). Inside each post row, "Reset NL" and "Delete" are nested `<form>` elements. Browsers implicitly close the outer form, breaking bulk operations.
+
+**Fix:** Move the bulk form to only contain the bulk action buttons. Use `form="bulk-form"` attribute on each checkbox to associate without nesting. Add JS for show/hide toggle.
+
+- File: `app/templates/admin/dashboard.html:65-124`
+- Add inline JS for selection toggle (see plan4.md Fix 1 for full template)
+
+### 3.2 Hide dashboard bulk actions until items selected
+
+**Verified:** Bulk action buttons (Publish, Unpublish, Delete) are always visible. The subscribers page already uses the correct pattern (hidden by default, shown via JS).
+
+**Fix:** Add `hidden` class to `.bulk-actions` div, add JS to toggle visibility based on checkbox state. Can be combined with 3.1.
+
+- File: `app/templates/admin/dashboard.html`
+
+### 3.3 Admin nav dropdown for overcrowding
+
+**Verified:** 10+ links crammed into one row. No grouping or dropdown.
+
+**Fix:** Group 6 secondary links (Subscribers, Media, Tags, Users, Sessions, Backups) into a "More" dropdown. Keep View Site, Dashboard, Analytics, Logout as top-level.
+
+- Files: `app/templates/admin/base.html`, `app/static/css/style.css`, `app/static/js/main.js`
+
+### 3.4 Add keyboard shortcuts discoverability trigger
+
+**Verified:** The `?` key opens the shortcuts modal, but there's no visible indicator.
+
+**Fix:** Add a small `?` button to the admin nav. Add JS handler.
+
+- Files: `app/templates/admin/base.html`, `app/static/js/main.js`
+
+### 3.5 Add media upload UI
+
+**Verified:** The media library only lists files — no upload form exists. No `upload_media` route exists.
+
+**Fix:**
+1. Add `POST /admin/media/upload` route using existing `_save_image()` helper
+2. Add upload zone (drag-and-drop) to media.html template
+3. Add CSS for upload zone
+4. Add JS for drag-and-drop behavior
+
+- Files: `app/routes/admin.py`, `app/templates/admin/media.html`, `app/static/css/style.css`, `app/static/js/main.js`
+
+### 3.6 Replace inline style with CSS class
+
+**Verified:** `sessions.html:29` has `style="font-size: 0.75rem;"`.
+
+**Fix:** Add `.text-xs { font-size: 0.75rem; }` utility to style.css, replace inline style.
+
+- Files: `app/templates/admin/sessions.html:29`, `app/static/css/style.css`
+
+### 3.7 Add password complexity hints
+
+**Verified:** Backend requires 8+ chars with 3 of 4 character classes, but UI only says "min 8 chars".
+
+**Fix:** Add `<span class="label-hint text-muted">8+ chars with 3 of: lowercase, uppercase, digit, special</span>` after password inputs.
+
+- File: `app/templates/admin/users.html`
+
+---
+
+## Wave 4: Backend Refactoring
+
+Items in this wave modify different parts of the backend and are parallelizable.
+
+### 4.1 Simplify `subscribe()` route logic
+
+**Verified:** Complex nested if/elif/else with duplicated token regeneration, expiry setting, and confirmation calls.
+
+**Fix:** Extract helper functions `_reset_subscriber_token()`, `_send_or_flash_confirmation()`. Simplify main flow.
+
+- File: `app/routes/public.py:283-351`
+
+### 4.2 Improve `edit_post()` error handling
+
+**Verified:** IntegrityError handler duplicates main post update logic (lines 538-546 duplicate 503-513). Risk of missing field updates in error path.
+
+**Fix:** Extract `_apply_post_updates()` helper. Use in both normal and error paths.
+
+- File: `app/routes/admin.py:527-550`
+
+### 4.3 Extract CSV generation utility
+
+**Verified:** Nearly identical CSV generation in `export_subscribers()` and `subscribers_bulk()`.
+
+**Fix:** Create `app/csv_utils.py` with shared generator function. Include CSV injection prevention.
+
+- Files: `app/routes/admin.py:715-748, 789-810`, new `app/csv_utils.py`
+
+### 4.4 Extract magic numbers to configuration
+
+**Verified:** Hardcoded values scattered: 10MB upload limit, 30s SMTP timeout, 500ms token delay, 100 result FTS limit.
+
+**Fix:** Add to `config.toml [app]` section, load in `config.py`.
+
+- Files: `config.toml`, `app/config.py`, multiple files
+
+### 4.5 Add validation for empty tag names
+
+**Verified:** Empty tags are silently skipped in `_get_or_create_tags()`.
+
+**Fix:** Add explicit validation and user feedback.
+
+- File: `app/routes/admin.py:597-616`
+
+---
+
+## Wave 5: Code Quality
+
+Lower priority polish — parallelizable.
+
+### 5.1 Break down large functions
+
+Targets: `edit_post()` (~90 lines), `new_post()` (~60 lines), `dashboard()` (~50 lines), `_get_analytics_data()` (~90 lines).
+
+- File: `app/routes/admin.py`
+
+### 5.2 Improve type hints
+
+Add comprehensive type hints to all public functions. Use `TypedDict`, `Literal` where appropriate.
+
+### 5.3 Add comprehensive docstrings
+
+Google-style docstrings for all public functions and classes.
+
+---
+
+## Wave 6: Enhancements (Future)
+
+Lower priority items from plan6.md and plan2.md P3.
+
+### 6.1 Admin navigation icons
+Add small SVG icons to nav items for faster visual scanning.
+
+### 6.2 Editor character counters
+Title (max 200 chars), summary (max 500 chars) with real-time counters.
+
+### 6.3 Enhanced autosave indicator
+More prominent with checkmark/warning icons and relative time display.
+
+### 6.4 Search UX improvements
+Recent searches dropdown, search result highlighting, scope selector.
+
+### 6.5 Command palette (Cmd+K)
+Quick navigation to posts, tags, and admin sections.
+
+### 6.6 Improve test coverage
+Run `pytest --cov=app tests/`, add tests for subscribe edge cases, edit_post error paths, concurrent access.
+
+### 6.7 Add rate limiting documentation
+Create docs with nginx/caddy/Cloudflare examples. Reference from DEPLOY.md.
+
+---
+
+## Wave Dependency Graph
+
+```
+Wave 1 (Bugs/CSS)  ──────────────────────────┐
+Wave 2 (Accessibility)  ──────────────────────┼──> All independent, can run in parallel
+Wave 3 (UX/Features)  ────────────────────────┤
+Wave 4 (Backend Refactoring)  ────────────────┤
+Wave 5 (Code Quality)  ───────────────────────┘
+Wave 6 (Enhancements)  ── depends on Wave 3 completion for some items
+```
+
+Within each wave, all items are independent unless noted.
+
+Wave 3 item 3.1 (nested forms) and 3.2 (bulk actions hide) both modify `dashboard.html` and should be done together.
+
+Wave 3 item 3.3 (nav dropdown) and 3.4 (keyboard discoverability) both modify `admin/base.html` nav section and should be done together.
+
+Wave 3 items 3.3, 3.4, 3.5 all add to `main.js` and `style.css` — coordinate CSS additions to avoid conflicts.
+
+## File Change Summary
+
+| File | Waves | Items |
+|------|-------|-------|
+| `app/static/js/main.js` | 1, 3 | 1.2, 1.3, 1.4, 1.5, 3.3, 3.4, 3.5 |
+| `app/static/css/style.css` | 1, 3 | 1.5, 1.6, 1.7, 1.8, 1.9, 3.3, 3.5, 3.6 |
+| `app/templates/admin/dashboard.html` | 1, 2, 3 | 1.10 via base, 2.1, 2.2, 3.1, 3.2 |
+| `app/templates/admin/base.html` | 2, 3 | 2.2, 2.3, 2.4, 3.3, 3.4 |
+| `app/templates/admin/users.html` | 2, 3 | 2.1, 2.6, 3.7 |
+| `app/templates/admin/tags.html` | 2 | 2.1 |
+| `app/templates/admin/media.html` | 3 | 3.5 |
+| `app/templates/admin/sessions.html` | 3 | 3.6 |
+| `app/templates/admin/backup.html` | 2 | 2.6 |
+| `app/templates/base.html` | 1, 2 | 1.10, 2.2 |
+| `app/templates/_post_content.html` | 2 | 2.5 |
+| `app/templates/post.html` | 2 | 2.5 |
+| `app/templates/index.html` | 2 | 2.2 |
+| `app/templates/tag.html` | 2 | 2.2 |
+| `app/templates/search.html` | 2 | 2.2 |
+| `app/routes/admin.py` | 1, 3, 4 | 1.1, 3.5, 4.2, 4.3, 4.4, 4.5 |
+| `app/routes/public.py` | 4 | 4.1 |
+| `config.toml` | 4 | 4.4 |
+| `app/config.py` | 4 | 4.4 |
+
+---
+
+## Code Review Checklist (per wave)
+
+### Security
+- [ ] No new SQL injection vulnerabilities
+- [ ] No new XSS vulnerabilities
+- [ ] CSRF protection maintained
+- [ ] File upload validation maintained
+- [ ] No sensitive data in logs
+
+### Functionality
+- [ ] All existing features work as before
+- [ ] Edge cases handled (empty inputs, None values)
+- [ ] Race conditions considered
+
+### Code Quality
+- [ ] Follows existing code style
+- [ ] No code duplication
+- [ ] Functions appropriately sized
+
+### Testing
+- [ ] Tests pass: `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v`
+- [ ] Manual verification for UI changes
+
+---
+
+*Created: 2026-04-02*
+*Sources: plan2.md, plan4.md, plan5.md, plan6.md (removed after consolidation)*

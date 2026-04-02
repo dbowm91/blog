@@ -279,22 +279,19 @@ Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytic
 - `POST /admin/subscribers/bulk` — handles `delete` and `export` actions for selected subscribers
 - Checkbox selection on subscribers page with "Select All" toggle
 
-### Subscriber Bulk Operations
-- `POST /admin/subscribers/bulk` — handles `delete` and `export` actions for selected subscribers
-- Checkbox selection on subscribers page with "Select All" toggle
-
 ### Admin Keyboard Shortcuts
-- `Ctrl+S` / `Cmd+S` — save draft
+- `Ctrl+S` / `Cmd+S` — save draft (admin pages only — must be scoped with `admin-body` check)
 - `Ctrl+Shift+P` / `Cmd+Shift+P` — toggle preview pane
 - `Ctrl+Enter` / `Cmd+Enter` — publish post
 - `?` — show keyboard shortcuts modal
 - `Esc` — close modal
-- `g` then `d/p/s/t` — vim-style navigation (Dashboard, Posts, Subscribers, Tags). 500ms timeout between keys.
+- `g` then `d/p/s/t` — vim-style navigation (Dashboard, Posts, Subscribers, Tags). 500ms timeout between keys. (admin pages only — must be scoped)
 - Modal defined in `app/templates/admin/base.html` (`#keyboard-help` with `.modal-overlay` class)
 - JS handlers in `app/static/js/main.js` use `(e.ctrlKey || e.metaKey)` for cross-platform support
 - `e.preventDefault()` scoped inside each `if (target)` block — only prevents default when target element exists
 - Close button and click-outside-to-close bound once on page load (not on each `?` press)
 - Modal CSS in `style.css` under "Keyboard Shortcuts Modal" section (CSP-compliant, no inline styles)
+- **All admin keyboard shortcuts must be guarded with `document.body.classList.contains('admin-body')` to prevent firing on public pages**
 
 ### Test Fixture Organization
 - `tests/conftest.py` defines fixtures
@@ -320,6 +317,21 @@ CSV exports in `export_subscribers()` and `subscribers_bulk()` use `csv.writer` 
 
 ### Mobile Nav Class
 CSS animation is defined on `.nav-links.open` (matches JS toggle). The `::before` backdrop overlay is gated on `.nav-links.open::before`.
+
+### Nested Forms in Dashboard
+The dashboard bulk form (`<form id="bulk-form">`) previously wrapped the entire post list, with per-post "Reset NL" and "Delete" as nested `<form>` elements inside it. HTML spec forbids nested forms — browsers implicitly close the outer form when encountering the inner one, breaking bulk operations. The fix uses `form="bulk-form"` attribute on checkboxes to associate them with the bulk form without nesting, while per-post forms remain outside the bulk form entirely.
+
+### CSS Duplicate Rule Blocks
+The codebase had two separate `.flash` CSS rule blocks in `style.css` — one with visual properties (padding, border-radius) and one with layout properties (position, overflow). While CSS merges them correctly, this is confusing and error-prone. When editing CSS, check for duplicate selectors that may have been split across sections.
+
+### Dead CSS from Class Name Mismatches
+The codebase had hover rules for `.share-btn.twitter:hover` etc. but the actual HTML uses `.share-btn.share-twitter`. The CSS selectors with a space (descendant combinator) vs dot (compound selector) behave differently. When CSS rules don't seem to work, verify the actual class names in the HTML match the CSS selectors exactly.
+
+### Lazy Image Progressive Enhancement
+Lazy images use `opacity: 0` by default and JS adds `.loaded` class. Without a `.js` class gate on `<html>`, images remain invisible when JS fails. The pattern is: add `document.documentElement.classList.add('js')` as the first JS line, then prefix CSS rules with `.js` so they only apply when JS is available.
+
+### Admin Page Detection in JS
+The `<body>` in `admin/base.html` has `class="admin-body"`. Use `document.body.classList.contains('admin-body')` to scope JS handlers that should only run on admin pages (keyboard shortcuts, vim navigation, modal handlers). Public pages should not have admin-specific behavior.
 
 ## Assets
 
@@ -473,9 +485,10 @@ The `set_security_headers` after-request handler sets:
 ## Bulk Operations
 
 - Dashboard has checkboxes on each post row + "Select All" toggle
-- Form wraps the entire post list with `action="/admin/bulk"`
+- Form uses `form="bulk-form"` attribute on checkboxes to associate without nesting (never nest `<form>` elements)
 - Three submit buttons: Publish, Unpublish, Delete — each sends `action` value
 - Destructive actions use `data-confirm-bulk` attribute (not inline `onclick`)
+- Bulk action buttons hidden by default; shown via JS when checkboxes are checked
 - Image cleanup included for bulk delete
 
 ## Tag Caching
