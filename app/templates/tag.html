@@ -46,7 +46,7 @@
         {% endfor %}
 
         {% if pagination.pages > 1 %}
-            <nav class="pagination">
+            <nav class="pagination" aria-label="Pagination">
                 {% if pagination.has_prev %}
                     <a href="{{ url_for('public.tag', slug=tag.slug, page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
                 {% endif %}

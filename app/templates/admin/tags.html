@@ -11,7 +11,7 @@
     <div class="tag-create-form">
         <form method="POST" action="{{ url_for('admin.create_tag') }}" class="search-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="text" name="name" placeholder="New tag name..." class="search-input" required>
+            <input type="text" name="name" placeholder="New tag name..." class="search-input" required aria-label="New tag name">
             <button type="submit" class="btn btn-primary btn-small">Create</button>
         </form>
     </div>
@@ -26,7 +26,7 @@
                 <div class="post-list-info">
                     <form method="POST" action="{{ url_for('admin.rename_tag', tag_id=tag.id) }}" class="search-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input type="text" name="name" value="{{ tag.name }}" class="tag-rename-input" required>
+                        <input type="text" name="name" value="{{ tag.name }}" class="tag-rename-input" required aria-label="Rename tag {{ tag.name }}">
                         <button type="submit" class="btn btn-small btn-ghost">Rename</button>
                     </form>
                 </div>

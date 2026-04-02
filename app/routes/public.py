@@ -4,7 +4,18 @@ import uuid
 from datetime import timedelta
 from urllib.parse import urlparse, urlunparse
 
-from flask import Blueprint, abort, render_template, request, redirect, jsonify, flash, session, Response, url_for
+from flask import (
+    Blueprint,
+    abort,
+    render_template,
+    request,
+    redirect,
+    jsonify,
+    flash,
+    session,
+    Response,
+    url_for,
+)
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
@@ -12,7 +23,13 @@ import logging
 
 from app.extensions import db
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent
-from app.config import POSTS_PER_PAGE, BASE_URL, RELATED_POSTS_COUNT, MAX_VIEWED_POSTS, CONFIRMATION_EXPIRY_HOURS
+from app.config import (
+    POSTS_PER_PAGE,
+    BASE_URL,
+    RELATED_POSTS_COUNT,
+    MAX_VIEWED_POSTS,
+    CONFIRMATION_EXPIRY_HOURS,
+)
 
 from app.email import send_confirmation
 from app.utils import xml_escape, is_valid_email, utc_now
@@ -49,7 +66,10 @@ def _get_related_posts(post):
             )
             .order_by(Post.created_at.desc())
             .limit(RELATED_POSTS_COUNT)
-        ).unique().scalars().all()
+        )
+        .unique()
+        .scalars()
+        .all()
     )
     return related
 
@@ -65,7 +85,7 @@ def index() -> Response:
         .order_by(Post.created_at.desc()),
         page=page,
         per_page=POSTS_PER_PAGE,
-        error_out=False
+        error_out=False,
     )
     tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_counts = _get_tag_counts()
@@ -81,7 +101,9 @@ def index() -> Response:
 @public.route("/post/<slug>")
 def post(slug) -> Response:
     """Single post page with related posts and share tracking."""
-    post = db.session.execute(select(Post).filter_by(slug=slug, published=True)).scalar_one_or_none()
+    post = db.session.execute(
+        select(Post).filter_by(slug=slug, published=True)
+    ).scalar_one_or_none()
     if not post:
         abort(404)
 
@@ -90,7 +112,9 @@ def post(slug) -> Response:
         referrer = None
         if request.referrer:
             parsed = urlparse(request.referrer)
-            sanitized = urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+            sanitized = urlunparse(
+                (parsed.scheme, parsed.netloc, parsed.path, "", "", "")
+            )
             referrer = sanitized[:512] if sanitized else None
         pv = PageView(
             post_id=post.id,
@@ -133,7 +157,7 @@ def tag(slug) -> Response:
         .order_by(Post.created_at.desc()),
         page=page,
         per_page=POSTS_PER_PAGE,
-        error_out=False
+        error_out=False,
     )
     total_posts = pagination.total
     tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
@@ -179,10 +203,14 @@ def search() -> Response:
             select(Post)
             .options(joinedload(Post.tags))
             .filter(Post.published == True, Post.id.in_(post_ids))
-            .order_by(db.text(f"CASE posts.id { ' '.join(f'WHEN {i} THEN {n}' for n, i in enumerate(post_ids)) } END")),
+            .order_by(
+                db.text(
+                    f"CASE posts.id {' '.join(f'WHEN {i} THEN {n}' for n, i in enumerate(post_ids))} END"
+                )
+            ),
             page=page,
             per_page=POSTS_PER_PAGE,
-            error_out=False
+            error_out=False,
         )
     else:
         escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -196,12 +224,12 @@ def search() -> Response:
                     Post.title.ilike(search_term, escape="\\"),
                     Post.body.ilike(search_term, escape="\\"),
                     Post.summary.ilike(search_term, escape="\\"),
-                )
+                ),
             )
             .order_by(Post.created_at.desc()),
             page=page,
             per_page=POSTS_PER_PAGE,
-            error_out=False
+            error_out=False,
         )
 
     return render_template(
@@ -218,6 +246,7 @@ def search() -> Response:
 def short_url_redirect(code) -> Response:
     """Redirect short URL (base62-encoded post ID) to canonical post URL."""
     from app.base62 import decode
+
     try:
         post_id = decode(code)
     except (ValueError, KeyError):
@@ -236,10 +265,10 @@ def short_url_redirect(code) -> Response:
 @public.route("/api/track-share", methods=["POST"])
 def track_share() -> Response:
     """Track social share events.
-    
+
     Request body (JSON):
         {"post_id": int, "platform": str}
-    
+
     Response:
         200: {"ok": True}
         400: {"error": "invalid"}
@@ -280,6 +309,21 @@ def _try_send_confirmation(subscriber):
         return False
 
 
+def _reset_subscriber_token(subscriber):
+    """Reset subscriber token and expiry for new confirmation."""
+    subscriber.token = uuid.uuid4().hex
+    subscriber.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
+
+
+def _send_or_flash_confirmation(subscriber, skip_conflict=False):
+    """Send confirmation and flash appropriate message. Returns redirect target."""
+    if _try_send_confirmation(subscriber):
+        flash("Check your inbox to confirm your subscription.", "success")
+    else:
+        flash("Subscribed, but confirmation email could not be sent.", "error")
+    return redirect(_safe_redirect_url())
+
+
 @public.route("/subscribe", methods=["POST"])
 def subscribe() -> Response:
     """Subscribe to the newsletter.
@@ -296,59 +340,46 @@ def subscribe() -> Response:
         flash("Please enter a valid email address.", "error")
         return redirect(_safe_redirect_url())
 
-    existing = db.session.execute(select(Subscriber).filter_by(email=email)).scalar_one_or_none()
+    existing = db.session.execute(
+        select(Subscriber).filter_by(email=email)
+    ).scalar_one_or_none()
     if existing:
         if existing.unsubscribed_at:
             existing.unsubscribed_at = None
             existing.confirmed = False
-            existing.token = uuid.uuid4().hex
-            existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
+            _reset_subscriber_token(existing)
             db.session.commit()
-            if _try_send_confirmation(existing):
-                flash("Check your inbox to confirm your subscription.", "success")
-            else:
-                flash("Subscribed, but confirmation email could not be sent.", "error")
+            return _send_or_flash_confirmation(existing)
         elif existing.confirmed:
             logger.info("Already-subscribed user %s attempted to resubscribe", email)
             flash("Check your inbox to confirm your subscription.", "success")
+            return redirect(_safe_redirect_url())
         else:
-            existing.token = uuid.uuid4().hex
-            existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
+            _reset_subscriber_token(existing)
             db.session.commit()
-            if _try_send_confirmation(existing):
-                flash("Check your inbox to confirm your subscription.", "success")
-            else:
-                flash("Subscribed, but confirmation email could not be sent.", "error")
-        return redirect(_safe_redirect_url())
+            return _send_or_flash_confirmation(existing)
 
-    sub = Subscriber(email=email, expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS))
+    sub = Subscriber(
+        email=email, expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
+    )
     db.session.add(sub)
     try:
         db.session.commit()
+        return _send_or_flash_confirmation(sub)
     except IntegrityError:
         db.session.rollback()
-        existing = db.session.execute(select(Subscriber).filter_by(email=email)).scalar_one_or_none()
-        if existing:
-            if existing.confirmed:
-                flash("Check your inbox to confirm your subscription.", "success")
-            else:
-                existing.token = uuid.uuid4().hex
-                existing.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
-                db.session.commit()
-                if _try_send_confirmation(existing):
-                    flash("Check your inbox to confirm your subscription.", "success")
-                else:
-                    flash("Subscribed, but confirmation email could not be sent.", "error")
-        else:
+        existing = db.session.execute(
+            select(Subscriber).filter_by(email=email)
+        ).scalar_one_or_none()
+        if not existing:
             flash("Please enter a valid email address.", "error")
-        return redirect(_safe_redirect_url())
-
-    if _try_send_confirmation(sub):
-        flash("Check your inbox to confirm your subscription.", "success")
-    else:
-        flash("Subscribed, but confirmation email could not be sent.", "error")
-
-    return redirect(_safe_redirect_url())
+            return redirect(_safe_redirect_url())
+        if existing.confirmed:
+            flash("Check your inbox to confirm your subscription.", "success")
+            return redirect(_safe_redirect_url())
+        _reset_subscriber_token(existing)
+        db.session.commit()
+        return _send_or_flash_confirmation(existing)
 
 
 @public.route("/confirm/<token>")
@@ -362,10 +393,15 @@ def confirm(token) -> Response:
         Uses constant-time delay to prevent token enumeration.
         Invalid tokens return success (not 404).
     """
-    sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
+    sub = db.session.execute(
+        select(Subscriber).filter_by(token=token)
+    ).scalar_one_or_none()
     time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
-        logger.warning("Confirm enumeration attempt with invalid token from %s", request.remote_addr)
+        logger.warning(
+            "Confirm enumeration attempt with invalid token from %s",
+            request.remote_addr,
+        )
         flash("Subscription confirmed! You'll receive our newsletter.", "success")
         return redirect("/")
     if sub.expires_at and sub.expires_at < utc_now():
@@ -395,10 +431,15 @@ def unsubscribe(token) -> Response:
         Uses constant-time delay to prevent token enumeration.
         Invalid tokens return success (not 404).
     """
-    sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
+    sub = db.session.execute(
+        select(Subscriber).filter_by(token=token)
+    ).scalar_one_or_none()
     time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
     if not sub:
-        logger.warning("Unsubscribe enumeration attempt with invalid token from %s", request.remote_addr)
+        logger.warning(
+            "Unsubscribe enumeration attempt with invalid token from %s",
+            request.remote_addr,
+        )
         flash("You have been unsubscribed.", "success")
         return redirect("/")
     # Soft delete: set unsubscribed_at and mark unconfirmed
@@ -428,7 +469,16 @@ def _generate_sitemap():
     <priority>1.0</priority>
   </url>\n"""
     # Posts — yield one at a time to avoid loading all into memory
-    for post in db.session.execute(select(Post).filter_by(published=True).order_by(Post.updated_at.desc()).execution_options(yield_per=100)).scalars().yield_per(100):
+    for post in (
+        db.session.execute(
+            select(Post)
+            .filter_by(published=True)
+            .order_by(Post.updated_at.desc())
+            .execution_options(yield_per=100)
+        )
+        .scalars()
+        .yield_per(100)
+    ):
         lastmod = post.updated_at.strftime("%Y-%m-%d") if post.updated_at else ""
         yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/post/{xml_escape(post.slug)}</loc>
@@ -437,13 +487,17 @@ def _generate_sitemap():
     <priority>0.8</priority>
   </url>\n"""
     # Tags
-    for tag in db.session.execute(select(Tag).execution_options(yield_per=100)).scalars().yield_per(100):
+    for tag in (
+        db.session.execute(select(Tag).execution_options(yield_per=100))
+        .scalars()
+        .yield_per(100)
+    ):
         yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/tag/{xml_escape(tag.slug)}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>\n"""
-    yield '</urlset>\n'
+    yield "</urlset>\n"
 
 
 @public.route("/sitemap.xml")
@@ -455,7 +509,9 @@ def sitemap_xml() -> Response:
 @public.route("/favicon.ico")
 def favicon() -> Response:
     """Redirect to SVG favicon."""
-    return Response(status=302, headers={"Location": url_for("static", filename="img/favicon.svg")})
+    return Response(
+        status=302, headers={"Location": url_for("static", filename="img/favicon.svg")}
+    )
 
 
 @public.route("/health")
@@ -469,6 +525,7 @@ def health_check() -> Response:
     import sys
     from app.scheduler import get_scheduler_status
     from app.config import SMTP_HOST
+
     checks = {}
     status_code = 200
 
@@ -488,18 +545,26 @@ def health_check() -> Response:
 
     # FTS check
     try:
-        has_fts = db.session.execute(text(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
-        )).fetchone()
+        has_fts = db.session.execute(
+            text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
+            )
+        ).fetchone()
         checks["search"] = "ok" if has_fts else "unavailable"
     except Exception:
         checks["search"] = "error"
 
-    overall = "ok" if all(v in ("ok", "running", "disabled") for v in checks.values()) else "degraded"
+    overall = (
+        "ok"
+        if all(v in ("ok", "running", "disabled") for v in checks.values())
+        else "degraded"
+    )
 
-    return jsonify({
-        "status": overall,
-        "version": sys.version.split()[0],
-        "checks": checks,
-        "timestamp": utc_now().isoformat(),
-    }), status_code
+    return jsonify(
+        {
+            "status": overall,
+            "version": sys.version.split()[0],
+            "checks": checks,
+            "timestamp": utc_now().isoformat(),
+        }
+    ), status_code

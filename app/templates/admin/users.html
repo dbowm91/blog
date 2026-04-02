@@ -1,5 +1,7 @@
 {% extends "admin/base.html" %}
 
+{% block title %}Users | Admin{% endblock %}
+
 {% block content %}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
@@ -26,7 +28,8 @@
                 <div class="post-list-actions">
                     <form method="POST" action="{{ url_for('admin.change_password', user_id=user.id) }}" class="inline-form" data-confirm="Change password for {{ user.username }}?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input type="password" name="password" placeholder="New password" required minlength="8" class="search-input pw-input">
+                        <input type="password" name="password" placeholder="New password" required minlength="8" class="search-input pw-input" aria-label="New password for {{ user.username }}">
+                        <span class="label-hint text-muted">8+ chars with 3 of: lowercase, uppercase, digit, special</span>
                         <button type="submit" class="btn btn-small btn-ghost">Change PW</button>
                     </form>
                     {% if user.id != current_user.id %}
@@ -57,8 +60,9 @@
     </div>
     <form method="POST" action="{{ url_for('admin.create_user') }}" class="filter-bar create-user-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="text" name="username" placeholder="Username" required maxlength="80" class="search-input">
-        <input type="password" name="password" placeholder="Password (min 8 chars)" required minlength="8" class="search-input">
+        <input type="text" name="username" placeholder="Username" required maxlength="80" class="search-input" aria-label="Username">
+        <input type="password" name="password" placeholder="Password" required minlength="8" class="search-input" aria-label="Password">
+        <span class="label-hint text-muted">8+ chars with 3 of: lowercase, uppercase, digit, special</span>
         <label class="flex-row items-center gap-xs text-muted">
             <input type="checkbox" name="is_admin"> Admin
         </label>

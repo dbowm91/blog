@@ -73,7 +73,7 @@
     --border: #30363d;
     --text: #e6edf3;
     --text-muted: #8b949e;
-    --text-dim: #656d76;
+    --text-dim: #7d8590;
     --accent: #58a6ff;
     --accent-hover: #79c0ff;
     --accent-dim: rgba(88, 166, 255, 0.1);
@@ -236,6 +236,78 @@ a:hover {
     color: var(--text);
 }
 
+.nav-dropdown {
+    position: relative;
+}
+
+.nav-dropdown-toggle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color var(--transition);
+}
+
+.nav-dropdown-toggle:hover {
+    color: var(--text);
+}
+
+.nav-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 0;
+    min-width: 140px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.nav-dropdown-menu a {
+    display: block;
+    padding: 8px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: background var(--transition), color var(--transition);
+}
+
+.nav-dropdown-menu a:hover,
+.nav-dropdown-menu a.active {
+    background: var(--bg-elevated);
+    color: var(--text);
+}
+
+.nav-dropdown.open .nav-dropdown-menu {
+    display: block;
+}
+
+.nav-shortcut-btn {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition), border-color var(--transition);
+}
+
+.nav-shortcut-btn:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+}
+
 /* --- Mobile Menu Animations --- */
 @keyframes slideInRight {
     from { transform: translateX(100%); opacity: 0; }
@@ -304,12 +376,17 @@ a:hover {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color var(--transition);
 }
 
 .post-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    border-color: var(--text-dim);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] .post-card:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 .post-card-img {
@@ -568,10 +645,6 @@ a:hover {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
-
-.share-btn.twitter:hover { background: #1da1f2; color: white; border-color: #1da1f2; }
-.share-btn.facebook:hover { background: #1877f2; color: white; border-color: #1877f2; }
-.share-btn.linkedin:hover { background: #0a66c2; color: white; border-color: #0a66c2; }
 
 .share-twitter:hover { color: #1da1f2; border-color: #1da1f2; }
 .share-linkedin:hover { color: #0a66c2; border-color: #0a66c2; }
@@ -1070,6 +1143,8 @@ a:hover {
     font-size: 0.875rem;
     margin-bottom: 8px;
     border: 1px solid;
+    position: relative;
+    overflow: hidden;
 }
 
 .flash-success {
@@ -1106,10 +1181,6 @@ a:hover {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Flash message progress */
-.flash {
-    position: relative;
-    overflow: hidden;
-}
 .flash::after {
     content: "";
     position: absolute;
@@ -1251,6 +1322,44 @@ a:hover {
     display: flex;
     align-items: center;
     margin-right: 12px;
+}
+
+/* --- Upload Zone --- */
+.upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+    margin-bottom: 24px;
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.upload-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.upload-zone-content svg {
+    color: var(--text-dim);
+}
+
+.upload-zone-content p {
+    font-size: 1rem;
+    color: var(--text);
+    margin: 0;
+}
+
+.upload-zone.dragover .upload-zone-content svg {
+    color: var(--accent);
 }
 
 /* --- Media Grid --- */
@@ -2251,13 +2360,13 @@ a:hover {
 }
 
 /* --- Image loading skeleton & fade-in --- */
-img[loading="lazy"] {
+.js img[loading="lazy"] {
     opacity: 0;
     transition: opacity 0.4s ease;
 }
 
-img[loading="lazy"].loaded,
-img:not([loading="lazy"]) {
+.js img[loading="lazy"].loaded,
+.js img:not([loading="lazy"]) {
     opacity: 1;
 }
 
@@ -2694,6 +2803,7 @@ img:not([loading="lazy"]) {
 }
 
 .text-muted { color: var(--text-muted); }
+.text-xs { font-size: 0.75rem; }
 
 /* --- Keyboard Shortcuts Modal --- */
 .modal-overlay {
@@ -2770,6 +2880,16 @@ img:not([loading="lazy"]) {
 .shortcut-desc {
     color: var(--text-muted);
     font-size: 0.9rem;
+}
+
+.shortcut-section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-top: 16px;
+    margin-bottom: 8px;
 }
 
 .modal-close-btn {

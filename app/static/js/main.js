@@ -1,3 +1,4 @@
+document.documentElement.classList.add('js');
 document.addEventListener("DOMContentLoaded", () => {
     // --- Screen reader announcement helper ---
     function announce(message) {
@@ -9,6 +10,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- Form delete confirmation via data-confirm attribute ---
+    document.querySelectorAll('form[data-confirm]').forEach(form => {
+        form.addEventListener('submit', e => {
+            if (!confirm(form.dataset.confirm)) e.preventDefault();
+        });
+    });
 
     // --- Bulk action confirmation via data-confirm-bulk ---
     document.querySelectorAll('button[data-confirm-bulk]').forEach(btn => {
@@ -19,46 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             if (!confirm(btn.dataset.confirmBulk)) e.preventDefault();
-        });
-    });
-
-    // --- 5B.2: Bulk operation progress bar ---
-    document.querySelectorAll('form[id="bulk-form"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const action = this.querySelector('button[type="submit"][name="action"]:focus');
-            if (!action) return;
-            
-            const checked = this.querySelectorAll('.bulk-checkbox:checked');
-            if (checked.length === 0) return;
-
-            let progressContainer = document.getElementById('bulk-progress');
-            if (!progressContainer) {
-                progressContainer = document.createElement('div');
-                progressContainer.id = 'bulk-progress';
-                progressContainer.innerHTML = `
-                    <div class="bulk-progress-bar">
-                        <div class="bulk-progress-fill"></div>
-                    </div>
-                    <span class="bulk-progress-text">Processing 0 of ${checked.length}...</span>
-                `;
-                this.appendChild(progressContainer);
-            }
-
-            const fill = progressContainer.querySelector('.bulk-progress-fill');
-            const text = progressContainer.querySelector('.bulk-progress-text');
-            fill.style.width = '0%';
-            progressContainer.style.display = 'block';
-
-            let processed = 0;
-            const updateProgress = () => {
-                processed++;
-                const percent = (processed / checked.length) * 100;
-                fill.style.width = percent + '%';
-                text.textContent = `Processing ${processed} of ${checked.length}...`;
-            };
-
-            const observer = new MutationObserver(updateProgress);
-            checked.forEach(cb => observer.observe(cb, { attributes: true, attributeFilter: ['checked'] }));
         });
     });
 
@@ -536,6 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Vim-style keyboard navigation (admin only) ---
+    if (document.body.classList.contains('admin-body')) {
     let vimKey = null;
     let vimTimer = null;
 
@@ -636,6 +603,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     });
+    } // end admin-body guard
 
     // --- 4B.1: Table of Contents with IntersectionObserver ---
     const tocContainer = document.querySelector('.post-toc-container');
@@ -773,4 +741,78 @@ document.addEventListener("DOMContentLoaded", () => {
             }, 100);
         }, { passive: true });
     });
+
+    // --- Nav dropdown toggle ---
+    document.querySelectorAll('.nav-dropdown-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dropdown = btn.closest('.nav-dropdown');
+            const isOpen = dropdown.classList.contains('open');
+            document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
+            if (!isOpen) {
+                dropdown.classList.add('open');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.nav-dropdown.open').forEach(d => {
+            d.classList.remove('open');
+            d.querySelector('.nav-dropdown-toggle').setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    // --- Keyboard shortcuts trigger button ---
+    document.getElementById('shortcut-trigger')?.addEventListener('click', () => {
+        const helpModal = document.getElementById('keyboard-help');
+        if (helpModal) {
+            helpModal.classList.remove('hidden');
+        }
+    });
+
+    // --- Upload zone drag-and-drop ---
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileInputHidden = document.getElementById('file-input-hidden');
+    const uploadForm = document.getElementById('upload-form');
+
+    if (uploadZone && fileInput && uploadForm) {
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                const formData = new FormData(uploadForm);
+                formData.append('file', fileInput.files[0]);
+                fetch(uploadForm.action, {
+                    method: 'POST',
+                    body: formData
+                }).then(() => window.location.reload());
+            }
+        });
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                const formData = new FormData(uploadForm);
+                formData.append('file', e.dataTransfer.files[0]);
+                fetch(uploadForm.action, {
+                    method: 'POST',
+                    body: formData
+                }).then(() => window.location.reload());
+            }
+        });
+    }
 });

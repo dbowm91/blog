@@ -9,7 +9,7 @@
         <div class="post-hero-content">
             <h1 class="post-hero-title">{{ post.title }}</h1>
             <div class="post-meta">
-                <time>{{ post.created_at.strftime('%B %d, %Y') }}</time>
+                <time datetime="{{ post.created_at.isoformat() }}">{{ post.created_at.strftime('%B %d, %Y') }}</time>
                 <span class="meta-sep">&middot;</span>
                 <span class="reading-time">{{ post.body | reading_time }}</span>
             </div>

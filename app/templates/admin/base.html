@@ -11,7 +11,7 @@
 </head>
 <body class="admin-body">
     <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
-    <nav class="navbar admin-nav">
+    <nav class="navbar admin-nav" aria-label="Admin navigation">
         <div class="container nav-container">
                 <a href="{{ url_for('admin.dashboard') }}" class="nav-logo">
                     <span class="logo-bracket">{</span>Admin<span class="logo-bracket">}</span>
@@ -23,14 +23,19 @@
                     <a href="{{ url_for('admin.dashboard') }}" {% if request.endpoint == 'admin.dashboard' %}aria-current="page" class="active"{% endif %}>Dashboard</a>
                     <a href="{{ url_for('admin.analytics') }}" {% if request.endpoint == 'admin.analytics' %}aria-current="page" class="active"{% endif %}>Analytics</a>
                     <span class="nav-separator" aria-hidden="true"></span>
-                    <a href="{{ url_for('admin.subscribers') }}" {% if request.endpoint == 'admin.subscribers' %}aria-current="page" class="active"{% endif %}>Subscribers</a>
-                    <a href="{{ url_for('admin.media') }}" {% if request.endpoint == 'admin.media' %}aria-current="page" class="active"{% endif %}>Media</a>
+                    <div class="nav-dropdown">
+                        <button class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true">More <span aria-hidden="true">▾</span></button>
+                        <div class="nav-dropdown-menu" role="menu">
+                            <a href="{{ url_for('admin.subscribers') }}" {% if request.endpoint == 'admin.subscribers' %}aria-current="page" class="active"{% endif %} role="menuitem">Subscribers</a>
+                            <a href="{{ url_for('admin.media') }}" {% if request.endpoint == 'admin.media' %}aria-current="page" class="active"{% endif %} role="menuitem">Media</a>
+                            <a href="{{ url_for('admin.tags_list') }}" {% if request.endpoint == 'admin.tags_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Tags</a>
+                            <a href="{{ url_for('admin.users_list') }}" {% if request.endpoint == 'admin.users_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Users</a>
+                            <a href="{{ url_for('admin.sessions_list') }}" {% if request.endpoint == 'admin.sessions_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Sessions</a>
+                            <a href="{{ url_for('admin.backup') }}" {% if request.endpoint == 'admin.backup' %}aria-current="page" class="active"{% endif %} role="menuitem">Backups</a>
+                        </div>
+                    </div>
                     <span class="nav-separator" aria-hidden="true"></span>
-                    <a href="{{ url_for('admin.tags_list') }}" {% if request.endpoint == 'admin.tags_list' %}aria-current="page" class="active"{% endif %}>Tags</a>
-                    <a href="{{ url_for('admin.users_list') }}" {% if request.endpoint == 'admin.users_list' %}aria-current="page" class="active"{% endif %}>Users</a>
-                    <a href="{{ url_for('admin.sessions_list') }}" {% if request.endpoint == 'admin.sessions_list' %}aria-current="page" class="active"{% endif %}>Sessions</a>
-                    <a href="{{ url_for('admin.backup') }}" {% if request.endpoint == 'admin.backup' %}aria-current="page" class="active"{% endif %}>Backups</a>
-                    <span class="nav-separator" aria-hidden="true"></span>
+                    <button class="nav-shortcut-btn" id="shortcut-trigger" aria-label="Keyboard shortcuts">?</button>
                     <form method="POST" action="{{ url_for('admin.logout') }}" class="inline-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="nav-link-btn">Logout</button>
@@ -54,9 +59,9 @@
         {% block content %}{% endblock %}
     </main>
 
-    <div id="keyboard-help" class="modal-overlay hidden" role="dialog" aria-label="Keyboard shortcuts">
+    <div id="keyboard-help" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="keyboard-help-title">
         <div class="modal-content">
-            <h2>Keyboard Shortcuts</h2>
+            <h2 id="keyboard-help-title">Keyboard Shortcuts</h2>
             <ul class="shortcut-list">
                 <li>
                     <span class="shortcut-desc">Save draft</span>
@@ -77,6 +82,25 @@
                 <li>
                     <span class="shortcut-desc">Close modal</span>
                     <span class="shortcut-keys"><kbd>Esc</kbd></span>
+                </li>
+            </ul>
+            <h3 class="shortcut-section-title">Navigation</h3>
+            <ul class="shortcut-list">
+                <li>
+                    <span class="shortcut-desc">Dashboard</span>
+                    <span class="shortcut-keys"><kbd>g</kbd><span>then</span><kbd>d</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Posts</span>
+                    <span class="shortcut-keys"><kbd>g</kbd><span>then</span><kbd>p</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Subscribers</span>
+                    <span class="shortcut-keys"><kbd>g</kbd><span>then</span><kbd>s</kbd></span>
+                </li>
+                <li>
+                    <span class="shortcut-desc">Tags</span>
+                    <span class="shortcut-keys"><kbd>g</kbd><span>then</span><kbd>t</kbd></span>
                 </li>
             </ul>
             <button class="close-btn btn btn-ghost modal-close-btn">Close</button>

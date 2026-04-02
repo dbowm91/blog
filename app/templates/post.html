@@ -107,7 +107,7 @@
                 {% endif %}
                 <div class="related-card-body">
                     <h3>{{ rp.title }}</h3>
-                    <time>{{ rp.created_at.strftime('%b %d, %Y') }}</time>
+                    <time datetime="{{ rp.created_at.isoformat() }}">{{ rp.created_at.strftime('%b %d, %Y') }}</time>
                 </div>
             </a>
             {% endfor %}

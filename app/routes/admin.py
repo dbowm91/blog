@@ -10,7 +10,20 @@ import logging
 
 from functools import wraps
 
-from flask import Blueprint, abort, render_template, redirect, url_for, request, flash, current_app, jsonify, Response, send_file, session
+from flask import (
+    Blueprint,
+    abort,
+    render_template,
+    redirect,
+    url_for,
+    request,
+    flash,
+    current_app,
+    jsonify,
+    Response,
+    send_file,
+    session,
+)
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import delete, func, select
@@ -23,7 +36,12 @@ from app.extensions import db
 from app.models import Post, Tag, User, PageView, ShareEvent, Subscriber, AdminSession
 
 from app.utils import utc_now, safe_delete_file
-from app.config import DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE, MEDIA_PER_PAGE, MEDIA_MAX_FILES
+from app.config import (
+    DASHBOARD_PER_PAGE,
+    SUBSCRIBERS_PER_PAGE,
+    MEDIA_PER_PAGE,
+    MEDIA_MAX_FILES,
+)
 from app.cache import invalidate_tag_cache
 from app.search import sync_fts, remove_fts
 
@@ -42,9 +60,19 @@ def _categorize_referrer(url):
     if not url:
         return "Direct"
     url_lower = url.lower()
-    if "google" in url_lower or "bing" in url_lower or "yahoo" in url_lower or "duckduckgo" in url_lower:
+    if (
+        "google" in url_lower
+        or "bing" in url_lower
+        or "yahoo" in url_lower
+        or "duckduckgo" in url_lower
+    ):
         return "Search"
-    if "twitter" in url_lower or "facebook" in url_lower or "linkedin" in url_lower or "reddit" in url_lower:
+    if (
+        "twitter" in url_lower
+        or "facebook" in url_lower
+        or "linkedin" in url_lower
+        or "reddit" in url_lower
+    ):
         return "Social"
     return "Other"
 
@@ -88,36 +116,32 @@ def _get_analytics_data(days: int):
 
     start_date = utc_now() - timedelta(days=days)
 
-    daily_views = (
+    daily_views = db.session.execute(
+        select(
+            func.date(PageView.created_at).label("date"),
+            func.count(PageView.id).label("views"),
+        )
+        .filter(PageView.created_at >= start_date)
+        .group_by(func.date(PageView.created_at))
+        .order_by(func.date(PageView.created_at))
+    ).all()
+
+    total_views = (
         db.session.execute(
-            select(
-                func.date(PageView.created_at).label('date'),
-                func.count(PageView.id).label('views')
-            ).filter(
-                PageView.created_at >= start_date
-            ).group_by(
-                func.date(PageView.created_at)
-            ).order_by(
-                func.date(PageView.created_at)
-            )
-        ).all()
+            select(func.count(PageView.id)).filter(PageView.created_at >= start_date)
+        ).scalar_one()
+        or 0
     )
 
-    total_views = db.session.execute(select(func.count(PageView.id)).filter(
-        PageView.created_at >= start_date
-    )).scalar_one() or 0
-
-    top_posts = (
-        db.session.execute(
-            select(Post, func.count(PageView.id).label('view_count'))
-            .join(PageView)
-            .filter(Post.published == True)
-            .filter(PageView.created_at >= start_date)
-            .group_by(Post.id)
-            .order_by(func.count(PageView.id).desc())
-            .limit(10)
-        ).all()
-    )
+    top_posts = db.session.execute(
+        select(Post, func.count(PageView.id).label("view_count"))
+        .join(PageView)
+        .filter(Post.published == True)
+        .filter(PageView.created_at >= start_date)
+        .group_by(Post.id)
+        .order_by(func.count(PageView.id).desc())
+        .limit(10)
+    ).all()
 
     top_post_ids = [p.id for p, _ in top_posts]
     share_counts_analytics = dict(
@@ -128,32 +152,34 @@ def _get_analytics_data(days: int):
         ).all()
     )
 
-    share_platforms = (
-        db.session.execute(
-            select(ShareEvent.platform, func.count(ShareEvent.id).label('count'))
-            .group_by(ShareEvent.platform)
-        ).all()
-    )
+    share_platforms = db.session.execute(
+        select(ShareEvent.platform, func.count(ShareEvent.id).label("count")).group_by(
+            ShareEvent.platform
+        )
+    ).all()
 
-    referrer_data = (
-        db.session.execute(
-            select(PageView.referrer, func.count(PageView.id).label('count'))
-            .filter(
-                PageView.referrer != None,
-                PageView.created_at >= start_date
-            ).group_by(PageView.referrer).order_by(
-                func.count(PageView.id).desc()
-            ).limit(15)
-        ).all()
-    )
+    referrer_data = db.session.execute(
+        select(PageView.referrer, func.count(PageView.id).label("count"))
+        .filter(PageView.referrer != None, PageView.created_at >= start_date)
+        .group_by(PageView.referrer)
+        .order_by(func.count(PageView.id).desc())
+        .limit(15)
+    ).all()
 
     referrer_summary = {}
     for url, count in referrer_data:
         category = _categorize_referrer(url)
         referrer_summary[category] = referrer_summary.get(category, 0) + count
 
-    total_subscribers = db.session.execute(select(func.count(Subscriber.id))).scalar_one() or 0
-    confirmed_subscribers = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)).scalar_one() or 0
+    total_subscribers = (
+        db.session.execute(select(func.count(Subscriber.id))).scalar_one() or 0
+    )
+    confirmed_subscribers = (
+        db.session.execute(
+            select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)
+        ).scalar_one()
+        or 0
+    )
 
     data = {
         "daily_views": daily_views,
@@ -190,6 +216,7 @@ def _detect_image_type(header):
         return "webp"
     return None
 
+
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
 
@@ -200,6 +227,7 @@ def admin_required(f):
         if not current_user.is_admin:
             abort(403)
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -251,7 +279,9 @@ def login() -> Response:
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        user = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
+        user = db.session.execute(
+            select(User).filter_by(username=username)
+        ).scalar_one_or_none()
         if user and user.check_password(password) and user.is_admin:
             login_user(user)
             # Track admin session
@@ -292,9 +322,12 @@ def newsletter_reset(post_id) -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.dashboard"))
-    flash(f"Newsletter flag reset for '{post.title}'. It will be included in the next newsletter.", "success")
+    flash(
+        f"Newsletter flag reset for '{post.title}'. It will be included in the next newsletter.",
+        "success",
+    )
     return redirect(url_for("admin.dashboard"))
 
 
@@ -329,10 +362,7 @@ def dashboard() -> Response:
     base_q = _get_posts_query(status, q)
 
     pagination = db.paginate(
-        base_q,
-        page=page,
-        per_page=DASHBOARD_PER_PAGE,
-        error_out=False
+        base_q, page=page, per_page=DASHBOARD_PER_PAGE, error_out=False
     )
     posts = pagination.items
 
@@ -341,17 +371,21 @@ def dashboard() -> Response:
         view_counts_sq = (
             select(PageView.post_id, func.count(PageView.id).label("cnt"))
             .where(PageView.post_id.in_(post_ids))
-            .group_by(PageView.post_id).subquery()
+            .group_by(PageView.post_id)
+            .subquery()
         )
         share_counts_sq = (
             select(ShareEvent.post_id, func.count(ShareEvent.id).label("cnt"))
             .where(ShareEvent.post_id.in_(post_ids))
-            .group_by(ShareEvent.post_id).subquery()
+            .group_by(ShareEvent.post_id)
+            .subquery()
         )
         rows = db.session.execute(
-            select(Post.id,
-                   func.coalesce(view_counts_sq.c.cnt, 0).label("views"),
-                   func.coalesce(share_counts_sq.c.cnt, 0).label("shares"))
+            select(
+                Post.id,
+                func.coalesce(view_counts_sq.c.cnt, 0).label("views"),
+                func.coalesce(share_counts_sq.c.cnt, 0).label("shares"),
+            )
             .outerjoin(view_counts_sq, Post.id == view_counts_sq.c.post_id)
             .outerjoin(share_counts_sq, Post.id == share_counts_sq.c.post_id)
             .where(Post.id.in_(post_ids))
@@ -363,25 +397,42 @@ def dashboard() -> Response:
         share_counts = {}
 
     total_views = db.session.execute(select(func.count(PageView.id))).scalar_one() or 0
-    total_posts = db.session.execute(select(func.count(Post.id)).filter(Post.published == True)).scalar_one() or 0
-    total_shares = db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
-    total_subscribers = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)).scalar_one() or 0
-
-    thirty_days_ago = utc_now() - timedelta(days=30)
-    trending = (
+    total_posts = (
         db.session.execute(
-            select(Post, func.count(PageView.id).label('view_count'))
-            .join(PageView)
-            .filter(Post.published == True)
-            .filter(PageView.created_at >= thirty_days_ago)
-            .group_by(Post.id)
-            .order_by(func.count(PageView.id).desc())
-            .limit(5)
-        ).all()
+            select(func.count(Post.id)).filter(Post.published == True)
+        ).scalar_one()
+        or 0
+    )
+    total_shares = (
+        db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
+    )
+    total_subscribers = (
+        db.session.execute(
+            select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)
+        ).scalar_one()
+        or 0
     )
 
+    thirty_days_ago = utc_now() - timedelta(days=30)
+    trending = db.session.execute(
+        select(Post, func.count(PageView.id).label("view_count"))
+        .join(PageView)
+        .filter(Post.published == True)
+        .filter(PageView.created_at >= thirty_days_ago)
+        .group_by(Post.id)
+        .order_by(func.count(PageView.id).desc())
+        .limit(5)
+    ).all()
+
     month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    new_this_month = db.session.execute(select(func.count(Subscriber.id)).filter(Subscriber.created_at >= month_start)).scalar_one() or 0
+    new_this_month = (
+        db.session.execute(
+            select(func.count(Subscriber.id)).filter(
+                Subscriber.created_at >= month_start
+            )
+        ).scalar_one()
+        or 0
+    )
 
     return render_template(
         "admin/dashboard.html",
@@ -408,7 +459,9 @@ def new_post() -> Response:
         title = request.form.get("title", "").strip()[:200]
         body = request.form.get("body", "").strip()
         summary = request.form.get("summary", "").strip()[:500]
-        tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
+        tag_names = [
+            t.strip() for t in request.form.get("tags", "").split(",") if t.strip()
+        ]
         published = "published" in request.form
         scheduled_str = request.form.get("scheduled_publish_at", "").strip()
         scheduled_publish_at = None
@@ -416,10 +469,14 @@ def new_post() -> Response:
             try:
                 scheduled_publish_at = datetime.fromisoformat(scheduled_str)
                 if scheduled_publish_at.tzinfo is None:
-                    scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
+                    scheduled_publish_at = scheduled_publish_at.replace(
+                        tzinfo=timezone.utc
+                    )
             except (ValueError, TypeError):
                 flash("Invalid schedule date format.", "error")
-                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+                return render_template(
+                    "admin/editor.html", post=None, tag_names=tag_names
+                )
 
         if not title or not body:
             flash("Title and body are required.", "error")
@@ -433,8 +490,12 @@ def new_post() -> Response:
 
         now = utc_now()
         post = Post(
-            title=title, slug=slug, body=body, summary=summary,
-            published=published, image=image,
+            title=title,
+            slug=slug,
+            body=body,
+            summary=summary,
+            published=published,
+            image=image,
             published_at=now if published else None,
             scheduled_publish_at=scheduled_publish_at,
         )
@@ -447,11 +508,17 @@ def new_post() -> Response:
         except IntegrityError:
             db.session.rollback()
             if image:
-                safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+                safe_delete_file(
+                    os.path.join(current_app.config["UPLOAD_FOLDER"], image)
+                )
             slug = _generate_unique_slug(title)
             post = Post(
-                title=title, slug=slug, body=body, summary=summary,
-                published=published, image=image,
+                title=title,
+                slug=slug,
+                body=body,
+                summary=summary,
+                published=published,
+                image=image,
                 published_at=now if published else None,
                 scheduled_publish_at=scheduled_publish_at,
             )
@@ -479,7 +546,9 @@ def edit_post(post_id) -> Response:
         title = request.form.get("title", "").strip()[:200]
         body = request.form.get("body", "").strip()
         summary = request.form.get("summary", "").strip()[:500]
-        tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
+        tag_names = [
+            t.strip() for t in request.form.get("tags", "").split(",") if t.strip()
+        ]
         published = "published" in request.form
         scheduled_str = request.form.get("scheduled_publish_at", "").strip()
         scheduled_publish_at = None
@@ -487,18 +556,24 @@ def edit_post(post_id) -> Response:
             try:
                 scheduled_publish_at = datetime.fromisoformat(scheduled_str)
                 if scheduled_publish_at.tzinfo is None:
-                    scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
+                    scheduled_publish_at = scheduled_publish_at.replace(
+                        tzinfo=timezone.utc
+                    )
             except (ValueError, TypeError):
                 flash("Invalid schedule date format.", "error")
-                return render_template("admin/editor.html", post=post, tag_names=tag_names)
+                return render_template(
+                    "admin/editor.html", post=post, tag_names=tag_names
+                )
 
         if not title or not body:
             flash("Title and body are required.", "error")
             return render_template("admin/editor.html", post=post, tag_names=tag_names)
 
         searchable_changed = (
-            title != post.title or body != post.body or
-            summary != post.summary or published != post.published
+            title != post.title
+            or body != post.body
+            or summary != post.summary
+            or published != post.published
         )
         if title != post.title:
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
@@ -533,7 +608,9 @@ def edit_post(post_id) -> Response:
         except IntegrityError:
             db.session.rollback()
             if image:
-                safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+                safe_delete_file(
+                    os.path.join(current_app.config["UPLOAD_FOLDER"], image)
+                )
             post = db.session.get(Post, post_id)
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
             post.title = title
@@ -550,7 +627,9 @@ def edit_post(post_id) -> Response:
             db.session.commit()
         # Delete old image file only after successful commit
         if old_image:
-            safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
+            safe_delete_file(
+                os.path.join(current_app.config["UPLOAD_FOLDER"], old_image)
+            )
         flash("Post updated.", "success")
         return redirect(url_for("admin.dashboard"))
 
@@ -583,12 +662,15 @@ def delete_post(post_id) -> Response:
 def _cleanup_orphan_tags():
     """Remove tags that have no associated posts. Callers are responsible for committing."""
     from app.models import post_tags
+
     orphan_tag_ids = (
         db.session.execute(
             select(Tag.id)
             .outerjoin(post_tags, Tag.id == post_tags.c.tag_id)
             .filter(post_tags.c.post_id.is_(None))
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if orphan_tag_ids:
         db.session.execute(delete(Tag).where(Tag.id.in_(orphan_tag_ids)))
@@ -647,6 +729,7 @@ def preview_post(post_id) -> Response:
     if not post:
         abort(404)
     from app.config import BASE_URL
+
     short_code = post.short_code()
     share_url = f"{BASE_URL}/s/{short_code}"
     return render_template(
@@ -678,7 +761,7 @@ def subscribers() -> Response:
         base_q.order_by(Subscriber.created_at.desc()),
         page=page,
         per_page=SUBSCRIBERS_PER_PAGE,
-        error_out=False
+        error_out=False,
     )
     return render_template(
         "admin/subscribers.html",
@@ -701,7 +784,7 @@ def delete_subscriber(sub_id) -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.subscribers"))
     logger.info("Subscriber deleted: sub_id=%d email=%s", sub_id, email)
     flash(f"Subscriber {email} deleted.", "success")
@@ -712,6 +795,7 @@ def delete_subscriber(sub_id) -> Response:
 @admin_required
 def export_subscribers() -> Response:
     """Stream CSV export of all subscribers."""
+
     def generate():
         buffer = io.StringIO()
         writer = csv.writer(buffer)
@@ -729,23 +813,35 @@ def export_subscribers() -> Response:
                     .order_by(Subscriber.created_at.desc())
                     .offset(offset)
                     .limit(batch_size)
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
             if not rows:
                 break
             for s in rows:
-                writer.writerow([
-                    (s.email if not s.email.startswith(("=", "+", "-", "@")) else "'" + s.email),
-                    s.confirmed,
-                    s.created_at.isoformat() if s.created_at else "",
-                    s.expires_at.isoformat() if s.expires_at else ""
-                ])
+                writer.writerow(
+                    [
+                        (
+                            s.email
+                            if not s.email.startswith(("=", "+", "-", "@"))
+                            else "'" + s.email
+                        ),
+                        s.confirmed,
+                        s.created_at.isoformat() if s.created_at else "",
+                        s.expires_at.isoformat() if s.expires_at else "",
+                    ]
+                )
                 yield buffer.getvalue()
                 buffer.truncate(0)
                 buffer.seek(0)
             offset += batch_size
 
-    return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers.csv"})
+    return Response(
+        generate(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=subscribers.csv"},
+    )
 
 
 @admin.route("/subscribers/bulk", methods=["POST"])
@@ -779,13 +875,20 @@ def subscribers_bulk() -> Response:
                 return redirect(url_for("admin.subscribers", status=filter_status))
 
         if action == "delete":
-            subs = db.session.execute(select(Subscriber).filter(Subscriber.id.in_(valid_ids))).scalars().all()
+            subs = (
+                db.session.execute(
+                    select(Subscriber).filter(Subscriber.id.in_(valid_ids))
+                )
+                .scalars()
+                .all()
+            )
             count = len(subs)
             for sub in subs:
                 db.session.delete(sub)
             db.session.commit()
             flash(f"Deleted {count} subscriber(s).", "success")
         elif action == "export":
+
             def generate():
                 buffer = io.StringIO()
                 writer = csv.writer(buffer)
@@ -794,20 +897,39 @@ def subscribers_bulk() -> Response:
                 buffer.truncate(0)
                 buffer.seek(0)
 
-                subs = db.session.execute(
-                    select(Subscriber).filter(Subscriber.id.in_(valid_ids)).order_by(Subscriber.created_at.desc())
-                ).scalars().all()
+                subs = (
+                    db.session.execute(
+                        select(Subscriber)
+                        .filter(Subscriber.id.in_(valid_ids))
+                        .order_by(Subscriber.created_at.desc())
+                    )
+                    .scalars()
+                    .all()
+                )
                 for s in subs:
-                    writer.writerow([
-                        (s.email if not s.email.startswith(("=", "+", "-", "@")) else "'" + s.email),
-                        s.confirmed,
-                        s.created_at.isoformat() if s.created_at else "",
-                        s.expires_at.isoformat() if s.expires_at else ""
-                    ])
+                    writer.writerow(
+                        [
+                            (
+                                s.email
+                                if not s.email.startswith(("=", "+", "-", "@"))
+                                else "'" + s.email
+                            ),
+                            s.confirmed,
+                            s.created_at.isoformat() if s.created_at else "",
+                            s.expires_at.isoformat() if s.expires_at else "",
+                        ]
+                    )
                     yield buffer.getvalue()
                     buffer.truncate(0)
                     buffer.seek(0)
-            return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers_selected.csv"})
+
+            return Response(
+                generate(),
+                mimetype="text/csv",
+                headers={
+                    "Content-Disposition": "attachment; filename=subscribers_selected.csv"
+                },
+            )
 
     return redirect(url_for("admin.subscribers", status=filter_status))
 
@@ -816,10 +938,10 @@ def subscribers_bulk() -> Response:
 @admin_required
 def preview_markdown() -> Response:
     """Render markdown for live preview.
-    
+
     Request body (JSON):
         {"text": str}
-    
+
     Response:
         200: {"html": str} - sanitized HTML
         400: {"error": "invalid"}
@@ -832,8 +954,11 @@ def preview_markdown() -> Response:
     import nh3
     import markdown as md
     from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
+
     html = md.markdown(data["text"], extensions=["fenced_code", "tables"])
-    clean = nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
+    clean = nh3.clean(
+        html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
+    )
     return jsonify({"html": clean})
 
 
@@ -851,11 +976,13 @@ def media() -> Response:
             if not entry.is_file():
                 continue
             stat = entry.stat()
-            all_files.append({
-                "name": entry.name,
-                "size": stat.st_size,
-                "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
-            })
+            all_files.append(
+                {
+                    "name": entry.name,
+                    "size": stat.st_size,
+                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                }
+            )
         all_files.sort(key=lambda f: f["mtime"], reverse=True)
     if len(all_files) > max_files:
         all_files = all_files[:max_files]
@@ -865,7 +992,35 @@ def media() -> Response:
     end = start + per_page
     files = all_files[start:end]
     total_pages = (total + per_page - 1) // per_page
-    return render_template("admin/media.html", files=files, page=page, total_pages=total_pages, truncated=truncated)
+    return render_template(
+        "admin/media.html",
+        files=files,
+        page=page,
+        total_pages=total_pages,
+        truncated=truncated,
+    )
+
+
+@admin.route("/media/upload", methods=["POST"])
+@admin_required
+def upload_media() -> Response:
+    """Handle media file uploads via drag-and-drop or form."""
+    if "file" not in request.files:
+        flash("No file selected.", "error")
+        return redirect(url_for("admin.media"))
+
+    file = request.files["file"]
+    if file.filename == "":
+        flash("No file selected.", "error")
+        return redirect(url_for("admin.media"))
+
+    filename, error = _save_image(file)
+    if error:
+        flash(error, "error")
+    else:
+        flash(f"Uploaded {filename}.", "success")
+
+    return redirect(url_for("admin.media"))
 
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
@@ -892,14 +1047,18 @@ def delete_media(filename) -> Response:
 def tags_list() -> Response:
     """Tag management page with post counts."""
     from app.models import post_tags
+
     tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_post_counts = dict(
         db.session.execute(
-            select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt"))
-            .group_by(post_tags.c.tag_id)
+            select(
+                post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt")
+            ).group_by(post_tags.c.tag_id)
         ).all()
     )
-    return render_template("admin/tags.html", tags=tags, tag_post_counts=tag_post_counts)
+    return render_template(
+        "admin/tags.html", tags=tags, tag_post_counts=tag_post_counts
+    )
 
 
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
@@ -918,21 +1077,25 @@ def rename_tag(tag_id) -> Response:
         flash(error_msg, "error")
         return redirect(url_for("admin.tags_list"))
     slug = Tag.generate_slug(new_name)
-    existing = db.session.execute(select(Tag).filter(Tag.slug == slug, Tag.id != tag.id)).scalar_one_or_none()
+    existing = db.session.execute(
+        select(Tag).filter(Tag.slug == slug, Tag.id != tag.id)
+    ).scalar_one_or_none()
     if existing:
         flash(f"Tag '{new_name}' already exists.", "warning")
         return redirect(url_for("admin.tags_list"))
+    old_name = tag.name
     tag.name = new_name
     tag.slug = slug
-    old_name = tag.name
     try:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
-    logger.info("Tag renamed: id=%d old_name=%s new_name=%s", tag_id, old_name, new_name)
+    logger.info(
+        "Tag renamed: id=%d old_name=%s new_name=%s", tag_id, old_name, new_name
+    )
     flash(f"Tag renamed to '{new_name}'.", "success")
     return redirect(url_for("admin.tags_list"))
 
@@ -950,7 +1113,7 @@ def delete_tag(tag_id) -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
     logger.info("Tag deleted: id=%d name=%s", tag_id, name)
@@ -981,7 +1144,7 @@ def create_tag() -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
     logger.info("Tag created: id=%d name=%s", tag.id, name)
@@ -995,29 +1158,41 @@ def newsletter_test() -> Response:
     """Send a test newsletter to a specified email address."""
     from app.email import send_newsletter
     from app.config import APP_TITLE, FROM_ADDRESS
+
     posts = (
         db.session.execute(
             select(Post)
             .filter_by(published=True)
             .order_by(Post.created_at.desc())
             .limit(3)
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if not posts:
         flash("No published posts to send.", "error")
         return redirect(url_for("admin.dashboard"))
     from app.models import User
+
     admin_user = db.session.execute(select(User)).scalars().first()
     if not admin_user:
         flash("No admin user found.", "error")
         return redirect(url_for("admin.dashboard"))
     test_email = request.form.get("test_email", "").strip()
     if not test_email:
-        test_email = FROM_ADDRESS.split("<")[-1].rstrip(">") if "<" in FROM_ADDRESS else FROM_ADDRESS
-    fake_sub = type("FakeSub", (), {
-        "email": test_email,
-        "token": "test",
-    })()
+        test_email = (
+            FROM_ADDRESS.split("<")[-1].rstrip(">")
+            if "<" in FROM_ADDRESS
+            else FROM_ADDRESS
+        )
+    fake_sub = type(
+        "FakeSub",
+        (),
+        {
+            "email": test_email,
+            "token": "test",
+        },
+    )()
     try:
         send_newsletter(posts, [fake_sub])
         flash(f"Test newsletter sent to {test_email}.", "success")
@@ -1054,7 +1229,9 @@ def bulk_operations() -> Response:
             flash("Invalid post ID.", "error")
             return redirect(url_for("admin.dashboard"))
 
-    posts = db.session.execute(select(Post).filter(Post.id.in_(valid_ids))).scalars().all()
+    posts = (
+        db.session.execute(select(Post).filter(Post.id.in_(valid_ids))).scalars().all()
+    )
     if not posts:
         flash("No posts found.", "error")
         return redirect(url_for("admin.dashboard"))
@@ -1072,7 +1249,7 @@ def bulk_operations() -> Response:
             db.session.commit()
         except (IntegrityError, OperationalError):
             db.session.rollback()
-            flash('Database error occurred. Please try again.', 'error')
+            flash("Database error occurred. Please try again.", "error")
             return redirect(url_for("admin.dashboard"))
         flash(f"Published {len(posts)} post(s).", "success")
     elif action == "unpublish":
@@ -1084,7 +1261,7 @@ def bulk_operations() -> Response:
             db.session.commit()
         except (IntegrityError, OperationalError):
             db.session.rollback()
-            flash('Database error occurred. Please try again.', 'error')
+            flash("Database error occurred. Please try again.", "error")
             return redirect(url_for("admin.dashboard"))
         flash(f"Unpublished {len(posts)} post(s).", "success")
     elif action == "delete":
@@ -1101,7 +1278,7 @@ def bulk_operations() -> Response:
             db.session.commit()
         except (IntegrityError, OperationalError):
             db.session.rollback()
-            flash('Database error occurred. Please try again.', 'error')
+            flash("Database error occurred. Please try again.", "error")
             return redirect(url_for("admin.dashboard"))
         for pid in deleted_post_ids:
             remove_fts(pid)
@@ -1120,8 +1297,15 @@ def users_list() -> Response:
     """User management page with pagination."""
     page = request.args.get("page", 1, type=int)
     per_page = 20
-    pagination = db.paginate(select(User).order_by(User.username), page=page, per_page=per_page, error_out=False)
-    return render_template("admin/users.html", users=pagination.items, pagination=pagination)
+    pagination = db.paginate(
+        select(User).order_by(User.username),
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
+    return render_template(
+        "admin/users.html", users=pagination.items, pagination=pagination
+    )
 
 
 @admin.route("/users/create", methods=["POST"])
@@ -1137,10 +1321,15 @@ def create_user() -> Response:
         return redirect(url_for("admin.users_list"))
 
     if not _check_password_complexity(password):
-        flash("Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.", "error")
+        flash(
+            "Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.",
+            "error",
+        )
         return redirect(url_for("admin.users_list"))
 
-    existing = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
+    existing = db.session.execute(
+        select(User).filter_by(username=username)
+    ).scalar_one_or_none()
     if existing:
         flash(f"User '{username}' already exists.", "error")
         return redirect(url_for("admin.users_list"))
@@ -1152,9 +1341,11 @@ def create_user() -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info("User created: id=%d username=%s is_admin=%s", user.id, username, is_admin)
+    logger.info(
+        "User created: id=%d username=%s is_admin=%s", user.id, username, is_admin
+    )
     flash(f"User '{username}' created.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -1169,7 +1360,9 @@ def delete_user(user_id) -> Response:
     if user.id == current_user.id:
         flash("Cannot delete your own account.", "error")
         return redirect(url_for("admin.users_list"))
-    admin_count = db.session.execute(select(func.count(User.id)).filter_by(is_admin=True)).scalar_one()
+    admin_count = db.session.execute(
+        select(func.count(User.id)).filter_by(is_admin=True)
+    ).scalar_one()
     if user.is_admin and admin_count <= 1:
         flash("Cannot delete the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
@@ -1180,9 +1373,11 @@ def delete_user(user_id) -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info("User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin)
+    logger.info(
+        "User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin
+    )
     flash(f"User '{username}' deleted.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -1196,14 +1391,17 @@ def change_password(user_id) -> Response:
         abort(404)
     password = request.form.get("password", "").strip()
     if not _check_password_complexity(password):
-        flash("Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.", "error")
+        flash(
+            "Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.",
+            "error",
+        )
         return redirect(url_for("admin.users_list"))
     user.set_password(password)
     try:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
     logger.info("Password changed: user_id=%d username=%s", user_id, user.username)
     flash(f"Password changed for '{user.username}'.", "success")
@@ -1219,7 +1417,10 @@ def sessions_list() -> Response:
             select(AdminSession)
             .options(joinedload(AdminSession.user))
             .order_by(AdminSession.last_activity.desc())
-        ).unique().scalars().all()
+        )
+        .unique()
+        .scalars()
+        .all()
     )
     current_session_id = session.get("admin_session_id", "")
     return render_template(
@@ -1245,7 +1446,7 @@ def revoke_session(sess_id) -> Response:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
-        flash('Database error occurred. Please try again.', 'error')
+        flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.sessions_list"))
     logger.info("Session revoked: sess_id=%d", sess_id)
     flash("Session revoked.", "success")
@@ -1264,14 +1465,18 @@ def backup() -> Response:
     backups = []
     if os.path.isdir(backup_dir):
         for fname in sorted(os.listdir(backup_dir), reverse=True):
-            if fname.startswith("blog_") and (fname.endswith(".db") or fname.endswith(".db.gz")):
+            if fname.startswith("blog_") and (
+                fname.endswith(".db") or fname.endswith(".db.gz")
+            ):
                 fpath = os.path.join(backup_dir, fname)
                 stat = os.stat(fpath)
-                backups.append({
-                    "name": fname,
-                    "size": stat.st_size,
-                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
-                })
+                backups.append(
+                    {
+                        "name": fname,
+                        "size": stat.st_size,
+                        "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                    }
+                )
     return render_template("admin/backup.html", backups=backups)
 
 
@@ -1280,6 +1485,7 @@ def backup() -> Response:
 def create_backup() -> Response:
     """Create a database backup, optionally gzip-compressed."""
     from backup import create_backup as _create_backup
+
     compress = "compress" in request.form
     db_path = os.path.join(current_app.instance_path, "blog.db")
     backup_dir = _get_backup_dir()
@@ -1314,6 +1520,7 @@ def restore_backup(filename) -> Response:
     import shutil as _shutil
     import gzip
     import tempfile
+
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()
@@ -1335,7 +1542,10 @@ def restore_backup(filename) -> Response:
         os.unlink(tmp_path)
     else:
         _shutil.copy2(real_path, db_path)
-    flash(f"Database restored from {filename}. You may need to restart the app for all changes to take effect.", "success")
+    flash(
+        f"Database restored from {filename}. You may need to restart the app for all changes to take effect.",
+        "success",
+    )
     return redirect(url_for("admin.backup"))
 
 

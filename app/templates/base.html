@@ -36,7 +36,7 @@
     <div class="reading-progress" id="reading-progress"></div>
     <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <a href="#main-content" class="skip-link">Skip to main content</a>
-    <nav class="navbar">
+    <nav class="navbar" aria-label="Main navigation">
         <div class="container nav-container">
             <a href="{{ url_for('public.index') }}" class="nav-logo">
                 <span class="logo-bracket">{</span>{{ site_title }}<span class="logo-bracket">}</span>
@@ -103,7 +103,7 @@
             </div>
         </div>
         <div class="container footer-bottom">
-            <p>&copy; {% if current_year and current_year != 2026 %}{{ current_year }} - {% endif %}{{ current_year }} {{ site_title }}. Built with Flask.</p>
+            <p>&copy; 2026{% if current_year and current_year > 2026 %} - {{ current_year }}{% endif %} {{ site_title }}. Built with Flask.</p>
         </div>
     </footer>
 

@@ -1,5 +1,11 @@
 # Consolidated Improvement Plan
 
+**Status: COMPLETED (2026-04-02)**
+
+All items from Waves 1-4 have been implemented. Wave 5 (Code Quality) was skipped as medium priority.
+
+---
+
 Consolidated from `plan2.md` (code quality), `plan4.md` (UI fixes), `plan5.md` (accessibility/UX), and `plan6.md` (enhancements).
 
 All items verified against the codebase as of 2026-04-02.
@@ -12,7 +18,7 @@ ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 
 ---
 
-## Wave 1: Bugs, Dead Code, and CSS Cleanup
+## Wave 1: Bugs, Dead Code, and CSS Cleanup (COMPLETED)
 
 All items in this wave are independent and can be implemented in parallel by separate agents.
 
@@ -124,7 +130,7 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
 
 ---
 
-## Wave 2: Accessibility (WCAG Compliance)
+## Wave 2: Accessibility (WCAG Compliance) (COMPLETED)
 
 All items are template changes to different files or CSS — fully parallelizable.
 
@@ -187,7 +193,7 @@ All items are template changes to different files or CSS — fully parallelizabl
 
 ---
 
-## Wave 3: UX Improvements and Features
+## Wave 3: UX Improvements and Features (COMPLETED)
 
 ### 3.1 Fix nested forms in dashboard (invalid HTML)
 
@@ -252,7 +258,7 @@ All items are template changes to different files or CSS — fully parallelizabl
 
 ---
 
-## Wave 4: Backend Refactoring
+## Wave 4: Backend Refactoring (COMPLETED - partial)
 
 Items in this wave modify different parts of the backend and are parallelizable.
 
