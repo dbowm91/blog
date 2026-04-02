@@ -8,6 +8,8 @@ import time
 import threading
 import logging
 
+from app.csv_utils import generate_subscribers_csv
+
 from functools import wraps
 
 from flask import (
@@ -41,6 +43,8 @@ from app.config import (
     SUBSCRIBERS_PER_PAGE,
     MEDIA_PER_PAGE,
     MEDIA_MAX_FILES,
+    MAX_UPLOAD_SIZE,
+    EXPORT_BATCH_SIZE,
 )
 from app.cache import invalidate_tag_cache
 from app.search import sync_fts, remove_fts
@@ -256,8 +260,11 @@ def _save_image(file):
         file.seek(0, 2)
         size = file.tell()
         file.seek(0)
-        if size > 10 * 1024 * 1024:
-            return None, "File too large. Maximum size is 10MB."
+        if size > MAX_UPLOAD_SIZE:
+            return (
+                None,
+                f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
+            )
         header = file.read(32)
         file.seek(0)
         detected = _detect_image_type(header)
@@ -575,17 +582,19 @@ def edit_post(post_id) -> Response:
             or summary != post.summary
             or published != post.published
         )
+        was_published = post.published
         if title != post.title:
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
-        post.title = title
-        post.body = body
-        post.summary = summary
-        was_published = post.published
-        post.published = published
-        post.scheduled_publish_at = scheduled_publish_at
-        if published and not was_published:
-            post.published_at = utc_now()
-        post.tags = _get_or_create_tags(tag_names)
+        _apply_post_updates(
+            post,
+            title,
+            body,
+            summary,
+            published,
+            was_published,
+            scheduled_publish_at,
+            tag_names,
+        )
 
         image, error = _save_image(request.files.get("image"))
         if error:
@@ -613,14 +622,16 @@ def edit_post(post_id) -> Response:
                 )
             post = db.session.get(Post, post_id)
             post.slug = _generate_unique_slug(title, exclude_id=post.id)
-            post.title = title
-            post.body = body
-            post.summary = summary
-            post.published = published
-            post.scheduled_publish_at = scheduled_publish_at
-            if published and not was_published:
-                post.published_at = utc_now()
-            post.tags = _get_or_create_tags(tag_names)
+            _apply_post_updates(
+                post,
+                title,
+                body,
+                summary,
+                published,
+                was_published,
+                scheduled_publish_at,
+                tag_names,
+            )
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
             invalidate_tag_cache()
             _cleanup_orphan_tags()
@@ -696,6 +707,28 @@ def _get_or_create_tags(names):
     if invalid_tags:
         flash(f"Invalid tag names (skipped): {', '.join(invalid_tags)}", "warning")
     return tags
+
+
+def _apply_post_updates(
+    post,
+    title,
+    body,
+    summary,
+    published,
+    was_published,
+    scheduled_publish_at,
+    tag_names,
+):
+    """Apply field updates to a post object. Used by edit_post to avoid duplication."""
+    post.title = title
+    post.body = body
+    post.summary = summary
+    post.published = published
+    post.scheduled_publish_at = scheduled_publish_at
+    if published and not was_published:
+        post.published_at = utc_now()
+    post.tags = _get_or_create_tags(tag_names)
+    return post
 
 
 @admin.route("/analytics")
@@ -797,15 +830,8 @@ def export_subscribers() -> Response:
     """Stream CSV export of all subscribers."""
 
     def generate():
-        buffer = io.StringIO()
-        writer = csv.writer(buffer)
-        writer.writerow(["email", "confirmed", "created_at", "expires_at"])
-        yield buffer.getvalue()
-        buffer.truncate(0)
-        buffer.seek(0)
-
         offset = 0
-        batch_size = 500
+        batch_size = EXPORT_BATCH_SIZE
         while True:
             rows = (
                 db.session.execute(
@@ -819,22 +845,7 @@ def export_subscribers() -> Response:
             )
             if not rows:
                 break
-            for s in rows:
-                writer.writerow(
-                    [
-                        (
-                            s.email
-                            if not s.email.startswith(("=", "+", "-", "@"))
-                            else "'" + s.email
-                        ),
-                        s.confirmed,
-                        s.created_at.isoformat() if s.created_at else "",
-                        s.expires_at.isoformat() if s.expires_at else "",
-                    ]
-                )
-                yield buffer.getvalue()
-                buffer.truncate(0)
-                buffer.seek(0)
+            yield from generate_subscribers_csv(rows)
             offset += batch_size
 
     return Response(
@@ -888,43 +899,18 @@ def subscribers_bulk() -> Response:
             db.session.commit()
             flash(f"Deleted {count} subscriber(s).", "success")
         elif action == "export":
-
-            def generate():
-                buffer = io.StringIO()
-                writer = csv.writer(buffer)
-                writer.writerow(["email", "confirmed", "created_at", "expires_at"])
-                yield buffer.getvalue()
-                buffer.truncate(0)
-                buffer.seek(0)
-
-                subs = (
-                    db.session.execute(
-                        select(Subscriber)
-                        .filter(Subscriber.id.in_(valid_ids))
-                        .order_by(Subscriber.created_at.desc())
-                    )
-                    .scalars()
-                    .all()
+            subs = (
+                db.session.execute(
+                    select(Subscriber)
+                    .filter(Subscriber.id.in_(valid_ids))
+                    .order_by(Subscriber.created_at.desc())
                 )
-                for s in subs:
-                    writer.writerow(
-                        [
-                            (
-                                s.email
-                                if not s.email.startswith(("=", "+", "-", "@"))
-                                else "'" + s.email
-                            ),
-                            s.confirmed,
-                            s.created_at.isoformat() if s.created_at else "",
-                            s.expires_at.isoformat() if s.expires_at else "",
-                        ]
-                    )
-                    yield buffer.getvalue()
-                    buffer.truncate(0)
-                    buffer.seek(0)
+                .scalars()
+                .all()
+            )
 
             return Response(
-                generate(),
+                generate_subscribers_csv(subs),
                 mimetype="text/csv",
                 headers={
                     "Content-Disposition": "attachment; filename=subscribers_selected.csv"

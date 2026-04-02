@@ -29,6 +29,7 @@ from app.config import (
     RELATED_POSTS_COUNT,
     MAX_VIEWED_POSTS,
     CONFIRMATION_EXPIRY_HOURS,
+    TOKEN_ENUMERATION_DELAY,
 )
 
 from app.email import send_confirmation
@@ -396,7 +397,7 @@ def confirm(token) -> Response:
     sub = db.session.execute(
         select(Subscriber).filter_by(token=token)
     ).scalar_one_or_none()
-    time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
+    time.sleep(TOKEN_ENUMERATION_DELAY)
     if not sub:
         logger.warning(
             "Confirm enumeration attempt with invalid token from %s",
@@ -434,7 +435,7 @@ def unsubscribe(token) -> Response:
     sub = db.session.execute(
         select(Subscriber).filter_by(token=token)
     ).scalar_one_or_none()
-    time.sleep(0.1)  # Always sleep for constant time to prevent timing attack
+    time.sleep(TOKEN_ENUMERATION_DELAY)
     if not sub:
         logger.warning(
             "Unsubscribe enumeration attempt with invalid token from %s",

@@ -313,7 +313,15 @@ Admin sessions expire after inactivity (default 24 hours, configurable via `sess
 The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `--text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
 
 ### CSV Export
-CSV exports in `export_subscribers()` and `subscribers_bulk()` use `csv.writer` via `io.StringIO`. Cells starting with `=`, `+`, `-`, `@` are prefixed with `'` to prevent CSV formula injection.
+CSV generation is handled by `generate_subscribers_csv()` in `app/csv_utils.py`. Both `export_subscribers()` and `subscribers_bulk()` use this shared utility. Cells starting with `=`, `+`, `-`, `@` are prefixed with `'` to prevent CSV formula injection.
+
+### Magic Numbers in Config
+The following magic numbers are configurable via `config.toml`:
+- `max_upload_size` (default 10MB) — maximum uploaded file size
+- `smtp_timeout` (default 30s) — SMTP connection timeout
+- `export_batch_size` (default 500) — subscriber export batch size for streaming
+- `fts_result_limit` (default 100) — FTS5 search result limit
+- `token_enumeration_delay` (default 0.1s) — constant-time delay for confirm/unsubscribe routes
 
 ### Mobile Nav Class
 CSS animation is defined on `.nav-links.open` (matches JS toggle). The `::before` backdrop overlay is gated on `.nav-links.open::before`.

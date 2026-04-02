@@ -9,6 +9,10 @@ dashboard_per_page = 20
 subscribers_per_page = 50
 media_per_page = 50
 media_max_files = 1000
+max_upload_size = 10485760  # 10MB in bytes
+export_batch_size = 500
+fts_result_limit = 100
+token_enumeration_delay = 0.1  # seconds
 # secret_key, admin credentials, and SMTP creds are read from environment variables.
 # See .env.example for required variables.
 
@@ -36,6 +40,7 @@ smtp_port = 587
 smtp_user = ""
 smtp_password = ""
 from_address = "blog@example.com"
+smtp_timeout = 30  # seconds
 
 [newsletter]
 send_time = "08:00"

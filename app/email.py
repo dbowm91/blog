@@ -8,14 +8,22 @@ from typing import Optional
 from flask import render_template
 
 from app.config import (
-    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD,
-    FROM_ADDRESS, APP_TITLE, BASE_URL,
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASSWORD,
+    FROM_ADDRESS,
+    APP_TITLE,
+    BASE_URL,
+    SMTP_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _send_email(to: str, subject: str, html_body: str, text_body: Optional[str] = None) -> None:
+def _send_email(
+    to: str, subject: str, html_body: str, text_body: Optional[str] = None
+) -> None:
     msg = MIMEMultipart("alternative")
     msg["From"] = FROM_ADDRESS
     msg["To"] = to
@@ -25,7 +33,7 @@ def _send_email(to: str, subject: str, html_body: str, text_body: Optional[str] 
         msg.attach(MIMEText(text_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT) as server:
         server.ehlo()
         context = ssl.create_default_context()
         server.starttls(context=context)
@@ -49,13 +57,15 @@ def send_confirmation(subscriber) -> None:
         f"Click this link to confirm: {BASE_URL}/confirm/{subscriber.token}\n\n"
         f"If you didn't request this, you can unsubscribe: {unsub_url}"
     )
-    _send_email(subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text)
+    _send_email(
+        subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text
+    )
 
 
 def _connect_smtp() -> Optional[smtplib.SMTP]:
     """Open an authenticated SMTP connection. Returns None on failure."""
     try:
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT)
         server.ehlo()
         context = ssl.create_default_context()
         server.starttls(context=context)
@@ -91,8 +101,7 @@ def send_newsletter(posts, subscribers) -> bool:
             text = (
                 f"Latest from {APP_TITLE}\n\n"
                 + "\n\n".join(
-                    f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}"
-                    for p in posts
+                    f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}" for p in posts
                 )
                 + f"\n\nUnsubscribe: {unsub_url}"
             )
@@ -107,7 +116,9 @@ def send_newsletter(posts, subscribers) -> bool:
                 if i % 50 == 0:
                     logger.info("Newsletter progress: %d/%d sent", i, len(subscribers))
             except smtplib.SMTPServerDisconnected:
-                logger.exception("SMTP disconnected while sending to %s; reconnecting", sub.email)
+                logger.exception(
+                    "SMTP disconnected while sending to %s; reconnecting", sub.email
+                )
                 all_sent = False
                 try:
                     server.quit()
@@ -115,13 +126,19 @@ def send_newsletter(posts, subscribers) -> bool:
                     pass
                 server = _connect_smtp()
                 if not server:
-                    logger.error("SMTP reconnection failed; aborting newsletter after %d/%d", i - 1, len(subscribers))
+                    logger.error(
+                        "SMTP reconnection failed; aborting newsletter after %d/%d",
+                        i - 1,
+                        len(subscribers),
+                    )
                     break
                 try:
                     server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
                     all_sent = True
                 except smtplib.SMTPException:
-                    logger.exception("Failed to send newsletter to %s after reconnect", sub.email)
+                    logger.exception(
+                        "Failed to send newsletter to %s after reconnect", sub.email
+                    )
             except smtplib.SMTPException:
                 logger.exception("Failed to send newsletter to %s", sub.email)
                 all_sent = False

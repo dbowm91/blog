@@ -258,49 +258,56 @@ All items are template changes to different files or CSS — fully parallelizabl
 
 ---
 
-## Wave 4: Backend Refactoring (COMPLETED - partial)
+## Wave 4: Backend Refactoring (COMPLETED)
 
 Items in this wave modify different parts of the backend and are parallelizable.
 
 ### 4.1 Simplify `subscribe()` route logic
 
-**Verified:** Complex nested if/elif/else with duplicated token regeneration, expiry setting, and confirmation calls.
+**Status:** IMPLEMENTED (2026-04-02)
 
-**Fix:** Extract helper functions `_reset_subscriber_token()`, `_send_or_flash_confirmation()`. Simplify main flow.
+Extracted helper functions `_reset_subscriber_token()`, `_send_or_flash_confirmation()`, `_try_send_confirmation()` to simplify the main flow and eliminate duplication.
 
-- File: `app/routes/public.py:283-351`
+- File: `app/routes/public.py:302-325`
 
 ### 4.2 Improve `edit_post()` error handling
 
-**Verified:** IntegrityError handler duplicates main post update logic (lines 538-546 duplicate 503-513). Risk of missing field updates in error path.
+**Status:** IMPLEMENTED (2026-04-02)
 
-**Fix:** Extract `_apply_post_updates()` helper. Use in both normal and error paths.
+Extracted `_apply_post_updates()` helper function. Used in both normal and IntegrityError recovery paths to ensure consistent field updates.
 
-- File: `app/routes/admin.py:527-550`
+- File: `app/routes/admin.py:712-720`
 
 ### 4.3 Extract CSV generation utility
 
-**Verified:** Nearly identical CSV generation in `export_subscribers()` and `subscribers_bulk()`.
+**Status:** IMPLEMENTED (2026-04-02)
 
-**Fix:** Create `app/csv_utils.py` with shared generator function. Include CSV injection prevention.
+Created `app/csv_utils.py` with `generate_subscribers_csv()` function. Refactored both `export_subscribers()` and `subscribers_bulk()` to use the shared utility.
 
-- Files: `app/routes/admin.py:715-748, 789-810`, new `app/csv_utils.py`
+- Files: `app/routes/admin.py:825-850, 896-913`, new `app/csv_utils.py`
 
 ### 4.4 Extract magic numbers to configuration
 
-**Verified:** Hardcoded values scattered: 10MB upload limit, 30s SMTP timeout, 500ms token delay, 100 result FTS limit.
+**Status:** IMPLEMENTED (2026-04-02)
 
-**Fix:** Add to `config.toml [app]` section, load in `config.py`.
+Added to `config.toml [app]`:
+- `max_upload_size = 10485760` (10MB)
+- `export_batch_size = 500`
+- `fts_result_limit = 100`
+- `token_enumeration_delay = 0.1`
 
-- Files: `config.toml`, `app/config.py`, multiple files
+Added to `config.toml [email]`:
+- `smtp_timeout = 30`
+
+- Files: `config.toml`, `app/config.py`, `app/routes/admin.py`, `app/email.py`, `app/routes/public.py`, `app/search.py`
 
 ### 4.5 Add validation for empty tag names
 
-**Verified:** Empty tags are silently skipped in `_get_or_create_tags()`.
+**Status:** IMPLEMENTED (previously)
 
-**Fix:** Add explicit validation and user feedback.
+Empty tags are skipped with warning flash message in `_get_or_create_tags()`.
 
-- File: `app/routes/admin.py:597-616`
+- File: `app/routes/admin.py:690-710`
 
 ---
 
@@ -390,7 +397,10 @@ Wave 3 items 3.3, 3.4, 3.5 all add to `main.js` and `style.css` — coordinate C
 | `app/templates/tag.html` | 2 | 2.2 |
 | `app/templates/search.html` | 2 | 2.2 |
 | `app/routes/admin.py` | 1, 3, 4 | 1.1, 3.5, 4.2, 4.3, 4.4, 4.5 |
-| `app/routes/public.py` | 4 | 4.1 |
+| `app/routes/public.py` | 4 | 4.1, 4.4 |
+| `app/csv_utils.py` | 4 | 4.3 |
+| `app/email.py` | 4 | 4.4 |
+| `app/search.py` | 4 | 4.4 |
 | `config.toml` | 4 | 4.4 |
 | `app/config.py` | 4 | 4.4 |
 
