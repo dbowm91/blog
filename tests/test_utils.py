@@ -36,7 +36,7 @@ class TestXmlEscape:
         assert xml_escape('a"b') == "a&quot;b"
 
     def test_single_quote(self):
-        assert xml_escape("a'b") == "a&apos;b"
+        assert xml_escape("a'b") == "a&#x27;b"
 
     def test_empty_string(self):
         assert xml_escape("") == ""
@@ -45,7 +45,7 @@ class TestXmlEscape:
         assert xml_escape(None) == ""
 
     def test_combined(self):
-        assert xml_escape('<a href="x&y">') == '&lt;a href=&quot;x&amp;y&quot;&gt;'
+        assert xml_escape('<a href="x&y">') == "&lt;a href=&quot;x&amp;y&quot;&gt;"
 
 
 class TestSlugGeneration:

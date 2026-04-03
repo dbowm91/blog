@@ -1,12 +1,20 @@
 from flask import redirect, url_for, request, flash
 from flask_login import login_required
+from dataclasses import dataclass
 
 from app.extensions import db
 from app.models import Post, User
 from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import logger
 from app.email import send_newsletter
 from app.config import FROM_ADDRESS
 from sqlalchemy import select
+
+
+@dataclass
+class FakeSubscriber:
+    email: str
+    token: str = "test"
 
 
 @admin.route("/newsletter-test", methods=["POST"])
@@ -37,14 +45,7 @@ def newsletter_test():
             if "<" in FROM_ADDRESS
             else FROM_ADDRESS
         )
-    fake_sub = type(
-        "FakeSub",
-        (),
-        {
-            "email": test_email,
-            "token": "test",
-        },
-    )()
+    fake_sub = FakeSubscriber(email=test_email)
     try:
         send_newsletter(posts, [fake_sub])
         flash(f"Test newsletter sent to {test_email}.", "success")

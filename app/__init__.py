@@ -375,6 +375,14 @@ def create_app():
         password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
 
         from app.models import User
+        from app.routes.admin.helpers import _check_password_complexity
+
+        if not _check_password_complexity(password):
+            click.echo(
+                "Password must be at least 8 characters and contain at least 3 of 4: "
+                "lowercase, uppercase, digit, special."
+            )
+            return
 
         existing = db.session.execute(
             select(User).filter_by(username=username)

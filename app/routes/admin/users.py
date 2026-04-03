@@ -3,7 +3,8 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import User
-from app.routes.admin import admin, admin_required, _check_password_complexity
+from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import _check_password_complexity, logger
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -27,8 +28,6 @@ def users_list():
 @admin.route("/users/create", methods=["POST"])
 @admin_required
 def create_user():
-    from app.routes.admin import logger
-
     username = request.form.get("username", "").strip()[:80]
     password = request.form.get("password", "").strip()
     is_admin = "is_admin" in request.form
@@ -70,8 +69,6 @@ def create_user():
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
 def delete_user(user_id):
-    from app.routes.admin import logger
-
     user = db.session.get(User, user_id)
     if not user:
         abort(404)
@@ -103,8 +100,6 @@ def delete_user(user_id):
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
 def change_password(user_id):
-    from app.routes.admin import logger
-
     user = db.session.get(User, user_id)
     if not user:
         abort(404)

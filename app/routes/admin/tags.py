@@ -3,12 +3,8 @@ from flask_login import login_required
 
 from app.extensions import db
 from app.models import Tag
-from app.routes.admin import (
-    admin,
-    admin_required,
-    validate_tag_name,
-    invalidate_tag_cache,
-)
+from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import validate_tag_name, invalidate_tag_cache, logger
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -34,8 +30,6 @@ def tags_list():
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
 @admin_required
 def rename_tag(tag_id):
-    from app.routes.admin import logger
-
     tag = db.session.get(Tag, tag_id)
     if not tag:
         abort(404)
@@ -74,8 +68,6 @@ def rename_tag(tag_id):
 @admin.route("/tags/delete/<int:tag_id>", methods=["POST"])
 @admin_required
 def delete_tag(tag_id):
-    from app.routes.admin import logger
-
     tag = db.session.get(Tag, tag_id)
     if not tag:
         abort(404)
@@ -96,8 +88,6 @@ def delete_tag(tag_id):
 @admin.route("/tags/create", methods=["POST"])
 @admin_required
 def create_tag():
-    from app.routes.admin import logger
-
     name = request.form.get("name", "").strip()[:50]
     if not name:
         flash("Tag name cannot be empty.", "error")

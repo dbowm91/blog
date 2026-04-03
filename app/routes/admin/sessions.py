@@ -4,6 +4,7 @@ from flask_login import login_required
 from app.extensions import db
 from app.models import AdminSession
 from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import logger
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -33,8 +34,6 @@ def sessions_list():
 @admin.route("/sessions/revoke/<int:sess_id>", methods=["POST"])
 @admin_required
 def revoke_session(sess_id):
-    from app.routes.admin import logger
-
     admin_session = db.session.get(AdminSession, sess_id)
     if not admin_session:
         abort(404)

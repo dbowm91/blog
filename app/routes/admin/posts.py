@@ -14,9 +14,8 @@ from flask_login import login_required
 
 from app.extensions import db
 from app.models import Post, PageView, ShareEvent, Subscriber
-from app.routes.admin import (
-    admin,
-    admin_required,
+from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import (
     _get_posts_query,
     _generate_unique_slug,
     _save_image,
@@ -30,6 +29,7 @@ from app.routes.admin import (
     invalidate_analytics_cache,
     sync_fts,
     remove_fts,
+    logger,
 )
 from app.config import BASE_URL
 from sqlalchemy import func, select
@@ -157,6 +157,53 @@ def dashboard():
     )
 
 
+def _create_post_object(
+    title, body, summary, published, image, now, scheduled_publish_at, tag_names
+):
+    """Create a Post instance with all fields set."""
+    post = Post(
+        title=title,
+        slug=_generate_unique_slug(title),
+        body=body,
+        summary=summary,
+        published=published,
+        image=image,
+        published_at=now if published else None,
+        scheduled_publish_at=scheduled_publish_at,
+    )
+    post.tags = _get_or_create_tags(tag_names)
+    return post
+
+
+def _commit_post_with_rollback(
+    post, image, title, body, summary, published, now, scheduled_publish_at, tag_names
+):
+    """Attempt to commit a post, handling IntegrityError by regenerating slug and retrying."""
+    try:
+        db.session.flush()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        db.session.commit()
+        return True
+    except IntegrityError:
+        db.session.rollback()
+        if image:
+            safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+        new_post = _create_post_object(
+            title, body, summary, published, image, now, scheduled_publish_at, tag_names
+        )
+        db.session.add(new_post)
+        db.session.flush()
+        sync_fts(
+            new_post.id,
+            new_post.title,
+            new_post.body,
+            new_post.summary,
+            new_post.published,
+        )
+        db.session.commit()
+        return False
+
+
 @admin.route("/new", methods=["GET", "POST"])
 @admin_required
 def new_post():
@@ -187,51 +234,27 @@ def new_post():
             flash("Title and body are required.", "error")
             return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
-        slug = _generate_unique_slug(title)
         image, error = _save_image(request.files.get("image"))
         if error:
             flash(error, "error")
             return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
         now = utc_now()
-        post = Post(
-            title=title,
-            slug=slug,
-            body=body,
-            summary=summary,
-            published=published,
-            image=image,
-            published_at=now if published else None,
-            scheduled_publish_at=scheduled_publish_at,
+        post = _create_post_object(
+            title, body, summary, published, image, now, scheduled_publish_at, tag_names
         )
-        post.tags = _get_or_create_tags(tag_names)
         db.session.add(post)
-        try:
-            db.session.flush()
-            sync_fts(post.id, post.title, post.body, post.summary, post.published)
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            if image:
-                safe_delete_file(
-                    os.path.join(current_app.config["UPLOAD_FOLDER"], image)
-                )
-            slug = _generate_unique_slug(title)
-            post = Post(
-                title=title,
-                slug=slug,
-                body=body,
-                summary=summary,
-                published=published,
-                image=image,
-                published_at=now if published else None,
-                scheduled_publish_at=scheduled_publish_at,
-            )
-            post.tags = _get_or_create_tags(tag_names)
-            db.session.add(post)
-            db.session.flush()
-            sync_fts(post.id, post.title, post.body, post.summary, post.published)
-            db.session.commit()
+        _commit_post_with_rollback(
+            post,
+            image,
+            title,
+            body,
+            summary,
+            published,
+            now,
+            scheduled_publish_at,
+            tag_names,
+        )
         flash("Post created.", "success")
         invalidate_tag_cache()
         invalidate_analytics_cache()
@@ -350,8 +373,6 @@ def edit_post(post_id):
 @admin.route("/delete/<int:post_id>", methods=["POST"])
 @admin_required
 def delete_post(post_id):
-    from app.routes.admin import logger
-
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -393,8 +414,6 @@ def preview_post(post_id):
 @admin.route("/bulk", methods=["POST"])
 @admin_required
 def bulk_operations():
-    from app.routes.admin import logger
-
     action = request.form.get("action")
     post_ids = request.form.getlist("post_ids")
     if not post_ids:

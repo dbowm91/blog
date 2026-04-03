@@ -472,10 +472,7 @@ def _generate_sitemap():
     # Posts — yield one at a time to avoid loading all into memory
     for post in (
         db.session.execute(
-            select(Post)
-            .filter_by(published=True)
-            .order_by(Post.updated_at.desc())
-            .execution_options(yield_per=100)
+            select(Post).filter_by(published=True).order_by(Post.updated_at.desc())
         )
         .scalars()
         .yield_per(100)
@@ -488,11 +485,7 @@ def _generate_sitemap():
     <priority>0.8</priority>
   </url>\n"""
     # Tags
-    for tag in (
-        db.session.execute(select(Tag).execution_options(yield_per=100))
-        .scalars()
-        .yield_per(100)
-    ):
+    for tag in db.session.execute(select(Tag)).scalars().yield_per(100):
         yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/tag/{xml_escape(tag.slug)}</loc>
     <changefreq>weekly</changefreq>

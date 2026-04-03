@@ -1,3 +1,4 @@
+import html as _html
 import os
 import re
 import unicodedata
@@ -7,12 +8,20 @@ from sqlalchemy import TypeDecorator, DateTime
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
-__all__ = ["utc_now", "UTCDateTime", "is_valid_email", "generate_slug", "xml_escape", "safe_delete_file"]
+__all__ = [
+    "utc_now",
+    "UTCDateTime",
+    "is_valid_email",
+    "generate_slug",
+    "xml_escape",
+    "safe_delete_file",
+]
 
 
 def safe_delete_file(filepath: str) -> bool:
     """Delete a file, returning True if deleted or False on error. Logs failures."""
     import logging
+
     logger = logging.getLogger(__name__)
     try:
         os.remove(filepath)
@@ -36,6 +45,7 @@ class UTCDateTime(TypeDecorator):
     compatible with SQLite (which stores datetimes as text).
     Existing naive rows are interpreted as UTC on read.
     """
+
     impl = DateTime
     cache_ok = True
 
@@ -73,4 +83,4 @@ def xml_escape(s: str) -> str:
     """Escape special characters for XML output."""
     if not s:
         return ""
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&apos;")
+    return _html.escape(s, quote=True)

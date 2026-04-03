@@ -4,12 +4,8 @@ from flask import render_template, redirect, url_for, request, flash, abort, cur
 from flask_login import login_required
 
 from app.extensions import db
-from app.routes.admin import (
-    admin,
-    admin_required,
-    _save_image,
-    safe_delete_file,
-)
+from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import _save_image, safe_delete_file
 from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
 from datetime import datetime, timezone
 from werkzeug.utils import secure_filename

@@ -320,6 +320,81 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 
 ---
 
+## Wave 5: Code Quality & Refactoring
+
+### 5.1 Split Admin `__init__.py` into Focused Helper Module
+- **Priority:** High
+- **Files:** `app/routes/admin/__init__.py`, `app/routes/admin/helpers.py` (new), all admin submodules
+- **Problem:** `admin/__init__.py` was a God Module (341 lines) containing blueprint definition, `admin_required`, analytics caching, tag validation, image detection/saving, slug generation, orphan tag cleanup, password complexity, post query helpers, backup directory helper, AND star imports from all 10 submodules.
+- **Fix:** Extracted all helpers into new `app/routes/admin/helpers.py`. `__init__.py` is now a thin blueprint registration layer (80 lines) that defines `admin` Blueprint and `admin_required` decorator, then re-exports helpers via explicit imports. All submodules updated to import from `helpers.py` directly.
+- **Test:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v` — 245 passed, 5 pre-existing failures.
+- **Status:** ✅ DONE
+
+### 5.2 Eliminate Star Imports in Admin Package
+- **Priority:** High
+- **Files:** `app/routes/admin/__init__.py`, all admin submodules
+- **Problem:** `from app.routes.admin.auth import *` (and 9 more) made it impossible to know what names were available without reading every submodule.
+- **Fix:** Replaced all star imports with explicit imports in `__init__.py`. Each submodule now imports only what it needs from `helpers.py`.
+- **Status:** ✅ DONE
+
+### 5.3 Consolidate Duplicated Rollback Logic in posts.py
+- **Priority:** High
+- **Files:** `app/routes/admin/posts.py`
+- **Problem:** `edit_post()` and `new_post()` duplicated entire object construction on `IntegrityError` rollback. If a new field was added, both paths had to be updated.
+- **Fix:** Extracted `_create_post_object()` and `_commit_post_with_rollback()` helpers to eliminate duplication.
+- **Status:** ✅ DONE
+
+### 5.4 Consolidate `_get_analytics_data()` DB Queries
+- **Priority:** Medium
+- **Files:** `app/routes/admin/helpers.py`
+- **Problem:** 8 separate DB queries on initial analytics load.
+- **Fix:** Combined subscriber stats into a single query using `func.count()` + `func.sum(func.cast(...))`. Skip share counts query when no top posts exist. Reduced from 8 to 6 queries.
+- **Status:** ✅ DONE
+
+### 5.5 Replace Manual `xml_escape()` with `html.escape()`
+- **Priority:** Medium
+- **Files:** `app/utils.py`, `tests/test_utils.py`
+- **Problem:** Manual implementation of XML escaping was less robust than stdlib.
+- **Fix:** `xml_escape()` now delegates to `html.escape(s, quote=True)`. Updated test for single-quote output (`&#x27;` instead of `&apos;`).
+- **Status:** ✅ DONE
+
+### 5.6 Fix `_categorize_referrer()` False Positives
+- **Priority:** Medium
+- **Files:** `app/routes/admin/helpers.py`
+- **Problem:** Naive substring matching caused false positives (e.g., "notgoogle.com" matched "google").
+- **Fix:** Uses `urlparse()` to extract domain, then matches against known domain sets with proper suffix matching.
+- **Status:** ✅ DONE
+
+### 5.7 Add Upper Bound to `_generate_unique_slug()`
+- **Priority:** Medium
+- **Files:** `app/routes/admin/helpers.py`
+- **Problem:** `while True` loop incremented counter indefinitely — could become slow with many posts sharing the same title.
+- **Fix:** Counter capped at 100 iterations.
+- **Status:** ✅ DONE
+
+### 5.8 Remove Redundant `yield_per` in Sitemap Generation
+- **Priority:** Low
+- **Files:** `app/routes/public.py`
+- **Problem:** Both `.execution_options(yield_per=100)` and `.yield_per(100)` were called — redundant.
+- **Fix:** Removed `.execution_options(yield_per=100)` calls, keeping only `.yield_per(100)`.
+- **Status:** ✅ DONE
+
+### 5.9 Add Password Complexity Validation to `create-admin` CLI
+- **Priority:** Low
+- **Files:** `app/__init__.py`
+- **Problem:** CLI command did not validate password complexity, unlike the UI user creation route.
+- **Fix:** Added `_check_password_complexity()` check before creating/promoting admin user.
+- **Status:** ✅ DONE
+
+### 5.10 Remove No-Op `options()` from `_get_posts_query()`
+- **Priority:** Low
+- **Files:** `app/routes/admin/helpers.py`
+- **Problem:** `select(Post).options()` with no arguments was a harmless no-op.
+- **Fix:** Removed the empty `.options()` call.
+- **Status:** ✅ DONE
+
+---
+
 ## Deferred / Explicitly Not Doing
 
 | Item | Reason |
@@ -350,6 +425,8 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 | Empty state emoji | Already uses SVG background-image, not emoji content |
 | Reading progress bar location | Already scoped to `post.html`, not `base.html` |
 | Split admin.py into modules | Already a package with separate modules (auth, posts, subscribers, tags, etc.) |
+| JS modularization (main.js) | Would require `type="module"` or bundler — larger architectural change |
+| Cache TTL time source consistency | Both `time.time()` and `time.monotonic()` work correctly in practice |
 
 ---
 
@@ -366,8 +443,9 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 | **3C** | Admin Enhancements (bulk loading, footer, trends, flash pause, media upload, upload errors) | ✅ COMPLETE |
 | **4A** | New Tests (backup, multi-user, search, email) | ⏳ PENDING |
 | **4B** | Documentation (scheduler docs, backup path) | ⏳ PENDING |
+| **5** | Code Quality & Refactoring (admin split, star imports, rollback consolidation, analytics, xml_escape, referrer, slug bound, yield_per, CLI password, no-op options) | ✅ COMPLETE |
 
-**Waves 1–4 can be executed in parallel within each wave. Waves must be completed in order (1 → 2 → 3 → 4) since later waves may depend on earlier fixes (e.g., tests in Wave 4 depend on test suite fix in Wave 1.1).**
+**Waves 1–5 can be executed in parallel within each wave. Waves must be completed in order (1 → 2 → 3 → 4 → 5) since later waves may depend on earlier fixes (e.g., tests in Wave 4 depend on test suite fix in Wave 1.1).**
 
 ---
 
@@ -409,5 +487,17 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 ### Wave 4 ⏳
 - **4.1-4.4** Tests — PENDING
 - **4.5-4.6** Documentation — PENDING
+
+### Wave 5 ✅
+- **5.1** Split admin `__init__.py` into helpers module — DONE
+- **5.2** Eliminate star imports — DONE
+- **5.3** Consolidate rollback logic in posts.py — DONE
+- **5.4** Consolidate analytics DB queries — DONE
+- **5.5** Replace manual xml_escape with html.escape — DONE
+- **5.6** Fix referrer categorization false positives — DONE
+- **5.7** Add upper bound to slug generation — DONE
+- **5.8** Remove redundant yield_per in sitemap — DONE
+- **5.9** Add password complexity to create-admin CLI — DONE
+- **5.10** Remove no-op options() from posts query — DONE
 
 (End of file - 337 lines)

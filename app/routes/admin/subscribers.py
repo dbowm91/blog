@@ -4,6 +4,7 @@ from flask_login import login_required
 from app.extensions import db
 from app.models import Subscriber
 from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import logger
 from app.csv_utils import generate_subscribers_csv
 from app.config import SUBSCRIBERS_PER_PAGE, EXPORT_BATCH_SIZE
 from sqlalchemy import select
@@ -41,8 +42,6 @@ def subscribers() -> Response:
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
 @admin_required
 def delete_subscriber(sub_id) -> Response:
-    from app.routes.admin import logger
-
     sub = db.session.get(Subscriber, sub_id)
     if not sub:
         abort(404)

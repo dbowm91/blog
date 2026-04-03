@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app.extensions import db
 from app.models import User, AdminSession, Post
 from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import logger
 
 
 @admin.route("/login", methods=["GET", "POST"])

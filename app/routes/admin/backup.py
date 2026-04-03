@@ -7,14 +7,13 @@ from flask import render_template, redirect, url_for, request, flash, send_file,
 from flask_login import login_required
 
 from app.extensions import db
-from app.routes.admin import (
-    admin,
-    admin_required,
+from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import (
     _get_backup_dir,
     BACKUP_FILENAME_RE,
     safe_delete_file,
-    current_app,
 )
+from flask import current_app
 from datetime import datetime, timezone
 
 
