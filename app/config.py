@@ -1,6 +1,7 @@
 import os
 import tomllib
 from typing import Any
+from urllib.parse import urlparse
 
 __all__ = [
     "APP_TITLE",
@@ -188,10 +189,12 @@ def _validate_config(config: dict) -> None:
             )
 
     base_url = config.get("site", {}).get("base_url", "")
-    if base_url and not base_url.startswith(("http://", "https://")):
-        errors.append(
-            f"Invalid base_url: {base_url}. Must start with http:// or https://"
-        )
+    if base_url:
+        parsed = urlparse(base_url)
+        if not parsed.scheme or not parsed.netloc:
+            errors.append(
+                f"Invalid base_url: {base_url}. Must be a full URL with scheme (http:// or https://) and domain"
+            )
 
     if errors:
         raise RuntimeError("Config errors:\n" + "\n".join(errors))

@@ -319,6 +319,12 @@ def _apply_post_updates(
     return post
 
 
+def invalidate_analytics_cache():
+    """Clear the analytics cache. Call when post data changes."""
+    with _analytics_cache_lock:
+        _analytics_cache.clear()
+
+
 def _get_backup_dir():
     return os.path.join(current_app.instance_path, "backups")
 

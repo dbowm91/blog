@@ -72,6 +72,14 @@ def remove_fts(post_id: int):
         logger.warning("FTS remove failed for post %s: %s", post_id, e)
 
 
+def _escape_fts_term(term: str) -> str:
+    term = term.strip()
+    term = term.lstrip("-").rstrip("-")
+    term = term.replace(":", " ")
+    term = term.replace('"', '""')
+    return term
+
+
 def search(query: str):
     """Search using FTS5. Returns list of post IDs or empty list if unavailable."""
     try:
@@ -83,7 +91,8 @@ def search(query: str):
         if not check:
             return []
 
-        terms = [w.replace('"', '""') for w in query.split() if w]
+        terms = [_escape_fts_term(w) for w in query.split()]
+        terms = [t for t in terms if t]
         fts_query = " OR ".join(f'"{t}"' for t in terms)
         if not fts_query:
             return []

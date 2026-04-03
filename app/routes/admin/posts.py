@@ -27,6 +27,7 @@ from app.routes.admin import (
     utc_now,
     safe_delete_file,
     invalidate_tag_cache,
+    invalidate_analytics_cache,
     sync_fts,
     remove_fts,
 )
@@ -233,6 +234,7 @@ def new_post():
             db.session.commit()
         flash("Post created.", "success")
         invalidate_tag_cache()
+        invalidate_analytics_cache()
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
@@ -308,6 +310,7 @@ def edit_post(post_id):
             if searchable_changed:
                 sync_fts(post.id, post.title, post.body, post.summary, post.published)
             invalidate_tag_cache()
+            invalidate_analytics_cache()
             _cleanup_orphan_tags()
             db.session.commit()
         except IntegrityError:
@@ -330,6 +333,7 @@ def edit_post(post_id):
             )
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
             invalidate_tag_cache()
+            invalidate_analytics_cache()
             _cleanup_orphan_tags()
             db.session.commit()
         if old_image:
@@ -356,6 +360,7 @@ def delete_post(post_id):
     post_title = post.title
     db.session.delete(post)
     invalidate_tag_cache()
+    invalidate_analytics_cache()
     _cleanup_orphan_tags()
     db.session.commit()
     remove_fts(post_id_for_fts)
@@ -420,6 +425,7 @@ def bulk_operations():
         for post in posts:
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
         invalidate_tag_cache()
+        invalidate_analytics_cache()
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):
@@ -432,6 +438,8 @@ def bulk_operations():
             post.published = False
         for post in posts:
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        invalidate_tag_cache()
+        invalidate_analytics_cache()
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):
@@ -448,6 +456,7 @@ def bulk_operations():
             deleted_post_ids.append(post.id)
             db.session.delete(post)
         invalidate_tag_cache()
+        invalidate_analytics_cache()
         _cleanup_orphan_tags()
         try:
             db.session.commit()

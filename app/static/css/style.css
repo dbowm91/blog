@@ -1218,7 +1218,7 @@ a:hover {
     --border: #d0d7de;
     --text: #1f2328;
     --text-muted: #57606a;
-    --text-dim: #8c959f;
+    --text-dim: #6e7781;
     --text-dim-strong: #4b5563;
     --accent: #0969da;
     --accent-hover: #0550ae;
@@ -1369,10 +1369,6 @@ a:hover {
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 12px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 .bulk-checkbox {
@@ -2232,7 +2228,7 @@ a:hover {
     padding: 60px 20px;
     color: var(--text-muted);
 }
-.empty-state::before {
+.empty-state:not(:has(h3))::before {
     content: "";
     display: block;
     margin-bottom: 16px;
@@ -2701,6 +2697,17 @@ a:hover {
 }
 
 /* --- Responsive --- */
+@media (max-width: 960px) {
+    .content-layout {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .sidebar {
+        position: static;
+    }
+}
+
 @media (max-width: 768px) {
     .content-layout {
         grid-template-columns: 1fr;

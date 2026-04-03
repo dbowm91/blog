@@ -55,6 +55,13 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 backToTop.classList.remove("visible");
             }
+            
+            const readingProgress = document.querySelector('.reading-progress');
+            if (readingProgress) {
+                const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = scrollHeight > 0 ? (window.scrollY / scrollHeight) * 100 : 0;
+                readingProgress.style.width = `${Math.min(progress, 100)}%`;
+            }
         }, 10);
     };
     
@@ -67,14 +74,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Smooth flash dismissal ---
     document.querySelectorAll(".flash").forEach((flash) => {
         flash.style.cursor = "pointer";
+        let dismissTimer;
         const dismiss = () => {
             flash.style.transition = "opacity 0.3s ease, transform 0.3s ease";
             flash.style.opacity = "0";
             flash.style.transform = "translateY(-8px)";
             setTimeout(() => flash.remove(), 300);
         };
+        const startTimer = () => {
+            clearTimeout(dismissTimer);
+            dismissTimer = setTimeout(dismiss, 5000);
+        };
         flash.addEventListener("click", dismiss);
-        setTimeout(dismiss, 5000);
+        flash.addEventListener("mouseenter", () => clearTimeout(dismissTimer));
+        flash.addEventListener("mouseleave", startTimer);
+        startTimer();
     });
 
     // --- Share button click tracking ---
@@ -700,26 +714,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 previousActiveElement = null;
             }
         });
-    });
 
-    modal.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab' || e.key === 'ShiftTab') {
-            const focusable = modal.querySelectorAll(focusableSelectors);
-            if (focusable.length === 0) return;
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (e.shiftKey) {
-                if (document.activeElement === first) {
-                    e.preventDefault();
-                    last.focus();
-                }
-            } else {
-                if (document.activeElement === last) {
-                    e.preventDefault();
-                    first.focus();
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                const focusable = modal.querySelectorAll(focusableSelectors);
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
                 }
             }
-        }
+        });
     });
     } // end admin-body guard
 
@@ -898,16 +912,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const uploadForm = document.getElementById('upload-form');
 
     if (uploadZone && fileInput && uploadForm) {
+        let uploadErrorTimer;
+
+        const showUploadError = (message) => {
+            clearTimeout(uploadErrorTimer);
+            const existing = uploadZone.querySelector('.form-error');
+            if (existing) existing.remove();
+            const errorEl = document.createElement('div');
+            errorEl.className = 'form-error';
+            errorEl.textContent = message;
+            uploadZone.appendChild(errorEl);
+            uploadErrorTimer = setTimeout(() => errorEl.remove(), 5000);
+        };
+
+        const handleUpload = (file) => {
+            const formData = new FormData(uploadForm);
+            formData.append('file', file);
+            fetch(uploadForm.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                window.location.reload();
+            })
+            .catch(() => {
+                showUploadError('Upload failed. Please try again.');
+            });
+        };
+
         uploadZone.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
-                const formData = new FormData(uploadForm);
-                formData.append('file', fileInput.files[0]);
-                fetch(uploadForm.action, {
-                    method: 'POST',
-                    body: formData
-                }).then(() => window.location.reload());
+                handleUpload(fileInput.files[0]);
             }
         });
 
@@ -924,12 +964,7 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             uploadZone.classList.remove('dragover');
             if (e.dataTransfer.files.length > 0) {
-                const formData = new FormData(uploadForm);
-                formData.append('file', e.dataTransfer.files[0]);
-                fetch(uploadForm.action, {
-                    method: 'POST',
-                    body: formData
-                }).then(() => window.location.reload());
+                handleUpload(e.dataTransfer.files[0]);
             }
         });
     }

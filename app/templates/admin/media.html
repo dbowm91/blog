@@ -14,7 +14,7 @@
             <p>Drag & drop images here</p>
             <span class="text-muted">or click to browse</span>
         </div>
-        <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+        <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
         <form method="POST" action="{{ url_for('admin.upload_media') }}" id="upload-form" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="file" id="file-input-hidden" name="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>

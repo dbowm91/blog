@@ -133,7 +133,7 @@ DEPLOY.md               # Deployment guide
 
 - **SQLite only**—no PostgreSQL/MySQL support configured
 - **File uploads**—stored locally in `static/uploads/`, no S3 support
-- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows.
+- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows. `_scheduler_running` flag is set on init and reset to `False` on shutdown via atexit handler.
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
 - **ProxyFix configurable** via `PROXY_COUNT` env var (defaults to 1) in `app/__init__.py`
@@ -272,7 +272,7 @@ All database queries use SQLAlchemy 2.0 style:
 `db.session.close_all()` is deprecated since SQLAlchemy 1.3 and will be removed. Use `db.engine.dispose()` instead — it closes all connections in the pool, making `close_all()` redundant.
 
 ### FTS5 Special Character Escaping
-FTS5 MATCH queries treat `"` as a phrase delimiter. Unescaped double quotes in user input cause `OperationalError: unterminated string`. Escape by doubling: `"` → `""`. Other FTS5 special characters (`*`, `:`, `-`, `NEAR`, `AND`, `OR`, `NOT`) should also be handled — the current code has an `except Exception` fallback to LIKE, but proper escaping improves search quality.
+`search()` in `app/search.py` uses `_escape_fts_term()` to handle FTS5 special characters. The helper strips leading/trailing hyphens (negation), replaces colons (column specifier), and escapes double quotes by doubling. Empty terms are filtered out. The `except Exception` fallback to LIKE handles any remaining edge cases.
 
 ### WAL Mode
 SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads during writes and improving performance. Enabled via `PRAGMA journal_mode=WAL` on database connection.
@@ -281,7 +281,7 @@ SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads
 `flask rebuild-search` command rebuilds the FTS5 search index from scratch. Useful after importing data or recovering from index corruption.
 
 ### Analytics Caching
-Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in `app/routes/admin/__init__.py`) to prevent slow page loads. Cache key is the `days` parameter. The cache is **not** invalidated when post data changes — it relies on TTL expiry. In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key.
+Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in `app/routes/admin/__init__.py`) to prevent slow page loads. Cache key is the `days` parameter. Cache is invalidated via `invalidate_analytics_cache()` on post CRUD operations and bulk operations (publish, unpublish, delete). The cache has a max size of 16 entries (LRU eviction). In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key.
 
 ### Subscriber CSV Export
 `/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.

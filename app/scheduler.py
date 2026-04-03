@@ -10,6 +10,7 @@ __all__ = ["init_scheduler", "get_scheduler_status"]
 
 try:
     import fcntl
+
     HAS_FCNTL = True
 except ImportError:
     HAS_FCNTL = False
@@ -52,20 +53,20 @@ def send_daily_newsletter(app) -> None:
                         Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
                     )
                     .order_by(Post.published_at.desc())
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
 
             if not posts:
                 return
 
-            subscribers = (
-                db.session.execute(
-                    select(Subscriber)
-                    .filter_by(confirmed=True)
-                    .filter(Subscriber.unsubscribed_at.is_(None))
-                    .yield_per(500)
-                ).scalars()
-            )
+            subscribers = db.session.execute(
+                select(Subscriber)
+                .filter_by(confirmed=True)
+                .filter(Subscriber.unsubscribed_at.is_(None))
+                .yield_per(500)
+            ).scalars()
 
             success = send_newsletter(posts, subscribers)
 
@@ -79,7 +80,10 @@ def send_daily_newsletter(app) -> None:
                 for post in posts:
                     post.newsletter_attempts = (post.newsletter_attempts or 0) + 1
                 db.session.commit()
-                app.logger.warning("Newsletter had failures; %d posts will be retried (attempts incremented)", len(posts))
+                app.logger.warning(
+                    "Newsletter had failures; %d posts will be retried (attempts incremented)",
+                    len(posts),
+                )
     finally:
         if lock_file:
             if HAS_FCNTL:
@@ -112,13 +116,14 @@ def cleanup_expired_subscribers(app) -> None:
 
             expired = (
                 db.session.execute(
-                    select(Subscriber)
-                    .filter(
+                    select(Subscriber).filter(
                         Subscriber.confirmed == False,
                         Subscriber.expires_at != None,
                         Subscriber.expires_at < utc_now(),
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
 
             if not expired:
@@ -127,7 +132,9 @@ def cleanup_expired_subscribers(app) -> None:
             for sub in expired:
                 db.session.delete(sub)
             db.session.commit()
-            app.logger.info("Cleaned up %d expired unconfirmed subscribers", len(expired))
+            app.logger.info(
+                "Cleaned up %d expired unconfirmed subscribers", len(expired)
+            )
     finally:
         if lock_file:
             if HAS_FCNTL:
@@ -163,13 +170,14 @@ def publish_scheduled_posts(app) -> None:
             now = utc_now()
             posts = (
                 db.session.execute(
-                    select(Post)
-                    .filter(
+                    select(Post).filter(
                         Post.published == False,
                         Post.scheduled_publish_at != None,
                         Post.scheduled_publish_at <= now,
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
 
             if not posts:
@@ -233,5 +241,11 @@ def init_scheduler(app) -> Optional["BackgroundScheduler"]:
     scheduler.start()
     global _scheduler_running
     _scheduler_running = True
-    atexit.register(lambda: scheduler.shutdown(wait=False))
+
+    def _shutdown_scheduler():
+        global _scheduler_running
+        _scheduler_running = False
+        scheduler.shutdown(wait=False)
+
+    atexit.register(_shutdown_scheduler)
     return scheduler
