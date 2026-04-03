@@ -21,7 +21,18 @@ app/config.py           # All config loaded from `config.toml` + env vars (+ val
 app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession)
 app/extensions.py       # Flask extensions (db, login_manager, migrate)
 app/routes/public.py    # Public-facing routes
-app/routes/admin.py     # Admin routes (requires login)
+app/routes/admin/       # Admin routes package (requires login)
+app/routes/admin/__init__.py  # Blueprint registration, shared helpers, admin_required
+app/routes/admin/auth.py      # login, logout
+app/routes/admin/posts.py     # dashboard, post CRUD, bulk operations
+app/routes/admin/subscribers.py  # subscriber management
+app/routes/admin/tags.py      # tag management
+app/routes/admin/users.py     # user management
+app/routes/admin/sessions.py  # session management
+app/routes/admin/media.py     # media library
+app/routes/admin/backup.py    # backup/restore
+app/routes/admin/analytics.py # analytics page
+app/routes/admin/newsletter.py # newsletter test
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
 app/cache.py            # Tag count cache (double-checked locking)
@@ -45,7 +56,7 @@ DEPLOY.md               # Deployment guide
 - Use `db.paginate(select(...), page=..., per_page=..., error_out=False)` for pagination
 
 ### Models
-- `Post.slug` must be unique—use `_generate_unique_slug()` in admin.py
+- `Post.slug` must be unique—use `_generate_unique_slug()` in `app/routes/admin/posts.py`
 - `Post.updated_at` has automatic `onupdate` trigger in the model
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
@@ -64,7 +75,7 @@ DEPLOY.md               # Deployment guide
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
 - Both `Post.generate_slug()` and `Tag.generate_slug()` delegate to this utility
-- `_generate_unique_slug()` in `app/routes/admin.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
+- `_generate_unique_slug()` in `app/routes/admin/posts.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
 - In `edit_post()`, slug is only regenerated when `title != post.title`
 
 ### Session
@@ -80,7 +91,7 @@ DEPLOY.md               # Deployment guide
 - All POST routes require CSRF token
 - Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config
 - Token injected into templates via `context_processor`
-- The `validate_csrf_token()` in `__init__.py` checks both form data (`csrf_token`) and HTTP header (`X-CSRF-Token`)
+- The `validate_csrf_token()` in `app/csrf.py` checks both form data (`csrf_token`) and HTTP header (`X-CSRF-Token`). No `_csrf_exempt` bypass exists.
 - `main.js` sends `X-CSRF-Token` header for the `/api/track-share` JSON endpoint (reads from `<meta name="csrf-token">`)
 - The `before_request` handler in `__init__.py` handles both CSRF validation and session timeout
 
@@ -96,7 +107,7 @@ DEPLOY.md               # Deployment guide
 - Pagination and limits loaded from `config.toml [app]`: `max_viewed_posts`, `session_lifetime_hours`, `tag_cache_ttl_seconds`, `dashboard_per_page`, `subscribers_per_page`, `media_per_page`, `media_max_files`
 
 ### Authorization
-- `admin_required` decorator in `app/routes/admin.py` combines `@login_required` with `is_admin` check
+- `admin_required` decorator in `app/routes/admin/__init__.py` combines `@login_required` with `is_admin` check
 - Non-admin users get 403 on all admin routes (except login/logout)
 - Login route rejects non-admin users with same "Invalid credentials" message as bad passwords
 - `logout()` uses `@login_required` alone so non-admin authenticated users can still log out
@@ -104,7 +115,7 @@ DEPLOY.md               # Deployment guide
 ## Common Tasks
 
 ### Add a new route
-1. Add handler to `app/routes/public.py` or `app/routes/admin.py`
+1. Add handler to `app/routes/public.py` or `app/routes/admin/`
 2. Create template in `app/templates/`
 3. Admin routes need `@admin_required` decorator (not `@login_required`)
 
@@ -163,7 +174,7 @@ For Cloudflare, use a WAF custom rule matching `http.request.uri.path eq "/admin
 `with smtplib.SMTP() as server:` binds `server` at `__enter__` time. Reassigning `server` inside the block (e.g., for reconnection) creates a new local variable—the `with` statement's `__exit__` still calls the **original** object. For reconnectable connections, use manual `try/finally` instead.
 
 ### Cross-Blueprint Imports
-Both `admin.py` and `public.py` import `invalidate_tag_cache` and `_get_tag_counts` from `app.cache` (extracted from `public.py` to avoid coupling). No cross-blueprint imports remain.
+Both `admin` routes and `public.py` import `invalidate_tag_cache` and `_get_tag_counts` from `app.cache` (extracted from `public.py` to avoid coupling). No cross-blueprint imports remain.
 
 ### Admin Routes Use `@admin_required`
 All admin routes (except `login()` and `logout()`) use `@admin_required`, which combines `@login_required` with an `is_admin` check. Non-admin users get 403. The login route rejects non-admin users with "Invalid credentials" (same message as bad password to avoid username enumeration). `logout()` uses `@login_required` alone so non-admin authenticated users can still log out.
@@ -270,7 +281,7 @@ SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads
 `flask rebuild-search` command rebuilds the FTS5 search index from scratch. Useful after importing data or recovering from index corruption.
 
 ### Analytics Caching
-Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in admin.py) to prevent slow page loads. Cache key is the `days` parameter. Cache is invalidated whenever post data changes. In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key.
+Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in `app/routes/admin/__init__.py`) to prevent slow page loads. Cache key is the `days` parameter. The cache is **not** invalidated when post data changes — it relies on TTL expiry. In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key.
 
 ### Subscriber CSV Export
 `/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.
@@ -348,7 +359,7 @@ The mobile hamburger menu button is **created dynamically in JavaScript** (`main
 `ConnectionError` inherits from `OSError`. Do not catch both in the same except clause — `ConnectionError` is redundant when `OSError` is already caught.
 
 ### Reading Progress Bar
-The `.reading-progress` div exists in `base.html` but has **no JavaScript driver** — it is a placeholder element with CSS transition but no scroll-tracking logic. If implementing a reading progress bar, add JS to update its width based on scroll position.
+The `.reading-progress` div exists in `post.html` (scoped to article pages only) with CSS transition but has **no JavaScript driver**. If implementing a reading progress bar, add JS to update its width based on scroll position.
 
 ## Assets
 
@@ -378,8 +389,8 @@ See `requirements.txt`. Key packages:
 
 ## Admin Routes
 
-- Tag names validated against `^[\w\s-]+$` regex; invalid names flash a warning to the user
-- Image uploads validated via magic byte detection (`_detect_image_type` in `admin.py`) — no Pillow dependency required
+- Tag names validated against `^[a-zA-Z0-9\s\-]+$` regex (ASCII only); invalid names flash a warning to the user
+- Image uploads validated via magic byte detection (`_detect_image_type` in `app/routes/admin/__init__.py`) — no Pillow dependency required
 - `_save_image()` returns `(filename, error_message)` tuple; callers flash the error if present
 - Allowed extensions: `png, jpg, jpeg, gif, webp`
 
@@ -474,7 +485,7 @@ The `set_security_headers` after-request handler sets:
 
 ## Orphan Tag Cleanup
 
-- `_cleanup_orphan_tags()` in `admin.py` removes tags with zero associated posts
+- `_cleanup_orphan_tags()` in `app/routes/admin/__init__.py` removes tags with zero associated posts
 - Does NOT call `db.session.commit()` — callers are responsible for committing
 - Called BEFORE `db.session.commit()` in `edit_post`, `delete_post`, and `bulk_operations` (delete branch)
 - Called after `invalidate_tag_cache()` in `delete_post()`, `edit_post()`, and `bulk_operations()` delete branch
@@ -529,3 +540,23 @@ The `set_security_headers` after-request handler sets:
 - Each request gets a unique 8-char hex ID (`g.request_id`)
 - Log format includes `[%(request_id)s]` for correlating log entries per request
 - `RequestIdFilter` in `configure_logging()` safely handles missing request context
+
+## Session Learnings
+
+### Test Env Var Setup
+Environment variables (`SECRET_KEY`, `ADMIN_PASSWORD`) must be set **before** importing `app` modules in test files. `config.py` reads `os.environ` at module import time and caches the values as module-level constants. Setting `os.environ` inside a pytest fixture does NOT retroactively update already-imported constants. Always set env vars at the top of `conftest.py` before any `from app import ...` statements.
+
+### `@event.listens_for` Inside `app_context()`
+Registering `@event.listens_for(Engine, "connect")` inside `with app.app_context():` is correct — the listener is registered once during app creation and fires for every new connection from the pool. The PRAGMA executed inside the listener applies per-connection.
+
+### Modal Focus Trap Scope
+When adding event listeners inside a `forEach` loop, ensure the listener is defined **inside** the callback so the variable is correctly scoped. A listener defined outside the loop will capture the last iteration's value due to JavaScript closure behavior.
+
+### `e.key === 'ShiftTab'` is Dead Code
+There is no `'ShiftTab'` key event. Shift+Tab fires `e.key === 'Tab'` with `e.shiftKey === true`. Check `e.shiftKey` instead of checking for a non-existent key value.
+
+### Empty State SVG Icons
+The codebase already uses SVG data URI `background-image` for empty state icons (not emoji `content`). When editing `.empty-state::before`, preserve the SVG background pattern.
+
+### Admin Routes Already Split
+The admin routes are already organized as a package (`app/routes/admin/`) with separate modules for auth, posts, subscribers, tags, users, sessions, media, backup, analytics, and newsletter. Do not attempt to split them further.

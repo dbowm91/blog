@@ -9,204 +9,173 @@ ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 
 ## Wave 1: Critical Bugs & Security
 
-Items that affect correctness, security, or data integrity. Can be parallelized across two sub-waves.
+Items that affect correctness, security, or data integrity. Wave 1A (backend) and 1B (frontend) are parallelizable.
 
 ### Wave 1A — Backend Critical (parallelizable)
 
-#### 1.1 Fix `busy_timeout` PRAGMA for Connection Pooling
+#### 1.1 Fix Test Suite — Env Vars Set Before Import
 - **Priority:** Critical
-- **Files:** `app/__init__.py`
-- **Problem:** `PRAGMA busy_timeout=5000` is executed once during `create_app()` inside `with app.app_context()`. This is a **connection-level** setting in SQLite — it does NOT persist across connections. New pooled connections use the default `busy_timeout=0`, causing immediate `database is locked` errors under write contention.
-- **Fix:** Use `@event.listens_for(Engine, "connect")` to apply `PRAGMA busy_timeout=5000` (and `PRAGMA journal_mode=WAL` for clarity) on every new connection. Remove the current `with app.app_context(): db.session.execute(text("PRAGMA ..."))` block.
-- **Test:** Verify `PRAGMA busy_timeout` returns 5000 after pool checkout. Simulate concurrent writes.
+- **Files:** `tests/conftest.py`
+- **Problem:** 210 tests error with `RuntimeError: SECRET_KEY is required` because `config.py` reads environment variables at module import time, but the `app` fixture sets them inside the fixture function. The `SECRET_KEY` and `ADMIN_PASSWORD` constants are cached at module load, so setting `os.environ` inside the fixture doesn't retroactively update them.
+- **Fix:** Move `os.environ["SECRET_KEY"] = "test-secret-key"` and `os.environ["ADMIN_PASSWORD"] = "test-password"` to the very top of `conftest.py`, before any application imports. Remove the duplicate env var setup from inside the `app` fixture.
+- **Test:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v` — all tests should pass.
 
-#### 1.2 Align `MAX_CONTENT_LENGTH` with `MAX_UPLOAD_SIZE`
+#### 1.2 Add Bounds to In-Memory Caches
 - **Priority:** Critical
-- **Files:** `app/__init__.py`
-- **Problem:** `MAX_CONTENT_LENGTH` is hardcoded to 16MB (`app/__init__.py:69`) but `_save_image()` enforces 10MB from config. The 413 error handler says "Maximum upload size is 16MB" — misleading since the app only accepts 10MB.
-- **Fix:** Import `MAX_UPLOAD_SIZE` from `app.config` and set `MAX_CONTENT_LENGTH` to `MAX_UPLOAD_SIZE + buffer` (e.g., 1MB for form data overhead). Update the 413 handler message to reference the config value.
-- **Test:** Upload files at boundary sizes (9MB, 10MB, 11MB) to verify correct error messages.
-
-#### 1.3 Fix Newsletter SMTP Reconnection Cleanup
-- **Priority:** Critical
-- **Files:** `app/email.py`
-- **Problem:** In `send_newsletter()`, when `SMTPServerDisconnected` is caught, `server.quit()` is called before reconnection. While wrapped in try/except, this is redundant and the pattern is fragile. The `finally` block also calls `server.quit()`.
-- **Fix:** Remove `server.quit()` from the except handler — let the `finally` block handle cleanup. On reconnect failure, log and abort the newsletter batch rather than silently continuing.
-- **Test:** Mock `SMTPServerDisconnected` mid-batch and verify no error on cleanup. Verify reconnection succeeds.
-
-#### 1.4 Add Bounds to In-Memory Caches
-- **Priority:** Critical
-- **Files:** `app/cache.py`, `app/routes/admin.py`
-- **Problem:** `_TAG_COUNTS_CACHE` stores a single entry (no size issue), but `_analytics_cache` in admin.py is an unbounded dict keyed by `days` parameter. Over time, if many different `days` values are queried, the dict grows without limit.
+- **Files:** `app/cache.py`, `app/routes/admin/__init__.py`
+- **Problem:** `_TAG_COUNTS_CACHE` stores a single entry (no size issue), but `_analytics_cache` in admin is an unbounded dict keyed by `days` parameter. Over time, if many different `days` values are queried, the dict grows without limit.
 - **Fix:** Add `_ANALYTICS_MAX_SIZE = 16` to analytics cache. On write, if size exceeds max, evict oldest entry (LRU). Document that multi-worker deployments should use external caching.
 - **Test:** Verify cache expires after TTL and doesn't grow beyond max size.
 
+#### 1.3 Analytics Cache Invalidation + Missing Tag Cache Invalidation
+- **Priority:** High
+- **Files:** `app/routes/admin/__init__.py`, `app/routes/admin/posts.py`
+- **Problem 1:** `_analytics_cache` is never invalidated when post data changes (create, edit, delete, publish, unpublish).
+- **Problem 2:** In `bulk_operations()`, the unpublish branch calls `sync_fts()` but does NOT call `invalidate_tag_cache()`. Tag counts in the sidebar will show stale data after bulk unpublish.
+- **Fix:** Add `invalidate_analytics_cache()` function. Call it alongside `invalidate_tag_cache()` wherever post data changes (`new_post`, `edit_post`, `delete_post`, all bulk branches). Fix the missing `invalidate_tag_cache()` in the bulk unpublish branch.
+- **Test:** Verify analytics page reflects changes immediately after post CRUD. Verify tag counts update after bulk unpublish.
+
 ### Wave 1B — Frontend Critical (parallelizable with 1A)
 
-#### 1.5 Remove Hardcoded Year in Context Processor
-- **Priority:** Medium
-- **Files:** `app/__init__.py`
-- **Problem:** `inject_config()` context processor returns `"current_year": 2026` hardcoded. Footer copyright year will be wrong starting January 1st of the next year.
-- **Fix:** Replace with `datetime.now().year`. The `inject_footer_data()` function already imports `datetime` — reuse that import or import inside `inject_config`.
-- **Test:** None needed — trivial change.
-
-#### 1.6 Remove Redundant `ConnectionError` Exception Catch
-- **Priority:** Low
-- **Files:** `app/routes/public.py`
-- **Problem:** `_try_send_confirmation()` catches `ConnectionError` separately in `except (smtplib.SMTPException, ConnectionError, OSError)`, but `ConnectionError` is a subclass of `OSError`, which is already caught. Dead code.
-- **Fix:** Remove `ConnectionError` from the except tuple: `except (smtplib.SMTPException, OSError)`.
-- **Test:** Existing tests should pass.
-
-#### 1.7 Fix Missing CSP Nonce on Dashboard Inline Script
+#### 1.4 Fix Modal Focus Trap Closure Bug
 - **Priority:** Critical
-- **Files:** `app/templates/admin/dashboard.html`, `app/static/js/main.js`
-- **Problem:** The bulk actions JavaScript is inline without `nonce="{{ csp_nonce }}"`. CSP will block it in production.
-- **Fix:** Move the inline script logic (dashboard.html lines 142-170) into `main.js`. Extend the existing `#select-all` handler (lines 440-448) to also toggle `bulk-actions` visibility and update `bulk-progress-bar`. Remove the entire inline `<script>` block from dashboard.html.
-- **Test:** Run with `CSRF_ENABLED=False TESTING=True` config. Verify bulk actions work.
+- **Files:** `app/static/js/main.js`
+- **Problem:** The modal focus trap keydown listener is defined OUTSIDE the `forEach` loop that iterates over modals. The `modal` variable captures the last value from the loop, not the correct modal for each iteration. When multiple modals exist, Tab trapping only works correctly for the last modal. Additionally, `e.key === 'ShiftTab'` check is dead code — Shift+Tab fires `e.key === 'Tab'` with `e.shiftKey === true`.
+- **Fix:** Move the keydown listener inside the `forEach` callback so each modal gets its own handler with the correct `modal` reference. Remove the redundant `|| e.key === 'ShiftTab'` check.
+- **Test:** Open keyboard help modal (`?`), press Tab — focus should cycle within the modal. Press Escape — modal should close and return focus to the trigger element.
 
 ---
 
 ## Wave 2: High-Priority UX & Accessibility
 
+Wave 2A (backend/route fixes) and 2B (frontend UX) are parallelizable.
+
 ### Wave 2A — Backend/Route Fixes (parallelizable)
 
-#### 2.1 Strengthen Tag Name Validation
-- **Priority:** High
-- **Files:** `app/routes/admin.py`, `app/templates/admin/tags.html`, `tests/test_admin.py`
-- **Problem:** `TAG_NAME_REGEX` uses `^[\w\s-]+$` which allows many Unicode word characters. Too permissive for URLs.
-- **Fix:** Restrict to ASCII letters, digits, spaces, and hyphens: `^[a-zA-Z0-9\s\-]+$`. Add max length validation (50 chars). Update error message. Add help text in tags.html.
-- **Test:** Test invalid tag names (Unicode, special chars, too long).
-
-#### 2.2 Remove Dead `_csrf_exempt` Check
+#### 2.1 FTS5 Special Character Escaping
 - **Priority:** Medium
-- **Files:** `app/__init__.py`
-- **Problem:** `validate_csrf_token()` checks for `_csrf_exempt` attribute on view functions, but no route sets it. Dead code creates confusion about CSRF protection scope.
-- **Fix:** Remove the `_csrf_exempt` check from `validate_csrf_token()`. Update AGENTS.md to note that CSRF exemption is not supported (use proxy-level bypass if needed).
-- **Test:** Existing tests should pass.
+- **Files:** `app/search.py`
+- **Problem:** `search()` only escapes double quotes. FTS5 treats `"`, `*`, `:`, `-`, `NEAR`, `AND`, `OR`, `NOT` as special. Unescaped characters cause `OperationalError`, caught and falls back to LIKE — functional but degrades search quality.
+- **Fix:** Add `_escape_fts_term()` helper to strip leading/trailing hyphens (negation), replace colons (column specifier), and escape double quotes. Filter empty terms after stripping.
+- **Test:** Search with queries containing `-term`, `col:term`, `"phrase"`, and combinations.
 
-#### 2.3 Fix Analytics Cache Global State in Tests
-- **Priority:** Medium
-- **Files:** `tests/conftest.py`, `app/routes/admin.py`
-- **Problem:** `_analytics_cache` persists across test runs, causing flaky tests and cross-test pollution.
-- **Fix:** Add `_analytics_cache.clear()` to a fixture in `conftest.py` applied to admin tests that touch analytics.
-- **Test:** Run analytics-related tests in isolation and in sequence — no cross-test pollution.
+#### 2.2 Scheduler Status Tracking
+- **Priority:** Low
+- **Files:** `app/scheduler.py`
+- **Problem:** `_scheduler_running` is set to `True` in `init_scheduler()` but never reset to `False` on shutdown. If the scheduler crashes and the app attempts to re-initialize, the status would be inaccurate.
+- **Fix:** Update the atexit shutdown handler to reset `_scheduler_running = False` before calling `scheduler.shutdown(wait=False)`.
+- **Test:** No specific test needed — defensive improvement.
+
+#### 2.3 Config URL Validation Enhancement
+- **Priority:** Low
+- **Files:** `app/config.py`
+- **Problem:** `base_url` validation only checks that it starts with `http://` or `https://`. It doesn't validate the full URL structure (e.g., `https://` with no domain would pass).
+- **Fix:** Use `urllib.parse.urlparse` to validate that `base_url` has both `scheme` and `netloc`.
+- **Test:** Test with invalid URLs like `https://`, `http:///path`, `not-a-url`.
 
 ### Wave 2B — Frontend UX (parallelizable with 2A)
 
-#### 2.4 Move Select-All Checkbox Outside Hidden Bulk Actions Bar
-- **Priority:** High
-- **Files:** `app/templates/admin/dashboard.html`
-- **Problem:** The `#select-all` checkbox is inside the hidden `#bulk-actions` div. Users cannot "select all" without first manually checking one post.
-- **Fix:** Move the `<input type="checkbox" id="select-all" form="bulk-form">` from inside `#bulk-actions` to the `.filter-bar` section, next to the search input and status filter. The `form="bulk-form"` attribute already correctly associates it with the form.
-- **Test:** Verify select-all works without checking any post first.
+#### 2.4 WCAG AA Contrast Fix for Light Mode
+- **Priority:** Critical
+- **Files:** `app/static/css/style.css`
+- **Problem:** Light theme `--text-dim: #8c959f` on `--bg: #f6f8fa` produces ~4.0:1 contrast ratio, which **fails WCAG AA** for normal text (minimum 4.5:1). Used for chart labels, media sizes, analytics table headers, trending views, metric icons, shortcut key descriptions.
+- **Fix:** Change light theme `--text-dim` to `#6e7781` (~4.6:1 on `#f6f8fa`). For small text (0.7rem tag counts, 0.6rem chart labels), add `--text-dim-strong: #4b5563` (light) / `#9ca3af` (dark) and update `.tag-count`, `.chart-label`, and other small text to use it (~6.5:1 dark, ~7.4:1 light).
+- **Test:** Verify with WebAIM contrast checker. Visual verification in both modes.
 
-#### 2.5 Fix Tag Page Hero Layout
-- **Priority:** High
-- **Files:** `app/templates/tag.html`
-- **Problem:** The tag hero (`<h1>`) appears inside the `content-layout` grid, placing it next to the sidebar instead of spanning the full page width above the grid.
-- **Fix:** Move the `<div class="tag-hero animate-in">` block outside and before the `<div class="content-layout">`. The breadcrumb is already outside the grid, so the tag hero should go between the breadcrumb and the content-layout div.
-- **Test:** Verify at desktop and mobile breakpoints.
-
-#### 2.6 Add Modal Focus Trapping
-- **Priority:** Medium
-- **Files:** `app/static/js/main.js`
-- **Problem:** The keyboard shortcuts modal does not trap focus. Users can tab out of the modal into the background page.
-- **Fix:** Implement focus trapping when the modal is open. On open, store the previously focused element. On Tab/Shift+Tab, cycle focus within the modal. On close, restore focus to the stored element.
-- **Test:** Manual browser testing or headless browser test.
-
-#### 2.7 Add Unsaved Changes Warning in Editor
+#### 2.5 Add Unsaved Changes Warning in Editor
 - **Priority:** Medium
 - **Files:** `app/static/js/main.js`
 - **Problem:** Navigating away from the editor without submitting loses any changes not yet autosaved to localStorage.
 - **Fix:** Add a `beforeunload` event listener when the editor has unsaved changes. Track "dirty" state by comparing current form values against the last saved draft in localStorage. Remove the listener on successful form submit.
 - **Test:** Manual verification — navigate away after editing, confirm browser dialog appears.
 
-#### 2.8 Scope Reading Progress Bar to Post Pages
-- **Priority:** Low
-- **Files:** `app/templates/base.html`, `app/templates/post.html`
-- **Problem:** The `.reading-progress` div exists on all public pages but only makes sense on article pages. Currently non-functional (no JS drives it).
-- **Fix:** Move the `<div class="reading-progress">` from base.html to post.html. If JS for the progress bar is added later, it will only render where relevant.
-- **Test:** Verify reading progress bar only appears on post pages.
+#### 2.6 Implement Reading Progress Bar
+- **Priority:** Medium
+- **Files:** `app/templates/post.html`, `app/static/js/main.js`
+- **Problem:** The `.reading-progress` div exists in `post.html` with CSS transition but no JavaScript driver. It's a non-functional placeholder.
+- **Fix:** Add scroll tracking in the existing throttled scroll handler: calculate `scrollY / (scrollHeight - innerHeight) * 100` and update the bar's width. The element is already scoped to post pages only.
+- **Test:** Open any blog post and scroll — thin gradient bar should appear at top, growing as you scroll. On homepage, nothing should change.
 
 ---
 
 ## Wave 3: UI Polish & Consistency
 
+Wave 3A (CSS/visual), 3B (template/content), and 3C (admin enhancements) are all parallelizable.
+
 ### Wave 3A — CSS & Visual (parallelizable)
 
-#### 3.1 Replace Emoji Content with SVG Icons
+#### 3.1 Add Missing Color Tokens
+- **Priority:** High
+- **Files:** `app/static/css/style.css`
+- **Problem:** Several colors are hardcoded directly in CSS rules instead of using the design token system: `#a371f7` (stat card accent shares), `#f78166` (stat card accent subscribers), `#3b2e00`/`#d4a017` (noscript warning dark mode), `#fff` (post hero title).
+- **Fix:** Add `--purple: #a371f7`, `--orange: #f78166`, `--noscript-bg: #3b2e00`, `--noscript-text: #d4a017` to `:root`. Replace hardcoded values with `var()` references. Replace `#fff` in `.post-hero-title` with `var(--text)` (light theme override can be removed since `--text` already changes between themes).
+- **Test:** Verify stat card accents, noscript warning, and hero title in both modes.
+
+#### 3.2 Remove Duplicate `@keyframes spin`
 - **Priority:** Medium
 - **Files:** `app/static/css/style.css`
-- **Problem:** CSS uses `content: "📭"` for empty states and `content: "⚠ "` for form errors. Emojis render inconsistently across platforms and contradict the self-hosted asset philosophy.
-- **Fix:** Replace `content` emoji values with inline SVG `background-image` on the pseudo-elements. Use data URI SVGs for mailbox (empty state) and warning triangle (form error).
-- **Test:** Verify in both dark and light modes.
+- **Problem:** `@keyframes spin` is defined twice (line ~1198 and line ~1374) with identical content.
+- **Fix:** Remove the duplicate definition.
+- **Test:** Verify bulk loading spinner and button loading spinner still animate correctly.
 
-#### 3.2 Standardize CSS Variable Usage
+#### 3.3 Add Intermediate Breakpoint at 960px
+- **Priority:** Medium
+- **Files:** `app/static/css/style.css`
+- **Problem:** Between 768px (mobile) and ~1100px (max container width), the 260px sticky sidebar with 48px gap makes the content area very narrow (~540px) on screens around 850-950px.
+- **Fix:** Add `@media (max-width: 960px)` with `.content-layout { grid-template-columns: 1fr; gap: 32px; }` and `.sidebar { position: static; }`. Sidebar stacks below content on mid-size screens.
+- **Test:** Resize to 850px — sidebar should stack below. At 961px — sidebar sticky on right. At 768px — existing mobile layout unchanged.
+
+#### 3.4 Fix Empty State Pattern Inconsistency
+- **Priority:** Medium
+- **Files:** `app/static/css/style.css`, `app/templates/index.html`, `app/templates/admin/media.html`, `app/templates/admin/subscribers.html`
+- **Problem:** `.empty-state::before` adds a mail SVG icon above content. Works for simple `<p class="empty-state">No posts yet.</p>` but conflicts with multi-line empty states that use `<div class="empty-state"><h3>...</h3><p>...</p></div>`. Also, empty state messaging is inconsistent: index.html says "Something is brewing..." while dashboard says "Create your first one."
+- **Fix:** Scope `::before` to `.empty-state:not(:has(h3))` so icon only appears for simple variants (no child headings). Standardize messaging to "No posts yet. Create your first one." across all templates.
+- **Test:** Dashboard with no posts: icon appears. Media/subscribers with no items: heading+paragraph without icon.
+
+#### 3.5 Standardize CSS Variable Usage
 - **Priority:** Medium
 - **Files:** `app/static/css/style.css`
 - **Problem:** Many rules use hardcoded pixel values instead of CSS variables.
-- **Fix:** Add `--radius-sm: 6px` and `--space-md-sm: 12px` to `:root` and `[data-theme="light"]`. Systematically replace hardcoded values:
+- **Fix:** Add `--radius-sm: 6px` and `--space-sm-md: 12px` to `:root` and `[data-theme="light"]`. Rename existing `--space-md-sm` to `--space-sm-md`. Systematically replace hardcoded values:
   - `border-radius: 8px` → `var(--radius)`
   - `border-radius: 12px` → `var(--radius-lg)`
   - `border-radius: 6px` → `var(--radius-sm)`
   - `gap: 16px` → `var(--space-md)`
   - `gap: 48px` → `var(--space-2xl)`
   - `gap: 24px` → `var(--space-lg)`
-  - `gap: 12px` → `var(--space-md-sm)`
+  - `gap: 12px` → `var(--space-sm-md)`
   - `padding: 24px` → `var(--space-lg)`
   - `padding: 16px` → `var(--space-md)`
 - **Caveat:** Leave `prism-okaidia.css` alone (third-party theme).
 - **Test:** Visual verification in both dark and light modes.
 
-#### 3.3 Add Accent Borders to Analytics Stat Cards
-- **Priority:** Low
-- **Files:** `app/templates/admin/analytics.html`, `app/static/css/style.css`
-- **Problem:** Dashboard stat cards have colored left borders but analytics stat cards do not.
-- **Fix:** Add accent border classes to the 4 stat cards in analytics.html. Map semantically: Page Views → `stat-card-accent-views`, Total Subscribers → `stat-card-accent-subscribers`, Confirmed → `stat-card-accent-posts`, Posts Viewed → `stat-card-accent-shares`.
-- **Test:** Visual verification.
-
-#### 3.4 Improve Text-Dim Contrast at Small Sizes
-- **Priority:** Low
-- **Files:** `app/static/css/style.css`
-- **Problem:** `--text-dim` at small sizes (0.7rem tag counts, 0.6rem chart labels) may not meet WCAG AA 4.5:1 contrast ratio, especially in light mode (~3.1:1 on `#f6f8fa`).
-- **Fix:** Add `--text-dim-strong: #9ca3af` (dark) and `--text-dim-strong: #4b5563` (light) for small text. Update `.tag-count`, `.chart-label`, and other small text to use it. These values provide ~6.5:1 (dark) and ~7.4:1 (light) contrast ratios.
-- **Test:** Visual verification in both modes.
-
-#### 3.5 Fix Search Input Focus Layout Shift
+#### 3.6 Fix Search Input Focus Layout Shift
 - **Priority:** Low
 - **Files:** `app/static/css/style.css`
 - **Problem:** Search input expands from 200px to 260px on focus, causing layout shift on mobile.
 - **Fix:** Cap the expansion: `width: 240px` on focus. On mobile (`max-width: 768px`), use `width: calc(100% - 80px)` to remove expansion.
 - **Test:** Verify no layout shift on mobile.
 
-#### 3.6 Improve Share Button Visual Hierarchy
+#### 3.7 Improve Share Button Visual Hierarchy + Fix Color Flash Stacking
 - **Priority:** Low
-- **Files:** `app/static/css/style.css`
-- **Problem:** Share buttons are plain and only show color on hover.
-- **Fix:** Add subtle background colors matching brand colors:
+- **Files:** `app/static/css/style.css`, `app/static/js/main.js`
+- **Problem:** Share buttons are plain and only show color on hover. Additionally, rapid clicks on share buttons stack multiple `setTimeout` calls, causing color flickering.
+- **Fix (CSS):** Add subtle background colors matching brand colors:
   - `.share-twitter { background: rgba(29, 161, 242, 0.1); }`
   - `.share-linkedin { background: rgba(10, 102, 194, 0.1); }`
   - `.share-hn { background: rgba(255, 102, 0, 0.1); }`
   - `.share-reddit { background: rgba(255, 69, 0, 0.1); }`
   - `.share-facebook { background: rgba(24, 119, 242, 0.1); }`
-- **Test:** Visual verification.
+- **Fix (JS):** Store timeout ID on element (`this._flashTimeout`) and clear it before setting a new one to prevent stacking.
+- **Test:** Visual verification. Rapidly click share button — colors should not flicker or get stuck.
 
 ### Wave 3B — Template & Content (parallelizable with 3A)
-
-#### 3.7 Standardize Empty State Messaging
-- **Priority:** Medium
-- **Files:** `app/templates/index.html`
-- **Problem:** `index.html` says "No posts yet. Something is brewing..." while `dashboard.html` says "No posts yet. Create your first one."
-- **Fix:** Update `index.html:39` to match dashboard: "No posts yet. Create your first one."
-- **Test:** Visual verification.
 
 #### 3.8 Add Meta Description to Tag and Search Pages
 - **Priority:** Low
 - **Files:** `app/templates/tag.html`, `app/templates/search.html`
 - **Problem:** Post pages have meta description, but tag and search pages don't.
-- **Fix:** Add `{% block meta_description %}` to:
-  - `tag.html`: `Posts tagged with {{ tag.name }}`
-  - `search.html`: `Search results for {{ query }}`
+- **Fix:** Add `{% block meta_description %}` to tag.html (`Posts tagged with {{ tag.name }}`) and search.html (`Search results for {{ query }}`).
 - **Test:** View page source to verify meta description.
 
 #### 3.9 Enable Image Loading Skeleton
@@ -248,14 +217,37 @@ Items that affect correctness, security, or data integrity. Can be parallelized 
 
 #### 3.14 Add Stat Card Trend Indicators
 - **Priority:** Medium
-- **Files:** `app/routes/admin.py`, `app/templates/admin/dashboard.html`
+- **Files:** `app/routes/admin/posts.py` (or relevant analytics route), `app/templates/admin/dashboard.html`
 - **Problem:** The `.stat-trend` class exists in CSS but isn't used. Stat cards could show week-over-week comparison.
 - **Fix:** In `dashboard()` route, calculate week-over-week view comparison. Pass `views_trend` to template. Add `<span class="stat-trend">` to stat cards.
 - **Test:** Verify trend data displays correctly.
 
+#### 3.15 Add Flash Message Pause on Hover
+- **Priority:** Medium
+- **Files:** `app/static/js/main.js`
+- **Problem:** Flash messages auto-dismiss after 5 seconds with no way to pause the timer. Users who need more time to read cannot stop the dismissal.
+- **Fix:** Add `mouseenter`/`mouseleave` listeners to pause and resume the auto-dismiss timer. Use `clearTimeout`/`setTimeout` pattern.
+- **Test:** Trigger a flash message, hover over it — it should NOT dismiss while hovered. Move mouse away — timer resumes. Click to dismiss immediately — works as before.
+
+#### 3.16 Fix Media Upload `multiple` Attribute
+- **Priority:** Medium
+- **Files:** `app/templates/admin/media.html`
+- **Problem:** The media upload form has `multiple` on the file input, but the JavaScript only handles `files[0]`. Users can select multiple files but only the first one is uploaded.
+- **Fix:** Remove the `multiple` attribute from the visible file input since the backend expects single file uploads per request.
+- **Test:** Verify single file upload works. Selecting multiple files should no longer be possible.
+
+#### 3.17 Add Upload Zone Fetch Error Handling
+- **Priority:** High
+- **Files:** `app/static/js/main.js`
+- **Problem:** The upload zone `fetch()` calls (file input change and drag-and-drop) have no `.catch()` handler. If the upload fails (network error, server error, CSRF token expired), the page silently does nothing.
+- **Fix:** Add `.catch()` handlers that display an error message (`.form-error`) in the upload zone and auto-dismiss after 5 seconds. Check `response.ok` in the `.then()` handler.
+- **Test:** Simulate a failed upload — error message should appear and auto-dismiss. Successful uploads should continue to reload the page.
+
 ---
 
 ## Wave 4: Testing & Documentation
+
+Wave 4A (new tests) and 4B (documentation) are parallelizable.
 
 ### Wave 4A — New Tests (parallelizable)
 
@@ -272,7 +264,7 @@ Items that affect correctness, security, or data integrity. Can be parallelized 
 #### 4.3 Expand Search Special Character Tests
 - **Priority:** Medium
 - **Files:** `tests/test_public.py`
-- **Tasks:** Add tests for comma, semicolon, pipe, backslash, Unicode, empty search, very long search query (>200 chars).
+- **Tasks:** Add tests for comma, semicolon, pipe, backslash, Unicode, empty search, very long search query (>200 chars), FTS5 special characters (`-term`, `col:term`, `"phrase"`).
 
 #### 4.4 Add Email Failure/Retry Tests
 - **Priority:** Medium
@@ -295,30 +287,6 @@ Items that affect correctness, security, or data integrity. Can be parallelized 
 
 ---
 
-## Wave 5: Split admin.py (Large Refactor)
-
-#### 5.1 Split `admin.py` into Route Modules
-- **Priority:** Medium
-- **Effort:** Large
-- **Files:** `app/routes/admin.py` → `app/routes/admin/` package
-- **Problem:** `admin.py` is 1556 lines. Hard to navigate, increases merge conflicts.
-- **Fix:** Convert to package:
-  - `app/routes/admin/__init__.py` — Blueprint registration, `admin_required`, shared helpers
-  - `app/routes/admin/auth.py` — login, logout
-  - `app/routes/admin/posts.py` — dashboard, new_post, edit_post, delete_post, bulk_operations, preview
-  - `app/routes/admin/subscribers.py` — subscribers, delete, export, bulk
-  - `app/routes/admin/tags.py` — tags_list, create, rename, delete
-  - `app/routes/admin/users.py` — users_list, create, delete, change_password
-  - `app/routes/admin/sessions.py` — sessions_list, revoke_session
-  - `app/routes/admin/media.py` — media, upload, delete
-  - `app/routes/admin/backup.py` — backup CRUD
-  - `app/routes/admin/analytics.py` — analytics
-  - `app/routes/admin/newsletter.py` — newsletter_test
-- **Shared helpers** (`_save_image`, `_detect_image_type`, `_generate_unique_slug`, `_get_posts_query`, `_get_analytics_data`, `_cleanup_orphan_tags`, `_get_or_create_tags`, `_apply_post_updates`, `_categorize_referrer`, `_check_password_complexity`, `_get_backup_dir`) stay in `__init__.py` or a new `helpers.py`.
-- **Test:** Full test suite must pass. Verify all admin routes still work.
-
----
-
 ## Deferred / Explicitly Not Doing
 
 | Item | Reason |
@@ -331,10 +299,24 @@ Items that affect correctness, security, or data integrity. Can be parallelized 
 | Full type hints across codebase | Good hygiene but not critical; can be done incrementally |
 | `__all__` exports | Minor; wildcard imports shouldn't be used anyway |
 | `db.engine.dispose()` on shutdown | OS cleans up SQLite file handles on process exit |
-| FTS5 full special character escaping | Current quote-wrapping + LIKE fallback handles most cases |
+| FTS5 full special character escaping | Wave 2.1 covers key cases; remaining edge cases handled by LIKE fallback |
 | CSV export robustness improvements | Current implementation sufficient for real-world data |
 | localStorage quota handling for drafts | Edge case (5-10MB quota); can add if users report issues |
 | Newsletter fake subscriber improvement | Works but brittle; low priority |
+| Newsletter retry semantics refinement | Current behavior is correct by design — `all_sent=False` triggers retry with 5-attempt limit |
+| Media manager directory scan optimization | Fast for typical usage (<100 files); defer until media library grows significantly |
+| Test database URI isolation | Tests use temp DB with per-test table create/drop; acceptable for now |
+| `busy_timeout` PRAGMA fix | Already uses `@event.listens_for(Engine, "connect")` for per-connection PRAGMA |
+| `MAX_CONTENT_LENGTH` alignment | Already computed from `MAX_UPLOAD_SIZE + 1MB` |
+| Newsletter SMTP reconnection cleanup | Already correct — no redundant `server.quit()` in except handler |
+| Dashboard CSP nonce | No inline script in dashboard.html — all bulk JS is in main.js |
+| Tag name regex | Already restricted to ASCII `[a-zA-Z0-9\s\-]` |
+| `_csrf_exempt` dead code | Not present in codebase — CSRF validation in `app/csrf.py` has no exemption path |
+| Select-all checkbox placement | Already in `.filter-bar`, not inside `#bulk-actions` |
+| Tag page hero layout | Already outside `content-layout` grid |
+| Empty state emoji | Already uses SVG background-image, not emoji content |
+| Reading progress bar location | Already scoped to `post.html`, not `base.html` |
+| Split admin.py into modules | Already a package with separate modules (auth, posts, subscribers, tags, etc.) |
 
 ---
 
@@ -342,15 +324,14 @@ Items that affect correctness, security, or data integrity. Can be parallelized 
 
 | Wave | Description | Parallelizable? |
 |------|-------------|-----------------|
-| **1A** | Backend critical (busy_timeout, upload size, SMTP, caches, hardcoded year, redundant exception) | Yes — 6 sub-agents |
-| **1B** | Frontend critical (CSP nonce) | Yes — runs parallel to 1A |
-| **2A** | Backend/Route fixes (tag validation, csrf_exempt, test cache) | Yes — 3 sub-agents |
-| **2B** | Frontend UX (select-all, tag hero, modal focus, editor warning, reading progress) | Yes — 5 sub-agents |
-| **3A** | CSS & Visual (emoji→SVG, CSS vars, accent borders, contrast, search shift, share buttons) | Yes — 6 sub-agents |
-| **3B** | Template & Content (empty state, meta desc, image skeleton, keyboard nav, filter loading) | Yes — 5 sub-agents |
-| **3C** | Admin Enhancements (bulk loading, admin footer, trend indicators) | Yes — 3 sub-agents |
+| **1A** | Backend critical (test suite, cache bounds, analytics invalidation) | Yes — 3 sub-agents |
+| **1B** | Frontend critical (modal focus trap) | 1 sub-agent |
+| **2A** | Backend/Route fixes (FTS5, scheduler, config) | Yes — 3 sub-agents |
+| **2B** | Frontend UX (contrast, editor warning, reading progress) | Yes — 3 sub-agents |
+| **3A** | CSS & Visual (color tokens, keyframes, breakpoint, empty states, CSS vars, search shift, share buttons) | Yes — 7 sub-agents |
+| **3B** | Template & Content (meta desc, image skeleton, keyboard nav, filter loading) | Yes — 4 sub-agents |
+| **3C** | Admin Enhancements (bulk loading, footer, trends, flash pause, media upload, upload errors) | Yes — 6 sub-agents |
 | **4A** | New Tests (backup, multi-user, search, email) | Yes — 4 sub-agents |
 | **4B** | Documentation (scheduler docs, backup path) | Yes — 2 sub-agents |
-| **5** | Split admin.py (large refactor) | No — do last to avoid conflicts |
 
-**Waves 1–4 can be executed in parallel within each wave. Wave 5 must be done last.**
+**Waves 1–4 can be executed in parallel within each wave. Waves must be completed in order (1 → 2 → 3 → 4) since later waves may depend on earlier fixes (e.g., tests in Wave 4 depend on test suite fix in Wave 1.1).**
