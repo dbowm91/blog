@@ -1,435 +1,356 @@
 # Consolidated Improvement Plan
 
-**Status: COMPLETED (2026-04-02)**
-
-All items from Waves 1-4 have been implemented. Wave 5 (Code Quality) was skipped as medium priority.
-
----
-
-Consolidated from `plan2.md` (code quality), `plan4.md` (UI fixes), `plan5.md` (accessibility/UX), and `plan6.md` (enhancements).
-
-All items verified against the codebase as of 2026-04-02.
-
-## Testing
-
+**Test Command (run after each change):**
 ```bash
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 ```
 
 ---
 
-## Wave 1: Bugs, Dead Code, and CSS Cleanup (COMPLETED)
+## Wave 1: Critical Bugs & Security
 
-All items in this wave are independent and can be implemented in parallel by separate agents.
+Items that affect correctness, security, or data integrity. Can be parallelized across two sub-waves.
 
-### 1.1 Fix `rename_tag()` bug
+### Wave 1A — Backend Critical (parallelizable)
 
-**Verified:** `old_name = tag.name` is set AFTER `tag.name = new_name` (admin.py:927), so the log always shows the new name.
+#### 1.1 Fix `busy_timeout` PRAGMA for Connection Pooling
+- **Priority:** Critical
+- **Files:** `app/__init__.py`
+- **Problem:** `PRAGMA busy_timeout=5000` is executed once during `create_app()` inside `with app.app_context()`. This is a **connection-level** setting in SQLite — it does NOT persist across connections. New pooled connections use the default `busy_timeout=0`, causing immediate `database is locked` errors under write contention.
+- **Fix:** Use `@event.listens_for(Engine, "connect")` to apply `PRAGMA busy_timeout=5000` (and `PRAGMA journal_mode=WAL` for clarity) on every new connection. Remove the current `with app.app_context(): db.session.execute(text("PRAGMA ..."))` block.
+- **Test:** Verify `PRAGMA busy_timeout` returns 5000 after pool checkout. Simulate concurrent writes.
 
-**Fix:** Move `old_name = tag.name` before `tag.name = new_name`.
+#### 1.2 Align `MAX_CONTENT_LENGTH` with `MAX_UPLOAD_SIZE`
+- **Priority:** Critical
+- **Files:** `app/__init__.py`
+- **Problem:** `MAX_CONTENT_LENGTH` is hardcoded to 16MB (`app/__init__.py:69`) but `_save_image()` enforces 10MB from config. The 413 error handler says "Maximum upload size is 16MB" — misleading since the app only accepts 10MB.
+- **Fix:** Import `MAX_UPLOAD_SIZE` from `app.config` and set `MAX_CONTENT_LENGTH` to `MAX_UPLOAD_SIZE + buffer` (e.g., 1MB for form data overhead). Update the 413 handler message to reference the config value.
+- **Test:** Upload files at boundary sizes (9MB, 10MB, 11MB) to verify correct error messages.
 
-- File: `app/routes/admin.py:925-927`
+#### 1.3 Fix Newsletter SMTP Reconnection Cleanup
+- **Priority:** Critical
+- **Files:** `app/email.py`
+- **Problem:** In `send_newsletter()`, when `SMTPServerDisconnected` is caught, `server.quit()` is called before reconnection. While wrapped in try/except, this is redundant and the pattern is fragile. The `finally` block also calls `server.quit()`.
+- **Fix:** Remove `server.quit()` from the except handler — let the `finally` block handle cleanup. On reconnect failure, log and abort the newsletter batch rather than silently continuing.
+- **Test:** Mock `SMTPServerDisconnected` mid-batch and verify no error on cleanup. Verify reconnection succeeds.
 
-### 1.2 Fix `data-confirm` handler — broken feature
+#### 1.4 Add Bounds to In-Memory Caches
+- **Priority:** Critical
+- **Files:** `app/cache.py`, `app/routes/admin.py`
+- **Problem:** `_TAG_COUNTS_CACHE` stores a single entry (no size issue), but `_analytics_cache` in admin.py is an unbounded dict keyed by `days` parameter. Over time, if many different `days` values are queried, the dict grows without limit.
+- **Fix:** Add `_ANALYTICS_MAX_SIZE = 16` to analytics cache. On write, if size exceeds max, evict oldest entry (LRU). Document that multi-worker deployments should use external caching.
+- **Test:** Verify cache expires after TTL and doesn't grow beyond max size.
 
-**Verified:** Line 11 of `main.js` has a comment `// --- Form delete confirmation via data-confirm attribute ---` but no code follows. All delete/restore/reset buttons use `data-confirm` attributes but no confirmation dialog ever appears — destructive actions execute immediately.
+### Wave 1B — Frontend Critical (parallelizable with 1A)
 
-**Fix:** Insert form submit handler after line 11:
+#### 1.5 Remove Hardcoded Year in Context Processor
+- **Priority:** Medium
+- **Files:** `app/__init__.py`
+- **Problem:** `inject_config()` context processor returns `"current_year": 2026` hardcoded. Footer copyright year will be wrong starting January 1st of the next year.
+- **Fix:** Replace with `datetime.now().year`. The `inject_footer_data()` function already imports `datetime` — reuse that import or import inside `inject_config`.
+- **Test:** None needed — trivial change.
 
-```js
-document.querySelectorAll('form[data-confirm]').forEach(form => {
-    form.addEventListener('submit', e => {
-        if (!confirm(form.dataset.confirm)) e.preventDefault();
-    });
-});
-```
+#### 1.6 Remove Redundant `ConnectionError` Exception Catch
+- **Priority:** Low
+- **Files:** `app/routes/public.py`
+- **Problem:** `_try_send_confirmation()` catches `ConnectionError` separately in `except (smtplib.SMTPException, ConnectionError, OSError)`, but `ConnectionError` is a subclass of `OSError`, which is already caught. Dead code.
+- **Fix:** Remove `ConnectionError` from the except tuple: `except (smtplib.SMTPException, OSError)`.
+- **Test:** Existing tests should pass.
 
-- File: `app/static/js/main.js:11`
-
-### 1.3 Remove dead bulk progress bar
-
-**Verified:** Lines 25-63 inject a "Processing 0 of N..." progress bar during bulk form submit. The `MutationObserver` watches checkbox `checked` attribute changes, but the form submits via full page reload — the observer callback never fires.
-
-**Fix:** Delete lines 25-63 entirely.
-
-- File: `app/static/js/main.js:25-63`
-
-### 1.4 Guard Ctrl+S and vim navigation to admin pages only
-
-**Verified:** Both vim navigation (lines 538-570) and Ctrl+S (lines 572-622) fire on all pages. Ctrl+S blocks the browser's native "Save Page As" on public pages. Vim `g+d` navigates to `/admin/` from public pages. The `<body>` in admin/base.html has `class="admin-body"` but no JS checks it.
-
-**Fix:** Wrap both handlers in `if (document.body.classList.contains('admin-body'))` guards. Also move modal close handlers (lines 624-638) inside the guard since the modal only exists on admin pages.
-
-- File: `app/static/js/main.js:538-638`
-
-### 1.5 Fix lazy image opacity fallback
-
-**Verified:** CSS sets `img[loading="lazy"] { opacity: 0 }` (style.css:2254). JS adds `.loaded` class on load. But there's no `.js` class gate — if JS fails, all lazy images remain invisible.
-
-**Fix:**
-1. Add `document.documentElement.classList.add('js');` as first line of main.js (before `DOMContentLoaded`)
-2. Gate the CSS: prefix `img[loading="lazy"]` rules with `.js`
-
-- Files: `app/static/js/main.js` (line 1), `app/static/css/style.css:2254-2262`
-
-### 1.6 Fix `--text-dim` contrast ratio — WCAG AA failure
-
-**Verified:** `--text-dim: #656d76` on dark background `#0d1117` gives ~4.2:1 contrast. WCAG AA requires 4.5:1 for normal text.
-
-**Fix:** `--text-dim: #7d8590` (gives ~4.6:1).
-
-- File: `app/static/css/style.css:76`
-
-### 1.7 Fix dark mode post card hover shadow
-
-**Verified:** `.post-card:hover` uses `box-shadow: 0 12px 24px rgba(0,0,0,0.1)` — nearly invisible on dark background. No border-color transition.
-
-**Fix:**
-```css
-.post-card {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color var(--transition);
-}
-.post-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--text-dim);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-}
-[data-theme="light"] .post-card:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-}
-```
-
-- File: `app/static/css/style.css:302-313`
-
-### 1.8 Merge duplicate `.flash` CSS rule
-
-**Verified:** Two separate `.flash` blocks exist (lines 1067-1073 with visual properties, lines 1109-1112 with layout properties). Should be merged.
-
-**Fix:** Add `position: relative; overflow: hidden;` to the first block, delete the second block.
-
-- File: `app/static/css/style.css:1067-1112`
-
-### 1.9 Remove dead CSS rules
-
-**Verified:** `.share-btn.twitter:hover`, `.share-btn.facebook:hover`, `.share-btn.linkedin:hover` on lines 572-574 never match — actual HTML uses `.share-btn.share-twitter` etc. Correctly-named rules already exist at lines 576-581.
-
-**Fix:** Delete lines 572-574.
-
-- File: `app/static/css/style.css:572-574`
-
-### 1.10 Fix footer year logic
-
-**Verified:** Footer shows `{% if current_year and current_year != 2026 %}{{ current_year }} - {% endif %}{{ current_year }}`. When year is 2027, shows "2027 - 2027".
-
-**Fix:** Hardcode 2026 as start year:
-```html
-<p>&copy; 2026{% if current_year and current_year > 2026 %} - {{ current_year }}{% endif %} {{ site_title }}. Built with Flask.</p>
-```
-
-- File: `app/templates/base.html:106`
+#### 1.7 Fix Missing CSP Nonce on Dashboard Inline Script
+- **Priority:** Critical
+- **Files:** `app/templates/admin/dashboard.html`, `app/static/js/main.js`
+- **Problem:** The bulk actions JavaScript is inline without `nonce="{{ csp_nonce }}"`. CSP will block it in production.
+- **Fix:** Move the inline script logic (dashboard.html lines 142-170) into `main.js`. Extend the existing `#select-all` handler (lines 440-448) to also toggle `bulk-actions` visibility and update `bulk-progress-bar`. Remove the entire inline `<script>` block from dashboard.html.
+- **Test:** Run with `CSRF_ENABLED=False TESTING=True` config. Verify bulk actions work.
 
 ---
 
-## Wave 2: Accessibility (WCAG Compliance) (COMPLETED)
+## Wave 2: High-Priority UX & Accessibility
 
-All items are template changes to different files or CSS — fully parallelizable.
+### Wave 2A — Backend/Route Fixes (parallelizable)
 
-### 2.1 Add `aria-label` to form inputs
+#### 2.1 Strengthen Tag Name Validation
+- **Priority:** High
+- **Files:** `app/routes/admin.py`, `app/templates/admin/tags.html`, `tests/test_admin.py`
+- **Problem:** `TAG_NAME_REGEX` uses `^[\w\s-]+$` which allows many Unicode word characters. Too permissive for URLs.
+- **Fix:** Restrict to ASCII letters, digits, spaces, and hyphens: `^[a-zA-Z0-9\s\-]+$`. Add max length validation (50 chars). Update error message. Add help text in tags.html.
+- **Test:** Test invalid tag names (Unicode, special chars, too long).
 
-**Verified:** Dashboard search/filter inputs, tag create/rename inputs, and user password/username inputs all lack `aria-label`.
+#### 2.2 Remove Dead `_csrf_exempt` Check
+- **Priority:** Medium
+- **Files:** `app/__init__.py`
+- **Problem:** `validate_csrf_token()` checks for `_csrf_exempt` attribute on view functions, but no route sets it. Dead code creates confusion about CSRF protection scope.
+- **Fix:** Remove the `_csrf_exempt` check from `validate_csrf_token()`. Update AGENTS.md to note that CSRF exemption is not supported (use proxy-level bypass if needed).
+- **Test:** Existing tests should pass.
 
-**Changes:**
-- `app/templates/admin/dashboard.html:54` — add `aria-label="Search posts by title"` to search input
-- `app/templates/admin/dashboard.html:55` — add `aria-label="Filter by status"` to filter select
-- `app/templates/admin/tags.html:14` — add `aria-label="New tag name"` to create input
-- `app/templates/admin/tags.html:29` — add `aria-label="Rename tag {{ tag.name }}"` to rename input
-- `app/templates/admin/users.html:29` — add `aria-label="New password for {{ user.username }}"` to password input
-- `app/templates/admin/users.html:60` — add `aria-label="Username"` to username input
-- `app/templates/admin/users.html:61` — add `aria-label="Password"` to password input
+#### 2.3 Fix Analytics Cache Global State in Tests
+- **Priority:** Medium
+- **Files:** `tests/conftest.py`, `app/routes/admin.py`
+- **Problem:** `_analytics_cache` persists across test runs, causing flaky tests and cross-test pollution.
+- **Fix:** Add `_analytics_cache.clear()` to a fixture in `conftest.py` applied to admin tests that touch analytics.
+- **Test:** Run analytics-related tests in isolation and in sequence — no cross-test pollution.
 
-### 2.2 Add `aria-label` to `<nav>` elements
+### Wave 2B — Frontend UX (parallelizable with 2A)
 
-**Verified:** Neither `base.html` nor `admin/base.html` have `aria-label` on their `<nav>` elements.
+#### 2.4 Move Select-All Checkbox Outside Hidden Bulk Actions Bar
+- **Priority:** High
+- **Files:** `app/templates/admin/dashboard.html`
+- **Problem:** The `#select-all` checkbox is inside the hidden `#bulk-actions` div. Users cannot "select all" without first manually checking one post.
+- **Fix:** Move the `<input type="checkbox" id="select-all" form="bulk-form">` from inside `#bulk-actions` to the `.filter-bar` section, next to the search input and status filter. The `form="bulk-form"` attribute already correctly associates it with the form.
+- **Test:** Verify select-all works without checking any post first.
 
-**Changes:**
-- `app/templates/base.html:39` — `aria-label="Main navigation"`
-- `app/templates/admin/base.html:14` — `aria-label="Admin navigation"`
-- Add `aria-label="Pagination"` to all pagination `<nav>` elements in: `dashboard.html`, `subscribers.html`, `users.html`, `index.html`, `tag.html`, `search.html`
+#### 2.5 Fix Tag Page Hero Layout
+- **Priority:** High
+- **Files:** `app/templates/tag.html`
+- **Problem:** The tag hero (`<h1>`) appears inside the `content-layout` grid, placing it next to the sidebar instead of spanning the full page width above the grid.
+- **Fix:** Move the `<div class="tag-hero animate-in">` block outside and before the `<div class="content-layout">`. The breadcrumb is already outside the grid, so the tag hero should go between the breadcrumb and the content-layout div.
+- **Test:** Verify at desktop and mobile breakpoints.
 
-### 2.3 Fix keyboard shortcuts modal ARIA
+#### 2.6 Add Modal Focus Trapping
+- **Priority:** Medium
+- **Files:** `app/static/js/main.js`
+- **Problem:** The keyboard shortcuts modal does not trap focus. Users can tab out of the modal into the background page.
+- **Fix:** Implement focus trapping when the modal is open. On open, store the previously focused element. On Tab/Shift+Tab, cycle focus within the modal. On close, restore focus to the stored element.
+- **Test:** Manual browser testing or headless browser test.
 
-**Verified:** Modal has `role="dialog"` and `aria-label` but is missing `aria-modal="true"` and `aria-labelledby`. The `<h2>` has no `id`.
+#### 2.7 Add Unsaved Changes Warning in Editor
+- **Priority:** Medium
+- **Files:** `app/static/js/main.js`
+- **Problem:** Navigating away from the editor without submitting loses any changes not yet autosaved to localStorage.
+- **Fix:** Add a `beforeunload` event listener when the editor has unsaved changes. Track "dirty" state by comparing current form values against the last saved draft in localStorage. Remove the listener on successful form submit.
+- **Test:** Manual verification — navigate away after editing, confirm browser dialog appears.
 
-**Fix:**
-- Add `aria-modal="true" aria-labelledby="keyboard-help-title"` to `#keyboard-help`
-- Add `id="keyboard-help-title"` to the `<h2>`
-
-- File: `app/templates/admin/base.html:57-59`
-
-### 2.4 Add vim navigation shortcuts to modal
-
-**Verified:** Keyboard shortcuts modal doesn't list the vim navigation shortcuts (g+d, g+p, g+s, g+t).
-
-**Fix:** Add navigation section to modal before Close button.
-
-- File: `app/templates/admin/base.html` (before Close button)
-- File: `app/static/css/style.css` — add `.shortcut-divider` styles
-
-### 2.5 Add `datetime` attribute to `<time>` elements
-
-**Verified:** `_post_content.html:12` and `post.html:110` (related posts) are missing `datetime` attributes.
-
-**Changes:**
-- `app/templates/_post_content.html:12` — add `datetime="{{ post.created_at.isoformat() }}"`
-- `app/templates/post.html:110` — add `datetime="{{ rp.created_at.isoformat() }}"`
-
-### 2.6 Add missing `{% block title %}` to admin templates
-
-**Verified:** `users.html` and `backup.html` lack `{% block title %}`, so browser tabs show generic "Admin | {site_title}".
-
-**Changes:**
-- `app/templates/admin/users.html` — add `{% block title %}Users | Admin{% endblock %}`
-- `app/templates/admin/backup.html` — add `{% block title %}Backups | Admin{% endblock %}`
-
----
-
-## Wave 3: UX Improvements and Features (COMPLETED)
-
-### 3.1 Fix nested forms in dashboard (invalid HTML)
-
-**Verified:** The bulk `<form id="bulk-form">` wraps the entire post list (lines 65-124). Inside each post row, "Reset NL" and "Delete" are nested `<form>` elements. Browsers implicitly close the outer form, breaking bulk operations.
-
-**Fix:** Move the bulk form to only contain the bulk action buttons. Use `form="bulk-form"` attribute on each checkbox to associate without nesting. Add JS for show/hide toggle.
-
-- File: `app/templates/admin/dashboard.html:65-124`
-- Add inline JS for selection toggle (see plan4.md Fix 1 for full template)
-
-### 3.2 Hide dashboard bulk actions until items selected
-
-**Verified:** Bulk action buttons (Publish, Unpublish, Delete) are always visible. The subscribers page already uses the correct pattern (hidden by default, shown via JS).
-
-**Fix:** Add `hidden` class to `.bulk-actions` div, add JS to toggle visibility based on checkbox state. Can be combined with 3.1.
-
-- File: `app/templates/admin/dashboard.html`
-
-### 3.3 Admin nav dropdown for overcrowding
-
-**Verified:** 10+ links crammed into one row. No grouping or dropdown.
-
-**Fix:** Group 6 secondary links (Subscribers, Media, Tags, Users, Sessions, Backups) into a "More" dropdown. Keep View Site, Dashboard, Analytics, Logout as top-level.
-
-- Files: `app/templates/admin/base.html`, `app/static/css/style.css`, `app/static/js/main.js`
-
-### 3.4 Add keyboard shortcuts discoverability trigger
-
-**Verified:** The `?` key opens the shortcuts modal, but there's no visible indicator.
-
-**Fix:** Add a small `?` button to the admin nav. Add JS handler.
-
-- Files: `app/templates/admin/base.html`, `app/static/js/main.js`
-
-### 3.5 Add media upload UI
-
-**Verified:** The media library only lists files — no upload form exists. No `upload_media` route exists.
-
-**Fix:**
-1. Add `POST /admin/media/upload` route using existing `_save_image()` helper
-2. Add upload zone (drag-and-drop) to media.html template
-3. Add CSS for upload zone
-4. Add JS for drag-and-drop behavior
-
-- Files: `app/routes/admin.py`, `app/templates/admin/media.html`, `app/static/css/style.css`, `app/static/js/main.js`
-
-### 3.6 Replace inline style with CSS class
-
-**Verified:** `sessions.html:29` has `style="font-size: 0.75rem;"`.
-
-**Fix:** Add `.text-xs { font-size: 0.75rem; }` utility to style.css, replace inline style.
-
-- Files: `app/templates/admin/sessions.html:29`, `app/static/css/style.css`
-
-### 3.7 Add password complexity hints
-
-**Verified:** Backend requires 8+ chars with 3 of 4 character classes, but UI only says "min 8 chars".
-
-**Fix:** Add `<span class="label-hint text-muted">8+ chars with 3 of: lowercase, uppercase, digit, special</span>` after password inputs.
-
-- File: `app/templates/admin/users.html`
+#### 2.8 Scope Reading Progress Bar to Post Pages
+- **Priority:** Low
+- **Files:** `app/templates/base.html`, `app/templates/post.html`
+- **Problem:** The `.reading-progress` div exists on all public pages but only makes sense on article pages. Currently non-functional (no JS drives it).
+- **Fix:** Move the `<div class="reading-progress">` from base.html to post.html. If JS for the progress bar is added later, it will only render where relevant.
+- **Test:** Verify reading progress bar only appears on post pages.
 
 ---
 
-## Wave 4: Backend Refactoring (COMPLETED)
+## Wave 3: UI Polish & Consistency
 
-Items in this wave modify different parts of the backend and are parallelizable.
+### Wave 3A — CSS & Visual (parallelizable)
 
-### 4.1 Simplify `subscribe()` route logic
+#### 3.1 Replace Emoji Content with SVG Icons
+- **Priority:** Medium
+- **Files:** `app/static/css/style.css`
+- **Problem:** CSS uses `content: "📭"` for empty states and `content: "⚠ "` for form errors. Emojis render inconsistently across platforms and contradict the self-hosted asset philosophy.
+- **Fix:** Replace `content` emoji values with inline SVG `background-image` on the pseudo-elements. Use data URI SVGs for mailbox (empty state) and warning triangle (form error).
+- **Test:** Verify in both dark and light modes.
 
-**Status:** IMPLEMENTED (2026-04-02)
+#### 3.2 Standardize CSS Variable Usage
+- **Priority:** Medium
+- **Files:** `app/static/css/style.css`
+- **Problem:** Many rules use hardcoded pixel values instead of CSS variables.
+- **Fix:** Add `--radius-sm: 6px` and `--space-md-sm: 12px` to `:root` and `[data-theme="light"]`. Systematically replace hardcoded values:
+  - `border-radius: 8px` → `var(--radius)`
+  - `border-radius: 12px` → `var(--radius-lg)`
+  - `border-radius: 6px` → `var(--radius-sm)`
+  - `gap: 16px` → `var(--space-md)`
+  - `gap: 48px` → `var(--space-2xl)`
+  - `gap: 24px` → `var(--space-lg)`
+  - `gap: 12px` → `var(--space-md-sm)`
+  - `padding: 24px` → `var(--space-lg)`
+  - `padding: 16px` → `var(--space-md)`
+- **Caveat:** Leave `prism-okaidia.css` alone (third-party theme).
+- **Test:** Visual verification in both dark and light modes.
 
-Extracted helper functions `_reset_subscriber_token()`, `_send_or_flash_confirmation()`, `_try_send_confirmation()` to simplify the main flow and eliminate duplication.
+#### 3.3 Add Accent Borders to Analytics Stat Cards
+- **Priority:** Low
+- **Files:** `app/templates/admin/analytics.html`, `app/static/css/style.css`
+- **Problem:** Dashboard stat cards have colored left borders but analytics stat cards do not.
+- **Fix:** Add accent border classes to the 4 stat cards in analytics.html. Map semantically: Page Views → `stat-card-accent-views`, Total Subscribers → `stat-card-accent-subscribers`, Confirmed → `stat-card-accent-posts`, Posts Viewed → `stat-card-accent-shares`.
+- **Test:** Visual verification.
 
-- File: `app/routes/public.py:302-325`
+#### 3.4 Improve Text-Dim Contrast at Small Sizes
+- **Priority:** Low
+- **Files:** `app/static/css/style.css`
+- **Problem:** `--text-dim` at small sizes (0.7rem tag counts, 0.6rem chart labels) may not meet WCAG AA 4.5:1 contrast ratio, especially in light mode (~3.1:1 on `#f6f8fa`).
+- **Fix:** Add `--text-dim-strong: #9ca3af` (dark) and `--text-dim-strong: #4b5563` (light) for small text. Update `.tag-count`, `.chart-label`, and other small text to use it. These values provide ~6.5:1 (dark) and ~7.4:1 (light) contrast ratios.
+- **Test:** Visual verification in both modes.
 
-### 4.2 Improve `edit_post()` error handling
+#### 3.5 Fix Search Input Focus Layout Shift
+- **Priority:** Low
+- **Files:** `app/static/css/style.css`
+- **Problem:** Search input expands from 200px to 260px on focus, causing layout shift on mobile.
+- **Fix:** Cap the expansion: `width: 240px` on focus. On mobile (`max-width: 768px`), use `width: calc(100% - 80px)` to remove expansion.
+- **Test:** Verify no layout shift on mobile.
 
-**Status:** IMPLEMENTED (2026-04-02)
+#### 3.6 Improve Share Button Visual Hierarchy
+- **Priority:** Low
+- **Files:** `app/static/css/style.css`
+- **Problem:** Share buttons are plain and only show color on hover.
+- **Fix:** Add subtle background colors matching brand colors:
+  - `.share-twitter { background: rgba(29, 161, 242, 0.1); }`
+  - `.share-linkedin { background: rgba(10, 102, 194, 0.1); }`
+  - `.share-hn { background: rgba(255, 102, 0, 0.1); }`
+  - `.share-reddit { background: rgba(255, 69, 0, 0.1); }`
+  - `.share-facebook { background: rgba(24, 119, 242, 0.1); }`
+- **Test:** Visual verification.
 
-Extracted `_apply_post_updates()` helper function. Used in both normal and IntegrityError recovery paths to ensure consistent field updates.
+### Wave 3B — Template & Content (parallelizable with 3A)
 
-- File: `app/routes/admin.py:712-720`
+#### 3.7 Standardize Empty State Messaging
+- **Priority:** Medium
+- **Files:** `app/templates/index.html`
+- **Problem:** `index.html` says "No posts yet. Something is brewing..." while `dashboard.html` says "No posts yet. Create your first one."
+- **Fix:** Update `index.html:39` to match dashboard: "No posts yet. Create your first one."
+- **Test:** Visual verification.
 
-### 4.3 Extract CSV generation utility
+#### 3.8 Add Meta Description to Tag and Search Pages
+- **Priority:** Low
+- **Files:** `app/templates/tag.html`, `app/templates/search.html`
+- **Problem:** Post pages have meta description, but tag and search pages don't.
+- **Fix:** Add `{% block meta_description %}` to:
+  - `tag.html`: `Posts tagged with {{ tag.name }}`
+  - `search.html`: `Search results for {{ query }}`
+- **Test:** View page source to verify meta description.
 
-**Status:** IMPLEMENTED (2026-04-02)
+#### 3.9 Enable Image Loading Skeleton
+- **Priority:** Medium
+- **Files:** `app/templates/index.html`, `app/templates/post.html`, `app/templates/_sidebar.html`
+- **Problem:** The `.img-skeleton` CSS exists but is never actively used.
+- **Fix:** Add `.img-skeleton` class to lazy-loaded images: `<img class="post-card-img img-skeleton" ...>`.
+- **Test:** Verify skeleton animation appears before images load.
 
-Created `app/csv_utils.py` with `generate_subscribers_csv()` function. Refactored both `export_subscribers()` and `subscribers_bulk()` to use the shared utility.
+#### 3.10 Add Keyboard Navigation to Post Cards
+- **Priority:** Medium
+- **Files:** `app/templates/index.html`, `app/templates/tag.html`, `app/templates/search.html`, `app/static/js/main.js`, `app/static/css/style.css`
+- **Problem:** Post cards are not keyboard-navigable.
+- **Fix:** Add `tabindex="0" role="link"` to post cards. Add keydown handler for Enter/Space to click the card's link. Add `.post-card:focus-visible` CSS with outline.
+- **Test:** Tab through page, verify cards are focusable and activatable.
 
-- Files: `app/routes/admin.py:825-850, 896-913`, new `app/csv_utils.py`
+#### 3.11 Add Loading Indicator on Auto-Submit Filters
+- **Priority:** Low
+- **Files:** `app/static/js/main.js`, `app/static/css/style.css`
+- **Problem:** Status filter and date range filter auto-submit on change with no visual feedback.
+- **Fix:** Add a `.loading` class before submit — reduced opacity + wait cursor. Since the page navigates away immediately, the visual cue only needs to last ~100-200ms.
+- **Test:** Verify visual feedback on filter change.
 
-### 4.4 Extract magic numbers to configuration
+### Wave 3C — Admin Enhancements (parallelizable with 3A and 3B)
 
-**Status:** IMPLEMENTED (2026-04-02)
+#### 3.12 Add Bulk Form Submission Loading State
+- **Priority:** Medium
+- **Files:** `app/static/js/main.js`, `app/static/css/style.css`, `app/templates/admin/dashboard.html`
+- **Problem:** Bulk operations submit via standard form POST, providing no visual feedback during the request.
+- **Fix:** Add a hidden loading overlay that shows during bulk form submission. Use `beforeunload` event to show overlay when form is submitted. Hide overlay on page load.
+- **Test:** Submit bulk operation, verify loading overlay appears.
 
-Added to `config.toml [app]`:
-- `max_upload_size = 10485760` (10MB)
-- `export_batch_size = 500`
-- `fts_result_limit = 100`
-- `token_enumeration_delay = 0.1`
+#### 3.13 Add Footer to Admin Pages
+- **Priority:** Low
+- **Files:** `app/templates/admin/base.html`, `app/static/css/style.css`
+- **Problem:** Admin pages end abruptly after content — no footer.
+- **Fix:** Add a lightweight admin footer with links: View Site, RSS Feed, copyright. Add `.admin-footer` CSS.
+- **Test:** Verify footer appears on all admin pages.
 
-Added to `config.toml [email]`:
-- `smtp_timeout = 30`
-
-- Files: `config.toml`, `app/config.py`, `app/routes/admin.py`, `app/email.py`, `app/routes/public.py`, `app/search.py`
-
-### 4.5 Add validation for empty tag names
-
-**Status:** IMPLEMENTED (previously)
-
-Empty tags are skipped with warning flash message in `_get_or_create_tags()`.
-
-- File: `app/routes/admin.py:690-710`
-
----
-
-## Wave 5: Code Quality
-
-Lower priority polish — parallelizable.
-
-### 5.1 Break down large functions
-
-Targets: `edit_post()` (~90 lines), `new_post()` (~60 lines), `dashboard()` (~50 lines), `_get_analytics_data()` (~90 lines).
-
-- File: `app/routes/admin.py`
-
-### 5.2 Improve type hints
-
-Add comprehensive type hints to all public functions. Use `TypedDict`, `Literal` where appropriate.
-
-### 5.3 Add comprehensive docstrings
-
-Google-style docstrings for all public functions and classes.
-
----
-
-## Wave 6: Enhancements (Future)
-
-Lower priority items from plan6.md and plan2.md P3.
-
-### 6.1 Admin navigation icons
-Add small SVG icons to nav items for faster visual scanning.
-
-### 6.2 Editor character counters
-Title (max 200 chars), summary (max 500 chars) with real-time counters.
-
-### 6.3 Enhanced autosave indicator
-More prominent with checkmark/warning icons and relative time display.
-
-### 6.4 Search UX improvements
-Recent searches dropdown, search result highlighting, scope selector.
-
-### 6.5 Command palette (Cmd+K)
-Quick navigation to posts, tags, and admin sections.
-
-### 6.6 Improve test coverage
-Run `pytest --cov=app tests/`, add tests for subscribe edge cases, edit_post error paths, concurrent access.
-
-### 6.7 Add rate limiting documentation
-Create docs with nginx/caddy/Cloudflare examples. Reference from DEPLOY.md.
-
----
-
-## Wave Dependency Graph
-
-```
-Wave 1 (Bugs/CSS)  ──────────────────────────┐
-Wave 2 (Accessibility)  ──────────────────────┼──> All independent, can run in parallel
-Wave 3 (UX/Features)  ────────────────────────┤
-Wave 4 (Backend Refactoring)  ────────────────┤
-Wave 5 (Code Quality)  ───────────────────────┘
-Wave 6 (Enhancements)  ── depends on Wave 3 completion for some items
-```
-
-Within each wave, all items are independent unless noted.
-
-Wave 3 item 3.1 (nested forms) and 3.2 (bulk actions hide) both modify `dashboard.html` and should be done together.
-
-Wave 3 item 3.3 (nav dropdown) and 3.4 (keyboard discoverability) both modify `admin/base.html` nav section and should be done together.
-
-Wave 3 items 3.3, 3.4, 3.5 all add to `main.js` and `style.css` — coordinate CSS additions to avoid conflicts.
-
-## File Change Summary
-
-| File | Waves | Items |
-|------|-------|-------|
-| `app/static/js/main.js` | 1, 3 | 1.2, 1.3, 1.4, 1.5, 3.3, 3.4, 3.5 |
-| `app/static/css/style.css` | 1, 3 | 1.5, 1.6, 1.7, 1.8, 1.9, 3.3, 3.5, 3.6 |
-| `app/templates/admin/dashboard.html` | 1, 2, 3 | 1.10 via base, 2.1, 2.2, 3.1, 3.2 |
-| `app/templates/admin/base.html` | 2, 3 | 2.2, 2.3, 2.4, 3.3, 3.4 |
-| `app/templates/admin/users.html` | 2, 3 | 2.1, 2.6, 3.7 |
-| `app/templates/admin/tags.html` | 2 | 2.1 |
-| `app/templates/admin/media.html` | 3 | 3.5 |
-| `app/templates/admin/sessions.html` | 3 | 3.6 |
-| `app/templates/admin/backup.html` | 2 | 2.6 |
-| `app/templates/base.html` | 1, 2 | 1.10, 2.2 |
-| `app/templates/_post_content.html` | 2 | 2.5 |
-| `app/templates/post.html` | 2 | 2.5 |
-| `app/templates/index.html` | 2 | 2.2 |
-| `app/templates/tag.html` | 2 | 2.2 |
-| `app/templates/search.html` | 2 | 2.2 |
-| `app/routes/admin.py` | 1, 3, 4 | 1.1, 3.5, 4.2, 4.3, 4.4, 4.5 |
-| `app/routes/public.py` | 4 | 4.1, 4.4 |
-| `app/csv_utils.py` | 4 | 4.3 |
-| `app/email.py` | 4 | 4.4 |
-| `app/search.py` | 4 | 4.4 |
-| `config.toml` | 4 | 4.4 |
-| `app/config.py` | 4 | 4.4 |
+#### 3.14 Add Stat Card Trend Indicators
+- **Priority:** Medium
+- **Files:** `app/routes/admin.py`, `app/templates/admin/dashboard.html`
+- **Problem:** The `.stat-trend` class exists in CSS but isn't used. Stat cards could show week-over-week comparison.
+- **Fix:** In `dashboard()` route, calculate week-over-week view comparison. Pass `views_trend` to template. Add `<span class="stat-trend">` to stat cards.
+- **Test:** Verify trend data displays correctly.
 
 ---
 
-## Code Review Checklist (per wave)
+## Wave 4: Testing & Documentation
 
-### Security
-- [ ] No new SQL injection vulnerabilities
-- [ ] No new XSS vulnerabilities
-- [ ] CSRF protection maintained
-- [ ] File upload validation maintained
-- [ ] No sensitive data in logs
+### Wave 4A — New Tests (parallelizable)
 
-### Functionality
-- [ ] All existing features work as before
-- [ ] Edge cases handled (empty inputs, None values)
-- [ ] Race conditions considered
+#### 4.1 Add Backup/Restore End-to-End Tests
+- **Priority:** High
+- **Files:** `tests/test_backup.py` (create)
+- **Tasks:** Test backup creation (compressed/uncompressed), file listing, download, filename validation, restore, restore with corrupted backup, backup while DB in use.
 
-### Code Quality
-- [ ] Follows existing code style
-- [ ] No code duplication
-- [ ] Functions appropriately sized
+#### 4.2 Add Multi-User Session Management Tests
+- **Priority:** High
+- **Files:** `tests/test_multi_user.py` (create)
+- **Tasks:** Test two users logging in simultaneously, session timeout on one user while other remains active, `AdminSession` cleanup on logout, session cookie security flags.
 
-### Testing
-- [ ] Tests pass: `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v`
-- [ ] Manual verification for UI changes
+#### 4.3 Expand Search Special Character Tests
+- **Priority:** Medium
+- **Files:** `tests/test_public.py`
+- **Tasks:** Add tests for comma, semicolon, pipe, backslash, Unicode, empty search, very long search query (>200 chars).
+
+#### 4.4 Add Email Failure/Retry Tests
+- **Priority:** Medium
+- **Files:** `tests/test_email.py`, `tests/test_newsletter.py`
+- **Tasks:** Test newsletter sending with SMTP failure, reconnection after disconnect, confirmation email send failure, attempt counting, mixed success/failure in batch.
+
+### Wave 4B — Documentation (parallelizable with 4A)
+
+#### 4.5 Document Multi-Worker Scheduler Limitation
+- **Priority:** Medium
+- **Files:** `app/scheduler.py`, `DEPLOY.md`
+- **Problem:** APScheduler runs in-process. With multiple workers, each runs its own scheduler. The `fcntl` file lock prevents duplicate sends on a single machine but doesn't help across machines.
+- **Fix:** Document the limitation clearly. Recommend single-worker deployment for newsletter scheduling, or external scheduler (cron, Celery beat).
+
+#### 4.6 Improve Backup Path Resolution
+- **Priority:** Low
+- **Files:** `backup.py`
+- **Problem:** `get_db_path()` returns `"instance/blog.db"` relative to CWD, not `app.instance_path`.
+- **Fix:** Add `--db` CLI argument for explicit path. Fall back to `"instance/blog.db"` for backward compatibility.
 
 ---
 
-*Created: 2026-04-02*
-*Sources: plan2.md, plan4.md, plan5.md, plan6.md (removed after consolidation)*
+## Wave 5: Split admin.py (Large Refactor)
+
+#### 5.1 Split `admin.py` into Route Modules
+- **Priority:** Medium
+- **Effort:** Large
+- **Files:** `app/routes/admin.py` → `app/routes/admin/` package
+- **Problem:** `admin.py` is 1556 lines. Hard to navigate, increases merge conflicts.
+- **Fix:** Convert to package:
+  - `app/routes/admin/__init__.py` — Blueprint registration, `admin_required`, shared helpers
+  - `app/routes/admin/auth.py` — login, logout
+  - `app/routes/admin/posts.py` — dashboard, new_post, edit_post, delete_post, bulk_operations, preview
+  - `app/routes/admin/subscribers.py` — subscribers, delete, export, bulk
+  - `app/routes/admin/tags.py` — tags_list, create, rename, delete
+  - `app/routes/admin/users.py` — users_list, create, delete, change_password
+  - `app/routes/admin/sessions.py` — sessions_list, revoke_session
+  - `app/routes/admin/media.py` — media, upload, delete
+  - `app/routes/admin/backup.py` — backup CRUD
+  - `app/routes/admin/analytics.py` — analytics
+  - `app/routes/admin/newsletter.py` — newsletter_test
+- **Shared helpers** (`_save_image`, `_detect_image_type`, `_generate_unique_slug`, `_get_posts_query`, `_get_analytics_data`, `_cleanup_orphan_tags`, `_get_or_create_tags`, `_apply_post_updates`, `_categorize_referrer`, `_check_password_complexity`, `_get_backup_dir`) stay in `__init__.py` or a new `helpers.py`.
+- **Test:** Full test suite must pass. Verify all admin routes still work.
+
+---
+
+## Deferred / Explicitly Not Doing
+
+| Item | Reason |
+|------|--------|
+| Password hashing migration (Argon2/bcrypt) | Current PBKDF2 is acceptable for this use case |
+| Application-level rate limiting | Explicitly rejected — handled by reverse proxy (see AGENTS.md) |
+| Celery/Redis distributed task queue | Major architectural change; overkill for single-worker blog |
+| Redis-backed sessions | Adds infrastructure dependency unnecessarily |
+| Architecture Decision Records (ADRs) | Design decisions already documented in AGENTS.md |
+| Full type hints across codebase | Good hygiene but not critical; can be done incrementally |
+| `__all__` exports | Minor; wildcard imports shouldn't be used anyway |
+| `db.engine.dispose()` on shutdown | OS cleans up SQLite file handles on process exit |
+| FTS5 full special character escaping | Current quote-wrapping + LIKE fallback handles most cases |
+| CSV export robustness improvements | Current implementation sufficient for real-world data |
+| localStorage quota handling for drafts | Edge case (5-10MB quota); can add if users report issues |
+| Newsletter fake subscriber improvement | Works but brittle; low priority |
+
+---
+
+## Implementation Order Summary
+
+| Wave | Description | Parallelizable? |
+|------|-------------|-----------------|
+| **1A** | Backend critical (busy_timeout, upload size, SMTP, caches, hardcoded year, redundant exception) | Yes — 6 sub-agents |
+| **1B** | Frontend critical (CSP nonce) | Yes — runs parallel to 1A |
+| **2A** | Backend/Route fixes (tag validation, csrf_exempt, test cache) | Yes — 3 sub-agents |
+| **2B** | Frontend UX (select-all, tag hero, modal focus, editor warning, reading progress) | Yes — 5 sub-agents |
+| **3A** | CSS & Visual (emoji→SVG, CSS vars, accent borders, contrast, search shift, share buttons) | Yes — 6 sub-agents |
+| **3B** | Template & Content (empty state, meta desc, image skeleton, keyboard nav, filter loading) | Yes — 5 sub-agents |
+| **3C** | Admin Enhancements (bulk loading, admin footer, trend indicators) | Yes — 3 sub-agents |
+| **4A** | New Tests (backup, multi-user, search, email) | Yes — 4 sub-agents |
+| **4B** | Documentation (scheduler docs, backup path) | Yes — 2 sub-agents |
+| **5** | Split admin.py (large refactor) | No — do last to avoid conflicts |
+
+**Waves 1–4 can be executed in parallel within each wave. Wave 5 must be done last.**

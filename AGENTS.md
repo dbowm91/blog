@@ -31,6 +31,7 @@ app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
 app/email.py            # SMTP email sending (with TLS via ssl.create_default_context)
 app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown rendering
+app/csv_utils.py        # Subscriber CSV export with formula injection prevention
 DEPLOY.md               # Deployment guide
 ```
 
@@ -82,7 +83,6 @@ DEPLOY.md               # Deployment guide
 - The `validate_csrf_token()` in `__init__.py` checks both form data (`csrf_token`) and HTTP header (`X-CSRF-Token`)
 - `main.js` sends `X-CSRF-Token` header for the `/api/track-share` JSON endpoint (reads from `<meta name="csrf-token">`)
 - The `before_request` handler in `__init__.py` handles both CSRF validation and session timeout
-- The handler checks for `_csrf_exempt` attribute on view functions (currently unused by any route)
 
 ### Configuration
 - `config.toml` for site settings (title, author, email, etc.)
@@ -310,7 +310,7 @@ All image uploads validated against 10MB limit. Magic byte detection rejects fil
 Admin sessions expire after inactivity (default 24 hours, configurable via `session_lifetime_hours`). Timeout checked on every request in `before_request` handler. Session extended on activity.
 
 ### CSS Variable Deduplication
-The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `--text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
+The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.
 
 ### CSV Export
 CSV generation is handled by `generate_subscribers_csv()` in `app/csv_utils.py`. Both `export_subscribers()` and `subscribers_bulk()` use this shared utility. Cells starting with `=`, `+`, `-`, `@` are prefixed with `'` to prevent CSV formula injection.
@@ -340,6 +340,15 @@ Lazy images use `opacity: 0` by default and JS adds `.loaded` class. Without a `
 
 ### Admin Page Detection in JS
 The `<body>` in `admin/base.html` has `class="admin-body"`. Use `document.body.classList.contains('admin-body')` to scope JS handlers that should only run on admin pages (keyboard shortcuts, vim navigation, modal handlers). Public pages should not have admin-specific behavior.
+
+### Mobile Menu Toggle
+The mobile hamburger menu button is **created dynamically in JavaScript** (`main.js` lines 148-191), not in HTML templates. It toggles `.open` class on `.nav-links`, swaps icons, and closes on outside click and Escape key. The CSS class `.mobile-menu-toggle` exists in `style.css` but the button element is injected by JS.
+
+### `ConnectionError` is Subclass of `OSError`
+`ConnectionError` inherits from `OSError`. Do not catch both in the same except clause — `ConnectionError` is redundant when `OSError` is already caught.
+
+### Reading Progress Bar
+The `.reading-progress` div exists in `base.html` but has **no JavaScript driver** — it is a placeholder element with CSS transition but no scroll-tracking logic. If implementing a reading progress bar, add JS to update its width based on scroll position.
 
 ## Assets
 
@@ -520,5 +529,3 @@ The `set_security_headers` after-request handler sets:
 - Each request gets a unique 8-char hex ID (`g.request_id`)
 - Log format includes `[%(request_id)s]` for correlating log entries per request
 - `RequestIdFilter` in `configure_logging()` safely handles missing request context
-
-
