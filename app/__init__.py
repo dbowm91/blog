@@ -350,6 +350,9 @@ def create_app():
         except OperationalError:
             db.session.rollback()
 
+        db.session.commit()
+        db.session.expire_all()
+
     configure_logging(app)
 
     from app.scheduler import init_scheduler

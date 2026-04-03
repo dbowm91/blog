@@ -1,3 +1,13 @@
+"""APScheduler newsletter scheduler with file locking.
+
+Multi-worker limitation:
+    The scheduler runs in-process with fcntl file locks to prevent duplicate
+    newsletter sends on a single machine. This does NOT protect across multiple
+    machines (e.g., container clusters). For multi-machine deployments, use an
+    external scheduler (cron, Celery Beat) or distributed lock (Redis, etcd).
+    See DEPLOY.md section 4 for details.
+"""
+
 import os
 from typing import Optional, TYPE_CHECKING
 

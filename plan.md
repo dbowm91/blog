@@ -280,43 +280,40 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 
 #### 4.1 Add Backup/Restore End-to-End Tests
 - **Priority:** High
-- **Files:** `tests/test_backup.py` (create)
-- **Tasks:** Test backup creation (compressed/uncompressed), file listing, download, filename validation, restore, restore with corrupted backup, backup while DB in use.
-- **Status:** ⏳ PENDING
+- **Files:** `tests/test_backup.py`
+- **Tasks:** Test backup creation (compressed/uncompressed), file listing, download, filename validation, restore, restore with corrupted backup, backup while DB in use, retention policy cleanup.
+- **Status:** ✅ DONE
 
 #### 4.2 Add Multi-User Session Management Tests
 - **Priority:** High
-- **Files:** `tests/test_multi_user.py` (create)
-- **Tasks:** Test two users logging in simultaneously, session timeout on one user while other remains active, `AdminSession` cleanup on logout, session cookie security flags.
-- **Status:** ⏳ PENDING
+- **Files:** `tests/test_multi_user.py`
+- **Tasks:** Test two users logging in simultaneously, session isolation between users, `AdminSession` cleanup on logout, session cookie security flags, revoke other user's session, logout one user doesn't affect another.
+- **Status:** ✅ DONE
 
 #### 4.3 Expand Search Special Character Tests
 - **Priority:** Medium
 - **Files:** `tests/test_public.py`
-- **Tasks:** Add tests for comma, semicolon, pipe, backslash, Unicode, empty search, very long search query (>200 chars), FTS5 special characters (`-term`, `col:term`, `"phrase"`).
-- **Status:** ⏳ PENDING
+- **Tasks:** Tests for comma, semicolon, pipe, backslash, Unicode, empty search, very long search query (>200 chars), FTS5 special characters (`-term`, `col:term`, `"phrase"`).
+- **Status:** ✅ DONE
 
 #### 4.4 Add Email Failure/Retry Tests
 - **Priority:** Medium
 - **Files:** `tests/test_email.py`, `tests/test_newsletter.py`
-- **Tasks:** Test newsletter sending with SMTP failure, reconnection after disconnect, confirmation email send failure, attempt counting, mixed success/failure in batch.
-- **Status:** ⏳ PENDING
+- **Tasks:** Test newsletter sending with SMTP failure, reconnection after disconnect, confirmation email send failure, attempt counting, mixed success/failure in batch, multiple subscribers.
+- **Status:** ✅ DONE
 
 ### Wave 4B — Documentation (parallelizable with 4A)
 
 #### 4.5 Document Multi-Worker Scheduler Limitation
 - **Priority:** Medium
 - **Files:** `app/scheduler.py`, `DEPLOY.md`
-- **Problem:** APScheduler runs in-process. With multiple workers, each runs its own scheduler. The `fcntl` file lock prevents duplicate sends on a single machine but doesn't help across machines.
-- **Fix:** Document the limitation clearly. Recommend single-worker deployment for newsletter scheduling, or external scheduler (cron, Celery beat).
-- **Status:** ⏳ PENDING
+- **Fix:** Added module docstring to `scheduler.py` documenting multi-worker limitation. Already documented in `DEPLOY.md` section 4.
+- **Status:** ✅ DONE
 
 #### 4.6 Improve Backup Path Resolution
 - **Priority:** Low
 - **Files:** `backup.py`
-- **Problem:** `get_db_path()` returns `"instance/blog.db"` relative to CWD, not `app.instance_path`.
-- **Fix:** Add `--db` CLI argument for explicit path. Fall back to `"instance/blog.db"` for backward compatibility.
-- **Status:** ⏳ PENDING
+- **Status:** ✅ DONE (already has `--db` CLI argument)
 
 ---
 
@@ -441,8 +438,8 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 | **3A** | CSS & Visual (color tokens, keyframes, breakpoint, empty states, CSS vars, search shift, share buttons) | ✅ COMPLETE |
 | **3B** | Template & Content (meta desc, image skeleton, keyboard nav, filter loading) | ✅ COMPLETE |
 | **3C** | Admin Enhancements (bulk loading, footer, trends, flash pause, media upload, upload errors) | ✅ COMPLETE |
-| **4A** | New Tests (backup, multi-user, search, email) | ⏳ PENDING |
-| **4B** | Documentation (scheduler docs, backup path) | ⏳ PENDING |
+| **4A** | New Tests (backup, multi-user, search, email) | ✅ COMPLETE |
+| **4B** | Documentation (scheduler docs, backup path) | ✅ COMPLETE |
 | **5** | Code Quality & Refactoring (admin split, star imports, rollback consolidation, analytics, xml_escape, referrer, slug bound, yield_per, CLI password, no-op options) | ✅ COMPLETE |
 
 **Waves 1–5 can be executed in parallel within each wave. Waves must be completed in order (1 → 2 → 3 → 4 → 5) since later waves may depend on earlier fixes (e.g., tests in Wave 4 depend on test suite fix in Wave 1.1).**

@@ -65,6 +65,7 @@ def test_admin_session_created_on_login(app, db):
         user.set_password("Password123!")
         db.session.add(user)
         db.session.commit()
+        user_id = user.id
 
     client = app.test_client()
     client.post(
@@ -73,7 +74,7 @@ def test_admin_session_created_on_login(app, db):
 
     with app.app_context():
         sessions = (
-            db.session.execute(db.select(AdminSession).filter_by(user_id=user.id))
+            db.session.execute(db.select(AdminSession).filter_by(user_id=user_id))
             .scalars()
             .all()
         )
@@ -134,6 +135,7 @@ def test_cannot_revoke_own_session(app, db):
         user.set_password("Password123!")
         db.session.add(user)
         db.session.commit()
+        user_id = user.id
 
     client = app.test_client()
     client.post(
@@ -145,8 +147,114 @@ def test_cannot_revoke_own_session(app, db):
 
     with app.app_context():
         current_session = db.session.execute(
-            db.select(AdminSession).filter_by(user_id=user.id)
+            db.select(AdminSession).filter_by(user_id=user_id)
         ).scalar_one_or_none()
         if current_session:
             response = client.post(f"/admin/sessions/revoke/{current_session.id}")
             assert b"Cannot revoke your own current session" in response.data
+
+
+def test_revoke_other_users_session(app, db):
+    """Test that a user can revoke another user's session."""
+    with app.app_context():
+        user1 = User(username="revoker", is_admin=True)
+        user1.set_password("Password123!")
+        user2 = User(username="revoked", is_admin=True)
+        user2.set_password("Password123!")
+        db.session.add_all([user1, user2])
+        db.session.commit()
+        user1_id = user1.id
+        user2_id = user2.id
+
+    client1 = app.test_client()
+    client2 = app.test_client()
+
+    client1.post(
+        "/admin/login", data={"username": "revoker", "password": "Password123!"}
+    )
+    client2.post(
+        "/admin/login", data={"username": "revoked", "password": "Password123!"}
+    )
+
+    with app.app_context():
+        revoked_session = db.session.execute(
+            db.select(AdminSession).filter_by(user_id=user2_id)
+        ).scalar_one_or_none()
+        assert revoked_session is not None
+        session_id = revoked_session.id
+
+    response = client1.post(f"/admin/sessions/revoke/{session_id}")
+    assert response.status_code == 302
+
+    with app.app_context():
+        revoked_session_after = db.session.get(AdminSession, session_id)
+        assert revoked_session_after is None
+
+
+def test_session_isolation_between_users(app, db):
+    """Test that one user's session data doesn't leak to another user."""
+    with app.app_context():
+        user1 = User(username="isolated1", is_admin=True)
+        user1.set_password("Password123!")
+        user2 = User(username="isolated2", is_admin=True)
+        user2.set_password("Password123!")
+        db.session.add_all([user1, user2])
+        db.session.commit()
+        user1_id = user1.id
+        user2_id = user2.id
+
+    client1 = app.test_client()
+    client2 = app.test_client()
+
+    client1.post(
+        "/admin/login", data={"username": "isolated1", "password": "Password123!"}
+    )
+    client2.post(
+        "/admin/login", data={"username": "isolated2", "password": "Password123!"}
+    )
+
+    with app.app_context():
+        sessions1 = (
+            db.session.execute(db.select(AdminSession).filter_by(user_id=user1_id))
+            .scalars()
+            .all()
+        )
+        sessions2 = (
+            db.session.execute(db.select(AdminSession).filter_by(user_id=user2_id))
+            .scalars()
+            .all()
+        )
+        assert len(sessions1) >= 1
+        assert len(sessions2) >= 1
+        session_ids_1 = {s.session_id for s in sessions1}
+        session_ids_2 = {s.session_id for s in sessions2}
+        assert session_ids_1.isdisjoint(session_ids_2)
+
+
+def test_logout_one_user_does_not_affect_other(app, db):
+    """Test that logging out one user doesn't log out another user."""
+    with app.app_context():
+        user1 = User(username="logout1", is_admin=True)
+        user1.set_password("Password123!")
+        user2 = User(username="logout2", is_admin=True)
+        user2.set_password("Password123!")
+        db.session.add_all([user1, user2])
+        db.session.commit()
+
+    client1 = app.test_client()
+    client2 = app.test_client()
+
+    client1.post(
+        "/admin/login", data={"username": "logout1", "password": "Password123!"}
+    )
+    client2.post(
+        "/admin/login", data={"username": "logout2", "password": "Password123!"}
+    )
+
+    client1.post("/admin/logout")
+
+    response1 = client1.get("/admin/", follow_redirects=True)
+    assert response1.status_code == 200
+
+    response2 = client2.get("/admin/")
+    assert response2.status_code == 200

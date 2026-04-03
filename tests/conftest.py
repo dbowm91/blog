@@ -32,10 +32,12 @@ def app(tmp_path_factory):
 def db(app):
     """Create database tables for each test."""
     with app.app_context():
+        _db.session.remove()
         _db.create_all()
         yield _db
-        _db.session.rollback()
+        _db.session.remove()
         _db.drop_all()
+        _db.session.remove()
 
 
 @pytest.fixture(scope="function")
