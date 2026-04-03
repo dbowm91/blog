@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}#{{ tag.name }} | {{ site_title }}{% endblock %}
+{% block meta_description %}Posts tagged with {{ tag.name }}{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -9,19 +10,19 @@
     <span class="breadcrumb-current">#{{ tag.name }}</span>
 </nav>
 
-<div class="content-layout">
-    <div class="tag-hero animate-in">
-        <h1><span class="tag-prefix">#</span>{{ tag.name }}</h1>
-        <p>{{ total_posts }} post{% if total_posts != 1 %}s{% endif %}</p>
-    </div>
+<div class="tag-hero animate-in">
+    <h1><span class="tag-prefix">#</span>{{ tag.name }}</h1>
+    <p>{{ total_posts }} post{% if total_posts != 1 %}s{% endif %}</p>
+</div>
 
+<div class="content-layout">
     <section class="posts-list">
-        {% for post in posts %}
-            <article class="post-card animate-in">
+            {% for post in posts %}
+            <article class="post-card animate-in" tabindex="0" role="link">
                 {% if post.image %}
-                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
+                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
                 {% else %}
-                    <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
+                    <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
                 {% endif %}
                 <div class="post-card-body">
                     <div class="post-meta">

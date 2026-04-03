@@ -50,7 +50,7 @@ from app.cache import invalidate_tag_cache
 from app.search import sync_fts, remove_fts
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-TAG_NAME_REGEX = re.compile(r"^[\w\s-]+$")
+TAG_NAME_REGEX = re.compile(r"^[a-zA-Z0-9\s\-]+$")
 BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 _analytics_cache = {}
 _analytics_cache_lock = threading.Lock()
 _ANALYTICS_CACHE_TTL = 300
+_ANALYTICS_MAX_SIZE = 16
 
 
 def _categorize_referrer(url):
@@ -197,6 +198,11 @@ def _get_analytics_data(days: int):
     }
 
     with _analytics_cache_lock:
+        if len(_analytics_cache) >= _ANALYTICS_MAX_SIZE:
+            oldest = min(
+                _analytics_cache, key=lambda k: _analytics_cache[k]["timestamp"]
+            )
+            del _analytics_cache[oldest]
         _analytics_cache[cache_key] = {"timestamp": now, "data": data}
 
     return data
@@ -205,7 +211,12 @@ def _get_analytics_data(days: int):
 def validate_tag_name(name: str) -> tuple[bool, str]:
     """Validate tag name against allowed pattern. Returns (is_valid, error_message)."""
     if not name or not TAG_NAME_REGEX.match(name):
-        return False, "Invalid tag name."
+        return (
+            False,
+            "Invalid tag name. Use only ASCII letters, numbers, spaces, and hyphens.",
+        )
+    if len(name) > 50:
+        return False, "Tag name must be 50 characters or fewer."
     return True, ""
 
 
@@ -441,6 +452,25 @@ def dashboard() -> Response:
         or 0
     )
 
+    views_trend = None
+    views_this_period = total_views
+    thirty_days_ago = utc_now() - timedelta(days=30)
+    sixty_days_ago = utc_now() - timedelta(days=60)
+    views_last_period = (
+        db.session.execute(
+            select(func.count(PageView.id)).filter(
+                PageView.created_at >= sixty_days_ago,
+                PageView.created_at < thirty_days_ago,
+            )
+        ).scalar_one()
+        or 0
+    )
+    if views_last_period > 0:
+        change = ((views_this_period - views_last_period) / views_last_period) * 100
+        views_trend = round(change, 1)
+    elif views_this_period > 0:
+        views_trend = 100.0
+
     return render_template(
         "admin/dashboard.html",
         posts=posts,
@@ -453,6 +483,7 @@ def dashboard() -> Response:
         total_subscribers=total_subscribers,
         trending=trending,
         new_this_month=new_this_month,
+        views_trend=views_trend,
         q=q,
         status=status,
     )

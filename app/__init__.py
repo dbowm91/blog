@@ -3,11 +3,27 @@ import time
 import secrets
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, render_template, redirect, url_for, request as req, flash, session, g
+from flask import (
+    Flask,
+    render_template,
+    redirect,
+    url_for,
+    request as req,
+    flash,
+    session,
+    g,
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import current_user, logout_user
+from sqlalchemy import event
 from app.extensions import db, login_manager, migrate
-from app.config import SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SESSION_LIFETIME_HOURS
+from app.config import (
+    SECRET_KEY,
+    ADMIN_USERNAME,
+    ADMIN_PASSWORD,
+    SESSION_LIFETIME_HOURS,
+    MAX_UPLOAD_SIZE,
+)
 from app.csrf import generate_csrf_token, validate_csrf_token
 from sqlalchemy import select, text
 
@@ -17,31 +33,32 @@ def configure_logging(app):
 
     class RequestIdFilter(logging.Filter):
         """Inject request_id into log records."""
+
         def filter(self, record):
             try:
-                record.request_id = getattr(g, 'request_id', '-')
+                record.request_id = getattr(g, "request_id", "-")
             except RuntimeError:
-                record.request_id = '-'
+                record.request_id = "-"
             return True
 
     if not app.debug and not app.testing:
-        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
         os.makedirs(log_dir, exist_ok=True)
 
         file_handler = RotatingFileHandler(
-            os.path.join(log_dir, 'blog.log'),
-            maxBytes=10240000,
-            backupCount=10
+            os.path.join(log_dir, "blog.log"), maxBytes=10240000, backupCount=10
         )
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s [%(request_id)s] %(message)s [in %(pathname)s:%(lineno)d]'
-        ))
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s [%(request_id)s] %(message)s [in %(pathname)s:%(lineno)d]"
+            )
+        )
         file_handler.addFilter(RequestIdFilter())
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
 
         app.logger.setLevel(logging.INFO)
-        app.logger.info('Blog startup')
+        app.logger.info("Blog startup")
 
 
 def create_app():
@@ -54,6 +71,7 @@ def create_app():
             "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
         )
     from app.config import _validate_config, _config as _raw_config
+
     _validate_config(_raw_config)
 
     app = Flask(__name__, instance_relative_config=True)
@@ -66,7 +84,7 @@ def create_app():
     db_path = os.path.join(app.instance_path, "blog.db")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1024 * 1024
     app.config["SESSION_COOKIE_SECURE"] = not app.debug
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -75,10 +93,12 @@ def create_app():
 
     db.init_app(app)
 
-    with app.app_context():
-        db.session.execute(text("PRAGMA journal_mode=WAL"))
-        db.session.execute(text("PRAGMA busy_timeout=5000"))
-        db.session.commit()
+    @event.listens_for(db.engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
 
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -94,24 +114,43 @@ def create_app():
     @app.errorhandler(404)
     def not_found(e):
         from app.models import Post
-        recent_posts = db.session.execute(
-            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(5)
-        ).scalars().all()
+
+        recent_posts = (
+            db.session.execute(
+                select(Post)
+                .filter_by(published=True)
+                .order_by(Post.created_at.desc())
+                .limit(5)
+            )
+            .scalars()
+            .all()
+        )
         return render_template("404.html", recent_posts=recent_posts), 404
 
     @app.errorhandler(500)
     def internal_error(e):
         from app.models import Post
+
         db.session.rollback()
         app.logger.exception("Unhandled exception on %s", req.path)
-        recent_posts = db.session.execute(
-            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(5)
-        ).scalars().all()
+        recent_posts = (
+            db.session.execute(
+                select(Post)
+                .filter_by(published=True)
+                .order_by(Post.created_at.desc())
+                .limit(5)
+            )
+            .scalars()
+            .all()
+        )
         return render_template("500.html", recent_posts=recent_posts), 500
 
     @app.errorhandler(413)
     def handle_large_request(e):
-        flash("File too large. Maximum upload size is 16MB.", "error")
+        flash(
+            f"File too large. Maximum upload size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
+            "error",
+        )
         return redirect(req.referrer or url_for("admin.dashboard"))
 
     import nh3
@@ -121,7 +160,9 @@ def create_app():
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text):
         html = markdown.markdown(text, extensions=["fenced_code", "tables"])
-        return nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
+        return nh3.clean(
+            html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
+        )
 
     @app.template_filter("reading_time")
     def reading_time_filter(text):
@@ -143,12 +184,7 @@ def create_app():
 
         # CSRF validation for POST requests
         if req.method == "POST":
-            endpoint = req.endpoint or ""
-            view_func = app.view_functions.get(endpoint)
-            if view_func and getattr(view_func, "_csrf_exempt", False):
-                pass
-            else:
-                validate_csrf_token()
+            validate_csrf_token()
 
         # Session timeout check for authenticated users
         # Uses custom sliding expiration based on last_activity stored in session.
@@ -167,6 +203,7 @@ def create_app():
                     sid = session.pop("admin_session_id", None)
                     if sid:
                         from app.models import AdminSession
+
                         admin_session = db.session.execute(
                             select(AdminSession).filter_by(session_id=sid)
                         ).scalar_one_or_none()
@@ -181,16 +218,21 @@ def create_app():
     @app.after_request
     def set_security_headers(response):
         from flask import current_app
-        nonce = getattr(g, 'csp_nonce', '')
+
+        nonce = getattr(g, "csp_nonce", "")
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["X-Download-Options"] = "noopen"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
         if not current_app.debug:
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
         response.headers["Content-Security-Policy"] = (
             f"default-src 'self'; "
             f"style-src 'self' 'nonce-{nonce}'; "
@@ -208,12 +250,21 @@ def create_app():
 
     @app.context_processor
     def inject_csrf():
-        nonce = getattr(g, 'csp_nonce', '')
+        nonce = getattr(g, "csp_nonce", "")
         return {"csrf_token": generate_csrf_token(), "csp_nonce": nonce}
 
     @app.context_processor
     def inject_config():
-        from app.config import APP_TITLE, APP_DESCRIPTION, AUTHOR_NAME, AUTHOR_ROLE, AUTHOR_AVATAR, BASE_URL
+        from datetime import datetime
+        from app.config import (
+            APP_TITLE,
+            APP_DESCRIPTION,
+            AUTHOR_NAME,
+            AUTHOR_ROLE,
+            AUTHOR_AVATAR,
+            BASE_URL,
+        )
+
         return {
             "site_title": APP_TITLE,
             "site_description": APP_DESCRIPTION,
@@ -221,7 +272,7 @@ def create_app():
             "author_role": AUTHOR_ROLE,
             "author_avatar": AUTHOR_AVATAR,
             "base_url": BASE_URL,
-            "current_year": 2026,
+            "current_year": datetime.now().year,
         }
 
     @app.context_processor
@@ -229,11 +280,21 @@ def create_app():
         from datetime import datetime
         from app.models import Post, Tag
         from app.cache import _get_tag_counts
+
         try:
-            recent_posts = db.session.execute(
-                select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(3)
-            ).scalars().all()
-            footer_tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+            recent_posts = (
+                db.session.execute(
+                    select(Post)
+                    .filter_by(published=True)
+                    .order_by(Post.created_at.desc())
+                    .limit(3)
+                )
+                .scalars()
+                .all()
+            )
+            footer_tags = (
+                db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+            )
             tag_counts = _get_tag_counts()
             return {
                 "recent_posts_footer": recent_posts,
@@ -250,8 +311,13 @@ def create_app():
     @app.context_processor
     def inject_show_footer_posts():
         from flask import request
+
         path = request.path
-        return {"show_footer_posts": not (path.startswith("/search") or path.startswith("/tag/"))}
+        return {
+            "show_footer_posts": not (
+                path.startswith("/search") or path.startswith("/tag/")
+            )
+        }
 
     with app.app_context():
         from app.models import User
@@ -259,7 +325,9 @@ def create_app():
         from sqlalchemy.exc import IntegrityError, OperationalError
 
         try:
-            existing_user = db.session.execute(db.select(User).order_by(User.id)).scalar_one_or_none()
+            existing_user = db.session.execute(
+                db.select(User).order_by(User.id)
+            ).scalar_one_or_none()
             if not existing_user:
                 user = User(username=ADMIN_USERNAME, is_admin=True)
                 user.set_password(ADMIN_PASSWORD)
@@ -283,6 +351,7 @@ def create_app():
     configure_logging(app)
 
     from app.scheduler import init_scheduler
+
     init_scheduler(app)
 
     import click
@@ -291,6 +360,7 @@ def create_app():
     def rebuild_search_command():
         """Rebuild the FTS5 search index."""
         from app.search import rebuild_fts
+
         rebuild_fts()
         click.echo("Search index rebuilt.")
 
@@ -298,11 +368,15 @@ def create_app():
     def create_admin_command():
         """Create a new admin user or promote an existing user."""
         import click
+
         username = click.prompt("Username")
         password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
 
         from app.models import User
-        existing = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
+
+        existing = db.session.execute(
+            select(User).filter_by(username=username)
+        ).scalar_one_or_none()
         if existing:
             existing.is_admin = True
             existing.set_password(password)

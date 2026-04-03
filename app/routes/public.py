@@ -305,7 +305,7 @@ def _try_send_confirmation(subscriber):
     try:
         send_confirmation(subscriber)
         return True
-    except (smtplib.SMTPException, ConnectionError, OSError):
+    except (smtplib.SMTPException, OSError):
         logger.exception("Failed to send confirmation email to %s", subscriber.email)
         return False
 

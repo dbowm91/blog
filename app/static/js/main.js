@@ -30,7 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Element references ---
     const navbar = document.querySelector(".navbar");
-    const progressBar = document.getElementById("reading-progress");
     
     // --- Back to top button ---
     const backToTop = document.createElement("button");
@@ -49,13 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (navbar) {
                 navbar.classList.toggle('navbar-shrunk', window.scrollY > 60);
-            }
-            
-            if (progressBar) {
-                const scrollTop = window.scrollY;
-                const docHeight = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-                const scrollPercent = (scrollTop / docHeight) * 100;
-                progressBar.style.width = `${Math.min(100, scrollPercent)}%`;
             }
             
             if (window.scrollY > 300) {
@@ -286,6 +278,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // --- Item 10: Keyboard navigation for post cards ---
+    document.querySelectorAll('.post-card[role="link"]').forEach(card => {
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const link = card.querySelector('a');
+                if (link) {
+                    e.preventDefault();
+                    link.click();
+                }
+            }
+        });
+        card.addEventListener('click', () => {
+            const link = card.querySelector('a');
+            if (link) {
+                link.click();
+            }
+        });
+    });
+
     // --- Item 8: Live Markdown Preview ---
     const bodyTextarea = document.getElementById('body');
     const previewDiv = document.getElementById('markdown-preview');
@@ -393,6 +404,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 localStorage.removeItem(draftKey);
             });
         }
+
+        // --- Item 7: Unsaved Changes Warning ---
+        let isDirty = false;
+        const initialValue = bodyTextarea.value;
+        const titleInput = document.getElementById('title');
+        const summaryInput = document.getElementById('summary');
+        const initialTitle = titleInput?.value || '';
+        const initialSummary = summaryInput?.value || '';
+
+        function checkDirty() {
+            const currentTitle = titleInput?.value || '';
+            const currentSummary = summaryInput?.value || '';
+            isDirty = bodyTextarea.value !== initialValue ||
+                       currentTitle !== initialTitle ||
+                       currentSummary !== initialSummary;
+        }
+
+        bodyTextarea.addEventListener('input', checkDirty);
+        titleInput?.addEventListener('input', checkDirty);
+        summaryInput?.addEventListener('input', checkDirty);
+
+        window.addEventListener('beforeunload', (e) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Clear warning on form submit
+        if (editorForm) {
+            editorForm.addEventListener('submit', () => {
+                isDirty = false;
+            });
+        }
     }
 
     // --- Item 10: Dark/Light Mode Toggle ---
@@ -448,10 +493,43 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Item 14: Bulk Select All ---
     const selectAllCheckbox = document.getElementById('select-all');
     if (selectAllCheckbox) {
+        const bulkActions = document.getElementById('bulk-actions');
+        const checkboxes = document.querySelectorAll('.bulk-checkbox');
+
+        function updateBulkActions() {
+            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+            bulkActions.classList.toggle('hidden', !anyChecked);
+        }
+
         selectAllCheckbox.addEventListener('change', () => {
-            document.querySelectorAll('.bulk-checkbox').forEach(cb => {
+            checkboxes.forEach(cb => {
                 cb.checked = selectAllCheckbox.checked;
             });
+            updateBulkActions();
+        });
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (!cb.checked) {
+                    selectAllCheckbox.checked = false;
+                } else {
+                    const allChecked = Array.from(checkboxes).every(c => c.checked);
+                    selectAllCheckbox.checked = allChecked;
+                }
+                updateBulkActions();
+            });
+        });
+    }
+
+    // --- Item 12: Bulk form submission loading overlay ---
+    const bulkForm = document.getElementById('bulk-form');
+    const bulkOverlay = document.getElementById('bulk-loading-overlay');
+    if (bulkForm && bulkOverlay) {
+        bulkForm.addEventListener('submit', () => {
+            bulkOverlay.classList.add('visible');
+        });
+        window.addEventListener('load', () => {
+            bulkOverlay.classList.remove('visible');
         });
     }
 
@@ -490,13 +568,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Dashboard filter select auto-submit ---
     document.querySelectorAll('.filter-select').forEach(select => {
         select.addEventListener('change', () => {
-            select.form.submit();
+            const form = select.form;
+            form.classList.add('loading');
+            form.submit();
         });
     });
 
     // --- Analytics select auto-submit ---
     document.querySelectorAll('[data-auto-submit]').forEach(select => {
         select.addEventListener('change', () => {
+            select.closest('form').classList.add('loading');
             window.location.href = '/admin/analytics?days=' + select.value;
         });
     });
@@ -602,6 +683,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 overlay.classList.add('hidden');
             }
         });
+    });
+
+    // --- Item 6: Modal Focus Trapping ---
+    let previousActiveElement = null;
+    const focusableSelectors = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('transitionend', () => {
+            if (!modal.classList.contains('hidden')) {
+                previousActiveElement = document.activeElement;
+                const focusable = modal.querySelector(focusableSelectors);
+                if (focusable) focusable.focus();
+            } else if (previousActiveElement) {
+                previousActiveElement.focus();
+                previousActiveElement = null;
+            }
+        });
+    });
+
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' || e.key === 'ShiftTab') {
+            const focusable = modal.querySelectorAll(focusableSelectors);
+            if (focusable.length === 0) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        }
     });
     } // end admin-body guard
 

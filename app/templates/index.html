@@ -11,11 +11,11 @@
     <div class="content-layout">
         <section class="posts-list">
             {% for post in posts %}
-                <article class="post-card animate-in">
-                    {% if post.image %}
-                        <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
-                    {% else %}
-                        <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
+                <article class="post-card animate-in" tabindex="0" role="link">
+                {% if post.image %}
+                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
+                {% else %}
+                    <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
                     {% endif %}
                     <div class="post-card-body">
                         <div class="post-meta">
@@ -36,7 +36,7 @@
                     </div>
                 </article>
             {% else %}
-                <p class="empty-state">No posts yet. Something is brewing...</p>
+                <p class="empty-state">No posts yet. Create your first one.</p>
             {% endfor %}
 
             {% if pagination.pages > 1 %}

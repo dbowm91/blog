@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 
+{% block title %}Search: {{ query }}{% endblock %}
+{% block meta_description %}Search results for {{ query }}{% endblock %}
+
 {% block content %}
     <section class="hero">
         <h1 class="hero-title">Search Results</h1>
@@ -15,11 +18,11 @@
     <div class="content-layout">
         <section class="posts-list">
             {% for post in posts %}
-                <article class="post-card animate-in">
-                    {% if post.image %}
-                        <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
-                    {% else %}
-                        <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img" loading="lazy" decoding="async" width="400" height="200">
+            <article class="post-card animate-in" tabindex="0" role="link">
+                {% if post.image %}
+                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
+                {% else %}
+                    <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
                     {% endif %}
                     <div class="post-card-body">
                         <div class="post-meta">

@@ -16,6 +16,9 @@
     <div class="stats-cards">
         <div class="stat-card stat-card-accent-views">
             <span class="stat-value">{{ total_views }}</span>
+            {% if views_trend is not none %}
+            <span class="stat-trend {% if views_trend > 0 %}trend-up{% elif views_trend < 0 %}trend-down{% endif %}">{% if views_trend > 0 %}+{% endif %}{{ views_trend }}%</span>
+            {% endif %}
             <span class="stat-label">Total Views</span>
         </div>
         <div class="stat-card stat-card-accent-posts">
@@ -50,6 +53,7 @@
     {% endif %}
 
     <div class="filter-bar">
+        <input type="checkbox" id="select-all" form="bulk-form" aria-label="Select all posts">
         <form method="GET" action="{{ url_for('admin.dashboard') }}" class="filter-form">
             <input type="text" name="q" placeholder="Search titles..." class="search-input" value="{{ q }}" aria-label="Search posts by title">
             <select name="status" class="filter-select" aria-label="Filter by status">
@@ -65,7 +69,6 @@
     <div class="bulk-actions hidden" id="bulk-actions">
         <form method="POST" action="{{ url_for('admin.bulk_operations') }}" id="bulk-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="checkbox" id="select-all" form="bulk-form" aria-label="Select all posts">
             <button type="submit" name="action" value="publish" class="btn btn-small btn-ghost" data-confirm-bulk="Publish selected posts?">Publish</button>
             <button type="submit" name="action" value="unpublish" class="btn btn-small btn-ghost" data-confirm-bulk="Unpublish selected posts?">Unpublish</button>
             <button type="submit" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected posts? This cannot be undone.">Delete</button>
@@ -139,33 +142,11 @@
     {% endif %}
 </div>
 
-<script>
-(function() {
-    const bulkActions = document.getElementById('bulk-actions');
-    const selectAll = document.getElementById('select-all');
-    const checkboxes = document.querySelectorAll('.bulk-checkbox');
+<div id="bulk-loading-overlay">
+    <div class="bulk-loading-content">
+        <div class="bulk-spinner"></div>
+        <p>Processing...</p>
+    </div>
+</div>
 
-    function updateBulkActions() {
-        const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
-        bulkActions.classList.toggle('hidden', !anyChecked);
-    }
-
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', () => {
-            if (!cb.checked) {
-                selectAll.checked = false;
-            } else {
-                const allChecked = Array.from(checkboxes).every(c => c.checked);
-                selectAll.checked = allChecked;
-            }
-            updateBulkActions();
-        });
-    });
-
-    selectAll.addEventListener('change', () => {
-        checkboxes.forEach(cb => cb.checked = selectAll.checked);
-        updateBulkActions();
-    });
-})();
-</script>
 {% endblock %}

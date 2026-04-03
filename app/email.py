@@ -120,10 +120,6 @@ def send_newsletter(posts, subscribers) -> bool:
                     "SMTP disconnected while sending to %s; reconnecting", sub.email
                 )
                 all_sent = False
-                try:
-                    server.quit()
-                except Exception:
-                    pass
                 server = _connect_smtp()
                 if not server:
                     logger.error(

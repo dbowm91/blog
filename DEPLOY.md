@@ -110,7 +110,13 @@ Worker tuning recommendations:
 
 Use `--workers 4` as a starting point. SQLite WAL mode allows concurrent reads; writes are serialized with a 5-second busy timeout.
 
-Important: the app uses in-process APScheduler with file locking (`fcntl`) to prevent duplicate newsletter sends across workers. This works on Linux. On Windows, APScheduler runs without file locking.
+**Newsletter Scheduler Limitation:** The app uses in-process APScheduler with file locking (`fcntl`) to prevent duplicate newsletter sends. This works on a single machine with multiple workers—only one worker will win the lock and send the newsletter. However, this does **not** protect against duplicate sends **across multiple machines** (e.g., multiple container instances). For multi-machine deployments, either:
+
+1. Run a single worker only (no multi-worker setup), or
+2. Use an external scheduler (cron, Celery Beat) instead of APScheduler, or
+3. Use a distributed lock mechanism (Redis, etcd) instead of `fcntl`
+
+For most single-server deployments, running with `--workers 1` for the newsletter scheduler is the simplest and safest approach.
 
 ## 5. Reverse Proxy Setup (nginx)
 
