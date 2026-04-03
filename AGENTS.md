@@ -353,7 +353,7 @@ Lazy images use `opacity: 0` by default and JS adds `.loaded` class. Without a `
 The `<body>` in `admin/base.html` has `class="admin-body"`. Use `document.body.classList.contains('admin-body')` to scope JS handlers that should only run on admin pages (keyboard shortcuts, vim navigation, modal handlers). Public pages should not have admin-specific behavior.
 
 ### Mobile Menu Toggle
-The mobile hamburger menu button is **created dynamically in JavaScript** (`main.js` lines 148-191), not in HTML templates. It toggles `.open` class on `.nav-links`, swaps icons, and closes on outside click and Escape key. The CSS class `.mobile-menu-toggle` exists in `style.css` but the button element is injected by JS.
+The mobile hamburger menu button is **created dynamically in JavaScript** (`main.js` lines 162-205), not in HTML templates. It toggles `.open` class on `.nav-links`, swaps icons, and closes on outside click and Escape key. The CSS class `.mobile-menu-toggle` exists in `style.css` but the button element is injected by JS.
 
 ### `ConnectionError` is Subclass of `OSError`
 `ConnectionError` inherits from `OSError`. Do not catch both in the same except clause — `ConnectionError` is redundant when `OSError` is already caught.
@@ -430,7 +430,6 @@ See `requirements.txt`. Key packages:
 The `set_security_headers` after-request handler sets:
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
-- `X-XSS-Protection: 1; mode=block`
 - `X-Download-Options: noopen`
 - `X-Permitted-Cross-Domain-Policies: none`
 - `Referrer-Policy: strict-origin-when-cross-origin`
@@ -560,3 +559,12 @@ The codebase already uses SVG data URI `background-image` for empty state icons 
 
 ### Admin Routes Already Split
 The admin routes are already organized as a package (`app/routes/admin/`) with separate modules for auth, posts, subscribers, tags, users, sessions, media, backup, analytics, and newsletter. Do not attempt to split them further.
+
+### Plan Consolidation
+The improvement plan was consolidated from multiple plan files into a single `plan.md` organized into parallelizable waves. When working on plan items, check `plan.md` for the current state. Original plan files in `plans/` have been removed.
+
+### File Reference Verification
+Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
+
+### `_generate_unique_slug` Location
+`_generate_unique_slug()` is in `app/routes/admin/helpers.py` at line 226 (not 230). It is called by `new_post()` and `edit_post()` in `app/routes/admin/posts.py`.
