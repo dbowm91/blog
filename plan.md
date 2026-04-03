@@ -162,7 +162,7 @@ Wave 3A (CSS/visual), 3B (template/content), and 3C (admin enhancements) are all
   - `padding: 16px` → `var(--space-md)`
 - **Caveat:** Leave `prism-okaidia.css` alone (third-party theme).
 - **Test:** Visual verification in both dark and light modes.
-- **Status:** ⏳ PENDING
+- **Status:** ✅ DONE
 
 #### 3.6 Fix Search Input Focus Layout Shift
 - **Priority:** Low
@@ -170,7 +170,7 @@ Wave 3A (CSS/visual), 3B (template/content), and 3C (admin enhancements) are all
 - **Problem:** Search input expands from 200px to 260px on focus, causing layout shift on mobile.
 - **Fix:** Cap the expansion: `width: 240px` on focus. On mobile (`max-width: 768px`), use `width: calc(100% - 80px)` to remove expansion.
 - **Test:** Verify no layout shift on mobile.
-- **Status:** ⏳ PENDING
+- **Status:** ✅ DONE
 
 #### 3.7 Improve Share Button Visual Hierarchy + Fix Color Flash Stacking
 - **Priority:** Low
@@ -361,7 +361,7 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 | **1B** | Frontend critical (modal focus trap) | ✅ COMPLETE |
 | **2A** | Backend/Route fixes (FTS5, scheduler, config) | ✅ COMPLETE |
 | **2B** | Frontend UX (contrast, editor warning, reading progress) | ✅ COMPLETE |
-| **3A** | CSS & Visual (color tokens, keyframes, breakpoint, empty states, CSS vars, search shift, share buttons) | ⚠️ PARTIAL (3.5, 3.6 pending) |
+| **3A** | CSS & Visual (color tokens, keyframes, breakpoint, empty states, CSS vars, search shift, share buttons) | ✅ COMPLETE |
 | **3B** | Template & Content (meta desc, image skeleton, keyboard nav, filter loading) | ✅ COMPLETE |
 | **3C** | Admin Enhancements (bulk loading, footer, trends, flash pause, media upload, upload errors) | ✅ COMPLETE |
 | **4A** | New Tests (backup, multi-user, search, email) | ⏳ PENDING |
@@ -392,8 +392,8 @@ Wave 4A (new tests) and 4B (documentation) are parallelizable.
 - **3.2** Duplicate @keyframes spin — DONE
 - **3.3** 960px breakpoint — DONE
 - **3.4** Empty state pattern — DONE
-- **3.5** CSS variable standardization — PENDING
-- **3.6** Search input focus shift — PENDING
+- **3.5** CSS variable standardization — DONE
+- **3.6** Search input focus shift — DONE
 - **3.7** Share button visual hierarchy — DONE (before this session)
 - **3.8** Meta descriptions — DONE (before this session)
 - **3.9** Image loading skeleton — DONE (before this session)

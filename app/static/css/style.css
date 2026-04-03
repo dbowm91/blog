@@ -94,7 +94,7 @@
     --space-xs: 4px;
     --space-sm: 8px;
     --space-md: 16px;
-    --space-md-sm: 12px;
+    --space-sm-md: 12px;
     --space-lg: 24px;
     --space-xl: 32px;
     --space-2xl: 48px;
@@ -183,7 +183,7 @@ a:hover {
 
 .nav-links {
     display: flex;
-    gap: 24px;
+    gap: var(--space-lg);
     align-items: center;
 }
 
@@ -363,15 +363,15 @@ a:hover {
 .content-layout {
     display: grid;
     grid-template-columns: 1fr 260px;
-    gap: 48px;
-    padding: 24px 0 64px;
+    gap: var(--space-2xl);
+    padding: var(--space-lg) 0 var(--space-3xl);
 }
 
 /* --- Post Cards (with image) --- */
 .posts-list {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--space-lg);
 }
 
 .post-card {
@@ -498,14 +498,14 @@ a:hover {
     align-self: start;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-md);
 }
 
 .sidebar-section {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 24px;
+    padding: var(--space-lg);
 }
 
 .sidebar-title {
@@ -620,7 +620,7 @@ a:hover {
     margin-bottom: 24px;
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     flex-wrap: wrap;
 }
 
@@ -695,12 +695,12 @@ a:hover {
 .author-card {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-md);
     padding: 20px;
     margin: 40px 0;
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
 }
 
 .author-avatar {
@@ -745,7 +745,7 @@ a:hover {
 .related-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
+    gap: var(--space-md);
 }
 
 .related-card {
@@ -1229,7 +1229,7 @@ a:hover {
     --red-dim: rgba(207, 34, 46, 0.15);
     --yellow: #9a6700;
     --radius-sm: 6px;
-    --space-md-sm: 12px;
+    --space-sm-md: 12px;
 }
 
 [data-theme="light"] .navbar {
@@ -1271,13 +1271,13 @@ a:hover {
 /* --- Filter Bar --- */
 .filter-bar {
     display: flex;
-    gap: 12px;
+    gap: var(--space-sm-md);
     flex-wrap: wrap;
     align-items: center;
     margin-bottom: 20px;
-    padding: 12px;
+    padding: var(--space-sm-md);
     background: var(--bg-surface);
-    border-radius: 8px;
+    border-radius: var(--radius);
 }
 
 .filter-form {
@@ -1428,7 +1428,7 @@ a:hover {
 .media-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
+    gap: var(--space-md);
 }
 
 .media-card {
@@ -1493,7 +1493,7 @@ a:hover {
 .editor-split {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: var(--space-md);
 }
 
 .editor-split textarea {
@@ -1552,7 +1552,7 @@ a:hover {
 
     .dashboard-header {
         flex-direction: column;
-        gap: 12px;
+        gap: var(--space-sm-md);
         align-items: flex-start;
     }
 
@@ -1663,9 +1663,9 @@ a:hover {
 
 .form-actions {
     display: flex;
-    gap: 12px;
+    gap: var(--space-sm-md);
     align-items: center;
-    margin-top: 24px;
+    margin-top: var(--space-lg);
 }
 
 /* --- Image Preview (editor) --- */
@@ -1742,8 +1742,8 @@ a:hover {
 .stats-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
 }
 
 .stat-card {
@@ -1889,7 +1889,7 @@ a:hover {
 .date-range-selector {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-sm-md);
 }
 
 .date-range-selector label {
@@ -1924,7 +1924,7 @@ a:hover {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 24px;
+    padding: var(--space-lg);
 }
 
 .analytics-card.full-width {
@@ -2055,7 +2055,7 @@ a:hover {
     .analytics-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 16px;
+        gap: var(--space-md);
     }
     
     .analytics-grid {
@@ -2126,7 +2126,7 @@ a:hover {
 
 .post-list-meta {
     display: flex;
-    gap: 12px;
+    gap: var(--space-sm-md);
     align-items: center;
     font-size: 0.78rem;
     color: var(--text-muted);
@@ -2140,9 +2140,9 @@ a:hover {
 
 .post-list-metrics {
     display: flex;
-    gap: 16px;
+    gap: var(--space-md);
     align-items: center;
-    margin: 0 24px;
+    margin: 0 var(--space-lg);
     flex-shrink: 0;
 }
 
@@ -2191,7 +2191,7 @@ a:hover {
 }
 .gap-xs { gap: 4px; }
 .gap-sm { gap: 8px; }
-.gap-md { gap: 16px; }
+.gap-md { gap: var(--space-md); }
 .items-center { align-items: center; }
 .ml-auto { margin-left: auto; }
 .mt-sm { margin-top: 0.5rem; }
@@ -2219,7 +2219,7 @@ a:hover {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 32px;
+    padding: var(--space-xl);
 }
 
 /* --- Empty State --- */
@@ -2436,7 +2436,7 @@ a:hover {
 
 .error-actions {
     display: flex;
-    gap: 12px;
+    gap: var(--space-sm-md);
     justify-content: center;
     flex-wrap: wrap;
 }
@@ -2505,7 +2505,7 @@ a:hover {
 .search-input:focus {
     outline: none;
     border-color: var(--accent);
-    width: 260px;
+    width: 240px;
 }
 
 .search-btn {
@@ -2782,6 +2782,10 @@ a:hover {
     .search-input {
         width: calc(100% - 80px);
     }
+    
+    .search-input:focus {
+        width: calc(100% - 80px);
+    }
 
     .post-card-img {
         height: 160px;
@@ -2798,7 +2802,7 @@ a:hover {
     .post-list-item {
         flex-direction: column;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--space-sm-md);
     }
 
     .post-list-metrics {
