@@ -58,7 +58,7 @@
     <div class="dashboard-section-header mt-lg">
         <h2>Create User</h2>
     </div>
-    <form method="POST" action="{{ url_for('admin.create_user') }}" class="filter-bar create-user-form">
+    <form method="POST" action="{{ url_for('admin.create_user') }}" class="filter-bar create-user-form" data-loading data-loading-text="Creating...">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="text" name="username" placeholder="Username" required maxlength="80" class="search-input" aria-label="Username">
         <input type="password" name="password" placeholder="Password" required minlength="8" class="search-input" aria-label="Password">

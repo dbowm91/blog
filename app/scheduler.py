@@ -9,6 +9,7 @@ Multi-worker limitation:
 """
 
 import os
+import threading
 from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import select
@@ -25,12 +26,12 @@ try:
 except ImportError:
     HAS_FCNTL = False
 
-_scheduler_running = False
+_scheduler_running = threading.Event()
 
 
 def get_scheduler_status() -> bool:
     """Return whether the scheduler is running."""
-    return _scheduler_running
+    return _scheduler_running.is_set()
 
 
 def send_daily_newsletter(app) -> None:
@@ -249,12 +250,10 @@ def init_scheduler(app) -> Optional["BackgroundScheduler"]:
         replace_existing=True,
     )
     scheduler.start()
-    global _scheduler_running
-    _scheduler_running = True
+    _scheduler_running.set()
 
     def _shutdown_scheduler():
-        global _scheduler_running
-        _scheduler_running = False
+        _scheduler_running.clear()
         scheduler.shutdown(wait=False)
 
     atexit.register(_shutdown_scheduler)

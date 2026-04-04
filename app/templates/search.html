@@ -6,7 +6,7 @@
 {% block content %}
     <section class="hero">
         <h1 class="hero-title">Search Results</h1>
-        <p class="hero-description" aria-live="polite" id="search-result-count">
+        <p class="hero-description" aria-live="polite" id="search-result-count" data-search-announce>
             {% if posts %}
                 Found {{ pagination.total }} result{{ 's' if pagination.total != 1 }} for "{{ query }}"
             {% else %}
@@ -43,7 +43,7 @@
             {% else %}
                 <div class="empty-state">
                     <h3>No posts match your search</h3>
-                    <p>Try different keywords or browse all posts.</p>
+                    <p>Try different keywords or <a href="{{ url_for('public.index') }}">browse all posts</a>.</p>
                 </div>
             {% endfor %}
 
@@ -62,14 +62,4 @@
 
         {% include "_sidebar.html" %}
     </div>
-<script nonce="{{ csp_nonce }}">
-(function() {
-    var el = document.getElementById('search-result-count');
-    if (el) {
-        var text = el.textContent.trim();
-        var live = document.getElementById('sr-announce');
-        if (live) live.textContent = text;
-    }
-})();
-</script>
 {% endblock %}

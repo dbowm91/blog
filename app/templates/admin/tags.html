@@ -9,7 +9,7 @@
     </div>
 
     <div class="tag-create-form">
-        <form method="POST" action="{{ url_for('admin.create_tag') }}" class="search-form">
+        <form method="POST" action="{{ url_for('admin.create_tag') }}" class="search-form" data-loading data-loading-text="Creating...">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="text" name="name" placeholder="New tag name..." class="search-input" required aria-label="New tag name" maxlength="50">
             <button type="submit" class="btn btn-primary btn-small">Create</button>

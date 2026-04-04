@@ -155,7 +155,7 @@ def _get_analytics_data(days: int):
     subscriber_stats = db.session.execute(
         select(
             func.count(Subscriber.id),
-            func.sum(func.cast(Subscriber.confirmed, db.Integer)),
+            func.sum(Subscriber.confirmed.cast(db.Integer)),
         )
     ).one()
     total_subscribers = subscriber_stats[0] or 0
@@ -224,8 +224,6 @@ def _allowed_file(filename):
 
 
 def _generate_unique_slug(title, exclude_id=None):
-    import uuid
-
     slug = Post.generate_slug(title)
     base_slug = slug
     counter = 2

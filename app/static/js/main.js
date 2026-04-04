@@ -9,6 +9,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // --- Search result announcement ---
+    const searchResultCount = document.querySelector('[data-search-announce]');
+    if (searchResultCount) {
+        announce(searchResultCount.textContent.trim());
+    }
+
     // --- Form confirmation via data-confirm attribute ---
     const confirmModal = document.getElementById('confirm-modal');
     const confirmModalTitle = document.getElementById('confirm-modal-title');
@@ -130,6 +136,21 @@ document.addEventListener("DOMContentLoaded", () => {
     if (shareBar) {
         const postId = shareBar.dataset.postId;
 
+        // Keyboard shortcut: 'c' to copy link (only on post pages, not in inputs)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'c' || e.key === 'C') {
+                const target = e.target;
+                const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+                if (!isInput) {
+                    const copyBtn = shareBar.querySelector('.share-btn[data-platform="copy"]');
+                    if (copyBtn) {
+                        e.preventDefault();
+                        copyBtn.click();
+                    }
+                }
+            }
+        });
+
         shareBar.querySelectorAll(".share-btn[data-platform]").forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 const platform = btn.dataset.platform;
@@ -155,15 +176,29 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                fetch("/api/track-share", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "",
-                    },
-                    body: JSON.stringify({ post_id: parseInt(postId), platform: platform }),
-                    keepalive: true,
-                }).catch(() => {});
+                const trackShare = () => {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+                    const formData = new FormData();
+                    formData.append('post_id', postId);
+                    formData.append('platform', platform);
+                    formData.append('csrf_token', csrfToken);
+
+                    if (navigator.sendBeacon) {
+                        navigator.sendBeacon('/api/track-share', formData);
+                    } else {
+                        const data = JSON.stringify({ post_id: parseInt(postId), platform: platform });
+                        fetch("/api/track-share", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRF-Token": csrfToken,
+                            },
+                            body: data,
+                            keepalive: true,
+                        }).catch(() => {});
+                    }
+                };
+                trackShare();
             });
         });
     }
@@ -555,6 +590,14 @@ document.addEventListener("DOMContentLoaded", () => {
         function updateBulkActions() {
             const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
             bulkActions.classList.toggle('hidden', !anyChecked);
+
+            const srAnnounce = document.getElementById('sr-announce');
+            if (anyChecked && srAnnounce) {
+                const form = document.getElementById('bulk-form');
+                const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                const itemType = form?.dataset.bulkSelect || 'item';
+                srAnnounce.textContent = `${checkedCount} ${itemType}${checkedCount === 1 ? '' : 's'} selected`;
+            }
         }
 
         selectAllCheckbox.addEventListener('change', () => {
@@ -590,13 +633,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- 5B.1: Loading state for admin forms ---
-    document.querySelectorAll('form.editor-form').forEach(form => {
+    document.querySelectorAll('form.editor-form, form[data-loading]').forEach(form => {
         form.addEventListener('submit', function(e) {
             const submitBtn = this.querySelector('button[type="submit"]');
             if (submitBtn && !submitBtn.disabled) {
                 submitBtn.disabled = true;
                 submitBtn.dataset.originalText = submitBtn.textContent;
-                submitBtn.textContent = 'Saving...';
+                const loadingText = this.dataset.loadingText || 'Saving...';
+                submitBtn.textContent = loadingText;
             }
         });
     });
@@ -930,17 +974,31 @@ document.addEventListener("DOMContentLoaded", () => {
         const url = link.href;
         if (!url || prefetchedUrls.has(url) || url.startsWith('mailto:') || url.startsWith('tel:')) return;
 
-        link.addEventListener('mouseenter', () => {
-            clearTimeout(prefetchTimer);
-            prefetchTimer = setTimeout(() => {
-                if (prefetchedUrls.has(url)) return;
-                prefetchedUrls.add(url);
-                const prefetch = document.createElement('link');
-                prefetch.rel = 'prefetch';
-                prefetch.href = url;
-                document.head.appendChild(prefetch);
-            }, 100);
-        }, { passive: true });
+        // Pagination links get immediate prefetch (no delay)
+        if (link.classList.contains('page-link')) {
+            link.addEventListener('mouseenter', () => {
+                if (!prefetchedUrls.has(url)) {
+                    prefetchedUrls.add(url);
+                    const prefetch = document.createElement('link');
+                    prefetch.rel = 'prefetch';
+                    prefetch.href = url;
+                    document.head.appendChild(prefetch);
+                }
+            }, { passive: true });
+        } else {
+            // Other links get delayed prefetch
+            link.addEventListener('mouseenter', () => {
+                clearTimeout(prefetchTimer);
+                prefetchTimer = setTimeout(() => {
+                    if (prefetchedUrls.has(url)) return;
+                    prefetchedUrls.add(url);
+                    const prefetch = document.createElement('link');
+                    prefetch.rel = 'prefetch';
+                    prefetch.href = url;
+                    document.head.appendChild(prefetch);
+                }, 100);
+            }, { passive: true });
+        }
     });
 
     // --- Nav dropdown toggle ---

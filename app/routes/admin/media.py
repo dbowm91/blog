@@ -1,4 +1,5 @@
 import os
+import heapq
 
 from flask import render_template, redirect, url_for, request, flash, abort, current_app
 from flask_login import login_required
@@ -19,6 +20,9 @@ def media():
     max_files = MEDIA_MAX_FILES
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     search = request.args.get("search", "", type=str).strip()
+
+    # Use heapq.nlargest to keep only the most recent max_files
+    # without loading all files into memory first
     all_files = []
     with os.scandir(upload_dir) as entries:
         for entry in entries:
@@ -27,16 +31,27 @@ def media():
             if search and search.lower() not in entry.name.lower():
                 continue
             stat = entry.stat()
-            all_files.append(
-                {
-                    "name": entry.name,
-                    "size": stat.st_size,
-                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
-                }
+            file_info = (
+                stat.st_mtime,
+                entry.name,
+                stat.st_size,
             )
-        all_files.sort(key=lambda f: f["mtime"], reverse=True)
-    if len(all_files) > max_files:
-        all_files = all_files[:max_files]
+            all_files.append(file_info)
+
+    # Sort by modification time (newest first) and limit to max_files
+    # Use heapq.nlargest to efficiently get the N most recent files
+    all_files = heapq.nlargest(max_files, all_files, key=lambda f: f[0])
+
+    # Convert back to dict format with timezone-aware datetime
+    all_files = [
+        {
+            "name": f[1],
+            "size": f[2],
+            "mtime": datetime.fromtimestamp(f[0], tz=timezone.utc),
+        }
+        for f in all_files
+    ]
+
     truncated = len(all_files) >= max_files
     total = len(all_files)
     start = (page - 1) * per_page

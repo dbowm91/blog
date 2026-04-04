@@ -183,6 +183,155 @@ The app sets `SESSION_COOKIE_SECURE = True` when `debug = False`, so HTTPS is ma
 
 The `ProxyFix` middleware (controlled by `PROXY_COUNT` env var, default 1) trusts `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` headers. Set `PROXY_COUNT=0` if running without a reverse proxy.
 
+## 6. Rate Limiting
+
+This codebase intentionally **does not include application-level rate limiting**. Rate limiting is expected to be handled by the reverse proxy, WAF, or CDN sitting in front of this application.
+
+### Recommended nginx Configuration
+
+Add rate limiting zones and apply them to specific endpoints:
+
+```nginx
+http {
+    # Rate limiting zones (10MB stores up to ~160k IPs)
+    limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
+    limit_req_zone $binary_remote_addr zone=admin:10m rate=20r/m;
+    limit_req_zone $binary_remote_addr zone=public:10m rate=100r/m;
+
+    server {
+        # ... existing SSL config ...
+
+        # Rate limit login endpoint (most sensitive)
+        location = /admin/login {
+            limit_req zone=login burst=5 nodelay;
+            limit_req_status 429;
+
+            proxy_pass http://127.0.0.1:5000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+        }
+
+        # Rate limit all other admin routes
+        location /admin/ {
+            limit_req zone=admin burst=5 nodelay;
+            limit_req_status 429;
+
+            proxy_pass http://127.0.0.1:5000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+        }
+
+        # Rate limit public routes (less restrictive)
+        location / {
+            limit_req zone=public burst=20 nodelay;
+            limit_req_status 429;
+
+            proxy_pass http://127.0.0.1:5000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+        }
+    }
+}
+```
+
+### Caddy Configuration
+
+```caddy
+# Global rate limiting
+{
+    rate_limit {
+        zone login {
+            key {remote_host}
+            events 5
+            window 1m
+        }
+        zone admin {
+            key {remote_host}
+            events 20
+            window 1m
+        }
+        zone public {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+}
+
+blog.example.com {
+    reverse_proxy 127.0.0.1:5000
+
+    # Login endpoint - most restrictive
+    @login_path path /admin/login
+    route @login_path {
+        rate_limit login
+    }
+
+    # Admin routes
+    @admin_path path /admin/*
+    route @admin_path {
+        rate_limit admin
+    }
+
+    # Public routes
+    route {
+        rate_limit public
+    }
+}
+```
+
+### Cloudflare WAF Configuration
+
+For Cloudflare, use a WAF custom rule to rate limit the login endpoint:
+
+1. Go to your Cloudflare dashboard → Security → WAF → Custom Rules
+2. Create a new rule with these settings:
+   - **Rule Name:** Rate Limit Login
+   - **Field:** URI Path
+   - **Operator:** equals
+   - **Value:** `/admin/login`
+   - **Then:** Choose rate limiting action (e.g., Managed Challenge)
+   - **Rate:** 5 requests per minute
+
+3. For broader admin protection, create another rule:
+   - **Rule Name:** Rate Limit Admin
+   - **Field:** URI Path
+   - **Operator:** starts with
+   - **Value:** `/admin/`
+   - **Then:** Managed Challenge or Rate Limit
+   - **Rate:** 20 requests per minute
+
+4. For public routes:
+   - **Rule Name:** Rate Limit Public
+   - **Field:** (none - applies to all requests)
+   - **Then:** Rate Limit
+   - **Rate:** 100 requests per minute
+
+### Why Application-Level Rate Limiting Is Not Included
+
+- **Already handled upstream:** A properly configured reverse proxy (nginx, Caddy, traefik) or cloud provider (Cloudflare, AWS WAF) provides mature, tested rate limiting
+- **Simplicity:** Application-level rate limiting adds complexity and overhead (in-memory state not shared across workers, memory growth concerns)
+- **Single responsibility:** The app focuses on its core function (blogging); infrastructure concerns like rate limiting belong at the infrastructure layer
+
+### Monitoring Rate Limits
+
+When rate limiting is configured at the proxy level, monitor these metrics:
+
+- **429 responses:** Count of HTTP 429 responses indicates users are hitting limits
+- **Rejected requests:** Most proxies log rejected requests (nginx logs show `limiting requests`)
+- **Abnormal patterns:** Sudden spikes in 429 responses may indicate abuse attacks
+
+
+
 ## 6. Systemd Service
 
 Create `/etc/systemd/system/blog.service`:

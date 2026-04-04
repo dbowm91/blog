@@ -1,4 +1,6 @@
 import os
+import time
+import threading
 
 from flask import (
     render_template,
@@ -36,6 +38,103 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, OperationalError
 from datetime import datetime, timedelta, timezone
+
+_dashboard_metrics_cache = {}
+_dashboard_metrics_cache_lock = threading.Lock()
+_DASHBOARD_METRICS_CACHE_TTL = 120
+
+
+def _get_dashboard_metrics():
+    """Get dashboard metrics with 2-minute cache."""
+    now = time.time()
+
+    with _dashboard_metrics_cache_lock:
+        cached = _dashboard_metrics_cache.get("metrics")
+        if cached and (now - cached["timestamp"]) < _DASHBOARD_METRICS_CACHE_TTL:
+            return cached["data"]
+
+    thirty_days_ago = utc_now() - timedelta(days=30)
+    month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    total_views = db.session.execute(select(func.count(PageView.id))).scalar_one() or 0
+    total_posts = (
+        db.session.execute(
+            select(func.count(Post.id)).filter(Post.published == True)
+        ).scalar_one()
+        or 0
+    )
+    total_shares = (
+        db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
+    )
+    total_subscribers = (
+        db.session.execute(
+            select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)
+        ).scalar_one()
+        or 0
+    )
+
+    trending = db.session.execute(
+        select(Post, func.count(PageView.id).label("view_count"))
+        .join(PageView)
+        .filter(Post.published == True)
+        .filter(PageView.created_at >= thirty_days_ago)
+        .group_by(Post.id)
+        .order_by(func.count(PageView.id).desc())
+        .limit(5)
+    ).all()
+
+    new_this_month = (
+        db.session.execute(
+            select(func.count(Subscriber.id)).filter(
+                Subscriber.created_at >= month_start
+            )
+        ).scalar_one()
+        or 0
+    )
+
+    views_trend = None
+    views_this_period = total_views
+    sixty_days_ago = utc_now() - timedelta(days=60)
+    views_last_period = (
+        db.session.execute(
+            select(func.count(PageView.id)).filter(
+                PageView.created_at >= sixty_days_ago,
+                PageView.created_at < thirty_days_ago,
+            )
+        ).scalar_one()
+        or 0
+    )
+    if views_last_period > 0:
+        change = ((views_this_period - views_last_period) / views_last_period) * 100
+        views_trend = round(change, 1)
+    elif views_this_period > 0:
+        views_trend = 100.0
+
+    data = {
+        "total_views": total_views,
+        "total_posts": total_posts,
+        "total_shares": total_shares,
+        "total_subscribers": total_subscribers,
+        "trending": trending,
+        "new_this_month": new_this_month,
+        "views_trend": views_trend,
+    }
+
+    with _dashboard_metrics_cache_lock:
+        _dashboard_metrics_cache["metrics"] = {"timestamp": now, "data": data}
+
+    return data
+
+
+def _invalidate_dashboard_cache():
+    """Clear the dashboard metrics cache."""
+    with _dashboard_metrics_cache_lock:
+        _dashboard_metrics_cache.clear()
+
+
+def invalidate_dashboard_cache():
+    """Public function to invalidate dashboard metrics cache."""
+    _invalidate_dashboard_cache()
 
 
 @admin.route("/")
@@ -82,62 +181,7 @@ def dashboard():
         view_counts = {}
         share_counts = {}
 
-    total_views = db.session.execute(select(func.count(PageView.id))).scalar_one() or 0
-    total_posts = (
-        db.session.execute(
-            select(func.count(Post.id)).filter(Post.published == True)
-        ).scalar_one()
-        or 0
-    )
-    total_shares = (
-        db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
-    )
-    total_subscribers = (
-        db.session.execute(
-            select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)
-        ).scalar_one()
-        or 0
-    )
-
-    thirty_days_ago = utc_now() - timedelta(days=30)
-    trending = db.session.execute(
-        select(Post, func.count(PageView.id).label("view_count"))
-        .join(PageView)
-        .filter(Post.published == True)
-        .filter(PageView.created_at >= thirty_days_ago)
-        .group_by(Post.id)
-        .order_by(func.count(PageView.id).desc())
-        .limit(5)
-    ).all()
-
-    month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    new_this_month = (
-        db.session.execute(
-            select(func.count(Subscriber.id)).filter(
-                Subscriber.created_at >= month_start
-            )
-        ).scalar_one()
-        or 0
-    )
-
-    views_trend = None
-    views_this_period = total_views
-    thirty_days_ago = utc_now() - timedelta(days=30)
-    sixty_days_ago = utc_now() - timedelta(days=60)
-    views_last_period = (
-        db.session.execute(
-            select(func.count(PageView.id)).filter(
-                PageView.created_at >= sixty_days_ago,
-                PageView.created_at < thirty_days_ago,
-            )
-        ).scalar_one()
-        or 0
-    )
-    if views_last_period > 0:
-        change = ((views_this_period - views_last_period) / views_last_period) * 100
-        views_trend = round(change, 1)
-    elif views_this_period > 0:
-        views_trend = 100.0
+    metrics = _get_dashboard_metrics()
 
     return render_template(
         "admin/dashboard.html",
@@ -145,20 +189,20 @@ def dashboard():
         pagination=pagination,
         view_counts=view_counts,
         share_counts=share_counts,
-        total_views=total_views,
-        total_posts=total_posts,
-        total_shares=total_shares,
-        total_subscribers=total_subscribers,
-        trending=trending,
-        new_this_month=new_this_month,
-        views_trend=views_trend,
+        total_views=metrics["total_views"],
+        total_posts=metrics["total_posts"],
+        total_shares=metrics["total_shares"],
+        total_subscribers=metrics["total_subscribers"],
+        trending=metrics["trending"],
+        new_this_month=metrics["new_this_month"],
+        views_trend=metrics["views_trend"],
         q=q,
         status=status,
     )
 
 
 def _create_post_object(
-    title, body, summary, published, image, now, scheduled_publish_at, tag_names
+    *, title, body, summary, published, image, now, scheduled_publish_at, tag_names
 ):
     """Create a Post instance with all fields set."""
     post = Post(
@@ -176,7 +220,16 @@ def _create_post_object(
 
 
 def _commit_post_with_rollback(
-    post, image, title, body, summary, published, now, scheduled_publish_at, tag_names
+    *,
+    post,
+    image,
+    title,
+    body,
+    summary,
+    published,
+    now,
+    scheduled_publish_at,
+    tag_names,
 ):
     """Attempt to commit a post, handling IntegrityError by regenerating slug and retrying."""
     try:
@@ -191,7 +244,14 @@ def _commit_post_with_rollback(
         if image:
             safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
         new_post = _create_post_object(
-            title, body, summary, published, image, now, scheduled_publish_at, tag_names
+            title=title,
+            body=body,
+            summary=summary,
+            published=published,
+            image=image,
+            now=now,
+            scheduled_publish_at=scheduled_publish_at,
+            tag_names=tag_names,
         )
         db.session.add(new_post)
         db.session.flush()
@@ -243,23 +303,31 @@ def new_post():
 
         now = utc_now()
         post = _create_post_object(
-            title, body, summary, published, image, now, scheduled_publish_at, tag_names
+            title=title,
+            body=body,
+            summary=summary,
+            published=published,
+            image=image,
+            now=now,
+            scheduled_publish_at=scheduled_publish_at,
+            tag_names=tag_names,
         )
         db.session.add(post)
         _commit_post_with_rollback(
-            post,
-            image,
-            title,
-            body,
-            summary,
-            published,
-            now,
-            scheduled_publish_at,
-            tag_names,
+            post=post,
+            image=image,
+            title=title,
+            body=body,
+            summary=summary,
+            published=published,
+            now=now,
+            scheduled_publish_at=scheduled_publish_at,
+            tag_names=tag_names,
         )
         flash("Post created.", "success")
         invalidate_tag_cache()
         invalidate_analytics_cache()
+        invalidate_dashboard_cache()
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
@@ -336,6 +404,7 @@ def edit_post(post_id):
                 sync_fts(post.id, post.title, post.body, post.summary, post.published)
             invalidate_tag_cache()
             invalidate_analytics_cache()
+            invalidate_dashboard_cache()
             _cleanup_orphan_tags()
             db.session.commit()
         except IntegrityError:
@@ -359,6 +428,7 @@ def edit_post(post_id):
             sync_fts(post.id, post.title, post.body, post.summary, post.published)
             invalidate_tag_cache()
             invalidate_analytics_cache()
+            invalidate_dashboard_cache()
             _cleanup_orphan_tags()
             db.session.commit()
         if old_image:

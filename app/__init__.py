@@ -27,6 +27,8 @@ from app.config import (
 from app.csrf import generate_csrf_token, validate_csrf_token
 from sqlalchemy import select, text
 
+logger = logging.getLogger(__name__)
+
 
 def configure_logging(app):
     """Configure application logging with request context."""
@@ -130,7 +132,13 @@ def create_app():
             )
         except Exception:
             recent_posts = []
-        return render_template("404.html", recent_posts=recent_posts), 404
+        return render_template(
+            "404.html",
+            recent_posts=recent_posts,
+            error_code="404",
+            error_title="Page not found",
+            error_message="The page you're looking for doesn't exist or has been moved.",
+        ), 404
 
     @app.errorhandler(500)
     def internal_error(e):
@@ -151,7 +159,13 @@ def create_app():
             )
         except Exception:
             recent_posts = []
-        return render_template("500.html", recent_posts=recent_posts), 500
+        return render_template(
+            "500.html",
+            recent_posts=recent_posts,
+            error_code="500",
+            error_title="Internal Server Error",
+            error_message="Something went wrong. Please try again later.",
+        ), 500
 
     @app.errorhandler(413)
     def handle_large_request(e):
@@ -259,6 +273,18 @@ def create_app():
             f"frame-src 'none'; "
             f"frame-ancestors 'none'"
         )
+        if current_app.debug:
+            response.headers["Content-Security-Policy-Report-Only"] = (
+                f"default-src 'self'; "
+                f"style-src 'self' 'nonce-{nonce}'; "
+                f"style-src-attr 'unsafe-inline'; "
+                f"font-src 'self'; "
+                f"img-src 'self' data:; "
+                f"script-src 'self' 'nonce-{nonce}'; "
+                f"connect-src 'self' report-uri /csp-violation; "
+                f"frame-src 'none'; "
+                f"frame-ancestors 'none'"
+            )
         if req.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
@@ -362,9 +388,6 @@ def create_app():
             init_fts()
         except OperationalError:
             db.session.rollback()
-
-        db.session.commit()
-        db.session.expire_all()
 
     configure_logging(app)
 

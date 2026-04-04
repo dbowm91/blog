@@ -16,7 +16,7 @@ from flask import (
     Response,
     url_for,
 )
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, or_, select, text, case
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 import logging
@@ -141,6 +141,7 @@ def post(slug) -> Response:
         related=related,
         share_url=share_url,
         short_code=short_code,
+        show_full_share=True,
     )
 
 
@@ -204,11 +205,7 @@ def search() -> Response:
             select(Post)
             .options(joinedload(Post.tags))
             .filter(Post.published == True, Post.id.in_(post_ids))
-            .order_by(
-                db.text(
-                    f"CASE posts.id {' '.join(f'WHEN {i} THEN {n}' for n, i in enumerate(post_ids))} END"
-                )
-            ),
+            .order_by(case({pid: n for n, pid in enumerate(post_ids)}, value=Post.id)),
             page=page,
             per_page=POSTS_PER_PAGE,
             error_out=False,
@@ -279,6 +276,11 @@ def track_share() -> Response:
         404: {"error": "not found"}
     """
     data = request.get_json(silent=True)
+    if not data:
+        data = {
+            "post_id": request.form.get("post_id"),
+            "platform": request.form.get("platform"),
+        }
     if not data or "post_id" not in data or "platform" not in data:
         return jsonify({"error": "invalid"}), 400
 
@@ -381,6 +383,16 @@ def subscribe() -> Response:
         if existing.confirmed:
             flash("Check your inbox to confirm your subscription.", "success")
             return redirect(_safe_redirect_url())
+        if existing.expires_at and existing.expires_at < utc_now():
+            db.session.delete(existing)
+            db.session.commit()
+            sub = Subscriber(
+                email=email,
+                expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
+            )
+            db.session.add(sub)
+            db.session.commit()
+            return _send_or_flash_confirmation(sub)
         _reset_subscriber_token(existing)
         db.session.commit()
         return _send_or_flash_confirmation(existing)

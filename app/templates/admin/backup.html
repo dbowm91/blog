@@ -6,7 +6,7 @@
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Backups</h1>
-        <form method="POST" action="{{ url_for('admin.create_backup') }}" class="inline-form flex-row gap-sm">
+        <form method="POST" action="{{ url_for('admin.create_backup') }}" class="inline-form flex-row gap-sm" data-loading data-loading-text="Creating backup...">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <label class="flex-row items-center gap-xs text-muted">
                 <input type="checkbox" name="compress"> Compress

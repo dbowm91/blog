@@ -21,7 +21,7 @@
         <button type="submit" form="bulk-form" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected subscribers? This cannot be undone.">Delete Selected</button>
     </div>
 
-    <form method="POST" action="{{ url_for('admin.subscribers_bulk', status=filter_status) }}" id="bulk-form">
+    <form method="POST" action="{{ url_for('admin.subscribers_bulk', status=filter_status) }}" id="bulk-form" data-bulk-select="subscriber">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
         <div class="post-list">
@@ -72,36 +72,4 @@
         </nav>
     {% endif %}
 </div>
-
-<script nonce="{{ csp_nonce }}">
-(function() {
-    var form = document.getElementById('bulk-form');
-    var bulkActions = document.getElementById('bulk-actions');
-    var selectAll = document.getElementById('select-all');
-
-    function updateBulkUI() {
-        var checked = form.querySelectorAll('.bulk-checkbox:checked');
-        if (checked.length > 0) {
-            bulkActions.classList.remove('hidden');
-            var srAnnounce = document.getElementById('sr-announce');
-            if (srAnnounce) srAnnounce.textContent = checked.length + ' subscriber' + (checked.length === 1 ? '' : 's') + ' selected';
-        } else {
-            bulkActions.classList.add('hidden');
-        }
-    }
-
-    form.querySelectorAll('.bulk-checkbox').forEach(function(cb) {
-        cb.addEventListener('change', updateBulkUI);
-    });
-
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            form.querySelectorAll('.bulk-checkbox').forEach(function(cb) {
-                cb.checked = selectAll.checked;
-            });
-            updateBulkUI();
-        });
-    }
-})();
-</script>
 {% endblock %}

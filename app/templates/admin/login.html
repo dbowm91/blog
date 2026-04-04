@@ -4,7 +4,7 @@
 <div class="login-page">
     <div class="login-card animate-in">
         <h1>Sign In</h1>
-        <form method="POST" class="login-form">
+        <form method="POST" class="login-form" data-loading data-loading-text="Signing in...">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="form-group">
                 <label for="username">Username</label>

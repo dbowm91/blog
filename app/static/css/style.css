@@ -271,6 +271,7 @@ a:hover {
     border-radius: var(--radius);
     padding: 4px 0;
     min-width: 140px;
+    max-width: min(200px, calc(100vw - 32px));
     z-index: 1000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
@@ -894,6 +895,14 @@ a:hover {
     cursor: pointer;
 }
 
+.lightbox.hidden {
+    display: none !important;
+}
+
+.lightbox:not(.hidden) {
+    display: flex;
+}
+
 .lightbox.open {
     opacity: 1;
     visibility: visible;
@@ -1273,6 +1282,11 @@ a:hover {
     color: var(--text);
 }
 
+.theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 /* --- Filter Bar --- */
 .filter-bar {
     display: flex;
@@ -1590,6 +1604,13 @@ a:hover {
     font-weight: 400;
     font-size: 0.78rem;
     color: var(--text-dim);
+}
+
+.form-help {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: var(--space-xs);
+    margin-bottom: var(--space-md);
 }
 
 .form-group input[type="text"],
@@ -2813,6 +2834,7 @@ a:hover {
         height: 1px;
         margin: 8px 0;
         background: var(--border);
+        opacity: 0.5;
     }
     
     .nav-links a.active::after {
@@ -3208,6 +3230,32 @@ a:hover {
         color: #1f2328;
         white-space: pre-wrap;
         word-break: break-word;
+        page-break-inside: avoid;
+        max-height: 100vh;
+    }
+
+    .post-meta {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 11px;
+        color: #57606a;
+    }
+
+    .author-card {
+        display: block;
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid #d0d7de;
+        page-break-inside: avoid;
+    }
+
+    .post-full::after {
+        content: "";
+        display: block;
+        margin-top: 32px;
+        font-size: 10px;
+        color: #8c959f;
+        text-align: center;
     }
 
     .prose img {
