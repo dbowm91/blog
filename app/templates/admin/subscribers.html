@@ -15,14 +15,14 @@
         <a href="{{ url_for('admin.subscribers', status='unconfirmed') }}" class="filter-link {% if filter_status == 'unconfirmed' %}active{% endif %}">Unconfirmed</a>
     </div>
 
+    <div class="bulk-actions hidden" id="bulk-actions">
+        <input type="checkbox" id="select-all" form="bulk-form" aria-label="Select all subscribers">
+        <button type="submit" form="bulk-form" name="action" value="export" class="btn btn-small btn-ghost">Export Selected</button>
+        <button type="submit" form="bulk-form" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected subscribers? This cannot be undone.">Delete Selected</button>
+    </div>
+
     <form method="POST" action="{{ url_for('admin.subscribers_bulk', status=filter_status) }}" id="bulk-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-
-        <div class="bulk-actions hidden" id="bulk-actions">
-            <input type="checkbox" id="select-all" aria-label="Select all subscribers">
-            <button type="submit" name="action" value="export" class="btn btn-small btn-ghost">Export Selected</button>
-            <button type="submit" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected subscribers? This cannot be undone.">Delete Selected</button>
-        </div>
 
         <div class="post-list">
             <div class="post-list-header">
@@ -31,7 +31,7 @@
             </div>
             {% for sub in subscribers %}
                 <div class="post-list-item">
-                    <input type="checkbox" name="sub_ids" value="{{ sub.id }}" class="bulk-checkbox" aria-label="Select {{ sub.email }}">
+                    <input type="checkbox" name="sub_ids" value="{{ sub.id }}" class="bulk-checkbox" form="bulk-form" aria-label="Select {{ sub.email }}">
                     <div class="post-list-info">
                         <h3>{{ sub.email }}</h3>
                         <div class="post-list-meta">

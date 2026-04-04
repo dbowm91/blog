@@ -45,7 +45,10 @@
         {% endfor %}
     </div>
     {% else %}
-    <p class="empty-state">No backups yet. Create your first backup.</p>
+    <div class="empty-state">
+        <h3>No backups yet</h3>
+        <p>Create your first backup to protect your data.</p>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

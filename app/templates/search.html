@@ -41,7 +41,10 @@
                     </div>
                 </a>
             {% else %}
-                <p class="empty-state">No posts match your search. Try different keywords.</p>
+                <div class="empty-state">
+                    <h3>No posts match your search</h3>
+                    <p>Try different keywords or browse all posts.</p>
+                </div>
             {% endfor %}
 
             {% if pagination.pages > 1 %}

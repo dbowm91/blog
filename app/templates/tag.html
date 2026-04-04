@@ -41,7 +41,10 @@
                 </div>
             </a>
         {% else %}
-            <p class="empty-state">No posts tagged with #{{ tag.name }} yet.</p>
+            <div class="empty-state">
+                <h3>No posts tagged #{{ tag.name }}</h3>
+                <p>Posts with this tag will appear here.</p>
+            </div>
         {% endfor %}
 
         {% if pagination.pages > 1 %}

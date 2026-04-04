@@ -1330,6 +1330,11 @@ a:hover {
     font-weight: 500;
 }
 
+.filter-tabs {
+    display: flex;
+    gap: 4px;
+}
+
 /* --- Bulk Actions --- */
 .bulk-actions {
     display: flex;

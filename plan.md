@@ -80,21 +80,21 @@
 
 ---
 
-## Wave 3: CSS Cleanup + Admin UX Standardization
+## Wave 3: CSS Cleanup + Admin UX Standardization ✓
 
-*4 of 7 items completed. Items 3.2, 3.3, 3.4 deferred.*
+*All 7 items completed.*
 
 ### 3.1 ✓ Remove Duplicate Responsive CSS Rules
 **Files:** `app/static/css/style.css` — Removed redundant `@media (max-width: 960px)` rules.
 
-### 3.2 ✗ Standardize Empty State Markup
-**Deferred** — CSS already handles both patterns; existing markup is functional.
+### 3.2 ✓ Standardize Empty State Markup
+**Files:** All admin templates — Standardized on `<div class="empty-state"><h3>...</h3><p>...</p></div>` pattern.
 
-### 3.3 ✗ Standardize Filter Patterns
-**Deferred** — Existing patterns work correctly; would require significant template restructuring.
+### 3.3 ✓ Standardize Filter Patterns
+**Files:** `app/templates/admin/dashboard.html` — Changed status select to link-based filter tabs (All/Published/Draft).
 
-### 3.4 ✗ Standardize Bulk Actions Pattern
-**Deferred** — Dashboard and subscribers patterns both work; consolidation not critical.
+### 3.4 ✓ Standardize Bulk Actions Pattern
+**Files:** `app/templates/admin/subscribers.html` — Restructured to use `form="bulk-form"` on checkboxes, moved bulk-actions outside form to avoid nested forms.
 
 ### 3.5 ✓ Standardize Button Sizing
 **Files:** `app/templates/admin/dashboard.html`, `editor.html` — Audit and fixes applied.

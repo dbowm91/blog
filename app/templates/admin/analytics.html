@@ -53,7 +53,10 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p class="empty-state">No views in this period</p>
+            <div class="empty-state">
+                <h3>No views in this period</h3>
+                <p>Views will appear here once your posts get traffic.</p>
+            </div>
             {% endif %}
         </div>
 
@@ -69,7 +72,10 @@
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="empty-state">No referrer data</p>
+            <div class="empty-state">
+                <h3>No referrer data</h3>
+                <p>Traffic sources will appear here as people discover your posts.</p>
+            </div>
             {% endif %}
         </div>
 
@@ -85,7 +91,10 @@
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="empty-state">No shares yet</p>
+            <div class="empty-state">
+                <h3>No shares yet</h3>
+                <p>Share buttons make it easy for readers to spread your content.</p>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -114,7 +123,10 @@
             </tbody>
         </table>
         {% else %}
-        <p class="empty-state">No post views in this period</p>
+        <div class="empty-state">
+            <h3>No post views in this period</h3>
+            <p>Published posts will appear here once they get views.</p>
+        </div>
         {% endif %}
     </div>
 </div>
