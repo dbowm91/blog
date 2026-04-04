@@ -75,7 +75,7 @@ DEPLOY.md               # Deployment guide
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
 - Both `Post.generate_slug()` and `Tag.generate_slug()` delegate to this utility
-- `_generate_unique_slug()` in `app/routes/admin/posts.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
+- `_generate_unique_slug()` in `app/routes/admin/helpers.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
 - In `edit_post()`, slug is only regenerated when `title != post.title`
 
 ### Session
@@ -587,10 +587,13 @@ The codebase already uses SVG data URI `background-image` for empty state icons 
 The admin routes are already organized as a package (`app/routes/admin/`) with separate modules for auth, posts, subscribers, tags, users, sessions, media, backup, analytics, and newsletter. Do not attempt to split them further.
 
 ### Plan Consolidation
-The improvement plan was consolidated from multiple plan files into a single `plan.md` organized into parallelizable waves. When working on plan items, check `plan.md` for the current state. Original plan files in `plans/` have been removed.
+The improvement plan is in `plan.md` organized into parallelizable waves. Items within each wave can be worked on simultaneously by sub-agents unless dependency notes say otherwise. The `plans/` directory has been removed.
 
 ### File Reference Verification
 Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
 
 ### `_generate_unique_slug` Location
 `_generate_unique_slug()` is in `app/routes/admin/helpers.py` at line 226 (not 230). It is called by `new_post()` and `edit_post()` in `app/routes/admin/posts.py`.
+
+### `_get_posts_query` `order_by` Parameter Is Used
+The `order_by` parameter in `_get_posts_query()` (`app/routes/admin/helpers.py:84`) is NOT dead code — it has a default fallback (`Post.updated_at.desc()`) and is actively applied to the query. Do not remove it.
