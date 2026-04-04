@@ -184,8 +184,10 @@ def _commit_post_with_rollback(
         sync_fts(post.id, post.title, post.body, post.summary, post.published)
         db.session.commit()
         return True
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
+        if "slug" not in str(e).lower():
+            raise
         if image:
             safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
         new_post = _create_post_object(

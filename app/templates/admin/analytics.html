@@ -44,7 +44,9 @@
             <div class="mini-chart">
                 {% set max_views = daily_views|map(attribute='views')|max %}
                 {% for day in daily_views %}
-                <div class="chart-bar-container" title="{{ day.date }}: {{ day.views }} views">
+                <div class="chart-bar-container" 
+                     data-tooltip="{{ day.date }}: {{ day.views }} views"
+                     role="tooltip">
                     <div class="chart-bar" style="height: {% if max_views > 0 %}{{ (day.views / max_views * 100)|round }}{% else %}0{% endif %}%"></div>
                     <span class="chart-label">{{ day.date.strftime('%b %d') }}</span>
                 </div>

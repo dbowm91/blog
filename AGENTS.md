@@ -518,6 +518,32 @@ The `set_security_headers` after-request handler sets:
 - Bulk action buttons hidden by default; shown via JS when checkboxes are checked
 - Image cleanup included for bulk delete
 
+## Button Conventions
+
+Use button classes consistently across admin templates:
+
+| Class | Usage |
+|-------|-------|
+| `btn btn-primary` | Primary submit action (Create Post, Save Changes) |
+| `btn btn-small` | Default for actions in lists and tables |
+| `btn btn-small btn-ghost` | Secondary actions (Edit, Export, Back) |
+| `btn btn-small btn-danger` | Destructive actions (Delete) in lists |
+
+Examples:
+```html
+<!-- Primary action in forms -->
+<button type="submit" class="btn btn-primary">Save Changes</button>
+
+<!-- Secondary action in lists/tables -->
+<a href="..." class="btn btn-small btn-ghost">Edit</a>
+
+<!-- Destructive action in lists/tables -->
+<button type="submit" class="btn btn-small btn-danger">Delete</button>
+
+<!-- Inline forms in header -->
+<a href="..." class="btn btn-small btn-ghost">Back</a>
+```
+
 ## Tag Caching
 
 - `_get_tag_counts()` in `app/cache.py` uses an in-memory cache with configurable TTL (default 60s, via `tag_cache_ttl_seconds` in `config.toml [app]`)

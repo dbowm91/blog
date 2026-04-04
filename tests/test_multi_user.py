@@ -115,17 +115,14 @@ def test_session_cookie_security_flags(app):
     """Test session cookie has correct security flags."""
     client = app.test_client()
     response = client.get("/admin/login")
-    cookies = list(client.cookie_jar())
-
-    admin_cookie = None
-    for cookie in cookies:
-        if "session" in cookie.name.lower():
-            admin_cookie = cookie
+    cookies = response.headers.getlist("Set-Cookie")
+    session_cookie = None
+    for cookie_header in cookies:
+        if "session" in cookie_header.lower():
+            session_cookie = cookie_header
             break
-
-    if admin_cookie:
-        assert admin_cookie.get("httponly", False) or True
-        assert not admin_cookie.get("secure", False) or True
+    assert session_cookie is not None
+    assert "httponly" in session_cookie.lower()
 
 
 def test_cannot_revoke_own_session(app, db):
@@ -177,6 +174,7 @@ def test_revoke_other_users_session(app, db):
     )
 
     with app.app_context():
+        db.session.remove()
         revoked_session = db.session.execute(
             db.select(AdminSession).filter_by(user_id=user2_id)
         ).scalar_one_or_none()
@@ -187,6 +185,7 @@ def test_revoke_other_users_session(app, db):
     assert response.status_code == 302
 
     with app.app_context():
+        db.session.remove()
         revoked_session_after = db.session.get(AdminSession, session_id)
         assert revoked_session_after is None
 
@@ -214,6 +213,7 @@ def test_session_isolation_between_users(app, db):
     )
 
     with app.app_context():
+        db.session.remove()
         sessions1 = (
             db.session.execute(db.select(AdminSession).filter_by(user_id=user1_id))
             .scalars()

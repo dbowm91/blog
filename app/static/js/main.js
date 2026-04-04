@@ -9,12 +9,39 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- Form delete confirmation via data-confirm attribute ---
-    document.querySelectorAll('form[data-confirm]').forEach(form => {
-        form.addEventListener('submit', e => {
-            if (!confirm(form.dataset.confirm)) e.preventDefault();
+    // --- Form confirmation via data-confirm attribute ---
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmModalTitle = document.getElementById('confirm-modal-title');
+    const confirmModalMessage = document.getElementById('confirm-modal-message');
+    const confirmModalConfirm = document.getElementById('confirm-modal-confirm');
+    let pendingConfirmForm = null;
+
+    if (confirmModal && confirmModalConfirm) {
+        confirmModalConfirm.addEventListener('click', () => {
+            if (pendingConfirmForm) {
+                pendingConfirmForm.submit();
+            }
+            confirmModal.classList.add('hidden');
+            pendingConfirmForm = null;
         });
-    });
+
+        document.querySelectorAll('form[data-confirm]').forEach(form => {
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                pendingConfirmForm = form;
+                const isDanger = form.dataset.confirmType === 'danger';
+                confirmModalMessage.textContent = form.dataset.confirm;
+                confirmModalConfirm.className = isDanger ? 'btn btn-small btn-danger' : 'btn btn-small btn-primary';
+                confirmModalTitle.textContent = isDanger ? 'Confirm Destructive Action' : 'Confirm';
+                if (isDanger) {
+                    confirmModal.classList.add('danger');
+                } else {
+                    confirmModal.classList.remove('danger');
+                }
+                confirmModal.classList.remove('hidden');
+            });
+        });
+    }
 
     // --- Bulk action confirmation via data-confirm-bulk ---
     document.querySelectorAll('button[data-confirm-bulk]').forEach(btn => {
@@ -73,7 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Smooth flash dismissal ---
     document.querySelectorAll(".flash").forEach((flash) => {
-        flash.style.cursor = "pointer";
         let dismissTimer;
         const dismiss = () => {
             flash.style.transition = "opacity 0.3s ease, transform 0.3s ease";
@@ -83,11 +109,19 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         const startTimer = () => {
             clearTimeout(dismissTimer);
-            dismissTimer = setTimeout(dismiss, 5000);
+            dismissTimer = setTimeout(dismiss, 8000);
         };
-        flash.addEventListener("click", dismiss);
+        const closeBtn = flash.querySelector(".flash-close");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                dismiss();
+            });
+        }
         flash.addEventListener("mouseenter", () => clearTimeout(dismissTimer));
         flash.addEventListener("mouseleave", startTimer);
+        flash.addEventListener("focusin", () => clearTimeout(dismissTimer));
+        flash.addEventListener("focusout", startTimer);
         startTimer();
     });
 
@@ -136,11 +170,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Code block copy button ---
     document.querySelectorAll('pre[class*="language-"]').forEach((pre) => {
+        const code = pre.querySelector('code');
+        if (code) {
+            const langMatch = pre.className.match(/language-(\S+)/);
+            if (langMatch) {
+                code.lang = langMatch[1];
+            }
+        }
         const button = document.createElement('button');
         button.className = 'copy-code-btn';
         button.textContent = 'Copy';
         button.addEventListener('click', () => {
-            const code = pre.querySelector('code');
             if (code) {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(code.textContent).then(() => {
@@ -292,25 +332,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- Item 10: Keyboard navigation for post cards ---
-    document.querySelectorAll('.post-card[role="link"]').forEach(card => {
-        card.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                const link = card.querySelector('a');
-                if (link) {
-                    e.preventDefault();
-                    link.click();
-                }
-            }
-        });
-        card.addEventListener('click', () => {
-            const link = card.querySelector('a');
-            if (link) {
-                link.click();
-            }
-        });
-    });
-
     // --- Item 8: Live Markdown Preview ---
     const bodyTextarea = document.getElementById('body');
     const previewDiv = document.getElementById('markdown-preview');
@@ -452,6 +473,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 isDirty = false;
             });
         }
+    }
+
+    // --- Item 4.3: Word/Character Count in Editor ---
+    const wordCountEl = document.getElementById('word-count');
+    const charCountEl = document.getElementById('char-count');
+
+    if (bodyTextarea && wordCountEl && charCountEl) {
+        let countTimer;
+        const updateCounts = () => {
+            clearTimeout(countTimer);
+            countTimer = setTimeout(() => {
+                const text = bodyTextarea.value;
+                const charCount = text.length;
+                const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+                wordCountEl.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
+                charCountEl.textContent = `${charCount} character${charCount !== 1 ? 's' : ''}`;
+            }, 500);
+        };
+
+        bodyTextarea.addEventListener('input', updateCounts);
+        updateCounts();
     }
 
     // --- Item 10: Dark/Light Mode Toggle ---
@@ -792,22 +834,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const lightboxClose = lightbox?.querySelector('.lightbox-close');
 
     if (lightbox && lightboxImg) {
-        document.querySelectorAll('.prose img').forEach(img => {
-            img.style.cursor = 'zoom-in';
-            img.addEventListener('click', () => {
-                lightboxImg.src = img.src;
-                lightboxImg.alt = img.alt;
-                lightbox.classList.add('open');
-                lightbox.setAttribute('aria-hidden', 'false');
-                document.body.style.overflow = 'hidden';
-            });
-        });
+        let lightboxTrigger = null;
+
+        const openLightbox = (img) => {
+            lightboxTrigger = document.activeElement;
+            lightboxImg.src = img.src;
+            lightboxImg.alt = img.alt;
+            lightbox.classList.add('open');
+            lightbox.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            lightboxClose?.focus();
+        };
 
         const closeLightbox = () => {
             lightbox.classList.remove('open');
             lightbox.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+            if (lightboxTrigger) {
+                lightboxTrigger.focus();
+                lightboxTrigger = null;
+            }
         };
+
+        document.querySelectorAll('.prose img').forEach(img => {
+            img.style.cursor = 'zoom-in';
+            img.addEventListener('click', () => openLightbox(img));
+        });
 
         lightboxClose?.addEventListener('click', closeLightbox);
         lightbox.addEventListener('click', (e) => {
@@ -816,6 +868,23 @@ document.addEventListener("DOMContentLoaded", () => {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && lightbox.classList.contains('open')) {
                 closeLightbox();
+            }
+            if (e.key === 'Tab' && lightbox.classList.contains('open')) {
+                const focusable = lightbox.querySelectorAll(focusableSelectors);
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
             }
         });
     }
@@ -967,5 +1036,48 @@ document.addEventListener("DOMContentLoaded", () => {
                 handleUpload(e.dataTransfer.files[0]);
             }
         });
+    }
+
+    // --- Image Preview in Editor ---
+    const coverImageInput = document.getElementById('image');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    const imagePreviewImg = document.getElementById('image-preview-img');
+    const removeImageBtn = document.getElementById('remove-image-btn');
+    const removeImageLabel = document.getElementById('remove-image-label');
+    const removeImageCheckbox = document.getElementById('remove-image-checkbox');
+
+    if (coverImageInput && imagePreviewContainer && imagePreviewImg) {
+        coverImageInput.addEventListener('change', () => {
+            const file = coverImageInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreviewImg.src = e.target.result;
+                    imagePreviewImg.style.display = 'block';
+                    if (removeImageBtn) {
+                        removeImageBtn.textContent = 'Clear';
+                    }
+                    if (removeImageLabel) {
+                        removeImageLabel.style.display = 'inline-flex';
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        if (removeImageBtn) {
+            removeImageBtn.addEventListener('click', () => {
+                coverImageInput.value = '';
+                imagePreviewImg.src = '';
+                imagePreviewImg.style.display = 'none';
+                removeImageBtn.textContent = 'Remove';
+                if (removeImageCheckbox) {
+                    removeImageCheckbox.checked = true;
+                }
+                if (removeImageLabel) {
+                    removeImageLabel.style.display = 'none';
+                }
+            });
+        }
     }
 });

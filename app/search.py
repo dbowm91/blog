@@ -98,9 +98,9 @@ def search(query: str):
             return []
         result = db.session.execute(
             text(
-                f"SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT {FTS_RESULT_LIMIT}"
+                "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT :limit"
             ),
-            {"q": fts_query},
+            {"q": fts_query, "limit": FTS_RESULT_LIMIT},
         ).fetchall()
         return [row[0] for row in result]
     except Exception:

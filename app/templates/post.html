@@ -34,7 +34,7 @@
             <div class="post-meta">
                 <time datetime="{{ post.created_at.isoformat() }}">{{ post.created_at.strftime('%B %d, %Y') }}</time>
                 <span class="meta-sep">&middot;</span>
-                <span class="reading-time">{{ post.body | reading_time }}</span>
+                <span class="reading-time" aria-label="Estimated reading time">{{ post.body | reading_time }}</span>
             </div>
         </div>
     </div>
@@ -122,7 +122,7 @@
     </footer>
 </article>
 
-<div class="lightbox" id="lightbox" aria-hidden="true">
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image lightbox" aria-hidden="true">
     <button class="lightbox-close" aria-label="Close lightbox">&times;</button>
     <img class="lightbox-img" src="" alt="">
 </div>

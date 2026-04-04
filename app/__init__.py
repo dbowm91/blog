@@ -117,16 +117,19 @@ def create_app():
     def not_found(e):
         from app.models import Post
 
-        recent_posts = (
-            db.session.execute(
-                select(Post)
-                .filter_by(published=True)
-                .order_by(Post.created_at.desc())
-                .limit(5)
+        try:
+            recent_posts = (
+                db.session.execute(
+                    select(Post)
+                    .filter_by(published=True)
+                    .order_by(Post.created_at.desc())
+                    .limit(5)
+                )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        )
+        except Exception:
+            recent_posts = []
         return render_template("404.html", recent_posts=recent_posts), 404
 
     @app.errorhandler(500)
@@ -135,16 +138,19 @@ def create_app():
 
         db.session.rollback()
         app.logger.exception("Unhandled exception on %s", req.path)
-        recent_posts = (
-            db.session.execute(
-                select(Post)
-                .filter_by(published=True)
-                .order_by(Post.created_at.desc())
-                .limit(5)
+        try:
+            recent_posts = (
+                db.session.execute(
+                    select(Post)
+                    .filter_by(published=True)
+                    .order_by(Post.created_at.desc())
+                    .limit(5)
+                )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        )
+        except Exception:
+            recent_posts = []
         return render_template("500.html", recent_posts=recent_posts), 500
 
     @app.errorhandler(413)
@@ -210,8 +216,16 @@ def create_app():
                             select(AdminSession).filter_by(session_id=sid)
                         ).scalar_one_or_none()
                         if admin_session:
-                            db.session.delete(admin_session)
-                            db.session.commit()
+                            from sqlalchemy.exc import IntegrityError, OperationalError
+
+                            try:
+                                db.session.delete(admin_session)
+                                db.session.commit()
+                            except (IntegrityError, OperationalError):
+                                db.session.rollback()
+                                logger.warning(
+                                    "Failed to delete expired admin session: %s", sid
+                                )
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))
@@ -224,7 +238,6 @@ def create_app():
         nonce = getattr(g, "csp_nonce", "")
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["X-Download-Options"] = "noopen"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

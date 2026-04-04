@@ -18,10 +18,13 @@ def media():
     per_page = MEDIA_PER_PAGE
     max_files = MEDIA_MAX_FILES
     upload_dir = current_app.config["UPLOAD_FOLDER"]
+    search = request.args.get("search", "", type=str).strip()
     all_files = []
     with os.scandir(upload_dir) as entries:
         for entry in entries:
             if not entry.is_file():
+                continue
+            if search and search.lower() not in entry.name.lower():
                 continue
             stat = entry.stat()
             all_files.append(
@@ -39,13 +42,14 @@ def media():
     start = (page - 1) * per_page
     end = start + per_page
     files = all_files[start:end]
-    total_pages = (total + per_page - 1) // per_page
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
     return render_template(
         "admin/media.html",
         files=files,
         page=page,
         total_pages=total_pages,
         truncated=truncated,
+        search=search,
     )
 
 

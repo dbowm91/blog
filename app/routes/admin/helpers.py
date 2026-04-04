@@ -224,6 +224,8 @@ def _allowed_file(filename):
 
 
 def _generate_unique_slug(title, exclude_id=None):
+    import uuid
+
     slug = Post.generate_slug(title)
     base_slug = slug
     counter = 2
@@ -235,6 +237,8 @@ def _generate_unique_slug(title, exclude_id=None):
             break
         slug = f"{base_slug}-{counter}"
         counter += 1
+    if counter > 100:
+        slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
     return slug
 
 

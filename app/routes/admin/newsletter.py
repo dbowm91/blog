@@ -34,7 +34,9 @@ def newsletter_test():
         flash("No published posts to send.", "error")
         return redirect(url_for("admin.dashboard"))
 
-    admin_user = db.session.execute(select(User)).scalars().first()
+    admin_user = (
+        db.session.execute(select(User).filter_by(is_admin=True)).scalars().first()
+    )
     if not admin_user:
         flash("No admin user found.", "error")
         return redirect(url_for("admin.dashboard"))

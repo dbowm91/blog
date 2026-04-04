@@ -1,6 +1,10 @@
 import os
 import pytest
 from unittest.mock import patch
+
+os.environ["SECRET_KEY"] = "test-secret-key"
+os.environ["ADMIN_PASSWORD"] = "test-password"
+
 from app import create_app
 from app.extensions import db as _db
 from app.models import User, Post, Tag
@@ -13,8 +17,6 @@ def app(tmp_path_factory):
     db_dir = tmp_path_factory.mktemp("blog_test")
     db_path = db_dir / "test.db"
 
-    os.environ["SECRET_KEY"] = "test-secret-key"
-    os.environ["ADMIN_PASSWORD"] = "test-password"
     os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 
     app = create_app()
@@ -34,6 +36,9 @@ def db(app):
     with app.app_context():
         _db.session.remove()
         _db.create_all()
+        from app.search import init_fts
+
+        init_fts()
         yield _db
         _db.session.remove()
         _db.drop_all()

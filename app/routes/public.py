@@ -258,7 +258,10 @@ def short_url_redirect(code) -> Response:
 
     event = ShareEvent(post_id=post.id, platform="link")
     db.session.add(event)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
 
     return redirect(f"/post/{post.slug}")
 

@@ -259,7 +259,10 @@ a:hover {
 }
 
 .nav-dropdown-menu {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
     position: absolute;
     top: 100%;
     right: 0;
@@ -287,7 +290,9 @@ a:hover {
 }
 
 .nav-dropdown.open .nav-dropdown-menu {
-    display: block;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
 }
 
 .nav-shortcut-btn {
@@ -1963,11 +1968,44 @@ a:hover {
     background: var(--accent);
     border-radius: 2px 2px 0 0;
     min-height: 2px;
-    transition: background var(--transition);
+    transition: background var(--transition), transform 0.15s ease;
 }
 
 .chart-bar:hover {
     background: var(--accent-hover);
+}
+
+.chart-bar-container:hover .chart-bar {
+    transform: scaleY(1.05);
+    transform-origin: bottom;
+}
+
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 12px;
+    white-space: nowrap;
+    border-radius: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 10;
+    pointer-events: none;
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .chart-label {
@@ -2200,6 +2238,18 @@ a:hover {
 .autosave-status-base {
     opacity: 0;
     transition: opacity 0.3s;
+}
+
+.editor-status-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.editor-status-sep {
+    color: var(--border);
 }
 
 /* --- Editor --- */
@@ -2662,7 +2712,8 @@ a:hover {
 
 .heading-anchor .anchor-link {
     position: absolute;
-    left: -24px;
+    inset-inline-end: 100%;
+    padding-inline-end: 8px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-dim);
@@ -2672,12 +2723,23 @@ a:hover {
     font-weight: normal;
 }
 
-.heading-anchor:hover .anchor-link {
+.heading-anchor:hover .anchor-link,
+.heading-anchor .anchor-link:focus {
     opacity: 1;
 }
 
 .heading-anchor .anchor-link:hover {
     color: var(--accent);
+}
+
+@media (max-width: 768px) {
+    .heading-anchor .anchor-link {
+        position: static;
+        transform: none;
+        padding-inline-end: 0;
+        margin-inline-start: 8px;
+        opacity: 0.5;
+    }
 }
 
 /* Mobile hamburger menu */
@@ -2697,17 +2759,6 @@ a:hover {
 }
 
 /* --- Responsive --- */
-@media (max-width: 960px) {
-    .content-layout {
-        grid-template-columns: 1fr;
-        gap: 32px;
-    }
-
-    .sidebar {
-        position: static;
-    }
-}
-
 @media (max-width: 768px) {
     .content-layout {
         grid-template-columns: 1fr;
@@ -3002,6 +3053,26 @@ a:hover {
 .modal-close-btn {
     margin-top: 16px;
     width: 100%;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    justify-content: flex-end;
+}
+
+.confirm-modal-actions .modal-close-btn {
+    margin-top: 0;
+    width: auto;
+}
+
+#confirm-modal.danger .modal-content {
+    border-color: var(--red);
+}
+
+#confirm-modal.danger .modal-content h2 {
+    color: var(--red);
 }
 
 .hidden { display: none !important; }

@@ -118,7 +118,12 @@ def subscribers_bulk() -> Response:
             count = len(subs)
             for sub in subs:
                 db.session.delete(sub)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+                flash("Database error occurred. Please try again.", "error")
+                return redirect(url_for("admin.subscribers"))
             flash(f"Deleted {count} subscriber(s).", "success")
         elif action == "export":
             subs = (

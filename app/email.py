@@ -130,7 +130,6 @@ def send_newsletter(posts, subscribers) -> bool:
                     break
                 try:
                     server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
-                    all_sent = True
                 except smtplib.SMTPException:
                     logger.exception(
                         "Failed to send newsletter to %s after reconnect", sub.email

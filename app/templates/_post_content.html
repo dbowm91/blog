@@ -11,7 +11,7 @@
             <div class="post-meta">
                 <time datetime="{{ post.created_at.isoformat() }}">{{ post.created_at.strftime('%B %d, %Y') }}</time>
                 <span class="meta-sep">&middot;</span>
-                <span class="reading-time">{{ post.body | reading_time }}</span>
+                <span class="reading-time" aria-label="Estimated reading time">{{ post.body | reading_time }}</span>
             </div>
         </div>
     </div>

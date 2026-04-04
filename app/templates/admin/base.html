@@ -47,9 +47,12 @@
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="flash-container container">
+            <div class="flash-container container" role="status" aria-live="polite">
                 {% for category, message in messages %}
-                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                    <div class="flash flash-{{ category }}">
+                        <span class="flash-message">{{ message }}</span>
+                        <button class="flash-close" aria-label="Dismiss">&times;</button>
+                    </div>
                 {% endfor %}
             </div>
         {% endif %}
@@ -58,6 +61,17 @@
     <main class="container admin-content" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
+
+    <div id="confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="modal-content">
+            <h2 id="confirm-modal-title">Confirm</h2>
+            <p id="confirm-modal-message"></p>
+            <div class="confirm-modal-actions">
+                <button type="button" class="btn btn-small btn-ghost modal-close-btn">Cancel</button>
+                <button type="button" id="confirm-modal-confirm" class="btn btn-small">Confirm</button>
+            </div>
+        </div>
+    </div>
 
     <div id="keyboard-help" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="keyboard-help-title">
         <div class="modal-content">
