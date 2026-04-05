@@ -8,6 +8,7 @@ from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.email import send_newsletter
 from app.config import FROM_ADDRESS
+from app.utils import is_valid_email
 from sqlalchemy import select
 
 
@@ -47,6 +48,9 @@ def newsletter_test():
             if "<" in FROM_ADDRESS
             else FROM_ADDRESS
         )
+    if not is_valid_email(test_email):
+        flash("Invalid email address.", "error")
+        return redirect(url_for("admin.dashboard"))
     fake_sub = FakeSubscriber(email=test_email)
     try:
         send_newsletter(posts, [fake_sub])

@@ -110,70 +110,12 @@ def create_app():
     from app.routes.public import public
     from app.routes.admin import admin
     from app.routes.rss import rss
+    from app.routes.errors import errors
 
     app.register_blueprint(public)
     app.register_blueprint(admin)
     app.register_blueprint(rss)
-
-    @app.errorhandler(404)
-    def not_found(e):
-        from app.models import Post
-
-        try:
-            recent_posts = (
-                db.session.execute(
-                    select(Post)
-                    .filter_by(published=True)
-                    .order_by(Post.created_at.desc())
-                    .limit(5)
-                )
-                .scalars()
-                .all()
-            )
-        except Exception:
-            recent_posts = []
-        return render_template(
-            "404.html",
-            recent_posts=recent_posts,
-            error_code="404",
-            error_title="Page not found",
-            error_message="The page you're looking for doesn't exist or has been moved.",
-        ), 404
-
-    @app.errorhandler(500)
-    def internal_error(e):
-        from app.models import Post
-
-        db.session.rollback()
-        app.logger.exception("Unhandled exception on %s", req.path)
-        try:
-            recent_posts = (
-                db.session.execute(
-                    select(Post)
-                    .filter_by(published=True)
-                    .order_by(Post.created_at.desc())
-                    .limit(5)
-                )
-                .scalars()
-                .all()
-            )
-        except Exception:
-            recent_posts = []
-        return render_template(
-            "500.html",
-            recent_posts=recent_posts,
-            error_code="500",
-            error_title="Internal Server Error",
-            error_message="Something went wrong. Please try again later.",
-        ), 500
-
-    @app.errorhandler(413)
-    def handle_large_request(e):
-        flash(
-            f"File too large. Maximum upload size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
-            "error",
-        )
-        return redirect(req.referrer or url_for("admin.dashboard"))
+    app.register_blueprint(errors)
 
     import nh3
     import markdown
@@ -289,76 +231,9 @@ def create_app():
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
-    @app.context_processor
-    def inject_csrf():
-        nonce = getattr(g, "csp_nonce", "")
-        return {"csrf_token": generate_csrf_token(), "csp_nonce": nonce}
+    from app.context_processors import register_context_processors
 
-    @app.context_processor
-    def inject_config():
-        from datetime import datetime
-        from app.config import (
-            APP_TITLE,
-            APP_DESCRIPTION,
-            AUTHOR_NAME,
-            AUTHOR_ROLE,
-            AUTHOR_AVATAR,
-            BASE_URL,
-        )
-
-        return {
-            "site_title": APP_TITLE,
-            "site_description": APP_DESCRIPTION,
-            "author_name": AUTHOR_NAME,
-            "author_role": AUTHOR_ROLE,
-            "author_avatar": AUTHOR_AVATAR,
-            "base_url": BASE_URL,
-            "current_year": datetime.now().year,
-        }
-
-    @app.context_processor
-    def inject_footer_data():
-        from datetime import datetime
-        from app.models import Post, Tag
-        from app.cache import _get_tag_counts
-
-        try:
-            recent_posts = (
-                db.session.execute(
-                    select(Post)
-                    .filter_by(published=True)
-                    .order_by(Post.created_at.desc())
-                    .limit(3)
-                )
-                .scalars()
-                .all()
-            )
-            footer_tags = (
-                db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-            )
-            tag_counts = _get_tag_counts()
-            return {
-                "recent_posts_footer": recent_posts,
-                "footer_tags": footer_tags,
-                "footer_tag_counts": tag_counts,
-            }
-        except Exception:
-            return {
-                "recent_posts_footer": [],
-                "footer_tags": [],
-                "footer_tag_counts": {},
-            }
-
-    @app.context_processor
-    def inject_show_footer_posts():
-        from flask import request
-
-        path = request.path
-        return {
-            "show_footer_posts": not (
-                path.startswith("/search") or path.startswith("/tag/")
-            )
-        }
+    register_context_processors(app)
 
     with app.app_context():
         from app.models import User
@@ -395,47 +270,8 @@ def create_app():
 
     init_scheduler(app)
 
-    import click
+    from app.cli import register_cli_commands
 
-    @app.cli.command("rebuild-search")
-    def rebuild_search_command():
-        """Rebuild the FTS5 search index."""
-        from app.search import rebuild_fts
-
-        rebuild_fts()
-        click.echo("Search index rebuilt.")
-
-    @app.cli.command("create-admin")
-    def create_admin_command():
-        """Create a new admin user or promote an existing user."""
-        import click
-
-        username = click.prompt("Username")
-        password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
-
-        from app.models import User
-        from app.routes.admin.helpers import _check_password_complexity
-
-        if not _check_password_complexity(password):
-            click.echo(
-                "Password must be at least 8 characters and contain at least 3 of 4: "
-                "lowercase, uppercase, digit, special."
-            )
-            return
-
-        existing = db.session.execute(
-            select(User).filter_by(username=username)
-        ).scalar_one_or_none()
-        if existing:
-            existing.is_admin = True
-            existing.set_password(password)
-            db.session.commit()
-            click.echo(f"User '{username}' promoted to admin.")
-        else:
-            user = User(username=username, is_admin=True)
-            user.set_password(password)
-            db.session.add(user)
-            db.session.commit()
-            click.echo(f"Admin user '{username}' created.")
+    register_cli_commands(app)
 
     return app

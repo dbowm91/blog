@@ -74,7 +74,7 @@ MAX_VIEWED_POSTS = int(_config["app"].get("max_viewed_posts", 100))
 SESSION_LIFETIME_HOURS = int(_config["app"].get("session_lifetime_hours", 24))
 
 ADMIN_USERNAME = _env("ADMIN_USERNAME", _config["admin"]["username"])
-ADMIN_PASSWORD = _env("ADMIN_PASSWORD")
+ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "")
 
 SERVER_HOST = _config["server"]["host"]
 SERVER_PORT = int(_config["server"]["port"])
