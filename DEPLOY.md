@@ -183,6 +183,28 @@ The app sets `SESSION_COOKIE_SECURE = True` when `debug = False`, so HTTPS is ma
 
 The `ProxyFix` middleware (controlled by `PROXY_COUNT` env var, default 1) trusts `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` headers. Set `PROXY_COUNT=0` if running without a reverse proxy.
 
+## 5b. Request Timeouts
+
+This codebase intentionally **does not include application-level request timeout middleware**. Request timeouts should be configured at the reverse proxy or WSGI/ASGI server level:
+
+### Granian (ASGI)
+```bash
+granian --workers 4 --timeout 60 run:asgi_app
+```
+
+### Gunicorn (WSGI)
+```bash
+gunicorn --workers 4 --timeout 60 --graceful-timeout 30 run:app
+```
+
+### nginx
+The nginx config already includes `proxy_read_timeout 60s` and `proxy_connect_timeout 10s`. Adjust these to match your server timeout settings.
+
+### Recommended thresholds
+- **30 seconds** for normal page requests
+- **60 seconds** for file uploads and newsletter sends
+- **120 seconds** for backup/restore operations
+
 ## 6. Rate Limiting
 
 This codebase intentionally **does not include application-level rate limiting**. Rate limiting is expected to be handled by the reverse proxy, WAF, or CDN sitting in front of this application.

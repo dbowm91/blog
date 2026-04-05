@@ -572,6 +572,14 @@ def health_check() -> Response:
         else "degraded"
     )
 
+    pool = db.engine.pool
+    checks["pool"] = {
+        "size": pool.size(),
+        "checked_in": pool.checkedin(),
+        "checked_out": pool.checkedout(),
+        "overflow": pool.overflow(),
+    }
+
     return jsonify(
         {
             "status": overall,
