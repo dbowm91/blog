@@ -24,13 +24,12 @@ def register_context_processors(app):
 
     @app.context_processor
     def inject_csrf():
-        nonce = getattr(app, "_current_csp_nonce", "")
         try:
             from flask import g
 
             nonce = getattr(g, "csp_nonce", "")
         except RuntimeError:
-            pass
+            nonce = ""
         return {"csrf_token": generate_csrf_token(), "csp_nonce": nonce}
 
     @app.context_processor
