@@ -83,6 +83,12 @@
     --red: #f85149;
     --red-dim: rgba(248, 81, 73, 0.15);
     --yellow: #d29922;
+    --purple: #a371f7;
+    --purple-dim: rgba(163, 113, 247, 0.15);
+    --coral: #f78166;
+    --coral-dim: rgba(247, 129, 102, 0.15);
+    --noscript-bg: #3b2e00;
+    --noscript-text: #d4a017;
     --radius: 8px;
     --radius-lg: 12px;
     --radius-sm: 6px;
@@ -1263,6 +1269,10 @@ a:hover {
     --red: #cf222e;
     --red-dim: rgba(207, 34, 46, 0.15);
     --yellow: #9a6700;
+    --purple: #8250df;
+    --purple-dim: rgba(130, 80, 223, 0.15);
+    --coral: #d4513d;
+    --coral-dim: rgba(212, 81, 61, 0.15);
     --radius-sm: 6px;
     --space-sm-md: 12px;
 }
@@ -2325,18 +2335,6 @@ a:hover {
     padding: 60px 20px;
     color: var(--text-muted);
 }
-.empty-state:not(:has(h3))::before {
-    content: "";
-    display: block;
-    margin-bottom: 16px;
-    width: 48px;
-    height: 48px;
-    margin-left: auto;
-    margin-right: auto;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-size: contain;
-}
 .empty-state h3 { font-size: 18px; margin: 0 0 8px; }
 .empty-state p { font-size: 14px; margin: 0; }
 
@@ -2684,8 +2682,8 @@ a:hover {
 }
 
 :root:not([data-theme="light"]) .noscript-warning {
-    background: #3b2e00;
-    color: #d4a017;
+    background: var(--noscript-bg);
+    color: var(--noscript-text);
 }
 
 /* Reduced motion */
@@ -3168,11 +3166,11 @@ a:hover {
 }
 
 .stat-card-accent-shares {
-    border-left: 3px solid #a371f7;
+    border-left: 3px solid var(--purple);
 }
 
 .stat-card-accent-subscribers {
-    border-left: 3px solid #f78166;
+    border-left: 3px solid var(--coral);
 }
 
 /* --- Toast notification --- */

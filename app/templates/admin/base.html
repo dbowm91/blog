@@ -11,6 +11,7 @@
 </head>
 <body class="admin-body">
     <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <nav class="navbar admin-nav" aria-label="Admin navigation">
         <div class="container nav-container">
                 <a href="{{ url_for('admin.dashboard') }}" class="nav-logo">
@@ -58,7 +59,7 @@
         {% endif %}
     {% endwith %}
 
-    <main class="container admin-content" tabindex="-1">
+    <main id="main-content" class="container admin-content" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
 
