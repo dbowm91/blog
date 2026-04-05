@@ -3,12 +3,14 @@
     <h1 class="error-title">{{ error_title }}</h1>
     <p class="error-message">{{ error_message }}</p>
 
+    {% if show_search %}
     <form method="GET" action="{{ url_for('public.search') }}" class="error-search-form">
         <input type="text" name="q" placeholder="Search posts..." class="search-input" aria-label="Search">
         <button type="submit" class="btn btn-primary">Search</button>
     </form>
+    {% endif %}
 
-    {% if recent_posts %}
+    {% if show_suggestions and recent_posts %}
     <div class="error-suggestions">
         <h3>Recent Posts</h3>
         <ul class="error-post-list">

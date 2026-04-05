@@ -3,5 +3,7 @@
 {% block title %}404 — Page Not Found | {{ site_title }}{% endblock %}
 
 {% block content %}
+{% set show_search = false %}
+{% set show_suggestions = true %}
 {% include "_error.html" with context %}
 {% endblock %}

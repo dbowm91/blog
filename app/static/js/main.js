@@ -935,34 +935,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- 4B.6: Share button color flash ---
     document.querySelectorAll('.share-btn[data-platform]:not([data-platform="copy"])').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const originalBg = this.style.backgroundColor;
-            const originalColor = this.style.color;
-            const originalBorder = this.style.borderColor;
-
-            this.style.transition = 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease';
-
-            const platform = this.dataset.platform;
-            const colors = {
-                twitter: { bg: '#1da1f2', color: 'white', border: '#1da1f2' },
-                facebook: { bg: '#1877f2', color: 'white', border: '#1877f2' },
-                linkedin: { bg: '#0a66c2', color: 'white', border: '#0a66c2' },
-                hn: { bg: '#ff6600', color: 'white', border: '#ff6600' },
-                reddit: { bg: '#ff4500', color: 'white', border: '#ff4500' },
-                email: { bg: 'var(--green)', color: 'white', border: 'var(--green)' }
-            };
-
-            if (colors[platform]) {
-                this.style.backgroundColor = colors[platform].bg;
-                this.style.color = colors[platform].color;
-                this.style.borderColor = colors[platform].border;
-            }
-
-            setTimeout(() => {
-                this.style.backgroundColor = originalBg;
-                this.style.color = originalColor;
-                this.style.borderColor = originalBorder;
-            }, 150);
+        btn.addEventListener('click', function() {
+            this.classList.add('share-flash');
+            this.addEventListener('animationend', () => {
+                this.classList.remove('share-flash');
+            }, { once: true });
         });
     });
 

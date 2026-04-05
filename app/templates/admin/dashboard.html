@@ -125,7 +125,10 @@
         {% else %}
             <div class="empty-state">
                 <h3>No posts match your search</h3>
-                <p>Try different keywords or clear your search.</p>
+                <p>Try different keywords or clear your filters.</p>
+                {% if q or status != 'all' %}
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-small btn-ghost">Clear search &amp; filters</a>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
