@@ -5,6 +5,11 @@
 
 {% block content %}
     <section class="hero">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{{ url_for('public.index') }}">Home</a>
+            <span class="breadcrumb-sep" aria-hidden="true">/</span>
+            <span class="breadcrumb-current" aria-current="page">Search: {{ query }}</span>
+        </nav>
         <h1 class="hero-title">Search Results</h1>
         <p class="hero-description" aria-live="polite" id="search-result-count" data-search-announce>
             {% if posts %}
