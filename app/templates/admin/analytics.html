@@ -41,13 +41,15 @@
         <div class="analytics-card">
             <h3>Views Over Time</h3>
             {% if daily_views %}
-            <div class="mini-chart">
-                {% set max_views = daily_views|map(attribute='views')|max %}
+            {% set max_views = daily_views|map(attribute='views')|max %}
+            <div class="mini-chart" role="img" aria-label="Bar chart showing daily views over time, {{ daily_views|length }} data points">
                 {% for day in daily_views %}
                 <div class="chart-bar-container" 
-                     data-tooltip="{{ day.date }}: {{ day.views }} views"
-                     role="tooltip">
-                    <div class="chart-bar" style="height: {% if max_views > 0 %}{{ (day.views / max_views * 100)|round }}{% else %}0{% endif %}%"></div>
+                     data-tooltip="{{ day.date }}: {{ day.views }} views">
+                    <div class="chart-bar" style="height: {% if max_views > 0 %}{{ (day.views / max_views * 100)|round }}{% else %}0{% endif %}%"
+                         role="img" aria-label="{{ day.date }}: {{ day.views }} views">
+                        <span class="sr-only">{{ day.date }}: {{ day.views }} views</span>
+                    </div>
                     <span class="chart-label">{{ day.date.strftime('%b %d') }}</span>
                 </div>
                 {% endfor %}

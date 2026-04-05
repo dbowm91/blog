@@ -168,6 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     copyToClipboard(shareUrl).then(() => {
                         const original = btn.innerHTML;
                         btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+                        const announcer = document.getElementById('sr-announce');
+                        if (announcer) announcer.textContent = 'Link copied!';
                         setTimeout(() => { btn.innerHTML = original; }, 1500);
                     }).catch(() => {
                         btn.textContent = 'Failed';
