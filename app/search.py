@@ -81,7 +81,7 @@ def _escape_fts_term(term: str) -> str:
 
 
 def search(query: str):
-    """Search using FTS5. Returns list of post IDs or empty list if unavailable."""
+    """Search using FTS5. Returns list of (post_id, rank) tuples or empty list if unavailable."""
     try:
         check = db.session.execute(
             text(
@@ -98,10 +98,10 @@ def search(query: str):
             return []
         result = db.session.execute(
             text(
-                "SELECT rowid FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT :limit"
+                "SELECT rowid, rank FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT :limit"
             ),
             {"q": fts_query, "limit": FTS_RESULT_LIMIT},
         ).fetchall()
-        return [row[0] for row in result]
+        return [(row[0], row[1]) for row in result]
     except Exception:
         return []

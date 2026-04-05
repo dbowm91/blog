@@ -196,16 +196,17 @@ def search() -> Response:
     tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     tag_counts = _get_tag_counts()
 
-    post_ids = _fts_search(query)
-    if post_ids:
-        if not all(isinstance(i, int) for i in post_ids):
-            logging.warning(f"FTS returned invalid post_ids: {post_ids}")
-            post_ids = []
+    post_results = _fts_search(query)
+    if post_results:
+        if not all(isinstance(r, tuple) and len(r) == 2 for r in post_results):
+            logging.warning(f"FTS returned invalid results: {post_results}")
+            post_results = []
+        post_ids = [pid for pid, _ in post_results]
         pagination = db.paginate(
             select(Post)
             .options(joinedload(Post.tags))
             .filter(Post.published == True, Post.id.in_(post_ids))
-            .order_by(case({pid: n for n, pid in enumerate(post_ids)}, value=Post.id)),
+            .order_by(case({pid: rank for pid, rank in post_results}, value=Post.id)),
             page=page,
             per_page=POSTS_PER_PAGE,
             error_out=False,
@@ -421,9 +422,11 @@ def confirm(token) -> Response:
         flash("Subscription confirmed! You'll receive our newsletter.", "success")
         return redirect("/")
     if sub.expires_at and sub.expires_at < utc_now():
-        # Confirmation window expired — remove the subscriber
-        db.session.delete(sub)
-        db.session.commit()
+        try:
+            db.session.delete(sub)
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
         logger.info("Removed expired unconfirmed subscriber: %s", sub.email)
         flash("This confirmation link has expired. Please subscribe again.", "warning")
         return redirect("/")
