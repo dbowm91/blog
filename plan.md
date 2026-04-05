@@ -1,268 +1,331 @@
 # Improvement Plan
 
-Consolidated from codebase and UI reviews. Organized into parallelizable waves. Items within each wave can be worked on simultaneously by sub-agents unless noted otherwise.
+Consolidated from codebase and UI reviews. Organized into parallelizable waves. Items within each wave can be worked on simultaneously by sub-agents unless dependency notes say otherwise.
 
 ---
 
-## Wave 1: Critical Bugs (Fix First)
+## Wave 1: Critical Bugs & Structural Issues
 
-### 1. Missing `logger` import in session timeout handler
+### 1. Extract error handlers from `create_app()`
 
-**File:** `app/__init__.py:226`
-**Problem:** The `before_request_handler` references `logger.warning()` when failing to delete an expired admin session, but `logger` is never imported in this module. This will raise `NameError` at runtime whenever a session expires and the DB delete fails.
-**Impact:** Unhandled exception on session expiry → 500 error for the user.
-**Fix:** Add `logger = logging.getLogger(__name__)` near the top of the file, or use `app.logger.warning()` instead (already available via Flask).
-**Estimated effort:** 2 minutes
-**Risk:** Very low — pure import fix.
-
-### 2. Redundant `db.session.commit()` and `db.session.expire_all()` at startup
-
-**File:** `app/__init__.py:366-367`
-**Problem:** After the user creation/FTS init blocks (both of which commit or rollback internally), lines 366-367 call `db.session.commit()` and `db.session.expire_all()` unconditionally. At this point the session is already clean, so these are no-ops. However, if `init_fts()` fails silently and rolls back, the outer commit could theoretically commit unintended changes.
-**Impact:** Low — unlikely to cause issues in practice, but violates the principle of explicit transaction boundaries.
-**Fix:** Remove lines 366-367. Each inner block already handles its own commit/rollback.
-**Estimated effort:** 2 minutes
-**Risk:** Very low — the inner blocks already handle their own commits.
-
-### 3. Share tracking is fire-and-forget on `<a>` elements
-
-**Files:** `app/templates/post.html:52-69`, `app/static/js/main.js:133-168`
-**Problem:** The share bar has 6 `<a>` elements and 1 `<button>` (Copy). The JS click handler fires a `fetch()` to `/api/track-share` but does NOT call `e.preventDefault()`. The browser navigates to the share URL immediately, and the `fetch()` is fire-and-forget with `keepalive: true`. This is unreliable — `keepalive` is not supported in all browsers for cross-origin navigations.
-**Impact:** Share counts are silently undercounted.
-**Fix:** Use `navigator.sendBeacon()` for tracking (designed for this exact scenario). Fall back to `fetch(keepalive: true)` if `sendBeacon` is unavailable.
-**Estimated effort:** 10 minutes
-**Risk:** Low — only affects tracking, doesn't change share link behavior.
-
-### 4. Duplicate select-all/bulk logic between `main.js` and `subscribers.html`
-
-**Files:** `app/static/js/main.js:549-578`, `app/templates/admin/subscribers.html:76-106`
-**Problem:** Both files implement select-all and bulk UI toggle logic. They work independently and can conflict. If both fire on the same checkbox change event, the bulk actions bar may flicker or behave unpredictably. The inline script also adds a second event listener to every `.bulk-checkbox` on the subscribers page.
-**Impact:** Redundant code, potential race conditions, maintenance burden.
-**Fix:** Move the screen reader announcement from the inline script into `main.js`'s `updateBulkActions()` function. Remove the entire inline `<script>` block from `subscribers.html`. Add a `data-bulk-select` attribute to the subscribers `#bulk-form` so `main.js` knows to use the generic handler.
+**File:** `app/__init__.py:118-176`
+**Problem:** The 404, 500, and 413 error handlers are defined inside `create_app()`. The 404 and 500 handlers each query `recent_posts` from the database — this code is duplicated between the two handlers. Additionally, the 500 handler calls `db.session.rollback()` which could mask the original exception's state.
+**Impact:** Duplicated queries, potential side effects from rollback in error handler.
+**Fix:**
+1. Create `app/routes/errors.py` with an `errors` Blueprint
+2. Move all three error handlers to the new module
+3. Extract a shared `_get_recent_posts()` helper to eliminate duplication
+4. Remove `db.session.rollback()` from the 500 handler — Flask-SQLAlchemy handles this automatically on error
+5. Register the blueprint in `create_app()`
 **Estimated effort:** 30 minutes
-**Risk:** Low — the generic handler in main.js already works for dashboard; extending it to subscribers is straightforward.
+**Risk:** Low — error handlers are isolated, no route URL changes.
+**Tests:** Verify 404/500/413 pages still render correctly with test client.
+
+### 2. Extract context processors from `create_app()`
+
+**File:** `app/__init__.py:292-361`
+**Problem:** Four context processors are defined inline in `create_app()` (~70 lines). The `inject_footer_data` processor runs database queries on every request, which is wasteful for non-public pages (admin, static, API).
+**Impact:** Unnecessary DB queries on admin and API routes.
+**Fix:**
+1. Create `app/context_processors.py`
+2. Move all four context processors to the new module
+3. Add a check in `inject_footer_data` to skip queries on admin/API paths
+4. Register via `app.context_processor()` in `create_app()`
+**Estimated effort:** 20 minutes
+**Risk:** Low — purely structural refactoring.
+**Tests:** Verify footer data still appears on public pages, not on admin pages.
+
+### 3. Extract CLI commands from `create_app()`
+
+**File:** `app/__init__.py:398-439`
+**Problem:** Two CLI commands (`rebuild-search`, `create-admin`) are defined inside `create_app()`. This makes them harder to test and adds unnecessary complexity to the app factory.
+**Impact:** `create_app()` is bloated; CLI commands can't be tested independently.
+**Fix:**
+1. Create `app/cli.py`
+2. Move both commands to the new module as standalone functions decorated with `@app.cli.command()`
+3. Import and register in `create_app()` (or use Flask's command discovery)
+**Estimated effort:** 15 minutes
+**Risk:** Low — CLI commands are self-contained.
+**Tests:** Run `flask rebuild-search` and `flask create-admin` manually to verify.
+
+### 4. Consolidate dashboard metrics cache with analytics cache
+
+**Files:** `app/routes/admin/posts.py:42-137`, `app/routes/admin/helpers.py:35-38`
+**Problem:** Two separate in-memory caches exist for similar data:
+- `_dashboard_metrics_cache` in `posts.py` (2-minute TTL, stores views/posts/shares/subscribers/trending)
+- `_analytics_cache` in `helpers.py` (5-minute TTL, stores daily views/top posts/referrers)
+
+Both query the same tables (PageView, ShareEvent, Subscriber, Post). The dashboard runs ~10 aggregate queries on every request while the analytics page is cached.
+**Impact:** Redundant DB queries, duplicated cache logic, inconsistent invalidation.
+**Fix:**
+1. Create a unified `_dashboard_cache` in `helpers.py` with a 2-minute TTL
+2. Add a `get_dashboard_metrics()` function that queries all needed data in one call
+3. Add `invalidate_dashboard_cache()` to the helpers module (currently in `posts.py`)
+4. Update `dashboard()` in `posts.py` to use the unified cache
+5. Ensure `invalidate_analytics_cache()` also invalidates dashboard cache (or vice versa)
+**Estimated effort:** 1-2 hours
+**Risk:** Medium — touches dashboard rendering and cache invalidation paths. Need to verify all metrics are still available.
+**Tests:** Run dashboard with cached and uncached data, verify metrics match.
+
+### 5. Fix `_commit_post_with_rollback` duplicate Post object creation
+
+**File:** `app/routes/admin/posts.py:222-266`
+**Problem:** When an IntegrityError occurs (e.g., slug collision), the function creates an entirely new Post object (`_create_post_object`) and adds it to the session. This is wasteful and error-prone — it should just regenerate the slug on the existing post and retry the commit.
+**Impact:** Unnecessary object creation, potential for orphaned tags if `_get_or_create_tags` was already called.
+**Fix:**
+1. On IntegrityError, only regenerate the slug: `post.slug = _generate_unique_slug(title)`
+2. Retry `db.session.commit()` without recreating the Post
+3. Remove `_create_post_object` call from the error handler
+4. Keep image cleanup logic (delete uploaded image if commit fails)
+**Estimated effort:** 20 minutes
+**Risk:** Medium — this is a critical path for post creation. Must verify slug regeneration handles multiple collisions.
+**Tests:** Add test for concurrent post creation with same title.
+
+### 6. Add email validation to newsletter test endpoint
+
+**File:** `app/routes/admin/newsletter.py:43-50`
+**Problem:** The `newsletter_test()` route accepts any string as `test_email` without validation. An admin could accidentally send a test to an invalid address, causing an SMTP error that surfaces as a generic "Failed to send" message.
+**Impact:** Poor UX, potential SMTP errors logged unnecessarily.
+**Fix:**
+1. Import `is_valid_email` from `app.utils`
+2. Validate `test_email` before creating `FakeSubscriber`
+3. Flash an error message if the email is invalid
+**Estimated effort:** 5 minutes
+**Risk:** None.
+**Tests:** Send test newsletter with invalid email, verify error message.
 
 ---
 
 ## Wave 2: Backend Improvements
 
-### 5. Replace raw SQL `db.text()` with `db.case()` for FTS result ordering
+### 7. Preserve FTS ranking in search pagination
 
-**File:** `app/routes/public.py:207-210`
-**Problem:** The CASE expression for preserving FTS result order is built via string interpolation. While `post_ids` are validated as integers, this is still a SQL injection surface if the validation ever regresses.
-**Fix:** Use SQLAlchemy's `case()`:
-```python
-from sqlalchemy import case
-order_expr = case({pid: n for n, pid in enumerate(post_ids)}, value=Post.id)
-```
-Then use `.order_by(order_expr)` instead of `db.text(...)`.
-**Estimated effort:** 15 minutes
-**Risk:** Low — functionally equivalent, safer.
-
-### 6. Make `_scheduler_running` flag thread-safe
-
-**File:** `app/scheduler.py:28`
-**Problem:** The global `_scheduler_running` boolean is read/written from multiple threads without synchronization. In practice it's only set once at startup and read for health checks, but it's technically a data race.
-**Fix:** Use a `threading.Event`:
-```python
-_scheduler_running = threading.Event()
-# set() on init, clear() on shutdown, is_set() for status checks
-```
-**Estimated effort:** 10 minutes
-**Risk:** Low — internal status flag only.
-
-### 7. Refactor `_create_post_object` and `_commit_post_with_rollback` to use kwargs
-
-**File:** `app/routes/admin/posts.py:160-206`
-**Problem:** Both functions take 8-9 positional arguments, making calls error-prone and hard to read.
-**Fix:** Convert to keyword-only arguments:
-```python
-def _create_post_object(*, title, body, summary, published, image, now, scheduled_publish_at, tag_names):
-```
-**Estimated effort:** 20 minutes
-**Risk:** Low — internal helpers only, callers are in the same file.
-
-### 8. Subscribe retry path doesn't check `expires_at` for unconfirmed subscribers
-
-**File:** `app/routes/public.py:373-386`
-**Problem:** When a concurrent subscribe request hits the `IntegrityError` path and re-queries the existing subscriber, it only checks `existing.confirmed`. If the subscriber is unconfirmed but their `expires_at` has passed, the code resets the token and sends another confirmation email instead of treating them as expired.
-**Impact:** Expired unconfirmed subscribers get their tokens reset and receive duplicate confirmation emails on concurrent subscribe attempts.
-**Fix:** Add an `expires_at` check before resetting the token. If expired, delete the subscriber and fall through to create a fresh one.
-**Estimated effort:** 20 minutes
-**Risk:** Low — edge case with concurrent requests. Add a test for this scenario.
-
-### 9. Dashboard queries are not cached
-
-**File:** `app/routes/admin/posts.py:43-157`
-**Problem:** Every dashboard hit runs ~10 aggregate queries (view counts, share counts, trending, subscriber stats, etc.). The analytics page has a 5-minute cache but the dashboard doesn't.
-**Impact:** Dashboard becomes slow with large datasets.
-**Fix:** Reuse `_get_analytics_data()` from helpers for the dashboard metrics, or add a lightweight cache with a 2-3 minute TTL.
-**Estimated effort:** 1-2 hours
-**Risk:** Medium — need to ensure cache invalidation on post CRUD.
-
----
-
-## Wave 3: Template & Frontend Refactoring
-
-### 10. Refactor `post.html` to use `_post_content.html` partial
-
-**Files:** `app/templates/post.html:24-123`, `app/templates/_post_content.html`
-**Problem:** The article markup (hero, share bar, TL;DR, body, author card, footer) is duplicated between `post.html` and `_post_content.html`. Changes to the hero, author card, or body structure must be made in two places.
-**Fix:** Restructure `_post_content.html` to accept a `show_full_share` flag, then include it from `post.html`. The following stay in `post.html`: breadcrumb, reading progress bar, TOC container, related posts, lightbox. The following move into `_post_content.html` (controlled by `show_full_share`): hero image, share bar, TL;DR, body, author card, post footer.
-**Estimated effort:** 1-2 hours
-**Risk:** Medium — template refactoring. Need to verify all context variables are available in both contexts.
-
-### 11. Consolidate 404/500 error pages into shared partial
-
-**Files:** `app/templates/404.html`, `app/templates/500.html`
-**Problem:** Both files are structurally identical — only the error code, title, and message differ.
-**Fix:** Create `app/templates/_error.html` partial with `error_code`, `error_title`, `error_message` variables. Simplify both error pages to set these variables and include the partial.
-**Estimated effort:** 15 minutes
-**Risk:** Low — purely cosmetic refactoring.
-
-### 12. Move search accessibility announcement to `main.js`
-
-**File:** `app/templates/search.html:65-74`
-**Problem:** Inline `<script>` block announces search results to screen readers. While it has a CSP nonce, it breaks the pattern of keeping all JS in `main.js`.
-**Fix:** Add a `data-search-announce` attribute to the search results container. Add a handler in `main.js` that reads the count element and announces it. Remove the inline `<script>` from `search.html`.
-**Estimated effort:** 10 minutes
-**Risk:** Low — same behavior, just relocated.
-
-### 13. Add `.form-help` CSS class
-
-**File:** `app/templates/admin/tags.html:17`
-**Problem:** Uses `<p class="form-help">` but no CSS rule exists in `style.css`. Renders as a plain paragraph with no visual distinction.
-**Fix:** Add to `style.css`:
-```css
-.form-help {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    margin-top: var(--space-xs);
-    margin-bottom: var(--space-md);
-}
-```
-**Estimated effort:** 5 minutes
-**Risk:** None.
-
-### 14. Add loading states for all admin forms
-
-**File:** `app/static/js/main.js:592-602`
-**Problem:** Only `form.editor-form` gets disabled buttons + "Saving..." text on submit. Other admin forms (create user, create tag, create backup, login) don't get loading states, allowing double-submissions.
-**Fix:** Extend the loading state handler to cover all admin forms with a `data-loading` attribute. Add `data-loading` to admin forms that need it. Use `data-loading-text` for custom text.
+**File:** `app/routes/public.py:199-212`
+**Problem:** The search route gets FTS results as a list of post IDs, then uses `case({pid: n for n, pid in enumerate(post_ids)}, value=Post.id)` to order by position in the list. This preserves the order but loses the actual FTS relevance score (rank). Posts with marginally different scores get the same pagination treatment.
+**Impact:** Search results ordering is based on list position rather than true relevance, which could degrade with pagination.
+**Fix:**
+1. Modify `search()` in `app/search.py` to return `[(post_id, rank), ...]` tuples
+2. In `public.py`, build the CASE expression using actual rank values: `case({pid: -rank for pid, rank in results}, value=Post.id)` (negative because lower rank = more relevant in FTS5)
+3. Alternatively, use a subquery with the rank values joined back to Post
 **Estimated effort:** 30 minutes
-**Risk:** Low — additive change, doesn't affect existing behavior.
+**Risk:** Low — search results will be more accurate, not less.
+**Tests:** Verify search result ordering with multiple posts matching different terms.
 
-### 15. Fix admin nav dropdown overflow on narrow viewports
+### 8. Add try/except around expired subscriber deletion in `confirm()`
 
-**File:** `app/static/css/style.css` (dropdown rules)
-**Problem:** The admin "More" dropdown is positioned `top: 100%; right: 0` with `min-width: 140px`. On very narrow viewports (e.g., 320px phones), it can extend beyond the left edge of the viewport.
-**Fix:** Use `max-width: min(200px, calc(100vw - 32px))` to ensure it stays within bounds.
+**File:** `app/routes/public.py:423-428`
+**Problem:** When two concurrent requests try to confirm the same expired subscriber, both pass the `scalar_one_or_none()` check, both check `expires_at < utc_now()`, and the second one to call `db.session.delete(sub)` will fail with `DetachedInstanceError` or `IntegrityError`.
+**Impact:** 500 error on race condition for expired subscriber confirmation.
+**Fix:**
+1. Wrap the delete + commit in `try/except (IntegrityError, OperationalError)`
+2. On exception, rollback and redirect with "link expired" message
 **Estimated effort:** 10 minutes
-**Risk:** Low.
+**Risk:** Low — edge case with concurrent requests.
+**Tests:** Simulate concurrent confirmation of expired subscriber.
 
----
+### 9. Make `ADMIN_PASSWORD` fallback consistent
 
-## Wave 4: Polish & Low Priority
-
-### 16. Fix `SECRET_KEY` fallback inconsistency
-
-**File:** `app/config.py:72`
-**Problem:** `_env("SECRET_KEY")` returns `None` if not set, but the AGENTS.md docstring says "falls back to empty string." The check in `__init__.py` (`if not SECRET_KEY`) catches both, but it's inconsistent.
-**Fix:** Change to `_env("SECRET_KEY", "")` for consistency, or update documentation.
+**File:** `app/config.py:77`
+**Problem:** `SECRET_KEY = _env("SECRET_KEY", "")` defaults to empty string, but `ADMIN_PASSWORD = _env("ADMIN_PASSWORD")` defaults to `None`. Both are caught by the `if not` check in `create_app()`, but the inconsistency is confusing and differs from documented behavior.
+**Impact:** None at runtime — caught by the `if not` check. But inconsistent with `SECRET_KEY` pattern.
+**Fix:** Change to `_env("ADMIN_PASSWORD", "")`.
 **Estimated effort:** 2 minutes
 **Risk:** None.
 
-### 17. Remove redundant local `import uuid` in `_generate_unique_slug`
+---
 
-**File:** `app/routes/admin/helpers.py:227`
-**Problem:** `uuid` is already imported at module level (line 10). The local import shadows it unnecessarily.
-**Fix:** Delete the local `import uuid` line.
-**Estimated effort:** 1 minute
-**Risk:** None.
+## Wave 3: Template Refactoring & DRY
 
-### 18. Fix quote style inconsistency in `csrf.py`
+### 10. Consolidate 404/500 error pages into shared partial
 
-**File:** `app/csrf.py:24`
-**Problem:** Uses single quotes (`'TESTING'`, `'CSRF_ENABLED'`) while the rest of the codebase uses double quotes.
-**Fix:** Change to double quotes for consistency.
-**Estimated effort:** 1 minute
-**Risk:** None.
+**Files:** `app/templates/404.html`, `app/templates/500.html`, `app/templates/_error.html`
+**Problem:** The 404 page uses `_error.html` partial but the 500 page has its own full markup with additional search form and recent posts. They are structurally different, but the 500 page duplicates the error display pattern.
+**Fix:** Enhance `_error.html` to accept optional `show_search` and `show_suggestions` flags. Update 404.html to use the partial with defaults. Update 500.html to use the partial with `show_search=true` and `show_suggestions=true`.
+**Estimated effort:** 20 minutes
+**Risk:** Low — purely template refactoring.
 
-### 19. Media listing loads all files into memory before pagination
+### 11. Add `aria-describedby` to form error messages
 
-**File:** `app/routes/admin/media.py:22-37`
-**Problem:** `os.scandir()` reads all files, builds a list of dicts, sorts it, then slices for pagination. With `MEDIA_MAX_FILES=1000` this is fine, but the sort happens before truncation.
-**Fix:** Use `heapq.nlargest()` or sort-then-slice more efficiently.
+**Files:** All admin form templates, `app/static/css/style.css`
+**Problem:** Form error messages (`.form-error`) are displayed below inputs but have no `aria-describedby` linking them to the associated input. Screen readers don't announce errors in context.
+**Fix:**
+- Generate unique IDs for error spans: `<span class="form-error" id="title-error" role="alert">`
+- Add `aria-describedby="title-error"` to the corresponding input
+- In JS, dynamically set `aria-describedby` when errors are shown/hidden
 **Estimated effort:** 30 minutes
-**Risk:** Low — cosmetic improvement for current file counts.
+**Risk:** Low — additive change, doesn't affect existing behavior.
 
-### 20. `func.cast(Subscriber.confirmed, db.Integer)` is SQLite-specific
+### 12. Make CSS tooltips accessible to screen readers
 
-**File:** `app/routes/admin/helpers.py:158`
-**Problem:** Casting a boolean to integer via `func.cast(..., db.Integer)` works for SQLite but wouldn't port to PostgreSQL/MySQL without changes.
-**Fix:** Use `Subscriber.confirmed.cast(db.Integer)` or a database-agnostic approach. Document the SQLite dependency.
+**File:** `app/static/css/style.css` (tooltip rules using `[data-tooltip]`)
+**Problem:** Tooltips rendered via `::before`/`::after` pseudo-elements are invisible to screen readers. The mini-chart bars in analytics use `data-tooltip` for hover info but it's purely visual.
+**Fix:**
+- Add `role="tooltip"` and `aria-describedby` linking tooltip content to the trigger element
+- For chart bars, add visually hidden `<span>` elements with the tooltip text that screen readers can access
+- Keep the CSS pseudo-element for visual display
+**Estimated effort:** 30 minutes
+**Risk:** Low — additive accessibility improvement.
+
+### 13. Fix share button flash to use CSS animation
+
+**File:** `app/static/js/main.js:937-967`
+**Problem:** The JS-driven share button flash sets inline `style.backgroundColor`, `style.color`, `style.borderColor`. The restore reads saved inline values which may be empty strings, causing the button to lose its CSS-defined colors.
+**Fix:** Add a `.share-flash` CSS class with a `@keyframes` animation. This is cleaner, respects `prefers-reduced-motion`, and avoids inline style manipulation.
+**Estimated effort:** 20 minutes
+**Risk:** Low — verify flash animation still looks good.
+
+### 14. Add visual distinction for admin navbar
+
+**File:** `app/static/css/style.css`
+**Problem:** The admin navbar has class `.admin-nav` but there are no CSS rules targeting it. It looks identical to the public navbar beyond the logo text.
+**Fix:** Add subtle visual differentiation — e.g., a left accent border on the logo, or a slightly different background tint:
+```css
+.admin-nav .nav-logo {
+    border-left: 3px solid var(--accent);
+    padding-left: var(--space-sm);
+}
+```
 **Estimated effort:** 10 minutes
-**Risk:** Low — app is SQLite-only per design.
+**Risk:** Low — purely cosmetic.
 
-### 21. Fix lightbox visibility pattern
+### 15. Improve empty state for dashboard search
 
-**File:** `app/templates/post.html:125`, `app/static/js/main.js:832-890`, `app/static/css/style.css:883-910`
-**Problem:** The lightbox uses CSS `opacity: 0; visibility: hidden` as default state, then `.open` class toggles to `opacity: 1; visibility: visible`. This is inconsistent with the modal pattern which uses `.hidden` (`display: none !important`).
-**Fix:** Add `.hidden` as the initial state for CSP-compliant rendering. Update JS to remove `.hidden` first, then use `requestAnimationFrame` to add `.open` (triggers CSS transition).
+**File:** `app/templates/admin/dashboard.html:126-129`
+**Problem:** When dashboard search returns no results, the empty state shows a generic message. Could be more helpful by suggesting actions like clearing the search or changing the status filter.
+**Fix:** Add a "Clear search" link that resets both `q` and `status` params. Add a hint about trying different keywords.
 **Estimated effort:** 10 minutes
-**Risk:** Low — verify lightbox open/close still works smoothly.
+**Risk:** None.
 
-### 22. Fix mobile nav separator styling
+### 16. Add skeleton loading for dashboard post list
 
-**File:** CSS for `.nav-separator` in `app/static/css/style.css`
-**Problem:** On mobile, `.nav-separator` becomes a full-width horizontal rule. The admin nav has separators between logical groups that look like full-width dividers in a vertical menu, which is visually heavy.
-**Fix:** Reduce the visual weight of separators in mobile nav with reduced opacity.
+**File:** `app/templates/admin/dashboard.html`
+**Problem:** Dashboard loads synchronously — no loading state while the page renders. With many posts and analytics queries, this can feel slow.
+**Fix:** Add skeleton placeholders that show immediately using the existing `shimmer` keyframe animation. Replace with actual content when the page loads. Since this is server-rendered, use a progressive enhancement approach: show skeletons via JS on initial page load, hide them when content is visible.
+**Alternative (simpler):** Add a subtle fade-in animation to the post list items with staggered delays (already done via `.animate-in` class). Add a loading spinner that shows briefly on page navigation.
+**Estimated effort:** 1-2 hours
+**Risk:** Low — additive enhancement.
+
+---
+
+## Wave 4: CSS Polish & Consistency
+
+### 17. Move hardcoded stat card accent colors to CSS variables
+
+**File:** `app/static/css/style.css`
+**Problem:** `.stat-card-accent-shares` uses `#a371f7` (purple) and `.stat-card-accent-subscribers` uses `#f78166` (coral). These are hardcoded and not part of the CSS variable system.
+**Fix:** Add to `:root`:
+```css
+--purple: #a371f7;
+--purple-dim: rgba(163, 113, 247, 0.15);
+--coral: #f78166;
+--coral-dim: rgba(247, 129, 102, 0.15);
+```
+Update the stat card rules to use these variables. Add light mode overrides.
+**Estimated effort:** 10 minutes
+**Risk:** None.
+
+### 18. Fix noscript warning hardcoded colors
+
+**File:** `app/static/css/style.css:2665-2668`
+**Problem:** `:root:not([data-theme="light"]) .noscript-warning` uses hardcoded `#3b2e00` and `#d4a017` instead of CSS variables.
+**Fix:** Add `--noscript-bg` and `--noscript-text` variables to `:root` with the current values, use them in the rule. Add light mode overrides.
 **Estimated effort:** 5 minutes
 **Risk:** None.
 
-### 23. Ensure theme toggle has proper focus styles
+### 19. Add skip link to admin base template
 
-**File:** `app/static/js/main.js` (dynamic creation), `app/static/css/style.css` (`.theme-toggle` rules)
-**Problem:** The theme toggle button is dynamically created and inserted into `.nav-links`. It has hover styles but should be verified to inherit the global `:focus-visible` outline properly.
-**Fix:** Verify the global `:focus-visible` rule applies to `.theme-toggle`. If not, add explicit focus styles.
-**Estimated effort:** 5 minutes
-**Risk:** Low.
+**File:** `app/templates/admin/base.html`
+**Problem:** The public `base.html` has a "Skip to main content" link but the admin `base.html` does not. Keyboard users navigating admin pages must tab through all nav links before reaching content.
+**Fix:** Add `<a href="#main-content" class="skip-link">Skip to main content</a>` after the `#sr-announce` div, before the `<nav>`.
+**Estimated effort:** 2 minutes
+**Risk:** None.
 
-### 24. Add `prefetch` hint for pagination links specifically
+### 20. Remove dead `.empty-state:not(:has(h3))::before` CSS rule
 
-**File:** `app/static/js/main.js:925-944`
-**Problem:** The existing prefetch handler triggers on `mouseenter` for ALL links with a 100ms delay. It would be more efficient to prioritize pagination links (next/previous page) since those are the most likely next destinations.
-**Fix:** Add explicit pagination prefetching with higher priority (no delay) for `.page-link` elements. The existing generic handler will still catch other links on hover.
-**Estimated effort:** 10 minutes
-**Risk:** Low — prefetch is a hint, not a guarantee.
-
-### 25. Improve empty state for search with no results
-
-**Files:** `app/templates/search.html:44-48`, `app/templates/admin/dashboard.html:126-129`
-**Problem:** When search returns no results, the empty state shows a generic message. Could be more helpful by suggesting actions.
-**Fix:** Enhance the search empty state with a link to browse all posts.
+**File:** `app/static/css/style.css`
+**Problem:** The rule `.empty-state:not(:has(h3))::before` is designed to show an SVG mail icon when an empty state has no heading. However, every empty state in the codebase has an `<h3>` element, so this selector never matches.
+**Fix:** Remove the dead CSS rule entirely. The `<h3>` text is sufficient context for empty states.
 **Estimated effort:** 5 minutes
 **Risk:** None.
 
 ---
 
-## Wave 5: Future Enhancements
+## Wave 5: JavaScript Enhancements
 
-### 26. Add rate limiting documentation to DEPLOY.md
+### 21. Add keyboard shortcut 'c' to copy link on post pages
 
-**Problem:** AGENTS.md explicitly says "Do not add rate limiting code to this project" and recommends proxy-level rate limiting. The DEPLOY.md should include concrete rate limiting examples for common proxies (nginx, Caddy, Cloudflare).
-**Fix:** Add a "Rate Limiting" section to DEPLOY.md with copy-paste configs.
+**Files:** `app/templates/post.html`, `app/static/js/main.js`
+**Problem:** The copy share button has `title="Copy link (Press C to copy)"` but there's no JS handler for the 'c' key.
+**Fix:** Add a JS handler (guarded to post pages via `document.body.classList.contains('public-body')`) that listens for `c` key press when not in an input. Trigger the same copy logic as the button click. Announce "Link copied!" to screen readers via `#sr-announce`.
+**Estimated effort:** 15 minutes
+**Risk:** Low — must ensure 'c' doesn't fire when typing in inputs.
+
+### 22. Ensure theme toggle has proper focus styles
+
+**Files:** `app/static/js/main.js` (dynamic creation), `app/static/css/style.css` (`.theme-toggle` rules)
+**Problem:** The theme toggle button is dynamically created and inserted into `.nav-links`. It has hover styles but should be verified to inherit the global `:focus-visible` outline properly.
+**Fix:** Verify the global `:focus-visible` rule applies to `.theme-toggle`. If not, add explicit focus styles. Ensure the button has `tabindex="0"` when created.
+**Estimated effort:** 5 minutes
+**Risk:** Low.
+**Tests:** Tab through navbar, verify theme toggle gets visible focus outline.
+
+### 23. Make mini-chart bars accessible
+
+**File:** `app/templates/admin/analytics.html:44-54`
+**Problem:** Chart bars use inline `style="height: X%"` with CSS `data-tooltip` for hover info. Neither is accessible to screen readers.
+**Fix:**
+- Add visually hidden `<span>` elements inside each `.chart-bar-container` with the date and view count
+- Add `role="img"` and `aria-label` to the `.mini-chart` container with a summary
+- Keep the CSS tooltip for visual users
+**Estimated effort:** 20 minutes
+**Risk:** Low.
+
+---
+
+## Wave 6: Print & Display Enhancements
+
+### 24. Add print stylesheet improvements
+
+**File:** `app/static/css/style.css:3161-3231`
+**Problem:** The existing print stylesheet is good but could be enhanced.
+**Fix:**
+- Add page break controls for long code blocks (`pre { page-break-inside: avoid; }`)
+- Print the reading time and author info on post pages
+- Add a "Printed from {site_url}" footer via `@page` or `::after` on body
+- Ensure share bar, theme toggle, and back-to-top button are hidden (verify they already are)
+- Print the table of contents on post pages
 **Estimated effort:** 30 minutes
+**Risk:** Low.
+
+### 25. Add breadcrumb navigation to index and search pages
+
+**Files:** `app/templates/index.html`, `app/templates/search.html`
+**Problem:** Only post and tag pages have breadcrumbs. The index and search pages could benefit from consistent navigation context.
+**Fix:** Add a minimal breadcrumb or page indicator. For index: just the site title. For search: "Home / Search: {query}".
+**Estimated effort:** 10 minutes
+**Risk:** None.
+
+### 26. Add reading time badge to post hero
+
+**File:** `app/templates/_post_content.html:11-15`
+**Problem:** The post hero shows date and reading time in the meta line, but the reading time is not visually distinct from the date.
+**Fix:** Add a small badge-style indicator for reading time (e.g., "5 min read") alongside the date. Use the existing badge component styling.
+**Estimated effort:** 10 minutes
+**Risk:** None.
+
+---
+
+## Wave 7: Future Enhancements
 
 ### 27. Add request timeout middleware
 
 **Problem:** No request timeout is configured. Long-running requests (e.g., large file uploads, slow DB queries) could tie up worker threads.
-**Fix:** Add a `before_request` timeout check or configure at the WSGI/ASGI server level (Granian/gunicorn).
+**Fix:** Add a `before_request` timeout check or configure at the WSGI/ASGI server level (Granian/gunicorn). Document the recommended approach in DEPLOY.md.
 **Estimated effort:** 30 minutes
 
 ### 28. Add database connection pool monitoring
 
-**Problem:** No visibility into SQLite connection pool state. If the pool is exhausted, requests will hang until the busy_timeout fires.
+**Problem:** No visibility into SQLite connection pool state. If the pool is exhausted, requests will hang until the busy_timeout fires (5 seconds).
 **Fix:** Log pool stats periodically or expose via the `/health` endpoint.
 **Estimated effort:** 1 hour
 
@@ -272,51 +335,56 @@ def _create_post_object(*, title, body, summary, published, image, now, schedule
 **Fix:** Add `Content-Security-Policy-Report-Only` with a report-uri when `app.debug` is True.
 **Estimated effort:** 30 minutes
 
-### 30. Add print stylesheet improvements
-
-**File:** `app/static/css/style.css:3161-3231`
-**Problem:** The existing print stylesheet is good but could be enhanced: page break controls for long code blocks, print the reading time and author info, add a "Printed from {site_url}" footer.
-**Fix:** Extend the print stylesheet with additional rules.
-**Estimated effort:** 30 minutes
-
-### 31. Add skeleton loading for dashboard post list
-
-**File:** `app/templates/admin/dashboard.html`
-**Problem:** Dashboard loads synchronously — no loading state while the page renders. With many posts and analytics queries, this can feel slow.
-**Fix:** Add skeleton placeholders that show immediately, then get replaced when content loads. Use CSS shimmer animation.
-**Estimated effort:** 1-2 hours
-
-### 32. Add keyboard navigation for share buttons
-
-**File:** `app/templates/post.html:50-73`
-**Problem:** Share buttons are navigable via Tab, but there's no keyboard shortcut to activate common share actions (e.g., `c` for copy link).
-**Fix:** Add a `title` attribute with keyboard hint to the copy button. Add a JS handler (guarded to post pages) that listens for `c` key press when not in an input.
-**Estimated effort:** 15 minutes
-
 ---
 
 ## Execution Order
 
 | Wave | Items | Estimated Total | Priority |
 |------|-------|-----------------|----------|
-| 1 | #1-#4 | 45 min | Critical — bugs that cause errors or data loss |
-| 2 | #5-#9 | 2.5 hours | Medium — backend improvements |
-| 3 | #10-#15 | 2.5 hours | Medium — template & frontend refactoring |
-| 4 | #16-#25 | 1.5 hours | Low — polish & consistency |
-| 5 | #26-#32 | 4 hours | Future — nice-to-have features |
+| 1 | #1-#6 | 2.5 hours | Critical — structural issues and bugs |
+| 2 | #7-#9 | 45 min | Medium — backend improvements |
+| 3 | #10-#16 | 2.5 hours | Medium — template refactoring and UX |
+| 4 | #17-#20 | 25 min | Low — CSS polish and consistency |
+| 5 | #21-#23 | 40 min | Medium — JavaScript enhancements |
+| 6 | #24-#26 | 50 min | Low — print and display |
+| 7 | #27-#29 | 2 hours | Future — nice-to-have features |
 
 ## Parallelization Guide
 
 Items within each wave can be worked on in parallel by sub-agents, with these dependencies:
 
-- **Wave 2:** #9 (dashboard caching) should be done after #7 (helper cleanup) since they touch the same files.
-- **Wave 3:** #10 (partial refactor) should be done before any other changes to `post.html` or `_post_content.html`. #12 (search announcement) and #14 (loading states) both touch `main.js` but are in different sections — can be parallelized safely.
-- **Wave 4:** All items are independent and can be fully parallelized.
+- **Wave 1:** #4 (cache consolidation) touches `posts.py` and `helpers.py` — should be done after #5 (commit fix) since both modify `posts.py`. #1, #2, #3 are fully independent (different files). #6 is independent.
+- **Wave 2:** #7 (FTS ranking) modifies `search.py` and `public.py` — independent of other items. #8 (confirm race) touches `public.py` but is a different function.
+- **Wave 3:** #10 (error partial) is independent. #11 (form accessibility) touches multiple templates — can be parallelized with others. #12 (tooltips) touches CSS and analytics template — independent. #13 (share flash) touches `main.js` and CSS — independent. #14-#16 are independent of each other.
+- **Wave 4:** All items are independent — different files (CSS, admin template).
+- **Wave 5:** All items are independent — `main.js` sections are distinct.
+- **Wave 6:** All items are independent.
+- **Wave 7:** All items are independent.
 
 ## Testing Strategy
 
-- **Wave 1:** Run existing test suite — no new tests needed for #1, #2. Manual testing of share tracking (#3) and bulk select on both dashboard and subscribers pages (#4).
-- **Wave 2:** Add regression tests for #5 (SQL injection prevention), #8 (concurrent subscribe edge case). Run existing tests for #6, #7, #9.
-- **Wave 3:** Full regression test of post page rendering, preview mode, error pages, search functionality, all admin forms.
-- **Wave 4:** Visual inspection across browsers, verify lightbox open/close, check focus styles with keyboard navigation.
-- **Wave 5:** Add tests for new features as they're implemented. Print preview testing, skeleton loading behavior, keyboard shortcut testing.
+- **Wave 1:** Run full test suite after each change. Manual testing of error pages (#1), footer data (#2), CLI commands (#3), dashboard metrics (#4), and post creation with duplicate titles (#5). Newsletter test endpoint (#6).
+- **Wave 2:** Add regression tests for #7 (search ranking), #8 (concurrent confirm). Verify ADMIN_PASSWORD fallback (#9).
+- **Wave 3:** Full regression of error pages (visit /404, trigger 500 error). Test form accessibility with screen readers. Verify share flash animation. Visual inspection of admin nav distinction. Dashboard search empty state verification. Skeleton loading behavior.
+- **Wave 4:** Visual inspection across dark/light modes. Verify noscript warning renders correctly with JS disabled. Test keyboard navigation with skip link on admin pages.
+- **Wave 5:** Test keyboard shortcuts on post pages (ensure 'c' doesn't fire in inputs). Check theme toggle focus styles with keyboard navigation. Test chart accessibility with screen reader.
+- **Wave 6:** Print preview in browser. Visual inspection of breadcrumbs and reading time badge.
+- **Wave 7:** Add tests for new features as they're implemented.
+
+## Already Completed (from previous plan iterations)
+
+The following items were identified in earlier plan reviews and have been implemented:
+
+- ✅ `logger` import in `app/__init__.py` — exists at line 30
+- ✅ `db.session.expire_all()` redundant call — already removed
+- ✅ Share tracking uses `navigator.sendBeacon()` — implemented in `main.js:179-200`
+- ✅ Duplicate select-all/bulk logic consolidated — no inline script in `subscribers.html`
+- ✅ FTS ordering uses `case()` instead of `db.text()` — `public.py:208`
+- ✅ `_scheduler_running` uses `threading.Event` — `scheduler.py:29`
+- ✅ No local `import uuid` in `_generate_unique_slug` — only module-level import
+- ✅ `.form-help` CSS class exists — `style.css:1609-1614`
+- ✅ Reading progress bar JS driver — `main.js:92-97`
+- ✅ Lightbox uses `.hidden` class — `style.css:898-904`
+- ✅ Pagination prefetch priority — `main.js:978-987`
+- ✅ DEPLOY.md rate limiting section — exists at line 186
+- ✅ Media listing uses `heapq.nlargest()` — `media.py`

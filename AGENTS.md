@@ -98,7 +98,7 @@ DEPLOY.md               # Deployment guide
 ### Configuration
 - `config.toml` for site settings (title, author, email, etc.)
 - Config validation is deferred to `create_app()` (not import time), so `config.py` can be imported without env vars set
-- `SECRET_KEY` falls back to empty string; `RuntimeError` in `create_app()` catches the missing case
+- `SECRET_KEY` falls back to empty string; `ADMIN_PASSWORD` falls back to empty string; `RuntimeError` in `create_app()` catches the missing case
 - Environment variables override config values:
   - `SECRET_KEY` (required)
   - `ADMIN_PASSWORD` (required)
@@ -133,7 +133,7 @@ DEPLOY.md               # Deployment guide
 
 - **SQLite only**—no PostgreSQL/MySQL support configured
 - **File uploads**—stored locally in `static/uploads/`, no S3 support
-- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows. `_scheduler_running` flag is set on init and reset to `False` on shutdown via atexit handler.
+- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows. `_scheduler_running` is a `threading.Event` (set on init, cleared on shutdown via atexit, checked via `.is_set()`).
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
 - **Subscriber.expires_at**—timezone-naive datetime used consistently throughout
 - **ProxyFix configurable** via `PROXY_COUNT` env var (defaults to 1) in `app/__init__.py`
@@ -281,7 +281,7 @@ SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads
 `flask rebuild-search` command rebuilds the FTS5 search index from scratch. Useful after importing data or recovering from index corruption.
 
 ### Analytics Caching
-Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in `app/routes/admin/__init__.py`) to prevent slow page loads. Cache key is the `days` parameter. Cache is invalidated via `invalidate_analytics_cache()` on post CRUD operations and bulk operations (publish, unpublish, delete). The cache has a max size of 16 entries (LRU eviction). In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key.
+Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in `app/routes/admin/helpers.py`) to prevent slow page loads. Cache key is the `days` parameter. Cache is invalidated via `invalidate_analytics_cache()` on post CRUD operations and bulk operations (publish, unpublish, delete). The cache has a max size of 16 entries (LRU eviction). In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key. Dashboard metrics have a separate 2-minute TTL cache (`_dashboard_metrics_cache` in `app/routes/admin/posts.py`).
 
 ### Subscriber CSV Export
 `/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.
@@ -359,7 +359,7 @@ The mobile hamburger menu button is **created dynamically in JavaScript** (`main
 `ConnectionError` inherits from `OSError`. Do not catch both in the same except clause — `ConnectionError` is redundant when `OSError` is already caught.
 
 ### Reading Progress Bar
-The `.reading-progress` div exists in `post.html` (scoped to article pages only) with CSS transition but has **no JavaScript driver**. If implementing a reading progress bar, add JS to update its width based on scroll position.
+The `.reading-progress` div exists in `post.html` (scoped to article pages only) with CSS transition. JS driver is in `main.js:92-97` — calculates scroll percentage and updates width on scroll.
 
 ## Assets
 
@@ -597,3 +597,15 @@ Line numbers in plans and documentation can drift. Always verify file references
 
 ### `_get_posts_query` `order_by` Parameter Is Used
 The `order_by` parameter in `_get_posts_query()` (`app/routes/admin/helpers.py:84`) is NOT dead code — it has a default fallback (`Post.updated_at.desc()`) and is actively applied to the query. Do not remove it.
+
+### Plan Consolidation Process
+When consolidating multiple plan files, verify each item against the actual codebase before including it. Many items from earlier plan iterations may have already been implemented. Use a "Already Completed" section in the consolidated plan to track what was done.
+
+### Share Tracking Implementation
+Share tracking in `main.js` uses `navigator.sendBeacon()` as the primary method with `fetch(keepalive: true)` as fallback. The handler is attached to `.share-btn[data-platform]` elements.
+
+### Media File Listing Optimization
+`app/routes/admin/media.py` uses `heapq.nlargest()` for efficient file listing instead of loading all files into memory and sorting. This is the recommended pattern for file-based pagination.
+
+### Error Page Partial Pattern
+`app/templates/_error.html` is used by 404.html but 500.html has its own inline markup. When consolidating error pages, enhance the partial with optional flags (`show_search`, `show_suggestions`) rather than duplicating markup.
