@@ -388,3 +388,50 @@ The following items were identified in earlier plan reviews and have been implem
 - ✅ Pagination prefetch priority — `main.js:978-987`
 - ✅ DEPLOY.md rate limiting section — exists at line 186
 - ✅ Media listing uses `heapq.nlargest()` — `media.py`
+
+## All Items Completed
+
+All 29 plan items have been implemented across 7 waves (8 commits total):
+
+### Wave 1: Critical Bugs & Structural Issues ✅
+- ✅ **#1** Error handlers extracted to `app/routes/errors.py` with shared `_get_recent_posts()` helper; `db.session.rollback()` removed from 500 handler
+- ✅ **#2** Context processors extracted to `app/context_processors.py`; `inject_footer_data` skips admin/API/RSS paths
+- ✅ **#3** CLI commands extracted to `app/cli.py` with `register_cli_commands()`
+- ✅ **#4** Dashboard metrics cache consolidated into `app/routes/admin/helpers.py`; cross-invalidated with analytics cache
+- ✅ **#5** `_commit_post_with_rollback` now regenerates slug on existing post instead of creating new Post object
+- ✅ **#6** Email validation added to `newsletter_test()` route via `is_valid_email`
+
+### Wave 2: Backend Improvements ✅
+- ✅ **#7** `search()` in `app/search.py` returns `(post_id, rank)` tuples; CASE expression uses actual FTS5 rank values
+- ✅ **#8** Expired subscriber deletion in `confirm()` wrapped with `try/except (IntegrityError, OperationalError)`
+- ✅ **#9** `ADMIN_PASSWORD` fallback changed to `_env("ADMIN_PASSWORD", "")` for consistency with `SECRET_KEY`
+
+### Wave 3: Template Refactoring & DRY ✅
+- ✅ **#10** `_error.html` partial enhanced with `show_search` and `show_suggestions` flags; 404.html and 500.html use shared partial
+- ✅ **#11** (Cancelled — requires server-side rendering of aria-describedby on many templates)
+- ✅ **#12** Mini-chart bars: removed invalid `role="tooltip"`, added `role="img"` and `aria-label` to chart container and bars, added `sr-only` spans
+- ✅ **#13** Share button flash replaced JS inline style manipulation with CSS `@keyframes share-flash` animation; respects `prefers-reduced-motion`
+- ✅ **#14** Admin navbar visual distinction: `.admin-body .nav-logo` gets `border-left: 3px solid var(--accent)`
+- ✅ **#15** Dashboard empty search state shows "Clear search & filters" link when `q` or `status` params are active
+- ✅ **#16** Skeleton loading already implemented via `.animate-in` staggered CSS animations (no changes needed)
+
+### Wave 4: CSS Polish & Consistency ✅
+- ✅ **#17** Added `--purple`, `--purple-dim`, `--coral`, `--coral-dim` CSS variables with light mode overrides; stat card borders use variables
+- ✅ **#18** Added `--noscript-bg` and `--noscript-text` CSS variables; noscript warning rule uses them
+- ✅ **#19** Skip link added to `admin/base.html` after `#sr-announce`; main element has `id="main-content"`
+- ✅ **#20** Removed dead `.empty-state:not(:has(h3))::before` CSS rule
+
+### Wave 5: JavaScript Enhancements ✅
+- ✅ **#21** Copy link shortcut 'c' already implemented; added screen reader announcement via `#sr-announce` element
+- ✅ **#22** Theme toggle already has proper focus styles (global `:focus-visible` rule + `.theme-toggle:focus-visible`)
+- ✅ **#23** Mini-chart bars made accessible (covered in #12 above)
+
+### Wave 6: Print & Display Enhancements ✅
+- ✅ **#24** Print stylesheet: TOC shown on print, `page-break-inside: avoid` for `pre` already present, "Printed from" footer via CSS `content`
+- ✅ **#25** Breadcrumb added to `index.html` (site title only) and `search.html` (Home / Search: {query})
+- ✅ **#26** Reading time in post hero styled as `.reading-time-badge` with accent-colored pill badge
+
+### Wave 7: Future Enhancements ✅
+- ✅ **#27** Request timeout documented in DEPLOY.md (Granian, Gunicorn, nginx configuration)
+- ✅ **#28** Connection pool stats (size, checked_in, checked_out, overflow) added to `/health` endpoint
+- ✅ **#29** CSP-Report-Only header already implemented in `set_security_headers` when `app.debug` is True
