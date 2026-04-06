@@ -172,13 +172,27 @@ blog/
 │   ├── email.py             # SMTP email sending
 │   ├── utils.py             # Slug generation, XML escaping
 │   ├── base62.py            # Short URL encoding
-│   ├── scheduler.py         # Newsletter cron job
+│   ├── scheduler.py         # APScheduler newsletter job
+│   ├── cache.py             # Tag count caching
+│   ├── search.py            # FTS5 full-text search
 │   ├── routes/
-│   │   ├── public.py        # Public routes (posts, search, RSS)
-│   │   ├── admin.py         # Admin routes (dashboard, editor)
-│   │   └── rss.py           # RSS feed generation
+│   │   ├── public.py        # Public routes (posts, search, subscribe)
+│   │   ├── rss.py           # RSS feed
+│   │   ├── errors.py        # Error handlers
+│   │   └── admin/           # Admin blueprint package
+│   │       ├── __init__.py  # Blueprint registration, helpers
+│   │       ├── auth.py      # Login/logout
+│   │       ├── posts.py     # Post CRUD, dashboard
+│   │       ├── subscribers.py  # Subscriber management
+│   │       ├── tags.py      # Tag management
+│   │       ├── users.py     # User management
+│   │       ├── sessions.py  # Admin session management
+│   │       ├── media.py     # Media library
+│   │       ├── backup.py    # Backup/restore
+│   │       ├── analytics.py # Analytics page
+│   │       └── newsletter.py # Newsletter test
 │   ├── templates/           # Jinja2 templates
-│   └── static/              # CSS, JS, images, uploads
+│   └── static/              # CSS, JS, fonts, uploads
 ├── migrations/              # Alembic database migrations
 ├── tests/                   # pytest test suite
 ├── instance/                # SQLite database (auto-created, gitignored)
@@ -189,6 +203,7 @@ blog/
 ├── .env.example             # Environment variable template
 ├── .gitignore               # Git ignore rules
 ├── AGENTS.md                # Agent coding guidelines
+├── DEPLOY.md                # Deployment guide
 └── README.md                # This file
 ```
 

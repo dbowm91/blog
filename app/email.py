@@ -119,7 +119,6 @@ def send_newsletter(posts, subscribers) -> bool:
                 logger.exception(
                     "SMTP disconnected while sending to %s; reconnecting", sub.email
                 )
-                all_sent = False
                 server = _connect_smtp()
                 if not server:
                     logger.error(
@@ -127,6 +126,7 @@ def send_newsletter(posts, subscribers) -> bool:
                         i - 1,
                         len(subscribers),
                     )
+                    all_sent = False
                     break
                 try:
                     server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
@@ -134,6 +134,7 @@ def send_newsletter(posts, subscribers) -> bool:
                     logger.exception(
                         "Failed to send newsletter to %s after reconnect", sub.email
                     )
+                    all_sent = False
             except smtplib.SMTPException:
                 logger.exception("Failed to send newsletter to %s", sub.email)
                 all_sent = False

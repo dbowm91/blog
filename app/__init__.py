@@ -242,7 +242,7 @@ def create_app():
 
         try:
             existing_user = db.session.execute(
-                db.select(User).order_by(User.id)
+                db.select(User).order_by(User.id).limit(1)
             ).scalar_one_or_none()
             if not existing_user:
                 user = User(username=ADMIN_USERNAME, is_admin=True)
