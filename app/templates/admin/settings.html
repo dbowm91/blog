@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Settings | Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Settings</h1>
+    </div>
+
+    <div class="settings-section">
+        <h2>Theme</h2>
+        <form method="POST" action="{{ url_for('admin.settings_theme') }}" data-loading data-loading-text="Saving...">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            
+            <div class="form-group">
+                <label for="preset">Theme Preset</label>
+                <div class="preset-grid">
+                    {% for preset_id, preset in theme_presets.items() %}
+                    <label class="preset-card {% if settings.theme_preset == preset_id %}selected{% endif %}">
+                        <input type="radio" name="preset" value="{{ preset_id }}" {% if settings.theme_preset == preset_id %}checked{% endif %}>
+                        <div class="preset-preview" style="background: {{ preset.bg }}; border-color: {{ preset.border }};">
+                            <div class="preset-swatch" style="background: {{ preset.text }};"></div>
+                            <div class="preset-swatch" style="background: {{ preset.text-muted }};"></div>
+                            <div class="preset-swatch" style="background: {{ preset.accent }};"></div>
+                        </div>
+                        <span class="preset-name">{{ preset.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="logo_text">Logo Text</label>
+                <input type="text" id="logo_text" name="logo_text" value="{{ settings.logo_text }}" placeholder="Leave empty for site title" maxlength="100" class="search-input">
+                <p class="form-help">Custom text for the logo. Uses site title if empty.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="custom_css_enabled" {% if settings.custom_css_enabled %}checked{% endif %}>
+                    Enable custom CSS
+                </label>
+            </div>
+
+            <div class="form-group" id="custom-css-group" style="{% if not settings.custom_css_enabled %}display: none;{% endif %}">
+                <label for="custom_css">Custom CSS</label>
+                <textarea id="custom_css" name="custom_css" class="search-input mono" rows="8" placeholder=":root { --accent: #ff6600; }">{{ settings.custom_css }}</textarea>
+                <p class="form-help">Custom CSS rules. Use :root variables to override theme colors.</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Theme Settings</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll('input[name="preset"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.preset-card').forEach(function(card) {
+            card.classList.remove('selected');
+        });
+        this.closest('.preset-card').classList.add('selected');
+    });
+});
+
+document.querySelector('input[name="custom_css_enabled"]').addEventListener('change', function() {
+    document.getElementById('custom-css-group').style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %}

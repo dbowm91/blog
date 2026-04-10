@@ -1,0 +1,30 @@
+services:
+  blog:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+    volumes:
+      - blog_data:/home/blog/instance
+      - blog_logs:/home/blog/logs
+      - blog_uploads:/home/blog/app/static/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  blog_data:
+    name: blog_data
+  blog_logs:
+    name: blog_logs
+  blog_uploads:
+    name: blog_uploads
