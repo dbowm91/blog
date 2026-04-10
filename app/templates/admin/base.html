@@ -8,6 +8,18 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/prism-okaidia.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style nonce="{{ csp_nonce }}">
+        :root {
+            {% for key, value in theme_vars.items() %}
+            {% if key != 'name' %}
+            --{{ key }}: {{ value }};
+            {% endif %}
+            {% endfor %}
+        }
+        {% if custom_css_enabled and custom_css %}
+        {{ custom_css | safe }}
+        {% endif %}
+    </style>
 </head>
 <body class="admin-body">
     <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
@@ -33,6 +45,7 @@
                             <a href="{{ url_for('admin.users_list') }}" {% if request.endpoint == 'admin.users_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Users</a>
                             <a href="{{ url_for('admin.sessions_list') }}" {% if request.endpoint == 'admin.sessions_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Sessions</a>
                             <a href="{{ url_for('admin.backup') }}" {% if request.endpoint == 'admin.backup' %}aria-current="page" class="active"{% endif %} role="menuitem">Backups</a>
+                            <a href="{{ url_for('admin.settings') }}" {% if request.endpoint == 'admin.settings' %}aria-current="page" class="active"{% endif %} role="menuitem">Settings</a>
                         </div>
                     </div>
                     <span class="nav-separator" aria-hidden="true"></span>

@@ -354,7 +354,7 @@ When rate limiting is configured at the proxy level, monitor these metrics:
 
 
 
-## 6. Systemd Service
+## 7. Systemd Service
 
 Create `/etc/systemd/system/blog.service`:
 
@@ -405,7 +405,112 @@ ADMIN_PASSWORD=...
 
 Then use `EnvironmentFile=/etc/systemd/system/blog.env` in the unit file instead of individual `Environment=` lines.
 
-## 7. Backup
+## 7. Docker Deployment
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) 20.10+
+- [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone <repo-url> /opt/blog
+cd /opt/blog
+
+# Create .env file
+cat > .env << EOF
+SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+ADMIN_PASSWORD=your-strong-password-here
+ADMIN_USERNAME=admin
+EOF
+
+# Start the container
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+The blog will be available at `http://localhost:5000`. Admin at `http://localhost:5000/admin/login`.
+
+### Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `SECRET_KEY` | Yes | Flask session signing key |
+| `ADMIN_PASSWORD` | Yes | Admin login password |
+| `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
+| `SMTP_USER` | No | SMTP username for newsletter |
+| `SMTP_PASSWORD` | No | SMTP password |
+
+### Data Persistence
+
+Docker uses named volumes to persist data:
+
+- `blog_data` — SQLite database (`instance/`)
+- `blog_logs` — Application logs (`logs/`)
+- `blog_uploads` — Uploaded media (`app/static/uploads/`)
+
+These volumes persist across container restarts and upgrades.
+
+### Updating
+
+```bash
+# Pull latest code
+git pull
+
+# Rebuild and restart
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+```
+
+### Health Check
+
+The container includes a health check that verifies the app responds:
+
+```bash
+# Check health
+docker inspect --format='{{.State.Health.Status}}' blog
+
+# Manual health check
+curl -f http://localhost:5000/health
+```
+
+### Production Considerations
+
+For production deployments:
+
+1. **Use a reverse proxy** (nginx, Caddy) with HTTPS in front of the Docker container
+2. **Set `config.toml [site] base_url`** to your public HTTPS URL
+3. **Configure rate limiting** at the proxy level (see Section 5)
+4. **Back up the named volumes** regularly:
+   ```bash
+   docker run --rm -v blog_data:/data -v $(pwd):/backup alpine \
+     tar czf /backup/blog_data_backup.tar.gz -C /data .
+   ```
+5. **Monitor container logs**: `docker-compose logs -f`
+
+### Resource Limits
+
+Add resource limits to `docker-compose.yml` if needed:
+
+```yaml
+services:
+  blog:
+    # ... existing config ...
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+```
+
+## 8. Backup
 
 ### Built-in Backup
 
@@ -430,7 +535,7 @@ sqlite3 /opt/blog/instance/blog.db ".dump" | gzip > /var/backups/blog/backup-$(d
 
 Include `instance/backups/` and `static/uploads/` in your backup strategy.
 
-## 8. Monitoring
+## 9. Monitoring
 
 ### Health Check
 
@@ -463,7 +568,7 @@ tail -f /opt/blog/logs/blog.log
 
 Or use `journalctl -u blog` for systemd-managed deployments.
 
-## 9. Security Checklist
+## 10. Security Checklist
 
 - [ ] `SECRET_KEY` is a random 64-character hex string and is not committed to version control
 - [ ] `ADMIN_PASSWORD` is strong (12+ characters, mixed case, numbers, symbols)
@@ -478,4 +583,4 @@ Or use `journalctl -u blog` for systemd-managed deployments.
 - [ ] `static/uploads/` is not directly writable by the web server user
 - [ ] `instance/` directory permissions are restricted (the systemd `ProtectSystem=strict` directive helps)
 - [ ] SMTP credentials are set via environment variables, not in `config.toml`
-- [ ] Regular backups are configured (see Section 7)
+- [ ] Regular backups are configured (see Section 8)

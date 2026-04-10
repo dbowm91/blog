@@ -259,6 +259,20 @@ def create_app():
         except OperationalError:
             db.session.rollback()
 
+        # Initialize SiteSettings if none exist
+        try:
+            from app.models import SiteSettings
+
+            existing_settings = db.session.execute(
+                db.select(SiteSettings).order_by(SiteSettings.id).limit(1)
+            ).scalar_one_or_none()
+            if not existing_settings:
+                settings = SiteSettings()
+                db.session.add(settings)
+                db.session.commit()
+        except OperationalError:
+            db.session.rollback()
+
         try:
             init_fts()
         except OperationalError:

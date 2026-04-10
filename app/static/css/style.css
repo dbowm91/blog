@@ -3343,3 +3343,96 @@ a:hover {
 .admin-footer-sep {
     color: var(--border);
 }
+
+/* --- Settings Page --- */
+.settings-section {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.settings-section h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.preset-card {
+    cursor: pointer;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    transition: border-color var(--transition);
+}
+
+.preset-card:hover {
+    border-color: var(--text-muted);
+}
+
+.preset-card.selected {
+    border-color: var(--accent);
+}
+
+.preset-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.preset-preview {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+}
+
+.preset-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+}
+
+.preset-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.form-actions {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.mono {
+    font-family: var(--font-mono);
+}

@@ -251,6 +251,46 @@ flask db migrate -m "description"
 flask db upgrade
 ```
 
+## Customization
+
+### Theming
+
+The blog supports theme switching via the admin panel at `/admin/settings`. Available presets:
+
+- **GitHub Dark** — Dark theme with blue accents (default)
+- **GitHub Light** — Light theme with blue accents
+- **Solarized Dark** — Dark theme with cyan/green accents
+- **Monokai** — Dark theme with vibrant colors
+
+You can also enable custom CSS for additional styling. Use CSS custom properties to override theme colors:
+
+```css
+:root {
+    --accent: #ff6600;  /* Changes link/button colors */
+    --bg: #1a1a2e;       /* Changes background */
+}
+```
+
+### Logo
+
+Set a custom logo text in `/admin/settings` under "Logo Text". Leave empty to use the site title from `config.toml`.
+
+### Custom CSS
+
+Enable "Custom CSS" in settings to add your own CSS rules. The blog uses CSS custom properties (variables) for easy theming:
+
+| Variable | Description |
+|---|---|
+| `--bg` | Page background |
+| `--bg-surface` | Card/surface background |
+| `--text` | Primary text color |
+| `--text-muted` | Secondary/muted text |
+| `--accent` | Link/button color |
+| `--accent-hover` | Link/button hover color |
+| `--border` | Border color |
+
+Full list of available variables is in `app/static/css/style.css` under `:root`.
+
 ## Known Limitations
 
 - **SQLite only** — No PostgreSQL/MySQL support configured

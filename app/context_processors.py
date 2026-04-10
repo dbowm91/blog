@@ -45,6 +45,48 @@ def register_context_processors(app):
         }
 
     @app.context_processor
+    def inject_theme():
+        try:
+            from app.models import SiteSettings, THEME_PRESETS
+
+            settings = db.session.execute(
+                select(SiteSettings).order_by(SiteSettings.id).limit(1)
+            ).scalar_one_or_none()
+
+            if not settings:
+                return {
+                    "theme_preset": "github-dark",
+                    "theme_vars": THEME_PRESETS["github-dark"],
+                    "custom_css_enabled": False,
+                    "custom_css": "",
+                    "logo_text": "",
+                    "theme_presets": THEME_PRESETS,
+                }
+
+            preset = THEME_PRESETS.get(
+                settings.theme_preset, THEME_PRESETS["github-dark"]
+            )
+            return {
+                "theme_preset": settings.theme_preset,
+                "theme_vars": preset,
+                "custom_css_enabled": settings.custom_css_enabled,
+                "custom_css": settings.custom_css
+                if settings.custom_css_enabled
+                else "",
+                "logo_text": settings.logo_text,
+                "theme_presets": THEME_PRESETS,
+            }
+        except OperationalError:
+            return {
+                "theme_preset": "github-dark",
+                "theme_vars": THEME_PRESETS["github-dark"],
+                "custom_css_enabled": False,
+                "custom_css": "",
+                "logo_text": "",
+                "theme_presets": THEME_PRESETS,
+            }
+
+    @app.context_processor
     def inject_footer_data():
         path = request.path if request else ""
         if (

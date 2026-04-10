@@ -18,7 +18,7 @@ Both `ADMIN_PASSWORD` and `SECRET_KEY` environment variables are **required**—
 run.py                  # Entry point—exports `app` (WSGI) and `asgi_app` (ASGI)
 app/__init__.py         # App factory (`create_app()`), middleware, logging setup
 app/config.py           # All config loaded from `config.toml` + env vars (+ validation)
-app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession)
+app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession, SiteSettings)
 app/extensions.py       # Flask extensions (db, login_manager, migrate)
 app/routes/public.py    # Public-facing routes
 app/routes/admin/       # Admin routes package (requires login)
@@ -33,6 +33,7 @@ app/routes/admin/media.py     # media library
 app/routes/admin/backup.py    # backup/restore
 app/routes/admin/analytics.py # analytics page
 app/routes/admin/newsletter.py # newsletter test
+app/routes/admin/settings.py  # theme settings (presets, custom CSS, logo)
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
 app/cache.py            # Tag count cache (double-checked locking)
@@ -111,6 +112,14 @@ DEPLOY.md               # Deployment guide
 - Non-admin users get 403 on all admin routes (except login/logout)
 - Login route rejects non-admin users with same "Invalid credentials" message as bad passwords
 - `logout()` uses `@login_required` alone so non-admin authenticated users can still log out
+
+### Theming
+- `SiteSettings` model stores theme preferences in the database (single row, id=1)
+- `THEME_PRESETS` dict in `models.py` defines available themes with CSS variable values
+- Theme CSS variables injected via `<style>` tag in `base.html` and `admin/base.html`
+- `inject_theme` context processor loads settings from DB on every request
+- Settings page at `/admin/settings` allows preset selection, logo text, and custom CSS
+- Custom CSS enabled via checkbox; rules injected after theme variables for override capability
 
 ## Common Tasks
 

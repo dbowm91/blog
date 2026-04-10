@@ -18,6 +18,18 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="preload" href="{{ url_for('static', filename='fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="{{ url_for('static', filename='fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <style nonce="{{ csp_nonce }}">
+        :root {
+            {% for key, value in theme_vars.items() %}
+            {% if key != 'name' %}
+            --{{ key }}: {{ value }};
+            {% endif %}
+            {% endfor %}
+        }
+        {% if custom_css_enabled and custom_css %}
+        {{ custom_css | safe }}
+        {% endif %}
+    </style>
     <noscript>
         <style nonce="{{ csp_nonce }}">
             @media (max-width: 768px) {
@@ -38,7 +50,7 @@
     <nav class="navbar" aria-label="Main navigation">
         <div class="container nav-container">
             <a href="{{ url_for('public.index') }}" class="nav-logo">
-                <span class="logo-bracket">{</span>{{ site_title }}<span class="logo-bracket">}</span>
+                <span class="logo-bracket">{</span>{{ logo_text if logo_text else site_title }}<span class="logo-bracket">}</span>
             </a>
             <div class="nav-links">
                 <a href="{{ url_for('public.index') }}" {% if request.endpoint == 'public.index' %}aria-current="page" class="active"{% endif %}>Posts</a>

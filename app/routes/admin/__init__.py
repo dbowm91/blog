@@ -79,3 +79,4 @@ from app.routes.admin.backup import (
 )
 from app.routes.admin.analytics import analytics
 from app.routes.admin.newsletter import newsletter_test
+from app.routes.admin.settings import settings, settings_theme

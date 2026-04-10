@@ -76,9 +76,15 @@ class Post(db.Model):
     newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
     newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
-    tags = db.relationship("Tag", secondary=post_tags, backref=db.backref("posts", lazy="dynamic"))
-    page_views = db.relationship("PageView", backref="post", lazy="dynamic", cascade="all, delete-orphan")
-    share_events = db.relationship("ShareEvent", backref="post", lazy="dynamic", cascade="all, delete-orphan")
+    tags = db.relationship(
+        "Tag", secondary=post_tags, backref=db.backref("posts", lazy="dynamic")
+    )
+    page_views = db.relationship(
+        "PageView", backref="post", lazy="dynamic", cascade="all, delete-orphan"
+    )
+    share_events = db.relationship(
+        "ShareEvent", backref="post", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         db.Index("ix_posts_published_created", "published", "created_at"),
@@ -103,17 +109,22 @@ class Subscriber(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(256), unique=True, nullable=False)
-    token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex)
+    token = db.Column(
+        db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex
+    )
     confirmed = db.Column(db.Boolean, default=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
     expires_at = db.Column(
-        UTCDateTime, nullable=True,
+        UTCDateTime,
+        nullable=True,
         doc="Confirmation deadline. Subscribers removed if not confirmed before this time.",
     )
     unsubscribed_at = db.Column(UTCDateTime, nullable=True)
 
     __table_args__ = (
-        db.Index("ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"),
+        db.Index(
+            "ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"
+        ),
     )
 
     def __repr__(self) -> str:
@@ -128,9 +139,7 @@ class PageView(db.Model):
     referrer = db.Column(db.String(512), nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
-    __table_args__ = (
-        db.Index("ix_page_views_post_created", "post_id", "created_at"),
-    )
+    __table_args__ = (db.Index("ix_page_views_post_created", "post_id", "created_at"),)
 
     def __repr__(self) -> str:
         return f"<PageView post_id={self.post_id}>"
@@ -165,9 +174,118 @@ class AdminSession(db.Model):
 
     user = db.relationship("User", backref=db.backref("admin_sessions", lazy="dynamic"))
 
-    __table_args__ = (
-        db.Index("ix_admin_sessions_user_id", "user_id"),
-    )
+    __table_args__ = (db.Index("ix_admin_sessions_user_id", "user_id"),)
 
     def __repr__(self) -> str:
         return f"<AdminSession user_id={self.user_id} ip={self.ip_address!r}>"
+
+
+class SiteSettings(db.Model):
+    __tablename__ = "site_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    theme_preset = db.Column(db.String(32), default="github-dark", nullable=False)
+    custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    custom_css = db.Column(db.Text, default="", nullable=False)
+    logo_text = db.Column(db.String(100), default="", nullable=False)
+    updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
+
+    def __repr__(self) -> str:
+        return f"<SiteSettings preset={self.theme_preset!r}>"
+
+
+THEME_PRESETS = {
+    "github-dark": {
+        "name": "GitHub Dark",
+        "bg": "#0d1117",
+        "bg-surface": "#161b22",
+        "bg-elevated": "#1c2128",
+        "border": "#30363d",
+        "text": "#e6edf3",
+        "text-muted": "#8b949e",
+        "text-dim": "#7d8590",
+        "text-dim-strong": "#9ca3af",
+        "accent": "#58a6ff",
+        "accent-hover": "#79c0ff",
+        "accent-dim": "rgba(88, 166, 255, 0.1)",
+        "green": "#3fb950",
+        "green-dim": "rgba(63, 185, 80, 0.15)",
+        "red": "#f85149",
+        "red-dim": "rgba(248, 81, 73, 0.15)",
+        "yellow": "#d29922",
+        "purple": "#a371f7",
+        "purple-dim": "rgba(163, 113, 247, 0.15)",
+        "coral": "#f78166",
+        "coral-dim": "rgba(247, 129, 102, 0.15)",
+    },
+    "github-light": {
+        "name": "GitHub Light",
+        "bg": "#f6f8fa",
+        "bg-surface": "#ffffff",
+        "bg-elevated": "#f0f2f5",
+        "border": "#d0d7de",
+        "text": "#1f2328",
+        "text-muted": "#57606a",
+        "text-dim": "#6e7781",
+        "text-dim-strong": "#4b5563",
+        "accent": "#0969da",
+        "accent-hover": "#0550ae",
+        "accent-dim": "rgba(9, 105, 218, 0.1)",
+        "green": "#1a7f37",
+        "green-dim": "rgba(26, 127, 55, 0.15)",
+        "red": "#cf222e",
+        "red-dim": "rgba(207, 34, 46, 0.15)",
+        "yellow": "#9a6700",
+        "purple": "#8250df",
+        "purple-dim": "rgba(130, 80, 223, 0.15)",
+        "coral": "#d4513d",
+        "coral-dim": "rgba(212, 81, 61, 0.15)",
+    },
+    "solarized-dark": {
+        "name": "Solarized Dark",
+        "bg": "#002b36",
+        "bg-surface": "#073642",
+        "bg-elevated": "#094857",
+        "border": "#586e75",
+        "text": "#839496",
+        "text-muted": "#586e75",
+        "text-dim": "#657b83",
+        "text-dim-strong": "#93a1a1",
+        "accent": "#268bd2",
+        "accent-hover": "#1e86c8",
+        "accent-dim": "rgba(38, 139, 210, 0.1)",
+        "green": "#859900",
+        "green-dim": "rgba(133, 153, 0, 0.15)",
+        "red": "#dc322f",
+        "red-dim": "rgba(220, 50, 47, 0.15)",
+        "yellow": "#b58900",
+        "purple": "#6c71c4",
+        "purple-dim": "rgba(108, 113, 196, 0.15)",
+        "coral": "#cb4b16",
+        "coral-dim": "rgba(203, 75, 22, 0.15)",
+    },
+    "monokai": {
+        "name": "Monokai",
+        "bg": "#272822",
+        "bg-surface": "#3e3d32",
+        "bg-elevated": "#49483e",
+        "border": "#75715e",
+        "text": "#f8f8f2",
+        "text-muted": "#a6a69c",
+        "text-dim": "#8b8b7a",
+        "text-dim-strong": "#cfcfc2",
+        "accent": "#66d9ef",
+        "accent-hover": "#a6e3e8",
+        "accent-dim": "rgba(102, 217, 239, 0.1)",
+        "green": "#a6e22e",
+        "green-dim": "rgba(166, 226, 46, 0.15)",
+        "red": "#f92672",
+        "red-dim": "rgba(249, 38, 114, 0.15)",
+        "yellow": "#e6db74",
+        "yellow-dim": "rgba(230, 219, 116, 0.15)",
+        "purple": "#ae81ff",
+        "purple-dim": "rgba(174, 129, 255, 0.15)",
+        "coral": "#fd971f",
+        "coral-dim": "rgba(253, 151, 31, 0.15)",
+    },
+}

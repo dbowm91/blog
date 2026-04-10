@@ -4,7 +4,36 @@ Consolidated from codebase and UI reviews. Organized into parallelizable waves. 
 
 ---
 
-## Wave 1: Critical Bugs & Structural Issues
+## New Improvements (April 2026)
+
+### Theme System
+
+- ✅ **SiteSettings model** added to `app/models.py` with `theme_preset`, `custom_css_enabled`, `custom_css`, `logo_text`
+- ✅ **THEME_PRESETS** dict with 4 presets: `github-dark`, `github-light`, `solarized-dark`, `monokai`
+- ✅ **`inject_theme` context processor** in `app/context_processors.py` loads settings on every request
+- ✅ **Settings page** at `/admin/settings` with preset selection, logo text, and custom CSS
+- ✅ **Theme injection** via `<style>` tag in `base.html` and `admin/base.html` (overrides CSS variables)
+- ✅ **Logo customization** via `logo_text` field, falls back to site title
+- ✅ **CSS** for settings page added to `style.css`
+- ✅ **Migration** created at `migrations/versions/sitesettings.py`
+
+### Docker Deployment
+
+- ✅ **Dockerfile** multi-stage build with Python 3.14-slim, Granian server
+- ✅ **docker-compose.yml** with named volumes for data, logs, and uploads
+- ✅ **.dockerignore** to exclude venv, instance, logs, etc.
+- ✅ **DEPLOY.md** updated with Docker deployment section (Section 7)
+
+### Documentation
+
+- ✅ **README.md** updated with customization section (theming, CSS variables, logo)
+- ✅ **AGENTS.md** updated with SiteSettings model, settings.py route, and theming patterns
+
+---
+
+## Previously Completed Items
+
+All 29 items from the previous improvement plan were completed (Wave 1-7). These are preserved in git history.
 
 ### 1. Extract error handlers from `create_app()`
 
