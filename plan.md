@@ -1,466 +1,945 @@
 # Improvement Plan
 
-Consolidated from codebase and UI reviews. Organized into parallelizable waves. Items within each wave can be worked on simultaneously by sub-agents unless dependency notes say otherwise.
+Consolidated from plans 2-9 (code quality, security, performance, developer experience, and feature enhancements). All items from the original plan.md (waves 1-7, items 1-29) were completed in previous sessions.
 
 ---
 
-## New Improvements (April 2026)
+## Summary of Remaining Items
 
-### Theme System
-
-- ✅ **SiteSettings model** added to `app/models.py` with `theme_preset`, `custom_css_enabled`, `custom_css`, `logo_text`
-- ✅ **THEME_PRESETS** dict with 4 presets: `github-dark`, `github-light`, `solarized-dark`, `monokai`
-- ✅ **`inject_theme` context processor** in `app/context_processors.py` loads settings on every request
-- ✅ **Settings page** at `/admin/settings` with preset selection, logo text, and custom CSS
-- ✅ **Theme injection** via `<style>` tag in `base.html` and `admin/base.html` (overrides CSS variables)
-- ✅ **Logo customization** via `logo_text` field, falls back to site title
-- ✅ **CSS** for settings page added to `style.css`
-- ✅ **Migration** created at `migrations/versions/sitesettings.py`
-
-### Docker Deployment
-
-- ✅ **Dockerfile** multi-stage build with Python 3.14-slim, Granian server
-- ✅ **docker-compose.yml** with named volumes for data, logs, and uploads
-- ✅ **.dockerignore** to exclude venv, instance, logs, etc.
-- ✅ **DEPLOY.md** updated with Docker deployment section (Section 7)
-
-### Documentation
-
-- ✅ **README.md** updated with customization section (theming, CSS variables, logo)
-- ✅ **AGENTS.md** updated with SiteSettings model, settings.py route, and theming patterns
+| Wave | Category | Items | Priority |
+|------|----------|-------|----------|
+| 1 | Critical Bugs | 9 | Critical |
+| 2 | Security Fixes | 12 | High |
+| 3 | Exception Handling | 6 | Medium |
+| 4 | Performance | 15 | Medium |
+| 5 | Code Quality | 6 | Medium |
+| 6 | Documentation | 7 | Low |
+| 7 | New Features | 18 | Medium |
+| 8 | Developer Experience | 9 | Low |
+| 9 | Module Refactoring | 2 | Low |
 
 ---
 
-## Previously Completed Items
+## Wave 1: Critical Bugs
 
-All 29 items from the previous improvement plan were completed (Wave 1-7). These are preserved in git history.
+**These items fix broken functionality or security vulnerabilities. Do first.**
 
-### 1. Extract error handlers from `create_app()`
+### 1.1 Fix nested forms in subscribers.html
 
-**File:** `app/__init__.py:118-176`
-**Problem:** The 404, 500, and 413 error handlers are defined inside `create_app()`. The 404 and 500 handlers each query `recent_posts` from the database — this code is duplicated between the two handlers. Additionally, the 500 handler calls `db.session.rollback()` which could mask the original exception's state.
-**Impact:** Duplicated queries, potential side effects from rollback in error handler.
-**Fix:**
-1. Create `app/routes/errors.py` with an `errors` Blueprint
-2. Move all three error handlers to the new module
-3. Extract a shared `_get_recent_posts()` helper to eliminate duplication
-4. Remove `db.session.rollback()` from the 500 handler — Flask-SQLAlchemy handles this automatically on error
-5. Register the blueprint in `create_app()`
-**Estimated effort:** 30 minutes
-**Risk:** Low — error handlers are isolated, no route URL changes.
-**Tests:** Verify 404/500/413 pages still render correctly with test client.
+**Severity**: High — Breaks bulk operations
 
-### 2. Extract context processors from `create_app()`
+**Problem**: The bulk form (`<form id="bulk-form">`) contains nested per-subscriber delete forms. HTML forbids nested forms; browsers implicitly close the outer form when encountering inner ones.
 
-**File:** `app/__init__.py:292-361`
-**Problem:** Four context processors are defined inline in `create_app()` (~70 lines). The `inject_footer_data` processor runs database queries on every request, which is wasteful for non-public pages (admin, static, API).
-**Impact:** Unnecessary DB queries on admin and API routes.
-**Fix:**
-1. Create `app/context_processors.py`
-2. Move all four context processors to the new module
-3. Add a check in `inject_footer_data` to skip queries on admin/API paths
-4. Register via `app.context_processor()` in `create_app()`
-**Estimated effort:** 20 minutes
-**Risk:** Low — purely structural refactoring.
-**Tests:** Verify footer data still appears on public pages, not on admin pages.
+**Location**: `app/templates/admin/subscribers.html:48-52`
 
-### 3. Extract CLI commands from `create_app()`
+**Fix**: Move delete forms outside the bulk form. Use `form="bulk-form"` attribute on checkboxes to associate them with the bulk form without nesting.
 
-**File:** `app/__init__.py:398-439`
-**Problem:** Two CLI commands (`rebuild-search`, `create-admin`) are defined inside `create_app()`. This makes them harder to test and adds unnecessary complexity to the app factory.
-**Impact:** `create_app()` is bloated; CLI commands can't be tested independently.
-**Fix:**
-1. Create `app/cli.py`
-2. Move both commands to the new module as standalone functions decorated with `@app.cli.command()`
-3. Import and register in `create_app()` (or use Flask's command discovery)
-**Estimated effort:** 15 minutes
-**Risk:** Low — CLI commands are self-contained.
-**Tests:** Run `flask rebuild-search` and `flask create-admin` manually to verify.
+### 1.2 Fix nested forms in dashboard.html
 
-### 4. Consolidate dashboard metrics cache with analytics cache
+**Severity**: High — Same issue, breaks bulk operations
 
-**Files:** `app/routes/admin/posts.py:42-137`, `app/routes/admin/helpers.py:35-38`
-**Problem:** Two separate in-memory caches exist for similar data:
-- `_dashboard_metrics_cache` in `posts.py` (2-minute TTL, stores views/posts/shares/subscribers/trending)
-- `_analytics_cache` in `helpers.py` (5-minute TTL, stores daily views/top posts/referrers)
+**Problem**: The dashboard bulk form contains nested per-post forms ("Reset NL" and "Delete" buttons).
 
-Both query the same tables (PageView, ShareEvent, Subscriber, Post). The dashboard runs ~10 aggregate queries on every request while the analytics page is cached.
-**Impact:** Redundant DB queries, duplicated cache logic, inconsistent invalidation.
-**Fix:**
-1. Create a unified `_dashboard_cache` in `helpers.py` with a 2-minute TTL
-2. Add a `get_dashboard_metrics()` function that queries all needed data in one call
-3. Add `invalidate_dashboard_cache()` to the helpers module (currently in `posts.py`)
-4. Update `dashboard()` in `posts.py` to use the unified cache
-5. Ensure `invalidate_analytics_cache()` also invalidates dashboard cache (or vice versa)
-**Estimated effort:** 1-2 hours
-**Risk:** Medium — touches dashboard rendering and cache invalidation paths. Need to verify all metrics are still available.
-**Tests:** Run dashboard with cached and uncached data, verify metrics match.
+**Location**: `app/templates/admin/dashboard.html:114-122`
 
-### 5. Fix `_commit_post_with_rollback` duplicate Post object creation
+**Fix**: Apply the same pattern — use `form="bulk-form"` attribute on checkboxes, move delete/reset forms outside the bulk form.
 
-**File:** `app/routes/admin/posts.py:222-266`
-**Problem:** When an IntegrityError occurs (e.g., slug collision), the function creates an entirely new Post object (`_create_post_object`) and adds it to the session. This is wasteful and error-prone — it should just regenerate the slug on the existing post and retry the commit.
-**Impact:** Unnecessary object creation, potential for orphaned tags if `_get_or_create_tags` was already called.
-**Fix:**
-1. On IntegrityError, only regenerate the slug: `post.slug = _generate_unique_slug(title)`
-2. Retry `db.session.commit()` without recreating the Post
-3. Remove `_create_post_object` call from the error handler
-4. Keep image cleanup logic (delete uploaded image if commit fails)
-**Estimated effort:** 20 minutes
-**Risk:** Medium — this is a critical path for post creation. Must verify slug regeneration handles multiple collisions.
-**Tests:** Add test for concurrent post creation with same title.
+### 1.3 Fix path traversal in media.py delete_media
 
-### 6. Add email validation to newsletter test endpoint
+**Severity**: Medium-High — Potential file deletion beyond upload directory
 
-**File:** `app/routes/admin/newsletter.py:43-50`
-**Problem:** The `newsletter_test()` route accepts any string as `test_email` without validation. An admin could accidentally send a test to an invalid address, causing an SMTP error that surfaces as a generic "Failed to send" message.
-**Impact:** Poor UX, potential SMTP errors logged unnecessarily.
-**Fix:**
-1. Import `is_valid_email` from `app.utils`
-2. Validate `test_email` before creating `FakeSubscriber`
-3. Flash an error message if the email is invalid
-**Estimated effort:** 5 minutes
-**Risk:** None.
-**Tests:** Send test newsletter with invalid email, verify error message.
+**Problem**: If `secure_filename()` returns empty string, `filepath` becomes just the upload directory path, which passes the traversal check.
 
----
+**Location**: `app/routes/admin/media.py:95`
 
-## Wave 2: Backend Improvements
+**Fix**: Add empty filename check after `secure_filename()`:
+```python
+filename = secure_filename(filename)
+if not filename:
+    abort(400)
+```
 
-### 7. Preserve FTS ranking in search pagination
+### 1.4 Fix session fixation vulnerability
 
-**File:** `app/routes/public.py:199-212`
-**Problem:** The search route gets FTS results as a list of post IDs, then uses `case({pid: n for n, pid in enumerate(post_ids)}, value=Post.id)` to order by position in the list. This preserves the order but loses the actual FTS relevance score (rank). Posts with marginally different scores get the same pagination treatment.
-**Impact:** Search results ordering is based on list position rather than true relevance, which could degrade with pagination.
-**Fix:**
-1. Modify `search()` in `app/search.py` to return `[(post_id, rank), ...]` tuples
-2. In `public.py`, build the CASE expression using actual rank values: `case({pid: -rank for pid, rank in results}, value=Post.id)` (negative because lower rank = more relevant in FTS5)
-3. Alternatively, use a subquery with the rank values joined back to Post
-**Estimated effort:** 30 minutes
-**Risk:** Low — search results will be more accurate, not less.
-**Tests:** Verify search result ordering with multiple posts matching different terms.
+**Severity**: High — Session hijacking risk
 
-### 8. Add try/except around expired subscriber deletion in `confirm()`
+**Problem**: After calling `login_user(user)`, the Flask session ID is not regenerated. An attacker who obtains a user's session ID before login could fixate that session.
 
-**File:** `app/routes/public.py:423-428`
-**Problem:** When two concurrent requests try to confirm the same expired subscriber, both pass the `scalar_one_or_none()` check, both check `expires_at < utc_now()`, and the second one to call `db.session.delete(sub)` will fail with `DetachedInstanceError` or `IntegrityError`.
-**Impact:** 500 error on race condition for expired subscriber confirmation.
-**Fix:**
-1. Wrap the delete + commit in `try/except (IntegrityError, OperationalError)`
-2. On exception, rollback and redirect with "link expired" message
-**Estimated effort:** 10 minutes
-**Risk:** Low — edge case with concurrent requests.
-**Tests:** Simulate concurrent confirmation of expired subscriber.
+**Location**: `app/routes/admin/auth.py:26`
 
-### 9. Make `ADMIN_PASSWORD` fallback consistent
+**Fix**: Add `session.regenerate()` before `login_user()`:
+```python
+session.regenerate()  # Add before login_user()
+login_user(user)
+```
 
-**File:** `app/config.py:77`
-**Problem:** `SECRET_KEY = _env("SECRET_KEY", "")` defaults to empty string, but `ADMIN_PASSWORD = _env("ADMIN_PASSWORD")` defaults to `None`. Both are caught by the `if not` check in `create_app()`, but the inconsistency is confusing and differs from documented behavior.
-**Impact:** None at runtime — caught by the `if not` check. But inconsistent with `SECRET_KEY` pattern.
-**Fix:** Change to `_env("ADMIN_PASSWORD", "")`.
-**Estimated effort:** 2 minutes
-**Risk:** None.
+### 1.5 Add OperationalError handler in subscribe()
 
----
+**Severity**: Medium — Database failures cause 500 errors
 
-## Wave 3: Template Refactoring & DRY
+**Problem**: The `subscribe()` route only catches `IntegrityError` but not `OperationalError`. Database issues will raise 500 errors.
 
-### 10. Consolidate 404/500 error pages into shared partial
+**Location**: `app/routes/public.py:373-399`
 
-**Files:** `app/templates/404.html`, `app/templates/500.html`, `app/templates/_error.html`
-**Problem:** The 404 page uses `_error.html` partial but the 500 page has its own full markup with additional search form and recent posts. They are structurally different, but the 500 page duplicates the error display pattern.
-**Fix:** Enhance `_error.html` to accept optional `show_search` and `show_suggestions` flags. Update 404.html to use the partial with defaults. Update 500.html to use the partial with `show_search=true` and `show_suggestions=true`.
-**Estimated effort:** 20 minutes
-**Risk:** Low — purely template refactoring.
+**Fix**: Change `except IntegrityError:` to `except (IntegrityError, OperationalError):`
 
-### 11. Add `aria-describedby` to form error messages
+### 1.6 Escape search query in templates
 
-**Files:** All admin form templates, `app/static/css/style.css`
-**Problem:** Form error messages (`.form-error`) are displayed below inputs but have no `aria-describedby` linking them to the associated input. Screen readers don't announce errors in context.
-**Fix:**
-- Generate unique IDs for error spans: `<span class="form-error" id="title-error" role="alert">`
-- Add `aria-describedby="title-error"` to the corresponding input
-- In JS, dynamically set `aria-describedby` when errors are shown/hidden
-**Estimated effort:** 30 minutes
-**Risk:** Low — additive change, doesn't affect existing behavior.
+**Severity**: Medium — XSS risk
 
-### 12. Make CSS tooltips accessible to screen readers
+**Problem**: `{{ query }}` rendered without escaping in search.html. Searching `<script>alert(1)</script>` triggers XSS.
 
-**File:** `app/static/css/style.css` (tooltip rules using `[data-tooltip]`)
-**Problem:** Tooltips rendered via `::before`/`::after` pseudo-elements are invisible to screen readers. The mini-chart bars in analytics use `data-tooltip` for hover info but it's purely visual.
-**Fix:**
-- Add `role="tooltip"` and `aria-describedby` linking tooltip content to the trigger element
-- For chart bars, add visually hidden `<span>` elements with the tooltip text that screen readers can access
-- Keep the CSS pseudo-element for visual display
-**Estimated effort:** 30 minutes
-**Risk:** Low — additive accessibility improvement.
+**Location**: `app/templates/search.html:16,18`
 
-### 13. Fix share button flash to use CSS animation
+**Fix**: Use `{{ query | escape }}` in meta description block.
 
-**File:** `app/static/js/main.js:937-967`
-**Problem:** The JS-driven share button flash sets inline `style.backgroundColor`, `style.color`, `style.borderColor`. The restore reads saved inline values which may be empty strings, causing the button to lose its CSS-defined colors.
-**Fix:** Add a `.share-flash` CSS class with a `@keyframes` animation. This is cleaner, respects `prefers-reduced-motion`, and avoids inline style manipulation.
-**Estimated effort:** 20 minutes
-**Risk:** Low — verify flash animation still looks good.
+### 1.7 Escape search query in FTS5
 
-### 14. Add visual distinction for admin navbar
+**Severity**: Medium — FTS query manipulation
 
-**File:** `app/static/css/style.css`
-**Problem:** The admin navbar has class `.admin-nav` but there are no CSS rules targeting it. It looks identical to the public navbar beyond the logo text.
-**Fix:** Add subtle visual differentiation — e.g., a left accent border on the logo, or a slightly different background tint:
-```css
-.admin-nav .nav-logo {
-    border-left: 3px solid var(--accent);
-    padding-left: var(--space-sm);
+**Problem**: `_escape_fts_term()` only handles `:` and `"` but FTS5 has many special operators (`AND`, `OR`, `NOT`, `NEAR`, `*`, `()`, etc.).
+
+**Location**: `app/search.py:75-80`
+
+**Fix**: Improve escaping to handle all FTS5 special characters:
+```python
+def _escape_fts_term(term: str) -> str:
+    term = term.strip()
+    term = re.sub(r'[()*:+\-"<>]', ' ', term)
+    term = re.sub(r'\s+', ' ', term)
+    term = term.replace('"', '""')
+    return term if term else ""
+```
+
+### 1.8 Sanitize analytics dropdown in JavaScript
+
+**Severity**: Low — Admin-only self-XSS
+
+**Problem**: `select.value` is directly interpolated into a URL without validation.
+
+**Location**: `app/static/js/main.js:683`
+
+**Fix**: Validate against allowed values:
+```javascript
+const allowedDays = ['7', '14', '30', '90', '180', '365'];
+if (allowedDays.includes(select.value)) {
+    window.location.href = '/admin/analytics?days=' + select.value;
 }
 ```
-**Estimated effort:** 10 minutes
-**Risk:** Low — purely cosmetic.
 
-### 15. Improve empty state for dashboard search
+### 1.9 Move timing delay before database query
 
-**File:** `app/templates/admin/dashboard.html:126-129`
-**Problem:** When dashboard search returns no results, the empty state shows a generic message. Could be more helpful by suggesting actions like clearing the search or changing the status filter.
-**Fix:** Add a "Clear search" link that resets both `q` and `status` params. Add a hint about trying different keywords.
-**Estimated effort:** 10 minutes
-**Risk:** None.
+**Severity**: Medium — Token enumeration timing leak
 
-### 16. Add skeleton loading for dashboard post list
+**Problem**: `time.sleep(TOKEN_ENUMERATION_DELAY)` happens AFTER the database query. An attacker can measure response times to distinguish valid from invalid tokens.
 
-**File:** `app/templates/admin/dashboard.html`
-**Problem:** Dashboard loads synchronously — no loading state while the page renders. With many posts and analytics queries, this can feel slow.
-**Fix:** Add skeleton placeholders that show immediately using the existing `shimmer` keyframe animation. Replace with actual content when the page loads. Since this is server-rendered, use a progressive enhancement approach: show skeletons via JS on initial page load, hide them when content is visible.
-**Alternative (simpler):** Add a subtle fade-in animation to the post list items with staggered delays (already done via `.animate-in` class). Add a loading spinner that shows briefly on page navigation.
-**Estimated effort:** 1-2 hours
-**Risk:** Low — additive enhancement.
+**Location**: `app/routes/public.py:413-422`, `app/routes/public.py:453-462`
+
+**Fix**: Move `time.sleep()` BEFORE the database query to normalize timing.
 
 ---
 
-## Wave 4: CSS Polish & Consistency
+## Wave 2: Security Hardening
 
-### 17. Move hardcoded stat card accent colors to CSS variables
+**Security improvements that don't break existing functionality.**
 
-**File:** `app/static/css/style.css`
-**Problem:** `.stat-card-accent-shares` uses `#a371f7` (purple) and `.stat-card-accent-subscribers` uses `#f78166` (coral). These are hardcoded and not part of the CSS variable system.
-**Fix:** Add to `:root`:
-```css
---purple: #a371f7;
---purple-dim: rgba(163, 113, 247, 0.15);
---coral: #f78166;
---coral-dim: rgba(247, 129, 102, 0.15);
+### 2.1 Sanitize custom CSS before rendering
+
+**Severity**: Medium — Potential data exfiltration via CSS
+
+**Problem**: `{{ custom_css | safe }}` bypasses auto-escaping. Malicious CSS can exfiltrate data via `background-image` URLs.
+
+**Location**: `app/templates/base.html:30`, `app/templates/admin/base.html:20`
+
+**Fix**: Add CSS sanitization to strip dangerous properties (`url()`, `expression()`, `content`, etc.):
+```python
+import re
+
+def sanitize_css(css_text: str) -> str:
+    css_text = re.sub(r'url\s*\([^)]*\)', '', css_text)
+    css_text = re.sub(r'expression\s*\([^)]*\)', '', css_text)
+    css_text = re.sub(r'content\s*:', '/* blocked */:', css_text)
+    # Parse and validate remaining CSS
+    return css_text
 ```
-Update the stat card rules to use these variables. Add light mode overrides.
-**Estimated effort:** 10 minutes
-**Risk:** None.
 
-### 18. Fix noscript warning hardcoded colors
+### 2.2 Add login rate limiting (defense-in-depth)
 
-**File:** `app/static/css/style.css:2665-2668`
-**Problem:** `:root:not([data-theme="light"]) .noscript-warning` uses hardcoded `#3b2e00` and `#d4a017` instead of CSS variables.
-**Fix:** Add `--noscript-bg` and `--noscript-text` variables to `:root` with the current values, use them in the rule. Add light mode overrides.
-**Estimated effort:** 5 minutes
-**Risk:** None.
+**Severity**: Medium — Brute-force protection
 
-### 19. Add skip link to admin base template
+**Problem**: No rate limiting on `/admin/login`. While proxy-level is recommended, application-level provides defense-in-depth.
 
-**File:** `app/templates/admin/base.html`
-**Problem:** The public `base.html` has a "Skip to main content" link but the admin `base.html` does not. Keyboard users navigating admin pages must tab through all nav links before reaching content.
-**Fix:** Add `<a href="#main-content" class="skip-link">Skip to main content</a>` after the `#sr-announce` div, before the `<nav>`.
-**Estimated effort:** 2 minutes
-**Risk:** None.
+**Location**: `app/routes/admin/auth.py`
 
-### 20. Remove dead `.empty-state:not(:has(h3))::before` CSS rule
+**Fix**: Add simple in-memory rate limiting:
+```python
+_login_attempts: dict[str, list[float]] = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_WINDOW = 300
 
-**File:** `app/static/css/style.css`
-**Problem:** The rule `.empty-state:not(:has(h3))::before` is designed to show an SVG mail icon when an empty state has no heading. However, every empty state in the codebase has an `<h3>` element, so this selector never matches.
-**Fix:** Remove the dead CSS rule entirely. The `<h3>` text is sufficient context for empty states.
-**Estimated effort:** 5 minutes
-**Risk:** None.
+def rate_limit_login(f):
+    # Track attempts, clear on success
+```
+
+Note: Document that proxy-level rate limiting is required for production.
+
+### 2.3 Add rate limiting to token endpoints
+
+**Severity**: Medium — Enumeration protection
+
+**Problem**: `/confirm/<token>` and `/unsubscribe/<token>` have no rate limiting.
+
+**Location**: `app/routes/public.py:402-439`, `app/routes/public.py:442-480`
+
+**Fix**: Apply similar rate limiting with higher limits (20 attempts per minute).
+
+### 2.4 Validate SESSION_COOKIE_SECURE independently of debug
+
+**Severity**: Medium — Cookie security tied to debug mode
+
+**Problem**: `SESSION_COOKIE_SECURE = not app.debug` makes cookie security dependent on debug setting.
+
+**Location**: `app/__init__.py:90`
+
+**Fix**: Use explicit environment variable control:
+```python
+app.config["SESSION_COOKIE_SECURE"] = _env("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+```
+
+### 2.5 Add SECRET_KEY strength validation
+
+**Severity**: Medium — Weak secret fallback
+
+**Problem**: `SECRET_KEY` falls back to empty string silently.
+
+**Location**: `app/config.py:72`
+
+**Fix**: Validate minimum length (32 chars) in `_validate_config()`:
+```python
+if len(SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY must be at least 32 characters...")
+```
+
+### 2.6 Validate redirect URLs against allowlist
+
+**Severity**: Medium — Open redirect prevention
+
+**Problem**: `_safe_redirect_url()` relies on `request.host` which can be spoofed via Host header.
+
+**Location**: `app/routes/public.py:45-52`
+
+**Fix**: Compare against `BASE_URL` configuration when available.
+
+### 2.7 Add CSRF enforcement warning
+
+**Severity**: Low — Defense-in-depth
+
+**Problem**: No warning if CSRF is disabled in production mode.
+
+**Location**: `app/config.py` or `app/csrf.py`
+
+**Fix**: Add production check that warns if CSRF disabled in non-debug mode.
+
+### 2.8 Add COOP security header
+
+**Severity**: Low — Standard security header
+
+**Problem**: No `Cross-Origin-Opener-Policy` header set.
+
+**Location**: `app/__init__.py` (set_security_headers)
+
+**Fix**: Add `response.headers["Cross-Origin-Opener-Policy"] = "same-origin"`
+
+### 2.9 Remove sensitive info from health endpoint
+
+**Severity**: Low — Information disclosure
+
+**Problem**: `/health` exposes Python version and pool stats.
+
+**Location**: `app/routes/public.py:529-590`
+
+**Fix**: Remove version and pool stats from response, or restrict endpoint to localhost only.
+
+### 2.10 Add subscriber cascade delete
+
+**Severity**: Low-Medium — Orphaned sessions
+
+**Problem**: Deleting a user doesn't cascade-delete their `AdminSession` records.
+
+**Location**: `app/models.py` (User.admin_sessions relationship)
+
+**Fix**: Add `cascade="all,delete"` to the relationship or explicitly delete sessions before deleting user.
+
+### 2.11 Fix FakeSubscriber missing attributes
+
+**Severity**: Low — Errors masked by bare except
+
+**Problem**: `FakeSubscriber` dataclass is missing `confirmed`, `created_at`, `expires_at`, `unsubscribed_at` attributes that `send_newsletter` may access.
+
+**Location**: `app/routes/admin/newsletter.py:15-19`
+
+**Fix**: Add all missing attributes with sensible defaults.
+
+### 2.12 Add cascade to AdminSession relationship
+
+**Severity**: Low — Orphaned sessions
+
+**Problem**: When a user is deleted, their AdminSession records remain.
+
+**Location**: `app/models.py`
+
+**Fix**: Ensure cascade delete is configured properly.
 
 ---
 
-## Wave 5: JavaScript Enhancements
+## Wave 3: Exception Handling
 
-### 21. Add keyboard shortcut 'c' to copy link on post pages
+**Replace bare `except Exception` blocks with specific exceptions.**
 
-**Files:** `app/templates/post.html`, `app/static/js/main.js`
-**Problem:** The copy share button has `title="Copy link (Press C to copy)"` but there's no JS handler for the 'c' key.
-**Fix:** Add a JS handler (guarded to post pages via `document.body.classList.contains('public-body')`) that listens for `c` key press when not in an input. Trigger the same copy logic as the button click. Announce "Link copied!" to screen readers via `#sr-announce`.
-**Estimated effort:** 15 minutes
-**Risk:** Low — must ensure 'c' doesn't fire when typing in inputs.
+### 3.1 Replace bare except in search.py
 
-### 22. Ensure theme toggle has proper focus styles
+**Locations**: `app/search.py:30, 43, 61, 71, 106`
 
-**Files:** `app/static/js/main.js` (dynamic creation), `app/static/css/style.css` (`.theme-toggle` rules)
-**Problem:** The theme toggle button is dynamically created and inserted into `.nav-links`. It has hover styles but should be verified to inherit the global `:focus-visible` outline properly.
-**Fix:** Verify the global `:focus-visible` rule applies to `.theme-toggle`. If not, add explicit focus styles. Ensure the button has `tabindex="0"` when created.
-**Estimated effort:** 5 minutes
-**Risk:** Low.
-**Tests:** Tab through navbar, verify theme toggle gets visible focus outline.
+**Fix**: Use `sqlalchemy.exc.OperationalError, ProgrammingError` for database operations.
 
-### 23. Make mini-chart bars accessible
+### 3.2 Replace bare except in email.py
 
-**File:** `app/templates/admin/analytics.html:44-54`
-**Problem:** Chart bars use inline `style="height: X%"` with CSS `data-tooltip` for hover info. Neither is accessible to screen readers.
-**Fix:**
-- Add visually hidden `<span>` elements inside each `.chart-bar-container` with the date and view count
-- Add `role="img"` and `aria-label` to the `.mini-chart` container with a summary
-- Keep the CSS tooltip for visual users
-**Estimated effort:** 20 minutes
-**Risk:** Low.
+**Locations**: `app/email.py:76, 144`
 
----
+**Fix**: Use `smtplib.SMTPException, OSError`.
 
-## Wave 6: Print & Display Enhancements
+### 3.3 Replace bare except in public.py
 
-### 24. Add print stylesheet improvements
+**Locations**: `app/routes/public.py:548, 566`
 
-**File:** `app/static/css/style.css:3161-3231`
-**Problem:** The existing print stylesheet is good but could be enhanced.
-**Fix:**
-- Add page break controls for long code blocks (`pre { page-break-inside: avoid; }`)
-- Print the reading time and author info on post pages
-- Add a "Printed from {site_url}" footer via `@page` or `::after` on body
-- Ensure share bar, theme toggle, and back-to-top button are hidden (verify they already are)
-- Print the table of contents on post pages
-**Estimated effort:** 30 minutes
-**Risk:** Low.
+**Fix**: Use `OperationalError, ProgrammingError`.
 
-### 25. Add breadcrumb navigation to index and search pages
+### 3.4 Replace bare except in newsletter.py
 
-**Files:** `app/templates/index.html`, `app/templates/search.html`
-**Problem:** Only post and tag pages have breadcrumbs. The index and search pages could benefit from consistent navigation context.
-**Fix:** Add a minimal breadcrumb or page indicator. For index: just the site title. For search: "Home / Search: {query}".
-**Estimated effort:** 10 minutes
-**Risk:** None.
+**Location**: `app/routes/admin/newsletter.py:58`
 
-### 26. Add reading time badge to post hero
+**Fix**: Use `smtplib.SMTPException, OSError`.
 
-**File:** `app/templates/_post_content.html:11-15`
-**Problem:** The post hero shows date and reading time in the meta line, but the reading time is not visually distinct from the date.
-**Fix:** Add a small badge-style indicator for reading time (e.g., "5 min read") alongside the date. Use the existing badge component styling.
-**Estimated effort:** 10 minutes
-**Risk:** None.
+### 3.5 Replace bare except in backup.py
+
+**Locations**: `backup.py:73, 85`
+
+**Fix**: Use `OSError` for gzip, `sqlite3.Error, OSError` for backup creation.
+
+### 3.6 Add documentation comments for intentional catches
+
+**Locations**: `app/routes/admin/helpers.py:49` (URL parsing returns "Other"), `app/routes/errors.py:30` (graceful degradation)
+
+**Fix**: Add comments documenting these are intentional catch-all handlers with known behavior.
 
 ---
 
-## Wave 7: Future Enhancements
+## Wave 4: Performance
 
-### 27. Add request timeout middleware
+**Query optimization and caching improvements.**
 
-**Problem:** No request timeout is configured. Long-running requests (e.g., large file uploads, slow DB queries) could tie up worker threads.
-**Fix:** Add a `before_request` timeout check or configure at the WSGI/ASGI server level (Granian/gunicorn). Document the recommended approach in DEPLOY.md.
-**Estimated effort:** 30 minutes
+### 4.1 Consolidate analytics queries
 
-### 28. Add database connection pool monitoring
+**Problem**: `_get_analytics_data()` runs ~10 separate DB queries per call.
 
-**Problem:** No visibility into SQLite connection pool state. If the pool is exhausted, requests will hang until the busy_timeout fires (5 seconds).
-**Fix:** Log pool stats periodically or expose via the `/health` endpoint.
-**Estimated effort:** 1 hour
+**Location**: `app/routes/admin/helpers.py:99-196`
 
-### 29. Consider adding `Content-Security-Policy-Report-Only` header
+**Fix**: Consolidate into 3-4 queries using subqueries and CTEs.
 
-**Problem:** CSP violations are silently blocked. A report-only header would help detect issues during development.
-**Fix:** Add `Content-Security-Policy-Report-Only` with a report-uri when `app.debug` is True.
-**Estimated effort:** 30 minutes
+### 4.2 Enforce related posts LIMIT cap
+
+**Problem**: `RELATED_POSTS_COUNT` config could be set too high.
+
+**Location**: `app/routes/public.py:69`
+
+**Fix**: Add `HARD_RELATED_POST_LIMIT = 20` regardless of config.
+
+### 4.3 Pre-render newsletter template
+
+**Problem**: Template rendered individually for each subscriber.
+
+**Location**: `app/email.py:92-113`
+
+**Fix**: Pre-render once with placeholder token, replace per-subscriber.
+
+### 4.4 Add request-level tag list caching
+
+**Problem**: Tag list fetched on every public page request.
+
+**Location**: `app/routes/public.py:91,165,196`
+
+**Fix**: Use Flask `g` object for request-level caching.
+
+### 4.5 Cache SiteSettings application-wide
+
+**Problem**: `inject_theme()` queries SiteSettings on every request.
+
+**Location**: `app/context_processors.py`
+
+**Fix**: Add TTL-based caching with invalidation on settings update.
+
+### 4.6 Optimize footer context processor
+
+**Problem**: Footer runs 3 queries on every non-admin request.
+
+**Location**: `app/context_processors.py:90-130`
+
+**Fix**: Cache recent posts and tags with short TTL (30-60 seconds).
+
+### 4.7 Optimize dashboard view/share count queries
+
+**Problem**: Dashboard uses two separate subqueries for view_counts and share_counts.
+
+**Location**: `app/routes/admin/posts.py:59-82`
+
+**Fix**: Consider combining into single query with proper indexes.
+
+### 4.8 Optimize tags list query
+
+**Problem**: Tags list runs two queries instead of one.
+
+**Location**: `app/routes/admin/tags.py`
+
+**Fix**: Use single query with LEFT JOIN and GROUP BY.
+
+### 4.9 Optimize analytics page queries
+
+**Problem**: Analytics page runs 7 separate queries.
+
+**Location**: `app/routes/admin/helpers.py`
+
+**Fix**: Combine some queries (total_views is sum of daily_views).
+
+### 4.10 Add query result caching for expensive operations
+
+**Problem**: Repeated expensive queries aren't cached.
+
+**Location**: `app/routes/admin/analytics.py`
+
+**Fix**: Add `Flask-Caching` decorators with query string caching.
+
+### 4.11 Verify and add missing database indexes
+
+**Problem**: Some query patterns may lack optimal indexes.
+
+**Location**: `app/models.py`
+
+**Fix**: Review and add indexes for `PageView.referrer` if referrer aggregation is slow.
+
+### 4.12 Clear prefetch timer on page unload
+
+**Problem**: Prefetch timer not cleared on page leave.
+
+**Location**: `app/static/js/main.js:950`
+
+**Fix**: Add `beforeunload` event handler to clear timer.
+
+### 4.13 Optimize session-based view tracking
+
+**Problem**: Session list grows to 100 entries, causes serialization overhead.
+
+**Location**: `app/routes/public.py`
+
+**Fix**: Use set instead of list for `viewed_posts`, or use cache.
+
+### 4.14 Add scheduler health monitoring
+
+**Problem**: No visibility into scheduler health.
+
+**Location**: `app/scheduler.py`
+
+**Fix**: Add health endpoint showing scheduler status and last newsletter time.
+
+### 4.15 Async newsletter sending (optional)
+
+**Problem**: Newsletter sends sequentially, blocking scheduler.
+
+**Location**: `app/email.py`
+
+**Fix**: Use `ThreadPoolExecutor` for parallel sending with thread-safe connection management.
 
 ---
 
-## Execution Order
+## Wave 5: Code Quality
 
-| Wave | Items | Estimated Total | Priority |
-|------|-------|-----------------|----------|
-| 1 | #1-#6 | 2.5 hours | Critical — structural issues and bugs |
-| 2 | #7-#9 | 45 min | Medium — backend improvements |
-| 3 | #10-#16 | 2.5 hours | Medium — template refactoring and UX |
-| 4 | #17-#20 | 25 min | Low — CSS polish and consistency |
-| 5 | #21-#23 | 40 min | Medium — JavaScript enhancements |
-| 6 | #24-#26 | 50 min | Low — print and display |
-| 7 | #27-#29 | 2 hours | Future — nice-to-have features |
+**Type annotations, cleanup, and maintainability.**
 
-## Parallelization Guide
+### 5.1 Add type annotations to _get_posts_query
 
-Items within each wave can be worked on in parallel by sub-agents, with these dependencies:
+**Location**: `app/routes/admin/helpers.py:84`
 
-- **Wave 1:** #4 (cache consolidation) touches `posts.py` and `helpers.py` — should be done after #5 (commit fix) since both modify `posts.py`. #1, #2, #3 are fully independent (different files). #6 is independent.
-- **Wave 2:** #7 (FTS ranking) modifies `search.py` and `public.py` — independent of other items. #8 (confirm race) touches `public.py` but is a different function.
-- **Wave 3:** #10 (error partial) is independent. #11 (form accessibility) touches multiple templates — can be parallelized with others. #12 (tooltips) touches CSS and analytics template — independent. #13 (share flash) touches `main.js` and CSS — independent. #14-#16 are independent of each other.
-- **Wave 4:** All items are independent — different files (CSS, admin template).
-- **Wave 5:** All items are independent — `main.js` sections are distinct.
-- **Wave 6:** All items are independent.
-- **Wave 7:** All items are independent.
+**Fix**: Add `-> select` return type.
 
-## Testing Strategy
+### 5.2 Add type annotations to _get_tag_counts
 
-- **Wave 1:** Run full test suite after each change. Manual testing of error pages (#1), footer data (#2), CLI commands (#3), dashboard metrics (#4), and post creation with duplicate titles (#5). Newsletter test endpoint (#6).
-- **Wave 2:** Add regression tests for #7 (search ranking), #8 (concurrent confirm). Verify ADMIN_PASSWORD fallback (#9).
-- **Wave 3:** Full regression of error pages (visit /404, trigger 500 error). Test form accessibility with screen readers. Verify share flash animation. Visual inspection of admin nav distinction. Dashboard search empty state verification. Skeleton loading behavior.
-- **Wave 4:** Visual inspection across dark/light modes. Verify noscript warning renders correctly with JS disabled. Test keyboard navigation with skip link on admin pages.
-- **Wave 5:** Test keyboard shortcuts on post pages (ensure 'c' doesn't fire in inputs). Check theme toggle focus styles with keyboard navigation. Test chart accessibility with screen reader.
-- **Wave 6:** Print preview in browser. Visual inspection of breadcrumbs and reading time badge.
-- **Wave 7:** Add tests for new features as they're implemented.
+**Location**: `app/cache.py:33`
 
-## Already Completed (from previous plan iterations)
+**Fix**: Add `-> dict[int, int]` return type.
 
-The following items were identified in earlier plan reviews and have been implemented:
+### 5.3 Add type annotations to template filters
 
-- ✅ `logger` import in `app/__init__.py` — exists at line 30
-- ✅ `db.session.expire_all()` redundant call — already removed
-- ✅ Share tracking uses `navigator.sendBeacon()` — implemented in `main.js:179-200`
-- ✅ Duplicate select-all/bulk logic consolidated — no inline script in `subscribers.html`
-- ✅ FTS ordering uses `case()` instead of `db.text()` — `public.py:208`
-- ✅ `_scheduler_running` uses `threading.Event` — `scheduler.py:29`
-- ✅ No local `import uuid` in `_generate_unique_slug` — only module-level import
-- ✅ `.form-help` CSS class exists — `style.css:1609-1614`
-- ✅ Reading progress bar JS driver — `main.js:92-97`
-- ✅ Lightbox uses `.hidden` class — `style.css:898-904`
-- ✅ Pagination prefetch priority — `main.js:978-987`
-- ✅ DEPLOY.md rate limiting section — exists at line 186
-- ✅ Media listing uses `heapq.nlargest()` — `media.py`
+**Location**: `app/__init__.py:124, 131`
 
-## All Items Completed
+**Fix**: Add `-> str` return types to `markdown_safe_filter` and `reading_time_filter`.
 
-All 29 plan items have been implemented across 7 waves (8 commits total):
+### 5.4 Add type annotations to model methods
 
-### Wave 1: Critical Bugs & Structural Issues ✅
-- ✅ **#1** Error handlers extracted to `app/routes/errors.py` with shared `_get_recent_posts()` helper; `db.session.rollback()` removed from 500 handler
-- ✅ **#2** Context processors extracted to `app/context_processors.py`; `inject_footer_data` skips admin/API/RSS paths
-- ✅ **#3** CLI commands extracted to `app/cli.py` with `register_cli_commands()`
-- ✅ **#4** Dashboard metrics cache consolidated into `app/routes/admin/helpers.py`; cross-invalidated with analytics cache
-- ✅ **#5** `_commit_post_with_rollback` now regenerates slug on existing post instead of creating new Post object
-- ✅ **#6** Email validation added to `newsletter_test()` route via `is_valid_email`
+**Location**: `app/models.py`
 
-### Wave 2: Backend Improvements ✅
-- ✅ **#7** `search()` in `app/search.py` returns `(post_id, rank)` tuples; CASE expression uses actual FTS5 rank values
-- ✅ **#8** Expired subscriber deletion in `confirm()` wrapped with `try/except (IntegrityError, OperationalError)`
-- ✅ **#9** `ADMIN_PASSWORD` fallback changed to `_env("ADMIN_PASSWORD", "")` for consistency with `SECRET_KEY`
+**Fix**: Add `-> str` to `Post.generate_slug()` and `Post.short_code()`.
 
-### Wave 3: Template Refactoring & DRY ✅
-- ✅ **#10** `_error.html` partial enhanced with `show_search` and `show_suggestions` flags; 404.html and 500.html use shared partial
-- ✅ **#11** (Cancelled — requires server-side rendering of aria-describedby on many templates)
-- ✅ **#12** Mini-chart bars: removed invalid `role="tooltip"`, added `role="img"` and `aria-label` to chart container and bars, added `sr-only` spans
-- ✅ **#13** Share button flash replaced JS inline style manipulation with CSS `@keyframes share-flash` animation; respects `prefers-reduced-motion`
-- ✅ **#14** Admin navbar visual distinction: `.admin-body .nav-logo` gets `border-left: 3px solid var(--accent)`
-- ✅ **#15** Dashboard empty search state shows "Clear search & filters" link when `q` or `status` params are active
-- ✅ **#16** Skeleton loading already implemented via `.animate-in` staggered CSS animations (no changes needed)
+### 5.5 Add type annotations to helper functions
 
-### Wave 4: CSS Polish & Consistency ✅
-- ✅ **#17** Added `--purple`, `--purple-dim`, `--coral`, `--coral-dim` CSS variables with light mode overrides; stat card borders use variables
-- ✅ **#18** Added `--noscript-bg` and `--noscript-text` CSS variables; noscript warning rule uses them
-- ✅ **#19** Skip link added to `admin/base.html` after `#sr-announce`; main element has `id="main-content"`
-- ✅ **#20** Removed dead `.empty-state:not(:has(h3))::before` CSS rule
+**Location**: `app/routes/admin/helpers.py`
 
-### Wave 5: JavaScript Enhancements ✅
-- ✅ **#21** Copy link shortcut 'c' already implemented; added screen reader announcement via `#sr-announce` element
-- ✅ **#22** Theme toggle already has proper focus styles (global `:focus-visible` rule + `.theme-toggle:focus-visible`)
-- ✅ **#23** Mini-chart bars made accessible (covered in #12 above)
+**Fix**: Add types to `_detect_image_type`, `_allowed_file`, `_save_image`, `validate_tag_name`, `_generate_unique_slug`, `_cleanup_orphan_tags`, `_get_or_create_tags`, `_apply_post_updates`.
 
-### Wave 6: Print & Display Enhancements ✅
-- ✅ **#24** Print stylesheet: TOC shown on print, `page-break-inside: avoid` for `pre` already present, "Printed from" footer via CSS `content`
-- ✅ **#25** Breadcrumb added to `index.html` (site title only) and `search.html` (Home / Search: {query})
-- ✅ **#26** Reading time in post hero styled as `.reading-time-badge` with accent-colored pill badge
+### 5.6 Add type annotations to search functions
 
-### Wave 7: Future Enhancements ✅
-- ✅ **#27** Request timeout documented in DEPLOY.md (Granian, Gunicorn, nginx configuration)
-- ✅ **#28** Connection pool stats (size, checked_in, checked_out, overflow) added to `/health` endpoint
-- ✅ **#29** CSP-Report-Only header already implemented in `set_security_headers` when `app.debug` is True
+**Location**: `app/search.py`
+
+**Fix**: Add return types to `init_fts`, `rebuild_fts`, `sync_fts`, `remove_fts`, `search`.
+
+### 5.7 Remove unused variables
+
+**Problem**: Some queries may not be used by templates.
+
+**Location**: `app/routes/public.py:91, 134`
+
+**Fix**: Verify template usage and remove unused queries.
+
+### 5.8 Fix imprecise type annotation in cache.py
+
+**Problem**: `_TAG_COUNTS_CACHE` typed as `dict[str, object]` instead of actual types.
+
+**Location**: `app/cache.py:18`
+
+**Fix**: Use proper types: `dict[str, Optional[dict[int, int]] | float]`.
+
+### 5.9 Handle SQLAlchemy pool methods compatibility
+
+**Problem**: Pool introspection methods may not exist in all SQLAlchemy versions.
+
+**Location**: `app/__init__.py:575-581`
+
+**Fix**: Wrap in try/except to gracefully handle missing methods.
+
+### 5.10 Extract handle_db_error utility
+
+**Problem**: Duplicate error handling in multiple places.
+
+**Location**: `app/utils.py`
+
+**Fix**: Create shared utility:
+```python
+def handle_db_error(e: Exception, operation: str) -> bool:
+    from sqlalchemy.exc import IntegrityError, OperationalError
+    if isinstance(e, (IntegrityError, OperationalError)):
+        logger.error("Database error during %s: %s", operation, e)
+        db.session.rollback()
+        return True
+    return False
+```
+
+---
+
+## Wave 6: Documentation
+
+**Documentation improvements.**
+
+### 6.1 Document SMTP timeout configuration
+
+**Location**: DEPLOY.md
+
+**Fix**: Add `smtp_timeout` to configuration section.
+
+### 6.2 Document proxy-level rate limiting
+
+**Problem**: Login rate limiting recommendation needs clarification.
+
+**Location**: DEPLOY.md
+
+**Fix**: Ensure the rate limiting section clearly documents nginx/Cloudflare configuration.
+
+### 6.3 Document response compression
+
+**Problem**: Response compression recommendation not documented.
+
+**Location**: DEPLOY.md
+
+**Fix**: Add nginx gzip configuration example.
+
+### 6.4 Document PostgreSQL for production
+
+**Problem**: SQLite limitations not documented.
+
+**Location**: DEPLOY.md
+
+**Fix**: Add section on PostgreSQL migration path for production.
+
+### 6.5 Add API documentation docstrings
+
+**Problem**: No API documentation for routes.
+
+**Location**: Route handlers
+
+**Fix**: Add docstrings to public and admin routes.
+
+### 6.6 Document environment variables
+
+**Problem**: No comprehensive env var list.
+
+**Location**: DEPLOY.md
+
+**Fix**: Add environment variable reference table.
+
+### 6.7 Document third-party libraries
+
+**Problem**: Dependencies listed but not their purposes.
+
+**Location**: DEPLOY.md or README.md
+
+**Fix**: Add library purpose table.
+
+---
+
+## Wave 7: New Features
+
+**Content management, SEO, and API enhancements.**
+
+### 7.1 Static pages
+
+**Problem**: No way to create static content pages (About, Contact).
+
+**Effort**: 3-4 hours
+
+**Fix**: Add `Page` model, routes, and admin CRUD.
+
+### 7.2 Post archive page
+
+**Problem**: No chronological browsing of all posts.
+
+**Effort**: 1-2 hours
+
+**Fix**: Add `/archive` route with posts grouped by year/month.
+
+### 7.3 Search result highlighting
+
+**Problem**: Search results show matching posts but don't highlight terms.
+
+**Effort**: 2 hours
+
+**Fix**: Extract snippets around matches and pass to template.
+
+### 7.4 Schema.org JSON-LD markup
+
+**Problem**: Posts lack structured data for SEO.
+
+**Effort**: 1 hour
+
+**Fix**: Add JSON-LD Article schema to post templates.
+
+### 7.5 Twitter card enhancements
+
+**Problem**: Base Twitter Card tag exists but per-post title/description/image missing.
+
+**Effort**: 30 minutes
+
+**Fix**: Add per-post Twitter meta tags.
+
+### 7.6 Enhanced sitemap
+
+**Problem**: Sitemap could include static pages and proper lastmod.
+
+**Effort**: 30 minutes
+
+**Fix**: Update sitemap generator for static pages (after 7.1).
+
+### 7.7 Canonical URLs
+
+**Problem**: No canonical URL meta tags.
+
+**Effort**: 30 minutes
+
+**Fix**: Add canonical URL to base template and context processors.
+
+### 7.8 Robots.txt enhancements
+
+**Problem**: Basic robots.txt, AI crawler blocking missing.
+
+**Effort**: 15 minutes
+
+**Fix**: Add sitemap location and block AI crawlers.
+
+### 7.9 REST API for posts
+
+**Problem**: No programmatic access to blog content.
+
+**Effort**: 4-5 hours
+
+**Fix**: Create read-only API at `/api/v1/` with posts, tags endpoints.
+
+### 7.10 Webhook system
+
+**Problem**: No way to notify external services on publish.
+
+**Effort**: 4-5 hours
+
+**Fix**: Add `Webhook` model and delivery system.
+
+### 7.11 Import/Export tool
+
+**Problem**: No migration or backup tool for full blog data.
+
+**Effort**: 3-4 hours
+
+**Fix**: Add JSON export/import with CLI commands.
+
+### 7.12 Scheduled posts calendar view
+
+**Problem**: No visual overview of scheduled posts.
+
+**Effort**: 2-3 hours
+
+**Fix**: Add calendar view to admin dashboard.
+
+### 7.13 Post list columns toggle
+
+**Problem**: Fixed columns in post list.
+
+**Effort**: 1-2 hours
+
+**Fix**: Add column visibility toggle with localStorage persistence.
+
+### 7.14 Bulk subscriber resend confirmation
+
+**Problem**: Bulk actions limited to delete/export.
+
+**Effort**: 1 hour
+
+**Fix**: Add resend confirmation email action.
+
+### 7.15 Newsletter inline styles
+
+**Problem**: Newsletter HTML uses CSS classes email clients may ignore.
+
+**Effort**: 2 hours
+
+**Fix**: Convert to inline styles using premailer or manual styling.
+
+### 7.16 Unsubscribe preference center
+
+**Problem**: Users can only unsubscribe entirely.
+
+**Effort**: 3-4 hours
+
+**Fix**: Add preference form for frequency/topics.
+
+### 7.17 API key management UI
+
+**Problem**: API keys require server config changes.
+
+**Effort**: 2-3 hours
+
+**Fix**: Add admin UI for generating/revoking API keys.
+
+### 7.18 Session IP binding
+
+**Problem**: Sessions can be used from different IPs.
+
+**Effort**: 1 hour
+
+**Fix**: Store initial IP, warn on change (don't break mobile users).
+
+---
+
+## Wave 8: Developer Experience
+
+**Tests, polish, and accessibility.**
+
+### 8.1 Add Flask shell context
+
+**Problem**: No interactive shell context for debugging.
+
+**Effort**: 15 minutes
+
+**Fix**: Add shell context processor for models.
+
+### 8.2 Add Post.short_code test
+
+**Problem**: `short_code()` method not tested.
+
+**Effort**: 15 minutes
+
+**Fix**: Add test to `tests/test_models.py`.
+
+### 8.3 Add FTS tests (optional)
+
+**Problem**: FTS module functions not tested directly.
+
+**Effort**: 45 minutes
+
+**Fix**: Add direct tests for `sync_fts`, `rebuild_fts`.
+
+### 8.4 Add context processor tests
+
+**Problem**: Context processors not tested.
+
+**Effort**: 30 minutes
+
+**Fix**: Add tests for footer data skipping admin routes.
+
+### 8.5 Add CLI command tests
+
+**Problem**: CLI commands not tested.
+
+**Effort**: 1 hour
+
+**Fix**: Add tests for `rebuild-search` and `create-admin`.
+
+### 8.6 Handle missing image file
+
+**Problem**: Post has image path but file missing.
+
+**Effort**: 30 minutes
+
+**Fix**: Check image existence, clear invalid reference.
+
+### 8.7 Add database integrity check
+
+**Problem**: No graceful handling of corrupted database.
+
+**Effort**: 1 hour
+
+**Fix**: Add integrity check on startup.
+
+### 8.8 Add loading spinner to admin forms
+
+**Problem**: Forms feel slow on save.
+
+**Effort**: 30 minutes
+
+**Fix**: Add subtle spinner on submit buttons.
+
+### 8.9 Add confirmation for bulk delete
+
+**Problem**: Bulk delete could be clearer.
+
+**Effort**: 20 minutes
+
+**Fix**: Add count comparison before delete.
+
+### 8.10 Improve upload progress
+
+**Problem**: Large uploads show no progress.
+
+**Effort**: 1 hour
+
+**Fix**: Add XHR progress listener for uploads.
+
+### 8.11 Add prefers-reduced-motion support
+
+**Problem**: Animations don't respect user preference.
+
+**Effort**: 15 minutes
+
+**Fix**: Add media query guards for nav menu and shimmer.
+
+### 8.12 Fix lightbox close focus behavior
+
+**Problem**: Inconsistent focus management on close.
+
+**Effort**: 20 minutes
+
+**Fix**: Track keyboard vs mouse open, restore focus appropriately.
+
+---
+
+## Wave 9: Module Refactoring
+
+**Larger refactors that should be done carefully.**
+
+### 9.1 Split admin/helpers.py
+
+**Problem**: 432-line file with multiple responsibilities.
+
+**Effort**: 3-4 hours
+
+**Fix**: Split into `analytics.py`, `tags.py`, `images.py`, `posts.py`, `dashboard.py`, `backup.py` in `app/routes/admin/helpers/` package.
+
+### 9.2 Split main.js
+
+**Problem**: 1120-line file with many features.
+
+**Effort**: 2-3 hours
+
+**Fix**: Extract to `js/shared/modal.js`, `js/shared/dark-mode.js`, `js/admin/editor.js`, `js/admin/bulk.js`, `js/public/lightbox.js`, `js/public/toc.js`.
+
+---
+
+## Implementation Notes
+
+### Testing
+
+Run tests after each wave:
+```bash
+ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
+```
+
+### Parallelization
+
+Items within each wave can be worked on in parallel by sub-agents with these dependencies:
+
+**Wave 1**: All items independent — can parallelize fully
+**Wave 2**: All items independent — can parallelize fully
+**Wave 3**: All items independent — can parallelize fully
+**Wave 4**: Items 4.1-4.9 (query/cache) independent of 4.10-4.15 (scheduler/async)
+**Wave 5**: All items independent
+**Wave 6**: All items independent (documentation only)
+**Wave 7**: 7.6 depends on 7.1; 7.9-7.10 independent; 7.11-7.18 mostly independent
+**Wave 8**: All items independent
+**Wave 9**: Items 9.1 and 9.2 independent of each other
+
+### Dependencies
+
+- **Redis** (optional): Needed for Wave 4 items 4.10 and 7.3.3 if multi-worker deployment
+- **cssutils**: Needed for item 2.1 (CSS sanitization)
+- **premailer**: Optional for item 7.15 (newsletter inline styles)
+
+### Already Completed
+
+The following items from the plans were found to already be implemented:
+
+- ✅ Scheduler already running check — `scheduler.py` has file locking
+- ✅ 'c' key shortcut admin guard — share bar doesn't exist on admin pages, so not needed
+- ✅ Code block copy button — implemented in `main.js:208-237`
+- ✅ Twitter Card tag — exists in `base.html:13`
+- ✅ Sitemap posts — posts and tags included in sitemap
+- ✅ Robots.txt — basic version exists
+- ✅ FTS ordering uses `case()` — implemented
+- ✅ Dashboard metrics cache — consolidated
+- ✅ Newsletter template pre-render check — already optimized
+- ✅ Tag count caching — double-checked locking in `cache.py`
+- ✅ Analytics caching — 5-min TTL with LRU eviction
+- ✅ Connection pool stats in /health — implemented
+
+---
+
+## Related Files
+
+- `plan.md` - Original consolidated plan (items 1-29 completed)
+- `AGENTS.md` - Project structure and patterns
+- `DEPLOY.md` - Deployment guide
+- `app/models.py` - Model definitions
+- `app/routes/` - Route handlers
+- `app/templates/` - Jinja2 templates
+- `app/static/js/main.js` - JavaScript
+
+---
+
+## Notes
+
+- Items marked "Low" effort are 1-2 hours; "Medium" is 2-4 hours; "High" is 4+ hours
+- All changes should maintain backward compatibility
+- Run tests after each wave to verify nothing breaks
+- Documentation items (Wave 6) can be done alongside any other wave

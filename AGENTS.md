@@ -595,21 +595,6 @@ The codebase already uses SVG data URI `background-image` for empty state icons 
 ### Admin Routes Already Split
 The admin routes are already organized as a package (`app/routes/admin/`) with separate modules for auth, posts, subscribers, tags, users, sessions, media, backup, analytics, and newsletter. Do not attempt to split them further.
 
-### Plan Consolidation
-The improvement plan is in `plan.md` organized into parallelizable waves. Items within each wave can be worked on simultaneously by sub-agents unless dependency notes say otherwise. The `plans/` directory has been removed.
-
-### File Reference Verification
-Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
-
-### `_generate_unique_slug` Location
-`_generate_unique_slug()` is in `app/routes/admin/helpers.py` at line 226 (not 230). It is called by `new_post()` and `edit_post()` in `app/routes/admin/posts.py`.
-
-### `_get_posts_query` `order_by` Parameter Is Used
-The `order_by` parameter in `_get_posts_query()` (`app/routes/admin/helpers.py:84`) is NOT dead code — it has a default fallback (`Post.updated_at.desc()`) and is actively applied to the query. Do not remove it.
-
-### Plan Consolidation Process
-When consolidating multiple plan files, verify each item against the actual codebase before including it. Many items from earlier plan iterations may have already been implemented. Use a "Already Completed" section in the consolidated plan to track what was done.
-
 ### Share Tracking Implementation
 Share tracking in `main.js` uses `navigator.sendBeacon()` as the primary method with `fetch(keepalive: true)` as fallback. The handler is attached to `.share-btn[data-platform]` elements.
 
@@ -618,3 +603,15 @@ Share tracking in `main.js` uses `navigator.sendBeacon()` as the primary method 
 
 ### Error Page Partial Pattern
 `app/templates/_error.html` is used by 404.html but 500.html has its own inline markup. When consolidating error pages, enhance the partial with optional flags (`show_search`, `show_suggestions`) rather than duplicating markup.
+
+### File Reference Verification
+Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
+
+### Security Verification Findings
+During plan consolidation, these items were verified as needing work:
+- **Session fixation**: `login_user()` in `auth.py` is called without `session.regenerate()` first
+- **Path traversal**: `media.py` `delete_media()` doesn't check if `secure_filename()` returns empty string
+- **Nested forms**: Both `subscribers.html` and `dashboard.html` have nested `<form>` elements inside bulk forms
+- **Bare `except Exception`**: Exists in `search.py`, `email.py`, `public.py`, `newsletter.py`, `backup.py`
+- **Timing leak**: Token enumeration delay (`time.sleep`) happens AFTER DB query, not before
+- **XSS in search**: `{{ query }}` in `search.html` meta description not escaped
