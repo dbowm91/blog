@@ -608,10 +608,10 @@ Share tracking in `main.js` uses `navigator.sendBeacon()` as the primary method 
 Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
 
 ### Security Verification Findings
-During plan consolidation, these items were verified as needing work:
-- **Session fixation**: `login_user()` in `auth.py` is called without `session.regenerate()` first
-- **Path traversal**: `media.py` `delete_media()` doesn't check if `secure_filename()` returns empty string
-- **Nested forms**: Both `subscribers.html` and `dashboard.html` have nested `<form>` elements inside bulk forms
-- **Bare `except Exception`**: Exists in `search.py`, `email.py`, `public.py`, `newsletter.py`, `backup.py`
-- **Timing leak**: Token enumeration delay (`time.sleep`) happens AFTER DB query, not before
-- **XSS in search**: `{{ query }}` in `search.html` meta description not escaped
+Items verified and fixed in Wave 1:
+- **Session fixation**: Fixed with `session.clear()` before `login_user()` (Flask 3.x uses `session.clear()` instead of unavailable `session.regenerate()`)
+- **Path traversal**: Fixed - `media.py` `delete_media()` now checks if `secure_filename()` returns empty string
+- **Nested forms**: Fixed - `subscribers.html` and `dashboard.html` now use unique form IDs with `form=` attribute on buttons
+- **Bare `except Exception`**: Pending fix (Wave 3)
+- **Timing leak**: Fixed - token enumeration delay now happens BEFORE DB query
+- **XSS in search**: Fixed - `{{ query | escape }}` used in `search.html`
