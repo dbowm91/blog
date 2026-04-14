@@ -82,11 +82,12 @@ DEPLOY.md               # Deployment guide
 ### Session
 - `session["viewed_posts"]` tracks viewed post IDs to avoid double-counting page views—capped at `MAX_VIEWED_POSTS` entries from config (default 100, keeps most recent)
 - Admin session expires after `SESSION_LIFETIME_HOURS` hours of inactivity (configurable in `config.toml`, default 24)
-- `SESSION_COOKIE_SECURE` is set to `not app.debug` (HTTPS only in production)
+- `SESSION_COOKIE_SECURE` is set via `SESSION_COOKIE_SECURE` env var (defaults to "true", set to "false" to disable HTTPS-only cookie)
 - `SESSION_COOKIE_SAMESITE` is set to `"Lax"`
 - Login creates an `AdminSession` record (tracks `session_id`, `ip_address`, `user_agent`); logout deletes it
 - Session timeout also cleans up `AdminSession` record on expiry
 - Sessions management UI at `/admin/sessions` (view, revoke)
+- **Cascade delete**: Deleting a User automatically deletes their AdminSession records (via `cascade="all,delete-orphan"` on `User.admin_sessions` relationship)
 
 ### CSRF
 - All POST routes require CSRF token
@@ -99,13 +100,16 @@ DEPLOY.md               # Deployment guide
 ### Configuration
 - `config.toml` for site settings (title, author, email, etc.)
 - Config validation is deferred to `create_app()` (not import time), so `config.py` can be imported without env vars set
-- `SECRET_KEY` falls back to empty string; `ADMIN_PASSWORD` falls back to empty string; `RuntimeError` in `create_app()` catches the missing case
+- `SECRET_KEY` must be at least 32 characters (validated in `create_app()`)
+- `ADMIN_PASSWORD` falls back to empty string; `RuntimeError` in `create_app()` catches the missing case
 - Environment variables override config values:
-  - `SECRET_KEY` (required)
+  - `SECRET_KEY` (required, min 32 chars)
   - `ADMIN_PASSWORD` (required)
   - `ADMIN_USERNAME` (optional, default: admin)
   - `SMTP_USER`, `SMTP_PASSWORD` (optional)
+  - `SESSION_COOKIE_SECURE` (optional, defaults to "true")
 - Pagination and limits loaded from `config.toml [app]`: `max_viewed_posts`, `session_lifetime_hours`, `tag_cache_ttl_seconds`, `dashboard_per_page`, `subscribers_per_page`, `media_per_page`, `media_max_files`
+- **Custom CSS sanitization**: Custom CSS is passed through `sanitize_css()` filter before rendering to strip dangerous properties (`url()`, `expression()`, `content`, etc.)
 
 ### Authorization
 - `admin_required` decorator in `app/routes/admin/__init__.py` combines `@login_required` with `is_admin` check
@@ -441,6 +445,7 @@ The `set_security_headers` after-request handler sets:
 - `X-Frame-Options: DENY`
 - `X-Download-Options: noopen`
 - `X-Permitted-Cross-Domain-Policies: none`
+- `Cross-Origin-Opener-Policy: same-origin`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
@@ -615,3 +620,13 @@ Items verified and fixed in Wave 1:
 - **Bare `except Exception`**: Pending fix (Wave 3)
 - **Timing leak**: Fixed - token enumeration delay now happens BEFORE DB query
 - **XSS in search**: Fixed - `{{ query | escape }}` used in `search.html`
+
+Items verified and fixed in Wave 2:
+- **COOP header**: Added `Cross-Origin-Opener-Policy: same-origin`
+- **CSS sanitization**: Custom CSS passed through `sanitize_css()` to strip `url()`, `expression()`, `content`, etc.
+- **SESSION_COOKIE_SECURE**: Now controlled via env var independently of debug mode
+- **SECRET_KEY validation**: Minimum 32-character requirement enforced at startup
+- **CSRF warning**: Production warning logged if CSRF disabled
+- **Health endpoint**: Removed Python version and pool stats from response
+- **Cascade delete**: User.admin_sessions now uses `cascade="all,delete-orphan"`
+- **FakeSubscriber**: All Subscriber attributes now present with sensible defaults

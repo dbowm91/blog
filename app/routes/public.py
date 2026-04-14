@@ -534,7 +534,6 @@ def health_check() -> Response:
         200: All services healthy
         503: One or more services degraded
     """
-    import sys
     from app.scheduler import get_scheduler_status
     from app.config import SMTP_HOST
 
@@ -572,18 +571,9 @@ def health_check() -> Response:
         else "degraded"
     )
 
-    pool = db.engine.pool
-    checks["pool"] = {
-        "size": pool.size(),
-        "checked_in": pool.checkedin(),
-        "checked_out": pool.checkedout(),
-        "overflow": pool.overflow(),
-    }
-
     return jsonify(
         {
             "status": overall,
-            "version": sys.version.split()[0],
             "checks": checks,
             "timestamp": utc_now().isoformat(),
         }

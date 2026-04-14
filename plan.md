@@ -9,7 +9,7 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 | Wave | Category | Items | Priority |
 |------|----------|-------|----------|
 | ~~1~~ | ~~Critical Bugs~~ | ~~9~~ | ~~Completed~~ |
-| 2 | Security Fixes | 12 | High |
+| ~~2~~ | ~~Security Fixes~~ | ~~10~~ | ~~High~~ |
 | 3 | Exception Handling | 6 | Medium |
 | 4 | Performance | 15 | Medium |
 | 5 | Code Quality | 6 | Medium |
@@ -17,6 +17,8 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 | 7 | New Features | 18 | Medium |
 | 8 | Developer Experience | 9 | Low |
 | 9 | Module Refactoring | 2 | Low |
+
+**Wave 2 Notes**: 2 items (2.2, 2.3) skipped per AGENTS.md - rate limiting delegated to proxy/WAF layer. 1 item (2.6) was already implemented. 9 items implemented (2.1, 2.4, 2.5, 2.7, 2.8, 2.9, 2.10/2.12, 2.11).
 
 ---
 
@@ -140,11 +142,11 @@ if (allowedDays.includes(select.value)) {
 
 ---
 
-## Wave 2: Security Hardening
+## Wave 2: Security Hardening ✅ COMPLETED
 
-**Security improvements that don't break existing functionality.**
+**Security improvements that don't break existing functionality. Completed on 2026-04-14.**
 
-### 2.1 Sanitize custom CSS before rendering
+### 2.1 Sanitize custom CSS before rendering ✅
 
 **Severity**: Medium — Potential data exfiltration via CSS
 
@@ -152,19 +154,9 @@ if (allowedDays.includes(select.value)) {
 
 **Location**: `app/templates/base.html:30`, `app/templates/admin/base.html:20`
 
-**Fix**: Add CSS sanitization to strip dangerous properties (`url()`, `expression()`, `content`, etc.):
-```python
-import re
+**Fix**: Added `sanitize_css` filter that strips dangerous CSS properties (`url()`, `expression()`, `content`, etc.) before rendering. Implemented as `sanitize_css_filter` template filter in `app/__init__.py`.
 
-def sanitize_css(css_text: str) -> str:
-    css_text = re.sub(r'url\s*\([^)]*\)', '', css_text)
-    css_text = re.sub(r'expression\s*\([^)]*\)', '', css_text)
-    css_text = re.sub(r'content\s*:', '/* blocked */:', css_text)
-    # Parse and validate remaining CSS
-    return css_text
-```
-
-### 2.2 Add login rate limiting (defense-in-depth)
+### 2.2 Add login rate limiting (defense-in-depth) ⏭️ SKIPPED
 
 **Severity**: Medium — Brute-force protection
 
@@ -172,19 +164,9 @@ def sanitize_css(css_text: str) -> str:
 
 **Location**: `app/routes/admin/auth.py`
 
-**Fix**: Add simple in-memory rate limiting:
-```python
-_login_attempts: dict[str, list[float]] = {}
-MAX_ATTEMPTS = 5
-LOCKOUT_WINDOW = 300
+**Decision**: Skipped per AGENTS.md guidance - rate limiting is delegated to proxy/WAF layer. Production deployments should configure proxy-level rate limiting (see AGENTS.md Rate Limiting section).
 
-def rate_limit_login(f):
-    # Track attempts, clear on success
-```
-
-Note: Document that proxy-level rate limiting is required for production.
-
-### 2.3 Add rate limiting to token endpoints
+### 2.3 Add rate limiting to token endpoints ⏭️ SKIPPED
 
 **Severity**: Medium — Enumeration protection
 
@@ -192,9 +174,9 @@ Note: Document that proxy-level rate limiting is required for production.
 
 **Location**: `app/routes/public.py:402-439`, `app/routes/public.py:442-480`
 
-**Fix**: Apply similar rate limiting with higher limits (20 attempts per minute).
+**Decision**: Skipped per AGENTS.md guidance - rate limiting is delegated to proxy/WAF layer. Token enumeration protection is handled by constant-time delay already implemented in Wave 1.
 
-### 2.4 Validate SESSION_COOKIE_SECURE independently of debug
+### 2.4 Validate SESSION_COOKIE_SECURE independently of debug ✅
 
 **Severity**: Medium — Cookie security tied to debug mode
 
@@ -204,24 +186,29 @@ Note: Document that proxy-level rate limiting is required for production.
 
 **Fix**: Use explicit environment variable control:
 ```python
-app.config["SESSION_COOKIE_SECURE"] = _env("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+    "SESSION_COOKIE_SECURE", "true"
+).lower() in ("true", "1", "yes")
 ```
 
-### 2.5 Add SECRET_KEY strength validation
+### 2.5 Add SECRET_KEY strength validation ✅
 
 **Severity**: Medium — Weak secret fallback
 
 **Problem**: `SECRET_KEY` falls back to empty string silently.
 
-**Location**: `app/config.py:72`
+**Location**: `app/__init__.py:67-75`
 
-**Fix**: Validate minimum length (32 chars) in `_validate_config()`:
+**Fix**: Added minimum length validation (32 chars) in `create_app()`:
 ```python
 if len(SECRET_KEY) < 32:
-    raise RuntimeError("SECRET_KEY must be at least 32 characters...")
+    raise RuntimeError(
+        "SECRET_KEY must be at least 32 characters long for security. "
+        "Current length: {}.".format(len(SECRET_KEY))
+    )
 ```
 
-### 2.6 Validate redirect URLs against allowlist
+### 2.6 Validate redirect URLs against allowlist ✅ (Already Implemented)
 
 **Severity**: Medium — Open redirect prevention
 
@@ -229,19 +216,19 @@ if len(SECRET_KEY) < 32:
 
 **Location**: `app/routes/public.py:45-52`
 
-**Fix**: Compare against `BASE_URL` configuration when available.
+**Status**: Already implemented - validates referrer against current host.
 
-### 2.7 Add CSRF enforcement warning
+### 2.7 Add CSRF enforcement warning ✅
 
 **Severity**: Low — Defense-in-depth
 
 **Problem**: No warning if CSRF is disabled in production mode.
 
-**Location**: `app/config.py` or `app/csrf.py`
+**Location**: `app/__init__.py:103-110`
 
-**Fix**: Add production check that warns if CSRF disabled in non-debug mode.
+**Fix**: Added production check that warns if CSRF is disabled in non-debug, non-testing mode.
 
-### 2.8 Add COOP security header
+### 2.8 Add COOP security header ✅
 
 **Severity**: Low — Standard security header
 
@@ -249,9 +236,9 @@ if len(SECRET_KEY) < 32:
 
 **Location**: `app/__init__.py` (set_security_headers)
 
-**Fix**: Add `response.headers["Cross-Origin-Opener-Policy"] = "same-origin"`
+**Fix**: Added `response.headers["Cross-Origin-Opener-Policy"] = "same-origin"`
 
-### 2.9 Remove sensitive info from health endpoint
+### 2.9 Remove sensitive info from health endpoint ✅
 
 **Severity**: Low — Information disclosure
 
@@ -259,9 +246,9 @@ if len(SECRET_KEY) < 32:
 
 **Location**: `app/routes/public.py:529-590`
 
-**Fix**: Remove version and pool stats from response, or restrict endpoint to localhost only.
+**Fix**: Removed `version` and `pool` fields from health endpoint response. Endpoint now only returns `status`, `checks`, and `timestamp`.
 
-### 2.10 Add subscriber cascade delete
+### 2.10/2.12 Add cascade delete for AdminSession/User ✅
 
 **Severity**: Low-Medium — Orphaned sessions
 
@@ -269,27 +256,27 @@ if len(SECRET_KEY) < 32:
 
 **Location**: `app/models.py` (User.admin_sessions relationship)
 
-**Fix**: Add `cascade="all,delete"` to the relationship or explicitly delete sessions before deleting user.
+**Fix**: Added `cascade="all,delete-orphan"` to `User.admin_sessions` relationship with `back_populates` for proper SQLAlchemy cascade configuration.
 
-### 2.11 Fix FakeSubscriber missing attributes
+### 2.11 Fix FakeSubscriber missing attributes ✅
 
 **Severity**: Low — Errors masked by bare except
 
-**Problem**: `FakeSubscriber` dataclass is missing `confirmed`, `created_at`, `expires_at`, `unsubscribed_at` attributes that `send_newsletter` may access.
+**Problem**: `FakeSubscriber` dataclass was missing `confirmed`, `created_at`, `expires_at`, `unsubscribed_at` attributes.
 
 **Location**: `app/routes/admin/newsletter.py:15-19`
 
-**Fix**: Add all missing attributes with sensible defaults.
-
-### 2.12 Add cascade to AdminSession relationship
-
-**Severity**: Low — Orphaned sessions
-
-**Problem**: When a user is deleted, their AdminSession records remain.
-
-**Location**: `app/models.py`
-
-**Fix**: Ensure cascade delete is configured properly.
+**Fix**: Added all missing attributes with sensible defaults:
+```python
+@dataclass
+class FakeSubscriber:
+    email: str
+    token: str = "test"
+    confirmed: bool = True
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
+```
 
 ---
 

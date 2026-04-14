@@ -15,6 +15,7 @@ __all__ = [
     "generate_slug",
     "xml_escape",
     "safe_delete_file",
+    "sanitize_css",
 ]
 
 
@@ -84,3 +85,24 @@ def xml_escape(s: str) -> str:
     if not s:
         return ""
     return _html.escape(s, quote=True)
+
+
+def sanitize_css(css_text: str) -> str:
+    """Sanitize custom CSS by removing potentially dangerous properties.
+
+    Strips url() references (data exfiltration vector), expression() (IE only),
+    and content property (can inject invisible text). Also removes IE-specific
+    behaviors like behavior:, and mso- prefixes.
+    """
+    if not css_text:
+        return ""
+    css_text = re.sub(r"url\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"expression\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(
+        r"content\s*:[^;]*;", "content: none;", css_text, flags=re.IGNORECASE
+    )
+    css_text = re.sub(r"behavior\s*:[^;]*;", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"mso-[^;]*:[^;]*;", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"import\s+", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"@import\s+", "", css_text, flags=re.IGNORECASE)
+    return css_text.strip()

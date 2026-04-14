@@ -25,6 +25,13 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
+    admin_sessions = db.relationship(
+        "AdminSession",
+        back_populates="user",
+        lazy="select",
+        cascade="all,delete-orphan",
+    )
+
     def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
 
@@ -172,7 +179,7 @@ class AdminSession(db.Model):
     created_at = db.Column(UTCDateTime, default=utc_now)
     last_activity = db.Column(UTCDateTime, default=utc_now)
 
-    user = db.relationship("User", backref=db.backref("admin_sessions", lazy="dynamic"))
+    user = db.relationship("User", back_populates="admin_sessions")
 
     __table_args__ = (db.Index("ix_admin_sessions_user_id", "user_id"),)
 

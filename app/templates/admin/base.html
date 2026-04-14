@@ -17,7 +17,7 @@
             {% endfor %}
         }
         {% if custom_css_enabled and custom_css %}
-        {{ custom_css | safe }}
+        {{ custom_css | sanitize_css | safe }}
         {% endif %}
     </style>
 </head>

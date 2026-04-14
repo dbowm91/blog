@@ -68,6 +68,11 @@ def create_app():
         raise RuntimeError(
             "SECRET_KEY is required. Set it via the SECRET_KEY environment variable."
         )
+    if len(SECRET_KEY) < 32:
+        raise RuntimeError(
+            "SECRET_KEY must be at least 32 characters long for security. "
+            "Current length: {}.".format(len(SECRET_KEY))
+        )
     if not ADMIN_PASSWORD:
         raise RuntimeError(
             "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
@@ -87,11 +92,21 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1024 * 1024
-    app.config["SESSION_COOKIE_SECURE"] = not app.debug
+    app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+        "SESSION_COOKIE_SECURE", "true"
+    ).lower() in ("true", "1", "yes")
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     proxy_count = int(os.environ.get("PROXY_COUNT", 1))
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)
+
+    if not app.debug and not app.testing:
+        csrf_disabled = not app.config.get("CSRF_ENABLED", True)
+        if csrf_disabled:
+            logger.warning(
+                "CSRF protection is disabled in production mode. "
+                "This is a security risk. Set CSRF_ENABLED=True in production."
+            )
 
     db.init_app(app)
 
@@ -135,6 +150,12 @@ def create_app():
         words = len(text.split())
         minutes = max(1, round(words / 200))
         return f"{minutes} min read"
+
+    @app.template_filter("sanitize_css")
+    def sanitize_css_filter(text):
+        from app.utils import sanitize_css
+
+        return sanitize_css(text) if text else ""
 
     SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
 
@@ -196,6 +217,7 @@ def create_app():
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Download-Options"] = "noopen"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=()"

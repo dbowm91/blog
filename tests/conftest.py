@@ -2,7 +2,7 @@ import os
 import pytest
 from unittest.mock import patch
 
-os.environ["SECRET_KEY"] = "test-secret-key"
+os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
 
 from app import create_app

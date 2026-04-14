@@ -1,6 +1,7 @@
 from flask import redirect, url_for, request, flash
 from flask_login import login_required
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from app.extensions import db
 from app.models import Post, User
@@ -16,6 +17,10 @@ from sqlalchemy import select
 class FakeSubscriber:
     email: str
     token: str = "test"
+    confirmed: bool = True
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
 
 
 @admin.route("/newsletter-test", methods=["POST"])
