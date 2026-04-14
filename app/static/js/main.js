@@ -679,8 +679,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Analytics select auto-submit ---
     document.querySelectorAll('[data-auto-submit]').forEach(select => {
         select.addEventListener('change', () => {
-            select.closest('form').classList.add('loading');
-            window.location.href = '/admin/analytics?days=' + select.value;
+            const allowedDays = ['7', '14', '30', '90', '180', '365'];
+            if (allowedDays.includes(select.value)) {
+                select.closest('form').classList.add('loading');
+                window.location.href = '/admin/analytics?days=' + select.value;
+            }
         });
     });
 

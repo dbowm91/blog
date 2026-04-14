@@ -8,7 +8,7 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 
 | Wave | Category | Items | Priority |
 |------|----------|-------|----------|
-| 1 | Critical Bugs | 9 | Critical |
+| ~~1~~ | ~~Critical Bugs~~ | ~~9~~ | ~~Completed~~ |
 | 2 | Security Fixes | 12 | High |
 | 3 | Exception Handling | 6 | Medium |
 | 4 | Performance | 15 | Medium |
@@ -20,11 +20,11 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 
 ---
 
-## Wave 1: Critical Bugs
+## Wave 1: Critical Bugs ✅ COMPLETED
 
-**These items fix broken functionality or security vulnerabilities. Do first.**
+**These items fix broken functionality or security vulnerabilities. Completed on 2026-04-14.**
 
-### 1.1 Fix nested forms in subscribers.html
+### 1.1 Fix nested forms in subscribers.html ✅
 
 **Severity**: High — Breaks bulk operations
 
@@ -34,7 +34,7 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 
 **Fix**: Move delete forms outside the bulk form. Use `form="bulk-form"` attribute on checkboxes to associate them with the bulk form without nesting.
 
-### 1.2 Fix nested forms in dashboard.html
+### 1.2 Fix nested forms in dashboard.html ✅
 
 **Severity**: High — Same issue, breaks bulk operations
 
@@ -44,7 +44,7 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 
 **Fix**: Apply the same pattern — use `form="bulk-form"` attribute on checkboxes, move delete/reset forms outside the bulk form.
 
-### 1.3 Fix path traversal in media.py delete_media
+### 1.3 Fix path traversal in media.py delete_media ✅
 
 **Severity**: Medium-High — Potential file deletion beyond upload directory
 
@@ -59,7 +59,7 @@ if not filename:
     abort(400)
 ```
 
-### 1.4 Fix session fixation vulnerability
+### 1.4 Fix session fixation vulnerability ✅
 
 **Severity**: High — Session hijacking risk
 
@@ -67,13 +67,14 @@ if not filename:
 
 **Location**: `app/routes/admin/auth.py:26`
 
-**Fix**: Add `session.regenerate()` before `login_user()`:
+**Fix**: Use `session.clear()` before `login_user()` to remove any attacker-set session data:
 ```python
-session.regenerate()  # Add before login_user()
+session.clear()  # Add before login_user()
 login_user(user)
 ```
+Note: Flask 3.x's `SecureCookieSession` doesn't have `session.regenerate()` - `session.clear()` achieves the same effect by removing any pre-existing session data before establishing the authenticated session.
 
-### 1.5 Add OperationalError handler in subscribe()
+### 1.5 Add OperationalError handler in subscribe() ✅
 
 **Severity**: Medium — Database failures cause 500 errors
 
@@ -83,7 +84,7 @@ login_user(user)
 
 **Fix**: Change `except IntegrityError:` to `except (IntegrityError, OperationalError):`
 
-### 1.6 Escape search query in templates
+### 1.6 Escape search query in templates ✅
 
 **Severity**: Medium — XSS risk
 
@@ -93,7 +94,7 @@ login_user(user)
 
 **Fix**: Use `{{ query | escape }}` in meta description block.
 
-### 1.7 Escape search query in FTS5
+### 1.7 Escape search query in FTS5 ✅
 
 **Severity**: Medium — FTS query manipulation
 
@@ -111,7 +112,7 @@ def _escape_fts_term(term: str) -> str:
     return term if term else ""
 ```
 
-### 1.8 Sanitize analytics dropdown in JavaScript
+### 1.8 Sanitize analytics dropdown in JavaScript ✅
 
 **Severity**: Low — Admin-only self-XSS
 
@@ -127,7 +128,7 @@ if (allowedDays.includes(select.value)) {
 }
 ```
 
-### 1.9 Move timing delay before database query
+### 1.9 Move timing delay before database query ✅
 
 **Severity**: Medium — Token enumeration timing leak
 

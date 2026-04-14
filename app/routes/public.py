@@ -373,7 +373,7 @@ def subscribe() -> Response:
     try:
         db.session.commit()
         return _send_or_flash_confirmation(sub)
-    except IntegrityError:
+    except (IntegrityError, OperationalError):
         db.session.rollback()
         existing = db.session.execute(
             select(Subscriber).filter_by(email=email)
@@ -410,10 +410,10 @@ def confirm(token) -> Response:
         Uses constant-time delay to prevent token enumeration.
         Invalid tokens return success (not 404).
     """
+    time.sleep(TOKEN_ENUMERATION_DELAY)
     sub = db.session.execute(
         select(Subscriber).filter_by(token=token)
     ).scalar_one_or_none()
-    time.sleep(TOKEN_ENUMERATION_DELAY)
     if not sub:
         logger.warning(
             "Confirm enumeration attempt with invalid token from %s",
@@ -450,10 +450,10 @@ def unsubscribe(token) -> Response:
         Uses constant-time delay to prevent token enumeration.
         Invalid tokens return success (not 404).
     """
+    time.sleep(TOKEN_ENUMERATION_DELAY)
     sub = db.session.execute(
         select(Subscriber).filter_by(token=token)
     ).scalar_one_or_none()
-    time.sleep(TOKEN_ENUMERATION_DELAY)
     if not sub:
         logger.warning(
             "Unsubscribe enumeration attempt with invalid token from %s",

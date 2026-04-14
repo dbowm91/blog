@@ -3,6 +3,7 @@
 __all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts", "search"]
 
 import logging
+import re
 from sqlalchemy import text
 from app.extensions import db
 from app.config import FTS_RESULT_LIMIT
@@ -74,10 +75,10 @@ def remove_fts(post_id: int):
 
 def _escape_fts_term(term: str) -> str:
     term = term.strip()
-    term = term.lstrip("-").rstrip("-")
-    term = term.replace(":", " ")
+    term = re.sub(r'[()*:+\-"<>]', " ", term)
+    term = re.sub(r"\s+", " ", term)
     term = term.replace('"', '""')
-    return term
+    return term if term else ""
 
 
 def search(query: str):

@@ -93,6 +93,8 @@ def upload_media():
 @admin_required
 def delete_media(filename):
     filename = secure_filename(filename)
+    if not filename:
+        abort(400)
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     real_path = os.path.realpath(filepath)
     upload_dir = os.path.realpath(current_app.config["UPLOAD_FOLDER"])

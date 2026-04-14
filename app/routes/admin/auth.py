@@ -23,6 +23,7 @@ def login() -> Response:
             select(User).filter_by(username=username)
         ).scalar_one_or_none()
         if user and user.check_password(password) and user.is_admin:
+            session.clear()
             login_user(user)
             sid = secrets.token_hex(32)
             admin_session = AdminSession(

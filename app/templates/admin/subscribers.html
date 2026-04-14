@@ -45,9 +45,9 @@
                         </div>
                     </div>
                     <div class="post-list-actions">
-                        <form method="POST" action="{{ url_for('admin.delete_subscriber', sub_id=sub.id) }}" class="inline-form" data-confirm="Remove {{ sub.email }}?">
+                        <form method="POST" action="{{ url_for('admin.delete_subscriber', sub_id=sub.id) }}" id="delete-form-{{ sub.id }}" data-confirm="Remove {{ sub.email }}?">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                            <button type="submit" form="delete-form-{{ sub.id }}" class="btn btn-small btn-danger">Delete</button>
                         </form>
                     </div>
                 </div>

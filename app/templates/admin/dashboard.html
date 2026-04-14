@@ -111,14 +111,14 @@
                 <div class="post-list-actions">
                     <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-small btn-ghost">Edit</a>
                     {% if post.newsletter_sent_at %}
-                    <form method="POST" action="{{ url_for('admin.newsletter_reset', post_id=post.id) }}" class="inline-form" data-confirm="Reset newsletter flag for this post?">
+                    <form method="POST" action="{{ url_for('admin.newsletter_reset', post_id=post.id) }}" id="reset-nl-form-{{ post.id }}" data-confirm="Reset newsletter flag for this post?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="btn btn-small btn-ghost" title="Reset newsletter flag{% if post.newsletter_attempts > 0 %} ({{ post.newsletter_attempts }} failed attempts){% endif %}">Reset NL</button>
+                        <button type="submit" form="reset-nl-form-{{ post.id }}" class="btn btn-small btn-ghost" title="Reset newsletter flag{% if post.newsletter_attempts > 0 %} ({{ post.newsletter_attempts }} failed attempts){% endif %}">Reset NL</button>
                     </form>
                     {% endif %}
-                    <form method="POST" action="{{ url_for('admin.delete_post', post_id=post.id) }}" class="inline-form" data-confirm="Are you sure you want to delete this post? This cannot be undone.">
+                    <form method="POST" action="{{ url_for('admin.delete_post', post_id=post.id) }}" id="delete-post-form-{{ post.id }}" data-confirm="Are you sure you want to delete this post? This cannot be undone.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                        <button type="submit" form="delete-post-form-{{ post.id }}" class="btn btn-small btn-danger">Delete</button>
                     </form>
                 </div>
             </div>
