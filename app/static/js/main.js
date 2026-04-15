@@ -57,6 +57,35 @@ document.addEventListener("DOMContentLoaded", () => {
                 e.preventDefault();
                 return;
             }
+            const count = checked.length;
+            const isDelete = btn.value === 'delete';
+            if (isDelete) {
+                if (btn.dataset.primed !== 'true') {
+                    e.preventDefault();
+                    const originalText = btn.textContent;
+                    btn.textContent = `Delete ${count} post${count > 1 ? 's' : ''}? Click again to confirm`;
+                    btn.dataset.primed = 'true';
+                    btn.dataset.originalText = originalText;
+                    btn.classList.add('btn-danger-primed');
+                    const resetButton = () => {
+                        btn.textContent = btn.dataset.originalText;
+                        btn.dataset.primed = 'false';
+                        btn.classList.remove('btn-danger-primed');
+                        btn.removeEventListener('blur', resetButton);
+                    };
+                    setTimeout(() => {
+                        if (btn.dataset.primed === 'true') {
+                            resetButton();
+                        }
+                    }, 5000);
+                    btn.addEventListener('blur', resetButton);
+                    return;
+                } else {
+                    delete btn.dataset.primed;
+                    delete btn.dataset.originalText;
+                    btn.classList.remove('btn-danger-primed');
+                }
+            }
             if (!confirm(btn.dataset.confirmBulk)) e.preventDefault();
         });
     });
@@ -887,7 +916,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let lightboxTrigger = null;
 
         const openLightbox = (img) => {
-            lightboxTrigger = document.activeElement;
+            lightboxTrigger = img;
             lightboxImg.src = img.src;
             lightboxImg.alt = img.alt;
             lightbox.classList.add('open');
@@ -1019,7 +1048,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- Upload zone drag-and-drop ---
+    // --- Upload zone drag-and-drop with progress ---
     const uploadZone = document.getElementById('upload-zone');
     const fileInput = document.getElementById('file-input');
     const fileInputHidden = document.getElementById('file-input-hidden');
@@ -1039,22 +1068,85 @@ document.addEventListener("DOMContentLoaded", () => {
             uploadErrorTimer = setTimeout(() => errorEl.remove(), 5000);
         };
 
+        const hideUploadError = () => {
+            clearTimeout(uploadErrorTimer);
+            const existing = uploadZone.querySelector('.form-error');
+            if (existing) existing.remove();
+        };
+
+        const showUploadProgress = (percent) => {
+            hideUploadError();
+            let progressBar = uploadZone.querySelector('.upload-progress');
+            let progressText = uploadZone.querySelector('.upload-progress-text');
+            if (!progressBar) {
+                progressBar = document.createElement('div');
+                progressBar.className = 'upload-progress';
+                const progressFill = document.createElement('div');
+                progressFill.className = 'upload-progress-fill';
+                progressBar.appendChild(progressFill);
+                uploadZone.appendChild(progressBar);
+            }
+            if (!progressText) {
+                progressText = document.createElement('div');
+                progressText.className = 'upload-progress-text';
+                uploadZone.appendChild(progressText);
+            }
+            const progressFill = progressBar.querySelector('.upload-progress-fill');
+            if (progressFill) {
+                progressFill.style.width = `${percent}%`;
+            }
+            progressText.textContent = `${percent}%`;
+            progressBar.style.display = 'block';
+            progressText.style.display = 'block';
+        };
+
+        const hideUploadProgress = () => {
+            const progressBar = uploadZone.querySelector('.upload-progress');
+            const progressText = uploadZone.querySelector('.upload-progress-text');
+            if (progressBar) progressBar.remove();
+            if (progressText) progressText.remove();
+        };
+
         const handleUpload = (file) => {
+            hideUploadProgress();
+            showUploadProgress(0);
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const formData = new FormData(uploadForm);
             formData.append('file', file);
-            fetch(uploadForm.action, {
-                method: 'POST',
-                body: formData
-            })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Upload failed');
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    showUploadProgress(percent);
                 }
-                window.location.reload();
-            })
-            .catch(() => {
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    hideUploadProgress();
+                    window.location.reload();
+                } else {
+                    hideUploadProgress();
+                    showUploadError('Upload failed. Please try again.');
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                hideUploadProgress();
                 showUploadError('Upload failed. Please try again.');
             });
+
+            xhr.addEventListener('abort', () => {
+                hideUploadProgress();
+                showUploadError('Upload cancelled.');
+            });
+
+            xhr.open('POST', uploadForm.action);
+            xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+            xhr.send(formData);
         };
 
         uploadZone.addEventListener('click', () => fileInput.click());
