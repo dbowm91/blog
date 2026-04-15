@@ -157,6 +157,15 @@ def create_app():
 
         return sanitize_css(text) if text else ""
 
+    @app.template_filter("post_image_url")
+    def post_image_url_filter(post):
+        if not post or not post.image:
+            return None
+        path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
+        if os.path.isfile(path):
+            return post.image
+        return None
+
     SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
 
     @app.before_request

@@ -30,13 +30,14 @@
         <div class="form-group">
             <label for="image">Cover Image <span class="label-hint">(optional, png/jpg/webp)</span></label>
             <div class="image-preview" id="image-preview-container">
-                <img id="image-preview-img" src="{{ url_for('static', filename='uploads/' + post.image) if post and post.image else '' }}" alt="Current image"{{ ' style="display:none"' if not (post and post.image) }}>
-                {% if post and post.image %}
+                {% set img = post|post_image_url if post else none %}
+                <img id="image-preview-img" src="{{ url_for('static', filename='uploads/' + img) if img else '' }}" alt="Current image"{{ ' style="display:none"' if not img }}>
+                {% if img %}
                     <button type="button" class="btn btn-small" id="remove-image-btn">Remove</button>
                 {% endif %}
             </div>
             <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
-            {% if post and post.image %}
+            {% if img %}
                 <label class="remove-image-label" id="remove-image-label" style="display:none">
                     <input type="checkbox" name="remove_image" id="remove-image-checkbox"> Remove existing image
                 </label>
