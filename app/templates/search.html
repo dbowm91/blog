@@ -35,7 +35,9 @@
                             <span class="reading-time" aria-label="Estimated reading time">{{ post.body | reading_time }}</span>
                         </div>
                         <h2 class="post-card-title">{{ post.title }}</h2>
-                        {% if post.summary %}
+                        {% if search_snippets and search_snippets[post.id] %}
+                            <p class="post-card-snippet">{{ search_snippets[post.id] }}</p>
+                        {% elif post.summary %}
                             <p class="post-card-summary">{{ post.summary }}</p>
                         {% endif %}
                         <div class="post-tags">

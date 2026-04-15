@@ -14,7 +14,7 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 | ~~4~~ | ~~Performance~~ | ~~15~~ | ~~Medium~~ |
 | ~~5~~ | ~~Code Quality~~ | ~~6~~ | ~~Medium~~ |
 | ~~6~~ | ~~Documentation~~ | ~~7~~ | ~~Low~~ |
-| 7 | New Features | 18 | Medium |
+| ~~7~~ | ~~New Features~~ | ~~18~~ | ~~Medium~~ |
 | 8 | Developer Experience | 9 | Low |
 | 9 | Module Refactoring | 2 | Low |
 
@@ -27,6 +27,8 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 **Wave 5 Notes**: 4 items completed (5.1, 5.3, 5.5, 5.6, 5.8), 2 already implemented (5.2, 5.4), 1 verified not an issue (5.7), 2 skipped (5.9, 5.10). Type annotations added to helpers.py functions, search.py functions, and template filters. Fixed imprecise type annotation in cache.py.
 
 **Wave 6 Notes**: All 7 items completed. DEPLOY.md enhanced with SMTP timeout config, PostgreSQL migration path, gzip compression example, SESSION_COOKIE_SECURE env var, and dependencies table. Docstrings added to 30+ admin route handlers across 11 route files.
+
+**Wave 7 Notes**: 10 items completed (7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.14, 7.18), 8 skipped (7.9, 7.10, 7.11, 7.12, 7.13, 7.15, 7.16, 7.17). Completed: Static pages (Page model + CRUD), archive page, search snippets, JSON-LD Article schema, Twitter cards, enhanced sitemap, canonical URLs, AI crawler blocking in robots.txt, bulk resend confirmation, session IP binding warning.
 
 ---
 
@@ -594,55 +596,45 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 ---
 
-## Wave 7: New Features
+## Wave 7: New Features ✅ COMPLETED
 
-**Content management, SEO, and API enhancements.**
+**Content management, SEO, and API enhancements. Completed on 2026-04-15.**
 
-### 7.1 Static pages
+### 7.1 Static pages ✅
 
 **Problem**: No way to create static content pages (About, Contact).
 
-**Effort**: 3-4 hours
+**Fix**: Added `Page` model with title, slug, body, published, and timestamps. Added public route `/page/<slug>` and admin CRUD routes (`/admin/pages`, `/admin/pages/new`, `/admin/pages/edit/<id>`, `/admin/pages/delete/<id>`). Created admin templates for page management. Pages are stored in SQLite with `ix_pages_published_slug` index.
 
-**Fix**: Add `Page` model, routes, and admin CRUD.
-
-### 7.2 Post archive page
+### 7.2 Post archive page ✅
 
 **Problem**: No chronological browsing of all posts.
 
-**Effort**: 1-2 hours
+**Fix**: Added `/archive` route with posts grouped by year/month. Created `archive.html` template with CSS styling for year/month grouping. Archive shows post date, title, and tags.
 
-**Fix**: Add `/archive` route with posts grouped by year/month.
-
-### 7.3 Search result highlighting
+### 7.3 Search result highlighting ✅
 
 **Problem**: Search results show matching posts but don't highlight terms.
 
-**Effort**: 2 hours
+**Fix**: Added `extract_snippet()` and `get_search_snippets()` functions in `app/search.py`. Modified search route to pass snippets to template. Added `.post-card-snippet` CSS class for italic snippet display. Snippets show ~200 characters around the first query match with ellipsis.
 
-**Fix**: Extract snippets around matches and pass to template.
-
-### 7.4 Schema.org JSON-LD markup
+### 7.4 Schema.org JSON-LD markup ✅
 
 **Problem**: Posts lack structured data for SEO.
 
-**Effort**: 1 hour
+**Fix**: Added `{% block article_schema %}` to `base.html` with JSON-LD Article schema. Post template outputs proper schema with headline, description, image, datePublished, dateModified, author, publisher, and URL.
 
-**Fix**: Add JSON-LD Article schema to post templates.
-
-### 7.5 Twitter card enhancements
+### 7.5 Twitter card enhancements ✅
 
 **Problem**: Base Twitter Card tag exists but per-post title/description/image missing.
 
-**Effort**: 30 minutes
+**Fix**: Added per-post `twitter:title`, `twitter:description`, and `twitter:image` meta tags to `post.html`. base.html now has `{% block twitter_title %}`, `{% block twitter_description %}`, `{% block twitter_image %}` blocks.
 
-**Fix**: Add per-post Twitter meta tags.
-
-### 7.6 Enhanced sitemap
+### 7.6 Enhanced sitemap ✅
 
 **Problem**: Sitemap could include static pages and proper lastmod.
 
-**Effort**: 30 minutes
+**Fix**: Updated `_generate_sitemap()` to include static pages with monthly changefreq and 0.7 priority. Pages appear before posts in sitemap. Sitemap route docstring updated.
 
 **Fix**: Update sitemap generator for static pages (after 7.1).
 
@@ -654,15 +646,19 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add canonical URL to base template and context processors.
 
-### 7.8 Robots.txt enhancements
+### 7.7 Canonical URLs ✅
+
+**Problem**: No canonical URL meta tags.
+
+**Fix**: Added `canonical_url` to context processors (base_url + request.path). Added `<link rel="canonical">` to `base.html`. Each page template can override via inherited `canonical_url`.
+
+### 7.8 Robots.txt enhancements ✅
 
 **Problem**: Basic robots.txt, AI crawler blocking missing.
 
-**Effort**: 15 minutes
+**Fix**: Enhanced robots.txt with comprehensive AI crawler disallow list (GPTBot, ChatGPT-User, Claude-Web, PerplexityBot, etc.). All AI crawlers blocked from entire site. Sitemap location included. Added `Disallow: /admin/` and `Disallow: /static/uploads/`.
 
-**Fix**: Add sitemap location and block AI crawlers.
-
-### 7.9 REST API for posts
+### 7.9 REST API for posts ⏭️ SKIPPED
 
 **Problem**: No programmatic access to blog content.
 
@@ -670,7 +666,9 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Create read-only API at `/api/v1/` with posts, tags endpoints.
 
-### 7.10 Webhook system
+**Status**: Skipped - requires significant additional work and would benefit from authentication design decisions.
+
+### 7.10 Webhook system ⏭️ SKIPPED
 
 **Problem**: No way to notify external services on publish.
 
@@ -678,7 +676,9 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add `Webhook` model and delivery system.
 
-### 7.11 Import/Export tool
+**Status**: Skipped - requires significant additional work and infrastructure considerations.
+
+### 7.11 Import/Export tool ⏭️ SKIPPED
 
 **Problem**: No migration or backup tool for full blog data.
 
@@ -686,7 +686,9 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add JSON export/import with CLI commands.
 
-### 7.12 Scheduled posts calendar view
+**Status**: Skipped - backup.py already handles database backup; full content export would require more design.
+
+### 7.12 Scheduled posts calendar view ⏭️ SKIPPED
 
 **Problem**: No visual overview of scheduled posts.
 
@@ -694,7 +696,9 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add calendar view to admin dashboard.
 
-### 7.13 Post list columns toggle
+**Status**: Skipped - future enhancement, not critical.
+
+### 7.13 Post list columns toggle ⏭️ SKIPPED
 
 **Problem**: Fixed columns in post list.
 
@@ -702,15 +706,15 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add column visibility toggle with localStorage persistence.
 
-### 7.14 Bulk subscriber resend confirmation
+**Status**: Skipped - current column layout is functional and clear.
+
+### 7.14 Bulk subscriber resend confirmation ✅
 
 **Problem**: Bulk actions limited to delete/export.
 
-**Effort**: 1 hour
+**Fix**: Added "Resend Confirmation" action to bulk operations in `subscribers_bulk()` route. Only sends to unconfirmed/unsubscribed subscribers. Handles SMTP failures gracefully with sent/failed counts. Added button to admin/subscribers.html bulk actions bar.
 
-**Fix**: Add resend confirmation email action.
-
-### 7.15 Newsletter inline styles
+### 7.15 Newsletter inline styles ⏭️ SKIPPED
 
 **Problem**: Newsletter HTML uses CSS classes email clients may ignore.
 
@@ -718,7 +722,9 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Convert to inline styles using premailer or manual styling.
 
-### 7.16 Unsubscribe preference center
+**Status**: Skipped - current newsletter template is functional and email client support has improved.
+
+### 7.16 Unsubscribe preference center ⏭️ SKIPPED
 
 **Problem**: Users can only unsubscribe entirely.
 
@@ -726,7 +732,9 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add preference form for frequency/topics.
 
-### 7.17 API key management UI
+**Status**: Skipped - requires significant UX design work.
+
+### 7.17 API key management UI ⏭️ SKIPPED
 
 **Problem**: API keys require server config changes.
 
@@ -734,13 +742,13 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 **Fix**: Add admin UI for generating/revoking API keys.
 
-### 7.18 Session IP binding
+**Status**: Skipped - REST API (7.9) not implemented, so API key UI is not needed.
+
+### 7.18 Session IP binding ✅
 
 **Problem**: Sessions can be used from different IPs.
 
-**Effort**: 1 hour
-
-**Fix**: Store initial IP, warn on change (don't break mobile users).
+**Fix**: Added IP mismatch warning in `admin_required` decorator. On each admin request, compares current `request.remote_addr` with stored `ip_address` from AdminSession. Logs warning if mismatch (for security audit), but does not invalidate session (mobile users may switch between WiFi/cellular).
 
 ---
 

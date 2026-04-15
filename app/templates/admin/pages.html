@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Pages | Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Pages</h1>
+        <a href="{{ url_for('admin.new_page') }}" class="btn btn-primary">New Page</a>
+    </div>
+
+    <div class="post-list">
+        <div class="post-list-header">
+            <span>Title</span>
+            <span>Slug</span>
+            <span>Status</span>
+            <span class="post-list-header-right">Actions</span>
+        </div>
+        {% for pg in pages %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <a href="{{ url_for('admin.edit_page', page_id=pg.id) }}" class="post-list-title">{{ pg.title }}</a>
+                </div>
+                <div class="post-list-slug">
+                    <code>/page/{{ pg.slug }}</code>
+                </div>
+                <div class="post-list-status">
+                    {% if pg.published %}
+                        <span class="status-badge status-published">Published</span>
+                    {% else %}
+                        <span class="status-badge status-draft">Draft</span>
+                    {% endif %}
+                </div>
+                <div class="post-list-actions">
+                    <a href="{{ url_for('admin.edit_page', page_id=pg.id) }}" class="btn btn-small btn-ghost">Edit</a>
+                    <form method="POST" action="{{ url_for('admin.delete_page', page_id=pg.id) }}" class="inline-form" data-confirm="Delete page '{{ pg.title }}'? This cannot be undone.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                    {% if pg.published %}
+                        <a href="{{ url_for('public.page', slug=pg.slug) }}" class="btn btn-small btn-ghost" target="_blank">View</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <h3>No pages yet</h3>
+                <p>Create static pages like About or Contact.</p>
+                <a href="{{ url_for('admin.new_page') }}" class="btn btn-primary btn-small">Create your first page</a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

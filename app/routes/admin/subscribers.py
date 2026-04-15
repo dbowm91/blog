@@ -1,5 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash, Response, abort
 from flask_login import login_required
+import smtplib
 
 from app.extensions import db
 from app.models import Subscriber
@@ -7,6 +8,7 @@ from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.csv_utils import generate_subscribers_csv
 from app.config import SUBSCRIBERS_PER_PAGE, EXPORT_BATCH_SIZE
+from app.email import send_confirmation
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -121,10 +123,10 @@ def subscribers_bulk() -> Response:
     Bulk operations on selected subscribers.
 
     Methods: POST
-    POST: Performs action (delete, export) on selected subscribers.
+    POST: Performs action (delete, export, resend) on selected subscribers.
     Requires: Admin authentication.
     Form params:
-        action: One of 'delete', 'export'
+        action: One of 'delete', 'export', 'resend'
         sub_ids: List of subscriber IDs to operate on
     Query params: status - preserved for redirect
     """
@@ -132,7 +134,7 @@ def subscribers_bulk() -> Response:
     sub_ids = request.form.getlist("sub_ids")
     filter_status = request.args.get("status", "all")
 
-    if action in ("delete", "export"):
+    if action in ("delete", "export", "resend"):
         if not sub_ids:
             flash("No subscribers selected.", "error")
             return redirect(url_for("admin.subscribers", status=filter_status))
@@ -181,5 +183,31 @@ def subscribers_bulk() -> Response:
                     "Content-Disposition": "attachment; filename=subscribers_selected.csv"
                 },
             )
+        elif action == "resend":
+            subs = (
+                db.session.execute(
+                    select(Subscriber).filter(Subscriber.id.in_(valid_ids))
+                )
+                .scalars()
+                .all()
+            )
+            sent_count = 0
+            failed_count = 0
+            for sub in subs:
+                if sub.confirmed and not sub.unsubscribed_at:
+                    continue
+                try:
+                    send_confirmation(sub)
+                    sent_count += 1
+                except (smtplib.SMTPException, OSError):
+                    logger.exception("Failed to resend confirmation to %s", sub.email)
+                    failed_count += 1
+            if failed_count > 0:
+                flash(
+                    f"Sent {sent_count} confirmation(s), {failed_count} failed.",
+                    "warning",
+                )
+            else:
+                flash(f"Sent {sent_count} confirmation(s).", "success")
 
     return redirect(url_for("admin.subscribers", status=filter_status))

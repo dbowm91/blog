@@ -128,6 +128,7 @@ def register_context_processors(app):
             "author_avatar": AUTHOR_AVATAR,
             "base_url": BASE_URL,
             "current_year": datetime.now().year,
+            "canonical_url": BASE_URL.rstrip("/") + request.path,
         }
 
     @app.context_processor

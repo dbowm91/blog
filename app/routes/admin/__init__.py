@@ -4,9 +4,10 @@ Registers the admin blueprint and imports route handlers from submodules.
 All shared helpers live in `helpers.py` — import from there, not via star imports.
 """
 
-from flask import Blueprint, abort
+from flask import Blueprint, abort, request, session
 from functools import wraps
 from flask_login import login_required, current_user
+from sqlalchemy import select
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -17,6 +18,25 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         if not current_user.is_admin:
             abort(403)
+
+        from app.extensions import db
+        from app.models import AdminSession
+
+        sid = session.get("admin_session_id")
+        if sid:
+            admin_session = db.session.execute(
+                select(AdminSession).filter_by(session_id=sid)
+            ).scalar_one_or_none()
+            if admin_session and admin_session.ip_address:
+                current_ip = request.remote_addr
+                if current_ip and current_ip != admin_session.ip_address:
+                    logger.warning(
+                        "IP address mismatch for admin session %s: expected %s, got %s",
+                        sid,
+                        admin_session.ip_address,
+                        current_ip,
+                    )
+
         return f(*args, **kwargs)
 
     return decorated
@@ -80,3 +100,4 @@ from app.routes.admin.backup import (
 from app.routes.admin.analytics import analytics
 from app.routes.admin.newsletter import newsletter_test
 from app.routes.admin.settings import settings, settings_theme
+from app.routes.admin.pages import pages_list, new_page, edit_page, delete_page

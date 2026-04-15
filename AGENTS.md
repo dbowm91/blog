@@ -18,14 +18,14 @@ Both `ADMIN_PASSWORD` and `SECRET_KEY` environment variables are **required**—
 run.py                  # Entry point—exports `app` (WSGI) and `asgi_app` (ASGI)
 app/__init__.py         # App factory (`create_app()`), middleware, logging setup
 app/config.py           # All config loaded from `config.toml` + env vars (+ validation)
-app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession, SiteSettings)
+app/models.py           # SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession, SiteSettings, Page)
 app/extensions.py       # Flask extensions (db, login_manager, migrate)
 app/routes/public.py    # Public-facing routes
 app/routes/admin/       # Admin routes package (requires login)
 app/routes/admin/__init__.py  # Blueprint registration, shared helpers, admin_required
 app/routes/admin/auth.py      # login, logout
 app/routes/admin/posts.py     # dashboard, post CRUD, bulk operations
-app/routes/admin/subscribers.py  # subscriber management
+app/routes/admin/subscribers.py  # subscriber management (incl. bulk resend)
 app/routes/admin/tags.py      # tag management
 app/routes/admin/users.py     # user management
 app/routes/admin/sessions.py  # session management
@@ -34,16 +34,18 @@ app/routes/admin/backup.py    # backup/restore
 app/routes/admin/analytics.py # analytics page
 app/routes/admin/newsletter.py # newsletter test
 app/routes/admin/settings.py  # theme settings (presets, custom CSS, logo)
+app/routes/admin/pages.py     # static pages CRUD
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
 app/cache.py            # Tag count cache (double-checked locking)
-app/search.py           # FTS5 full-text search with LIKE fallback
+app/search.py           # FTS5 full-text search with LIKE fallback + snippet extraction
 app/utils.py            # Slug generation, email validation, XML escaping, UTCDateTime type
 app/base62.py           # Short URL encoding (base62)
 app/scheduler.py        # APScheduler newsletter job (with file locking)
 app/email.py            # SMTP email sending (with TLS via ssl.create_default_context)
 app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown rendering
 app/csv_utils.py        # Subscriber CSV export with formula injection prevention
+app/context_processors.py  # Template context (theme, footer, canonical_url)
 DEPLOY.md               # Deployment guide
 ```
 
@@ -58,6 +60,7 @@ DEPLOY.md               # Deployment guide
 
 ### Models
 - `Post.slug` must be unique—use `_generate_unique_slug()` in `app/routes/admin/posts.py`
+- `Page.slug` must be unique—use `_generate_unique_page_slug()` in `app/routes/admin/pages.py`
 - `Post.updated_at` has automatic `onupdate` trigger in the model
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
@@ -65,7 +68,7 @@ DEPLOY.md               # Deployment guide
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
 - `Subscriber.expires_at` has no model default; the subscribe route sets it explicitly from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
-- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_published_at` on `published_at`, `ix_posts_newsletter_sent_at` on `newsletter_sent_at`, `ix_posts_published_updated` on `(published, updated_at)`, `ix_posts_published_slug` on `(published, slug)`
+- Database indexes: `ix_posts_published_created` on `(published, created_at)`, `ix_posts_published_at` on `published_at`, `ix_posts_newsletter_sent_at` on `newsletter_sent_at`, `ix_posts_published_updated` on `(published, updated_at)`, `ix_posts_published_slug` on `(published, slug)`, `ix_pages_published_slug` on `(published, slug)`
 - `PageView` has composite index `ix_page_views_post_created` on `(post_id, created_at)`; `ShareEvent` has `ix_share_events_post_created` on `(post_id, created_at)`
 - `Subscriber` has composite index `ix_subscribers_confirmed_unsubscribed` on `(confirmed, unsubscribed_at)`
 - `AdminSession` tracks active admin sessions with `session_id`, `ip_address`, `user_agent`, `created_at`, `last_activity`; has index `ix_admin_sessions_user_id` on `user_id`
@@ -300,8 +303,9 @@ Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytic
 `/admin/subscribers/export` streams a CSV of all confirmed subscribers (columns: email, subscribed_at, confirmed_at). Uses `StreamingHTTPResponse` for memory efficiency with large lists.
 
 ### Subscriber Bulk Operations
-- `POST /admin/subscribers/bulk` — handles `delete` and `export` actions for selected subscribers
+- `POST /admin/subscribers/bulk` — handles `delete`, `export`, and `resend` actions for selected subscribers
 - Checkbox selection on subscribers page with "Select All" toggle
+- Resend sends confirmation email to unconfirmed/unsubscribed subscribers only
 
 ### Admin Keyboard Shortcuts
 - `Ctrl+S` / `Cmd+S` — save draft (admin pages only — must be scoped with `admin-body` check)
@@ -332,6 +336,9 @@ All image uploads validated against 10MB limit. Magic byte detection rejects fil
 
 ### Session Timeout
 Admin sessions expire after inactivity (default 24 hours, configurable via `session_lifetime_hours`). Timeout checked on every request in `before_request` handler. Session extended on activity.
+
+### Session IP Binding
+Admin sessions log a warning if the IP address changes during the session (checked in `admin_required` decorator). This detects potential session hijacking but does not invalidate the session to avoid breaking mobile users who may switch between WiFi and cellular.
 
 ### CSS Variable Deduplication
 The codebase had duplicate CSS variables (`--bg-primary` = `--bg`, `--text-secondary` = `text-muted`). When consolidating, check which variable is the "canonical" one by seeing which is used more broadly, then replace all uses of the duplicate with the canonical name before removing it.

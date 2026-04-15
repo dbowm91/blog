@@ -6,6 +6,31 @@
 {% block og_description %}{{ post.summary or post.body | truncate(160) }}{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_image %}{% if post.image %}<meta property="og:image" content="{{ base_url }}/static/uploads/{{ post.image }}">{% else %}<meta property="og:image" content="{{ base_url }}/static/img/default-post.svg">{% endif %}{% endblock %}
+{% block twitter_title %}{{ post.title }}{% endblock %}
+{% block twitter_description %}{{ post.summary or post.body | truncate(160) }}{% endblock %}
+{% block twitter_image %}{% if post.image %}<meta name="twitter:image" content="{{ base_url }}/static/uploads/{{ post.image }}">{% else %}<meta name="twitter:image" content="{{ base_url }}/static/img/default-post.svg">{% endif %}{% endblock %}
+{% block article_schema %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": {{ post.title | tojson }},
+    "description": {{ (post.summary or post.body | truncate(160)) | tojson }},
+    "image": "{{ base_url }}{% if post.image %}/static/uploads/{{ post.image }}{% else %}/static/img/default-post.svg{% endif %}",
+    "datePublished": {{ post.published_at.isoformat() if post.published_at else post.created_at.isoformat() | tojson }},
+    "dateModified": {{ post.updated_at.isoformat() if post.updated_at else post.created_at.isoformat() | tojson }},
+    "author": {
+        "@type": "Person",
+        "name": {{ author_name | tojson }}
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": {{ site_title | tojson }}
+    },
+    "url": {{ (base_url + '/post/' + post.slug) | tojson }}
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb" aria-label="Breadcrumb">

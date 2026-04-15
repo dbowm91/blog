@@ -62,6 +62,31 @@ class Tag(db.Model):
         return f"<Tag {self.name!r}>"
 
 
+class Page(db.Model):
+    __tablename__ = "pages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    updated_at = db.Column(
+        UTCDateTime,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+    published = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (db.Index("ix_pages_published_slug", "published", "slug"),)
+
+    @staticmethod
+    def generate_slug(title: str) -> str:
+        return generate_slug(title)
+
+    def __repr__(self) -> str:
+        return f"<Page {self.title!r} published={self.published}>"
+
+
 class Post(db.Model):
     __tablename__ = "posts"
 

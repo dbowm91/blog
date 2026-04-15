@@ -36,7 +36,7 @@ from app.config import (
 from app.email import send_confirmation
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.cache import _get_tag_counts
-from app.search import search as _fts_search
+from app.search import search as _fts_search, get_search_snippets
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,56 @@ def index() -> Response:
         pagination=pagination,
         tags=tags,
         tag_counts=tag_counts,
+    )
+
+
+@public.route("/archive")
+def archive() -> Response:
+    """Chronological archive of all published posts grouped by year/month."""
+    posts = (
+        db.session.execute(
+            select(Post)
+            .options(joinedload(Post.tags))
+            .filter_by(published=True)
+            .order_by(Post.created_at.desc())
+        )
+        .unique()
+        .scalars()
+        .all()
+    )
+
+    archive_data: dict[int, dict[int, list[Post]]] = {}
+    for p in posts:
+        year = p.created_at.year
+        month = p.created_at.month
+        if year not in archive_data:
+            archive_data[year] = {}
+        if month not in archive_data[year]:
+            archive_data[year][month] = []
+        archive_data[year][month].append(p)
+
+    tags, tag_counts = _get_cached_tags_and_counts()
+    return render_template(
+        "archive.html",
+        archive_data=archive_data,
+        tags=tags,
+        tag_counts=tag_counts,
+    )
+
+
+@public.route("/page/<slug>")
+def page(slug) -> Response:
+    """Static content page."""
+    from app.models import Page
+
+    page = db.session.execute(
+        select(Page).filter_by(slug=slug, published=True)
+    ).scalar_one_or_none()
+    if not page:
+        abort(404)
+    return render_template(
+        "page.html",
+        page=page,
     )
 
 
@@ -246,6 +296,7 @@ def search() -> Response:
             error_out=False,
         )
 
+    snippets = get_search_snippets(list(pagination.items), query)
     return render_template(
         "search.html",
         query=query,
@@ -253,6 +304,7 @@ def search() -> Response:
         pagination=pagination,
         tags=tags,
         tag_counts=tag_counts,
+        search_snippets=snippets,
     )
 
 
@@ -488,12 +540,89 @@ def unsubscribe(token) -> Response:
 
 @public.route("/robots.txt")
 def robots_txt() -> Response:
-    """Serve robots.txt with sitemap URL."""
-    content = f"User-agent: *\nAllow: /\nSitemap: {BASE_URL}/sitemap.xml\n"
+    """Serve robots.txt with sitemap URL and AI crawler blocking."""
+    content = f"""User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /static/uploads/
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: ia_aggregator
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: img2dataset
+Disallow: /
+
+User-agent: Kraken
+Disallow: /
+
+User-agent: Orbisk
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Pileager
+Disallow: /
+
+User-agent: Seek
+Disallow: /
+
+User-agent: Sitebot
+Disallow: /
+
+User-agent: TikTokBot
+Disallow: /
+
+User-agent: Turpom
+Disallow: /
+
+User-agent: Vercel/Analytics
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+Sitemap: {BASE_URL}/sitemap.xml
+"""
     return Response(content, mimetype="text/plain")
 
 
 def _generate_sitemap():
+    from app.models import Page
+
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
     yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     # Homepage
@@ -501,6 +630,21 @@ def _generate_sitemap():
     <loc>{xml_escape(BASE_URL)}/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>\n"""
+    # Static pages
+    for pg in (
+        db.session.execute(
+            select(Page).filter_by(published=True).order_by(Page.updated_at.desc())
+        )
+        .scalars()
+        .yield_per(100)
+    ):
+        lastmod = pg.updated_at.strftime("%Y-%m-%d") if pg.updated_at else ""
+        yield f"""  <url>
+    <loc>{xml_escape(BASE_URL)}/page/{xml_escape(pg.slug)}</loc>
+    <lastmod>{lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>\n"""
     # Posts — yield one at a time to avoid loading all into memory
     for post in (
@@ -529,7 +673,7 @@ def _generate_sitemap():
 
 @public.route("/sitemap.xml")
 def sitemap_xml() -> Response:
-    """Stream sitemap XML for all published posts and tags."""
+    """Stream sitemap XML for all published posts, pages, and tags."""
     return Response(_generate_sitemap(), mimetype="application/xml")
 
 

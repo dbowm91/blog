@@ -107,3 +107,44 @@ def search(query: str) -> list[tuple[int, int]]:
         return [(row[0], row[1]) for row in result]
     except (OperationalError, ProgrammingError, DatabaseError):
         return []
+
+
+def extract_snippet(text: str, query: str, context_chars: int = 200) -> str:
+    """Extract a snippet from text around the first query match.
+
+    Returns a string of approximately context_chars length containing
+    the query term, with leading/trailing ellipsis if the match is
+    not at the start/end of the text.
+    """
+    if not text:
+        return ""
+
+    query_lower = query.lower()
+    text_lower = text.lower()
+
+    idx = text_lower.find(query_lower)
+    if idx == -1:
+        return text[:context_chars] + ("..." if len(text) > context_chars else "")
+
+    start = max(0, idx - context_chars // 2)
+    end = min(len(text), idx + len(query) + context_chars // 2)
+
+    snippet = text[start:end]
+    if start > 0:
+        snippet = "..." + snippet
+    if end < len(text):
+        snippet = snippet + "..."
+
+    return snippet
+
+
+def get_search_snippets(posts: list, query: str) -> dict[int, str]:
+    """Generate search snippets for a list of posts.
+
+    Returns a dict mapping post_id to snippet string.
+    """
+    snippets: dict[int, str] = {}
+    for post in posts:
+        snippet_text = post.summary if post.summary else post.body
+        snippets[post.id] = extract_snippet(snippet_text, query)
+    return snippets
