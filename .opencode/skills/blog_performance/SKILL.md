@@ -9,7 +9,7 @@ This skill documents the performance patterns implemented in the blog CMS.
 Used for tag counts, site settings, and footer data:
 
 ```python
-_CACHE: dict[str, object] = {"data": None, "timestamp": 0}
+_CACHE: dict[str, Optional[Any] | float] = {"data": None, "timestamp": 0}
 _CACHE_LOCK = threading.Lock()
 _CACHE_TTL = 300  # seconds
 
