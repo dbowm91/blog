@@ -108,24 +108,44 @@ def _get_analytics_data(days: int):
 
     start_date = utc_now() - timedelta(days=days)
 
-    daily_views = db.session.execute(
+    daily_views_cte = (
         select(
             func.date(PageView.created_at).label("date"),
             func.count(PageView.id).label("views"),
         )
         .filter(PageView.created_at >= start_date)
         .group_by(func.date(PageView.created_at))
-        .order_by(func.date(PageView.created_at))
+        .cte()
+    )
+
+    daily_views = db.session.execute(
+        select(daily_views_cte.c.date, daily_views_cte.c.views).order_by(
+            daily_views_cte.c.date
+        )
     ).all()
 
-    top_posts = db.session.execute(
-        select(Post, func.count(PageView.id).label("view_count"))
+    total_views = (
+        db.session.execute(select(func.sum(daily_views_cte.c.views))).scalar_one() or 0
+    )
+
+    top_posts_cte = (
+        select(
+            Post.id,
+            func.count(PageView.id).label("view_count"),
+        )
         .join(PageView)
         .filter(Post.published == True)
         .filter(PageView.created_at >= start_date)
         .group_by(Post.id)
         .order_by(func.count(PageView.id).desc())
         .limit(10)
+        .cte()
+    )
+
+    top_posts = db.session.execute(
+        select(Post, top_posts_cte.c.view_count)
+        .join(top_posts_cte, Post.id == top_posts_cte.c.id)
+        .order_by(top_posts_cte.c.view_count.desc())
     ).all()
 
     top_post_ids = [p.id for p, _ in top_posts]
@@ -163,17 +183,10 @@ def _get_analytics_data(days: int):
     confirmed_subscribers = subscriber_stats[1] or 0
 
     share_platforms = db.session.execute(
-        select(ShareEvent.platform, func.count(ShareEvent.id).label("count")).group_by(
+        select(ShareEvent.platform, func.count(ShareEvent.id)).group_by(
             ShareEvent.platform
         )
     ).all()
-
-    total_views = (
-        db.session.execute(
-            select(func.count(PageView.id)).filter(PageView.created_at >= start_date)
-        ).scalar_one()
-        or 0
-    )
 
     data = {
         "daily_views": daily_views,

@@ -146,7 +146,10 @@ class PageView(db.Model):
     referrer = db.Column(db.String(512), nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
-    __table_args__ = (db.Index("ix_page_views_post_created", "post_id", "created_at"),)
+    __table_args__ = (
+        db.Index("ix_page_views_post_created", "post_id", "created_at"),
+        db.Index("ix_page_views_referrer", "referrer", "created_at"),
+    )
 
     def __repr__(self) -> str:
         return f"<PageView post_id={self.post_id}>"

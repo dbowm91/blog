@@ -14,14 +14,14 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 def tags_list():
     from app.models import post_tags
 
-    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-    tag_post_counts = dict(
-        db.session.execute(
-            select(
-                post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt")
-            ).group_by(post_tags.c.tag_id)
-        ).all()
-    )
+    rows = db.session.execute(
+        select(Tag, func.count(post_tags.c.post_id).label("cnt"))
+        .outerjoin(post_tags, Tag.id == post_tags.c.tag_id)
+        .group_by(Tag.id)
+        .order_by(Tag.name)
+    ).all()
+    tags = [row[0] for row in rows]
+    tag_post_counts = {row[0].id: row[1] for row in rows}
     return render_template(
         "admin/tags.html", tags=tags, tag_post_counts=tag_post_counts
     )

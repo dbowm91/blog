@@ -10,6 +10,7 @@ Multi-worker limitation:
 
 import os
 import threading
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import select
@@ -17,7 +18,7 @@ from sqlalchemy import select
 if TYPE_CHECKING:
     from apscheduler.schedulers.background import BackgroundScheduler
 
-__all__ = ["init_scheduler", "get_scheduler_status"]
+__all__ = ["init_scheduler", "get_scheduler_status", "get_scheduler_health"]
 
 try:
     import fcntl
@@ -27,11 +28,25 @@ except ImportError:
     HAS_FCNTL = False
 
 _scheduler_running = threading.Event()
+_last_newsletter_send_lock = threading.Lock()
+_last_newsletter_send: Optional[datetime] = None
 
 
 def get_scheduler_status() -> bool:
     """Return whether the scheduler is running."""
     return _scheduler_running.is_set()
+
+
+def get_scheduler_health() -> dict:
+    """Return scheduler health info for monitoring."""
+    global _last_newsletter_send
+    running = _scheduler_running.is_set()
+    with _last_newsletter_send_lock:
+        last_send = _last_newsletter_send
+    return {
+        "status": "running" if running else "stopped",
+        "last_newsletter_send": last_send.isoformat() if last_send else None,
+    }
 
 
 def send_daily_newsletter(app) -> None:
@@ -87,6 +102,9 @@ def send_daily_newsletter(app) -> None:
                     post.newsletter_sent_at = now
                     post.newsletter_attempts = 0
                 db.session.commit()
+                global _last_newsletter_send
+                with _last_newsletter_send_lock:
+                    _last_newsletter_send = now
             else:
                 for post in posts:
                     post.newsletter_attempts = (post.newsletter_attempts or 0) + 1

@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app.extensions import db
 from app.models import SiteSettings, THEME_PRESETS
 from app.routes.admin import admin, admin_required
+from app.context_processors import invalidate_settings_cache
 
 
 @admin.route("/settings", methods=["GET"])
@@ -41,6 +42,7 @@ def settings_theme():
 
     try:
         db.session.commit()
+        invalidate_settings_cache()
     except (IntegrityError, OperationalError):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")

@@ -15,6 +15,7 @@ from flask import (
     session,
     Response,
     url_for,
+    g,
 )
 from sqlalchemy import func, or_, select, text, case
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
@@ -52,10 +53,25 @@ def _safe_redirect_url():
     return url_for("public.index")
 
 
+HARD_RELATED_POST_LIMIT = 20
+
+
+def _get_cached_tags_and_counts():
+    """Get tags and tag counts with request-level caching via Flask g."""
+    if not hasattr(g, "_cached_tags"):
+        g._cached_tags = (
+            db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+        )
+    if not hasattr(g, "_cached_tag_counts"):
+        g._cached_tag_counts = _get_tag_counts()
+    return g._cached_tags, g._cached_tag_counts
+
+
 def _get_related_posts(post):
     if not post.tags:
         return []
     tag_ids = [t.id for t in post.tags]
+    limit = min(RELATED_POSTS_COUNT, HARD_RELATED_POST_LIMIT)
     related = (
         db.session.execute(
             select(Post)
@@ -66,7 +82,7 @@ def _get_related_posts(post):
                 Post.tags.any(Tag.id.in_(tag_ids)),
             )
             .order_by(Post.created_at.desc())
-            .limit(RELATED_POSTS_COUNT)
+            .limit(limit)
         )
         .unique()
         .scalars()
@@ -88,8 +104,7 @@ def index() -> Response:
         per_page=POSTS_PER_PAGE,
         error_out=False,
     )
-    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-    tag_counts = _get_tag_counts()
+    tags, tag_counts = _get_cached_tags_and_counts()
     return render_template(
         "index.html",
         posts=pagination.items,
@@ -126,9 +141,11 @@ def post(slug) -> Response:
             db.session.commit()
         except (IntegrityError, OperationalError):
             db.session.rollback()
-        viewed.append(post.id)
+        if post.id in viewed:
+            viewed.remove(post.id)
+        viewed.insert(0, post.id)
         if len(viewed) > MAX_VIEWED_POSTS:
-            viewed = viewed[-MAX_VIEWED_POSTS:]
+            viewed = viewed[:MAX_VIEWED_POSTS]
         session["viewed_posts"] = viewed
 
     related = _get_related_posts(post)
@@ -162,8 +179,7 @@ def tag(slug) -> Response:
         error_out=False,
     )
     total_posts = pagination.total
-    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-    tag_counts = _get_tag_counts()
+    tags, tag_counts = _get_cached_tags_and_counts()
     return render_template(
         "tag.html",
         tag=tag,
@@ -193,8 +209,7 @@ def search() -> Response:
     if not query:
         return redirect("/")
 
-    tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-    tag_counts = _get_tag_counts()
+    tags, tag_counts = _get_cached_tags_and_counts()
 
     post_results = _fts_search(query)
     if post_results:
@@ -534,7 +549,7 @@ def health_check() -> Response:
         200: All services healthy
         503: One or more services degraded
     """
-    from app.scheduler import get_scheduler_status
+    from app.scheduler import get_scheduler_health
     from app.config import SMTP_HOST
 
     checks = {}
@@ -550,7 +565,9 @@ def health_check() -> Response:
 
     # Scheduler check (only relevant if SMTP configured)
     if SMTP_HOST:
-        checks["scheduler"] = "running" if get_scheduler_status() else "stopped"
+        health = get_scheduler_health()
+        checks["scheduler"] = health["status"]
+        checks["last_newsletter_send"] = health["last_newsletter_send"]
     else:
         checks["scheduler"] = "disabled"
 

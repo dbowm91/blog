@@ -983,6 +983,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    window.addEventListener('beforeunload', () => {
+        clearTimeout(prefetchTimer);
+    });
+
     // --- Nav dropdown toggle ---
     document.querySelectorAll('.nav-dropdown-toggle').forEach(btn => {
         btn.addEventListener('click', (e) => {

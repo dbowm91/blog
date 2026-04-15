@@ -78,7 +78,37 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         return None
 
 
+def _build_newsletter_message(sub, posts, app_title, base_url, from_address):
+    """Build a newsletter MIMEMultipart message for a subscriber."""
+    unsub_url = f"{base_url}/unsubscribe/{sub.token}"
+    html = render_template(
+        "email/newsletter.html",
+        posts=posts,
+        site_title=app_title,
+        base_url=base_url,
+        unsubscribe_url=unsub_url,
+    )
+    text = (
+        f"Latest from {app_title}\n\n"
+        + "\n\n".join(
+            f"{p.title}\n{base_url}/post/{p.slug}\n{p.summary}" for p in posts
+        )
+        + f"\n\nUnsubscribe: {unsub_url}"
+    )
+    msg = MIMEMultipart("alternative")
+    msg["From"] = from_address
+    msg["To"] = sub.email
+    msg["Subject"] = f"Latest from {app_title}"
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    return msg
+
+
 def send_newsletter(posts, subscribers) -> bool:
+    """Send newsletter to all subscribers.
+
+    Returns True if all sent successfully, False otherwise.
+    """
     if not posts or not subscribers:
         return True
 
@@ -87,30 +117,21 @@ def send_newsletter(posts, subscribers) -> bool:
         logger.error("Cannot send newsletter: SMTP connection failed")
         return False
 
+    unsub_url_base = f"{BASE_URL}/unsubscribe/"
+    pre_rendered = render_template(
+        "email/newsletter.html",
+        posts=posts,
+        site_title=APP_TITLE,
+        base_url=BASE_URL,
+        unsubscribe_url=unsub_url_base + "TOKEN",
+    )
+
     all_sent = True
     try:
         for i, sub in enumerate(subscribers, 1):
-            unsub_url = f"{BASE_URL}/unsubscribe/{sub.token}"
-            html = render_template(
-                "email/newsletter.html",
-                posts=posts,
-                site_title=APP_TITLE,
-                base_url=BASE_URL,
-                unsubscribe_url=unsub_url,
+            msg = _build_newsletter_message(
+                sub, posts, APP_TITLE, BASE_URL, FROM_ADDRESS
             )
-            text = (
-                f"Latest from {APP_TITLE}\n\n"
-                + "\n\n".join(
-                    f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}" for p in posts
-                )
-                + f"\n\nUnsubscribe: {unsub_url}"
-            )
-            msg = MIMEMultipart("alternative")
-            msg["From"] = FROM_ADDRESS
-            msg["To"] = sub.email
-            msg["Subject"] = f"Latest from {APP_TITLE}"
-            msg.attach(MIMEText(text, "plain"))
-            msg.attach(MIMEText(html, "html"))
             try:
                 server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
                 if i % 50 == 0:
