@@ -582,9 +582,12 @@ def health_check() -> Response:
     except (OperationalError, ProgrammingError):
         checks["search"] = "error"
 
+    # Determine overall status - exclude None values (like last_newsletter_send when never sent)
     overall = (
         "ok"
-        if all(v in ("ok", "running", "disabled") for v in checks.values())
+        if all(
+            v in ("ok", "running", "disabled") for v in checks.values() if v is not None
+        )
         else "degraded"
     )
 
