@@ -302,6 +302,25 @@ def create_app():
 
     configure_logging(app)
 
+    def _check_database_integrity(app):
+        """Run PRAGMA integrity_check to verify database is not corrupted."""
+        with app.app_context():
+            try:
+                result = db.session.execute(text("PRAGMA integrity_check"))
+                row = result.scalar()
+                if row != "ok":
+                    logger.warning(
+                        "Database integrity check failed: %s. "
+                        "Consider restoring from backup.",
+                        row,
+                    )
+                else:
+                    logger.info("Database integrity check passed")
+            except Exception as e:
+                logger.warning("Database integrity check failed: %s", e)
+
+    _check_database_integrity(app)
+
     from app.scheduler import init_scheduler
 
     init_scheduler(app)
