@@ -640,6 +640,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const submitBtn = this.querySelector('button[type="submit"]');
             if (submitBtn && !submitBtn.disabled) {
                 submitBtn.disabled = true;
+                submitBtn.classList.add('btn-loading');
                 submitBtn.dataset.originalText = submitBtn.textContent;
                 const loadingText = this.dataset.loadingText || 'Saving...';
                 submitBtn.textContent = loadingText;
