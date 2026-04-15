@@ -12,7 +12,7 @@ from app.config import FTS_RESULT_LIMIT
 logger = logging.getLogger(__name__)
 
 
-def init_fts():
+def init_fts() -> None:
     """Create FTS5 virtual table and populate with existing posts. Idempotent."""
     try:
         db.session.execute(
@@ -37,7 +37,7 @@ def init_fts():
         )
 
 
-def rebuild_fts():
+def rebuild_fts() -> None:
     """Rebuild the FTS5 index from scratch."""
     try:
         db.session.execute(text("INSERT INTO posts_fts(posts_fts) VALUES('rebuild')"))
@@ -82,7 +82,7 @@ def _escape_fts_term(term: str) -> str:
     return term if term else ""
 
 
-def search(query: str):
+def search(query: str) -> list[tuple[int, int]]:
     """Search using FTS5. Returns list of (post_id, rank) tuples or empty list if unavailable."""
     try:
         check = db.session.execute(

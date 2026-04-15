@@ -137,14 +137,14 @@ def create_app():
     from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 
     @app.template_filter("markdown_safe")
-    def markdown_safe_filter(text):
+    def markdown_safe_filter(text: str) -> str:
         html = markdown.markdown(text, extensions=["fenced_code", "tables"])
         return nh3.clean(
             html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
         )
 
     @app.template_filter("reading_time")
-    def reading_time_filter(text):
+    def reading_time_filter(text: str) -> str:
         if not text:
             return "1 min read"
         words = len(text.split())

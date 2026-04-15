@@ -9,9 +9,11 @@ import threading
 import time
 import uuid
 import logging
+from typing import Optional
 
 from flask import current_app, flash
 from sqlalchemy import delete, func, select
+from werkzeug.datastructures import FileStorage
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from datetime import datetime, timedelta, timezone
@@ -82,7 +84,7 @@ def _check_password_complexity(password: str) -> bool:
     return sum((has_lower, has_upper, has_digit, has_special)) >= 3
 
 
-def _get_posts_query(status: str, search: str, order_by=None):
+def _get_posts_query(status: str, search: str, order_by=None) -> select:
     base_q = select(Post)
     if search:
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -221,7 +223,7 @@ def validate_tag_name(name: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _detect_image_type(header):
+def _detect_image_type(header: bytes) -> Optional[str]:
     if header[:8] == b"\x89PNG\r\n\x1a\n":
         return "png"
     if header[:3] == b"\xff\xd8\xff":
@@ -233,11 +235,11 @@ def _detect_image_type(header):
     return None
 
 
-def _allowed_file(filename):
+def _allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def _generate_unique_slug(title, exclude_id=None):
+def _generate_unique_slug(title: str, exclude_id: Optional[int] = None) -> str:
     slug = Post.generate_slug(title)
     base_slug = slug
     counter = 2
@@ -254,7 +256,9 @@ def _generate_unique_slug(title, exclude_id=None):
     return slug
 
 
-def _save_image(file):
+def _save_image(
+    file: FileStorage,
+) -> tuple[str, None] | tuple[None, str] | tuple[None, None]:
     if file and file.filename and _allowed_file(file.filename):
         file.seek(0, 2)
         size = file.tell()
@@ -276,7 +280,7 @@ def _save_image(file):
     return None, None
 
 
-def _cleanup_orphan_tags():
+def _cleanup_orphan_tags() -> None:
     from app.models import post_tags
 
     orphan_tag_ids = (
@@ -292,7 +296,7 @@ def _cleanup_orphan_tags():
         db.session.execute(delete(Tag).where(Tag.id.in_(orphan_tag_ids)))
 
 
-def _get_or_create_tags(names):
+def _get_or_create_tags(names: list[str]) -> list[Tag]:
     tags = []
     invalid_tags = []
     for name in names:
@@ -315,15 +319,15 @@ def _get_or_create_tags(names):
 
 
 def _apply_post_updates(
-    post,
-    title,
-    body,
-    summary,
-    published,
-    was_published,
+    post: Post,
+    title: str,
+    body: str,
+    summary: str,
+    published: bool,
+    was_published: bool,
     scheduled_publish_at,
-    tag_names,
-):
+    tag_names: list[str],
+) -> Post:
     post.title = title
     post.body = body
     post.summary = summary

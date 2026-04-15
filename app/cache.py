@@ -9,13 +9,17 @@ __all__ = ["_get_tag_counts", "invalidate_tag_cache"]
 
 import threading
 import time as _time
+from typing import Optional
 
 from sqlalchemy import select, func
 from app.config import TAG_CACHE_TTL_SECONDS
 from app.extensions import db
 from app.models import Post, post_tags
 
-_TAG_COUNTS_CACHE: dict[str, object] = {"data": None, "timestamp": 0}
+_TAG_COUNTS_CACHE: dict[str, Optional[dict[int, int]] | float] = {
+    "data": None,
+    "timestamp": 0,
+}
 _TAG_CACHE_LOCK = threading.Lock()
 
 
