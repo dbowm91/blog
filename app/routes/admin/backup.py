@@ -20,6 +20,13 @@ from datetime import datetime, timezone
 @admin.route("/backup")
 @admin_required
 def backup():
+    """
+    Backup management - list available backups.
+
+    Methods: GET
+    GET: Renders backup page listing all database backups in instance/backups/.
+    Requires: Admin authentication.
+    """
     backup_dir = _get_backup_dir()
     backups = []
     if os.path.isdir(backup_dir):
@@ -42,6 +49,14 @@ def backup():
 @admin.route("/backup/create", methods=["POST"])
 @admin_required
 def create_backup():
+    """
+    Create a new database backup.
+
+    Methods: POST
+    POST: Creates a timestamped database backup. Optional gzip compression.
+    Requires: Admin authentication.
+    Form params: compress (checkbox) - Enable gzip compression.
+    """
     from backup import create_backup as _create_backup
 
     compress = "compress" in request.form
@@ -58,6 +73,14 @@ def create_backup():
 @admin.route("/backup/download/<filename>")
 @admin_required
 def download_backup(filename):
+    """
+    Download a backup file.
+
+    Methods: GET
+    GET: Streams the backup file as an attachment.
+    Requires: Admin authentication.
+    Path params: filename - Name of backup file (validated against regex).
+    """
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()
@@ -73,6 +96,16 @@ def download_backup(filename):
 @admin.route("/backup/restore/<filename>", methods=["POST"])
 @admin_required
 def restore_backup(filename):
+    """
+    Restore database from a backup.
+
+    Methods: POST
+    POST: Restores database from backup file. Handles gzip decompression.
+          Closes existing connections before overwriting.
+    Requires: Admin authentication.
+    Path params: filename - Name of backup file to restore.
+    Warning: Requires app restart for full effect.
+    """
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()
@@ -104,6 +137,14 @@ def restore_backup(filename):
 @admin.route("/backup/delete/<filename>", methods=["POST"])
 @admin_required
 def delete_backup(filename):
+    """
+    Delete a backup file.
+
+    Methods: POST
+    POST: Deletes the backup file from instance/backups/.
+    Requires: Admin authentication.
+    Path params: filename - Name of backup file to delete.
+    """
     if not BACKUP_FILENAME_RE.match(filename):
         abort(400)
     backup_dir = _get_backup_dir()

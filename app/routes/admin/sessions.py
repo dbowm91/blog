@@ -13,6 +13,13 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 @admin.route("/sessions")
 @admin_required
 def sessions_list():
+    """
+    List all active admin sessions.
+
+    Methods: GET
+    GET: Renders session management page showing all AdminSession records.
+    Requires: Admin authentication.
+    """
     sessions = (
         db.session.execute(
             select(AdminSession)
@@ -34,6 +41,15 @@ def sessions_list():
 @admin.route("/sessions/revoke/<int:sess_id>", methods=["POST"])
 @admin_required
 def revoke_session(sess_id):
+    """
+    Revoke an admin session.
+
+    Methods: POST
+    POST: Deletes the AdminSession record, forcing logout.
+    Requires: Admin authentication.
+    Guards: Cannot revoke own current session.
+    Path params: sess_id (int) - ID of the session to revoke.
+    """
     admin_session = db.session.get(AdminSession, sess_id)
     if not admin_session:
         abort(404)

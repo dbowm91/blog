@@ -8,6 +8,16 @@ from app.routes.admin.helpers import _get_analytics_data
 @admin.route("/analytics")
 @admin_required
 def analytics():
+    """
+    Analytics dashboard - view post views and shares statistics.
+
+    Methods: GET
+    GET: Renders analytics page with daily views, top posts, share platforms.
+    Query params: days - Time range (7-365, default 30, capped)
+    Requires: Admin authentication.
+    Template context: daily_views, total_views, top_posts, share_platforms,
+                      share_counts, referrer_summary, total_subscribers, confirmed_subscribers.
+    """
     days = request.args.get("days", 30, type=int)
     days = min(max(days, 7), 365)
 

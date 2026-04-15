@@ -13,6 +13,14 @@ from app.routes.admin.helpers import logger
 
 @admin.route("/login", methods=["GET", "POST"])
 def login() -> Response:
+    """
+    Admin login page.
+
+    Methods: GET, POST
+    GET: Renders the login form. Redirects if already authenticated.
+    POST: Authenticates user with username/password. Creates AdminSession on success.
+    Requires: Admin user with valid credentials.
+    """
     if current_user.is_authenticated:
         return redirect(url_for("admin.dashboard"))
 
@@ -46,6 +54,13 @@ def login() -> Response:
 @admin.route("/logout", methods=["POST"])
 @login_required
 def logout() -> Response:
+    """
+    Log out the current admin user.
+
+    Methods: POST
+    POST: Clears admin session, deletes AdminSession record, and redirects to home.
+    Requires: Login (any authenticated user, not just admin).
+    """
     sid = session.pop("admin_session_id", None)
     if sid:
         admin_session = db.session.execute(
@@ -64,6 +79,15 @@ def logout() -> Response:
 @admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
 @admin_required
 def newsletter_reset(post_id) -> Response:
+    """
+    Reset newsletter status for a post.
+
+    Methods: POST
+    POST: Resets newsletter_sent_at and newsletter_attempts to allow post to be
+          included in the next newsletter send.
+    Requires: Admin authentication.
+    Path params: post_id (int) - ID of the post to reset.
+    """
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)

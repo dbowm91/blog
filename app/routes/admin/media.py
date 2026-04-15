@@ -15,6 +15,16 @@ from werkzeug.utils import secure_filename
 @admin.route("/media")
 @admin_required
 def media():
+    """
+    Media library - list uploaded files.
+
+    Methods: GET
+    GET: Renders media gallery with paginated list of uploaded images.
+    Query params:
+        page: Page number (default 1)
+        search: Filter files by name (case-insensitive)
+    Requires: Admin authentication.
+    """
     page = request.args.get("page", 1, type=int)
     per_page = MEDIA_PER_PAGE
     max_files = MEDIA_MAX_FILES
@@ -71,6 +81,14 @@ def media():
 @admin.route("/media/upload", methods=["POST"])
 @admin_required
 def upload_media():
+    """
+    Upload an image file.
+
+    Methods: POST
+    POST: Saves uploaded image to upload folder. Validates via magic bytes.
+    Requires: Admin authentication.
+    Form params: file - Image file (png, jpg, jpeg, gif, webp, max 10MB)
+    """
     if "file" not in request.files:
         flash("No file selected.", "error")
         return redirect(url_for("admin.media"))
@@ -92,6 +110,14 @@ def upload_media():
 @admin.route("/media/delete/<filename>", methods=["POST"])
 @admin_required
 def delete_media(filename):
+    """
+    Delete a media file.
+
+    Methods: POST
+    POST: Deletes the file from upload folder. Validates path is within upload dir.
+    Requires: Admin authentication.
+    Path params: filename - Name of the file to delete.
+    """
     filename = secure_filename(filename)
     if not filename:
         abort(400)

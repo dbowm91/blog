@@ -14,6 +14,16 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 @admin.route("/subscribers")
 @admin_required
 def subscribers() -> Response:
+    """
+    List all subscribers with pagination and filtering.
+
+    Methods: GET
+    GET: Renders subscribers list with pagination.
+    Query params:
+        page: Page number (default 1)
+        status: Filter by status (all, confirmed, unconfirmed, unsubscribed)
+    Requires: Admin authentication.
+    """
     page = request.args.get("page", 1, type=int)
     filter_status = request.args.get("status", "all")
 
@@ -42,6 +52,14 @@ def subscribers() -> Response:
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
 @admin_required
 def delete_subscriber(sub_id) -> Response:
+    """
+    Delete a subscriber.
+
+    Methods: POST
+    POST: Permanently deletes the subscriber record.
+    Requires: Admin authentication.
+    Path params: sub_id (int) - ID of the subscriber to delete.
+    """
     sub = db.session.get(Subscriber, sub_id)
     if not sub:
         abort(404)
@@ -61,6 +79,15 @@ def delete_subscriber(sub_id) -> Response:
 @admin.route("/subscribers/export")
 @admin_required
 def export_subscribers() -> Response:
+    """
+    Export all confirmed subscribers to CSV.
+
+    Methods: GET
+    GET: Streams a CSV file with columns: email, subscribed_at, confirmed_at.
+    Requires: Admin authentication.
+    Response: text/csv with Content-Disposition attachment header.
+    """
+
     def generate():
         offset = 0
         batch_size = EXPORT_BATCH_SIZE
@@ -90,6 +117,17 @@ def export_subscribers() -> Response:
 @admin.route("/subscribers/bulk", methods=["POST"])
 @admin_required
 def subscribers_bulk() -> Response:
+    """
+    Bulk operations on selected subscribers.
+
+    Methods: POST
+    POST: Performs action (delete, export) on selected subscribers.
+    Requires: Admin authentication.
+    Form params:
+        action: One of 'delete', 'export'
+        sub_ids: List of subscriber IDs to operate on
+    Query params: status - preserved for redirect
+    """
     action = request.form.get("action")
     sub_ids = request.form.getlist("sub_ids")
     filter_status = request.args.get("status", "all")

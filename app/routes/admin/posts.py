@@ -43,6 +43,17 @@ from datetime import datetime, timedelta, timezone
 @admin.route("/")
 @admin_required
 def dashboard():
+    """
+    Admin dashboard - lists all posts with pagination and search.
+
+    Methods: GET
+    GET: Renders the dashboard with posts, view/share counts, and metrics.
+    Query params:
+        page: Page number (default 1)
+        q: Search query for filtering by title
+        status: Filter by publication status (published, draft, all)
+    Requires: Admin authentication.
+    """
     page = request.args.get("page", 1, type=int)
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all")
@@ -157,6 +168,16 @@ def _commit_post_with_rollback(
 @admin.route("/new", methods=["GET", "POST"])
 @admin_required
 def new_post():
+    """
+    Create a new blog post.
+
+    Methods: GET, POST
+    GET: Renders the post editor form.
+    POST: Creates a new post with title, body, summary, tags, image, and publication status.
+          Supports optional scheduled_publish_at for auto-publishing.
+    Requires: Admin authentication.
+    Form params: title, body, summary, tags, published, scheduled_publish_at, image (file)
+    """
     if request.method == "POST":
         title = request.form.get("title", "").strip()[:200]
         body = request.form.get("body", "").strip()
@@ -224,6 +245,17 @@ def new_post():
 @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
 @admin_required
 def edit_post(post_id):
+    """
+    Edit an existing blog post.
+
+    Methods: GET, POST
+    GET: Renders the post editor form pre-filled with post data.
+    POST: Updates the post with new title, body, summary, tags, image, and publication status.
+          Regenerates slug if title changed. Handles image replacement/removal.
+    Requires: Admin authentication.
+    Path params: post_id (int) - ID of the post to edit.
+    Form params: title, body, summary, tags, published, scheduled_publish_at, image (file), remove_image
+    """
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -333,6 +365,14 @@ def edit_post(post_id):
 @admin.route("/delete/<int:post_id>", methods=["POST"])
 @admin_required
 def delete_post(post_id):
+    """
+    Delete a blog post.
+
+    Methods: POST
+    POST: Deletes the post, associated image file, FTS index entry, and orphan tags.
+    Requires: Admin authentication.
+    Path params: post_id (int) - ID of the post to delete.
+    """
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -355,6 +395,14 @@ def delete_post(post_id):
 @admin.route("/preview/<int:post_id>")
 @admin_required
 def preview_post(post_id):
+    """
+    Preview a post before publishing.
+
+    Methods: GET
+    GET: Renders the post in preview mode with banner, even if unpublished.
+    Requires: Admin authentication.
+    Path params: post_id (int) - ID of the post to preview.
+    """
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
@@ -374,6 +422,16 @@ def preview_post(post_id):
 @admin.route("/bulk", methods=["POST"])
 @admin_required
 def bulk_operations():
+    """
+    Bulk operations on selected posts.
+
+    Methods: POST
+    POST: Performs action (publish, unpublish, delete) on selected posts.
+    Requires: Admin authentication.
+    Form params:
+        action: One of 'publish', 'unpublish', 'delete'
+        post_ids: List of post IDs to operate on
+    """
     action = request.form.get("action")
     post_ids = request.form.getlist("post_ids")
     if not post_ids:
@@ -457,6 +515,15 @@ def bulk_operations():
 @admin.route("/preview-markdown", methods=["POST"])
 @admin_required
 def preview_markdown():
+    """
+    Render markdown preview for live editing.
+
+    Methods: POST
+    POST: Takes JSON body with 'text' (markdown), returns sanitized HTML.
+    Requires: Admin authentication.
+    Request body (JSON): {"text": str} - Markdown text to render
+    Response (JSON): {"html": str} - Rendered HTML
+    """
     if request.content_length and request.content_length > 1024 * 1024:
         return jsonify({"error": "payload too large"}), 413
     data = request.get_json(silent=True)

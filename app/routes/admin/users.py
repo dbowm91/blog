@@ -12,6 +12,14 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 @admin.route("/users")
 @admin_required
 def users_list():
+    """
+    List all admin users.
+
+    Methods: GET
+    GET: Renders user management page with paginated list of users.
+    Query params: page - Page number (default 1)
+    Requires: Admin authentication.
+    """
     page = request.args.get("page", 1, type=int)
     per_page = 20
     pagination = db.paginate(
@@ -28,6 +36,15 @@ def users_list():
 @admin.route("/users/create", methods=["POST"])
 @admin_required
 def create_user():
+    """
+    Create a new admin user.
+
+    Methods: POST
+    POST: Creates new user with username and hashed password. Validates password complexity.
+    Requires: Admin authentication.
+    Form params: username (max 80 chars), password, is_admin (checkbox)
+    Password requirements: 8+ chars with at least 3 of 4: lowercase, uppercase, digit, special.
+    """
     username = request.form.get("username", "").strip()[:80]
     password = request.form.get("password", "").strip()
     is_admin = "is_admin" in request.form
@@ -69,6 +86,15 @@ def create_user():
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
 def delete_user(user_id):
+    """
+    Delete a user.
+
+    Methods: POST
+    POST: Deletes the user and their AdminSession records (cascade).
+    Requires: Admin authentication.
+    Guards: Cannot delete own account, cannot delete last admin.
+    Path params: user_id (int) - ID of the user to delete.
+    """
     user = db.session.get(User, user_id)
     if not user:
         abort(404)
@@ -100,6 +126,15 @@ def delete_user(user_id):
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
 def change_password(user_id):
+    """
+    Change a user's password.
+
+    Methods: POST
+    POST: Updates user's password. Validates password complexity.
+    Requires: Admin authentication.
+    Path params: user_id (int) - ID of the user whose password to change.
+    Form params: password - New password (8+ chars, 3 of 4 character classes)
+    """
     user = db.session.get(User, user_id)
     if not user:
         abort(404)

@@ -27,6 +27,15 @@ class FakeSubscriber:
 @admin.route("/newsletter-test", methods=["POST"])
 @admin_required
 def newsletter_test():
+    """
+    Send a test newsletter to a specific email.
+
+    Methods: POST
+    POST: Sends test newsletter with 3 most recent published posts to test address.
+    Requires: Admin authentication.
+    Form params: test_email (optional) - Email address to send test to.
+                 Defaults to FROM_ADDRESS from config.
+    """
     posts = (
         db.session.execute(
             select(Post)

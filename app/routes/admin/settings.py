@@ -11,6 +11,13 @@ from app.context_processors import invalidate_settings_cache
 @admin.route("/settings", methods=["GET"])
 @admin_required
 def settings():
+    """
+    Theme and site settings page.
+
+    Methods: GET
+    GET: Renders settings page with current SiteSettings and available theme presets.
+    Requires: Admin authentication.
+    """
     settings_obj = db.session.execute(
         select(SiteSettings).order_by(SiteSettings.id).limit(1)
     ).scalar_one_or_none()
@@ -24,6 +31,18 @@ def settings():
 @admin.route("/settings/theme", methods=["POST"])
 @admin_required
 def settings_theme():
+    """
+    Update theme and site settings.
+
+    Methods: POST
+    POST: Updates theme preset, custom CSS (sanitized), and logo text.
+    Requires: Admin authentication.
+    Form params:
+        preset: Theme preset key (must be in THEME_PRESETS)
+        custom_css_enabled: Checkbox to enable custom CSS
+        custom_css: Custom CSS text (sanitized before storage)
+        logo_text: Site logo text (max 100 chars)
+    """
     settings_obj = db.session.execute(
         select(SiteSettings).order_by(SiteSettings.id).limit(1)
     ).scalar_one_or_none()
