@@ -1,269 +1,17 @@
 document.documentElement.classList.add('js');
 document.addEventListener("DOMContentLoaded", () => {
-    // --- Screen reader announcement helper ---
-    function announce(message) {
-        const el = document.getElementById('sr-announce');
-        if (el) {
-            el.textContent = '';
-            setTimeout(() => { el.textContent = message; }, 50);
-        }
-    }
-
-    // --- Search result announcement ---
-    const searchResultCount = document.querySelector('[data-search-announce]');
-    if (searchResultCount) {
-        announce(searchResultCount.textContent.trim());
-    }
-
-    // --- Form confirmation via data-confirm attribute ---
-    const confirmModal = document.getElementById('confirm-modal');
-    const confirmModalTitle = document.getElementById('confirm-modal-title');
-    const confirmModalMessage = document.getElementById('confirm-modal-message');
-    const confirmModalConfirm = document.getElementById('confirm-modal-confirm');
-    let pendingConfirmForm = null;
-
-    if (confirmModal && confirmModalConfirm) {
-        confirmModalConfirm.addEventListener('click', () => {
-            if (pendingConfirmForm) {
-                pendingConfirmForm.submit();
-            }
-            confirmModal.classList.add('hidden');
-            pendingConfirmForm = null;
-        });
-
-        document.querySelectorAll('form[data-confirm]').forEach(form => {
-            form.addEventListener('submit', e => {
-                e.preventDefault();
-                pendingConfirmForm = form;
-                const isDanger = form.dataset.confirmType === 'danger';
-                confirmModalMessage.textContent = form.dataset.confirm;
-                confirmModalConfirm.className = isDanger ? 'btn btn-small btn-danger' : 'btn btn-small btn-primary';
-                confirmModalTitle.textContent = isDanger ? 'Confirm Destructive Action' : 'Confirm';
-                if (isDanger) {
-                    confirmModal.classList.add('danger');
-                } else {
-                    confirmModal.classList.remove('danger');
-                }
-                confirmModal.classList.remove('hidden');
-            });
-        });
-    }
-
-    // --- Bulk action confirmation via data-confirm-bulk ---
-    document.querySelectorAll('button[data-confirm-bulk]').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const checked = document.querySelectorAll('.bulk-checkbox:checked');
-            if (checked.length === 0) {
-                e.preventDefault();
-                return;
-            }
-            const count = checked.length;
-            const isDelete = btn.value === 'delete';
-            if (isDelete) {
-                if (btn.dataset.primed !== 'true') {
-                    e.preventDefault();
-                    const originalText = btn.textContent;
-                    btn.textContent = `Delete ${count} post${count > 1 ? 's' : ''}? Click again to confirm`;
-                    btn.dataset.primed = 'true';
-                    btn.dataset.originalText = originalText;
-                    btn.classList.add('btn-danger-primed');
-                    const resetButton = () => {
-                        btn.textContent = btn.dataset.originalText;
-                        btn.dataset.primed = 'false';
-                        btn.classList.remove('btn-danger-primed');
-                        btn.removeEventListener('blur', resetButton);
-                    };
-                    setTimeout(() => {
-                        if (btn.dataset.primed === 'true') {
-                            resetButton();
-                        }
-                    }, 5000);
-                    btn.addEventListener('blur', resetButton);
-                    return;
-                } else {
-                    delete btn.dataset.primed;
-                    delete btn.dataset.originalText;
-                    btn.classList.remove('btn-danger-primed');
-                }
-            }
-            if (!confirm(btn.dataset.confirmBulk)) e.preventDefault();
-        });
-    });
-
-    // --- Element references ---
-    const navbar = document.querySelector(".navbar");
-    
-    // --- Back to top button ---
-    const backToTop = document.createElement("button");
-    backToTop.className = "back-to-top";
-    backToTop.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>';
-    backToTop.setAttribute("aria-label", "Back to top");
-    document.body.appendChild(backToTop);
-    
-    // --- Combined scroll handler with throttling ---
-    let scrollTimeout;
-    const combinedScrollHandler = () => {
-        if (scrollTimeout) return;
-        
-        scrollTimeout = setTimeout(() => {
-            scrollTimeout = null;
-            
-            if (navbar) {
-                navbar.classList.toggle('navbar-shrunk', window.scrollY > 60);
-            }
-            
-            if (window.scrollY > 300) {
-                backToTop.classList.add("visible");
-            } else {
-                backToTop.classList.remove("visible");
-            }
-            
-            const readingProgress = document.querySelector('.reading-progress');
-            if (readingProgress) {
-                const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-                const progress = scrollHeight > 0 ? (window.scrollY / scrollHeight) * 100 : 0;
-                readingProgress.style.width = `${Math.min(progress, 100)}%`;
-            }
-        }, 10);
-    };
-    
-    window.addEventListener("scroll", combinedScrollHandler, { passive: true });
-    
-    backToTop.addEventListener("click", () => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // --- Smooth flash dismissal ---
-    document.querySelectorAll(".flash").forEach((flash) => {
-        let dismissTimer;
-        const dismiss = () => {
-            flash.style.transition = "opacity 0.3s ease, transform 0.3s ease";
-            flash.style.opacity = "0";
-            flash.style.transform = "translateY(-8px)";
-            setTimeout(() => flash.remove(), 300);
-        };
-        const startTimer = () => {
-            clearTimeout(dismissTimer);
-            dismissTimer = setTimeout(dismiss, 8000);
-        };
-        const closeBtn = flash.querySelector(".flash-close");
-        if (closeBtn) {
-            closeBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                dismiss();
-            });
-        }
-        flash.addEventListener("mouseenter", () => clearTimeout(dismissTimer));
-        flash.addEventListener("mouseleave", startTimer);
-        flash.addEventListener("focusin", () => clearTimeout(dismissTimer));
-        flash.addEventListener("focusout", startTimer);
-        startTimer();
-    });
-
-    // --- Share button click tracking ---
-    const shareBar = document.querySelector(".share-bar");
-    if (shareBar) {
-        const postId = shareBar.dataset.postId;
-
-        // Keyboard shortcut: 'c' to copy link (only on post pages, not in inputs)
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'c' || e.key === 'C') {
-                const target = e.target;
-                const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-                if (!isInput) {
-                    const copyBtn = shareBar.querySelector('.share-btn[data-platform="copy"]');
-                    if (copyBtn) {
-                        e.preventDefault();
-                        copyBtn.click();
-                    }
-                }
-            }
-        });
-
-        shareBar.querySelectorAll(".share-btn[data-platform]").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                const platform = btn.dataset.platform;
-
-                if (platform === "copy") {
-                    e.preventDefault();
-                    const shareUrl = shareBar.dataset.shareUrl;
-                    const copyToClipboard = (text) => {
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                            return navigator.clipboard.writeText(text);
-                        }
-                        throw new Error('Clipboard API not available');
-                    };
-                    
-                    copyToClipboard(shareUrl).then(() => {
-                        const original = btn.innerHTML;
-                        btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-                        const announcer = document.getElementById('sr-announce');
-                        if (announcer) announcer.textContent = 'Link copied!';
-                        setTimeout(() => { btn.innerHTML = original; }, 1500);
-                    }).catch(() => {
-                        btn.textContent = 'Failed';
-                        setTimeout(() => { btn.innerHTML = original; }, 1500);
-                    });
-                    return;
-                }
-
-                const trackShare = () => {
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
-                    const formData = new FormData();
-                    formData.append('post_id', postId);
-                    formData.append('platform', platform);
-                    formData.append('csrf_token', csrfToken);
-
-                    if (navigator.sendBeacon) {
-                        navigator.sendBeacon('/api/track-share', formData);
-                    } else {
-                        const data = JSON.stringify({ post_id: parseInt(postId), platform: platform });
-                        fetch("/api/track-share", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-CSRF-Token": csrfToken,
-                            },
-                            body: data,
-                            keepalive: true,
-                        }).catch(() => {});
-                    }
-                };
-                trackShare();
-            });
-        });
-    }
-
-    // --- Code block copy button ---
-    document.querySelectorAll('pre[class*="language-"]').forEach((pre) => {
-        const code = pre.querySelector('code');
-        if (code) {
-            const langMatch = pre.className.match(/language-(\S+)/);
-            if (langMatch) {
-                code.lang = langMatch[1];
-            }
-        }
-        const button = document.createElement('button');
-        button.className = 'copy-code-btn';
-        button.textContent = 'Copy';
-        button.addEventListener('click', () => {
-            if (code) {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        button.textContent = 'Copied!';
-                        setTimeout(() => { button.textContent = 'Copy'; }, 2000);
-                    }).catch(() => {
-                        button.textContent = 'Failed';
-                        setTimeout(() => { button.textContent = 'Copy'; }, 2000);
-                    });
-                } else {
-                    button.textContent = 'Failed';
-                    setTimeout(() => { button.textContent = 'Copy'; }, 2000);
-                }
-            }
-        });
-        pre.appendChild(button);
-    });
+    import('./shared/utils.js').then(module => module.initSharedUtils());
+    import('./shared/dark-mode.js').then(module => module.initDarkMode());
+    import('./shared/modal.js').then(module => module.initModal());
+    import('./admin/editor.js').then(module => module.initEditor());
+    import('./admin/bulk.js').then(module => module.initBulk());
+    import('./admin/shortcuts.js').then(module => module.initShortcuts());
+    import('./public/share.js').then(module => module.initShare());
+    import('./public/lightbox.js').then(module => module.initLightbox());
+    import('./public/toc.js').then(module => module.initToc());
+    import('./public/code-copy.js').then(module => module.initCodeCopy());
+    import('./upload.js').then(module => module.initUpload());
+    import('./image-preview.js').then(module => module.initImagePreview());
 
     // --- Mobile hamburger menu ---
     const mobileMenuToggle = document.createElement('button');
@@ -271,23 +19,22 @@ document.addEventListener("DOMContentLoaded", () => {
     mobileMenuToggle.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
     mobileMenuToggle.setAttribute('aria-label', 'Toggle navigation menu');
     mobileMenuToggle.setAttribute('aria-expanded', 'false');
-    
+
     const navContainer = document.querySelector('.nav-container');
     const navLinks = document.querySelector('.nav-links');
-    
+
     if (navContainer && navLinks) {
         navContainer.appendChild(mobileMenuToggle);
-        
+
         mobileMenuToggle.addEventListener('click', () => {
             navLinks.classList.toggle('open');
             const isOpen = navLinks.classList.contains('open');
             mobileMenuToggle.setAttribute('aria-expanded', isOpen.toString());
-            mobileMenuToggle.innerHTML = isOpen 
+            mobileMenuToggle.innerHTML = isOpen
                 ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>'
                 : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
         });
 
-        // Close menu on outside click
         document.addEventListener('click', (e) => {
             const hamburger = document.querySelector('.mobile-menu-toggle');
             const nav = document.querySelector('.nav-links');
@@ -297,7 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Close menu on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const hamburger = document.querySelector('.mobile-menu-toggle');
@@ -320,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 .replace(/\s+/g, '-')
                 .replace(/-+/g, '-')
                 .trim();
-            
+
             if (!id) {
                 const headingType = heading.tagName.toLowerCase();
                 let counter = 1;
@@ -343,10 +89,10 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             usedIds.add(heading.id);
         }
-        
+
         const wrapper = document.createElement('span');
         wrapper.className = 'heading-anchor';
-        
+
         const anchor = document.createElement('a');
         anchor.className = 'anchor-link';
         anchor.href = `#${heading.id}`;
@@ -369,11 +115,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
         });
-        
+
         while (heading.firstChild) {
             wrapper.appendChild(heading.firstChild);
         }
-        
+
         heading.appendChild(wrapper);
         heading.appendChild(anchor);
     });
@@ -388,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Fade in lazy images on load
     document.querySelectorAll('img[loading="lazy"]').forEach((img) => {
         if (img.complete) {
             img.classList.add('loaded');
@@ -396,285 +141,6 @@ document.addEventListener("DOMContentLoaded", () => {
             img.addEventListener('load', () => img.classList.add('loaded'));
             img.addEventListener('error', () => img.classList.add('loaded'));
         }
-    });
-
-    // --- Item 8: Live Markdown Preview ---
-    const bodyTextarea = document.getElementById('body');
-    const previewDiv = document.getElementById('markdown-preview');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-
-    if (bodyTextarea && previewDiv) {
-        let debounceTimer;
-        const updatePreview = () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                const text = bodyTextarea.value;
-                if (!text.trim()) {
-                    previewDiv.innerHTML = '<p class="empty-state">Live preview will appear here...</p>';
-                    return;
-                }
-                previewDiv.classList.add('preview-loading');
-                fetch("/admin/preview-markdown", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-Token": csrfToken,
-                    },
-                    body: JSON.stringify({ text: text }),
-                })
-                .then(r => r.json())
-                .then(data => {
-                    previewDiv.classList.remove('preview-loading');
-                    if (data.html) {
-                        previewDiv.innerHTML = data.html;
-                    }
-                })
-                .catch(() => {
-                    previewDiv.classList.remove('preview-loading');
-                    previewDiv.innerHTML = '<p class="form-error">Preview unavailable</p>';
-                });
-            }, 300);
-        };
-
-        bodyTextarea.addEventListener('input', updatePreview);
-        // Trigger initial preview if there's content
-        if (bodyTextarea.value.trim()) {
-            updatePreview();
-        }
-    }
-
-    // --- Item 9: Draft Autosave ---
-    if (bodyTextarea) {
-        const postId = window.location.pathname.match(/\/edit\/(\d+)/)?.[1] || 'new';
-        const draftKey = `draft-${postId}`;
-        let autosaveTimer;
-
-        // Restore draft on load
-        const savedDraft = localStorage.getItem(draftKey);
-        if (savedDraft && !bodyTextarea.value) {
-            try {
-                const draft = JSON.parse(savedDraft);
-                if (draft.body && confirm('Restore unsaved changes from your last session?')) {
-                    bodyTextarea.value = draft.body;
-                    const titleInput = document.getElementById('title');
-                    const summaryInput = document.getElementById('summary');
-                    if (titleInput && draft.title) titleInput.value = draft.title;
-                    if (summaryInput && draft.summary) summaryInput.value = draft.summary;
-                }
-            } catch (e) {
-                localStorage.removeItem(draftKey);
-            }
-        }
-
-        // Save draft on input (throttled every 5s)
-        const autosaveStatus = document.getElementById('autosave-status');
-        const saveDraft = () => {
-            clearTimeout(autosaveTimer);
-            if (autosaveStatus) {
-                autosaveStatus.textContent = 'Saving...';
-                autosaveStatus.style.opacity = '1';
-            }
-            autosaveTimer = setTimeout(() => {
-                const titleInput = document.getElementById('title');
-                const summaryInput = document.getElementById('summary');
-                const draft = {
-                    title: titleInput?.value || '',
-                    body: bodyTextarea.value,
-                    summary: summaryInput?.value || '',
-                    timestamp: Date.now(),
-                };
-                try {
-                    localStorage.setItem(draftKey, JSON.stringify(draft));
-                    if (autosaveStatus) {
-                        autosaveStatus.textContent = 'Draft saved';
-                        announce('Draft saved');
-                        setTimeout(() => { autosaveStatus.style.opacity = '0'; }, 2000);
-                    }
-                } catch (e) {}
-            }, 5000);
-        };
-
-        bodyTextarea.addEventListener('input', saveDraft);
-        document.getElementById('title')?.addEventListener('input', saveDraft);
-        document.getElementById('summary')?.addEventListener('input', saveDraft);
-
-        // Clear draft on successful submit
-        const editorForm = document.querySelector('.editor-form');
-        if (editorForm) {
-            editorForm.addEventListener('submit', () => {
-                localStorage.removeItem(draftKey);
-            });
-        }
-
-        // --- Item 7: Unsaved Changes Warning ---
-        let isDirty = false;
-        const initialValue = bodyTextarea.value;
-        const titleInput = document.getElementById('title');
-        const summaryInput = document.getElementById('summary');
-        const initialTitle = titleInput?.value || '';
-        const initialSummary = summaryInput?.value || '';
-
-        function checkDirty() {
-            const currentTitle = titleInput?.value || '';
-            const currentSummary = summaryInput?.value || '';
-            isDirty = bodyTextarea.value !== initialValue ||
-                       currentTitle !== initialTitle ||
-                       currentSummary !== initialSummary;
-        }
-
-        bodyTextarea.addEventListener('input', checkDirty);
-        titleInput?.addEventListener('input', checkDirty);
-        summaryInput?.addEventListener('input', checkDirty);
-
-        window.addEventListener('beforeunload', (e) => {
-            if (isDirty) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        });
-
-        // Clear warning on form submit
-        if (editorForm) {
-            editorForm.addEventListener('submit', () => {
-                isDirty = false;
-            });
-        }
-    }
-
-    // --- Item 4.3: Word/Character Count in Editor ---
-    const wordCountEl = document.getElementById('word-count');
-    const charCountEl = document.getElementById('char-count');
-
-    if (bodyTextarea && wordCountEl && charCountEl) {
-        let countTimer;
-        const updateCounts = () => {
-            clearTimeout(countTimer);
-            countTimer = setTimeout(() => {
-                const text = bodyTextarea.value;
-                const charCount = text.length;
-                const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-                wordCountEl.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
-                charCountEl.textContent = `${charCount} character${charCount !== 1 ? 's' : ''}`;
-            }, 500);
-        };
-
-        bodyTextarea.addEventListener('input', updateCounts);
-        updateCounts();
-    }
-
-    // --- Item 10: Dark/Light Mode Toggle ---
-    const themeToggle = document.createElement('button');
-    themeToggle.className = 'theme-toggle';
-    themeToggle.setAttribute('aria-label', 'Toggle theme');
-
-    const setThemeIcon = (isDark) => {
-        themeToggle.innerHTML = isDark
-            ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>'
-            : '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>';
-    };
-
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
-
-    if (!isDark) {
-        document.documentElement.setAttribute('data-theme', 'light');
-    }
-    setThemeIcon(isDark);
-
-    themeToggle.addEventListener('click', () => {
-        const currentlyDark = !document.documentElement.hasAttribute('data-theme') || document.documentElement.getAttribute('data-theme') === 'dark';
-        if (currentlyDark) {
-            document.documentElement.setAttribute('data-theme', 'light');
-            localStorage.setItem('theme', 'light');
-            setThemeIcon(false);
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'dark');
-            setThemeIcon(true);
-        }
-    });
-
-    // Insert theme toggle into navbar
-    const navLinksEl = document.querySelector('.nav-links');
-    if (navLinksEl) {
-        const wrapper = document.createElement('span');
-        wrapper.appendChild(themeToggle);
-        navLinksEl.prepend(wrapper);
-    }
-
-    // Listen for OS theme changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        const stored = localStorage.getItem('theme');
-        if (!stored) {
-            document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-            setThemeIcon(e.matches);
-        }
-    });
-
-    // --- Item 14: Bulk Select All ---
-    const selectAllCheckbox = document.getElementById('select-all');
-    if (selectAllCheckbox) {
-        const bulkActions = document.getElementById('bulk-actions');
-        const checkboxes = document.querySelectorAll('.bulk-checkbox');
-
-        function updateBulkActions() {
-            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
-            bulkActions.classList.toggle('hidden', !anyChecked);
-
-            const srAnnounce = document.getElementById('sr-announce');
-            if (anyChecked && srAnnounce) {
-                const form = document.getElementById('bulk-form');
-                const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-                const itemType = form?.dataset.bulkSelect || 'item';
-                srAnnounce.textContent = `${checkedCount} ${itemType}${checkedCount === 1 ? '' : 's'} selected`;
-            }
-        }
-
-        selectAllCheckbox.addEventListener('change', () => {
-            checkboxes.forEach(cb => {
-                cb.checked = selectAllCheckbox.checked;
-            });
-            updateBulkActions();
-        });
-
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                if (!cb.checked) {
-                    selectAllCheckbox.checked = false;
-                } else {
-                    const allChecked = Array.from(checkboxes).every(c => c.checked);
-                    selectAllCheckbox.checked = allChecked;
-                }
-                updateBulkActions();
-            });
-        });
-    }
-
-    // --- Item 12: Bulk form submission loading overlay ---
-    const bulkForm = document.getElementById('bulk-form');
-    const bulkOverlay = document.getElementById('bulk-loading-overlay');
-    if (bulkForm && bulkOverlay) {
-        bulkForm.addEventListener('submit', () => {
-            bulkOverlay.classList.add('visible');
-        });
-        window.addEventListener('load', () => {
-            bulkOverlay.classList.remove('visible');
-        });
-    }
-
-    // --- 5B.1: Loading state for admin forms ---
-    document.querySelectorAll('form.editor-form, form[data-loading]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const submitBtn = this.querySelector('button[type="submit"]');
-            if (submitBtn && !submitBtn.disabled) {
-                submitBtn.disabled = true;
-                submitBtn.classList.add('btn-loading');
-                submitBtn.dataset.originalText = submitBtn.textContent;
-                const loadingText = this.dataset.loadingText || 'Saving...';
-                submitBtn.textContent = loadingText;
-            }
-        });
     });
 
     // --- Media Copy URL ---
@@ -717,268 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // --- Vim-style keyboard navigation (admin only) ---
-    if (document.body.classList.contains('admin-body')) {
-    let vimKey = null;
-    let vimTimer = null;
-
-    document.addEventListener('keydown', (e) => {
-        // Clear vim state on any non-g key (unless modifier is held)
-        if (vimKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
-            if (vimKey === 'g' && e.key !== 'd' && e.key !== 'p' && e.key !== 's' && e.key !== 't') {
-                vimKey = null;
-                clearTimeout(vimTimer);
-            }
-        }
-
-        // g key: prime for vim-style nav
-        if (!vimKey && e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-            const tag = e.target.tagName;
-            if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !e.target.isContentEditable) {
-                vimKey = 'g';
-                clearTimeout(vimTimer);
-                vimTimer = setTimeout(() => { vimKey = null; }, 500);
-            }
-        }
-
-        // gd = Dashboard, gp = Posts, gs = Subscribers, gt = Tags
-        if (vimKey === 'g') {
-            const routes = { d: '/admin/', p: '/admin/posts', s: '/admin/subscribers', t: '/admin/tags' };
-            if (routes[e.key]) {
-                window.location.href = routes[e.key];
-                vimKey = null;
-                clearTimeout(vimTimer);
-            }
-        }
-    });
-
-    // --- Keyboard shortcuts for admin ---
-    document.addEventListener('keydown', (e) => {
-        // Ignore if user is typing in an input/textarea
-        const tag = e.target.tagName;
-        const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
-        const mod = e.ctrlKey || e.metaKey;
-
-        // Ctrl/Cmd+S: Save draft
-        if (mod && e.key === 's' && !isInput) {
-            const saveBtn = document.querySelector('button[name="action"][value="save"]');
-            if (saveBtn) {
-                e.preventDefault();
-                saveBtn.click();
-            }
-        }
-
-        // Ctrl/Cmd+Enter: Publish
-        if (mod && e.key === 'Enter' && !isInput) {
-            const publishBtn = document.querySelector('button[name="action"][value="publish"]');
-            if (publishBtn) {
-                e.preventDefault();
-                publishBtn.click();
-            }
-        }
-
-        // Escape: Close modals
-        if (e.key === 'Escape') {
-            const modal = document.querySelector('.modal-overlay:not(.hidden)');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-
-        // Ctrl/Cmd+Shift+P: Toggle preview pane
-        if (mod && e.shiftKey && e.key === 'P' && !isInput) {
-            const split = document.querySelector('.editor-split');
-            if (split) {
-                e.preventDefault();
-                split.classList.toggle('preview-hidden');
-            }
-        }
-
-        // ?: Show help
-        if (e.key === '?' && !isInput) {
-            e.preventDefault();
-            const helpModal = document.getElementById('keyboard-help');
-            if (helpModal) {
-                helpModal.classList.remove('hidden');
-            }
-        }
-    });
-
-    // Modal close button handler
-    document.querySelectorAll('.modal-overlay .close-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            btn.closest('.modal-overlay').classList.add('hidden');
-        });
-    });
-
-    // Click outside modal content to close
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.classList.add('hidden');
-            }
-        });
-    });
-
-    // --- Item 6: Modal Focus Trapping ---
-    let previousActiveElement = null;
-    const focusableSelectors = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('transitionend', () => {
-            if (!modal.classList.contains('hidden')) {
-                previousActiveElement = document.activeElement;
-                const focusable = modal.querySelector(focusableSelectors);
-                if (focusable) focusable.focus();
-            } else if (previousActiveElement) {
-                previousActiveElement.focus();
-                previousActiveElement = null;
-            }
-        });
-
-        modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Tab') {
-                const focusable = modal.querySelectorAll(focusableSelectors);
-                if (focusable.length === 0) return;
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (e.shiftKey) {
-                    if (document.activeElement === first) {
-                        e.preventDefault();
-                        last.focus();
-                    }
-                } else {
-                    if (document.activeElement === last) {
-                        e.preventDefault();
-                        first.focus();
-                    }
-                }
-            }
-        });
-    });
-    } // end admin-body guard
-
-    // --- 4B.1: Table of Contents with IntersectionObserver ---
-    const tocContainer = document.querySelector('.post-toc-container');
-    if (tocContainer) {
-        const headings = document.querySelectorAll('.prose h2, .prose h3');
-        if (headings.length >= 3) {
-            const toc = document.createElement('nav');
-            toc.className = 'post-toc';
-            toc.setAttribute('aria-label', 'Table of contents');
-
-            const title = document.createElement('div');
-            title.className = 'post-toc-title';
-            title.textContent = 'On This Page';
-            toc.appendChild(title);
-
-            const ul = document.createElement('ul');
-            headings.forEach((heading, index) => {
-                if (!heading.id) {
-                    heading.id = `heading-${index}`;
-                }
-                const li = document.createElement('li');
-                li.className = heading.tagName === 'H3' ? 'toc-h3' : '';
-                const a = document.createElement('a');
-                a.href = `#${heading.id}`;
-                a.textContent = heading.textContent;
-                a.dataset.section = heading.id;
-                li.appendChild(a);
-                ul.appendChild(li);
-            });
-            toc.appendChild(ul);
-            tocContainer.appendChild(toc);
-            tocContainer.style.display = 'block';
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const id = entry.target.id;
-                    const link = toc.querySelector(`a[data-section="${id}"]`);
-                    if (link) {
-                        link.classList.toggle('active', entry.isIntersecting);
-                    }
-                });
-            }, {
-                rootMargin: '-80px 0px -70% 0px',
-                threshold: 0
-            });
-
-            headings.forEach(h => observer.observe(h));
-        }
-    }
-
-    // --- 4B.3: Image Lightbox ---
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = lightbox?.querySelector('.lightbox-img');
-    const lightboxClose = lightbox?.querySelector('.lightbox-close');
-
-    if (lightbox && lightboxImg) {
-        let lightboxTrigger = null;
-
-        const openLightbox = (img) => {
-            lightboxTrigger = img;
-            lightboxImg.src = img.src;
-            lightboxImg.alt = img.alt;
-            lightbox.classList.add('open');
-            lightbox.setAttribute('aria-hidden', 'false');
-            document.body.style.overflow = 'hidden';
-            lightboxClose?.focus();
-        };
-
-        const closeLightbox = () => {
-            lightbox.classList.remove('open');
-            lightbox.setAttribute('aria-hidden', 'true');
-            document.body.style.overflow = '';
-            if (lightboxTrigger) {
-                lightboxTrigger.focus();
-                lightboxTrigger = null;
-            }
-        };
-
-        document.querySelectorAll('.prose img').forEach(img => {
-            img.style.cursor = 'zoom-in';
-            img.addEventListener('click', () => openLightbox(img));
-        });
-
-        lightboxClose?.addEventListener('click', closeLightbox);
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox) closeLightbox();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && lightbox.classList.contains('open')) {
-                closeLightbox();
-            }
-            if (e.key === 'Tab' && lightbox.classList.contains('open')) {
-                const focusable = lightbox.querySelectorAll(focusableSelectors);
-                if (focusable.length === 0) return;
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (e.shiftKey) {
-                    if (document.activeElement === first) {
-                        e.preventDefault();
-                        last.focus();
-                    }
-                } else {
-                    if (document.activeElement === last) {
-                        e.preventDefault();
-                        first.focus();
-                    }
-                }
-            }
-        });
-    }
-
-    // --- 4B.6: Share button color flash ---
-    document.querySelectorAll('.share-btn[data-platform]:not([data-platform="copy"])').forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.classList.add('share-flash');
-            this.addEventListener('animationend', () => {
-                this.classList.remove('share-flash');
-            }, { once: true });
-        });
-    });
-
-    // --- 5C.2: Prefetch likely next pages ---
+    // --- Prefetch likely next pages ---
     const prefetchedUrls = new Set();
     let prefetchTimer = null;
 
@@ -986,7 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const url = link.href;
         if (!url || prefetchedUrls.has(url) || url.startsWith('mailto:') || url.startsWith('tel:')) return;
 
-        // Pagination links get immediate prefetch (no delay)
         if (link.classList.contains('page-link')) {
             link.addEventListener('mouseenter', () => {
                 if (!prefetchedUrls.has(url)) {
@@ -998,7 +202,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }, { passive: true });
         } else {
-            // Other links get delayed prefetch
             link.addEventListener('mouseenter', () => {
                 clearTimeout(prefetchTimer);
                 prefetchTimer = setTimeout(() => {
@@ -1039,182 +242,4 @@ document.addEventListener("DOMContentLoaded", () => {
             d.querySelector('.nav-dropdown-toggle').setAttribute('aria-expanded', 'false');
         });
     });
-
-    // --- Keyboard shortcuts trigger button ---
-    document.getElementById('shortcut-trigger')?.addEventListener('click', () => {
-        const helpModal = document.getElementById('keyboard-help');
-        if (helpModal) {
-            helpModal.classList.remove('hidden');
-        }
-    });
-
-    // --- Upload zone drag-and-drop with progress ---
-    const uploadZone = document.getElementById('upload-zone');
-    const fileInput = document.getElementById('file-input');
-    const fileInputHidden = document.getElementById('file-input-hidden');
-    const uploadForm = document.getElementById('upload-form');
-
-    if (uploadZone && fileInput && uploadForm) {
-        let uploadErrorTimer;
-
-        const showUploadError = (message) => {
-            clearTimeout(uploadErrorTimer);
-            const existing = uploadZone.querySelector('.form-error');
-            if (existing) existing.remove();
-            const errorEl = document.createElement('div');
-            errorEl.className = 'form-error';
-            errorEl.textContent = message;
-            uploadZone.appendChild(errorEl);
-            uploadErrorTimer = setTimeout(() => errorEl.remove(), 5000);
-        };
-
-        const hideUploadError = () => {
-            clearTimeout(uploadErrorTimer);
-            const existing = uploadZone.querySelector('.form-error');
-            if (existing) existing.remove();
-        };
-
-        const showUploadProgress = (percent) => {
-            hideUploadError();
-            let progressBar = uploadZone.querySelector('.upload-progress');
-            let progressText = uploadZone.querySelector('.upload-progress-text');
-            if (!progressBar) {
-                progressBar = document.createElement('div');
-                progressBar.className = 'upload-progress';
-                const progressFill = document.createElement('div');
-                progressFill.className = 'upload-progress-fill';
-                progressBar.appendChild(progressFill);
-                uploadZone.appendChild(progressBar);
-            }
-            if (!progressText) {
-                progressText = document.createElement('div');
-                progressText.className = 'upload-progress-text';
-                uploadZone.appendChild(progressText);
-            }
-            const progressFill = progressBar.querySelector('.upload-progress-fill');
-            if (progressFill) {
-                progressFill.style.width = `${percent}%`;
-            }
-            progressText.textContent = `${percent}%`;
-            progressBar.style.display = 'block';
-            progressText.style.display = 'block';
-        };
-
-        const hideUploadProgress = () => {
-            const progressBar = uploadZone.querySelector('.upload-progress');
-            const progressText = uploadZone.querySelector('.upload-progress-text');
-            if (progressBar) progressBar.remove();
-            if (progressText) progressText.remove();
-        };
-
-        const handleUpload = (file) => {
-            hideUploadProgress();
-            showUploadProgress(0);
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            const formData = new FormData(uploadForm);
-            formData.append('file', file);
-
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percent = Math.round((e.loaded / e.total) * 100);
-                    showUploadProgress(percent);
-                }
-            });
-
-            xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    hideUploadProgress();
-                    window.location.reload();
-                } else {
-                    hideUploadProgress();
-                    showUploadError('Upload failed. Please try again.');
-                }
-            });
-
-            xhr.addEventListener('error', () => {
-                hideUploadProgress();
-                showUploadError('Upload failed. Please try again.');
-            });
-
-            xhr.addEventListener('abort', () => {
-                hideUploadProgress();
-                showUploadError('Upload cancelled.');
-            });
-
-            xhr.open('POST', uploadForm.action);
-            xhr.setRequestHeader('X-CSRF-Token', csrfToken);
-            xhr.send(formData);
-        };
-
-        uploadZone.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) {
-                handleUpload(fileInput.files[0]);
-            }
-        });
-
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
-
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                handleUpload(e.dataTransfer.files[0]);
-            }
-        });
-    }
-
-    // --- Image Preview in Editor ---
-    const coverImageInput = document.getElementById('image');
-    const imagePreviewContainer = document.getElementById('image-preview-container');
-    const imagePreviewImg = document.getElementById('image-preview-img');
-    const removeImageBtn = document.getElementById('remove-image-btn');
-    const removeImageLabel = document.getElementById('remove-image-label');
-    const removeImageCheckbox = document.getElementById('remove-image-checkbox');
-
-    if (coverImageInput && imagePreviewContainer && imagePreviewImg) {
-        coverImageInput.addEventListener('change', () => {
-            const file = coverImageInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imagePreviewImg.src = e.target.result;
-                    imagePreviewImg.style.display = 'block';
-                    if (removeImageBtn) {
-                        removeImageBtn.textContent = 'Clear';
-                    }
-                    if (removeImageLabel) {
-                        removeImageLabel.style.display = 'inline-flex';
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        if (removeImageBtn) {
-            removeImageBtn.addEventListener('click', () => {
-                coverImageInput.value = '';
-                imagePreviewImg.src = '';
-                imagePreviewImg.style.display = 'none';
-                removeImageBtn.textContent = 'Remove';
-                if (removeImageCheckbox) {
-                    removeImageCheckbox.checked = true;
-                }
-                if (removeImageLabel) {
-                    removeImageLabel.style.display = 'none';
-                }
-            });
-        }
-    }
 });

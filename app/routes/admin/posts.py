@@ -22,17 +22,15 @@ from app.routes.admin.helpers import (
     _apply_post_updates,
     _cleanup_orphan_tags,
     _get_or_create_tags,
-    DASHBOARD_PER_PAGE,
-    utc_now,
-    safe_delete_file,
-    invalidate_tag_cache,
     invalidate_analytics_cache,
     invalidate_dashboard_cache,
-    _get_dashboard_metrics,
-    sync_fts,
-    remove_fts,
     logger,
 )
+from app.routes.admin.helpers.dashboard import _get_dashboard_metrics
+from app.config import DASHBOARD_PER_PAGE
+from app.utils import utc_now, safe_delete_file
+from app.cache import invalidate_tag_cache
+from app.search import sync_fts, remove_fts
 from app.config import BASE_URL
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload

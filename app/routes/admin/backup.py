@@ -8,11 +8,9 @@ from flask_login import login_required
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required
-from app.routes.admin.helpers import (
-    _get_backup_dir,
-    BACKUP_FILENAME_RE,
-    safe_delete_file,
-)
+from app.routes.admin.helpers import _get_backup_dir
+from app.utils import safe_delete_file
+from app.routes.admin.helpers.shared import BACKUP_FILENAME_RE
 from flask import current_app
 from datetime import datetime, timezone
 

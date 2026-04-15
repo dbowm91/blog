@@ -49,27 +49,30 @@ from app.routes.admin.helpers import (
     logger,
     _categorize_referrer,
     _check_password_complexity,
+    _get_backup_dir,
+    invalidate_analytics_cache,
+    invalidate_dashboard_cache,
     _get_posts_query,
-    _get_analytics_data,
-    validate_tag_name,
-    _detect_image_type,
-    _allowed_file,
     _generate_unique_slug,
-    _save_image,
+    _apply_post_updates,
+    validate_tag_name,
     _cleanup_orphan_tags,
     _get_or_create_tags,
-    _apply_post_updates,
-    invalidate_analytics_cache,
-    _get_backup_dir,
-    invalidate_tag_cache,
-    safe_delete_file,
-    utc_now,
-    sync_fts,
-    remove_fts,
-    DASHBOARD_PER_PAGE,
+    _detect_image_type,
+    _allowed_file,
+    _save_image,
+)
+from app.routes.admin.helpers.analytics import (
+    _get_analytics_data,
     _analytics_cache,
     _analytics_cache_lock,
 )
+from app.cache import invalidate_tag_cache
+from app.utils import safe_delete_file
+from app.utils import utc_now
+from app.search import sync_fts
+from app.search import remove_fts
+from app.config import DASHBOARD_PER_PAGE
 from app.routes.admin.auth import login, logout, newsletter_reset
 from app.routes.admin.posts import (
     dashboard,

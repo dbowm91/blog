@@ -4,7 +4,8 @@ from flask_login import login_required
 from app.extensions import db
 from app.models import Tag
 from app.routes.admin import admin, admin_required
-from app.routes.admin.helpers import validate_tag_name, invalidate_tag_cache, logger
+from app.routes.admin.helpers import validate_tag_name, logger
+from app.cache import invalidate_tag_cache
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, OperationalError
 
