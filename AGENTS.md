@@ -617,7 +617,7 @@ Items verified and fixed in Wave 1:
 - **Session fixation**: Fixed with `session.clear()` before `login_user()` (Flask 3.x uses `session.clear()` instead of unavailable `session.regenerate()`)
 - **Path traversal**: Fixed - `media.py` `delete_media()` now checks if `secure_filename()` returns empty string
 - **Nested forms**: Fixed - `subscribers.html` and `dashboard.html` now use unique form IDs with `form=` attribute on buttons
-- **Bare `except Exception`**: Pending fix (Wave 3)
+- **Bare `except Exception`**: Fixed (Wave 3) - replaced with specific exceptions in search.py, email.py, public.py, newsletter.py, backup.py, and helpers.py
 - **Timing leak**: Fixed - token enumeration delay now happens BEFORE DB query
 - **XSS in search**: Fixed - `{{ query | escape }}` used in `search.html`
 

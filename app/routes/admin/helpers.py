@@ -47,6 +47,7 @@ def _categorize_referrer(url):
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
     except Exception:
+        # Intentional catch-all: malformed URLs should be categorized as "Other"
         return "Other"
     search_domains = {
         "google.com",

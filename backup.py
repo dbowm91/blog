@@ -28,29 +28,29 @@ def get_db_path():
 
 def create_backup(db_path, backup_dir, compress=False, keep=7):
     """Create a backup of the SQLite database.
-    
+
     Args:
         db_path: Path to the source database
         backup_dir: Directory to store backups
         compress: Whether to compress the backup with gzip
         keep: Number of backups to retain (default: 7)
-    
+
     Returns:
         Path to the created backup file, or None on failure
     """
     if not os.path.exists(db_path):
         print(f"Error: Database not found at {db_path}")
         return None
-    
+
     os.makedirs(backup_dir, exist_ok=True)
-    
+
     # Generate backup filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_name = f"blog_{timestamp}.db"
     if compress:
         backup_name += ".gz"
     backup_path = os.path.join(backup_dir, backup_name)
-    
+
     try:
         # Use SQLite's backup API for consistent snapshot
         source = sqlite3.connect(db_path)
@@ -70,19 +70,19 @@ def create_backup(db_path, backup_dir, compress=False, keep=7):
                     with gzip.open(tmp_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
                 os.replace(tmp_path, backup_path)
-            except Exception:
+            except OSError:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
                 raise
-        
+
         print(f"Backup created: {backup_path}")
-        
+
         # Clean up old backups
         cleanup_old_backups(backup_dir, keep)
-        
+
         return backup_path
-        
-    except Exception as e:
+
+    except (sqlite3.Error, OSError) as e:
         print(f"Error creating backup: {e}")
         # Clean up partial backup
         if os.path.exists(backup_path):
@@ -97,10 +97,10 @@ def cleanup_old_backups(backup_dir, keep):
         if f.startswith("blog_") and (f.endswith(".db") or f.endswith(".db.gz")):
             full_path = os.path.join(backup_dir, f)
             backup_files.append((os.path.getmtime(full_path), full_path))
-    
+
     # Sort by modification time, newest first
     backup_files.sort(reverse=True)
-    
+
     # Remove old backups
     for _, path in backup_files[keep:]:
         os.remove(path)
@@ -109,11 +109,19 @@ def cleanup_old_backups(backup_dir, keep):
 
 def main():
     parser = argparse.ArgumentParser(description="Create SQLite backup for DevLog")
-    parser.add_argument("--compress", action="store_true", help="Compress backup with gzip")
-    parser.add_argument("--keep", type=int, default=7, help="Number of backups to retain (default: 7)")
-    parser.add_argument("--db", type=str, help="Path to database file (default: instance/blog.db)")
-    parser.add_argument("--dir", type=str, default="backups", help="Backup directory (default: backups)")
-    
+    parser.add_argument(
+        "--compress", action="store_true", help="Compress backup with gzip"
+    )
+    parser.add_argument(
+        "--keep", type=int, default=7, help="Number of backups to retain (default: 7)"
+    )
+    parser.add_argument(
+        "--db", type=str, help="Path to database file (default: instance/blog.db)"
+    )
+    parser.add_argument(
+        "--dir", type=str, default="backups", help="Backup directory (default: backups)"
+    )
+
     args = parser.parse_args()
 
     if args.keep < 1:
@@ -121,15 +129,15 @@ def main():
 
     db_path = args.db or get_db_path()
     backup_dir = args.dir
-    
+
     print(f"Database: {db_path}")
     print(f"Backup directory: {backup_dir}")
     print(f"Compression: {'enabled' if args.compress else 'disabled'}")
     print(f"Retention: {args.keep} backups")
     print()
-    
+
     result = create_backup(db_path, backup_dir, args.compress, args.keep)
-    
+
     if result:
         print("\nBackup completed successfully!")
         return 0

@@ -10,7 +10,7 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 |------|----------|-------|----------|
 | ~~1~~ | ~~Critical Bugs~~ | ~~9~~ | ~~Completed~~ |
 | ~~2~~ | ~~Security Fixes~~ | ~~10~~ | ~~High~~ |
-| 3 | Exception Handling | 6 | Medium |
+| ~~3~~ | ~~Exception Handling~~ | ~~6~~ | ~~Medium~~ |
 | 4 | Performance | 15 | Medium |
 | 5 | Code Quality | 6 | Medium |
 | 6 | Documentation | 7 | Low |
@@ -19,6 +19,8 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 | 9 | Module Refactoring | 2 | Low |
 
 **Wave 2 Notes**: 2 items (2.2, 2.3) skipped per AGENTS.md - rate limiting delegated to proxy/WAF layer. 1 item (2.6) was already implemented. 9 items implemented (2.1, 2.4, 2.5, 2.7, 2.8, 2.9, 2.10/2.12, 2.11).
+
+**Wave 3 Notes**: All 6 items implemented. Note: `DatabaseError` was added to search.py exception handling because SQLite's FTS5 can raise `sqlite3.DatabaseError` which is not a subclass of `OperationalError` or `ProgrammingError` in SQLAlchemy's exception hierarchy.
 
 ---
 
@@ -280,41 +282,41 @@ class FakeSubscriber:
 
 ---
 
-## Wave 3: Exception Handling
+## Wave 3: Exception Handling ✅ COMPLETED
 
 **Replace bare `except Exception` blocks with specific exceptions.**
 
-### 3.1 Replace bare except in search.py
+### 3.1 Replace bare except in search.py ✅
 
 **Locations**: `app/search.py:30, 43, 61, 71, 106`
 
-**Fix**: Use `sqlalchemy.exc.OperationalError, ProgrammingError` for database operations.
+**Fix**: Use `sqlalchemy.exc.OperationalError, ProgrammingError, DatabaseError` for database operations. Note: `DatabaseError` is needed because SQLite can raise `sqlite3.DatabaseError` which is not a subclass of `OperationalError` or `ProgrammingError`.
 
-### 3.2 Replace bare except in email.py
+### 3.2 Replace bare except in email.py ✅
 
 **Locations**: `app/email.py:76, 144`
 
-**Fix**: Use `smtplib.SMTPException, OSError`.
+**Fix**: Use `smtplib.SMTPException, OSError` for SMTP connection and `OSError` for quit cleanup.
 
-### 3.3 Replace bare except in public.py
+### 3.3 Replace bare except in public.py ✅
 
 **Locations**: `app/routes/public.py:548, 566`
 
 **Fix**: Use `OperationalError, ProgrammingError`.
 
-### 3.4 Replace bare except in newsletter.py
+### 3.4 Replace bare except in newsletter.py ✅
 
 **Location**: `app/routes/admin/newsletter.py:58`
 
 **Fix**: Use `smtplib.SMTPException, OSError`.
 
-### 3.5 Replace bare except in backup.py
+### 3.5 Replace bare except in backup.py ✅
 
 **Locations**: `backup.py:73, 85`
 
 **Fix**: Use `OSError` for gzip, `sqlite3.Error, OSError` for backup creation.
 
-### 3.6 Add documentation comments for intentional catches
+### 3.6 Add documentation comments for intentional catches ✅
 
 **Locations**: `app/routes/admin/helpers.py:49` (URL parsing returns "Other"), `app/routes/errors.py:30` (graceful degradation)
 

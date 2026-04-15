@@ -2,6 +2,7 @@ from flask import redirect, url_for, request, flash
 from flask_login import login_required
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import smtplib
 
 from app.extensions import db
 from app.models import Post, User
@@ -60,6 +61,6 @@ def newsletter_test():
     try:
         send_newsletter(posts, [fake_sub])
         flash(f"Test newsletter sent to {test_email}.", "success")
-    except Exception as e:
+    except (smtplib.SMTPException, OSError) as e:
         flash(f"Failed to send test newsletter: {e}", "error")
     return redirect(url_for("admin.dashboard"))

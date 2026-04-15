@@ -28,6 +28,8 @@ def _get_recent_posts(limit=5):
             .all()
         )
     except Exception:
+        # Intentional catch-all: graceful degradation if DB is unavailable
+        # Error pages should still render even if recent posts can't be fetched
         return []
 
 

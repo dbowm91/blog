@@ -5,6 +5,7 @@ __all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts", "search"]
 import logging
 import re
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, ProgrammingError, DatabaseError
 from app.extensions import db
 from app.config import FTS_RESULT_LIMIT
 
@@ -28,7 +29,7 @@ def init_fts():
             )
         )
         db.session.commit()
-    except Exception as e:
+    except (OperationalError, ProgrammingError, DatabaseError) as e:
         db.session.rollback()
         logger.warning(
             "FTS5 initialization failed; search will use LIKE fallback (post_ids=%s, operation=init)",
@@ -41,7 +42,7 @@ def rebuild_fts():
     try:
         db.session.execute(text("INSERT INTO posts_fts(posts_fts) VALUES('rebuild')"))
         db.session.commit()
-    except Exception as e:
+    except (OperationalError, ProgrammingError, DatabaseError) as e:
         db.session.rollback()
         logger.warning("FTS5 rebuild failed (operation=rebuild): %s", e)
 
@@ -59,7 +60,7 @@ def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool)
                 ),
                 {"id": post_id, "title": title, "body": body, "summary": summary},
             )
-    except Exception as e:
+    except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS sync failed for post %s: %s", post_id, e)
 
 
@@ -69,7 +70,7 @@ def remove_fts(post_id: int):
         db.session.execute(
             text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
         )
-    except Exception as e:
+    except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS remove failed for post %s: %s", post_id, e)
 
 
@@ -104,5 +105,5 @@ def search(query: str):
             {"q": fts_query, "limit": FTS_RESULT_LIMIT},
         ).fetchall()
         return [(row[0], row[1]) for row in result]
-    except Exception:
+    except (OperationalError, ProgrammingError, DatabaseError):
         return []

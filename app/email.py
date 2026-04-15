@@ -73,7 +73,7 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         if SMTP_USER:
             server.login(SMTP_USER, SMTP_PASSWORD)
         return server
-    except Exception:
+    except (smtplib.SMTPException, OSError):
         logger.exception("Failed to connect to SMTP server")
         return None
 
@@ -141,6 +141,6 @@ def send_newsletter(posts, subscribers) -> bool:
     finally:
         try:
             server.quit()
-        except Exception:
+        except OSError:
             pass
     return all_sent

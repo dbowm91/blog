@@ -17,7 +17,7 @@ from flask import (
     url_for,
 )
 from sqlalchemy import func, or_, select, text, case
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 from sqlalchemy.orm import joinedload
 import logging
 
@@ -544,7 +544,7 @@ def health_check() -> Response:
     try:
         db.session.execute(text("SELECT 1"))
         checks["database"] = "ok"
-    except Exception:
+    except (OperationalError, ProgrammingError):
         checks["database"] = "error"
         status_code = 503
 
@@ -562,7 +562,7 @@ def health_check() -> Response:
             )
         ).fetchone()
         checks["search"] = "ok" if has_fts else "unavailable"
-    except Exception:
+    except (OperationalError, ProgrammingError):
         checks["search"] = "error"
 
     overall = (

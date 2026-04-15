@@ -1,6 +1,6 @@
 ---
 name: blog_security
-description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter, FTS5 search. Triggers: security hardening, rate limiting, CSRF, session management, custom CSS sanitization, health endpoint, cascade delete."
+description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter, FTS5 search. Triggers: security hardening, rate limiting, CSRF, session management, custom CSS sanitization, health endpoint, cascade delete, exception handling, specific exceptions."
 metadata:
   requires: "python>=3.12, flask>=3.1"
   homepage: "https://github.com/sugarwookie/blog"
@@ -142,3 +142,51 @@ source .venv/bin/activate && python -m pytest tests/test_security.py -v
 ```
 
 All tests pass (some failures in admin tests are due to SQLite in-memory DB issues, not code bugs).
+
+## Wave 3 Exception Handling (Completed 2026-04-15)
+
+Bare `except Exception` blocks replaced with specific exceptions throughout the codebase:
+
+### search.py
+Uses `sqlalchemy.exc.OperationalError, ProgrammingError, DatabaseError` for FTS operations:
+- `init_fts()` - FTS5 initialization
+- `rebuild_fts()` - Index rebuild
+- `sync_fts()` - Index sync for post changes
+- `remove_fts()` - Index removal for deleted posts
+- `search()` - Search query execution
+
+Note: `DatabaseError` is needed because SQLite's FTS5 can raise `sqlite3.DatabaseError` which is not a subclass of `OperationalError` or `ProgrammingError` in SQLAlchemy's exception hierarchy.
+
+### email.py
+Uses `smtplib.SMTPException, OSError` for SMTP operations:
+- `_connect_smtp()` - SMTP connection establishment
+- `send_newsletter()` finally block - server quit cleanup
+
+### public.py
+Uses `sqlalchemy.exc.OperationalError, ProgrammingError`:
+- Health check endpoint database query
+- Health check endpoint FTS query
+
+### newsletter.py
+Uses `smtplib.SMTPException, OSError`:
+- Newsletter test send failure handling
+
+### backup.py
+Uses `sqlite3.Error, OSError`:
+- Backup creation
+- gzip compression (uses `OSError` only)
+
+### Intentional Catch-All Comments
+Where bare `except Exception` is intentionally used for graceful degradation:
+- `app/routes/admin/helpers.py:_categorize_referrer()` - URL parsing failures categorized as "Other"
+- `app/routes/errors.py:_get_recent_posts()` - DB unavailable errors return empty list for error page graceful degradation
+
+## Testing
+
+```bash
+# Run all tests
+cd /home/sugarwookie/projects/blog && source .venv/bin/activate && python -m pytest tests/ -v
+
+# Note: SECRET_KEY env var must be at least 32 chars, ADMIN_PASSWORD must be set
+ADMIN_PASSWORD=test SECRET_KEY=test-test-test-test-test-test-test-test-test python -m pytest tests/ -v
+```
