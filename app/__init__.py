@@ -310,4 +310,31 @@ def create_app():
 
     register_cli_commands(app)
 
+    @app.shell_context_processor
+    def make_shell_context():
+        from app.models import (
+            User,
+            Post,
+            Tag,
+            Subscriber,
+            Page,
+            PageView,
+            ShareEvent,
+            AdminSession,
+            SiteSettings,
+        )
+
+        return {
+            "db": db,
+            "User": User,
+            "Post": Post,
+            "Tag": Tag,
+            "Subscriber": Subscriber,
+            "Page": Page,
+            "PageView": PageView,
+            "ShareEvent": ShareEvent,
+            "AdminSession": AdminSession,
+            "SiteSettings": SiteSettings,
+        }
+
     return app
