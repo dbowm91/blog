@@ -144,7 +144,7 @@ DEPLOY.md               # Deployment guide
 
 ## Known Limitations
 
-- **SQLite only**—no PostgreSQL/MySQL support configured
+- **SQLite with PostgreSQL migration path**—default configuration uses SQLite (WAL mode); PostgreSQL migration documented in DEPLOY.md but not actively tested
 - **File uploads**—stored locally in `static/uploads/`, no S3 support
 - **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking to prevent duplicate sends across workers (Unix only). `HAS_FCNTL` flag guards against `ImportError` on Windows. `_scheduler_running` is a `threading.Event` (set on init, cleared on shutdown via atexit, checked via `.is_set()`).
 - **Newsletter dedup**—uses `newsletter_sent_at == None` filter to avoid resending
