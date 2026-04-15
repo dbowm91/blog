@@ -52,6 +52,7 @@ These are **required** at runtime. The app will not start without them.
 | `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
 | `SMTP_USER` | No | SMTP auth username for newsletter/email |
 | `SMTP_PASSWORD` | No | SMTP auth password |
+| `SESSION_COOKIE_SECURE` | No | Require HTTPS for session cookies (default: `true`). Set to `false` only for local HTTP development |
 | `PROXY_COUNT` | No | Number of reverse proxies in front of the app (default: `1`). Set to `0` to disable `ProxyFix` |
 
 ### config.toml
@@ -79,6 +80,7 @@ smtp_port = 587
 smtp_user = ""                    # Override with SMTP_USER env var
 smtp_password = ""                # Override with SMTP_PASSWORD env var
 from_address = "blog@example.com"
+smtp_timeout = 30                 # SMTP connection timeout in seconds
 
 [newsletter]
 send_time = "08:00"               # HH:MM (24h) for scheduled newsletter
@@ -117,6 +119,45 @@ Use `--workers 4` as a starting point. SQLite WAL mode allows concurrent reads; 
 3. Use a distributed lock mechanism (Redis, etcd) instead of `fcntl`
 
 For most single-server deployments, running with `--workers 1` for the newsletter scheduler is the simplest and safest approach.
+
+### Database Scaling
+
+The default configuration uses **SQLite with WAL mode**, which is sufficient for single-server deployments with up to ~10,000 posts and moderate traffic. SQLite advantages include simple backup (single file), no separate server process, and excellent performance for read-heavy workloads.
+
+For higher traffic or multi-server deployments, migrate to **PostgreSQL**:
+
+1. **Install PostgreSQL** and create a database:
+   ```bash
+   sudo apt install postgresql
+   sudo -u postgres psql
+   CREATE DATABASE blog;
+   CREATE USER blog_user WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE blog TO blog_user;
+   ```
+
+2. **Update `config.toml`** to use PostgreSQL:
+   ```toml
+   [database]
+   url = "postgresql://blog_user:your_password@localhost/blog"
+   ```
+
+3. **Install required packages**:
+   ```bash
+   pip install psycopg2-binary
+   ```
+
+4. **Use Flask-Migrate** to transfer data:
+   ```bash
+   # Export data from SQLite
+   sqlite3 instance/blog.db ".dump" > backup.sql
+
+   # Import to PostgreSQL (adjust types as needed)
+   psql -U blog_user -d blog -f backup.sql
+   ```
+
+5. **Restart the application** to use the new database.
+
+**Note:** The codebase is developed and tested with SQLite. PostgreSQL compatibility is available via SQLAlchemy's database-agnostic patterns, but some edge cases (especially around FTS5) may behave differently. The FTS5 full-text search is SQLite-specific and has no direct PostgreSQL equivalent—consider using PostgreSQL's `tsvector` or a dedicated search service like Elasticsearch if you migrate.
 
 ## 5. Reverse Proxy Setup (nginx)
 
@@ -204,6 +245,27 @@ The nginx config already includes `proxy_read_timeout 60s` and `proxy_connect_ti
 - **30 seconds** for normal page requests
 - **60 seconds** for file uploads and newsletter sends
 - **120 seconds** for backup/restore operations
+
+### Response Compression
+
+Enable gzip compression in nginx to reduce bandwidth and improve response times:
+
+```nginx
+http {
+    # Enable gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/rss+xml application/atom+xml image/svg+xml;
+    gzip_min_length 256;
+
+    # Bypass compression for already-compressed formats
+    gzip_disable "msie6";
+}
+```
+
+**Note:** The app itself does not perform compression—delegating to the reverse proxy is more efficient. Static assets (`/static/`) should already be cached and served by nginx with `expires 1y`.
 
 ## 6. Rate Limiting
 
@@ -584,3 +646,21 @@ Or use `journalctl -u blog` for systemd-managed deployments.
 - [ ] `instance/` directory permissions are restricted (the systemd `ProtectSystem=strict` directive helps)
 - [ ] SMTP credentials are set via environment variables, not in `config.toml`
 - [ ] Regular backups are configured (see Section 8)
+
+## 11. Dependencies
+
+The application uses these key packages:
+
+| Package | Purpose |
+|---|---|
+| Flask | Web framework |
+| SQLAlchemy | ORM (with Flask-SQLAlchemy integration) |
+| Flask-Login | User session management |
+| Flask-Migrate | Database migrations (Alembic) |
+| Werkzeug | Password hashing, security utilities, WSGI/ASGI adapters |
+| asgiref | ASGI adapter for Granian |
+| markdown | Markdown to HTML conversion for posts |
+| nh3 | HTML sanitization (replaces deprecated `bleach`) |
+| APScheduler | In-process newsletter scheduling |
+
+For Python 3.14 compatibility, see `requirements.txt` for version constraints.
