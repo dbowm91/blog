@@ -12,8 +12,8 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 | ~~2~~ | ~~Security Fixes~~ | ~~10~~ | ~~High~~ |
 | ~~3~~ | ~~Exception Handling~~ | ~~6~~ | ~~Medium~~ |
 | ~~4~~ | ~~Performance~~ | ~~15~~ | ~~Medium~~ |
-| 5 | Code Quality | 6 | Medium |
-| 6 | Documentation | 7 | Low |
+| ~~5~~ | ~~Code Quality~~ | ~~6~~ | ~~Medium~~ |
+| ~~6~~ | ~~Documentation~~ | ~~7~~ | ~~Low~~ |
 | 7 | New Features | 18 | Medium |
 | 8 | Developer Experience | 9 | Low |
 | 9 | Module Refactoring | 2 | Low |
@@ -25,6 +25,8 @@ Consolidated from plans 2-9 (code quality, security, performance, developer expe
 **Wave 4 Notes**: All 15 items implemented. Note: Item 4.15 (async newsletter) was reverted due to test compatibility issues with ThreadPoolExecutor.
 
 **Wave 5 Notes**: 4 items completed (5.1, 5.3, 5.5, 5.6, 5.8), 2 already implemented (5.2, 5.4), 1 verified not an issue (5.7), 2 skipped (5.9, 5.10). Type annotations added to helpers.py functions, search.py functions, and template filters. Fixed imprecise type annotation in cache.py.
+
+**Wave 6 Notes**: All 7 items completed. DEPLOY.md enhanced with SMTP timeout config, PostgreSQL migration path, gzip compression example, SESSION_COOKIE_SECURE env var, and dependencies table. Docstrings added to 30+ admin route handlers across 11 route files.
 
 ---
 
@@ -532,63 +534,63 @@ select(Tag, func.count(post_tags.c.post_id).label("cnt"))
 
 ---
 
-## Wave 6: Documentation
+## Wave 6: Documentation ✅ COMPLETED
 
-**Documentation improvements.**
+**Documentation improvements. Completed on 2026-04-15.**
 
-### 6.1 Document SMTP timeout configuration
+### 6.1 Document SMTP timeout configuration ✅
 
 **Location**: DEPLOY.md
 
-**Fix**: Add `smtp_timeout` to configuration section.
+**Fix**: Added `smtp_timeout` to config.toml example in DEPLOY.md with 30-second default.
 
-### 6.2 Document proxy-level rate limiting
+### 6.2 Document proxy-level rate limiting ✅
 
 **Problem**: Login rate limiting recommendation needs clarification.
 
 **Location**: DEPLOY.md
 
-**Fix**: Ensure the rate limiting section clearly documents nginx/Cloudflare configuration.
+**Fix**: Verified - Section 6 already comprehensively documents nginx, Caddy, and Cloudflare configurations with detailed examples.
 
-### 6.3 Document response compression
+### 6.3 Document response compression ✅
 
 **Problem**: Response compression recommendation not documented.
 
 **Location**: DEPLOY.md
 
-**Fix**: Add nginx gzip configuration example.
+**Fix**: Added nginx gzip configuration example in new "Response Compression" subsection under Section 5b (Request Timeouts).
 
-### 6.4 Document PostgreSQL for production
+### 6.4 Document PostgreSQL for production ✅
 
 **Problem**: SQLite limitations not documented.
 
 **Location**: DEPLOY.md
 
-**Fix**: Add section on PostgreSQL migration path for production.
+**Fix**: Added "Database Scaling" section under Section 4 with PostgreSQL migration steps and caveats about FTS5.
 
-### 6.5 Add API documentation docstrings
+### 6.5 Add API documentation docstrings ✅
 
 **Problem**: No API documentation for routes.
 
 **Location**: Route handlers
 
-**Fix**: Add docstrings to public and admin routes.
+**Fix**: Added docstrings to all 11 admin route files covering 30+ route handlers. Public routes already had docstrings.
 
-### 6.6 Document environment variables
+### 6.6 Document environment variables ✅
 
 **Problem**: No comprehensive env var list.
 
 **Location**: DEPLOY.md
 
-**Fix**: Add environment variable reference table.
+**Fix**: Added `SESSION_COOKIE_SECURE` to the environment variable reference table with description.
 
-### 6.7 Document third-party libraries
+### 6.7 Document third-party libraries ✅
 
 **Problem**: Dependencies listed but not their purposes.
 
-**Location**: DEPLOY.md or README.md
+**Location**: DEPLOY.md
 
-**Fix**: Add library purpose table.
+**Fix**: Added Section 11 "Dependencies" with package purpose table covering Flask, SQLAlchemy, Flask-Login, Flask-Migrate, Werkzeug, asgiref, markdown, nh3, and APScheduler.
 
 ---
 
