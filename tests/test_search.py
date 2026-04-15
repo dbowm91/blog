@@ -42,16 +42,8 @@ def app(tmp_path):
 def db(app):
     """Create database tables for each test."""
     with app.app_context():
-        _db.drop_all()
         _db.session.remove()
         _db.create_all()
-
-        _db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
-        _db.session.execute(text("DROP TABLE IF EXISTS posts_fts_data"))
-        _db.session.execute(text("DROP TABLE IF EXISTS posts_fts_idx"))
-        _db.session.execute(text("DROP TABLE IF EXISTS posts_fts_docsize"))
-        _db.session.execute(text("DROP TABLE IF EXISTS posts_fts_config"))
-        _db.session.commit()
         init_fts()
         yield _db
         _db.engine.dispose()

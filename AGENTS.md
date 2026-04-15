@@ -637,3 +637,20 @@ Items verified and fixed in Wave 2:
 - **Health endpoint**: Removed Python version and pool stats from response
 - **Cascade delete**: User.admin_sessions now uses `cascade="all,delete-orphan"`
 - **FakeSubscriber**: All Subscriber attributes now present with sensible defaults
+
+### Shell Context
+- `flask shell` has access to: `db`, `User`, `Post`, `Tag`, `Subscriber`, `Page`, `PageView`, `ShareEvent`, `AdminSession`, `SiteSettings`
+
+### Missing Image Handling
+- `post_image_url` template filter checks file existence before returning image path
+- Templates using this filter: `index.html`, `tag.html`, `search.html`, `_post_content.html`, `post.html`, `email/newsletter.html`, `admin/editor.html`
+
+### Database Integrity Check
+- `_check_database_integrity()` runs `PRAGMA integrity_check` on startup
+- Logs warning if corruption detected with backup suggestion
+- Located in `app/__init__.py` after logging setup, before scheduler
+
+### Bulk Delete Two-Click Confirmation
+- When bulk delete triggered, button shows "Delete X posts? Click again to confirm"
+- `.btn-danger-primed` class provides pulsing animation
+- Auto-resets after 5 seconds or on blur
