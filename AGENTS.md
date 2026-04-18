@@ -266,6 +266,8 @@ Post.title.ilike(search_term, escape="\\")
 - Safety guards: cannot delete own account, cannot delete last admin, min 8-char password
 - First user auto-promoted to admin in `create_app()` (deterministic: `order_by(User.id)`)
 - **Password complexity:** Requires at least 3 of 4 character classes (lowercase, uppercase, digit, special). Minimum 8 characters. Existing tests use passwords like `Password123!` to meet requirements.
+- **Promote/Demote:** `POST /admin/users/<id>/promote` and `POST /admin/users/<id>/demote` for admin status management
+- **Ownership transfer:** `POST /admin/users/<id>/make-owner` transfers owner status (requires password confirmation)
 
 ### UTCDateTime TypeDecorator
 `UTCDateTime` in `app/utils.py` stores naive UTC in SQLite but always returns timezone-aware UTC. On bind, it strips timezone info (`.replace(tzinfo=None)`). On result, it adds UTC timezone to naive values. Existing naive rows are interpreted as UTC on read. This ensures all comparisons are timezone-aware while SQLite compatibility is maintained.
@@ -666,9 +668,11 @@ Items verified and fixed:
 - Auto-resets after 5 seconds or on blur
 
 ### Planning and Code Review Learnings
-- **SMTP `_connect_smtp()` finally bug**: Python's `finally` block executes BEFORE the return value is captured by caller. If `finally` contains `server.quit()`, the connection is closed before the caller can use it. This bug is verified unfixed in current codebase.
-- **Footer cache return bug**: `_get_footer_data()` stores in cache but returns fresh variables instead of cached data. This is a common double-checked locking mistake.
-- **Regex character class range operator**: `[()*:+\-"<>]` is ambiguous - the hyphen position creates a range. Use `[()*:+"<>\-]` (hyphen at end) or escaped.
+- **SMTP `_connect_smtp()` finally bug**: Fixed - `finally` block removed, caller manages connection lifecycle.
+- **Footer cache return bug**: Fixed - double-checked locking pattern with DB queries outside lock.
+- **Regex character class range operator**: Fixed - `[()*:+\-"<>]` changed to `[()*:+"<>\-]` (hyphen at end).
 - **Image filter vs attribute check**: Templates using `{% if post.image %}` check DB field only. Use `post|post_image_url` filter to verify file exists on disk.
 - **Plan file verification**: Line numbers in plan files can drift. Always verify against actual codebase before implementing fixes.
 - **Template base inheritance**: Admin preview template was extending public `base.html` instead of `admin/base.html` - always check template hierarchy when debugging admin context issues.
+- **Retry logic return values**: When a function returns a tuple like `(success, error, server)`, the caller must unpack all values to avoid TypeError on subsequent calls.
+- **Joined eager loading with CTE**: Using `joinedload()` with complex queries containing CTEs requires calling `.unique()` on results to avoid InvalidRequestError.
