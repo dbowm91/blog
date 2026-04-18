@@ -9,6 +9,7 @@ from app.extensions import db
 from app.models import User, AdminSession, Post
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
+from app.csrf import validate_csrf_token
 
 
 @admin.route("/login", methods=["GET", "POST"])
@@ -43,6 +44,7 @@ def login() -> Response:
             db.session.add(admin_session)
             db.session.commit()
             session["admin_session_id"] = sid
+            session["admin_session_ip"] = request.remote_addr
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials.", "error")
 
@@ -61,6 +63,7 @@ def logout() -> Response:
     POST: Clears admin session, deletes AdminSession record, and redirects to home.
     Requires: Login (any authenticated user, not just admin).
     """
+    validate_csrf_token()
     sid = session.pop("admin_session_id", None)
     if sid:
         admin_session = db.session.execute(

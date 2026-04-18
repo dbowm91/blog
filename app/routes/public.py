@@ -402,6 +402,9 @@ def short_url_redirect(code) -> Response:
     return redirect(f"/post/{post.slug}")
 
 
+ALLOWED_SHARE_PLATFORMS = {"twitter", "facebook", "linkedin", "reddit", "hackernews", "link"}
+
+
 @public.route("/api/track-share", methods=["POST"])
 def track_share() -> Response:
     """Track social share events.
@@ -429,6 +432,8 @@ def track_share() -> Response:
         return jsonify({"error": "invalid"}), 400
 
     platform = str(data["platform"])[:32]
+    if platform not in ALLOWED_SHARE_PLATFORMS:
+        return jsonify({"error": "invalid platform"}), 400
 
     post = db.session.get(Post, post_id)
     if not post or not post.published:

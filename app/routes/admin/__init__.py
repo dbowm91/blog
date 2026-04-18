@@ -24,18 +24,15 @@ def admin_required(f):
 
         sid = session.get("admin_session_id")
         if sid:
-            admin_session = db.session.execute(
-                select(AdminSession).filter_by(session_id=sid)
-            ).scalar_one_or_none()
-            if admin_session and admin_session.ip_address:
-                current_ip = request.remote_addr
-                if current_ip and current_ip != admin_session.ip_address:
-                    logger.warning(
-                        "IP address mismatch for admin session %s: expected %s, got %s",
-                        sid,
-                        admin_session.ip_address,
-                        current_ip,
-                    )
+            stored_ip = session.get("admin_session_ip")
+            current_ip = request.remote_addr
+            if stored_ip and current_ip and stored_ip != current_ip:
+                logger.warning(
+                    "IP address changed for admin session %s: expected %s, got %s",
+                    sid,
+                    stored_ip,
+                    current_ip,
+                )
 
         return f(*args, **kwargs)
 

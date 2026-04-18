@@ -153,6 +153,8 @@ def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
             msg["From"] = FROM_ADDRESS
             msg["To"] = sub.email
             msg["Subject"] = f"Latest from {APP_TITLE}"
+            msg["List-Unsubscribe"] = f"<{unsub_url}>"
+            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
             msg.attach(MIMEText(text, "plain"))
             msg.attach(MIMEText(html, "html"))
             try:

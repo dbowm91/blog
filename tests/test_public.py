@@ -339,21 +339,27 @@ def test_track_share_validates_post_id(client, db):
     assert response.status_code == 400
 
 
-def test_track_share_truncates_platform(client, db, sample_post):
-    """Test track_share truncates long platform names."""
+def test_track_share_rejects_invalid_platform(client, db, sample_post):
+    """Test track_share rejects platforms not in allowlist."""
     long_platform = "x" * 100
     response = client.post(
         "/api/track-share",
         json={"post_id": sample_post.id, "platform": long_platform},
         content_type="application/json",
     )
-    assert response.status_code == 200
-    from app.models import ShareEvent
+    assert response.status_code == 400
+    assert response.json == {"error": "invalid platform"}
 
-    event = db.session.execute(
-        select(ShareEvent).filter_by(post_id=sample_post.id)
-    ).scalar_one_or_none()
-    assert len(event.platform) == 32
+
+def test_track_share_accepts_valid_platforms(client, db, sample_post):
+    """Test track_share accepts valid platform names."""
+    for platform in ["twitter", "facebook", "linkedin", "reddit", "hackernews", "link"]:
+        response = client.post(
+            "/api/track-share",
+            json={"post_id": sample_post.id, "platform": platform},
+            content_type="application/json",
+        )
+        assert response.status_code == 200, f"Platform {platform} should be accepted"
 
 
 def test_referrer_sanitized(client, db, sample_post):
