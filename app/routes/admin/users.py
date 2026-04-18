@@ -117,6 +117,118 @@ def delete_user(user_id):
     return redirect(url_for("admin.users_list"))
 
 
+@admin.route("/users/<int:user_id>/promote", methods=["POST"])
+@admin_required
+def promote_user(user_id):
+    """
+    Promote a user to admin.
+
+    Methods: POST
+    POST: Sets user.is_admin = True.
+    Requires: Admin authentication.
+    Path params: user_id (int) - ID of the user to promote.
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    if user.is_admin:
+        flash(f"'{user.username}' is already an admin.", "error")
+        return redirect(url_for("admin.users_list"))
+    user.is_admin = True
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.users_list"))
+    logger.info("User promoted to admin: user_id=%d username=%s", user_id, user.username)
+    flash(f"'{user.username}' promoted to admin.", "success")
+    return redirect(url_for("admin.users_list"))
+
+
+@admin.route("/users/<int:user_id>/demote", methods=["POST"])
+@admin_required
+def demote_user(user_id):
+    """
+    Demote an admin to regular user.
+
+    Methods: POST
+    POST: Sets user.is_admin = False.
+    Requires: Admin authentication.
+    Guards: Cannot demote self, cannot demote if would leave no admins.
+    Path params: user_id (int) - ID of the user to demote.
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    if user.id == current_user.id:
+        flash("Cannot demote your own account.", "error")
+        return redirect(url_for("admin.users_list"))
+    admin_count = db.session.execute(
+        select(func.count(User.id)).filter(User.is_admin == True)
+    ).scalar()
+    if admin_count <= 1:
+        flash("Cannot demote the last admin user.", "error")
+        return redirect(url_for("admin.users_list"))
+    user.is_admin = False
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.users_list"))
+    logger.info("User demoted from admin: user_id=%d username=%s", user_id, user.username)
+    flash(f"'{user.username}' demoted from admin.", "success")
+    return redirect(url_for("admin.users_list"))
+
+
+@admin.route("/users/<int:user_id>/make-owner", methods=["POST"])
+@admin_required
+def make_owner(user_id):
+    """
+    Transfer ownership to another admin.
+
+    Methods: POST
+    POST: Transfers owner status by setting all admins is_admin=True except target user,
+          then setting target user as the only admin.
+    Requires: Admin authentication + current user password confirmation.
+    Guards: Cannot transfer to self.
+    Path params: user_id (int) - ID of the user to make owner.
+    Form params: password (current user's password for confirmation)
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    if user.id == current_user.id:
+        flash("Cannot transfer ownership to yourself.", "error")
+        return redirect(url_for("admin.users_list"))
+    password = request.form.get("password", "").strip()
+    if not password or not current_user.check_password(password):
+        flash("Invalid password. Ownership transfer requires your password.", "error")
+        return redirect(url_for("admin.users_list"))
+    admin_count = db.session.execute(
+        select(func.count(User.id)).filter(User.is_admin == True)
+    ).scalar()
+    if admin_count <= 1:
+        flash("Cannot transfer ownership while you are the only admin.", "error")
+        return redirect(url_for("admin.users_list"))
+    all_admins = db.session.execute(
+        select(User).filter(User.is_admin == True)
+    ).scalars().all()
+    for admin in all_admins:
+        admin.is_admin = False
+    user.is_admin = True
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.users_list"))
+    logger.info("Ownership transferred: from user_id=%d to user_id=%d", current_user.id, user_id)
+    flash(f"Ownership transferred to '{user.username}'.", "success")
+    return redirect(url_for("admin.users_list"))
+
+
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
 def change_password(user_id):

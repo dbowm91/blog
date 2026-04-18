@@ -33,6 +33,24 @@
                         <button type="submit" class="btn btn-small btn-ghost">Change PW</button>
                     </form>
                     {% if user.id != current_user.id %}
+                    {% if not user.is_admin %}
+                    <form method="POST" action="{{ url_for('admin.promote_user', user_id=user.id) }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small">Promote</button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('admin.demote_user', user_id=user.id) }}" class="inline-form" data-confirm="Demote '{{ user.username }}' from admin?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small">Demote</button>
+                    </form>
+                    {% endif %}
+                    {% if current_user.is_admin and user.is_admin and user.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('admin.make_owner', user_id=user.id) }}" class="inline-form" data-confirm="Transfer ownership to '{{ user.username }}'? This will demote all other admins.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="password" name="password" placeholder="Your password" required class="search-input pw-input" aria-label="Confirm with your password">
+                        <button type="submit" class="btn btn-small btn-ghost">Transfer Owner</button>
+                    </form>
+                    {% endif %}
                     <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" class="inline-form" data-confirm="Delete user '{{ user.username }}'? This cannot be undone.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="btn btn-small btn-danger">Delete</button>
