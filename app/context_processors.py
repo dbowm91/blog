@@ -71,37 +71,33 @@ def _get_footer_data() -> dict:
             _FOOTER_CACHE["data"] is not None
             and (now - _FOOTER_CACHE["timestamp"]) < _FOOTER_TTL
         ):
-            return {
-                "recent_posts_footer": _FOOTER_CACHE["data"]["recent_posts"],
-                "footer_tags": _FOOTER_CACHE["data"]["tags"],
-                "footer_tag_counts": _get_tag_counts(),
-            }
+            return _FOOTER_CACHE["data"].copy()
 
-        recent_posts = (
-            db.session.execute(
-                select(Post)
-                .filter_by(published=True)
-                .order_by(Post.created_at.desc())
-                .limit(3)
-            )
-            .scalars()
-            .all()
+    recent_posts = (
+        db.session.execute(
+            select(Post)
+            .filter_by(published=True)
+            .order_by(Post.created_at.desc())
+            .limit(3)
         )
-        footer_tags = (
-            db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-        )
+        .scalars()
+        .all()
+    )
+    footer_tags = (
+        db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+    )
 
-        _FOOTER_CACHE["data"] = {
-            "recent_posts": list(recent_posts),
-            "tags": list(footer_tags),
-        }
-        _FOOTER_CACHE["timestamp"] = now
-
-    return {
-        "recent_posts_footer": recent_posts,
-        "footer_tags": footer_tags,
-        "footer_tag_counts": _get_tag_counts(),
+    data = {
+        "recent_posts_footer": list(recent_posts),
+        "footer_tags": list(footer_tags),
+        "footer_tag_counts": {},
     }
+
+    with _FOOTER_CACHE_LOCK:
+        _FOOTER_CACHE["data"] = data
+        _FOOTER_CACHE["timestamp"] = _time.monotonic()
+
+    return data.copy()
 
 
 def register_context_processors(app):

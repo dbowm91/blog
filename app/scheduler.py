@@ -13,7 +13,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.background import BackgroundScheduler

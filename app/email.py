@@ -77,12 +77,6 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
     except (smtplib.SMTPException, OSError):
         logger.exception("Failed to connect to SMTP server")
         return None
-    finally:
-        if server:
-            try:
-                server.quit()
-            except OSError:
-                pass
 
 
 def _build_newsletter_message(sub, posts, app_title, base_url, from_address):

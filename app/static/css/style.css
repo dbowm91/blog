@@ -1296,7 +1296,7 @@ a:hover {
 
 .btn-danger-primed {
     background: var(--red);
-    color: var(--bg-primary);
+    color: var(--bg);
     font-weight: bold;
     animation: pulse-danger 1s ease-in-out infinite;
 }
