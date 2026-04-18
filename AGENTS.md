@@ -35,6 +35,8 @@ app/routes/admin/analytics.py # analytics page
 app/routes/admin/newsletter.py # newsletter test
 app/routes/admin/settings.py  # theme settings (presets, custom CSS, logo)
 app/routes/admin/pages.py     # static pages CRUD
+app/routes/admin/helpers/     # Admin helpers package
+app/routes/admin/helpers/slug.py  # Slug generation helper
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling
 app/cache.py            # Tag count cache (double-checked locking)
@@ -46,6 +48,10 @@ app/email.py            # SMTP email sending (with TLS via ssl.create_default_co
 app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown rendering
 app/csv_utils.py        # Subscriber CSV export with formula injection prevention
 app/context_processors.py  # Template context (theme, footer, canonical_url)
+app/static/js/          # JavaScript modules (ES6 with dynamic imports)
+app/static/js/shared/   # Shared JS modules (utils, dark-mode, modal, mobile-menu, etc.)
+app/static/js/public/    # Public-facing JS modules (share, lightbox, toc, etc.)
+app/static/js/admin/    # Admin JS modules (editor, bulk, shortcuts)
 DEPLOY.md               # Deployment guide
 ```
 
@@ -79,7 +85,7 @@ DEPLOY.md               # Deployment guide
 ### Slugs
 - `generate_slug()` in `app/utils.py` handles unicode normalization, lowercasing, and special char removal
 - Both `Post.generate_slug()` and `Tag.generate_slug()` delegate to this utility
-- `_generate_unique_slug()` in `app/routes/admin/helpers.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
+- `_generate_unique_slug(model, title, exclude_id=None)` in `app/routes/admin/helpers/slug.py` handles collisions by appending counter suffixes (`slug-2`, `slug-3`, etc.)
 - In `edit_post()`, slug is only regenerated when `title != post.title`
 
 ### Session
@@ -315,7 +321,7 @@ Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytic
 - `Esc` — close modal
 - `g` then `d/p/s/t` — vim-style navigation (Dashboard, Posts, Subscribers, Tags). 500ms timeout between keys. (admin pages only — must be scoped)
 - Modal defined in `app/templates/admin/base.html` (`#keyboard-help` with `.modal-overlay` class)
-- JS handlers in `app/static/js/main.js` use `(e.ctrlKey || e.metaKey)` for cross-platform support
+- JS handlers in `app/static/js/admin/shortcuts.js` use `(e.ctrlKey || e.metaKey)` for cross-platform support
 - `e.preventDefault()` scoped inside each `if (target)` block — only prevents default when target element exists
 - Close button and click-outside-to-close bound once on page load (not on each `?` press)
 - Modal CSS in `style.css` under "Keyboard Shortcuts Modal" section (CSP-compliant, no inline styles)
@@ -373,7 +379,7 @@ Lazy images use `opacity: 0` by default and JS adds `.loaded` class. Without a `
 The `<body>` in `admin/base.html` has `class="admin-body"`. Use `document.body.classList.contains('admin-body')` to scope JS handlers that should only run on admin pages (keyboard shortcuts, vim navigation, modal handlers). Public pages should not have admin-specific behavior.
 
 ### Mobile Menu Toggle
-The mobile hamburger menu button is **created dynamically in JavaScript** (`main.js` lines 162-205), not in HTML templates. It toggles `.open` class on `.nav-links`, swaps icons, and closes on outside click and Escape key. The CSS class `.mobile-menu-toggle` exists in `style.css` but the button element is injected by JS.
+The mobile hamburger menu button is **created dynamically in JavaScript** (`shared/mobile-menu.js`), not in HTML templates. It toggles `.open` class on `.nav-links`, swaps icons, and closes on outside click and Escape key. The CSS class `.mobile-menu-toggle` exists in `style.css` but the button element is injected by JS.
 
 ### `ConnectionError` is Subclass of `OSError`
 `ConnectionError` inherits from `OSError`. Do not catch both in the same except clause — `ConnectionError` is redundant when `OSError` is already caught.

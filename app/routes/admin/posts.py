@@ -119,7 +119,7 @@ def _create_post_object(
     """Create a Post instance with all fields set."""
     post = Post(
         title=title,
-        slug=_generate_unique_slug(title),
+        slug=_generate_unique_slug(Post, title),
         body=body,
         summary=summary,
         published=published,
@@ -155,7 +155,7 @@ def _commit_post_with_rollback(
             raise
         if image:
             safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
-        post.slug = _generate_unique_slug(title)
+        post.slug = _generate_unique_slug(Post, title)
         db.session.add(post)
         db.session.flush()
         sync_fts(post.id, post.title, post.body, post.summary, post.published)
@@ -293,7 +293,7 @@ def edit_post(post_id):
         )
         was_published = post.published
         if title != post.title:
-            post.slug = _generate_unique_slug(title, exclude_id=post.id)
+            post.slug = _generate_unique_slug(Post, title, exclude_id=post.id)
         _apply_post_updates(
             post,
             title,
@@ -332,7 +332,7 @@ def edit_post(post_id):
                     os.path.join(current_app.config["UPLOAD_FOLDER"], image)
                 )
             post = db.session.get(Post, post_id)
-            post.slug = _generate_unique_slug(title, exclude_id=post.id)
+            post.slug = _generate_unique_slug(Post, title, exclude_id=post.id)
             _apply_post_updates(
                 post,
                 title,

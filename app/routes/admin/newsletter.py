@@ -68,7 +68,7 @@ def newsletter_test():
         return redirect(url_for("admin.dashboard"))
     fake_sub = FakeSubscriber(email=test_email)
     try:
-        send_newsletter(posts, [fake_sub])
+        send_newsletter(posts, [fake_sub], total_subscribers=1)
         flash(f"Test newsletter sent to {test_email}.", "success")
     except (smtplib.SMTPException, OSError) as e:
         flash(f"Failed to send test newsletter: {e}", "error")

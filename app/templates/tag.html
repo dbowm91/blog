@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}#{{ tag.name }} | {{ site_title }}{% endblock %}
-{% block meta_description %}Posts tagged with {{ tag.name }}{% endblock %}
+{% block title %}#{{ tag.name | escape }} | {{ site_title }}{% endblock %}
+{% block meta_description %}Posts tagged with {{ tag.name | escape }}{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="{{ url_for('public.index') }}">Home</a>
     <span class="breadcrumb-sep">/</span>
-    <span class="breadcrumb-current">#{{ tag.name }}</span>
+    <span class="breadcrumb-current">#{{ tag.name | escape }}</span>
 </nav>
 
 <div class="tag-hero animate-in">
-    <h1><span class="tag-prefix">#</span>{{ tag.name }}</h1>
+    <h1><span class="tag-prefix">#</span>{{ tag.name | escape }}</h1>
     <p>{{ total_posts }} post{% if total_posts != 1 %}s{% endif %}</p>
 </div>
 

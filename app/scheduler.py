@@ -59,6 +59,10 @@ def send_daily_newsletter(app) -> None:
     except OSError:
         if lock_file:
             lock_file.close()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
         return
 
     try:
@@ -87,6 +91,16 @@ def send_daily_newsletter(app) -> None:
             if not posts:
                 return
 
+            subscriber_count = db.session.execute(
+                select(func.count(Subscriber.id))
+                .filter_by(confirmed=True)
+                .filter(Subscriber.unsubscribed_at.is_(None))
+            ).scalar()
+
+            if subscriber_count == 0:
+                app.logger.info("No subscribers to send newsletter to")
+                return
+
             subscribers = db.session.execute(
                 select(Subscriber)
                 .filter_by(confirmed=True)
@@ -94,7 +108,7 @@ def send_daily_newsletter(app) -> None:
                 .yield_per(500)
             ).scalars()
 
-            success = send_newsletter(posts, subscribers)
+            success = send_newsletter(posts, subscribers, subscriber_count)
 
             if success:
                 now = utc_now()
@@ -135,6 +149,10 @@ def cleanup_expired_subscribers(app) -> None:
     except OSError:
         if lock_file:
             lock_file.close()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
         return
 
     try:
@@ -186,6 +204,10 @@ def publish_scheduled_posts(app) -> None:
     except OSError:
         if lock_file:
             lock_file.close()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
         return
 
     try:

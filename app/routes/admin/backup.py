@@ -58,7 +58,11 @@ def create_backup():
     from backup import create_backup as _create_backup
 
     compress = "compress" in request.form
-    db_path = os.path.join(current_app.instance_path, "blog.db")
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if db_uri.startswith("sqlite:///"):
+        db_path = db_uri.replace("sqlite:///", "/")
+    else:
+        db_path = os.path.join(current_app.instance_path, "blog.db")
     backup_dir = _get_backup_dir()
     result = _create_backup(db_path, backup_dir, compress=compress, keep=10)
     if result:
@@ -113,7 +117,11 @@ def restore_backup(filename):
         abort(400)
     if not os.path.exists(real_path):
         abort(404)
-    db_path = os.path.join(current_app.instance_path, "blog.db")
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if db_uri.startswith("sqlite:///"):
+        db_path = db_uri.replace("sqlite:///", "/")
+    else:
+        db_path = os.path.join(current_app.instance_path, "blog.db")
     db.engine.dispose()
     if filename.endswith(".gz"):
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:

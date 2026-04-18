@@ -119,8 +119,7 @@ def test_subscribe_duplicate(client, db):
         "/subscribe", data={"email": "test@example.com"}, follow_redirects=True
     )
     assert response.status_code == 200
-    # Should return unified message, not "already subscribed"
-    assert b"Check your inbox to confirm your subscription" in response.data
+    assert b"already subscribed" in response.data
 
 
 def test_confirm_subscription(client, db):

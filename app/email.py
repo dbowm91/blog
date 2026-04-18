@@ -64,6 +64,7 @@ def send_confirmation(subscriber) -> None:
 
 def _connect_smtp() -> Optional[smtplib.SMTP]:
     """Open an authenticated SMTP connection. Returns None on failure."""
+    server = None
     try:
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT)
         server.ehlo()
@@ -76,6 +77,12 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
     except (smtplib.SMTPException, OSError):
         logger.exception("Failed to connect to SMTP server")
         return None
+    finally:
+        if server:
+            try:
+                server.quit()
+            except OSError:
+                pass
 
 
 def _build_newsletter_message(sub, posts, app_title, base_url, from_address):
@@ -104,8 +111,13 @@ def _build_newsletter_message(sub, posts, app_title, base_url, from_address):
     return msg
 
 
-def send_newsletter(posts, subscribers) -> bool:
+def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
     """Send newsletter to all subscribers.
+
+    Args:
+        posts: List of posts to include in the newsletter
+        subscribers: Generator or list of Subscriber objects
+        total_subscribers: Optional count of subscribers for progress logging
 
     Returns True if all sent successfully, False otherwise.
     """
@@ -118,24 +130,43 @@ def send_newsletter(posts, subscribers) -> bool:
         return False
 
     unsub_url_base = f"{BASE_URL}/unsubscribe/"
-    pre_rendered = render_template(
+    pre_rendered_html = render_template(
         "email/newsletter.html",
         posts=posts,
         site_title=APP_TITLE,
         base_url=BASE_URL,
         unsubscribe_url=unsub_url_base + "TOKEN",
     )
+    pre_rendered_text = (
+        f"Latest from {APP_TITLE}\n\n"
+        + "\n\n".join(
+            f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}" for p in posts
+        )
+        + f"\n\nUnsubscribe: {unsub_url_base}TOKEN"
+    )
 
     all_sent = True
     try:
         for i, sub in enumerate(subscribers, 1):
-            msg = _build_newsletter_message(
-                sub, posts, APP_TITLE, BASE_URL, FROM_ADDRESS
+            unsub_url = unsub_url_base + sub.token
+            html = pre_rendered_html.replace(
+                unsub_url_base + "TOKEN", unsub_url
             )
+            text = pre_rendered_text.replace(
+                unsub_url_base + "TOKEN", unsub_url
+            )
+            msg = MIMEMultipart("alternative")
+            msg["From"] = FROM_ADDRESS
+            msg["To"] = sub.email
+            msg["Subject"] = f"Latest from {APP_TITLE}"
+            msg.attach(MIMEText(text, "plain"))
+            msg.attach(MIMEText(html, "html"))
             try:
                 server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
-                if i % 50 == 0:
-                    logger.info("Newsletter progress: %d/%d sent", i, len(subscribers))
+                if total_subscribers and i % 50 == 0:
+                    logger.info(
+                        "Newsletter progress: %d/%d sent", i, total_subscribers
+                    )
             except smtplib.SMTPServerDisconnected:
                 logger.exception(
                     "SMTP disconnected while sending to %s; reconnecting", sub.email
@@ -143,9 +174,8 @@ def send_newsletter(posts, subscribers) -> bool:
                 server = _connect_smtp()
                 if not server:
                     logger.error(
-                        "SMTP reconnection failed; aborting newsletter after %d/%d",
+                        "SMTP reconnection failed; aborting newsletter after %d",
                         i - 1,
-                        len(subscribers),
                     )
                     all_sent = False
                     break

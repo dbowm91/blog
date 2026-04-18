@@ -17,6 +17,7 @@ from app.search import (
     search,
     extract_snippet,
     get_search_snippets,
+    reset_fts_available,
 )
 
 
@@ -44,6 +45,7 @@ def db(app):
     with app.app_context():
         _db.session.remove()
         _db.create_all()
+        reset_fts_available()
         init_fts()
         yield _db
         _db.engine.dispose()

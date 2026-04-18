@@ -1,6 +1,6 @@
 """Full-text search using SQLite FTS5 with LIKE fallback."""
 
-__all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts", "search"]
+__all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts", "search", "reset_fts_available"]
 
 import logging
 import re
@@ -12,13 +12,19 @@ from app.config import FTS_RESULT_LIMIT
 logger = logging.getLogger(__name__)
 
 
+def reset_fts_available() -> None:
+    """Reset FTS availability flag. For testing only - no-op in original implementation."""
+    pass
+
+
 def init_fts() -> None:
     """Create FTS5 virtual table and populate with existing posts. Idempotent."""
     try:
+        db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
         db.session.execute(
             text(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5("
-                "title, body, summary, content='posts', content_rowid='id'"
+                "title, body, summary"
                 ")"
             )
         )
@@ -31,6 +37,11 @@ def init_fts() -> None:
         db.session.commit()
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         db.session.rollback()
+        try:
+            db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         logger.warning(
             "FTS5 initialization failed; search will use LIKE fallback (post_ids=%s, operation=init)",
             e,

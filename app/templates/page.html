@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}{{ page.title }} | {{ site_title }}{% endblock %}
-{% block meta_description %}{{ page.title }}{% endblock %}
+{% block title %}{{ page.title | escape }} | {{ site_title }}{% endblock %}
+{% block meta_description %}{{ page.title | escape }}{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="{{ url_for('public.index') }}">Home</a>
     <span class="breadcrumb-sep" aria-hidden="true">/</span>
-    <span class="breadcrumb-current">{{ page.title }}</span>
+    <span class="breadcrumb-current">{{ page.title | escape }}</span>
 </nav>
 
 <article class="prose">
-    <h1>{{ page.title }}</h1>
+    <h1>{{ page.title | escape }}</h1>
     {{ page.body | markdown_safe | safe }}
 </article>
 {% endblock %}

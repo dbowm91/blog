@@ -2,6 +2,7 @@
 
 __all__ = ["invalidate_settings_cache"]
 
+import logging
 import threading
 import time as _time
 
@@ -12,6 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
+
+logger = logging.getLogger(__name__)
 from app.config import (
     APP_TITLE,
     APP_DESCRIPTION,
@@ -60,6 +63,8 @@ def _set_cached_settings(data: dict) -> dict:
 
 
 def _get_footer_data() -> dict:
+    from app.models import Post, Tag
+
     with _FOOTER_CACHE_LOCK:
         now = _time.monotonic()
         if (
@@ -72,31 +77,25 @@ def _get_footer_data() -> dict:
                 "footer_tag_counts": _get_tag_counts(),
             }
 
-    from app.models import Post, Tag
-
-    recent_posts = (
-        db.session.execute(
-            select(Post)
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc())
-            .limit(3)
+        recent_posts = (
+            db.session.execute(
+                select(Post)
+                .filter_by(published=True)
+                .order_by(Post.created_at.desc())
+                .limit(3)
+            )
+            .scalars()
+            .all()
         )
-        .scalars()
-        .all()
-    )
-    footer_tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+        footer_tags = (
+            db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
+        )
 
-    with _FOOTER_CACHE_LOCK:
-        now = _time.monotonic()
-        if (
-            _FOOTER_CACHE["data"] is None
-            or (now - _FOOTER_CACHE["timestamp"]) >= _FOOTER_TTL
-        ):
-            _FOOTER_CACHE["data"] = {
-                "recent_posts": list(recent_posts),
-                "tags": list(footer_tags),
-            }
-            _FOOTER_CACHE["timestamp"] = now
+        _FOOTER_CACHE["data"] = {
+            "recent_posts": list(recent_posts),
+            "tags": list(footer_tags),
+        }
+        _FOOTER_CACHE["timestamp"] = now
 
     return {
         "recent_posts_footer": recent_posts,
@@ -172,6 +171,7 @@ def register_context_processors(app):
             }
             return _set_cached_settings(result)
         except OperationalError:
+            logger.exception("Database error loading theme settings, using fallback")
             return {
                 "theme_preset": "github-dark",
                 "theme_vars": THEME_PRESETS["github-dark"],
@@ -198,6 +198,7 @@ def register_context_processors(app):
         try:
             return _get_footer_data()
         except OperationalError:
+            logger.exception("Database error loading footer data, using fallback")
             return {
                 "recent_posts_footer": [],
                 "footer_tags": [],

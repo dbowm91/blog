@@ -11,5 +11,4 @@ MARKDOWN_ALLOWED_ATTRIBUTES = {
     "img": {"src", "alt", "title", "width", "height"},
     "span": {"class"},
     "div": {"class"},
-    "*": {"class"},
 }

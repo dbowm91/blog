@@ -1,8 +1,5 @@
 """Post-related helpers for admin routes."""
 
-import uuid
-from typing import Optional
-
 from flask import current_app, flash
 from sqlalchemy import select
 
@@ -25,23 +22,6 @@ def _get_posts_query(status: str, search: str, order_by=None) -> select:
     if order_by is None:
         order_by = Post.updated_at.desc()
     return base_q.order_by(order_by)
-
-
-def _generate_unique_slug(title: str, exclude_id: Optional[int] = None) -> str:
-    slug = Post.generate_slug(title)
-    base_slug = slug
-    counter = 2
-    while counter <= 100:
-        q = select(Post).filter(Post.slug == slug)
-        if exclude_id is not None:
-            q = q.filter(Post.id != exclude_id)
-        if not db.session.execute(q).scalar_one_or_none():
-            break
-        slug = f"{base_slug}-{counter}"
-        counter += 1
-    if counter > 100:
-        slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
-    return slug
 
 
 def _apply_post_updates(

@@ -31,9 +31,11 @@ from app.config import (
     MAX_VIEWED_POSTS,
     CONFIRMATION_EXPIRY_HOURS,
     TOKEN_ENUMERATION_DELAY,
+    FTS_RESULT_LIMIT,
 )
 
 from app.email import send_confirmation
+from app.csrf import validate_csrf_token
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.cache import _get_tag_counts
 from app.search import search as _fts_search, get_search_snippets
@@ -117,20 +119,21 @@ def index() -> Response:
 @public.route("/archive")
 def archive() -> Response:
     """Chronological archive of all published posts grouped by year/month."""
-    posts = (
-        db.session.execute(
-            select(Post)
-            .options(joinedload(Post.tags))
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc())
-        )
-        .unique()
-        .scalars()
-        .all()
+    page = request.args.get("page", 1, type=int)
+    per_page = 200
+
+    pagination = db.paginate(
+        select(Post)
+        .options(joinedload(Post.tags))
+        .filter_by(published=True)
+        .order_by(Post.created_at.desc()),
+        page=page,
+        per_page=per_page,
+        error_out=False,
     )
 
     archive_data: dict[int, dict[int, list[Post]]] = {}
-    for p in posts:
+    for p in pagination.items:
         year = p.created_at.year
         month = p.created_at.month
         if year not in archive_data:
@@ -145,6 +148,7 @@ def archive() -> Response:
         archive_data=archive_data,
         tags=tags,
         tag_counts=tag_counts,
+        pagination=pagination,
     )
 
 
@@ -290,7 +294,8 @@ def search() -> Response:
                     Post.summary.ilike(search_term, escape="\\"),
                 ),
             )
-            .order_by(Post.created_at.desc()),
+            .order_by(Post.created_at.desc())
+            .limit(FTS_RESULT_LIMIT),
             page=page,
             per_page=POSTS_PER_PAGE,
             error_out=False,
@@ -404,11 +409,14 @@ def subscribe() -> Response:
 
     Form params:
         email: Subscriber email address
+        csrf_token: CSRF token
 
     Response:
         Redirects with flash message. Sends confirmation email.
         Re-subscribes previously unsubscribed users.
     """
+    validate_csrf_token()
+
     email = request.form.get("email", "").strip().lower()[:256]
     if not is_valid_email(email):
         flash("Please enter a valid email address.", "error")
@@ -426,7 +434,7 @@ def subscribe() -> Response:
             return _send_or_flash_confirmation(existing)
         elif existing.confirmed:
             logger.info("Already-subscribed user %s attempted to resubscribe", email)
-            flash("Check your inbox to confirm your subscription.", "success")
+            flash("You're already subscribed!", "info")
             return redirect(_safe_redirect_url())
         else:
             _reset_subscriber_token(existing)

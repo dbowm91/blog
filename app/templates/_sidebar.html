@@ -13,7 +13,7 @@
             {% for tag in tags %}
                 {% if tag_counts.get(tag.id, 0) > 0 %}
                 <a href="{{ url_for('public.tag', slug=tag.slug) }}" class="tag tag-sidebar{% if active_tag_id is defined and tag.id == active_tag_id %} tag-active{% endif %}">
-                    #{{ tag.name }}
+                    #{{ tag.name | escape }}
                     <span class="tag-count">{{ tag_counts.get(tag.id, 0) }}</span>
                 </a>
                 {% endif %}

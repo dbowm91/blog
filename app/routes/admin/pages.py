@@ -1,32 +1,13 @@
-import uuid
-
 from flask import render_template, redirect, url_for, request, flash, abort
 from flask_login import login_required
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
-from typing import Optional
 
 from app.extensions import db
 from app.models import Page
 from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import _generate_unique_slug
 from app.utils import generate_slug
-
-
-def _generate_unique_page_slug(title: str, exclude_id: Optional[int] = None) -> str:
-    slug = Page.generate_slug(title)
-    base_slug = slug
-    counter = 2
-    while counter <= 100:
-        q = select(Page).filter(Page.slug == slug)
-        if exclude_id is not None:
-            q = q.filter(Page.id != exclude_id)
-        if not db.session.execute(q).scalar_one_or_none():
-            break
-        slug = f"{base_slug}-{counter}"
-        counter += 1
-    if counter > 100:
-        slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
-    return slug
 
 
 @admin.route("/pages")
@@ -81,7 +62,7 @@ def new_page():
         if existing:
             errors["slug"] = "A page with this slug already exists."
     else:
-        slug = _generate_unique_page_slug(title)
+        slug = _generate_unique_slug(Page, title)
 
     if errors:
         return render_template("admin/page_editor.html", page=None, errors=errors), 400
@@ -147,7 +128,7 @@ def edit_page(page_id):
         if existing:
             errors["slug"] = "A page with this slug already exists."
     elif title != page.title:
-        slug = _generate_unique_page_slug(title, exclude_id=page_id)
+        slug = _generate_unique_slug(Page, title, exclude_id=page_id)
     else:
         slug = page.slug
 

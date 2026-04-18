@@ -11,8 +11,10 @@ from app.routes.admin.helpers.dashboard import (
 )
 from app.routes.admin.helpers.posts import (
     _get_posts_query,
-    _generate_unique_slug,
     _apply_post_updates,
+)
+from app.routes.admin.helpers.slug import (
+    _generate_unique_slug,
 )
 from app.routes.admin.helpers.tags import (
     validate_tag_name,
