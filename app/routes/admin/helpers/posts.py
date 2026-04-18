@@ -2,6 +2,7 @@
 
 from flask import current_app, flash
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import Post
@@ -10,7 +11,7 @@ from app.routes.admin.helpers.tags import _get_or_create_tags
 
 
 def _get_posts_query(status: str, search: str, order_by=None) -> select:
-    base_q = select(Post)
+    base_q = select(Post).options(joinedload(Post.tags))
     if search:
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         search_term = f"%{escaped}%"

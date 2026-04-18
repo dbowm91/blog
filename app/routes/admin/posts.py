@@ -26,11 +26,12 @@ from app.routes.admin.helpers import (
     invalidate_dashboard_cache,
     logger,
 )
+from app.context_processors import invalidate_footer_cache
 from app.routes.admin.helpers.dashboard import _get_dashboard_metrics
 from app.config import DASHBOARD_PER_PAGE
 from app.utils import utc_now, safe_delete_file
 from app.cache import invalidate_tag_cache
-from app.search import sync_fts, remove_fts
+from app.search import sync_fts, sync_fts_batch, remove_fts
 from app.config import BASE_URL
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
@@ -235,6 +236,7 @@ def new_post():
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_dashboard_cache()
+        invalidate_footer_cache()
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
@@ -323,6 +325,7 @@ def edit_post(post_id):
             invalidate_tag_cache()
             invalidate_analytics_cache()
             invalidate_dashboard_cache()
+            invalidate_footer_cache()
             _cleanup_orphan_tags()
             db.session.commit()
         except IntegrityError:
@@ -347,6 +350,7 @@ def edit_post(post_id):
             invalidate_tag_cache()
             invalidate_analytics_cache()
             invalidate_dashboard_cache()
+            invalidate_footer_cache()
             _cleanup_orphan_tags()
             db.session.commit()
         if old_image:
@@ -380,6 +384,7 @@ def delete_post(post_id):
     db.session.delete(post)
     invalidate_tag_cache()
     invalidate_analytics_cache()
+    invalidate_footer_cache()
     _cleanup_orphan_tags()
     db.session.commit()
     remove_fts(post_id_for_fts)
@@ -453,14 +458,16 @@ def bulk_operations():
 
     if action == "publish":
         now = utc_now()
+        fts_items = []
         for post in posts:
             if not post.published:
                 post.published = True
                 post.published_at = now
-        for post in posts:
-            sync_fts(post.id, post.title, post.body, post.summary, post.published)
+            fts_items.append((post.id, post.title, post.body, post.summary, post.published))
+        sync_fts_batch(fts_items)
         invalidate_tag_cache()
         invalidate_analytics_cache()
+        invalidate_footer_cache()
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):
@@ -469,12 +476,14 @@ def bulk_operations():
             return redirect(url_for("admin.dashboard"))
         flash(f"Published {len(posts)} post(s).", "success")
     elif action == "unpublish":
+        fts_items = []
         for post in posts:
             post.published = False
-        for post in posts:
-            sync_fts(post.id, post.title, post.body, post.summary, post.published)
+            fts_items.append((post.id, post.title, post.body, post.summary, post.published))
+        sync_fts_batch(fts_items)
         invalidate_tag_cache()
         invalidate_analytics_cache()
+        invalidate_footer_cache()
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):
@@ -492,6 +501,7 @@ def bulk_operations():
             db.session.delete(post)
         invalidate_tag_cache()
         invalidate_analytics_cache()
+        invalidate_footer_cache()
         _cleanup_orphan_tags()
         try:
             db.session.commit()

@@ -1,6 +1,6 @@
 """Full-text search using SQLite FTS5 with LIKE fallback."""
 
-__all__ = ["init_fts", "rebuild_fts", "sync_fts", "remove_fts", "search", "reset_fts_available"]
+__all__ = ["init_fts", "rebuild_fts", "sync_fts", "sync_fts_batch", "remove_fts", "search", "reset_fts_available"]
 
 import logging
 import re
@@ -73,6 +73,40 @@ def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool)
             )
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS sync failed for post %s: %s", post_id, e)
+
+
+def sync_fts_batch(items: list[tuple]):
+    """Batch sync multiple posts to FTS index. Call before db.session.commit().
+
+    Args:
+        items: List of (post_id, title, body, summary, published) tuples.
+    """
+    if not items:
+        return
+    try:
+        post_ids = [item[0] for item in items]
+        db.session.execute(
+            text("DELETE FROM posts_fts WHERE rowid IN :ids"),
+            {"ids": tuple(post_ids)},
+        )
+        published_items = [item for item in items if item[4]]
+        if published_items:
+            db.session.execute(
+                text(
+                    "INSERT INTO posts_fts(rowid, title, body, summary) VALUES(:id, :title, :body, :summary)"
+                ),
+                [
+                    {
+                        "id": item[0],
+                        "title": item[1],
+                        "body": item[2],
+                        "summary": item[3],
+                    }
+                    for item in published_items
+                ],
+            )
+    except (OperationalError, ProgrammingError, DatabaseError) as e:
+        logger.warning("FTS batch sync failed: %s", e)
 
 
 def remove_fts(post_id: int):

@@ -1,5 +1,7 @@
 import os
 import heapq
+import threading
+import time as _time
 
 from flask import render_template, redirect, url_for, request, flash, abort, current_app
 from flask_login import login_required
@@ -11,6 +13,60 @@ from app.utils import safe_delete_file
 from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
 from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
+
+
+_MEDIA_CACHE = {"files": None, "timestamp": 0}
+_MEDIA_CACHE_LOCK = threading.Lock()
+_MEDIA_CACHE_TTL = 30
+
+
+def _invalidate_media_cache():
+    with _MEDIA_CACHE_LOCK:
+        _MEDIA_CACHE["files"] = None
+
+
+def _get_cached_media_list(upload_dir, search=None):
+    global _MEDIA_CACHE
+    with _MEDIA_CACHE_LOCK:
+        now = _time.monotonic()
+        if (
+            _MEDIA_CACHE["files"] is not None
+            and (now - _MEDIA_CACHE["timestamp"]) < _MEDIA_CACHE_TTL
+        ):
+            files = _MEDIA_CACHE["files"]
+        else:
+            files = _scan_media_directory(upload_dir)
+            _MEDIA_CACHE["files"] = files
+            _MEDIA_CACHE["timestamp"] = now
+
+    if search:
+        files = [(mtime, name, size) for mtime, name, size in files
+                 if search.lower() in name.lower()]
+    return files
+
+
+def _scan_media_directory(upload_dir):
+    all_files = []
+    with os.scandir(upload_dir) as entries:
+        for entry in entries:
+            if not entry.is_file():
+                continue
+            stat = entry.stat()
+            file_info = (
+                stat.st_mtime,
+                entry.name,
+                stat.st_size,
+            )
+            all_files.append(file_info)
+    all_files = heapq.nlargest(MEDIA_MAX_FILES, all_files, key=lambda f: f[0])
+    return [
+        {
+            "name": f[1],
+            "size": f[2],
+            "mtime": datetime.fromtimestamp(f[0], tz=timezone.utc),
+        }
+        for f in all_files
+    ]
 
 
 @admin.route("/media")
@@ -32,36 +88,7 @@ def media():
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     search = request.args.get("search", "", type=str).strip()
 
-    # Use heapq.nlargest to keep only the most recent max_files
-    # without loading all files into memory first
-    all_files = []
-    with os.scandir(upload_dir) as entries:
-        for entry in entries:
-            if not entry.is_file():
-                continue
-            if search and search.lower() not in entry.name.lower():
-                continue
-            stat = entry.stat()
-            file_info = (
-                stat.st_mtime,
-                entry.name,
-                stat.st_size,
-            )
-            all_files.append(file_info)
-
-    # Sort by modification time (newest first) and limit to max_files
-    # Use heapq.nlargest to efficiently get the N most recent files
-    all_files = heapq.nlargest(max_files, all_files, key=lambda f: f[0])
-
-    # Convert back to dict format with timezone-aware datetime
-    all_files = [
-        {
-            "name": f[1],
-            "size": f[2],
-            "mtime": datetime.fromtimestamp(f[0], tz=timezone.utc),
-        }
-        for f in all_files
-    ]
+    all_files = _get_cached_media_list(upload_dir, search)
 
     truncated = len(all_files) >= max_files
     total = len(all_files)
@@ -103,6 +130,7 @@ def upload_media():
     if error:
         flash(error, "error")
     else:
+        _invalidate_media_cache()
         flash(f"Uploaded {filename}.", "success")
 
     return redirect(url_for("admin.media"))
@@ -132,5 +160,6 @@ def delete_media(filename):
     if not safe_delete_file(real_path):
         flash("Failed to delete file.", "error")
         return redirect(url_for("admin.media"))
+    _invalidate_media_cache()
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("admin.media"))

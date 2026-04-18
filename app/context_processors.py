@@ -1,6 +1,6 @@
 """Context processors for injecting common template variables."""
 
-__all__ = ["invalidate_settings_cache"]
+__all__ = ["invalidate_settings_cache", "invalidate_footer_cache"]
 
 import logging
 import threading
@@ -41,6 +41,13 @@ def invalidate_settings_cache() -> None:
     with _SETTINGS_CACHE_LOCK:
         _SITE_SETTINGS_CACHE["data"] = None
         _SITE_SETTINGS_CACHE["timestamp"] = 0
+
+
+def invalidate_footer_cache() -> None:
+    """Invalidate the footer cache."""
+    with _FOOTER_CACHE_LOCK:
+        _FOOTER_CACHE["data"] = None
+        _FOOTER_CACHE["timestamp"] = 0
 
 
 def _get_cached_settings() -> dict | None:

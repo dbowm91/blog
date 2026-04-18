@@ -215,7 +215,7 @@ def publish_scheduled_posts(app) -> None:
             from app.models import Post
             from app.extensions import db
             from app.utils import utc_now
-            from app.search import sync_fts
+            from app.search import sync_fts_batch
             from app.cache import invalidate_tag_cache
 
             now = utc_now()
@@ -234,11 +234,13 @@ def publish_scheduled_posts(app) -> None:
             if not posts:
                 return
 
+            fts_items = []
             for post in posts:
                 post.published = True
                 post.published_at = now
                 post.scheduled_publish_at = None
-                sync_fts(post.id, post.title, post.body, post.summary, True)
+                fts_items.append((post.id, post.title, post.body, post.summary, True))
+            sync_fts_batch(fts_items)
 
             db.session.commit()
             invalidate_tag_cache()

@@ -5,6 +5,7 @@ import threading
 from datetime import timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import PageView, ShareEvent, Subscriber, Post
