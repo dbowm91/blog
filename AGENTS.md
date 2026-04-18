@@ -626,15 +626,13 @@ Share tracking in `main.js` uses `navigator.sendBeacon()` as the primary method 
 Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
 
 ### Security Verification Findings
-Items verified and fixed in Wave 1:
+Items verified and fixed:
 - **Session fixation**: Fixed with `session.clear()` before `login_user()` (Flask 3.x uses `session.clear()` instead of unavailable `session.regenerate()`)
 - **Path traversal**: Fixed - `media.py` `delete_media()` now checks if `secure_filename()` returns empty string
 - **Nested forms**: Fixed - `subscribers.html` and `dashboard.html` now use unique form IDs with `form=` attribute on buttons
-- **Bare `except Exception`**: Fixed (Wave 3) - replaced with specific exceptions in search.py, email.py, public.py, newsletter.py, backup.py, and helpers.py
+- **Bare `except Exception`**: Fixed - replaced with specific exceptions in search.py, email.py, public.py, newsletter.py, backup.py, and helpers.py
 - **Timing leak**: Fixed - token enumeration delay now happens BEFORE DB query
 - **XSS in search**: Fixed - `{{ query | escape }}` used in `search.html`
-
-Items verified and fixed in Wave 2:
 - **COOP header**: Added `Cross-Origin-Opener-Policy: same-origin`
 - **CSS sanitization**: Custom CSS passed through `sanitize_css()` to strip `url()`, `expression()`, `content`, etc.
 - **SESSION_COOKIE_SECURE**: Now controlled via env var independently of debug mode
@@ -660,3 +658,11 @@ Items verified and fixed in Wave 2:
 - When bulk delete triggered, button shows "Delete X posts? Click again to confirm"
 - `.btn-danger-primed` class provides pulsing animation
 - Auto-resets after 5 seconds or on blur
+
+### Planning and Code Review Learnings
+- **SMTP `_connect_smtp()` finally bug**: Python's `finally` block executes BEFORE the return value is captured by caller. If `finally` contains `server.quit()`, the connection is closed before the caller can use it. This bug is verified unfixed in current codebase.
+- **Footer cache return bug**: `_get_footer_data()` stores in cache but returns fresh variables instead of cached data. This is a common double-checked locking mistake.
+- **Regex character class range operator**: `[()*:+\-"<>]` is ambiguous - the hyphen position creates a range. Use `[()*:+"<>\-]` (hyphen at end) or escaped.
+- **Image filter vs attribute check**: Templates using `{% if post.image %}` check DB field only. Use `post|post_image_url` filter to verify file exists on disk.
+- **Plan file verification**: Line numbers in plan files can drift. Always verify against actual codebase before implementing fixes.
+- **Template base inheritance**: Admin preview template was extending public `base.html` instead of `admin/base.html` - always check template hierarchy when debugging admin context issues.
