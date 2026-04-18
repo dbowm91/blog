@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Admin | {{ site_title }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/prism-okaidia.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style nonce="{{ csp_nonce }}">
+        :root {
+            {% for key, value in theme_vars.items() %}
+            {% if key != 'name' %}
+            --{{ key }}: {{ value }};
+            {% endif %}
+            {% endfor %}
+        }
+        {% if custom_css_enabled and custom_css %}
+        {{ custom_css | sanitize_css | safe }}
+        {% endif %}
+    </style>
+</head>
+<body class="admin-body">
+    <div id="sr-announce" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container container" role="status" aria-live="polite">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">
+                        <span class="flash-message">{{ message }}</span>
+                        <button class="flash-close" aria-label="Dismiss">&times;</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <main id="main-content" class="container" tabindex="-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="admin-footer">
+        <div class="container">
+            <a href="{{ url_for('public.index') }}">View Site</a>
+            <span class="admin-footer-sep">|</span>
+            <span>&copy; {{ current_year }} {{ site_title }}</span>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/prism.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/prism-languages.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

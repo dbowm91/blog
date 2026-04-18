@@ -24,8 +24,9 @@
         <section class="posts-list">
             {% for post in posts %}
             <a href="{{ url_for('public.post', slug=post.slug) }}" class="post-card animate-in">
-                {% if post.image %}
-                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
+                {% set img = post|post_image_url %}
+                {% if img %}
+                    <img src="{{ url_for('static', filename='uploads/' + img) }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
                 {% else %}
                     <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-card-img img-skeleton" loading="lazy" decoding="async" width="400" height="200">
                 {% endif %}
@@ -33,6 +34,7 @@
                         <div class="post-meta">
                             <time datetime="{{ post.created_at.isoformat() }}">{{ post.created_at.strftime('%b %d, %Y') }}</time>
                             <span class="reading-time" aria-label="Estimated reading time">{{ post.body | reading_time }}</span>
+                            <span class="post-author">{{ author_name }}</span>
                         </div>
                         <h2 class="post-card-title">{{ post.title }}</h2>
                         {% if search_snippets and search_snippets[post.id] %}

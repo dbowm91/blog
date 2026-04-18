@@ -1,8 +1,10 @@
 {% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
 
 {% block title %}Users | Admin{% endblock %}
 
 {% block content %}
+{{ breadcrumb([{ 'label': 'Users' }]) }}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Users</h1>
@@ -28,7 +30,9 @@
                 <div class="post-list-actions">
                     <form method="POST" action="{{ url_for('admin.change_password', user_id=user.id) }}" class="inline-form" data-confirm="Change password for {{ user.username }}?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input type="password" name="password" placeholder="New password" required minlength="8" class="search-input pw-input" aria-label="New password for {{ user.username }}">
+                        <label for="password-{{ user.id }}" class="sr-only">New password for {{ user.username }}</label>
+                        <input type="password" id="password-{{ user.id }}" name="password" placeholder="New password" required minlength="8" class="search-input pw-input">
+                        <button type="button" class="btn btn-small btn-ghost pw-toggle" data-target="password-{{ user.id }}" aria-label="Show password">Show</button>
                         <span class="label-hint text-muted">8+ chars with 3 of: lowercase, uppercase, digit, special</span>
                         <button type="submit" class="btn btn-small btn-ghost">Change PW</button>
                     </form>
@@ -47,7 +51,9 @@
                     {% if current_user.is_admin and user.is_admin and user.id != current_user.id %}
                     <form method="POST" action="{{ url_for('admin.make_owner', user_id=user.id) }}" class="inline-form" data-confirm="Transfer ownership to '{{ user.username }}'? This will demote all other admins.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input type="password" name="password" placeholder="Your password" required class="search-input pw-input" aria-label="Confirm with your password">
+                        <label for="owner-pw-{{ user.id }}" class="sr-only">Your password</label>
+                        <input type="password" id="owner-pw-{{ user.id }}" name="password" placeholder="Your password" required class="search-input pw-input">
+                        <button type="button" class="btn btn-small btn-ghost pw-toggle" data-target="owner-pw-{{ user.id }}" aria-label="Show password">Show</button>
                         <button type="submit" class="btn btn-small btn-ghost">Transfer Owner</button>
                     </form>
                     {% endif %}
@@ -79,7 +85,9 @@
     <form method="POST" action="{{ url_for('admin.create_user') }}" class="filter-bar create-user-form" data-loading data-loading-text="Creating...">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="text" name="username" placeholder="Username" required maxlength="80" class="search-input" aria-label="Username">
-        <input type="password" name="password" placeholder="Password" required minlength="8" class="search-input" aria-label="Password">
+        <label for="create-user-pw" class="sr-only">Password</label>
+        <input type="password" id="create-user-pw" name="password" placeholder="Password" required minlength="8" class="search-input">
+        <button type="button" class="btn btn-small btn-ghost pw-toggle" data-target="create-user-pw" aria-label="Show password">Show</button>
         <span class="label-hint text-muted">8+ chars with 3 of: lowercase, uppercase, digit, special</span>
         <label class="flex-row items-center gap-xs text-muted">
             <input type="checkbox" name="is_admin"> Admin

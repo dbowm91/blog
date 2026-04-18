@@ -16,8 +16,9 @@
   {% for post in posts %}
   <tr>
     <td style="padding:24px 40px;{% if not loop.last %}border-bottom:1px solid #d0d7de;{% endif %}">
-      {% if post.image %}
-      <img src="{{ base_url }}/static/uploads/{{ post.image }}" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="{{ post.title }} cover image">
+      {% set img = post|post_image_url %}
+      {% if img %}
+      <img src="{{ base_url }}/static/uploads/{{ img }}" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="{{ post.title }} cover image">
       {% else %}
       <img src="{{ base_url }}/static/img/default-post.svg" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="Default post cover image">
       {% endif %}

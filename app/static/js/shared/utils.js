@@ -13,6 +13,23 @@ export function announce(message) {
 }
 
 export function initSharedUtils() {
+    // --- Password visibility toggle ---
+    document.querySelectorAll('.pw-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            const input = targetId ? document.getElementById(targetId) : btn.previousElementSibling;
+            if (input && input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+                btn.setAttribute('aria-label', 'Hide password');
+            } else if (input) {
+                input.type = 'password';
+                btn.textContent = 'Show';
+                btn.setAttribute('aria-label', 'Show password');
+            }
+        });
+    });
+
     // --- Search result announcement ---
     const searchResultCount = document.querySelector('[data-search-announce]');
     if (searchResultCount) {

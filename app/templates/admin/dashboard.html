@@ -1,6 +1,8 @@
 {% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
 
 {% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard' }]) }}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Dashboard</h1>
@@ -87,9 +89,15 @@
                 <div class="post-list-info">
                     <h3><a href="{{ url_for('admin.edit_post', post_id=post.id) }}">{{ post.title }}</a></h3>
                     <div class="post-list-meta">
-                        <span class="badge badge-{{ 'published' if post.published else 'draft' }}">
-                            {{ 'Published' if post.published else 'Draft' }}
+                        {% if post.published %}
+                        <span class="badge badge-published">Published</span>
+                        {% elif post.scheduled_publish_at %}
+                        <span class="badge badge-scheduled" title="Scheduled for {{ post.scheduled_publish_at.strftime('%b %d, %Y at %H:%M') }}">
+                            Scheduled: {{ post.scheduled_publish_at.strftime('%b %d %H:%M') }}
                         </span>
+                        {% else %}
+                        <span class="badge badge-draft">Draft</span>
+                        {% endif %}
                         <time>{{ post.updated_at.strftime('%b %d, %Y at %H:%M') }}</time>
                         <span class="post-list-tags">
                             {% for tag in post.tags %}

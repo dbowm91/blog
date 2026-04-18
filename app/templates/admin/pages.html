@@ -1,8 +1,10 @@
 {% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
 
 {% block title %}Pages | Admin{% endblock %}
 
 {% block content %}
+{{ breadcrumb([{ 'label': 'Pages' }]) }}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Pages</h1>
@@ -26,9 +28,9 @@
                 </div>
                 <div class="post-list-status">
                     {% if pg.published %}
-                        <span class="status-badge status-published">Published</span>
+                        <span class="badge badge-published">Published</span>
                     {% else %}
-                        <span class="status-badge status-draft">Draft</span>
+                        <span class="badge badge-draft">Draft</span>
                     {% endif %}
                 </div>
                 <div class="post-list-actions">

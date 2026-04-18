@@ -1,7 +1,8 @@
 <article class="post-full animate-in">
     <div class="post-hero">
-        {% if post.image %}
-            <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
+        {% set img = post|post_image_url %}
+        {% if img %}
+            <img src="{{ url_for('static', filename='uploads/' + img) }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% else %}
             <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% endif %}

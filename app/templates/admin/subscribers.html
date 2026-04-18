@@ -1,8 +1,10 @@
 {% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
 
 {% block title %}Subscribers | Admin{% endblock %}
 
 {% block content %}
+{{ breadcrumb([{ 'label': 'Subscribers' }]) }}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Subscribers</h1>

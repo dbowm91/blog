@@ -1,8 +1,10 @@
 {% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
 
 {% block title %}Media Library | Admin{% endblock %}
 
 {% block content %}
+{{ breadcrumb([{ 'label': 'Media' }]) }}
 <div class="dashboard animate-in">
     <div class="dashboard-header">
         <h1>Media Library</h1>
