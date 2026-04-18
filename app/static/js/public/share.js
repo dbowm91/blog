@@ -66,7 +66,9 @@ export function initShare() {
                             },
                             body: data,
                             keepalive: true,
-                        }).catch(() => {});
+                        }).catch(err => {
+                            console.warn('Share tracking failed:', err);
+                        });
                     }
                 };
                 trackShare();

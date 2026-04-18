@@ -79,32 +79,6 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         return None
 
 
-def _build_newsletter_message(sub, posts, app_title, base_url, from_address):
-    """Build a newsletter MIMEMultipart message for a subscriber."""
-    unsub_url = f"{base_url}/unsubscribe/{sub.token}"
-    html = render_template(
-        "email/newsletter.html",
-        posts=posts,
-        site_title=app_title,
-        base_url=base_url,
-        unsubscribe_url=unsub_url,
-    )
-    text = (
-        f"Latest from {app_title}\n\n"
-        + "\n\n".join(
-            f"{p.title}\n{base_url}/post/{p.slug}\n{p.summary}" for p in posts
-        )
-        + f"\n\nUnsubscribe: {unsub_url}"
-    )
-    msg = MIMEMultipart("alternative")
-    msg["From"] = from_address
-    msg["To"] = sub.email
-    msg["Subject"] = f"Latest from {app_title}"
-    msg.attach(MIMEText(text, "plain"))
-    msg.attach(MIMEText(html, "html"))
-    return msg
-
-
 def _send_email_with_retry(
     server,
     from_address: str,

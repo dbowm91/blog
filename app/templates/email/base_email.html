@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_title }}{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body style="margin:0;padding:0;background:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#24292f;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fa;padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;">
+    {% block header %}
+    <tr>
+        <td style="padding:32px 40px;border-bottom:1px solid #d0d7de;">
+            <h1 style="margin:0;font-size:20px;color:#24292f;font-family:monospace;">
+                <span style="color:#0969da">{</span>{{ site_title }}<span style="color:#0969da">}</span>
+            </h1>
+            {% block header_subtitle %}{% endblock %}
+        </td>
+    </tr>
+    {% endblock %}
+
+    {% block content %}{% endblock %}
+
+    {% block footer %}
+    <tr>
+        <td style="padding:24px 40px;border-top:1px solid #d0d7de;">
+            <p style="color:#8c959f;font-size:13px;margin:0;text-align:center;">
+                <a href="{{ unsubscribe_url }}" style="color:#0969da;text-decoration:underline;">Unsubscribe</a>
+            </p>
+        </td>
+    </tr>
+    {% endblock %}
+</table>
+</td></tr>
+</table>
+</body>
+</html>

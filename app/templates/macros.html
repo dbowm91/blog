@@ -1,0 +1,39 @@
+{% macro pagination(pagination, endpoint_fn, q=None, status=None, tag_slug=None) %}
+{% if pagination.pages > 1 %}
+<div class="pagination">
+    {% if pagination.has_prev %}
+        {% if q %}
+            <a href="{{ endpoint_fn(page=pagination.prev_num, q=q, status=status) }}" class="page-link">&larr; Newer</a>
+        {% elif status %}
+            <a href="{{ endpoint_fn(page=pagination.prev_num, status=status) }}" class="page-link">&larr; Newer</a>
+        {% elif tag_slug %}
+            <a href="{{ endpoint_fn(slug=tag_slug, page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+        {% else %}
+            <a href="{{ endpoint_fn(page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+        {% endif %}
+    {% endif %}
+    <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+        {% if q %}
+            <a href="{{ endpoint_fn(page=pagination.next_num, q=q, status=status) }}" class="page-link">Older &rarr;</a>
+        {% elif status %}
+            <a href="{{ endpoint_fn(page=pagination.next_num, status=status) }}" class="page-link">Older &rarr;</a>
+        {% elif tag_slug %}
+            <a href="{{ endpoint_fn(slug=tag_slug, page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+        {% else %}
+            <a href="{{ endpoint_fn(page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro field_error(field_name, errors) %}
+{% if errors and errors[field_name] %}
+<span class="field-error">{{ errors[field_name] }}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro badge(text, class='badge') %}
+<span class="{{ class }}">{{ text }}</span>
+{% endmacro %}

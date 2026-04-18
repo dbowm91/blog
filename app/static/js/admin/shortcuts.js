@@ -89,42 +89,6 @@ export function initShortcuts() {
         }
     });
 
-    // --- Modal Focus Trapping for admin ---
-    let previousActiveElement = null;
-
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('transitionend', () => {
-            if (!modal.classList.contains('hidden')) {
-                previousActiveElement = document.activeElement;
-                const focusable = modal.querySelector(focusableSelectors);
-                if (focusable) focusable.focus();
-            } else if (previousActiveElement) {
-                previousActiveElement.focus();
-                previousActiveElement = null;
-            }
-        });
-
-        modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Tab') {
-                const focusable = modal.querySelectorAll(focusableSelectors);
-                if (focusable.length === 0) return;
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (e.shiftKey) {
-                    if (document.activeElement === first) {
-                        e.preventDefault();
-                        last.focus();
-                    }
-                } else {
-                    if (document.activeElement === last) {
-                        e.preventDefault();
-                        first.focus();
-                    }
-                }
-            }
-        });
-    });
-
     // --- Keyboard shortcuts trigger button ---
     document.getElementById('shortcut-trigger')?.addEventListener('click', () => {
         const helpModal = document.getElementById('keyboard-help');
