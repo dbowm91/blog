@@ -123,6 +123,7 @@ class Post(db.Model):
         db.Index("ix_posts_published_at", "published_at"),
         db.Index("ix_posts_newsletter_sent_at", "newsletter_sent_at"),
         db.Index("ix_posts_published_updated", "published", "updated_at"),
+        db.Index("ix_posts_published_slug", "published", "slug"),
     )
 
     @staticmethod

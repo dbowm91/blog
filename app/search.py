@@ -121,7 +121,7 @@ def remove_fts(post_id: int):
 
 def _escape_fts_term(term: str) -> str:
     term = term.strip()
-    term = re.sub(r'[()*:+\-"<>]', " ", term)
+    term = re.sub(r'[()*:+"<>\-]', " ", term)
     term = re.sub(r"\s+", " ", term)
     term = term.replace('"', '""')
     return term if term else ""

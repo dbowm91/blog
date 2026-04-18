@@ -1,6 +1,8 @@
 import os
 import pytest
 from unittest.mock import patch
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
@@ -120,3 +122,14 @@ def clean_analytics_cache():
     _analytics_cache.clear()
     yield
     _analytics_cache.clear()
+
+
+@dataclass
+class FakeSubscriber:
+    """Test fixture for newsletter testing without real subscribers."""
+    email: str
+    token: str = "test"
+    confirmed: bool = True
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime | None = None
+    unsubscribed_at: datetime | None = None

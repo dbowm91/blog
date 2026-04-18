@@ -105,6 +105,52 @@ def _build_newsletter_message(sub, posts, app_title, base_url, from_address):
     return msg
 
 
+def _send_email_with_retry(
+    server,
+    from_address: str,
+    to: str,
+    msg_str: str,
+    max_retries: int = 3,
+) -> tuple[bool, str, Optional[smtplib.SMTP]]:
+    """Send an email with retry logic and exponential backoff.
+
+    Returns (success, error_message, server). The server may be a new connection
+    if reconnection occurred during retry.
+    """
+    import time
+
+    last_error = ""
+    for attempt in range(max_retries):
+        try:
+            server.sendmail(from_address, to, msg_str)
+            return True, "", server
+        except smtplib.SMTPServerDisconnected:
+            last_error = "SMTP server disconnected"
+            if attempt < max_retries - 1:
+                backoff = 2 ** attempt
+                time.sleep(backoff)
+                try:
+                    new_server = _connect_smtp()
+                    if not new_server:
+                        last_error = "SMTP reconnection failed"
+                        break
+                    server = new_server
+                except Exception:
+                    last_error = "SMTP reconnection failed"
+                    break
+        except smtplib.SMTPException as e:
+            last_error = str(e)
+            if attempt < max_retries - 1:
+                backoff = 2 ** attempt
+                time.sleep(backoff)
+        except OSError as e:
+            last_error = str(e)
+            if attempt < max_retries - 1:
+                backoff = 2 ** attempt
+                time.sleep(backoff)
+    return False, last_error, server
+
+
 def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
     """Send newsletter to all subscribers.
 
@@ -115,6 +161,8 @@ def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
 
     Returns True if all sent successfully, False otherwise.
     """
+    from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
+
     if not posts or not subscribers:
         return True
 
@@ -157,34 +205,22 @@ def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
             msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
             msg.attach(MIMEText(text, "plain"))
             msg.attach(MIMEText(html, "html"))
-            try:
-                server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
-                if total_subscribers and i % 50 == 0:
-                    logger.info(
-                        "Newsletter progress: %d/%d sent", i, total_subscribers
-                    )
-            except smtplib.SMTPServerDisconnected:
-                logger.exception(
-                    "SMTP disconnected while sending to %s; reconnecting", sub.email
+
+            success, error, server = _send_email_with_retry(
+                server, FROM_ADDRESS, sub.email, msg.as_string(),
+                max_retries=NEWSLETTER_MAX_RETRY_ATTEMPTS
+            )
+            if not success:
+                logger.warning(
+                    "Failed to send newsletter to %s after %d attempts: %s",
+                    sub.email, NEWSLETTER_MAX_RETRY_ATTEMPTS, error
                 )
-                server = _connect_smtp()
-                if not server:
-                    logger.error(
-                        "SMTP reconnection failed; aborting newsletter after %d",
-                        i - 1,
-                    )
-                    all_sent = False
-                    break
-                try:
-                    server.sendmail(FROM_ADDRESS, sub.email, msg.as_string())
-                except smtplib.SMTPException:
-                    logger.exception(
-                        "Failed to send newsletter to %s after reconnect", sub.email
-                    )
-                    all_sent = False
-            except smtplib.SMTPException:
-                logger.exception("Failed to send newsletter to %s", sub.email)
                 all_sent = False
+
+            if total_subscribers and i % 50 == 0:
+                logger.info(
+                    "Newsletter progress: %d/%d sent", i, total_subscribers
+                )
     finally:
         try:
             server.quit()

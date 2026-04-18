@@ -1,6 +1,5 @@
 from flask import redirect, url_for, request, flash
 from flask_login import login_required
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import smtplib
 
@@ -14,14 +13,11 @@ from app.utils import is_valid_email
 from sqlalchemy import select
 
 
-@dataclass
 class FakeSubscriber:
-    email: str
-    token: str = "test"
-    confirmed: bool = True
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    expires_at: datetime | None = None
-    unsubscribed_at: datetime | None = None
+    """Minimal subscriber-like object for test newsletter sending."""
+    def __init__(self, email: str):
+        self.email = email
+        self.token = "test"
 
 
 @admin.route("/newsletter-test", methods=["POST"])

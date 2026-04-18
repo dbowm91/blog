@@ -90,7 +90,7 @@ def media():
 
     all_files = _get_cached_media_list(upload_dir, search)
 
-    truncated = len(all_files) >= max_files
+    truncated = len(all_files) > max_files
     total = len(all_files)
     start = (page - 1) * per_page
     end = start + per_page

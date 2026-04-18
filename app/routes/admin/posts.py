@@ -132,6 +132,17 @@ def _create_post_object(
     return post
 
 
+def _apply_cache_and_fts_updates(post, searchable_changed):
+    """Apply cache invalidation and FTS sync for a post."""
+    if searchable_changed:
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+    invalidate_tag_cache()
+    invalidate_analytics_cache()
+    invalidate_dashboard_cache()
+    invalidate_footer_cache()
+    _cleanup_orphan_tags()
+
+
 def _commit_post_with_rollback(
     *,
     post,
@@ -149,7 +160,7 @@ def _commit_post_with_rollback(
         db.session.flush()
         sync_fts(post.id, post.title, post.body, post.summary, post.published)
         db.session.commit()
-        return True
+        return post.slug, True
     except IntegrityError as e:
         db.session.rollback()
         if "slug" not in str(e).lower():
@@ -161,7 +172,7 @@ def _commit_post_with_rollback(
         db.session.flush()
         sync_fts(post.id, post.title, post.body, post.summary, post.published)
         db.session.commit()
-        return False
+        return post.slug, False
 
 
 @admin.route("/new", methods=["GET", "POST"])
@@ -221,7 +232,7 @@ def new_post():
             tag_names=tag_names,
         )
         db.session.add(post)
-        _commit_post_with_rollback(
+        slug, _ = _commit_post_with_rollback(
             post=post,
             image=image,
             title=title,
@@ -232,11 +243,11 @@ def new_post():
             scheduled_publish_at=scheduled_publish_at,
             tag_names=tag_names,
         )
-        flash("Post created.", "success")
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_dashboard_cache()
         invalidate_footer_cache()
+        flash("Post created.", "success")
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/editor.html", post=None, tag_names=[])
@@ -320,13 +331,7 @@ def edit_post(post_id):
             post.image = None
 
         try:
-            if searchable_changed:
-                sync_fts(post.id, post.title, post.body, post.summary, post.published)
-            invalidate_tag_cache()
-            invalidate_analytics_cache()
-            invalidate_dashboard_cache()
-            invalidate_footer_cache()
-            _cleanup_orphan_tags()
+            _apply_cache_and_fts_updates(post, searchable_changed)
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
@@ -346,12 +351,7 @@ def edit_post(post_id):
                 scheduled_publish_at,
                 tag_names,
             )
-            sync_fts(post.id, post.title, post.body, post.summary, post.published)
-            invalidate_tag_cache()
-            invalidate_analytics_cache()
-            invalidate_dashboard_cache()
-            invalidate_footer_cache()
-            _cleanup_orphan_tags()
+            _apply_cache_and_fts_updates(post, True)
             db.session.commit()
         if old_image:
             safe_delete_file(

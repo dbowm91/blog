@@ -59,8 +59,9 @@ def test_send_newsletter_smtp_disconnected(app, db, mock_render):
 
 
 def test_send_newsletter_generic_smtp_error(app, db, mock_render):
-    """Test send_newsletter logs error but continues on generic SMTP error."""
+    """Test send_newsletter logs error but continues on generic SMTP error after retries."""
     import smtplib
+    from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
 
     post = Post(
         title="Test Post",
@@ -79,13 +80,14 @@ def test_send_newsletter_generic_smtp_error(app, db, mock_render):
         # Should log exception but not raise
         send_newsletter([post], [sub])
 
-    # Verify sendmail called once (failed), then loop continues (no more subscribers)
-    assert mock_server.sendmail.call_count == 1
+    # Verify sendmail called max_retries times (retried that many times then gave up)
+    assert mock_server.sendmail.call_count == NEWSLETTER_MAX_RETRY_ATTEMPTS
 
 
 def test_send_newsletter_mixed_success_failure(app, db, mock_render):
     """Test send_newsletter with mixed success and failure across multiple subscribers."""
     import smtplib
+    from itertools import cycle
 
     post = Post(
         title="Test Post",
@@ -101,16 +103,18 @@ def test_send_newsletter_mixed_success_failure(app, db, mock_render):
     db.session.commit()
 
     mock_server = MagicMock()
+    # sub1 succeeds, sub2 fails with retries then gives up, sub3 succeeds
+    from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
     mock_server.sendmail.side_effect = [
         None,  # sub1 succeeds
-        smtplib.SMTPException("fail"),  # sub2 fails
+        *([smtplib.SMTPException("fail")] * NEWSLETTER_MAX_RETRY_ATTEMPTS),  # sub2 fails all retries
         None,  # sub3 succeeds
     ]
     with patch("app.email._connect_smtp", return_value=mock_server):
         result = send_newsletter([post], [sub1, sub2, sub3])
 
     assert result is False  # at least one failure
-    assert mock_server.sendmail.call_count == 3
+    assert mock_server.sendmail.call_count == 1 + NEWSLETTER_MAX_RETRY_ATTEMPTS + 1
 
 
 def test_send_newsletter_multiple_subscribers(app, db, mock_render):

@@ -101,20 +101,14 @@ def delete_user(user_id):
     if user.id == current_user.id:
         flash("Cannot delete your own account.", "error")
         return redirect(url_for("admin.users_list"))
-    admin_count = db.session.execute(
-        select(func.count(User.id)).filter_by(is_admin=True)
-    ).scalar_one()
-    if user.is_admin and admin_count <= 1:
-        flash("Cannot delete the last admin user.", "error")
-        return redirect(url_for("admin.users_list"))
     username = user.username
     is_admin = user.is_admin
     db.session.delete(user)
     try:
         db.session.commit()
-    except (IntegrityError, OperationalError):
+    except IntegrityError:
         db.session.rollback()
-        flash("Database error occurred. Please try again.", "error")
+        flash("Cannot delete the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
     logger.info(
         "User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin
