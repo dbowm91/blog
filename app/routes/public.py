@@ -1,7 +1,7 @@
 import smtplib
 import time
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 from urllib.parse import urlparse, urlunparse
 
 from flask import (
@@ -116,39 +116,105 @@ def index() -> Response:
     )
 
 
+ARCHIVE_PER_PAGE = 200
+
+
 @public.route("/archive")
 def archive() -> Response:
-    """Chronological archive of all published posts grouped by year/month."""
-    page = request.args.get("page", 1, type=int)
-    per_page = 200
+    """Chronological archive of all published posts grouped by year/month.
 
-    pagination = db.paginate(
+    Query params:
+        year: Filter by specific year (optional)
+        cursor: Cursor for pagination (created_at ISO string, optional)
+        direction: 'next' or 'prev' for cursor direction (default 'next')
+    """
+    year_filter = request.args.get("year", type=int)
+    cursor = request.args.get("cursor", type=str)
+    direction = request.args.get("direction", "next", type=str)
+
+    years_query = (
+        select(func.extract("year", Post.created_at).label("year"))
+        .filter(Post.published == True)
+        .distinct()
+        .order_by(func.extract("year", Post.created_at).desc())
+    )
+    available_years = [int(row.year) for row in db.session.execute(years_query).fetchall()]
+
+    if year_filter and year_filter not in available_years:
+        year_filter = None
+
+    cursor_dt = None
+    if cursor:
+        try:
+            cursor_dt = datetime.fromisoformat(cursor)
+        except ValueError:
+            cursor = None
+
+    posts_query = (
         select(Post)
         .options(joinedload(Post.tags))
-        .filter_by(published=True)
-        .order_by(Post.created_at.desc()),
-        page=page,
-        per_page=per_page,
-        error_out=False,
+        .filter(Post.published == True)
     )
 
+    if year_filter:
+        year_start = datetime(year_filter, 1, 1)
+        year_end = datetime(year_filter + 1, 1, 1)
+        if direction == "prev" and cursor_dt:
+            posts_query = posts_query.filter(Post.created_at > cursor_dt, Post.created_at < year_end)
+        elif direction == "prev":
+            posts_query = posts_query.filter(Post.created_at >= year_start, Post.created_at < year_end)
+        elif cursor_dt:
+            posts_query = posts_query.filter(Post.created_at < cursor_dt, Post.created_at >= year_start)
+        else:
+            posts_query = posts_query.filter(Post.created_at >= year_start, Post.created_at < year_end)
+    elif cursor_dt:
+        posts_query = posts_query.filter(
+            Post.created_at < cursor_dt if direction == "next" else Post.created_at > cursor_dt
+        )
+
+    posts_query = posts_query.order_by(Post.created_at.desc())
+
+    if direction == "next":
+        posts_query = posts_query.limit(ARCHIVE_PER_PAGE)
+    else:
+        posts_query = posts_query.limit(ARCHIVE_PER_PAGE)
+
+    posts = list(db.session.execute(posts_query).scalars().unique().all())
+
     archive_data: dict[int, dict[int, list[Post]]] = {}
-    for p in pagination.items:
-        year = p.created_at.year
-        month = p.created_at.month
-        if year not in archive_data:
-            archive_data[year] = {}
-        if month not in archive_data[year]:
-            archive_data[year][month] = []
-        archive_data[year][month].append(p)
+    for p in posts:
+        p_year = p.created_at.year
+        p_month = p.created_at.month
+        if year_filter and p_year != year_filter:
+            continue
+        if p_year not in archive_data:
+            archive_data[p_year] = {}
+        if p_month not in archive_data[p_year]:
+            archive_data[p_year][p_month] = []
+        archive_data[p_year][p_month].append(p)
 
     tags, tag_counts = _get_cached_tags_and_counts()
+
+    has_next = len(posts) == ARCHIVE_PER_PAGE and (not year_filter or (year_filter and posts and posts[-1].created_at.year >= year_filter))
+    has_prev = cursor is not None and direction == "next"
+    next_cursor = posts[-1].created_at.isoformat() if posts and has_next else None
+    prev_cursor = posts[0].created_at.isoformat() if posts and has_prev else None
+
+    pagination_info = {
+        "has_next": has_next,
+        "has_prev": has_prev,
+        "next_cursor": next_cursor,
+        "prev_cursor": prev_cursor,
+        "current_year": year_filter,
+        "available_years": available_years,
+    }
+
     return render_template(
         "archive.html",
         archive_data=archive_data,
         tags=tags,
         tag_counts=tag_counts,
-        pagination=pagination,
+        pagination=pagination_info,
     )
 
 

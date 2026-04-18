@@ -1210,6 +1210,34 @@ a:hover {
     font-size: 0.8rem;
 }
 
+/* --- Archive Year Navigation --- */
+.archive-year-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 0;
+    margin-bottom: 8px;
+}
+
+.archive-year-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.archive-year-link {
+    color: var(--accent);
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.archive-year-current {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
 /* --- Buttons --- */
 .btn {
     display: inline-flex;

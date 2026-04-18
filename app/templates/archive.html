@@ -58,14 +58,34 @@
         {% include "_sidebar.html" %}
     </div>
 
-    {% if pagination.pages > 1 %}
-        <nav class="pagination" aria-label="Pagination">
-            {% if pagination.has_prev %}
-                <a href="{{ url_for('public.archive', page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+    {% if pagination.available_years %}
+        <nav class="archive-year-nav" aria-label="Year navigation">
+            <span class="archive-year-label">Jump to:</span>
+            {% if pagination.current_year %}
+                <a href="{{ url_for('public.archive') }}" class="archive-year-link">&larr; All Years</a>
             {% endif %}
-            <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+            {% for year in pagination.available_years %}
+                {% if year != pagination.current_year %}
+                    <a href="{{ url_for('public.archive', year=year) }}" class="archive-year-link">{{ year }}</a>
+                {% else %}
+                    <span class="archive-year-current">{{ year }}</span>
+                {% endif %}
+            {% endfor %}
+        </nav>
+    {% endif %}
+
+    {% if pagination.has_next or pagination.has_prev %}
+        <nav class="pagination" aria-label="Archive pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('public.archive', cursor=pagination.prev_cursor, direction='prev', year=pagination.current_year if pagination.current_year else None) }}" class="page-link">&larr; Newer</a>
+            {% endif %}
+            {% if pagination.current_year %}
+                <span class="page-info">{{ pagination.current_year }}</span>
+            {% else %}
+                <span class="page-info">All Years</span>
+            {% endif %}
             {% if pagination.has_next %}
-                <a href="{{ url_for('public.archive', page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+                <a href="{{ url_for('public.archive', cursor=pagination.next_cursor, direction='next', year=pagination.current_year if pagination.current_year else None) }}" class="page-link">Older &rarr;</a>
             {% endif %}
         </nav>
     {% endif %}

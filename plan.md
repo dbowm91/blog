@@ -193,9 +193,11 @@ Add hidden CSRF token field to `subscribe.html` form.
 
 **Problem**: Archive loads all posts into memory, groups in Python.
 
-**Location**: `app/routes/public.py:117-148`
+**Location**: `app/routes/public.py:119-218`
 
-**Fix**: Use generator with `yield_per(100)` and group in Python. Add pagination for year/month navigation.
+**Fix**: Replaced offset-based pagination with cursor-based pagination using `created_at` timestamp. Added `year` query parameter for year filtering and `cursor`/`direction` for pagination. Uses `LIMIT 200` to avoid loading all posts. Template updated with year navigation links and cursor-based prev/next pagination.
+
+**Status**: ✅ Completed
 
 ---
 
