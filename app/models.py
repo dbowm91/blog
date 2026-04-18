@@ -54,6 +54,10 @@ class Tag(db.Model):
     name = db.Column(db.String(50), unique=True, nullable=False)
     slug = db.Column(db.String(50), unique=True, nullable=False)
 
+    posts = db.relationship(
+        "Post", secondary=post_tags, back_populates="tags", lazy="select"
+    )
+
     @staticmethod
     def generate_slug(name: str) -> str:
         return generate_slug(name)
@@ -109,13 +113,13 @@ class Post(db.Model):
     newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
     tags = db.relationship(
-        "Tag", secondary=post_tags, backref=db.backref("posts", lazy="dynamic")
+        "Tag", secondary=post_tags, back_populates="posts"
     )
     page_views = db.relationship(
-        "PageView", backref="post", lazy="dynamic", cascade="all, delete-orphan"
+        "PageView", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
     share_events = db.relationship(
-        "ShareEvent", backref="post", lazy="dynamic", cascade="all, delete-orphan"
+        "ShareEvent", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
@@ -172,9 +176,10 @@ class PageView(db.Model):
     referrer = db.Column(db.String(512), nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
+    post = db.relationship("Post", back_populates="page_views")
+
     __table_args__ = (
         db.Index("ix_page_views_post_created", "post_id", "created_at"),
-        db.Index("ix_page_views_referrer", "referrer", "created_at"),
     )
 
     def __repr__(self) -> str:
@@ -188,6 +193,8 @@ class ShareEvent(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
     platform = db.Column(db.String(32), nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
+
+    post = db.relationship("Post", back_populates="share_events")
 
     __table_args__ = (
         db.Index("ix_share_events_post_created", "post_id", "created_at"),
@@ -225,6 +232,15 @@ class SiteSettings(db.Model):
     custom_css = db.Column(db.Text, default="", nullable=False)
     logo_text = db.Column(db.String(100), default="", nullable=False)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
+
+    @classmethod
+    def get_instance(cls):
+        instance = db.session.get(cls, 1)
+        if instance is None:
+            instance = cls()
+            db.session.add(instance)
+            db.session.commit()
+        return instance
 
     def __repr__(self) -> str:
         return f"<SiteSettings preset={self.theme_preset!r}>"

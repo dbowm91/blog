@@ -31,6 +31,7 @@ def _save_image(
     file: FileStorage,
 ) -> tuple[str, None] | tuple[None, str] | tuple[None, None]:
     if file and file.filename and _allowed_file(file.filename):
+        header = file.read(32)
         file.seek(0, 2)
         size = file.tell()
         file.seek(0)
@@ -39,8 +40,6 @@ def _save_image(
                 None,
                 f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
             )
-        header = file.read(32)
-        file.seek(0)
         detected = _detect_image_type(header)
         if detected not in ("png", "jpeg", "gif", "webp"):
             return None, "Uploaded file is not a valid image."

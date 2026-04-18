@@ -25,7 +25,7 @@ from app.config import (
     MAX_UPLOAD_SIZE,
 )
 from app.csrf import generate_csrf_token, validate_csrf_token
-from sqlalchemy import select, text
+from sqlalchemy import select, text, delete
 
 logger = logging.getLogger(__name__)
 
@@ -200,21 +200,20 @@ def create_app():
                     sid = session.pop("admin_session_id", None)
                     if sid:
                         from app.models import AdminSession
+                        from sqlalchemy.exc import IntegrityError, OperationalError
 
-                        admin_session = db.session.execute(
-                            select(AdminSession).filter_by(session_id=sid)
-                        ).scalar_one_or_none()
-                        if admin_session:
-                            from sqlalchemy.exc import IntegrityError, OperationalError
-
-                            try:
-                                db.session.delete(admin_session)
-                                db.session.commit()
-                            except (IntegrityError, OperationalError):
-                                db.session.rollback()
-                                logger.warning(
-                                    "Failed to delete expired admin session: %s", sid
+                        try:
+                            db.session.execute(
+                                delete(AdminSession).where(
+                                    AdminSession.session_id == sid
                                 )
+                            )
+                            db.session.commit()
+                        except (IntegrityError, OperationalError):
+                            db.session.rollback()
+                            logger.warning(
+                                "Failed to delete expired admin session: %s", sid
+                            )
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))

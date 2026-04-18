@@ -420,6 +420,12 @@ See `requirements.txt`. Key packages:
 - `_save_image()` returns `(filename, error_message)` tuple; callers flash the error if present
 - Allowed extensions: `png, jpg, jpeg, gif, webp`
 
+## Public Routes
+
+- **Health Check:** `GET /health` returns JSON with `status: "ok"` and scheduler info
+- **Archive Page:** `/archive` lists all published posts grouped by year
+- **Static Pages:** `/page/<slug>` renders custom pages
+
 ## Newsletter Reset
 
 - Route: `POST /admin/newsletter-reset/<post_id>` (login required)

@@ -13,7 +13,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, delete
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -95,9 +95,9 @@ def send_daily_newsletter(app) -> None:
                 select(func.count(Subscriber.id))
                 .filter_by(confirmed=True)
                 .filter(Subscriber.unsubscribed_at.is_(None))
-            ).scalar()
+            ).scalar_one_or_none()
 
-            if subscriber_count == 0:
+            if not subscriber_count:
                 app.logger.info("No subscribers to send newsletter to")
                 return
 
@@ -176,8 +176,11 @@ def cleanup_expired_subscribers(app) -> None:
             if not expired:
                 return
 
-            for sub in expired:
-                db.session.delete(sub)
+            db.session.execute(
+                delete(Subscriber).where(
+                    Subscriber.id.in_([sub.id for sub in expired])
+                )
+            )
             db.session.commit()
             app.logger.info(
                 "Cleaned up %d expired unconfirmed subscribers", len(expired)
