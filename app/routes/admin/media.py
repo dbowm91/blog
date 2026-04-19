@@ -2,9 +2,11 @@ import os
 import heapq
 import threading
 import time as _time
+import logging
 
 from flask import render_template, redirect, url_for, request, flash, abort, current_app
 from flask_login import login_required
+from sqlalchemy import select
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required
@@ -13,6 +15,9 @@ from app.utils import safe_delete_file
 from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
 from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
+
+
+logger = logging.getLogger(__name__)
 
 
 _MEDIA_CACHE = {"files": None, "timestamp": 0}
@@ -163,3 +168,71 @@ def delete_media(filename):
     _invalidate_media_cache()
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("admin.media"))
+
+
+def cleanup_orphaned_images(app) -> tuple[int, int]:
+    """Clean up image files that are not associated with any post.
+
+    Returns (orphaned_count, missing_count) tuple:
+        - orphaned_count: number of files deleted that weren't in DB
+        - missing_count: number of DB entries pointing to missing files (cleared)
+    """
+    from app.models import Post
+
+    upload_dir = app.config["UPLOAD_FOLDER"]
+    if not os.path.isdir(upload_dir):
+        logger.warning("Upload directory does not exist: %s", upload_dir)
+        return 0, 0
+
+    db_images = set()
+    missing_db_entries = []
+    posts_with_missing_images = []
+
+    posts = db.session.execute(
+        select(Post.image).where(Post.image.isnot(None))
+    ).scalars().all()
+
+    for img in posts:
+        if img:
+            db_images.add(img)
+            filepath = os.path.join(upload_dir, img)
+            if not os.path.exists(filepath):
+                missing_db_entries.append(img)
+                missing_posts = db.session.execute(
+                    select(Post).filter_by(image=img)
+                ).scalars().all()
+                for post in missing_posts:
+                    posts_with_missing_images.append(post)
+
+    orphaned_count = 0
+    missing_count = 0
+
+    try:
+        with os.scandir(upload_dir) as entries:
+            for entry in entries:
+                if not entry.is_file():
+                    continue
+                if entry.name not in db_images:
+                    filepath = os.path.join(upload_dir, entry.name)
+                    if safe_delete_file(filepath):
+                        orphaned_count += 1
+                        logger.info("Deleted orphaned image: %s", entry.name)
+                    else:
+                        logger.warning("Failed to delete orphaned image: %s", entry.name)
+    except OSError as e:
+        logger.error("Error scanning upload directory: %s", e)
+
+    for post in posts_with_missing_images:
+        post.image = None
+        missing_count += 1
+        logger.info("Cleared missing image reference from post id=%d", post.id)
+
+    if missing_count > 0:
+        db.session.commit()
+
+    logger.info(
+        "Orphaned image cleanup complete: %d orphaned files deleted, %d missing DB entries cleared",
+        orphaned_count,
+        missing_count,
+    )
+    return orphaned_count, missing_count

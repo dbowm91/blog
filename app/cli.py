@@ -19,6 +19,16 @@ def register_cli_commands(app):
         rebuild_fts()
         click.echo("Search index rebuilt.")
 
+    @app.cli.command("cleanup-orphaned-images")
+    def cleanup_orphaned_images_command():
+        """Clean up image files not associated with any post."""
+        from app.routes.admin.media import cleanup_orphaned_images
+
+        orphaned, missing = cleanup_orphaned_images(app)
+        click.echo(f"Cleaned up {orphaned} orphaned image file(s).")
+        if missing > 0:
+            click.echo(f"Cleared {missing} missing image reference(s) from posts.")
+
     @app.cli.command("create-admin")
     def create_admin_command():
         """Create a new admin user or promote an existing user."""
