@@ -58,8 +58,12 @@ def rebuild_fts() -> None:
         logger.warning("FTS5 rebuild failed (operation=rebuild): %s", e)
 
 
-def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool):
-    """Sync a single post to the FTS index. Call before db.session.commit()."""
+def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool) -> bool:
+    """Sync a single post to the FTS index. Call before db.session.commit().
+
+    Returns True on success, False on failure. On failure, caller should
+    rollback the transaction to maintain FTS/DB consistency.
+    """
     try:
         db.session.execute(
             text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
@@ -71,23 +75,28 @@ def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool)
                 ),
                 {"id": post_id, "title": title, "body": body, "summary": summary},
             )
+        return True
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS sync failed for post %s: %s", post_id, e)
+        return False
 
 
-def sync_fts_batch(items: list[tuple]):
+def sync_fts_batch(items: list[tuple]) -> bool:
     """Batch sync multiple posts to FTS index. Call before db.session.commit().
 
     Args:
         items: List of (post_id, title, body, summary, published) tuples.
+
+    Returns True on success, False on failure. On failure, caller should
+    rollback the transaction to maintain FTS/DB consistency.
     """
     if not items:
-        return
+        return True
     try:
         post_ids = [item[0] for item in items]
         db.session.execute(
-            text("DELETE FROM posts_fts WHERE rowid IN :ids"),
-            {"ids": tuple(post_ids)},
+            text("DELETE FROM posts_fts WHERE rowid = :id"),
+            [{"id": pid} for pid in post_ids],
         )
         published_items = [item for item in items if item[4]]
         if published_items:
@@ -105,18 +114,26 @@ def sync_fts_batch(items: list[tuple]):
                     for item in published_items
                 ],
             )
+        return True
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS batch sync failed: %s", e)
+        return False
 
 
-def remove_fts(post_id: int):
-    """Remove a post from the FTS index. Call before db.session.commit()."""
+def remove_fts(post_id: int) -> bool:
+    """Remove a post from the FTS index. Call before db.session.commit().
+
+    Returns True on success, False on failure. On failure, caller should
+    rollback the transaction to maintain FTS/DB consistency.
+    """
     try:
         db.session.execute(
             text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
         )
+        return True
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS remove failed for post %s: %s", post_id, e)
+        return False
 
 
 def _escape_fts_term(term: str) -> str:

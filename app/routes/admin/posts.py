@@ -133,14 +133,20 @@ def _create_post_object(
 
 
 def _apply_cache_and_fts_updates(post, searchable_changed):
-    """Apply cache invalidation and FTS sync for a post."""
+    """Apply cache invalidation and FTS sync for a post.
+
+    Returns True if FTS sync succeeded (or wasn't needed), False if it failed.
+    Caller should check return value and handle failure appropriately.
+    """
+    fts_ok = True
     if searchable_changed:
-        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        fts_ok = sync_fts(post.id, post.title, post.body, post.summary, post.published)
     invalidate_tag_cache()
     invalidate_analytics_cache()
     invalidate_dashboard_cache()
     invalidate_footer_cache()
     _cleanup_orphan_tags()
+    return fts_ok
 
 
 def _commit_post_with_rollback(
@@ -155,10 +161,16 @@ def _commit_post_with_rollback(
     scheduled_publish_at,
     tag_names,
 ):
-    """Attempt to commit a post, handling IntegrityError by regenerating slug and retrying."""
+    """Attempt to commit a post, handling IntegrityError by regenerating slug and retrying.
+
+    Returns (slug, fts_ok) tuple where fts_ok indicates FTS sync succeeded.
+    Raises exception if FTS sync fails to maintain DB/FTS consistency.
+    """
     try:
         db.session.flush()
-        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        if not sync_fts(post.id, post.title, post.body, post.summary, post.published):
+            db.session.rollback()
+            raise Exception("FTS sync failed for post %d" % post.id)
         db.session.commit()
         return post.slug, True
     except IntegrityError as e:
@@ -170,7 +182,9 @@ def _commit_post_with_rollback(
         post.slug = _generate_unique_slug(Post, title)
         db.session.add(post)
         db.session.flush()
-        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        if not sync_fts(post.id, post.title, post.body, post.summary, post.published):
+            db.session.rollback()
+            raise Exception("FTS sync failed for post %d" % post.id)
         db.session.commit()
         return post.slug, False
 
@@ -232,17 +246,24 @@ def new_post():
             tag_names=tag_names,
         )
         db.session.add(post)
-        slug, _ = _commit_post_with_rollback(
-            post=post,
-            image=image,
-            title=title,
-            body=body,
-            summary=summary,
-            published=published,
-            now=now,
-            scheduled_publish_at=scheduled_publish_at,
-            tag_names=tag_names,
-        )
+        try:
+            slug, _ = _commit_post_with_rollback(
+                post=post,
+                image=image,
+                title=title,
+                body=body,
+                summary=summary,
+                published=published,
+                now=now,
+                scheduled_publish_at=scheduled_publish_at,
+                tag_names=tag_names,
+            )
+        except Exception as e:
+            logger.warning("FTS sync failed during new post: %s", e)
+            if image:
+                safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+            flash("Search index temporarily unavailable. Please try again.", "error")
+            return render_template("admin/editor.html", post=None, tag_names=tag_names)
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_dashboard_cache()
@@ -331,7 +352,12 @@ def edit_post(post_id):
             post.image = None
 
         try:
-            _apply_cache_and_fts_updates(post, searchable_changed)
+            fts_ok = _apply_cache_and_fts_updates(post, searchable_changed)
+            if not fts_ok:
+                db.session.rollback()
+                logger.warning("FTS sync failed for post %d during edit; rolling back", post.id)
+                flash("Search index temporarily unavailable. Please try again.", "error")
+                return render_template("admin/editor.html", post=post, tag_names=tag_names)
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
@@ -464,10 +490,13 @@ def bulk_operations():
                 post.published = True
                 post.published_at = now
             fts_items.append((post.id, post.title, post.body, post.summary, post.published))
-        sync_fts_batch(fts_items)
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_footer_cache()
+        if not sync_fts_batch(fts_items):
+            db.session.rollback()
+            flash("Search index temporarily unavailable. Please try again.", "error")
+            return redirect(url_for("admin.dashboard"))
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):
@@ -480,10 +509,13 @@ def bulk_operations():
         for post in posts:
             post.published = False
             fts_items.append((post.id, post.title, post.body, post.summary, post.published))
-        sync_fts_batch(fts_items)
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_footer_cache()
+        if not sync_fts_batch(fts_items):
+            db.session.rollback()
+            flash("Search index temporarily unavailable. Please try again.", "error")
+            return redirect(url_for("admin.dashboard"))
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):

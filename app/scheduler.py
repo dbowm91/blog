@@ -243,7 +243,10 @@ def publish_scheduled_posts(app) -> None:
                 post.published_at = now
                 post.scheduled_publish_at = None
                 fts_items.append((post.id, post.title, post.body, post.summary, True))
-            sync_fts_batch(fts_items)
+            if not sync_fts_batch(fts_items):
+                db.session.rollback()
+                app.logger.warning("FTS sync failed during scheduled publish; rolling back %d posts", len(posts))
+                return
 
             db.session.commit()
             invalidate_tag_cache()
