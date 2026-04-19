@@ -251,13 +251,14 @@ Post.title.ilike(search_term, escape="\\")
 ### FTS5 Search
 - `app/search.py` — `init_fts()` creates FTS5 virtual table `posts_fts` (title, body, summary)
 - FTS index synced via `sync_fts()` on post create/edit/publish/unpublish/delete
+- `sync_fts()`, `sync_fts_batch()`, and `remove_fts()` return `True` on success, `False` on failure
 - `rebuild_fts()` does full index rebuild (`posts_fts rebuild`)
 - `search(query)` in `app/search.py` returns matching post IDs from FTS5
 - Search route (`app/routes/public.py`) imports `search` from `app/search.py`, falls back to LIKE on any error
 - LIKE fallback filters by `Post.published == True` (FTS doesn't have a published column)
 - FTS table check via `sqlite_master` query before attempting MATCH (avoids error spam)
 - FTS MATCH query has `LIMIT 100` to prevent unbounded results
-- `sync_fts()` is called BEFORE `db.session.commit()` in `new_post()`, `edit_post()`, and `bulk_operations()` publish/unpublish branches — if sync fails, the transaction rolls back cleanly. For delete routes, `remove_fts()` stays AFTER commit — stale FTS entries are handled gracefully by LIKE fallback.
+- `sync_fts()` is called BEFORE `db.session.commit()` in `new_post()`, `edit_post()`, and `bulk_operations()` publish/unpublish branches — if sync fails, the transaction rolls back and an error is shown to the user. For delete routes, `remove_fts()` stays AFTER commit — stale FTS entries are handled gracefully by LIKE fallback.
 - In `edit_post()`, `sync_fts()` is only called when searchable fields (title, body, summary, published) change
 
 ### Multi-Admin
@@ -303,6 +304,9 @@ SQLite uses WAL (Write-Ahead Logging) mode by default, enabling concurrent reads
 
 ### Flask Rebuild Search CLI
 `flask rebuild-search` command rebuilds the FTS5 search index from scratch. Useful after importing data or recovering from index corruption.
+
+### Flask Cleanup Orphaned Images CLI
+`flask cleanup-orphaned-images` command cleans up image files in the upload directory that are not associated with any post. Also clears missing image references from posts. Returns counts of orphaned files deleted and missing DB entries cleared.
 
 ### Analytics Caching
 Dashboard analytics queries are cached in-memory with a 5-minute TTL (`_analytics_cache` in `app/routes/admin/helpers.py`) to prevent slow page loads. Cache key is the `days` parameter. Cache is invalidated via `invalidate_analytics_cache()` on post CRUD operations and bulk operations (publish, unpublish, delete). The cache has a max size of 16 entries (LRU eviction). In tests, clear the cache with `admin_module._analytics_cache.clear()` if a prior test populated it for the same cache key. Dashboard metrics have a separate 2-minute TTL cache (`_dashboard_metrics_cache` in `app/routes/admin/posts.py`).

@@ -144,6 +144,15 @@ Password fields in admin templates have toggle buttons:
 - Returns existing row by ID=1
 - Ensures only one settings row exists
 
+## Orphaned Image Cleanup CLI
+
+`flask cleanup-orphaned-images` command:
+- `cleanup_orphaned_images()` in `app/routes/admin/media.py`
+- Scans upload directory for files not in `Post.image` column
+- Deletes orphaned files (not associated with any post)
+- Clears missing image references from posts
+- Returns `(orphaned_count, missing_count)` tuple
+
 ## Test Files
 
 - `tests/test_search.py` - FTS module tests

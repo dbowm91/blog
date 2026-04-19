@@ -65,15 +65,24 @@ Custom CSS is sanitized via `sanitize_css()` before rendering to strip dangerous
 ```python
 def sanitize_css(css_text: str) -> str:
     css_text = re.sub(r"url\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"url\s*\(\s*\)", "", css_text, flags=re.IGNORECASE)
     css_text = re.sub(r"expression\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
-    css_text = re.sub(r"content\s*:[^;]*;", "content: none;", css_text, flags=re.IGNORECASE)
-    css_text = re.sub(r"behavior\s*:[^;]*;", "", css_text, flags=re.IGNORECASE)
-    css_text = re.sub(r"mso-[^;]*:[^;]*;", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"content\s*:\s*[^;]*;", "content: none;", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"behavior\s*:\s*[^;]*;", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"mso-[^\s:;]*\s*:\s*[^\s;]*;", "", css_text, flags=re.IGNORECASE)
     css_text = re.sub(r"@import\s+", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"-webkit-text-security\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"unicode-bidi\s*:\s*(?:isolate|embed|bidi-override)", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"direction\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
     return css_text.strip()
 ```
 
 Used in templates as `{{ custom_css | sanitize_css | safe }}` (base.html, admin/base.html).
+
+Additional dangerous properties blocked:
+- `-webkit-text-security` (can hide content)
+- `unicode-bidi: isolate|embed|bidi-override` (can override text direction)
+- `direction` property
 
 ## Rate Limiting Delegation
 
