@@ -102,6 +102,9 @@ All items from waves 1-8 have been completed.
 - `78e536a` Wave 6: UI/Template Fixes
 - `d731b9f` Wave 7: JavaScript & Dead Code Cleanup
 - `d8cfc14` Wave 8: Minor Improvements
+- `63d6046` Post-Wave 8: Fix FTS sync errors swallowed
+- `cd84d35` Post-Wave 8: Add orphaned image cleanup CLI
+- `5887924` Post-Wave 8: Improve CSS sanitization
 
 ---
 
@@ -113,16 +116,18 @@ All items from waves 1-8 have been completed.
 
 3. All 297 tests pass after these changes.
 
+4. **Post-Wave 8 items**: All additional items from the "Not Implemented" list have been addressed. CSS sanitization improved, FTS sync now properly returns status and handles failures, orphaned image cleanup CLI command added.
+
 ---
 
-## Additional Items (Not Implemented - Low Priority)
+## Additional Items (Post-Wave 8)
 
-| Issue | Location | Description |
-|-------|----------|-------------|
-| Regex-based CSS sanitization | `app/utils.py:sanitize_css()` | Uses regex instead of proper CSS parser. Potential bypass with complex selectors. |
-| Newsletter scheduler single-machine lock | `app/scheduler.py` | File-based locking only; multi-worker needs Redis. |
-| FTS sync errors swallowed | `app/search.py:sync_fts()` | Errors don't prevent DB commit, leaving FTS out of sync. |
-| No orphaned image cleanup | `app/routes/admin/media.py` | Images uploaded but never associated with a post are never cleaned up. |
+| Issue | Location | Status | Description |
+|-------|----------|--------|-------------|
+| Regex-based CSS sanitization | `app/utils.py:sanitize_css()` | IMPROVED | Better regex patterns with additional dangerous properties blocked (-webkit-text-security, unicode-bidi, direction). Full CSS parser library considered but not needed for admin-provided CSS. |
+| Newsletter scheduler single-machine lock | `app/scheduler.py` | ACCEPTED | File-based locking only; multi-worker needs Redis. Documented in scheduler docstring and DEPLOY.md. External scheduler recommended for multi-machine deployments. |
+| FTS sync errors swallowed | `app/search.py:sync_fts()` | FIXED | sync_fts/sync_fts_batch/remove_fts now return bool; callers check and rollback on failure. DB/FTS consistency maintained. |
+| No orphaned image cleanup | `app/routes/admin/media.py` | FIXED | Added cleanup_orphaned_images() function and `flask cleanup-orphaned-images` CLI command. Cleans up orphaned files and missing DB references. |
 
 ---
 
