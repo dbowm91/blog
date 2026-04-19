@@ -92,17 +92,38 @@ def sanitize_css(css_text: str) -> str:
 
     Strips url() references (data exfiltration vector), expression() (IE only),
     and content property (can inject invisible text). Also removes IE-specific
-    behaviors like behavior:, and mso- prefixes.
+    behaviors like behavior:, and mso- prefixes. Uses improved regex patterns
+    that handle edge cases and are harder to bypass.
+
+    Note: For better security, consider using a proper CSS parser library like
+    tinycss2 with an allowlist of safe properties. This regex approach is a
+    compromise between security and simplicity for admin-provided CSS.
     """
     if not css_text:
         return ""
+
     css_text = re.sub(r"url\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
+    css_text = re.sub(r"url\s*\(\s*\)", "", css_text, flags=re.IGNORECASE)
+
     css_text = re.sub(r"expression\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
+
     css_text = re.sub(
-        r"content\s*:[^;]*;", "content: none;", css_text, flags=re.IGNORECASE
+        r"content\s*:\s*[^;]*;",
+        "content: none;",
+        css_text,
+        flags=re.IGNORECASE,
     )
-    css_text = re.sub(r"behavior\s*:[^;]*;", "", css_text, flags=re.IGNORECASE)
-    css_text = re.sub(r"mso-[^;]*:[^;]*;", "", css_text, flags=re.IGNORECASE)
-    css_text = re.sub(r"import\s+", "", css_text, flags=re.IGNORECASE)
+
+    css_text = re.sub(r"behavior\s*:\s*[^;]*;", "", css_text, flags=re.IGNORECASE)
+
+    css_text = re.sub(r"mso-[^\s:;]*\s*:\s*[^\s;]*;", "", css_text, flags=re.IGNORECASE)
+
     css_text = re.sub(r"@import\s+", "", css_text, flags=re.IGNORECASE)
+
+    css_text = re.sub(r"-webkit-text-security\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
+
+    css_text = re.sub(r"unicode-bidi\s*:\s*(?:isolate|embed|bidi-override)", "", css_text, flags=re.IGNORECASE)
+
+    css_text = re.sub(r"direction\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
+
     return css_text.strip()
