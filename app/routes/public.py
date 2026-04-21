@@ -790,7 +790,6 @@ def health_check() -> Response:
     if SMTP_HOST:
         health = get_scheduler_health()
         checks["scheduler"] = health["status"]
-        checks["last_newsletter_send"] = health["last_newsletter_send"]
     else:
         checks["scheduler"] = "disabled"
 

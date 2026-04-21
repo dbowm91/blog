@@ -1,3 +1,4 @@
+import secrets
 from flask import render_template, redirect, url_for, request, flash, abort
 from flask_login import login_required, current_user
 
@@ -141,6 +142,7 @@ def promote_user(user_id):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
+    session["csrf_token"] = secrets.token_hex(32)
     logger.info("User promoted to admin: user_id=%d username=%s", user_id, user.username)
     flash(f"'{user.username}' promoted to admin.", "success")
     return redirect(url_for("admin.users_list"))
@@ -177,6 +179,7 @@ def demote_user(user_id):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
+    session["csrf_token"] = secrets.token_hex(32)
     logger.info("User demoted from admin: user_id=%d username=%s", user_id, user.username)
     flash(f"'{user.username}' demoted from admin.", "success")
     return redirect(url_for("admin.users_list"))
@@ -224,6 +227,7 @@ def make_owner(user_id):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
+    session["csrf_token"] = secrets.token_hex(32)
     logger.info("Ownership transferred: from user_id=%d to user_id=%d", current_user.id, user_id)
     flash(f"Ownership transferred to '{user.username}'.", "success")
     return redirect(url_for("admin.users_list"))

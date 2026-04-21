@@ -1,4 +1,5 @@
 import secrets
+import time
 
 from flask import redirect, url_for, request, flash, session, Response, abort
 from flask_login import login_user, logout_user, login_required, current_user
@@ -47,6 +48,7 @@ def login() -> Response:
             session["admin_session_ip"] = request.remote_addr
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials.", "error")
+        time.sleep(0.05)
 
     from flask import render_template
 

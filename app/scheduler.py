@@ -83,6 +83,7 @@ def send_daily_newsletter(app) -> None:
                         Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
                     )
                     .order_by(Post.published_at.desc())
+                    .yield_per(100)
                 )
                 .scalars()
                 .all()
@@ -292,7 +293,7 @@ def init_scheduler(app) -> Optional["BackgroundScheduler"]:
     )
     scheduler.add_job(
         publish_scheduled_posts,
-        CronTrigger(minute="*"),
+        CronTrigger(minute="*/5"),
         args=[app],
         id="publish_scheduled_posts",
         replace_existing=True,

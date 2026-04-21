@@ -16,10 +16,10 @@
 
     <div class="content-layout">
         <section class="archive-list">
-            {% for year, months in archive_data.items() | sort(reverse=True) %}
+            {% for year, months in archive_data.items() %}
                 <div class="archive-year">
                     <h2 class="archive-year-heading">{{ year }}</h2>
-                    {% for month, posts in months.items() | sort(reverse=True) %}
+                    {% for month, posts in months.items() %}
                         <div class="archive-month">
                             <h3 class="archive-month-heading">
                                 <time datetime="{{ year }}-{{ '%02d' | format(month) }}">

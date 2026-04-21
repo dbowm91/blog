@@ -145,7 +145,7 @@ export function initSharedUtils() {
                 const progress = scrollHeight > 0 ? (window.scrollY / scrollHeight) * 100 : 0;
                 readingProgress.style.width = `${Math.min(progress, 100)}%`;
             }
-        }, 10);
+        }, 100);
     };
 
     window.addEventListener("scroll", combinedScrollHandler, { passive: true });

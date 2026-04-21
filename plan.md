@@ -21,6 +21,49 @@ All items from Waves 1-8 have been completed. This document outlines the consoli
 
 **Total: 297 tests passing**
 
+### Wave A Summary (COMPLETED)
+
+| Item | Focus | Files | Status |
+|------|-------|-------|--------|
+| A1 | Remove last_newsletter_send from health | `app/routes/public.py` | Completed |
+| A2 | CSRF token rotation on privilege changes | `app/routes/admin/users.py` | Completed |
+| A3 | Constant-time login delay | `app/routes/admin/auth.py` | Completed |
+
+### Wave B Summary (COMPLETED)
+
+| Item | Focus | Files | Status |
+|------|-------|-------|--------|
+| B1 | O(n²) newsletter string replacement | `app/email.py` | Completed |
+| B2 | N+1 query in bulk operations | `app/routes/admin/posts.py` | Completed |
+| B3 | N+1 query in tag creation | `app/routes/admin/helpers/tags.py` | Completed |
+| B4 | Blocking time.sleep in email retry | `app/email.py` | Completed |
+| B5 | All posts loaded into memory for newsletter | `app/scheduler.py` | Completed |
+
+### Wave C Summary (COMPLETED)
+
+| Item | Focus | Files | Status |
+|------|-------|-------|--------|
+| C1 | Render-blocking JavaScript | `app/templates/base.html`, `admin/base.html` | Completed |
+| C2 | Route-based code splitting | `app/static/js/main.js` | Completed |
+| C3 | reading_time filter (deferred - significant refactor) | - | Skipped |
+| C4 | post_image_url file I/O (deferred - significant refactor) | - | Skipped |
+| C5 | Theme CSS regenerated per request (deferred - significant refactor) | - | Skipped |
+| C6 | Archive re-sorting in Jinja2 | `app/templates/archive.html` | Completed |
+| C7 | FTS table check cached | `app/search.py` | Completed |
+| C8 | Lazy load threshold bug | `app/static/js/shared/lazy-load.js` | Completed |
+
+### Low Priority Items (L1-L7)
+
+| Item | Focus | Files | Status |
+|------|-------|-------|--------|
+| L1 | Redundant admin user query | `app/routes/admin/newsletter.py` | Completed |
+| L2 | Redundant COUNT query before newsletter | `app/scheduler.py` | Completed |
+| L3 | 10ms scroll throttle too aggressive | `app/static/js/shared/utils.js` | Completed |
+| L4 | Scheduler runs every minute | `app/scheduler.py` | Completed |
+| L5 | backdrop-filter: blur() GPU intensive | CSS | Skipped |
+| L6 | Redundant tag_counts.get() call | `app/templates/_sidebar.html` | Skipped |
+| L7 | truncate called 4x for same post | `app/templates/post.html` | Skipped |
+
 ---
 
 ## Future Waves Overview
@@ -970,3 +1013,7 @@ ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
 | Date | Change |
 |------|--------|
 | 2026-04-21 | Consolidated plan created from plan.md, plan2.md, plan3.md, plan4.md |
+| 2026-04-21 | Wave A completed (A1-A3): Quick security fixes |
+| 2026-04-21 | Wave B completed (B1-B5): Critical performance fixes |
+| 2026-04-21 | Wave C completed (C1, C2, C6-C8): Medium priority performance |
+| 2026-04-21 | Low priority items L1-L4 completed |

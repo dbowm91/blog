@@ -70,7 +70,7 @@ DEPLOY.md               # Deployment guide
 - `Post.updated_at` has automatic `onupdate` trigger in the model
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
-- `Post.scheduled_publish_at` — optional datetime for scheduled auto-publish (scheduler checks every minute)
+- `Post.scheduled_publish_at` — optional datetime for scheduled auto-publish (scheduler checks every 5 minutes)
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
 - `Subscriber.expires_at` has no model default; the subscribe route sets it explicitly from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
@@ -260,6 +260,14 @@ Post.title.ilike(search_term, escape="\\")
 - FTS MATCH query has `LIMIT 100` to prevent unbounded results
 - `sync_fts()` is called BEFORE `db.session.commit()` in `new_post()`, `edit_post()`, and `bulk_operations()` publish/unpublish branches — if sync fails, the transaction rolls back and an error is shown to the user. For delete routes, `remove_fts()` stays AFTER commit — stale FTS entries are handled gracefully by LIKE fallback.
 - In `edit_post()`, `sync_fts()` is only called when searchable fields (title, body, summary, published) change
+- FTS table existence is cached with 5-minute TTL to avoid repeated sqlite_master queries
+
+### Route-Based JavaScript Code Splitting
+- `app/static/js/main.js` uses route-based dynamic imports to load only needed modules per page
+- Admin pages load: utils, modal, nav-dropdown, filter-select, shortcuts, bulk
+- Admin posts pages additionally load: editor, image-preview
+- Admin media pages additionally load: upload, image-preview
+- Public pages load: utils, dark-mode, mobile-menu, lazy-load, prefetch, share, lightbox, toc, code-copy, anchor-links, media-copy
 
 ### Multi-Admin
 - `flask create-admin` CLI command creates or promotes admin users (prompts for username/password)
@@ -593,7 +601,7 @@ Examples:
 ## Post Scheduling
 
 - `Post.scheduled_publish_at` — optional datetime for scheduled auto-publish
-- Scheduler checks every minute (`publish_scheduled_posts` in `scheduler.py`)
+- Scheduler checks every 5 minutes (`publish_scheduled_posts` in `scheduler.py`)
 - Auto-publishes posts where `published == False` and `scheduled_publish_at <= now`
 - Sets `published = True`, `published_at = now`, clears `scheduled_publish_at`, syncs FTS
 - Editor has `datetime-local` input for scheduling; leave empty for immediate publishing

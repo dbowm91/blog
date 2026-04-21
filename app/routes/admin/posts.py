@@ -476,7 +476,9 @@ def bulk_operations():
             return redirect(url_for("admin.dashboard"))
 
     posts = (
-        db.session.execute(select(Post).filter(Post.id.in_(valid_ids))).scalars().all()
+        db.session.execute(
+            select(Post).filter(Post.id.in_(valid_ids)).options(joinedload(Post.tags))
+        ).scalars().unique().all()
     )
     if not posts:
         flash("No posts found.", "error")

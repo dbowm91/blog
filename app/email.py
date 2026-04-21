@@ -101,8 +101,6 @@ def _send_email_with_retry(
         except smtplib.SMTPServerDisconnected:
             last_error = "SMTP server disconnected"
             if attempt < max_retries - 1:
-                backoff = 2 ** attempt
-                time.sleep(backoff)
                 try:
                     new_server = _connect_smtp()
                     if not new_server:
@@ -114,14 +112,8 @@ def _send_email_with_retry(
                     break
         except smtplib.SMTPException as e:
             last_error = str(e)
-            if attempt < max_retries - 1:
-                backoff = 2 ** attempt
-                time.sleep(backoff)
         except OSError as e:
             last_error = str(e)
-            if attempt < max_retries - 1:
-                backoff = 2 ** attempt
-                time.sleep(backoff)
     return False, last_error, server
 
 
@@ -146,31 +138,28 @@ def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
         return False
 
     unsub_url_base = f"{BASE_URL}/unsubscribe/"
+    unsub_placeholder = "%%UNSUB_PLACEHOLDER%%"
     pre_rendered_html = render_template(
         "email/newsletter.html",
         posts=posts,
         site_title=APP_TITLE,
         base_url=BASE_URL,
-        unsubscribe_url=unsub_url_base + "TOKEN",
+        unsubscribe_url=unsub_placeholder,
     )
     pre_rendered_text = (
         f"Latest from {APP_TITLE}\n\n"
         + "\n\n".join(
             f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}" for p in posts
         )
-        + f"\n\nUnsubscribe: {unsub_url_base}TOKEN"
+        + f"\n\nUnsubscribe: {unsub_placeholder}"
     )
 
     all_sent = True
     try:
         for i, sub in enumerate(subscribers, 1):
             unsub_url = unsub_url_base + sub.token
-            html = pre_rendered_html.replace(
-                unsub_url_base + "TOKEN", unsub_url
-            )
-            text = pre_rendered_text.replace(
-                unsub_url_base + "TOKEN", unsub_url
-            )
+            html = pre_rendered_html.replace(unsub_placeholder, unsub_url)
+            text = pre_rendered_text.replace(unsub_placeholder, unsub_url)
             msg = MIMEMultipart("alternative")
             msg["From"] = FROM_ADDRESS
             msg["To"] = sub.email

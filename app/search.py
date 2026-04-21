@@ -11,10 +11,30 @@ from app.config import FTS_RESULT_LIMIT
 
 logger = logging.getLogger(__name__)
 
+_fts_enabled: bool | None = None
+_fts_check_time: float = 0
+_FTS_CHECK_TTL = 300
+
 
 def reset_fts_available() -> None:
     """Reset FTS availability flag. For testing only - no-op in original implementation."""
     pass
+
+
+def _check_fts_enabled() -> bool:
+    """Check if FTS5 table exists with caching."""
+    global _fts_enabled, _fts_check_time
+    import time
+    now = time.monotonic()
+    if _fts_enabled is None or (now - _fts_check_time) > _FTS_CHECK_TTL:
+        check = db.session.execute(
+            text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
+            )
+        ).fetchone()
+        _fts_enabled = bool(check)
+        _fts_check_time = now
+    return _fts_enabled
 
 
 def init_fts() -> None:
@@ -147,12 +167,7 @@ def _escape_fts_term(term: str) -> str:
 def search(query: str) -> list[tuple[int, int]]:
     """Search using FTS5. Returns list of (post_id, rank) tuples or empty list if unavailable."""
     try:
-        check = db.session.execute(
-            text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
-            )
-        ).fetchone()
-        if not check:
+        if not _check_fts_enabled():
             return []
 
         terms = [_escape_fts_term(w) for w in query.split()]

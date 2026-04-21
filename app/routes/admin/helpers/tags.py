@@ -36,8 +36,11 @@ def _cleanup_orphan_tags() -> None:
 
 
 def _get_or_create_tags(names: list[str]) -> list[Tag]:
-    tags = []
+    if not names:
+        return []
+
     invalid_tags = []
+    valid_names = []
     for name in names:
         name = name.strip()[:50]
         if not name:
@@ -45,13 +48,29 @@ def _get_or_create_tags(names: list[str]) -> list[Tag]:
         is_valid, _ = validate_tag_name(name)
         if not is_valid:
             invalid_tags.append(name)
-            continue
+        else:
+            valid_names.append(name)
+
+    if not valid_names:
+        if invalid_tags:
+            flash(f"Invalid tag names (skipped): {', '.join(invalid_tags)}", "warning")
+        return []
+
+    slugs = [Tag.generate_slug(name) for name in valid_names]
+    existing = (
+        db.session.execute(select(Tag).filter(Tag.slug.in_(slugs))).scalars().all()
+    )
+    existing_by_slug = {tag.slug: tag for tag in existing}
+
+    tags = []
+    for name in valid_names:
         slug = Tag.generate_slug(name)
-        tag = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
+        tag = existing_by_slug.get(slug)
         if not tag:
             tag = Tag(name=name, slug=slug)
             db.session.add(tag)
         tags.append(tag)
+
     if invalid_tags:
         flash(f"Invalid tag names (skipped): {', '.join(invalid_tags)}", "warning")
     return tags
