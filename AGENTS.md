@@ -637,22 +637,17 @@ Share tracking in `main.js` uses `navigator.sendBeacon()` as the primary method 
 ### File Reference Verification
 Line numbers in plans and documentation can drift. Always verify file references against the actual codebase before making edits. Use `grep` or `read` to confirm locations.
 
-### Security Verification Findings
-Items verified and fixed:
-- **Session fixation**: Fixed with `session.clear()` before `login_user()` (Flask 3.x uses `session.clear()` instead of unavailable `session.regenerate()`)
-- **Path traversal**: Fixed - `media.py` `delete_media()` now checks if `secure_filename()` returns empty string
-- **Nested forms**: Fixed - `subscribers.html` and `dashboard.html` now use unique form IDs with `form=` attribute on buttons
-- **Bare `except Exception`**: Fixed - replaced with specific exceptions in search.py, email.py, public.py, newsletter.py, backup.py, and helpers.py
-- **Timing leak**: Fixed - token enumeration delay now happens BEFORE DB query
-- **XSS in search**: Fixed - `{{ query | escape }}` used in `search.html`
-- **COOP header**: Added `Cross-Origin-Opener-Policy: same-origin`
-- **CSS sanitization**: Custom CSS passed through `sanitize_css()` to strip `url()`, `expression()`, `content`, etc.
-- **SESSION_COOKIE_SECURE**: Now controlled via env var independently of debug mode
-- **SECRET_KEY validation**: Minimum 32-character requirement enforced at startup
-- **CSRF warning**: Production warning logged if CSRF disabled
-- **Health endpoint**: Removed Python version and pool stats from response
-- **Cascade delete**: User.admin_sessions now uses `cascade="all,delete-orphan"`
-- **FakeSubscriber**: All Subscriber attributes now present with sensible defaults
+### Security Posture
+The codebase implements robust security controls:
+- Session fixation prevention (`session.clear()` before `login_user()`)
+- CSRF protection with timing-safe comparison (`hmac.compare_digest`)
+- Password hashing via `werkzeug.security` (pbkdf2:sha256)
+- Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
+- Token enumeration prevention with constant-time delay
+- SQLAlchemy 2.0 parameterized queries throughout
+- Magic byte detection for file uploads
+- CSS sanitization blocking `url()`, `expression()`, `content`, etc.
+- CSV formula injection prevention
 
 ### Shell Context
 - `flask shell` has access to: `db`, `User`, `Post`, `Tag`, `Subscriber`, `Page`, `PageView`, `ShareEvent`, `AdminSession`, `SiteSettings`
@@ -671,12 +666,7 @@ Items verified and fixed:
 - `.btn-danger-primed` class provides pulsing animation
 - Auto-resets after 5 seconds or on blur
 
-### Planning and Code Review Learnings
-- **SMTP `_connect_smtp()` finally bug**: Fixed - `finally` block removed, caller manages connection lifecycle.
-- **Footer cache return bug**: Fixed - double-checked locking pattern with DB queries outside lock.
-- **Regex character class range operator**: Fixed - `[()*:+\-"<>]` changed to `[()*:+"<>\-]` (hyphen at end).
-- **Image filter vs attribute check**: Templates using `{% if post.image %}` check DB field only. Use `post|post_image_url` filter to verify file exists on disk.
-- **Plan file verification**: Line numbers in plan files can drift. Always verify against actual codebase before implementing fixes.
-- **Template base inheritance**: Admin preview template was extending public `base.html` instead of `admin/base.html` - always check template hierarchy when debugging admin context issues.
-- **Retry logic return values**: When a function returns a tuple like `(success, error, server)`, the caller must unpack all values to avoid TypeError on subsequent calls.
-- **Joined eager loading with CTE**: Using `joinedload()` with complex queries containing CTEs requires calling `.unique()` on results to avoid InvalidRequestError.
+### Plan Consolidation
+- **Single plan file**: All improvement plans consolidated into `plan.md`
+- **Wave-based organization**: Items organized into Waves A-I for parallel execution
+- **Line number drift**: Always verify file references against actual codebase before implementing fixes
