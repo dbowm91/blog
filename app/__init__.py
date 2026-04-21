@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import secrets
 import logging
 from logging.handlers import RotatingFileHandler
@@ -30,6 +31,48 @@ from sqlalchemy import select, text, delete
 logger = logging.getLogger(__name__)
 
 
+class StructuredLogFormatter(logging.Formatter):
+    """JSON log formatter for structured logging."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_data = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%SZ"),
+            "level": record.levelname,
+            "request_id": getattr(record, "request_id", "-"),
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        for key, value in record.__dict__.items():
+            if key not in (
+                "name",
+                "msg",
+                "args",
+                "created",
+                "filename",
+                "funcName",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "pathname",
+                "process",
+                "processName",
+                "request_id",
+                "relativeCreated",
+                "stack_info",
+                "exc_info",
+                "exc_text",
+                "thread",
+                "threadName",
+                "message",
+            ):
+                if value is not None:
+                    log_data[key] = value
+        return json.dumps(log_data)
+
+
 def configure_logging(app):
     """Configure application logging with request context."""
 
@@ -50,11 +93,7 @@ def configure_logging(app):
         file_handler = RotatingFileHandler(
             os.path.join(log_dir, "blog.log"), maxBytes=10240000, backupCount=10
         )
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)s [%(request_id)s] %(message)s [in %(pathname)s:%(lineno)d]"
-            )
-        )
+        file_handler.setFormatter(StructuredLogFormatter())
         file_handler.addFilter(RequestIdFilter())
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
@@ -129,11 +168,13 @@ def create_app():
     from app.routes.admin import admin
     from app.routes.rss import rss
     from app.routes.errors import errors
+    from app.routes.api import api
 
     app.register_blueprint(public)
     app.register_blueprint(admin)
     app.register_blueprint(rss)
     app.register_blueprint(errors)
+    app.register_blueprint(api)
 
     import nh3
     import markdown

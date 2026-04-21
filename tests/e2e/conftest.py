@@ -1,0 +1,53 @@
+import os
+import pytest
+from pathlib import Path
+import time
+
+os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
+os.environ["ADMIN_PASSWORD"] = "test-password"
+
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    """Configure browser launch arguments."""
+    return {
+        **browser_type_launch_args,
+        "args": ["--no-sandbox", "--disable-setuid-sandbox"],
+    }
+
+
+@pytest.fixture(scope="session")
+def app_url():
+    """Base URL for the Flask application."""
+    return "http://127.0.0.1:5010"
+
+
+@pytest.fixture(scope="session")
+def app_server(app, app_url, tmp_path_factory):
+    """Start the Flask server for e2e tests."""
+    db_dir = tmp_path_factory.mktemp("blog_e2e")
+    db_path = db_dir / "test.db"
+    os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+
+    from app.extensions import db
+    with app.app_context():
+        db.create_all()
+        from app.search import init_fts
+        init_fts()
+
+        from app.models import User
+        admin = User(username="admin", is_admin=True)
+        admin.set_password("test-password")
+        db.session.add(admin)
+        db.session.commit()
+
+    app.config["SERVER_NAME"] = "127.0.0.1:5010"
+
+    from threading import Thread
+    thread = Thread(target=lambda: app.run(port=5010, threaded=True, use_reloader=False), daemon=True)
+    thread.start()
+    time.sleep(1)
+
+    yield app_url
+
+    app.config["SERVER_NAME"] = None

@@ -38,7 +38,7 @@
                         </div>
                         <h2 class="post-card-title">{{ post.title }}</h2>
                         {% if search_snippets and search_snippets[post.id] %}
-                            <p class="post-card-snippet">{{ search_snippets[post.id] }}</p>
+                            <p class="post-card-snippet">{{ search_snippets[post.id] | safe }}</p>
                         {% elif post.summary %}
                             <p class="post-card-summary">{{ post.summary }}</p>
                         {% endif %}
@@ -53,6 +53,9 @@
                 <div class="empty-state">
                     <h3>No posts match your search</h3>
                     <p>Try different keywords or <a href="{{ url_for('public.index') }}">browse all posts</a>.</p>
+                    {% if did_you_mean %}
+                        <p>Did you mean: <a href="{{ url_for('public.search', q=did_you_mean) }}">{{ did_you_mean }}</a>?</p>
+                    {% endif %}
                 </div>
             {% endfor %}
 

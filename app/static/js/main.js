@@ -14,6 +14,7 @@ const ROUTE_MODULES = {
         './shared/modal.js',
         './shared/nav-dropdown.js',
         './shared/filter-select.js',
+        './shared/toast.js',
         './admin/shortcuts.js',
         './admin/bulk.js',
         './admin/editor.js',
@@ -24,6 +25,7 @@ const ROUTE_MODULES = {
         './shared/modal.js',
         './shared/nav-dropdown.js',
         './shared/filter-select.js',
+        './shared/toast.js',
         './admin/shortcuts.js',
         './admin/bulk.js',
         './upload.js',
@@ -34,6 +36,7 @@ const ROUTE_MODULES = {
         './shared/modal.js',
         './shared/nav-dropdown.js',
         './shared/filter-select.js',
+        './shared/toast.js',
         './admin/shortcuts.js',
         './admin/bulk.js',
     ],
@@ -45,6 +48,7 @@ function getModulesForPath(path) {
     }
     return [
         './shared/utils.js',
+        './shared/toast.js',
         './shared/dark-mode.js',
         './shared/mobile-menu.js',
         './shared/lazy-load.js',

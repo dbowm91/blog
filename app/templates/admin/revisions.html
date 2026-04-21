@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': post.title, 'url': url_for('admin.edit_post', post_id=post.id) }, { 'label': 'Revisions' }]) }}
+<div class="revisions-page animate-in">
+    <div class="revisions-header">
+        <h1>Revision History</h1>
+        <div class="flex-row gap-sm">
+            <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-small btn-ghost">Edit Post</a>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-small btn-ghost">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="post-info">
+        <h2>{{ post.title }}</h2>
+        <p class="post-meta">
+            {% if post.published %}
+                <span class="badge badge-published">Published</span>
+            {% else %}
+                <span class="badge badge-draft">Draft</span>
+            {% endif %}
+            <span class="meta-sep">|</span>
+            <span>{{ revisions|length }} revision{% if revisions|length != 1 %}s{% endif %}</span>
+        </p>
+    </div>
+
+    {% if revisions %}
+    <div class="revisions-list">
+        {% for revision in revisions %}
+        <div class="revision-item">
+            <div class="revision-info">
+                <div class="revision-header">
+                    <span class="revision-number">v{{ revisions|length - loop.index + 1 }}</span>
+                    <time class="revision-date" datetime="{{ revision.created_at.isoformat() }}">
+                        {{ revision.created_at.strftime('%b %d, %Y at %H:%M') }}
+                    </time>
+                </div>
+                <div class="revision-summary">
+                    <p><strong>Title:</strong> {{ revision.title }}</p>
+                    <p><strong>Summary:</strong> {{ revision.summary[:100] }}{% if revision.summary|length > 100 %}...{% endif %}</p>
+                </div>
+                {% if revision.author %}
+                <div class="revision-author">
+                    By {{ revision.author.username }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="revision-actions">
+                <form method="POST" action="{{ url_for('admin.restore_revision', post_id=post.id, revision_id=revision.id) }}" data-confirm="Restore to this revision? The current state will be saved as a new revision.">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-small">Restore</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No revisions yet</h3>
+        <p>Revisions are saved each time a published post is updated.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

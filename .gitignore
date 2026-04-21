@@ -8,6 +8,10 @@ instance/
 venv/
 .env
 .env.local
+.env.production
 logs/
 .DS_Store
 app/static/uploads/
+docker-compose.yml
+nginx/
+backups/

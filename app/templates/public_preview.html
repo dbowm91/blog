@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}[Preview] {{ post.title }} | {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="preview-banner">
+    Preview Mode {% if not post.published %}(Draft){% endif %} &mdash; shared via preview link
+</div>
+{% with show_full_share=False %}
+{% include "_post_content.html" %}
+{% endwith %}
+{% endblock %}

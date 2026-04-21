@@ -20,6 +20,10 @@ def _get_posts_query(status: str, search: str, order_by=None) -> select:
         base_q = base_q.filter(Post.published == True)
     elif status == "draft":
         base_q = base_q.filter(Post.published == False)
+    elif status == "scheduled":
+        base_q = base_q.filter(
+            Post.published == False, Post.scheduled_publish_at != None
+        )
     if order_by is None:
         order_by = Post.updated_at.desc()
     return base_q.order_by(order_by)

@@ -2,14 +2,15 @@ services:
   blog:
     build: .
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     environment:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
     volumes:
       - blog_data:/home/blog/instance
       - blog_logs:/home/blog/logs
@@ -20,6 +21,40 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    depends_on:
+      nginx:
+        condition: service_healthy
+    profiles:
+      - production
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - blog_uploads:/home/blog/app/static/uploads:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      blog:
+        condition: service_healthy
+    profiles:
+      - production
+
+  backup:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - blog_data:/home/blog/instance:ro
+      - ./backups:/backups
+    entrypoint: ["python3", "backup.py"]
+    environment:
+      - BACKUP_DIR=/backups
+    profiles:
+      - backup
 
 volumes:
   blog_data:

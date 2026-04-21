@@ -40,6 +40,43 @@
         </div>
     </div>
 
+    {% if trending or top_shares or daily_views %}
+    <div class="dashboard-charts">
+        {% if daily_views %}
+        <div class="chart-widget">
+            <h3 class="chart-title">Traffic (30 days)</h3>
+            <div class="bar-chart">
+                {% set max_views = daily_views | map(attribute='count') | max if daily_views | map(attribute='count') | max > 0 else 1 %}
+                {% for day in daily_views %}
+                <div class="bar-chart-bar" style="height: {{ (day.count / max_views * 100) | int if day.count > 0 else 0 }}%;" title="{{ day.day }}: {{ day.count }} views">
+                    <span class="tooltip">{{ day.day }}<br>{{ day.count }} views</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="bar-chart-labels">
+                {% for day in daily_views %}
+                <span class="bar-chart-label">{{ day.day[:3] }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if top_shares %}
+        <div class="chart-widget">
+            <h3 class="chart-title">Top Shares (30 days)</h3>
+            <ul class="top-shares-list">
+                {% for post, share_count in top_shares %}
+                <li>
+                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="share-post-title">{{ post.title }}</a>
+                    <span class="share-count">{{ share_count }} shares</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if trending %}
     <div class="trending-widget">
         <h3 class="trending-title">Trending (30 days)</h3>
@@ -60,6 +97,7 @@
             <a href="{{ url_for('admin.dashboard', q=q, status='all') }}" class="filter-link {% if status == 'all' %}active{% endif %}">All</a>
             <a href="{{ url_for('admin.dashboard', q=q, status='published') }}" class="filter-link {% if status == 'published' %}active{% endif %}">Published</a>
             <a href="{{ url_for('admin.dashboard', q=q, status='draft') }}" class="filter-link {% if status == 'draft' %}active{% endif %}">Draft</a>
+            <a href="{{ url_for('admin.dashboard', q=q, status='scheduled') }}" class="filter-link {% if status == 'scheduled' %}active{% endif %}">Scheduled</a>
         </div>
         <form method="GET" action="{{ url_for('admin.dashboard') }}" class="filter-form">
             <input type="hidden" name="status" value="{{ status }}">
@@ -74,6 +112,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" name="action" value="publish" class="btn btn-small btn-ghost" data-confirm-bulk="Publish selected posts?">Publish</button>
             <button type="submit" name="action" value="unpublish" class="btn btn-small btn-ghost" data-confirm-bulk="Unpublish selected posts?">Unpublish</button>
+            <button type="submit" name="action" value="unschedule" class="btn btn-small btn-ghost" data-confirm-bulk="Unschedule selected posts?">Unschedule</button>
             <button type="submit" name="action" value="delete" class="btn btn-small btn-danger" data-confirm-bulk="Delete selected posts? This cannot be undone.">Delete</button>
         </form>
     </div>
@@ -118,6 +157,7 @@
                 </div>
                 <div class="post-list-actions">
                     <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-small btn-ghost">Edit</a>
+                    <a href="{{ url_for('admin.post_revisions', post_id=post.id) }}" class="btn btn-small btn-ghost">Revisions</a>
                     {% if post.newsletter_sent_at %}
                     <form method="POST" action="{{ url_for('admin.newsletter_reset', post_id=post.id) }}" id="reset-nl-form-{{ post.id }}" data-confirm="Reset newsletter flag for this post?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

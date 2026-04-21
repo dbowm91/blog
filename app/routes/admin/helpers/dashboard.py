@@ -15,6 +15,55 @@ _dashboard_cache_lock = threading.Lock()
 _DASHBOARD_CACHE_TTL = 120
 
 
+def _get_daily_views(days: int = 30) -> list[dict]:
+    """Get daily view counts for the last N days.
+
+    Returns list of dicts with 'date' and 'count' keys, oldest first.
+    """
+    now = utc_now()
+    start_date = now - timedelta(days=days - 1)
+    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    rows = db.session.execute(
+        select(
+            func.date(PageView.created_at).label("date"),
+            func.count(PageView.id).label("count"),
+        )
+        .filter(PageView.created_at >= start_date)
+        .group_by(func.date(PageView.created_at))
+        .order_by(func.date(PageView.created_at))
+    ).all()
+
+    views_by_date = {row.date: row.count for row in rows}
+
+    result = []
+    current = start_date
+    while current <= now:
+        date_str = current.strftime("%Y-%m-%d")
+        result.append({
+            "date": date_str,
+            "day": current.strftime("%b %d"),
+            "count": views_by_date.get(date_str, 0),
+        })
+        current += timedelta(days=1)
+
+    return result
+
+
+def _get_top_posts_by_shares(limit: int = 5) -> list[tuple]:
+    """Get top posts by share count."""
+    thirty_days_ago = utc_now() - timedelta(days=30)
+    return db.session.execute(
+        select(Post, func.count(ShareEvent.id).label("share_count"))
+        .join(ShareEvent)
+        .filter(Post.published == True)
+        .filter(ShareEvent.created_at >= thirty_days_ago)
+        .group_by(Post.id)
+        .order_by(func.count(ShareEvent.id).desc())
+        .limit(limit)
+    ).all()
+
+
 def _get_dashboard_metrics():
     """Get dashboard metrics with 2-minute cache."""
     now = time.time()
@@ -54,6 +103,9 @@ def _get_dashboard_metrics():
         .limit(5)
     ).all()
 
+    top_shares = _get_top_posts_by_shares(5)
+    daily_views = _get_daily_views(30)
+
     new_this_month = (
         db.session.execute(
             select(func.count(Subscriber.id)).filter(
@@ -87,6 +139,8 @@ def _get_dashboard_metrics():
         "total_shares": total_shares,
         "total_subscribers": total_subscribers,
         "trending": trending,
+        "top_shares": top_shares,
+        "daily_views": daily_views,
         "new_this_month": new_this_month,
         "views_trend": views_trend,
     }

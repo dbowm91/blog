@@ -24,7 +24,7 @@ def _categorize_referrer(url):
 
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
-    except Exception:
+    except ValueError:
         return "Other"
     search_domains = {
         "google.com",

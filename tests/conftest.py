@@ -1,6 +1,6 @@
 import os
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -11,6 +11,10 @@ from app import create_app
 from app.extensions import db as _db
 from app.models import User, Post, Tag
 from app.utils import utc_now
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
 
 
 @pytest.fixture(scope="session")
@@ -112,6 +116,27 @@ def mock_render():
     with patch("app.email.render_template") as mock:
         mock.return_value = "<html>Mock</html>"
         yield mock
+
+
+@pytest.fixture(scope="function")
+def mock_smtp():
+    """Mock SMTP connection and sendmail for email tests.
+
+    Provides a mock SMTP server that tracks sent emails without actually
+    connecting to an SMTP server. Use this for tests that involve email sending.
+    """
+    import smtplib
+    mock_server = MagicMock()
+    mock_server.sendmail = MagicMock()
+    mock_server.quit = MagicMock()
+    with patch("app.email._connect_smtp", return_value=mock_server):
+        yield mock_server
+
+
+@pytest.fixture(scope="function")
+def mock_email(mock_render, mock_smtp):
+    """Combined mock for email rendering and SMTP sending."""
+    yield
 
 
 @pytest.fixture(scope="function")

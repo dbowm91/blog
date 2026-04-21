@@ -27,7 +27,7 @@ def _get_recent_posts(limit=5):
             .scalars()
             .all()
         )
-    except Exception:
+    except (OperationalError, IntegrityError):
         # Intentional catch-all: graceful degradation if DB is unavailable
         # Error pages should still render even if recent posts can't be fetched
         return []
@@ -53,8 +53,8 @@ def internal_error(e):
         "500.html",
         recent_posts=recent_posts,
         error_code="500",
-        error_title="Internal Server Error",
-        error_message="Something went wrong. Please try again later.",
+        error_title="Something went wrong",
+        error_message="We're sorry for the inconvenience. Please try again or return to the home page.",
     ), 500
 
 

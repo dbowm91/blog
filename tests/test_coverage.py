@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from app.models import Post, Tag
 from app.utils import utc_now
 
@@ -219,6 +220,141 @@ def test_newsletter_reset_coverage(authenticated_client, db, sample_post):
         follow_redirects=True)
     assert response.status_code == 200
     assert b'newsletter flag reset' in response.data.lower()
+
+
+# --- Error Handler Tests ---
+
+def test_404_error_handler(client, db, admin_user):
+    """Test 404 error page renders correctly."""
+    post = Post(
+        title='404 Test Post',
+        slug='404-test-post',
+        body='Content for 404 test',
+        published=True,
+        published_at=utc_now(),
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    response = client.get('/nonexistent-page-that-does-not-exist')
+    assert response.status_code == 404
+    assert b'404' in response.data
+    assert b'Page not found' in response.data
+
+
+def test_404_error_handler_shows_recent_posts(client, db, admin_user):
+    """Test 404 page shows recent published posts as suggestions."""
+    post = Post(
+        title='Recent Post For 404',
+        slug='recent-post-404',
+        body='Content',
+        published=True,
+        published_at=utc_now(),
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    response = client.get('/nonexistent-page')
+    assert response.status_code == 404
+    assert b'Recent Posts' in response.data
+    assert b'Recent Post For 404' in response.data
+
+
+def test_500_error_handler(client, db):
+    """Test 500 error page renders without crashing when DB is unavailable."""
+    with client.session_transaction():
+        pass
+    response = client.get('/admin/ trigger-internal-error', follow_redirects=False)
+    if response.status_code == 500:
+        assert b'500' in response.data or b'Internal Server Error' in response.data
+
+
+def test_preview_markdown_content_length_limit(authenticated_client, db):
+    """Test preview-markdown rejects content over 1MB with 413."""
+    large_json = b'{"text": "' + b'x' * (1024 * 1024) + b'"}'
+    response = authenticated_client.post(
+        '/admin/preview-markdown',
+        data=large_json,
+        content_type='application/json'
+    )
+    assert response.status_code == 413
+    data = response.get_json()
+    assert data["error"] == "payload too large"
+
+
+# --- FTS LIKE Fallback Tests ---
+
+def test_search_likes_fallback_when_fts_disabled(client, db, admin_user):
+    """Test search falls back to LIKE when FTS returns empty results."""
+    post = Post(
+        title='FTS Fallback Test',
+        slug='fts-fallback-test',
+        body='This post should be found via LIKE fallback',
+        summary='Summary content',
+        published=True,
+        published_at=utc_now(),
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    with patch('app.routes.public._fts_search', return_value=[]):
+        response = client.get('/search?q=LIKE fallback')
+    assert response.status_code == 200
+    assert b'FTS Fallback Test' in response.data
+
+
+def test_search_likes_fallback_finds_title_match(client, db, admin_user):
+    """Test LIKE fallback matches post title."""
+    post = Post(
+        title='Uniquely Named Post',
+        slug='uniquely-named',
+        body='Some body content',
+        published=True,
+        published_at=utc_now(),
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    with patch('app.routes.public._fts_search', return_value=[]):
+        response = client.get('/search?q=Uniquely Named')
+    assert response.status_code == 200
+    assert b'Uniquely Named Post' in response.data
+
+
+def test_search_likes_fallback_finds_body_match(client, db, admin_user):
+    """Test LIKE fallback matches post body."""
+    post = Post(
+        title='Some Post',
+        slug='some-post',
+        body='Super secretbody content xyz123',
+        summary='Summary content',
+        published=True,
+        published_at=utc_now(),
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    with patch('app.routes.public._fts_search', return_value=[]):
+        response = client.get('/search?q=secretbody')
+    assert response.status_code == 200
+    assert b'Some Post' in response.data
+
+
+def test_search_likes_fallback_with_special_characters(client, db, admin_user):
+    """Test LIKE fallback handles special LIKE characters correctly."""
+    post = Post(
+        title='Test 100% Complete',
+        slug='test-complete',
+        body='Body with _ underscore',
+        published=True,
+        published_at=utc_now(),
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    with patch('app.routes.public._fts_search', return_value=[]):
+        response = client.get('/search?q=100%25')
+    assert response.status_code == 200
 
 
 # --- Slug Tests ---

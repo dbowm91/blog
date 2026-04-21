@@ -1,7 +1,8 @@
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 
-from flask import redirect, url_for, request, flash, session, Response, abort
+from flask import redirect, url_for, request, flash, session, Response, abort, render_template
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -11,6 +12,8 @@ from app.models import User, AdminSession, Post
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.csrf import validate_csrf_token
+from app.email import send_password_reset
+from app.routes.admin.helpers import _check_password_complexity
 
 
 @admin.route("/login", methods=["GET", "POST"])
@@ -109,3 +112,105 @@ def newsletter_reset(post_id) -> Response:
         "success",
     )
     return redirect(url_for("admin.dashboard"))
+
+
+@admin.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password() -> Response:
+    """
+    Request a password reset.
+
+    Methods: GET, POST
+    GET: Renders the forgot password form.
+    POST: Generates a reset token and sends password reset email.
+    """
+    if current_user.is_authenticated:
+        return redirect(url_for("admin.dashboard"))
+
+    if request.method == "POST":
+        identifier = request.form.get("identifier", "").strip()
+        if not identifier:
+            flash("Please enter your username or email address.", "error")
+            return redirect(url_for("admin.forgot_password"))
+
+        user = db.session.execute(
+            select(User).filter_by(username=identifier)
+        ).scalar_one_or_none()
+
+        if user and user.is_admin:
+            token = secrets.token_hex(32)
+            user.reset_token = token
+            user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            try:
+                db.session.commit()
+                send_password_reset(user, token)
+                flash("If that account exists, a password reset email has been sent.", "success")
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+                flash("An error occurred. Please try again.", "error")
+        else:
+            flash("If that account exists, a password reset email has been sent.", "success")
+            time.sleep(0.1)
+
+        return redirect(url_for("admin.login"))
+
+    return render_template("admin/forgot-password.html")
+
+
+@admin.route("/reset/<token>", methods=["GET", "POST"])
+def reset_password(token: str) -> Response:
+    """
+    Reset password using a token.
+
+    Methods: GET, POST
+    GET: Renders the reset password form if token is valid.
+    POST: Updates password and invalidates all admin sessions for the user.
+    """
+    user = db.session.execute(
+        select(User).filter_by(reset_token=token)
+    ).scalar_one_or_none()
+
+    if not user or not user.reset_token_expires_at:
+        flash("Invalid or expired reset token.", "error")
+        return redirect(url_for("admin.forgot_password"))
+
+    if user.reset_token_expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        flash("Reset token has expired. Please request a new one.", "error")
+        return redirect(url_for("admin.forgot_password"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+        if not _check_password_complexity(password):
+            flash(
+                "Password must be at least 8 characters and contain at least 3 of 4: lowercase, uppercase, digit, special.",
+                "error",
+            )
+            return redirect(url_for("admin.reset_password", token=token))
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return redirect(url_for("admin.reset_password", token=token))
+
+        user.set_password(password)
+        user.reset_token = None
+        user.reset_token_expires_at = None
+
+        for admin_session in user.admin_sessions:
+            db.session.delete(admin_session)
+
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash("An error occurred. Please try again.", "error")
+            return redirect(url_for("admin.reset_password", token=token))
+
+        session.clear()
+        logger.info(
+            "Password reset completed: user_id=%d username=%s",
+            user.id,
+            user.username,
+        )
+        flash("Your password has been reset. Please sign in with your new password.", "success")
+        return redirect(url_for("admin.login"))
+
+    return render_template("admin/reset-password.html", token=token)

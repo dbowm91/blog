@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from flask import render_template, redirect, url_for, request, flash, Response, abort
 from flask_login import login_required
 import smtplib
@@ -53,7 +55,7 @@ def subscribers() -> Response:
 
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
 @admin_required
-def delete_subscriber(sub_id) -> Response:
+def delete_subscriber(sub_id: int) -> Response:
     """
     Delete a subscriber.
 

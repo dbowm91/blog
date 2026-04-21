@@ -79,6 +79,8 @@ from app.routes.admin.posts import (
     preview_post,
     bulk_operations,
     preview_markdown,
+    post_revisions,
+    restore_revision,
 )
 from app.routes.admin.subscribers import (
     subscribers,

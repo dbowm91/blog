@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import os
+from datetime import datetime, timezone
 
 from flask import (
     render_template,
@@ -9,11 +12,12 @@ from flask import (
     jsonify,
     abort,
     current_app,
+    Response,
 )
-from flask_login import login_required
+from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Post, PageView, ShareEvent, Subscriber
+from app.models import Post, PageView, ShareEvent, Subscriber, PostRevision
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import (
     _get_posts_query,
@@ -32,16 +36,15 @@ from app.config import DASHBOARD_PER_PAGE
 from app.utils import utc_now, safe_delete_file
 from app.cache import invalidate_tag_cache
 from app.search import sync_fts, sync_fts_batch, remove_fts
-from app.config import BASE_URL
+from app.config import BASE_URL, PREVIEW_TOKEN_EXPIRY_DAYS
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, OperationalError
-from datetime import datetime, timedelta, timezone
 
 
 @admin.route("/")
 @admin_required
-def dashboard():
+def dashboard() -> Response:
     """
     Admin dashboard - lists all posts with pagination and search.
 
@@ -107,6 +110,8 @@ def dashboard():
         total_shares=metrics["total_shares"],
         total_subscribers=metrics["total_subscribers"],
         trending=metrics["trending"],
+        top_shares=metrics["top_shares"],
+        daily_views=metrics["daily_views"],
         new_this_month=metrics["new_this_month"],
         views_trend=metrics["views_trend"],
         q=q,
@@ -115,8 +120,16 @@ def dashboard():
 
 
 def _create_post_object(
-    *, title, body, summary, published, image, now, scheduled_publish_at, tag_names
-):
+    *,
+    title: str,
+    body: str,
+    summary: str,
+    published: bool,
+    image: str | None,
+    now: datetime,
+    scheduled_publish_at: datetime | None,
+    tag_names: list[str],
+) -> Post:
     """Create a Post instance with all fields set."""
     post = Post(
         title=title,
@@ -132,7 +145,7 @@ def _create_post_object(
     return post
 
 
-def _apply_cache_and_fts_updates(post, searchable_changed):
+def _apply_cache_and_fts_updates(post: Post, searchable_changed: bool) -> bool:
     """Apply cache invalidation and FTS sync for a post.
 
     Returns True if FTS sync succeeded (or wasn't needed), False if it failed.
@@ -151,16 +164,16 @@ def _apply_cache_and_fts_updates(post, searchable_changed):
 
 def _commit_post_with_rollback(
     *,
-    post,
-    image,
-    title,
-    body,
-    summary,
-    published,
-    now,
-    scheduled_publish_at,
-    tag_names,
-):
+    post: Post,
+    image: str | None,
+    title: str,
+    body: str,
+    summary: str,
+    published: bool,
+    now: datetime,
+    scheduled_publish_at: datetime | None,
+    tag_names: list[str],
+) -> tuple[str, bool]:
     """Attempt to commit a post, handling IntegrityError by regenerating slug and retrying.
 
     Returns (slug, fts_ok) tuple where fts_ok indicates FTS sync succeeded.
@@ -191,7 +204,7 @@ def _commit_post_with_rollback(
 
 @admin.route("/new", methods=["GET", "POST"])
 @admin_required
-def new_post():
+def new_post() -> Response:
     """
     Create a new blog post.
 
@@ -258,7 +271,7 @@ def new_post():
                 scheduled_publish_at=scheduled_publish_at,
                 tag_names=tag_names,
             )
-        except Exception as e:
+        except (IntegrityError, OperationalError) as e:
             logger.warning("FTS sync failed during new post: %s", e)
             if image:
                 safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
@@ -276,7 +289,7 @@ def new_post():
 
 @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
 @admin_required
-def edit_post(post_id):
+def edit_post(post_id: int) -> Response:
     """
     Edit an existing blog post.
 
@@ -326,6 +339,10 @@ def edit_post(post_id):
             or published != post.published
         )
         was_published = post.published
+        if was_published:
+            _save_revision(post, current_user.id)
+        elif published:
+            _save_revision(post, current_user.id)
         if title != post.title:
             post.slug = _generate_unique_slug(Post, title, exclude_id=post.id)
         _apply_post_updates(
@@ -392,7 +409,7 @@ def edit_post(post_id):
 
 @admin.route("/delete/<int:post_id>", methods=["POST"])
 @admin_required
-def delete_post(post_id):
+def delete_post(post_id: int) -> Response:
     """
     Delete a blog post.
 
@@ -421,9 +438,34 @@ def delete_post(post_id):
     return redirect(url_for("admin.dashboard"))
 
 
+def _generate_preview_token(post_id: int, expiry_timestamp: int) -> str:
+    """Generate HMAC signature for preview URL.
+
+    Token is HMAC-SHA256 of post_id:expiry using SECRET_KEY.
+    Returns URL-safe base64 encoded signature.
+    """
+    import hmac
+    import hashlib
+    import base64
+
+    message = f"{post_id}:{expiry_timestamp}"
+    signature = hmac.new(
+        current_app.config["SECRET_KEY"].encode(),
+        message.encode(),
+        hashlib.sha256,
+    ).digest()
+    return base64.urlsafe_b64encode(signature).decode().rstrip("=")
+
+
+def _build_preview_url(post_id: int, expiry_timestamp: int) -> str:
+    """Build full public preview URL with token."""
+    token = _generate_preview_token(post_id, expiry_timestamp)
+    return f"{BASE_URL}/preview/{post_id}?token={token}&expires={expiry_timestamp}"
+
+
 @admin.route("/preview/<int:post_id>")
 @admin_required
-def preview_post(post_id):
+def preview_post(post_id: int) -> Response:
     """
     Preview a post before publishing.
 
@@ -431,10 +473,23 @@ def preview_post(post_id):
     GET: Renders the post in preview mode with banner, even if unpublished.
     Requires: Admin authentication.
     Path params: post_id (int) - ID of the post to preview.
+
+    Query params (optional):
+        share: If '1', generates a shareable preview link instead of rendering
     """
     post = db.session.get(Post, post_id)
     if not post:
         abort(404)
+
+    if request.args.get("share") == "1":
+        from time import time
+
+        expiry_timestamp = int(time()) + (PREVIEW_TOKEN_EXPIRY_DAYS * 86400)
+        preview_url = _build_preview_url(post_id, expiry_timestamp)
+        return jsonify({
+            "preview_url": preview_url,
+            "expires_at": expiry_timestamp,
+        })
 
     short_code = post.short_code()
     share_url = f"{BASE_URL}/s/{short_code}"
@@ -450,7 +505,7 @@ def preview_post(post_id):
 
 @admin.route("/bulk", methods=["POST"])
 @admin_required
-def bulk_operations():
+def bulk_operations() -> Response:
     """
     Bulk operations on selected posts.
 
@@ -488,7 +543,9 @@ def bulk_operations():
         now = utc_now()
         fts_items = []
         for post in posts:
-            if not post.published:
+            if post.published:
+                _save_revision(post, current_user.id)
+            else:
                 post.published = True
                 post.published_at = now
             fts_items.append((post.id, post.title, post.body, post.summary, post.published))
@@ -525,6 +582,19 @@ def bulk_operations():
             flash("Database error occurred. Please try again.", "error")
             return redirect(url_for("admin.dashboard"))
         flash(f"Unpublished {len(posts)} post(s).", "success")
+    elif action == "unschedule":
+        for post in posts:
+            post.scheduled_publish_at = None
+        invalidate_tag_cache()
+        invalidate_analytics_cache()
+        invalidate_footer_cache()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash("Database error occurred. Please try again.", "error")
+            return redirect(url_for("admin.dashboard"))
+        flash(f"Unscheduled {len(posts)} post(s).", "success")
     elif action == "delete":
         images_to_delete = []
         deleted_post_ids = []
@@ -580,3 +650,95 @@ def preview_markdown():
         html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
     )
     return jsonify({"html": clean})
+
+
+def _save_revision(post: Post, author_id: int | None) -> None:
+    """Save a revision snapshot of the post."""
+    revision = PostRevision(
+        post_id=post.id,
+        title=post.title,
+        slug=post.slug,
+        body=post.body,
+        summary=post.summary,
+        author_id=author_id,
+    )
+    db.session.add(revision)
+
+
+@admin.route("/posts/<int:post_id>/revisions")
+@admin_required
+def post_revisions(post_id: int):
+    """
+    View revision history for a post.
+
+    Methods: GET
+    GET: Renders the revision history page with diff capabilities.
+    Requires: Admin authentication.
+    Path params: post_id (int) - ID of the post to view revisions for.
+    """
+    post = db.session.get(Post, post_id)
+    if not post:
+        abort(404)
+
+    revisions = (
+        db.session.execute(
+            select(PostRevision)
+            .filter(PostRevision.post_id == post_id)
+            .order_by(PostRevision.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+
+    return render_template(
+        "admin/revisions.html",
+        post=post,
+        revisions=revisions,
+    )
+
+
+@admin.route("/posts/<int:post_id>/revisions/<int:revision_id>/restore", methods=["POST"])
+@admin_required
+def restore_revision(post_id: int, revision_id: int):
+    """
+    Restore a post to a previous revision.
+
+    Methods: POST
+    POST: Restores the post to the specified revision and saves a new revision.
+    Requires: Admin authentication.
+    Path params:
+        post_id (int) - ID of the post to restore
+        revision_id (int) - ID of the revision to restore to
+    """
+    post = db.session.get(Post, post_id)
+    if not post:
+        abort(404)
+
+    revision = db.session.get(PostRevision, revision_id)
+    if not revision or revision.post_id != post_id:
+        abort(404)
+
+    _save_revision(post, current_user.id)
+
+    post.title = revision.title
+    post.slug = revision.slug
+    post.body = revision.body
+    post.summary = revision.summary
+
+    searchable_changed = True
+    fts_ok = _apply_cache_and_fts_updates(post, searchable_changed)
+    if not fts_ok:
+        db.session.rollback()
+        flash("Search index temporarily unavailable. Please try again.", "error")
+        return redirect(url_for("admin.post_revisions", post_id=post_id))
+
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError) as e:
+        logger.warning("Failed to restore revision for post %d: %s", post_id, e)
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.post_revisions", post_id=post_id))
+
+    flash("Post restored to previous revision.", "success")
+    return redirect(url_for("admin.post_revisions", post_id=post_id))

@@ -124,40 +124,380 @@ For most single-server deployments, running with `--workers 1` for the newslette
 
 The default configuration uses **SQLite with WAL mode**, which is sufficient for single-server deployments with up to ~10,000 posts and moderate traffic. SQLite advantages include simple backup (single file), no separate server process, and excellent performance for read-heavy workloads.
 
-For higher traffic or multi-server deployments, migrate to **PostgreSQL**:
+For higher traffic or multi-server deployments, migrate to **PostgreSQL**. The process below provides step-by-step instructions including full-text search migration.
 
-1. **Install PostgreSQL** and create a database:
+---
+
+#### H4: PostgreSQL Migration Guide
+
+##### Prerequisites
+
+- **PostgreSQL 13+** — Required for `GENERATED ALWAYS AS` columns
+- **pg_trgm extension** — Enables trigram-based fuzzy matching (optional but recommended for "Did you mean?" suggestions)
+- **Python driver** — `psycopg2-binary` package
+
+##### Step 1: Install and Configure PostgreSQL
+
+```bash
+# Install PostgreSQL
+sudo apt install postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+
+# Switch to postgres user for admin tasks
+sudo -u postgres psql
+
+# Create database and user
+CREATE DATABASE blog;
+CREATE USER blog_user WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE blog TO blog_user;
+
+# Grant schema permissions (required for Flask-Migrate)
+\c blog blog_user
+GRANT ALL ON SCHEMA public TO blog_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO blog_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO blog_user;
+
+# Enable pg_trgm extension (for fuzzy matching in "Did you mean?" feature)
+\c blog
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+# Exit psql
+\q
+```
+
+##### Step 2: Install Python Dependencies
+
+```bash
+# Install PostgreSQL driver
+pip install psycopg2-binary
+
+# Or for production with greenlet support
+pip install psycopg2-binary --no-binary psycopg2
+```
+
+##### Step 3: Update Configuration
+
+Add the database URL to `config.toml`:
+
+```toml
+[database]
+url = "postgresql://blog_user:your_secure_password@localhost/blog"
+```
+
+**Alternative: Use environment variable** (recommended for production):
+
+```bash
+export DATABASE_URL="postgresql://blog_user:your_secure_password@localhost/blog"
+```
+
+The app detects PostgreSQL automatically when the URL starts with `postgresql://` or `postgres://`.
+
+##### Step 4: Export Data from SQLite
+
+Before migrating, create a backup of your SQLite database:
+
+```bash
+# Backup the SQLite database
+cp instance/blog.db instance/blog.db.sq3-backup
+
+# Export data to CSV for migration
+# Note: SQLite's .dump is not directly compatible with PostgreSQL
+# We'll use a two-step process: CSV export, then import
+
+mkdir -p migration_temp
+cd migration_temp
+
+# Export each table to CSV
+sqlite3 ../instance/blog.db << 'EOF'
+.mode csv
+.headers on
+.output users.csv
+SELECT * FROM users;
+.output posts.csv
+SELECT * FROM posts;
+.output tags.csv
+SELECT * FROM tags;
+.output post_tags.csv
+SELECT * FROM post_tags;
+.output subscribers.csv
+SELECT * FROM subscribers;
+.output page_views.csv
+SELECT * FROM page_views;
+.output share_events.csv
+SELECT * FROM share_events;
+.output admin_sessions.csv
+SELECT * FROM admin_sessions;
+.output site_settings.csv
+SELECT * FROM site_settings;
+.output post_revisions.csv
+SELECT * FROM post_revisions;
+.output pages.csv
+SELECT * FROM pages;
+.output
+EOF
+
+ls -la
+```
+
+##### Step 5: Run Flask-Migrate
+
+Flask-Migrate (Alembic) will create the schema in PostgreSQL:
+
+```bash
+# Set environment variables
+export SECRET_KEY="your-secret-key"
+export ADMIN_PASSWORD="your-admin-password"
+export DATABASE_URL="postgresql://blog_user:your_secure_password@localhost/blog"
+
+# Run migrations (creates all tables)
+flask db upgrade
+```
+
+##### Step 6: Import Data into PostgreSQL
+
+Create the `import_postgresql.sql` script:
+
+```sql
+-- migration_temp/import_postgresql.sql
+-- Run with: psql -U blog_user -d blog -f import_postgresql.sql
+
+-- Disable triggers for initial import (we'll re-enable and rebuild FTS at the end)
+SET session_replication_role = replica;
+
+-- Users (import first - other tables reference this)
+\COPY users(id, username, password_hash, is_admin, created_at) FROM 'users.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('users_id_seq', (SELECT MAX(id) FROM users)) FROM users;
+
+-- Posts (import before tags - post_tags references both)
+\COPY posts(id, title, slug, body, summary, image, created_at, updated_at, published, published_at, scheduled_publish_at, newsletter_sent_at, newsletter_attempts) FROM 'posts.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('posts_id_seq', (SELECT MAX(id) FROM posts)) FROM posts;
+
+-- Tags
+\COPY tags(id, name, slug, created_at) FROM 'tags.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('tags_id_seq', (SELECT MAX(id) FROM tags)) FROM tags;
+
+-- Post-Tags relationship
+\COPY post_tags(post_id, tag_id) FROM 'post_tags.csv' WITH (FORMAT csv, NULL 'NULL');
+
+-- Subscribers
+\COPY subscribers(id, email, token, confirmed, created_at, expires_at, unsubscribed_at) FROM 'subscribers.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('subscribers_id_seq', (SELECT MAX(id) FROM subscribers)) FROM subscribers;
+
+-- Page Views
+\COPY page_views(id, post_id, created_at, ip_address, user_agent) FROM 'page_views.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('page_views_id_seq', (SELECT MAX(id) FROM page_views)) FROM page_views;
+
+-- Share Events
+\COPY share_events(id, post_id, platform, created_at, ip_address, user_agent) FROM 'share_events.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('share_events_id_seq', (SELECT MAX(id) FROM share_events)) FROM share_events;
+
+-- Admin Sessions
+\COPY admin_sessions(id, user_id, session_id, ip_address, user_agent, created_at, last_activity) FROM 'admin_sessions.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('admin_sessions_id_seq', (SELECT MAX(id) FROM admin_sessions)) FROM share_events;
+
+-- Site Settings
+\COPY site_settings(id, theme_name, logo_text, logo_type, custom_css_enabled, custom_css, footer_html, created_at, updated_at) FROM 'site_settings.csv' WITH (FORMAT csv, NULL 'NULL');
+
+-- Post Revisions
+\COPY post_revisions(id, post_id, title, slug, body, summary, created_at, author_id) FROM 'post_revisions.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('post_revisions_id_seq', (SELECT MAX(id) FROM post_revisions)) FROM post_revisions;
+
+-- Pages (static pages)
+\COPY pages(id, title, slug, content, published, created_at, updated_at) FROM 'pages.csv' WITH (FORMAT csv, NULL 'NULL');
+SELECT setval('pages_id_seq', (SELECT MAX(id) FROM pages)) FROM pages;
+
+-- Re-enable triggers
+RESET session_replication_role;
+
+-- Create PostgreSQL full-text search index (replaces FTS5)
+-- This is the key step for FTS migration
+
+-- Add tsvector generated column for full-text search
+ALTER TABLE posts ADD COLUMN search_vector tsvector
+GENERATED ALWAYS AS (
+    setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(summary, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(body, '')), 'C')
+) STORED;
+
+-- Create GIN index for fast full-text search
+CREATE INDEX ix_posts_search_vector ON posts USING gin(search_vector);
+
+-- Create trigger to keep search_vector updated on INSERT/UPDATE
+CREATE OR REPLACE FUNCTION posts_search_trigger() RETURNS trigger AS $$
+BEGIN
+    NEW.search_vector :=
+        setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(NEW.summary, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(NEW.body, '')), 'C');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER posts_search_update
+    BEFORE INSERT OR UPDATE OF title, summary, body ON posts
+    FOR EACH ROW EXECUTE FUNCTION posts_search_trigger();
+
+-- Vacuum to update statistics
+VACUUM ANALYZE posts;
+
+-- Verify the migration
+SELECT 'Posts with search_vector:' AS info, count(*) FROM posts WHERE search_vector IS NOT NULL;
+SELECT 'Posts with NULL search_vector:' AS info, count(*) FROM posts WHERE search_vector IS NULL;
+```
+
+Run the import:
+
+```bash
+cd migration_temp
+psql -U blog_user -d blog -f import_postgresql.sql
+cd ..
+```
+
+##### Step 7: Configure Search Module
+
+The search module (`app/search.py`) uses SQLite FTS5, which is not compatible with PostgreSQL. After migration:
+
+**Option A: Use PostgreSQL Full-Text Search (Recommended)**
+
+Replace `app/search.py` with PostgreSQL-specific implementation. The key changes:
+
+```python
+# Replace FTS5 queries with PostgreSQL tsvector queries
+
+def _check_fts_enabled() -> bool:
+    """Check if PostgreSQL tsvector column exists."""
+    from sqlalchemy import text
+    result = db.session.execute(text("""
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'posts' AND column_name = 'search_vector'
+        )
+    """))
+    return result.scalar() is True
+
+def search(query: str) -> list[tuple[int, int]]:
+    """Search using PostgreSQL tsvector."""
+    # Convert query to tsquery format
+    tsquery = " & ".join(query.split())  # Simple AND for multi-word
+    result = db.session.execute(text("""
+        SELECT id, ts_rank(search_vector, to_tsquery('english', :q)) AS rank
+        FROM posts
+        WHERE published = TRUE
+          AND search_vector @@ to_tsquery('english', :q)
+        ORDER BY rank DESC
+        LIMIT :limit
+    """), {"q": tsquery, "limit": FTS_RESULT_LIMIT})
+    return [(row[0], row[1]) for row in result.fetchall()]
+```
+
+**Option B: Use Search-as-a-Service (Elasticsearch, Typesense)**
+
+For large-scale deployments, consider:
+- **Typesense** — Lightweight, PostgreSQL-like API, supports similarity search
+- **Elasticsearch** — Industry standard for full-text search
+- **Meilisearch** — Modern, fast, great developer experience
+
+These require separate infrastructure but offer superior search quality and scalability.
+
+##### Step 8: Update Application for PostgreSQL
+
+Key differences to handle in code:
+
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| Connection | File-based | TCP socket |
+| WAL mode | Enabled by default | Not applicable (PostgreSQL uses MVCC) |
+| FTS | FTS5 virtual table | `tsvector` generated column + GIN index |
+| Locking | Busy timeout | Row-level locking |
+| Backup | `.backup` command | `pg_dump` / `pg_restore` |
+| Concurrency | Serialized writes | True concurrent reads/writes |
+
+No code changes are required for most SQLAlchemy operations—the ORM handles database differences. The main exception is the FTS search module.
+
+##### Step 9: Verify the Migration
+
+```bash
+# Start the application with PostgreSQL
+export SECRET_KEY="your-secret-key"
+export ADMIN_PASSWORD="your-admin-password"
+export DATABASE_URL="postgresql://blog_user:your_secure_password@localhost/blog"
+python run.py
+```
+
+Test these operations:
+- [ ] View posts on homepage
+- [ ] Search functionality (`/?q=test`)
+- [ ] Admin login
+- [ ] Create/edit a post
+- [ ] Check analytics (page views)
+- [ ] Newsletter send (test mode)
+- [ ] Backup/restore functionality
+
+##### Step 10: Switch to Production Server
+
+Once verified, update your production configuration:
+
+```bash
+# Set environment variables
+export DATABASE_URL="postgresql://blog_user:your_secure_password@localhost/blog"
+export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+export ADMIN_PASSWORD="your-new-strong-password"
+
+# Run with Granian
+granian --interface asgi --workers 4 --host 127.0.0.1 --port 5000 run:asgi_app
+```
+
+---
+
+##### Known Limitations and Differences from SQLite
+
+| Issue | SQLite Behavior | PostgreSQL Behavior |
+|-------|-----------------|---------------------|
+| **File-based storage** | Single file `instance/blog.db` | Server process required |
+| **Backup** | `.backup` command or copy file | `pg_dump` / `pg_restore` |
+| **Concurrent writes** | Serialized with busy timeout | True concurrent writes |
+| **Full-text search** | FTS5 virtual table | `tsvector` + GIN index |
+| **WAL mode** | Enabled for concurrent reads | Not applicable |
+| **Connection pooling** | Not needed | Recommended (`pgbouncer` for high traffic) |
+| **Connection string** | File path | `postgresql://user:pass@host/db` |
+| **Schema migrations** | Flask-Migrate | Flask-Migrate (Alembic) |
+
+**PostgreSQL-specific considerations:**
+
+1. **Connection pooling** — For high-traffic sites, use `pgbouncer`:
    ```bash
-   sudo apt install postgresql
-   sudo -u postgres psql
-   CREATE DATABASE blog;
-   CREATE USER blog_user WITH PASSWORD 'your_password';
-   GRANT ALL PRIVILEGES ON DATABASE blog TO blog_user;
+   # Install pgbouncer
+   sudo apt install pgbouncer
+   
+   # Configure /etc/pgbouncer/pgbouncer.ini
+   [databases]
+   blog = host=127.0.0.1 port=5432 dbname=blog
+   
+   [pgbouncer]
+   pool_mode = transaction
+   max_client_conn = 100
+   default_pool_size = 20
+   ```
+   Then connect via: `postgresql://blog_user:pass@localhost:6432/blog`
+
+2. **Character encoding** — Ensure UTF-8 encoding is configured:
+   ```sql
+   ALTER DATABASE blog SET client_encoding TO 'UTF8';
    ```
 
-2. **Update `config.toml`** to use PostgreSQL:
-   ```toml
-   [database]
-   url = "postgresql://blog_user:your_password@localhost/blog"
-   ```
+3. **Timezone handling** — PostgreSQL handles timezones natively. The app's `UTCDateTime` TypeDecorator works correctly, but naive/aware datetime handling may differ.
 
-3. **Install required packages**:
-   ```bash
-   pip install psycopg2-binary
-   ```
+4. **Case sensitivity** — SQLite's `LIKE` is case-insensitive for ASCII; PostgreSQL requires `ILIKE` for case-insensitive matching. The search module already uses `ILIKE` in the LIKE fallback.
 
-4. **Use Flask-Migrate** to transfer data:
-   ```bash
-   # Export data from SQLite
-   sqlite3 instance/blog.db ".dump" > backup.sql
+5. **Index differences** — SQLite and PostgreSQL have different index structures. PostgreSQL query planner may produce different execution plans. Use `EXPLAIN ANALYZE` to debug performance issues.
 
-   # Import to PostgreSQL (adjust types as needed)
-   psql -U blog_user -d blog -f backup.sql
-   ```
+6. **Newsletter file locking** — The APScheduler newsletter uses `fcntl` file locking, which is Unix-only and designed for single-machine multi-worker setups. With PostgreSQL, the advisory lock pattern can be used for distributed locking if needed.
 
-5. **Restart the application** to use the new database.
-
-**Note:** The codebase is developed and tested with SQLite. PostgreSQL compatibility is available via SQLAlchemy's database-agnostic patterns, but some edge cases (especially around FTS5) may behave differently. The FTS5 full-text search is SQLite-specific and has no direct PostgreSQL equivalent—consider using PostgreSQL's `tsvector` or a dedicated search service like Elasticsearch if you migrate.
+7. **SQLite dump incompatibility** — SQLite `.dump` output uses SQLite-specific SQL syntax that PostgreSQL cannot parse. Always use CSV export or `sqlite3 -csv` mode for data migration.
 
 ## 5. Reverse Proxy Setup (nginx)
 

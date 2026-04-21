@@ -62,6 +62,23 @@ def send_confirmation(subscriber) -> None:
     )
 
 
+def send_password_reset(user, token: str) -> None:
+    reset_url = f"{BASE_URL}/admin/reset/{token}"
+    html = render_template(
+        "email/password_reset.html",
+        user=user,
+        site_title=APP_TITLE,
+        reset_url=reset_url,
+    )
+    text = (
+        f"Password Reset Request for {APP_TITLE}\n\n"
+        f"Click this link to reset your password: {reset_url}\n\n"
+        f"If you didn't request this, you can safely ignore this email.\n"
+        f"This link will expire in 1 hour."
+    )
+    _send_email(user.email, f"Password Reset for {APP_TITLE}", html, text)
+
+
 def _connect_smtp() -> Optional[smtplib.SMTP]:
     """Open an authenticated SMTP connection. Returns None on failure."""
     server = None
@@ -107,7 +124,7 @@ def _send_email_with_retry(
                         last_error = "SMTP reconnection failed"
                         break
                     server = new_server
-                except Exception:
+                except (smtplib.SMTPException, OSError):
                     last_error = "SMTP reconnection failed"
                     break
         except smtplib.SMTPException as e:

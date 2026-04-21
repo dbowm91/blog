@@ -18,7 +18,12 @@ from sqlalchemy import func, select, delete
 if TYPE_CHECKING:
     from apscheduler.schedulers.background import BackgroundScheduler
 
-__all__ = ["init_scheduler", "get_scheduler_status", "get_scheduler_health"]
+__all__ = [
+    "init_scheduler",
+    "get_scheduler_status",
+    "get_scheduler_health",
+    "get_scheduler_next_run",
+]
 
 try:
     import fcntl
@@ -28,6 +33,7 @@ except ImportError:
     HAS_FCNTL = False
 
 _scheduler_running = threading.Event()
+_scheduler: Optional["BackgroundScheduler"] = None
 _last_newsletter_send_lock = threading.Lock()
 _last_newsletter_send: Optional[datetime] = None
 
@@ -37,15 +43,32 @@ def get_scheduler_status() -> bool:
     return _scheduler_running.is_set()
 
 
+def get_scheduler_next_run() -> Optional[datetime]:
+    """Return the next scheduled run time, or None if not running/scheduled."""
+    global _scheduler
+    if _scheduler is None:
+        return None
+    try:
+        jobs = _scheduler.get_jobs()
+        if not jobs:
+            return None
+        next_job = min(jobs, key=lambda j: j.next_run_time)
+        return next_job.next_run_time
+    except Exception:
+        return None
+
+
 def get_scheduler_health() -> dict:
     """Return scheduler health info for monitoring."""
     global _last_newsletter_send
     running = _scheduler_running.is_set()
     with _last_newsletter_send_lock:
         last_send = _last_newsletter_send
+    next_run = get_scheduler_next_run()
     return {
         "status": "running" if running else "stopped",
         "last_newsletter_send": last_send.isoformat() if last_send else None,
+        "next_run": next_run.isoformat() if next_run else None,
     }
 
 
@@ -299,6 +322,8 @@ def init_scheduler(app) -> Optional["BackgroundScheduler"]:
         replace_existing=True,
     )
     scheduler.start()
+    global _scheduler
+    _scheduler = scheduler
     _scheduler_running.set()
 
     def _shutdown_scheduler():

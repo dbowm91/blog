@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import os
 import heapq
 import threading
 import time as _time
 import logging
+from datetime import datetime, timezone
 
-from flask import render_template, redirect, url_for, request, flash, abort, current_app
+from flask import render_template, redirect, url_for, request, flash, abort, current_app, Response
 from flask_login import login_required
 from sqlalchemy import select
 
@@ -13,8 +16,8 @@ from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _save_image
 from app.utils import safe_delete_file
 from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
-from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
+from app.models import Post
 
 
 logger = logging.getLogger(__name__)
@@ -25,12 +28,15 @@ _MEDIA_CACHE_LOCK = threading.Lock()
 _MEDIA_CACHE_TTL = 30
 
 
-def _invalidate_media_cache():
+def _invalidate_media_cache() -> None:
     with _MEDIA_CACHE_LOCK:
         _MEDIA_CACHE["files"] = None
 
 
-def _get_cached_media_list(upload_dir, search=None):
+def _get_cached_media_list(
+    upload_dir: str,
+    search: str | None = None,
+) -> list[tuple[float, str, int]]:
     global _MEDIA_CACHE
     with _MEDIA_CACHE_LOCK:
         now = _time.monotonic()
@@ -50,7 +56,7 @@ def _get_cached_media_list(upload_dir, search=None):
     return files
 
 
-def _scan_media_directory(upload_dir):
+def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
     all_files = []
     with os.scandir(upload_dir) as entries:
         for entry in entries:
@@ -76,7 +82,7 @@ def _scan_media_directory(upload_dir):
 
 @admin.route("/media")
 @admin_required
-def media():
+def media() -> Response:
     """
     Media library - list uploaded files.
 
@@ -113,7 +119,7 @@ def media():
 
 @admin.route("/media/upload", methods=["POST"])
 @admin_required
-def upload_media():
+def upload_media() -> Response:
     """
     Upload an image file.
 
@@ -143,7 +149,7 @@ def upload_media():
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
 @admin_required
-def delete_media(filename):
+def delete_media(filename: str) -> Response:
     """
     Delete a media file.
 

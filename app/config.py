@@ -38,6 +38,8 @@ __all__ = [
     "EXPORT_BATCH_SIZE",
     "FTS_RESULT_LIMIT",
     "TOKEN_ENUMERATION_DELAY",
+    "PREVIEW_TOKEN_EXPIRY_DAYS",
+    "HEALTH_CHECK_SECRET",
 ]
 
 
@@ -108,6 +110,8 @@ MAX_UPLOAD_SIZE = int(_config["app"].get("max_upload_size", 10485760))
 EXPORT_BATCH_SIZE = int(_config["app"].get("export_batch_size", 500))
 FTS_RESULT_LIMIT = int(_config["app"].get("fts_result_limit", 100))
 TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.1))
+PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
+HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
 
 SMTP_TIMEOUT = int(_config["email"].get("smtp_timeout", 30))
 

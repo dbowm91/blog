@@ -32,13 +32,14 @@ from app.config import (
     CONFIRMATION_EXPIRY_HOURS,
     TOKEN_ENUMERATION_DELAY,
     FTS_RESULT_LIMIT,
+    PREVIEW_TOKEN_EXPIRY_DAYS,
 )
 
 from app.email import send_confirmation
 from app.csrf import validate_csrf_token
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.cache import _get_tag_counts
-from app.search import search as _fts_search, get_search_snippets
+from app.search import search as _fts_search, get_search_snippets, get_did_you_mean, get_indexed_terms
 
 logger = logging.getLogger(__name__)
 
@@ -368,6 +369,10 @@ def search() -> Response:
         )
 
     snippets = get_search_snippets(list(pagination.items), query)
+    did_you_mean = None
+    if not pagination.items:
+        indexed_terms = get_indexed_terms()
+        did_you_mean = get_did_you_mean(query, indexed_terms)
     return render_template(
         "search.html",
         query=query,
@@ -376,6 +381,7 @@ def search() -> Response:
         tags=tags,
         tag_counts=tag_counts,
         search_snippets=snippets,
+        did_you_mean=did_you_mean,
     )
 
 
@@ -400,6 +406,61 @@ def short_url_redirect(code) -> Response:
         db.session.rollback()
 
     return redirect(f"/post/{post.slug}")
+
+
+@public.route("/preview/<int:post_id>")
+def public_preview(post_id: int) -> Response:
+    """Render a shared preview of a post via signed token.
+
+    Query params:
+        token: HMAC signature for validation
+        expires: Unix timestamp when this link expires
+
+    Security:
+        Token is HMAC-SHA256 of post_id:expiry using SECRET_KEY.
+        Link expires after PREVIEW_TOKEN_EXPIRY_DAYS (default 7 days).
+    """
+    import hmac
+    import hashlib
+    import base64
+    from time import time
+
+    token = request.args.get("token", "")
+    expires_str = request.args.get("expires", "")
+
+    if not token or not expires_str:
+        abort(403)
+
+    try:
+        expires = int(expires_str)
+    except (ValueError, TypeError):
+        abort(403)
+
+    if time() > expires:
+        abort(410)
+
+    message = f"{post_id}:{expires}"
+    expected = hmac.new(
+        current_app.config["SECRET_KEY"].encode(),
+        message.encode(),
+        hashlib.sha256,
+    ).digest()
+    expected_b64 = base64.urlsafe_b64encode(expected).decode().rstrip("=")
+
+    if not hmac.compare_digest(token, expected_b64):
+        abort(403)
+
+    post = db.session.get(Post, post_id)
+    if not post:
+        abort(404)
+
+    return render_template(
+        "public_preview.html",
+        post=post,
+        related=[],
+        share_url=None,
+        short_code=None,
+    )
 
 
 ALLOWED_SHARE_PLATFORMS = {"twitter", "facebook", "linkedin", "reddit", "hackernews", "link"}
@@ -768,21 +829,41 @@ def favicon() -> Response:
 def health_check() -> Response:
     """Health check endpoint for monitoring.
 
+    Query params:
+        detailed: If "true", return extended info (requires secret match)
+        secret: Secret token required for detailed output
+
     Response:
         200: All services healthy
         503: One or more services degraded
+
+    Detailed response (with ?detailed=true&secret=<secret>):
+        Includes database query latency and scheduler next run time.
     """
+    import hmac
+
     from app.scheduler import get_scheduler_health
-    from app.config import SMTP_HOST
+    from app.config import SMTP_HOST, HEALTH_CHECK_SECRET
+
+    detailed = request.args.get("detailed", "").lower() == "true"
+    secret = request.args.get("secret", "")
+    is_detailed = (
+        detailed
+        and HEALTH_CHECK_SECRET
+        and hmac.compare_digest(secret, HEALTH_CHECK_SECRET)
+    )
 
     checks = {}
     status_code = 200
 
-    # Database check
+    # Database check with latency
+    db_start = time.perf_counter()
     try:
         db.session.execute(text("SELECT 1"))
+        db_latency_ms = (time.perf_counter() - db_start) * 1000
         checks["database"] = "ok"
     except (OperationalError, ProgrammingError):
+        db_latency_ms = (time.perf_counter() - db_start) * 1000
         checks["database"] = "error"
         status_code = 503
 
@@ -813,10 +894,21 @@ def health_check() -> Response:
         else "degraded"
     )
 
-    return jsonify(
-        {
-            "status": overall,
-            "checks": checks,
-            "timestamp": utc_now().isoformat(),
+    result = {
+        "status": overall,
+        "checks": checks,
+        "timestamp": utc_now().isoformat(),
+    }
+
+    if is_detailed:
+        result["details"] = {
+            "database_latency_ms": round(db_latency_ms, 2),
         }
-    ), status_code
+        if SMTP_HOST:
+            health = get_scheduler_health()
+            result["details"]["scheduler_next_run"] = health.get("next_run")
+            result["details"]["scheduler_last_newsletter_send"] = health.get(
+                "last_newsletter_send"
+            )
+
+    return jsonify(result), status_code

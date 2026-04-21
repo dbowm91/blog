@@ -1,7 +1,19 @@
 """Full-text search using SQLite FTS5 with LIKE fallback."""
 
-__all__ = ["init_fts", "rebuild_fts", "sync_fts", "sync_fts_batch", "remove_fts", "search", "reset_fts_available"]
+__all__ = [
+    "init_fts",
+    "rebuild_fts",
+    "sync_fts",
+    "sync_fts_batch",
+    "remove_fts",
+    "search",
+    "reset_fts_available",
+    "get_did_you_mean",
+    "highlight_query",
+    "get_indexed_terms",
+]
 
+import difflib
 import logging
 import re
 from sqlalchemy import text
@@ -60,7 +72,7 @@ def init_fts() -> None:
         try:
             db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
             db.session.commit()
-        except Exception:
+        except (OperationalError, ProgrammingError, DatabaseError):
             db.session.rollback()
         logger.warning(
             "FTS5 initialization failed; search will use LIKE fallback (post_ids=%s, operation=init)",
@@ -186,6 +198,27 @@ def search(query: str) -> list[tuple[int, int]]:
         return []
 
 
+def get_indexed_terms() -> list[str]:
+    """Get all unique terms from the FTS index for 'Did you mean?' suggestions.
+
+    Returns a list of unique terms (title, body, summary) from published posts.
+    """
+    try:
+        if not _check_fts_enabled():
+            return []
+        result = db.session.execute(
+            text("SELECT DISTINCT title FROM posts WHERE published = 1 UNION SELECT DISTINCT title FROM posts_fts")
+        ).fetchall()
+        terms = []
+        for row in result:
+            if row[0]:
+                words = str(row[0]).split()
+                terms.extend(words)
+        return list(set(terms))
+    except (OperationalError, ProgrammingError, DatabaseError):
+        return []
+
+
 def extract_snippet(text: str, query: str, context_chars: int = 200) -> str:
     """Extract a snippet from text around the first query match.
 
@@ -216,12 +249,59 @@ def extract_snippet(text: str, query: str, context_chars: int = 200) -> str:
 
 
 def get_search_snippets(posts: list, query: str) -> dict[int, str]:
-    """Generate search snippets for a list of posts.
+    """Generate search snippets for a list of posts with query highlighting.
 
-    Returns a dict mapping post_id to snippet string.
+    Returns a dict mapping post_id to highlighted snippet string.
     """
     snippets: dict[int, str] = {}
     for post in posts:
         snippet_text = post.summary if post.summary else post.body
-        snippets[post.id] = extract_snippet(snippet_text, query)
+        raw_snippet = extract_snippet(snippet_text, query)
+        snippets[post.id] = highlight_query(raw_snippet, query)
     return snippets
+
+
+def get_did_you_mean(query: str, indexed_terms: list[str], max_suggestions: int = 3) -> str | None:
+    """Get a 'Did you mean?' suggestion using fuzzy matching.
+
+    Args:
+        query: The search query that had no results
+        indexed_terms: List of terms from the search index to match against
+        max_suggestions: Maximum number of suggestions to consider
+
+    Returns:
+        A suggested alternative query string, or None if no good match found.
+    """
+    if not query or not indexed_terms:
+        return None
+
+    query_lower = query.lower()
+    terms_lower = [t.lower() for t in indexed_terms]
+
+    matches = difflib.get_close_matches(query_lower, terms_lower, n=max_suggestions, cutoff=0.6)
+
+    if not matches:
+        return None
+
+    for term in indexed_terms:
+        if term.lower() == matches[0]:
+            return term
+
+    return matches[0]
+
+
+def highlight_query(text: str, query: str) -> str:
+    """Add <mark> tags around query terms in text for highlighting.
+
+    Args:
+        text: The text to highlight within
+        query: The search query (may contain multiple words)
+
+    Returns:
+        The text with <mark> tags around matched terms
+    """
+    if not text or not query:
+        return text
+
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", text)

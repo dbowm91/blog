@@ -1,0 +1,744 @@
+openapi: 3.0.3
+info:
+  title: Blog CMS REST API
+  description: |
+    REST API for Post and Subscriber Management.
+
+    ## Authentication
+    All endpoints (except `/api/track-share`) require API key authentication.
+    Pass the API key via the `X-API-Key` request header.
+
+    Set the `API_KEY` environment variable to enable API access.
+
+    ## Rate Limiting
+    Rate limiting is handled by the reverse proxy in front of this application.
+    Configure rate limits at the proxy level (e.g., nginx, Cloudflare WAF).
+  version: 1.0.0
+  contact:
+    name: Blog Admin
+servers:
+  - url: /
+    description: Current server
+
+paths:
+  /api/posts:
+    get:
+      summary: List posts
+      description: Retrieve a paginated list of posts with optional filtering by published status.
+      operationId: listPosts
+      tags:
+        - Posts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: per_page
+          in: query
+          description: Items per page (default 20, max 100)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: published
+          in: query
+          description: Filter by published status
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Paginated list of posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostListResponse"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: API not configured (API_KEY not set)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a post
+      description: Create a new blog post. The slug is auto-generated if not provided.
+      operationId: createPost
+      tags:
+        - Posts
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostCreateRequest"
+      responses:
+        "201":
+          description: Post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          description: Invalid request body or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Search index unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/posts/{post_id}:
+    get:
+      summary: Get a post
+      description: Retrieve a single post by its ID.
+      operationId: getPost
+      tags:
+        - Posts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Update a post
+      description: Update an existing post. Only provided fields are updated.
+      operationId: updatePost
+      tags:
+        - Posts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostUpdateRequest"
+      responses:
+        "200":
+          description: Post updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Search index unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a post
+      description: Delete a post and its associated image file.
+      operationId: deletePost
+      tags:
+        - Posts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Post deleted successfully
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscribers:
+    get:
+      summary: List subscribers
+      description: Retrieve a paginated list of subscribers with optional filtering by confirmed status.
+      operationId: listSubscribers
+      tags:
+        - Subscribers
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: per_page
+          in: query
+          description: Items per page (default 50, max 100)
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: confirmed
+          in: query
+          description: Filter by confirmed status
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Paginated list of subscribers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriberListResponse"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: API not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a subscriber
+      description: Create a new subscriber. If the email already exists, returns the existing subscriber.
+      operationId: createSubscriber
+      tags:
+        - Subscribers
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriberCreateRequest"
+      responses:
+        "201":
+          description: Subscriber created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscriber"
+        "400":
+          description: Invalid request body, missing email, or invalid email format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscribers/{subscriber_id}:
+    delete:
+      summary: Delete a subscriber
+      description: Delete a subscriber by ID.
+      operationId: deleteSubscriber
+      tags:
+        - Subscribers
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: subscriber_id
+          in: path
+          required: true
+          description: Subscriber ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Subscriber deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Subscriber deleted successfully
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscriber not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/stats:
+    get:
+      summary: Get dashboard statistics
+      description: Retrieve aggregate statistics including total views, posts, shares, subscribers, and monthly trends.
+      operationId: getStats
+      tags:
+        - Stats
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: API not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/track-share:
+    post:
+      summary: Track a share event
+      description: |
+        Track social share events for published posts.
+        This endpoint does not require authentication.
+      operationId: trackShare
+      tags:
+        - Sharing
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF token for protection (auto-read from page meta tag by frontend JS)
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackShareRequest"
+      responses:
+        "200":
+          description: Share tracked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        "400":
+          description: Invalid request (missing post_id, platform, or invalid platform)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: invalid
+        "404":
+          description: Post not found or not published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: not found
+        "500":
+          description: Database error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: database error
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authenticated endpoints. Set via `API_KEY` environment variable.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Post ID
+          readOnly: true
+        title:
+          type: string
+          description: Post title
+        slug:
+          type: string
+          description: URL-friendly slug
+        body:
+          type: string
+          description: Post content (markdown)
+        summary:
+          type: string
+          description: Post summary/excerpt
+        image:
+          type: string
+          nullable: true
+          description: Image filename
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Creation timestamp (ISO 8601)
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last update timestamp (ISO 8601)
+          readOnly: true
+        published:
+          type: boolean
+          description: Publication status
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Publication timestamp (ISO 8601)
+        scheduled_publish_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled publication timestamp (ISO 8601)
+        newsletter_sent_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last newsletter send timestamp (ISO 8601)
+          readOnly: true
+        newsletter_attempts:
+          type: integer
+          description: Number of newsletter send attempts
+          readOnly: true
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tag names
+      required:
+        - id
+        - title
+        - slug
+        - body
+        - published
+
+    PostCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Post title (required)
+        slug:
+          type: string
+          description: URL slug (optional, auto-generated if not provided)
+        body:
+          type: string
+          description: Post content/markdown (required)
+        summary:
+          type: string
+          description: Post summary/excerpt
+          default: ""
+        image:
+          type: string
+          description: Image filename
+        published:
+          type: boolean
+          description: Publication status
+          default: false
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tag names
+      required:
+        - title
+        - body
+
+    PostUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Post title
+        slug:
+          type: string
+          description: URL slug
+        body:
+          type: string
+          description: Post content/markdown
+        summary:
+          type: string
+          description: Post summary/excerpt
+        image:
+          type: string
+          description: Image filename
+        published:
+          type: boolean
+          description: Publication status
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tag names
+
+    PostListResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Post"
+        total:
+          type: integer
+          description: Total number of posts matching query
+        pages:
+          type: integer
+          description: Total number of pages
+        page:
+          type: integer
+          description: Current page number
+        per_page:
+          type: integer
+          description: Items per page
+      required:
+        - posts
+        - total
+        - pages
+        - page
+        - per_page
+
+    Subscriber:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Subscriber ID
+          readOnly: true
+        email:
+          type: string
+          format: email
+          description: Subscriber email address
+        confirmed:
+          type: boolean
+          description: Whether the subscriber has confirmed their subscription
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Subscription creation timestamp (ISO 8601)
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Confirmation deadline (ISO 8601)
+        unsubscribed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Unsubscription timestamp (ISO 8601)
+          readOnly: true
+      required:
+        - id
+        - email
+        - confirmed
+
+    SubscriberCreateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Subscriber email address (required)
+      required:
+        - email
+
+    SubscriberListResponse:
+      type: object
+      properties:
+        subscribers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subscriber"
+        total:
+          type: integer
+          description: Total number of subscribers matching query
+        pages:
+          type: integer
+          description: Total number of pages
+        page:
+          type: integer
+          description: Current page number
+        per_page:
+          type: integer
+          description: Items per page
+      required:
+        - subscribers
+        - total
+        - pages
+        - page
+        - per_page
+
+    StatsResponse:
+      type: object
+      properties:
+        total_views:
+          type: integer
+          description: Total page views across all posts
+        total_posts:
+          type: integer
+          description: Total number of published posts
+        total_shares:
+          type: integer
+          description: Total share events
+        total_subscribers:
+          type: integer
+          description: Total confirmed subscribers
+        views_this_month:
+          type: integer
+          description: Page views in the last 30 days
+        new_subscribers_this_month:
+          type: integer
+          description: New subscribers since the 1st of this month
+      required:
+        - total_views
+        - total_posts
+        - total_shares
+        - total_subscribers
+        - views_this_month
+        - new_subscribers_this_month
+
+    TrackShareRequest:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          description: ID of the post being shared (required)
+        platform:
+          type: string
+          description: |
+            Social platform identifier (required).
+            Allowed values: twitter, facebook, linkedin, reddit, hackernews, link
+      required:
+        - post_id
+        - platform

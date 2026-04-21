@@ -678,3 +678,64 @@ The codebase implements robust security controls:
 - **Single plan file**: All improvement plans consolidated into `plan.md`
 - **Wave-based organization**: Items organized into Waves A-I for parallel execution
 - **Line number drift**: Always verify file references against actual codebase before implementing fixes
+
+## New Features (Waves D-I)
+
+### REST API
+- `GET /api/posts` — List posts (paginated)
+- `GET /api/posts/<id>` — Get single post
+- `POST /api/posts` — Create post
+- `PUT /api/posts/<id>` — Update post
+- `DELETE /api/posts/<id>` — Delete post
+- `GET /api/subscribers` — List subscribers (paginated)
+- `POST /api/subscribers` — Create subscriber
+- `DELETE /api/subscribers/<id>` — Delete subscriber
+- `GET /api/stats` — Dashboard statistics
+- Authentication: `X-API-Key` header (env var `API_KEY`)
+
+### Password Reset
+- `GET /admin/forgot-password` — Form to request reset
+- `POST /admin/forgot-password` — Send reset email
+- `GET /admin/reset/<token>` — Reset password form
+- `POST /admin/reset/<token>` — Process reset
+- Token expires in 1 hour, stored as hash in `User.reset_token`
+
+### Post Revisions
+- `PostRevision` model tracks history on each publish
+- `GET /admin/posts/<id>/revisions` — View history
+- `POST /admin/posts/<id>/revisions/<rev_id>/restore` — Restore
+
+### Shareable Preview Links
+- `GET /admin/preview/<post_id>?share=1` — Generate signed URL
+- `GET /preview/<post_id>?token=<hmac>&expires=<ts>` — Public preview
+- Tokens use HMAC-SHA256, expire after 7 days (configurable)
+
+### Advanced Search
+- "Did you mean?" suggestions using `difflib.get_close_matches()`
+- Query term highlighting with `<mark>` tags in snippets
+- FTS5 cached with 5-minute TTL
+
+### CLI Commands
+- `flask export-data <output_file>` — Export posts/subscribers/tags as JSON
+- `flask import-data <input_file>` — Import from JSON
+- `flask promote-admin <username>` — CLI admin promotion
+- `flask check-integrity` — Run DB integrity check
+- `flask seed` — Generate sample data
+
+### Toast Notifications
+- `showToast(message, type)` in `app/static/js/shared/toast.js`
+- Types: success, error, warning, info
+- Auto-dismiss after 5 seconds, stack up to 5
+- Replaces flash messages on page load
+
+### Dashboard Widgets
+- Traffic chart (daily views, last 30 days)
+- Top posts by shares (last 30 days)
+
+### Structured Logging
+- JSON log format with timestamp, level, request_id, message
+- `StructuredLogFormatter` in `app/__init__.py`
+
+### Graceful Shutdown
+- SIGTERM handler in `run.py`
+- Waits for in-flight requests, finishes newsletter send, closes DB connections

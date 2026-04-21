@@ -4,6 +4,26 @@ export function initEditor() {
     const bodyTextarea = document.getElementById('body');
     const previewDiv = document.getElementById('markdown-preview');
     const csrfToken = getCsrfToken();
+    const editorSplit = document.getElementById('editor-split');
+    const togglePreviewBtn = document.getElementById('toggle-preview-btn');
+
+    // Mobile preview toggle
+    if (togglePreviewBtn && editorSplit) {
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            editorSplit.classList.remove('preview-hidden');
+            editorSplit.classList.add('preview-hidden');
+        }
+
+        togglePreviewBtn.addEventListener('click', () => {
+            const isHidden = editorSplit.classList.contains('preview-hidden');
+            editorSplit.classList.toggle('preview-hidden');
+            const toggleText = togglePreviewBtn.querySelector('.toggle-preview-text');
+            if (toggleText) {
+                toggleText.textContent = isHidden ? 'Hide Preview' : 'Show Preview';
+            }
+        });
+    }
 
     if (bodyTextarea && previewDiv) {
         let debounceTimer;

@@ -24,6 +24,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    reset_token = db.Column(db.String(64), nullable=True, unique=True)
+    reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
 
     admin_sessions = db.relationship(
         "AdminSession",
@@ -121,6 +123,9 @@ class Post(db.Model):
     share_events = db.relationship(
         "ShareEvent", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
+    revisions = db.relationship(
+        "PostRevision", back_populates="post", lazy="select", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         db.Index("ix_posts_published_created", "published", "created_at"),
@@ -139,6 +144,27 @@ class Post(db.Model):
 
     def __repr__(self) -> str:
         return f"<Post {self.title!r} published={self.published}>"
+
+
+class PostRevision(db.Model):
+    __tablename__ = "post_revisions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    summary = db.Column(db.String(500), default="")
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    post = db.relationship("Post", back_populates="revisions")
+    author = db.relationship("User", lazy="select")
+
+    __table_args__ = (db.Index("ix_post_revisions_post_created", "post_id", "created_at"),)
+
+    def __repr__(self) -> str:
+        return f"<PostRevision post_id={self.post_id} created_at={self.created_at}>"
 
 
 class Subscriber(db.Model):
