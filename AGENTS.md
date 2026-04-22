@@ -214,10 +214,10 @@ Post.title.ilike(search_term, escape="\\")
 `app/static/js/main.js` uses route-based dynamic imports. Admin pages get utils, modal, shortcuts, bulk. Public pages get utils, dark-mode, mobile-menu, lazy-load, share, lightbox, toc.
 
 ### Multi-Admin
-- `flask create-admin` CLI command
+- `flask create-admin <username>` CLI command
 - User management UI at `/admin/users`
 - Password complexity: 3 of 4 character classes, min 8 chars
-- Promote/Demote via `POST /admin/users/<id>/promote|demo te`
+- Promote/Demote via `POST /admin/users/<id>/promote` or `POST /admin/users/<id>/demote`
 - Ownership transfer via `POST /admin/users/<id>/make-owner`
 
 ### SQLAlchemy 2.0 Query Patterns
@@ -314,9 +314,18 @@ The codebase implements robust security controls:
 - CSV formula injection prevention
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
 
+## Database Indexes
+
+Key indexes for query optimization:
+- `ix_posts_published_created` — post listings
+- `ix_posts_published_updated` — dashboard
+- `ix_page_views_post_created` — view counts
+- `ix_share_events_post_created` — share counts
+- `ix_subscribers_confirmed_unsubscribed` — subscriber queries
+
 ## Deferred Items (Low Priority)
 
-These items were intentionally skipped due to significant refactoring requirements:
+These items were intentionally skipped due to significant refactoring requirements or minimal impact:
 
 | Item | Reason |
 |------|--------|
@@ -327,8 +336,10 @@ These items were intentionally skipped due to significant refactoring requiremen
 | L6: Redundant `tag_counts.get()` call | Low impact |
 | L7: `truncate` called 4x for same post | Low impact |
 
+See `plan.md` for detailed verification status.
+
 ## Testing Notes
 
-- 486 unit tests pass
+- 486 unit tests pass (1 known flaky media upload test)
 - E2E tests require Playwright: `pip install playwright && playwright install`
-- Media upload test may occasionally fail due to async timing issues
+- Media upload test occasionally fails due to async timing issues

@@ -173,16 +173,24 @@ SIGTERM handler:
 
 ## Deferred/Low Priority Items
 
-These items were skipped due to significant refactoring requirements:
+These items were intentionally skipped due to significant refactoring requirements or minimal impact:
 
 | Item | Reason |
 |------|--------|
-| `reading_time` filter called repeatedly | Significant refactor needed |
-| `post_image_url` file I/O every call | Significant refactor needed |
-| Theme CSS regenerated per request | Significant refactor needed |
-| `backdrop-filter: blur()` GPU | Low impact |
-| Redundant `tag_counts.get()` call | Low impact |
-| `truncate` called 4x for same post | Low impact |
+| `reading_time` filter called repeatedly | Significant refactor needed - 4x per post |
+| `post_image_url` file I/O every call | Significant refactor needed - os.path.isfile() on each render |
+| Theme CSS regenerated per request | Significant refactor needed - template vars created per request |
+| `backdrop-filter: blur()` GPU | Low impact - glassmorphism effects |
+| Redundant `tag_counts.get()` call | Low impact - O(1) dict lookup |
+| `truncate` called 4x for same post | Low impact - Jinja2's truncate is efficient |
+
+See `plan.md` for detailed verification status.
+
+## Testing
+
+- 486 unit tests pass (1 known flaky media upload test)
+- Media upload test occasionally fails due to async timing issues
+- E2E tests require Playwright installation
 
 ## Shell Context
 
