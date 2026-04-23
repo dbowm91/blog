@@ -6,7 +6,8 @@ All items from Waves 1-8, A-I have been completed. This document tracks deferred
 
 ## Verification Status (2026-04-23)
 
-All 486 tests pass. Deferred items have been addressed as follows:
+All 486 tests pass (excluding 1 known flaky media upload test).
+Deferred items have been addressed as follows:
 
 - **C3, C4, L6, L7**: Implemented via template caching patterns
 - **C5**: Already implemented (5-min TTL with proper cache invalidation)
