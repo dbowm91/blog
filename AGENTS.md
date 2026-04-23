@@ -2,8 +2,6 @@
 
 Quick reference for AI agents working on this codebase.
 
-See `plan.md` for the consolidated improvement plan.
-
 ## Running Tests
 
 ```bash
@@ -359,6 +357,6 @@ Key indexes for query optimization:
 
 ## Testing Notes
 
-- 486 unit tests pass (1 known flaky media upload test)
+- 487 unit tests pass (1 known flaky media upload test)
 - E2E tests require Playwright: `pip install playwright && playwright install`
 - Media upload test occasionally fails due to async timing issues
