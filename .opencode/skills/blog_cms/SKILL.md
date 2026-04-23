@@ -141,7 +141,15 @@ Application does NOT include rate limiting. Configure at reverse proxy/WAF/CDN l
 - Media listing: 30s TTL cache
 - FTS table check: 5-minute TTL cache
 - Dashboard analytics: 5-minute TTL cache
-- **Template filter results**: Use `{% set %}` in template loops to cache filter results (e.g., `post_image_url`, `reading_time`) and avoid repeated computation/file I/O
+- **Template filter results**: Use `{% set %}` in template loops to cache filter results:
+```jinja2
+{% set rt = post.body | reading_time %}
+{% set img = post|post_image_url %}
+{% set truncated_desc = post.body | truncate(160) %}
+{% set tc = tag_counts.get(tag.id, 0) %}
+```
+- **Request-level image cache**: `post_image_url` filter uses Flask `g._post_image_cache` to avoid repeated file I/O
+- **GPU acceleration for blur effects**: Use `will-change: backdrop-filter` for elements using `backdrop-filter: blur()`
 
 ### Query Optimization
 - Bulk eager loading with `joinedload(Post.tags)` in bulk operations
