@@ -141,6 +141,7 @@ Application does NOT include rate limiting. Configure at reverse proxy/WAF/CDN l
 - Media listing: 30s TTL cache
 - FTS table check: 5-minute TTL cache
 - Dashboard analytics: 5-minute TTL cache
+- **Template filter results**: Use `{% set %}` in template loops to cache filter results (e.g., `post_image_url`, `reading_time`) and avoid repeated computation/file I/O
 
 ### Query Optimization
 - Bulk eager loading with `joinedload(Post.tags)` in bulk operations
@@ -173,16 +174,11 @@ SIGTERM handler:
 
 ## Deferred/Low Priority Items
 
-These items were intentionally skipped due to significant refactoring requirements or minimal impact:
+These items were intentionally skipped due to minimal impact:
 
 | Item | Reason |
 |------|--------|
-| `reading_time` filter called repeatedly | Significant refactor needed - 4x per post |
-| `post_image_url` file I/O every call | Significant refactor needed - os.path.isfile() on each render |
-| Theme CSS regenerated per request | Significant refactor needed - template vars created per request |
 | `backdrop-filter: blur()` GPU | Low impact - glassmorphism effects |
-| Redundant `tag_counts.get()` call | Low impact - O(1) dict lookup |
-| `truncate` called 4x for same post | Low impact - Jinja2's truncate is efficient |
 
 See `plan.md` for detailed verification status.
 

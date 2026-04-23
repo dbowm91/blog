@@ -241,6 +241,14 @@ The mobile hamburger menu button is **created dynamically in JavaScript** (`shar
 ### Nested Forms in Dashboard
 Bulk form uses `form="bulk-form"` attribute on checkboxes to associate without nesting. Never nest `<form>` elements.
 
+### Template Value Caching
+To avoid redundant computations, cache filter results in template loops:
+```jinja2
+{% set rt = post.body | reading_time %}
+{% set img = post|post_image_url %}
+```
+This is especially important for filters with file I/O or string processing.
+
 ### Lazy Image Progressive Enhancement
 Images use `opacity: 0` by default and JS adds `.loaded` class. Pattern: add `document.documentElement.classList.add('js')` first, prefix CSS rules with `.js`.
 
@@ -329,12 +337,7 @@ These items were intentionally skipped due to significant refactoring requiremen
 
 | Item | Reason |
 |------|--------|
-| C3: `reading_time` filter called repeatedly | Significant refactor needed |
-| C4: `post_image_url` file I/O every call | Significant refactor needed |
-| C5: Theme CSS regenerated per request | Significant refactor needed |
 | L5: `backdrop-filter: blur()` GPU intensive | Low impact |
-| L6: Redundant `tag_counts.get()` call | Low impact |
-| L7: `truncate` called 4x for same post | Low impact |
 
 See `plan.md` for detailed verification status.
 
