@@ -189,3 +189,59 @@ SIGTERM handler:
 ## Shell Context
 
 `flask shell` provides: `db`, `User`, `Post`, `Tag`, `Subscriber`, `Page`, `PageView`, `ShareEvent`, `AdminSession`, `SiteSettings`, `PostRevision`
+
+## SQLAlchemy 2.0 Patterns
+
+```python
+# Single result
+db.session.execute(select(Model).filter(...)).scalar_one_or_none()
+
+# Multiple results
+db.session.execute(select(Model).filter_by(...)).scalars().all()
+
+# Counts
+db.session.execute(select(func.count(...))).scalar_one()
+
+# Deletes
+db.session.execute(delete(Model).where(...))
+
+# Pagination
+db.paginate(select(...), page=..., per_page=..., error_out=False)
+
+# Get by ID (avoids LegacyAPIWarning)
+db.session.get(Model, id)
+```
+
+**Critical**: `db.session.close_all()` is deprecated—use `db.engine.dispose()` instead.
+
+## Key Operational Lessons
+
+### IntegrityError Rollback Gotcha
+In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rollback, SQLAlchemy marks all attributes as expired. Always reapply all field changes after rollback.
+
+### File Deletion Timing
+Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
+
+### LIKE Wildcard Escaping
+Escape `%` and `_` in search:
+```python
+escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+search_term = f"%{escaped}%"
+Post.title.ilike(search_term, escape="\\")
+```
+
+### `assert` Under `python -O`
+`assert` is stripped with `-O`. Never use for runtime safety checks.
+
+## Security Headers
+
+`set_security_headers` in `app/__init__.py` applies:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-Download-Options: noopen`
+- `X-Permitted-Cross-Domain-Policies: none`
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- `Content-Security-Policy` (self-only, nonces for scripts/styles, `frame-src 'none'`)
