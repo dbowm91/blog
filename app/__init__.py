@@ -13,6 +13,7 @@ from flask import (
     flash,
     session,
     g,
+    has_request_context,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import current_user, logout_user
@@ -205,10 +206,18 @@ def create_app():
     def post_image_url_filter(post):
         if not post or not post.image:
             return None
+        if has_request_context():
+            if not hasattr(g, "_post_image_cache"):
+                g._post_image_cache = {}
+            post_id = id(post)
+            if post_id in g._post_image_cache:
+                return g._post_image_cache[post_id]
+            path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
+            result = post.image if os.path.isfile(path) else None
+            g._post_image_cache[post_id] = result
+            return result
         path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
-        if os.path.isfile(path):
-            return post.image
-        return None
+        return post.image if os.path.isfile(path) else None
 
     SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
 

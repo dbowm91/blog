@@ -1,6 +1,7 @@
 <article class="post-full animate-in">
     <div class="post-hero">
         {% set img = post|post_image_url %}
+        {% set rt = post.body | reading_time %}
         {% if img %}
             <img src="{{ url_for('static', filename='uploads/' + img) }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% else %}
@@ -12,7 +13,7 @@
             <div class="post-meta">
                 <time datetime="{{ post.created_at.isoformat() }}">{{ post.created_at.strftime('%B %d, %Y') }}</time>
                 <span class="meta-sep">&middot;</span>
-                <span class="reading-time-badge" aria-label="Estimated reading time">{{ post.body | reading_time }}</span>
+                <span class="reading-time-badge" aria-label="Estimated reading time">{{ rt }}</span>
             </div>
         </div>
     </div>
