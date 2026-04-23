@@ -1,73 +1,16 @@
 # Improvement Plan
 
-All items from Waves 1-8, A-I have been completed. This document tracks deferred items only.
+All items from Waves 1-8, A-I and all deferred items have been completed.
 
 ---
 
 ## Verification Status (2026-04-23)
 
 All 486 tests pass (excluding 1 known flaky media upload test).
-All items complete - no deferred items remaining.
-
-- **C3, C4, L6, L7**: Implemented via template caching patterns
-- **C5**: Already implemented (5-min TTL with proper cache invalidation)
-- **L5**: Completed (added GPU acceleration hints via `will-change: backdrop-filter`)
-
----
-
-## Completed Items
-
-### C3: `reading_time` Filter Called Repeatedly
-- **Status**: Completed (2026-04-23)
-- **Solution**: Cache using `{% set rt = post.body | reading_time %}` in each template loop
-- **Files**: `app/templates/index.html:17-18`, `app/templates/tag.html:20-21`, `app/templates/search.html:25-26`, `app/templates/_post_content.html:4`, `app/templates/post.html:3`
-
-### C4: `post_image_url` Does File I/O Every Call
-- **Status**: Completed (2026-04-23)
-- **Solution**: Request-level cache using Flask g object in filter
-- **Files**: `app/__init__.py:206-221` (filter implementation with g._post_image_cache)
-
-### C5: Theme CSS Regenerated Per Request
-- **Status**: Completed (already adequate)
-- **Solution**: 5-min TTL with proper cache invalidation on settings change
-- **Files**: `app/context_processors.py:30-69`
-
-### L6: Redundant `tag_counts.get()` Call
-- **Status**: Completed (2026-04-23)
-- **Solution**: Cache in template loop before conditional
-- **Files**: `app/templates/_sidebar.html:14`
-
-### L7: `truncate` Called 4x for Same Post
-- **Status**: Completed (2026-04-23)
-- **Solution**: Cache using `{% set truncated_desc = ... %}` at template top
-- **Files**: `app/templates/post.html:3`
-
----
-
-## Deferred Items (Low Impact)
-
-### L5: `backdrop-filter: blur()` GPU Intensive
-- **Status**: Completed (2026-04-23)
-- **Solution**: Added `will-change: backdrop-filter` hints to navbar, nav-links, and modal overlay elements to enable GPU compositing
-- **Files**: `app/static/css/style.css:150,341,3609`
-
----
-
-## Known Test Issues
-
-### Media Upload Test
-`TestMediaManagement::test_upload_browse_delete_image` occasionally fails due to timing/async issues with image processing. The image upload itself works correctly.
-
----
+All deferred items complete — no remaining work.
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
-| 2026-04-23 | L5 GPU hints implemented - all items complete |
-| 2026-04-23 | Verified L5 deferred, all items complete; updated docs and skill |
-| 2026-04-23 | Implemented C3, C4, L6, L7 via template caching patterns |
-| 2026-04-22 | Verified all deferred items - no completed implementations found |
-| 2026-04-21 | Consolidated plan created from plan.md, plan2.md, plan3.md, plan4.md |
-| 2026-04-21 | All waves completed (A-I) |
-| 2026-04-21 | Plan pruned - completed items removed, deferred items preserved |
+| 2026-04-23 | All deferred items completed - plan pruned |

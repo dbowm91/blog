@@ -357,21 +357,6 @@ Key indexes for query optimization:
 - `ix_share_events_post_created` — share counts
 - `ix_subscribers_confirmed_unsubscribed` — subscriber queries
 
-## Deferred Items
-
-These items were intentionally skipped due to significant refactoring requirements or minimal impact. All items have been completed as of 2026-04-23:
-
-| Item | Status |
-|------|--------|
-| C3: `reading_time` filter repeated calls | **Completed** - template caching with `{% set rt = post.body \| reading_time %}` |
-| C4: `post_image_url` file I/O | **Completed** - request-level cache via Flask g object |
-| C5: Theme CSS regenerated per request | **Completed** - 5-min TTL cache with proper invalidation |
-| L5: `backdrop-filter: blur()` GPU | **Completed** - added `will-change: backdrop-filter` hints |
-| L6: Redundant `tag_counts.get()` call | **Completed** - template caching with `{% set tc = tag_counts.get(tag.id, 0) %}` |
-| L7: `truncate` called 4x for same post | **Completed** - template caching with `{% set truncated_desc = ... \| truncate(160) %}` |
-
-See `plan.md` for detailed verification status.
-
 ## Testing Notes
 
 - 486 unit tests pass (1 known flaky media upload test)

@@ -180,21 +180,6 @@ SIGTERM handler:
 3. Scheduler finishes current newsletter
 4. Closes DB connections via `db.engine.dispose()`
 
-## Deferred/Low Priority Items
-
-All items have been completed as of 2026-04-23:
-
-| Item | Status |
-|------|--------|
-| C3: `reading_time` filter repeated calls | **Completed** - template caching with `{% set %}` |
-| C4: `post_image_url` file I/O | **Completed** - request-level cache via Flask g |
-| C5: Theme CSS regenerated | **Completed** - 5-min TTL cache |
-| L5: `backdrop-filter: blur()` GPU | **Completed** - `will-change: backdrop-filter` hints |
-| L6: Redundant `tag_counts.get()` | **Completed** - template caching |
-| L7: `truncate` called 4x | **Completed** - template caching |
-
-See `plan.md` for detailed verification status.
-
 ## Testing
 
 - 486 unit tests pass (1 known flaky media upload test)
