@@ -7,11 +7,11 @@ All items from Waves 1-8, A-I have been completed. This document tracks deferred
 ## Verification Status (2026-04-23)
 
 All 486 tests pass (excluding 1 known flaky media upload test).
-Deferred items have been addressed as follows:
+All items complete - no deferred items remaining.
 
 - **C3, C4, L6, L7**: Implemented via template caching patterns
 - **C5**: Already implemented (5-min TTL with proper cache invalidation)
-- **L5**: Remains deferred (low impact - GPU-accelerated)
+- **L5**: Completed (added GPU acceleration hints via `will-change: backdrop-filter`)
 
 ---
 
@@ -47,10 +47,9 @@ Deferred items have been addressed as follows:
 ## Deferred Items (Low Impact)
 
 ### L5: `backdrop-filter: blur()` GPU Intensive
-- **Status**: Deferred
-- **Reason**: Low impact, GPU performance acceptable on modern devices
-- **Files**: `app/static/css/style.css:150,151,341,3608`
-- **Impact**: Low - used for glassmorphism effects on sidebar/header
+- **Status**: Completed (2026-04-23)
+- **Solution**: Added `will-change: backdrop-filter` hints to navbar, nav-links, and modal overlay elements to enable GPU compositing
+- **Files**: `app/static/css/style.css:150,341,3609`
 
 ---
 
@@ -65,6 +64,7 @@ Deferred items have been addressed as follows:
 
 | Date | Change |
 |------|--------|
+| 2026-04-23 | L5 GPU hints implemented - all items complete |
 | 2026-04-23 | Verified L5 deferred, all items complete; updated docs and skill |
 | 2026-04-23 | Implemented C3, C4, L6, L7 via template caching patterns |
 | 2026-04-22 | Verified all deferred items - no completed implementations found |

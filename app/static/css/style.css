@@ -149,6 +149,7 @@ a:hover {
     background: rgba(13, 17, 23, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    will-change: backdrop-filter;
     border-bottom: 1px solid var(--border);
     padding: 16px 0;
     transition: padding 0.2s ease;
@@ -339,6 +340,7 @@ a:hover {
 .nav-links.open {
     animation: slideInRight 0.3s ease forwards;
     backdrop-filter: blur(8px);
+    will-change: backdrop-filter;
 }
 @media (max-width: 768px) {
     .nav-links.open::before {
@@ -3606,6 +3608,7 @@ a:hover {
     justify-content: center;
     z-index: 10001;
     backdrop-filter: blur(4px);
+    will-change: backdrop-filter;
 }
 
 .modal-content {

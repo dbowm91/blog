@@ -174,11 +174,16 @@ SIGTERM handler:
 
 ## Deferred/Low Priority Items
 
-These items were intentionally skipped due to minimal impact:
+All items have been completed as of 2026-04-23:
 
-| Item | Reason |
+| Item | Status |
 |------|--------|
-| `backdrop-filter: blur()` GPU | Low impact - glassmorphism effects |
+| C3: `reading_time` filter repeated calls | **Completed** - template caching with `{% set %}` |
+| C4: `post_image_url` file I/O | **Completed** - request-level cache via Flask g |
+| C5: Theme CSS regenerated | **Completed** - 5-min TTL cache |
+| L5: `backdrop-filter: blur()` GPU | **Completed** - `will-change: backdrop-filter` hints |
+| L6: Redundant `tag_counts.get()` | **Completed** - template caching |
+| L7: `truncate` called 4x | **Completed** - template caching |
 
 See `plan.md` for detailed verification status.
 

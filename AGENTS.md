@@ -331,13 +331,13 @@ Key indexes for query optimization:
 - `ix_share_events_post_created` — share counts
 - `ix_subscribers_confirmed_unsubscribed` — subscriber queries
 
-## Deferred Items (Low Priority)
+## Deferred Items
 
 These items were intentionally skipped due to significant refactoring requirements or minimal impact:
 
-| Item | Reason |
+| Item | Status |
 |------|--------|
-| L5: `backdrop-filter: blur()` GPU intensive | Low impact |
+| L5: `backdrop-filter: blur()` GPU | **Completed** - added `will-change: backdrop-filter` hints |
 
 See `plan.md` for detailed verification status.
 
