@@ -59,6 +59,7 @@ function getModulesForPath(path) {
         './public/code-copy.js',
         './public/anchor-links.js',
         './public/media-copy.js',
+        './public/search.js',
     ];
 }
 
