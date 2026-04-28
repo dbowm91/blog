@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,11 @@ from app.routes.admin.helpers import logger
 from app.csrf import validate_csrf_token
 from app.email import send_password_reset
 from app.routes.admin.helpers import _check_password_complexity
+
+
+def _hash_token(token: str) -> str:
+    """Hash a reset token with SHA-256 for secure storage."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 @admin.route("/login", methods=["GET", "POST"])
@@ -138,7 +144,7 @@ def forgot_password() -> Response:
 
         if user and user.is_admin:
             token = secrets.token_hex(32)
-            user.reset_token = token
+            user.reset_token = _hash_token(token)
             user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
             try:
                 db.session.commit()
@@ -165,8 +171,9 @@ def reset_password(token: str) -> Response:
     GET: Renders the reset password form if token is valid.
     POST: Updates password and invalidates all admin sessions for the user.
     """
+    hashed_token = _hash_token(token)
     user = db.session.execute(
-        select(User).filter_by(reset_token=token)
+        select(User).filter_by(reset_token=hashed_token)
     ).scalar_one_or_none()
 
     if not user or not user.reset_token_expires_at:

@@ -27,17 +27,15 @@ def upgrade():
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.insert(
-        "site_settings",
-        [
-            {
-                "id": 1,
-                "theme_preset": "github-dark",
-                "custom_css_enabled": False,
-                "custom_css": "",
-                "logo_text": "",
-            }
-        ],
+    # Insert default site settings row using SQLAlchemy
+    from sqlalchemy import text
+    op.execute(
+        text(
+            """
+            INSERT INTO site_settings (id, theme_preset, custom_css_enabled, custom_css, logo_text)
+            VALUES (1, 'github-dark', 0, '', '')
+            """
+        )
     )
 
 

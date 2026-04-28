@@ -399,53 +399,33 @@ def get_stats() -> Response:
         JSON with total views, posts, shares, subscribers, and trends
     """
     from datetime import timedelta
+    from sqlalchemy import text
 
     now = utc_now()
     thirty_days_ago = now - timedelta(days=30)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    total_views = db.session.execute(select(func.count(PageView.id))).scalar_one() or 0
-    total_posts = (
-        db.session.execute(
-            select(func.count(Post.id)).filter(Post.published == True)
-        ).scalar_one()
-        or 0
-    )
-    total_shares = (
-        db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
-    )
-    total_subscribers = (
-        db.session.execute(
-            select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)
-        ).scalar_one()
-        or 0
-    )
-
-    views_this_month = (
-        db.session.execute(
-            select(func.count(PageView.id)).filter(
-                PageView.created_at >= thirty_days_ago
-            )
-        ).scalar_one()
-        or 0
-    )
-
-    new_subscribers_this_month = (
-        db.session.execute(
-            select(func.count(Subscriber.id)).filter(
-                Subscriber.created_at >= month_start
-            )
-        ).scalar_one()
-        or 0
-    )
+    # Combine all COUNT queries into a single query using subqueries
+    counts = db.session.execute(
+        text("""
+            SELECT
+                (SELECT COUNT(*) FROM page_views) as total_views,
+                (SELECT COUNT(*) FROM posts WHERE published = 1) as total_posts,
+                (SELECT COUNT(*) FROM share_events) as total_shares,
+                (SELECT COUNT(*) FROM subscribers WHERE confirmed = 1) as total_subscribers,
+                (SELECT COUNT(*) FROM page_views WHERE created_at >= :thirty_days_ago) as views_this_month,
+                (SELECT COUNT(*) FROM subscribers WHERE created_at >= :month_start) as new_subscribers_this_month
+        """),
+        {"thirty_days_ago": thirty_days_ago, "month_start": month_start}
+    ).fetchone()
 
     return jsonify(
         {
-            "total_views": total_views,
-            "total_posts": total_posts,
-            "total_shares": total_shares,
-            "total_subscribers": total_subscribers,
-            "views_this_month": views_this_month,
-            "new_subscribers_this_month": new_subscribers_this_month,
+            "total_views": counts[0] or 0,
+            "total_posts": counts[1] or 0,
+            "total_shares": counts[2] or 0,
+            "total_subscribers": counts[3] or 0,
+            "views_this_month": counts[4] or 0,
+            "new_subscribers_this_month": counts[5] or 0,
         }
     )
