@@ -36,7 +36,7 @@
                     <a href="{{ url_for('admin.download_backup', filename=b.name) }}" class="btn btn-small btn-ghost">Download</a>
                     <form method="POST" action="{{ url_for('admin.restore_backup', filename=b.name) }}" class="inline-form" data-confirm="Restore database from {{ b.name }}? Current data will be overwritten." data-confirm-type="danger">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="btn btn-small btn-danger">Restore</button>
+                        <button type="submit" class="btn btn-small btn-warning">Restore</button>
                     </form>
                     <form method="POST" action="{{ url_for('admin.delete_backup', filename=b.name) }}" class="inline-form" data-confirm="Delete backup {{ b.name }}?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

@@ -49,6 +49,13 @@ export function initModal() {
                         first.focus();
                     }
                 }
+            } else if (e.key === 'Escape') {
+                const closeBtn = modal.querySelector('.modal-close-btn, .close-btn');
+                if (closeBtn) {
+                    closeBtn.click();
+                } else {
+                    modal.classList.add('hidden');
+                }
             }
         });
     });
