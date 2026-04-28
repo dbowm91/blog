@@ -685,8 +685,10 @@ def post_revisions(post_id: int):
             select(PostRevision)
             .filter(PostRevision.post_id == post_id)
             .order_by(PostRevision.created_at.desc())
+            .options(joinedload(PostRevision.author))
         )
         .scalars()
+        .unique()
         .all()
     )
 

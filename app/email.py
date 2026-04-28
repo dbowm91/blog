@@ -93,6 +93,11 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         return server
     except (smtplib.SMTPException, OSError):
         logger.exception("Failed to connect to SMTP server")
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
         return None
 
 

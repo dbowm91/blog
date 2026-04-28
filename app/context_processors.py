@@ -94,10 +94,13 @@ def _get_footer_data() -> dict:
         db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     )
 
+    tag_counts = _get_tag_counts()
+    footer_tag_counts = {tag_id: tag_counts.get(tag_id, 0) for tag_id in [t.id for t in footer_tags]}
+
     data = {
         "recent_posts_footer": list(recent_posts),
         "footer_tags": list(footer_tags),
-        "footer_tag_counts": {},
+        "footer_tag_counts": footer_tag_counts,
     }
 
     with _FOOTER_CACHE_LOCK:
