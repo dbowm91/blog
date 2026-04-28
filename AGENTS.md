@@ -281,14 +281,14 @@ Images use `opacity: 0` by default and JS adds `.loaded` class. Pattern: add `do
 ### Admin Page Detection in JS
 Use `document.body.classList.contains('admin-body')` to scope admin-only JS handlers.
 
-### `yield_per()` and `.all()`
-Calling `.all()` after `.yield_per()` (e.g., in `app/scheduler.py`) defeats streaming by materializing all rows into a Python list. If the dataset is large, use the scalars iterator directly; if small, `yield_per` is unnecessary.
+### `yield_per()` Usage
+Calling `.all()` after `.yield_per()` defeats streaming by materializing all rows into a list. In `app/scheduler.py`, the subscriber query uses `.yield_per(500).scalars()` without `.all()` to stream results.
 
 ### Docker-Compose Circular Dependency
-Avoid circular `depends_on` with `condition: service_healthy`. If Service A waits for Service B to be healthy, and Service B waits for Service A, a deadlock occurs.
+Avoid circular `depends_on` with `condition: service_healthy`. The blog service previously depended on nginx; nginx depended on blog being healthy → deadlock.
 
 ### Granian ASGI Integration
-Granian (Rust-based ASGI server) is significantly faster than Gunicorn. Use the `WsgiToAsgi` wrapper in `run.py` and start with `granian --interface asgi ...`.
+Granian (Rust-based ASGI server) is significantly faster than Gunicorn. Use `granian --interface asgi ...` to run the `asgi_app` from `run.py`.
 
 ### PostRevision Eager Loading
 Always use `.options(joinedload(PostRevision.author))` when querying revisions to avoid N+1 queries in templates that display the author.
@@ -298,7 +298,6 @@ Always use `.options(joinedload(PostRevision.author))` when querying revisions t
 - **No external assets**—all fonts (Inter, JetBrains Mono) are self-hosted in `app/static/fonts/`
 - **Prism.js** is self-hosted with extended language definitions
 - Do not add external CDN links (Google Fonts, CDNs, etc.)
-- **Asset Minification**: Served assets are currently unminified; a build script is planned to handle this (see plan.md).
 
 ## New Features Added
 
@@ -407,6 +406,5 @@ Key indexes for query optimization:
 
 ## Testing Notes
 
-- 487 unit tests pass (1 known flaky media upload test)
+- 488 unit tests pass
 - E2E tests require Playwright: `pip install playwright && playwright install`
-- Media upload test occasionally fails due to async timing issues

@@ -182,8 +182,7 @@ SIGTERM handler:
 
 ## Testing
 
-- 487 unit tests pass (1 known flaky media upload test)
-- Media upload test occasionally fails due to async timing issues
+- 488 unit tests pass
 - E2E tests require Playwright installation
 
 ## Shell Context
