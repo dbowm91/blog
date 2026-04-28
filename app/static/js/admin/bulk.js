@@ -44,6 +44,13 @@ export function initBulk() {
     if (bulkForm && bulkOverlay) {
         bulkForm.addEventListener('submit', () => {
             bulkOverlay.classList.add('visible');
+            const action = bulkForm.querySelector('button[name="action"]:focus');
+            if (action) {
+                const originalText = action.textContent;
+                action.dataset.originalText = originalText;
+                action.textContent = 'Working...';
+                action.disabled = true;
+            }
         });
         window.addEventListener('load', () => {
             bulkOverlay.classList.remove('visible');
@@ -63,4 +70,42 @@ export function initBulk() {
             }
         });
     });
+
+    // --- Keyboard shortcuts for bulk operations ---
+    if (bulkForm) {
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'a' && !e.shiftKey) {
+                    const target = e.target;
+                    if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+                        const selectAll = document.getElementById('select-all');
+                        if (selectAll && !selectAll.checked) {
+                            selectAll.checked = true;
+                            selectAll.dispatchEvent(new Event('change'));
+                            e.preventDefault();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // --- Toast notifications for bulk action results ---
+    if (bulkForm) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('bulk_success')) {
+            const count = urlParams.get('bulk_success');
+            import('../shared/toast.js').then(({ showToast }) => {
+                showToast(`Successfully processed ${count} item${count === '1' ? '' : 's'}.`, 'success');
+            }).catch(() => {});
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+        if (urlParams.has('bulk_error')) {
+            const error = urlParams.get('bulk_error');
+            import('../shared/toast.js').then(({ showToast }) => {
+                showToast(`Error: ${error}`, 'error');
+            }).catch(() => {});
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    }
 }
