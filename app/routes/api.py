@@ -5,6 +5,7 @@ Rate limiting should be handled by the reverse proxy (same as admin routes).
 """
 
 import os
+import hmac
 from functools import wraps
 
 from flask import Blueprint, jsonify, request, Response
@@ -29,7 +30,7 @@ def require_api_key(f):
             return jsonify({"error": "API not configured"}), 503
 
         provided = request.headers.get("X-API-Key", "")
-        if not provided or provided != API_KEY:
+        if not provided or not hmac.compare_digest(provided, API_KEY):
             return jsonify({"error": "Invalid or missing API key"}), 401
 
         return f(*args, **kwargs)

@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --shell /bin/bash blog
 
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --user --no-cache-dir -r requirements.txt
 
 RUN mkdir -p /home/blog/instance /home/blog/logs /home/blog/app/static/uploads
 RUN chown -R blog:blog /home/blog
@@ -24,4 +24,4 @@ ENV PATH="/home/blog/.local/bin:$PATH" \
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
+CMD ["granian", "--interface", "asgi", "--workers", "2", "--host", "0.0.0.0", "--port", "5000", "run:asgi_app"]

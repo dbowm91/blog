@@ -21,9 +21,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    depends_on:
-      nginx:
-        condition: service_healthy
     profiles:
       - production
 
@@ -50,6 +47,7 @@ services:
     volumes:
       - blog_data:/home/blog/instance:ro
       - ./backups:/backups
+    working_dir: /home/blog
     entrypoint: ["python3", "backup.py"]
     environment:
       - BACKUP_DIR=/backups

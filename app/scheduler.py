@@ -106,7 +106,6 @@ def send_daily_newsletter(app) -> None:
                         Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
                     )
                     .order_by(Post.published_at.desc())
-                    .yield_per(100)
                 )
                 .scalars()
                 .all()
