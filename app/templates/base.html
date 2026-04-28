@@ -19,6 +19,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <link rel="alternate" type="application/rss+xml" title="{{ site_title }}" href="{{ url_for('rss.feed') }}">
+    <link rel="alternate" type="application/feed+json" title="{{ site_title }} (JSON)" href="{{ url_for('rss.json_feed') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/prism-okaidia.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="preload" href="{{ url_for('static', filename='fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
