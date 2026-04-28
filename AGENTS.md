@@ -86,7 +86,7 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - `Subscriber.expires_at` has no model default; the subscribe route sets it explicitly from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
 - Database indexes on frequently queried columns (see models.py for full list)
-- `User.reset_token` and `User.reset_token_expires_at` for password reset flow
+- `User.reset_token` and `User.reset_token_expires_at` for password reset flow (tokens hashed with SHA-256 before storage)
 - `AdminSession` tracks active admin sessions with IP binding warning
 - All DateTime columns use `UTCDateTime` TypeDecorator (stores naive UTC in SQLite, returns timezone-aware UTC on read)
 - `utc_now()` returns timezone-aware UTC datetime
@@ -351,6 +351,11 @@ Always use `.options(joinedload(PostRevision.author))` when querying revisions t
 - `sync_fts_batch()` separates published/unpublished for correct batch handling
 - `reset_fts_available()` properly resets FTS cache for testing/cache invalidation
 
+### Alembic SQLite Batch Mode
+- `migrations/env.py` configured with `render_as_batch=True` for safe SQLite migrations
+- Enables `DROP COLUMN` and `ALTER COLUMN` operations via table recreation
+- Required for proper handling of destructive migrations in SQLite
+
 ## Dependencies (Python 3.14 compatible)
 
 See `requirements.txt`. Key packages:
@@ -424,5 +429,6 @@ Key indexes for query optimization:
 
 ## Testing Notes
 
-- 488 unit tests pass
+- 509 unit tests pass (excluding E2E)
+- New tests added for: password reset flow, settings routes, pages routes
 - E2E tests require Playwright: `pip install playwright && playwright install`

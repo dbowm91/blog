@@ -114,8 +114,9 @@ Authentication: `X-API-Key` header (env var `API_KEY`)
 - Session IP binding logs warning on address change
 - Cascade delete removes AdminSession when User deleted
 
-### Password Reset (`/admin/forgot-password`)
-- Token expires in 1 hour, stored as hash
+### Password Reset (`/admin/forgot-password`, `/admin/reset/<token>`)
+- Tokens hashed with SHA-256 before storing in database
+- Token expires in 1 hour, single-use
 - Fake success pattern prevents username enumeration
 - Password complexity: 3 of 4 character classes, min 8 chars
 
@@ -157,6 +158,7 @@ Application does NOT include rate limiting. Configure at reverse proxy/WAF/CDN l
 - `yield_per(100)` for newsletter post streaming
 - LEFT JOIN for combined queries
 - Subqueries with OUTER JOIN for dashboard metrics
+- Combined COUNT queries in `/api/stats` using single SQL query with subqueries
 
 ### Database Indexes
 - `ix_posts_published_created` - post listings
@@ -164,6 +166,13 @@ Application does NOT include rate limiting. Configure at reverse proxy/WAF/CDN l
 - `ix_page_views_post_created` - view counts
 - `ix_share_events_post_created` - share counts
 - `ix_subscribers_confirmed_unsubscribed` - subscriber queries
+- `ix_post_tags_tag_id` - reverse tag lookups
+
+## Database Migrations
+
+- `migrations/env.py` configured with `render_as_batch=True` for safe SQLite migrations
+- Enables `DROP COLUMN` and `ALTER COLUMN` operations via table recreation
+- Use `flask db migrate -m "description"` then `flask db upgrade`
 
 ## Structured Logging
 
@@ -182,7 +191,8 @@ SIGTERM handler:
 
 ## Testing
 
-- 488 unit tests pass
+- 509 unit tests pass (excluding E2E)
+- New tests: password reset flow, settings/pages routes
 - E2E tests require Playwright installation
 
 ## Shell Context
