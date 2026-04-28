@@ -951,6 +951,74 @@ sqlite3 /opt/blog/instance/blog.db ".dump" | gzip > /var/backups/blog/backup-$(d
 
 Include `instance/backups/` and `static/uploads/` in your backup strategy.
 
+### Off-site Backup Sync
+
+The `scripts/sync_backups.sh` script syncs local backups to remote storage (S3, Google Drive, etc.) using rclone or native AWS CLI.
+
+**Prerequisites:**
+
+```bash
+# Install rclone (recommended)
+curl https://rclone.org/install.sh | sudo bash
+
+# Or install AWS CLI for S3
+pip install awscli
+```
+
+**Configuration:**
+
+```bash
+# For rclone (supports S3, Google Drive, Azure Blob, SFTP, etc.)
+export RCLONE_REMOTE="s3:my-backups/blog"
+export RETENTION_DAYS=7
+
+# For native S3
+export REMOTE_TYPE="s3"
+export AWS_S3_BUCKET="my-backups"
+export AWS_REGION="us-east-1"
+export AWS_ACCESS_KEY_ID="your-key"
+export AWS_SECRET_ACCESS_KEY="your-secret"
+```
+
+**Usage:**
+
+```bash
+# Sync backups (with rclone)
+./scripts/sync_backups.sh
+
+# Preview changes without syncing
+./scripts/sync_backups.sh --dry-run
+
+# Verify backups after sync
+./scripts/sync_backups.sh --verify
+
+# Sync and cleanup local backups older than 14 days
+./scripts/sync_backups.sh --cleanup 14
+```
+
+**Automated Sync with Cron:**
+
+```bash
+# Add to crontab: sync backups daily at 4 AM
+crontab -e
+
+# 0 4 * * * /opt/blog/scripts/sync_backups.sh --verify --cleanup 7 >> /opt/blog/logs/backup_sync.log 2>&1
+```
+
+**Backup Verification:**
+
+The `app/backup_integrity.py` module provides integrity verification:
+
+```python
+from app.backup_integrity import verify_backup_integrity, verify_backup_set
+
+# Verify a single backup
+is_valid, message = verify_backup_integrity(backup_path)
+
+# Verify all backups in a directory
+results = verify_backup_set(backup_dir)
+```
+
 ## 9. Monitoring
 
 ### Health Check

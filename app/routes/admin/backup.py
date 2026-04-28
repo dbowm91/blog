@@ -166,3 +166,49 @@ def delete_backup(filename):
     else:
         abort(404)
     return redirect(url_for("admin.backup"))
+
+
+@admin.route("/backup/verify/<filename>")
+@admin_required
+def verify_backup(filename):
+    """
+    Verify the integrity of a backup file.
+
+    Methods: GET
+    GET: Verifies backup file integrity and returns result as JSON.
+    Requires: Admin authentication.
+    Path params: filename - Name of backup file to verify.
+    """
+    from pathlib import Path
+    from app.backup_integrity import verify_backup_integrity
+
+    if not BACKUP_FILENAME_RE.match(filename):
+        abort(400)
+    backup_dir = _get_backup_dir()
+    filepath = os.path.join(backup_dir, filename)
+    real_path = os.path.realpath(filepath)
+    if not real_path.startswith(os.path.realpath(backup_dir) + os.sep):
+        abort(400)
+    if not os.path.exists(real_path):
+        abort(404)
+
+    is_valid, message = verify_backup_integrity(Path(real_path))
+    return {"valid": is_valid, "message": message}
+
+
+@admin.route("/backup/verify-all")
+@admin_required
+def verify_all_backups():
+    """
+    Verify integrity of all backups in the backup directory.
+
+    Methods: GET
+    GET: Verifies all backup files and returns summary as JSON.
+    Requires: Admin authentication.
+    """
+    from pathlib import Path
+    from app.backup_integrity import verify_backup_set
+
+    backup_dir = _get_backup_dir()
+    results = verify_backup_set(Path(backup_dir))
+    return results
