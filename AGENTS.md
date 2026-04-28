@@ -53,13 +53,15 @@ app/markdown_config.py  # Shared nh3 allowed tags/attributes for markdown render
 app/csv_utils.py        # Subscriber CSV export with formula injection prevention
 app/context_processors.py  # Template context (theme, footer, canonical_url)
 app/cli.py              # CLI commands (export-data, import-data, seed, etc.)
+app/backup_integrity.py # Backup integrity verification
 app/static/js/          # JavaScript modules (ES6 with dynamic imports)
 app/static/js/shared/   # Shared JS modules (utils, dark-mode, modal, mobile-menu, toast, etc.)
-app/static/js/public/    # Public-facing JS modules (share, lightbox, toc, etc.)
+app/static/js/public/   # Public-facing JS modules (share, lightbox, toc, search, etc.)
 app/static/js/admin/    # Admin JS modules (editor, bulk, shortcuts)
 DEPLOY.md               # Deployment guide (SQLite/PostgreSQL)
 docs/openapi.yaml       # API documentation
 scripts/dev.sh          # Development environment setup script
+scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 ```
 
 ## Key Patterns
@@ -298,6 +300,40 @@ Always use `.options(joinedload(PostRevision.author))` when querying revisions t
 - Do not add external CDN links (Google Fonts, CDNs, etc.)
 - **Asset Minification**: Served assets are currently unminified; a build script is planned to handle this (see plan.md).
 
+## New Features Added
+
+### JSON Feed
+- `/json` endpoint provides JSON Feed 1.1 format
+- Includes title, summary, url, tags, image, author
+- Conditional GET with ETag support
+- Cache-Control headers for feeds
+
+### Backup Integrity Verification
+- `app/backup_integrity.py` module provides verification functions
+- Verifies SQLite backup integrity (header, tables, PRAGMA integrity_check)
+- Detects corruption using file size and structure heuristics
+
+### Off-site Backup Sync
+- `scripts/sync_backups.sh` supports rclone and AWS S3
+- Dry-run mode, verification, and local cleanup options
+- Cron automation examples in DEPLOY.md
+
+### Granian ASGI Server
+- Granian is the recommended ASGI server (faster than Gunicorn)
+- Dockerfile updated to use `granian --interface asgi`
+- `requirements.txt` includes granian>=1.0.0
+
+### Admin Enhancements
+- Pages link added to admin navigation dropdown
+- Restore button uses distinct amber/warning color
+- Escape key closes modals
+- Media cache invalidation on post create/edit
+
+### Search Enhancements
+- Live search suggestions via `/api/posts` endpoint
+- Debounced input with keyboard navigation
+- Search suggestions CSS styling
+
 ## Dependencies (Python 3.14 compatible)
 
 See `requirements.txt`. Key packages:
@@ -351,6 +387,7 @@ Available via `flask`:
 The codebase implements robust security controls:
 - Session fixation prevention (`session.clear()` before `login_user()`)
 - CSRF protection with sliding window (timing-safe comparison via `hmac.compare_digest`)
+- API key comparison using `hmac.compare_digest()` (timing-safe)
 - Password hashing via `werkzeug.security` (pbkdf2:sha256)
 - Token enumeration prevention with constant-time delay
 - SQLAlchemy 2.0 parameterized queries throughout
@@ -358,10 +395,6 @@ The codebase implements robust security controls:
 - CSS sanitization blocking `url()`, `expression()`, `content`, etc.
 - CSV formula injection prevention
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
-
-### Known Vulnerabilities to Fix
-
-- **API Key Timing Attack** (`app/routes/api.py:32`): Uses `!=` for comparison which is vulnerable to timing attacks. Use `hmac.compare_digest()` instead.
 
 ## Database Indexes
 

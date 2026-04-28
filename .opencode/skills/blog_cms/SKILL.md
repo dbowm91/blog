@@ -222,6 +222,14 @@ In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rol
 ### File Deletion Timing
 Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
 
+### Media Cache Invalidation
+When uploading images via post creation/edit, the media cache must be invalidated:
+```python
+from app.routes.admin.media import _invalidate_media_cache
+_invalidate_media_cache()
+```
+The cache is in `app/routes/admin/media.py` and uses 30-second TTL.
+
 ### LIKE Wildcard Escaping
 Escape `%` and `_` in search:
 ```python
@@ -232,6 +240,46 @@ Post.title.ilike(search_term, escape="\\")
 
 ### `assert` Under `python -O`
 `assert` is stripped with `-O`. Never use for runtime safety checks.
+
+## New Features
+
+### JSON Feed (`/json`)
+- JSON Feed 1.1 format implementation
+- Includes title, summary, url, tags, image, author
+- Conditional GET with ETag support
+- Cache-Control headers for feeds
+
+### RSS Feed Enhancements
+- Author element and category elements for post tags
+- Conditional GET with ETag for both `/rss` and `/json`
+- Cache headers: ETag, Cache-Control, Expires
+
+### Backup Integrity (`app/backup_integrity.py`)
+- `verify_backup_integrity()` - Single backup verification
+- `verify_backup_set()` - Directory verification with summary
+- `detect_backup_corruption()` - Heuristic corruption detection
+- Admin endpoints: `/admin/backup/verify/<filename>`, `/admin/backup/verify-all`
+
+### Off-site Backup Sync (`scripts/sync_backups.sh`)
+- Supports rclone and AWS S3
+- Options: --dry-run, --verify, --cleanup
+- Cron automation examples in DEPLOY.md
+
+### Granian ASGI Server
+- Recommended ASGI server (faster than Gunicorn)
+- Dockerfile uses `granian --interface asgi`
+- `requirements.txt` includes `granian>=1.0.0`
+
+### Search Enhancements (`app/static/js/public/search.js`)
+- Live search suggestions via API
+- Debounced input with keyboard navigation (arrow keys, Enter, Escape)
+- CSS styled suggestions dropdown
+
+### Admin Enhancements
+- Pages link in admin navigation dropdown
+- Restore button uses distinct `btn-warning` (amber) styling
+- Escape key closes modals
+- Media cache invalidation on post create/edit
 
 ## Security Headers
 
@@ -245,3 +293,19 @@ Post.title.ilike(search_term, escape="\\")
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
 - `Content-Security-Policy` (self-only, nonces for scripts/styles, `frame-src 'none'`)
+
+## Security Posture
+
+The codebase implements robust security controls:
+- Session fixation prevention (`session.clear()` before `login_user()`)
+- CSRF protection with sliding window (timing-safe via `hmac.compare_digest`)
+- API key comparison using `hmac.compare_digest()` (timing-safe)
+- Password hashing via `werkzeug.security` (pbkdf2:sha256)
+- Token enumeration prevention with constant-time delay
+- SQLAlchemy 2.0 parameterized queries throughout
+- Magic byte detection for file uploads
+- CSS sanitization blocking `url()`, `expression()`, `content`, etc.
+- CSV formula injection prevention
+- Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
+
+## Key Operational Lessons
