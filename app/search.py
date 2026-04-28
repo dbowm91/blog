@@ -27,6 +27,9 @@ _fts_enabled: bool | None = None
 _fts_check_time: float = 0
 _FTS_CHECK_TTL = 300
 
+_ESCAPE_SPECIAL_CHARS_RE = re.compile(r'[()*:+"<>\-]')
+_ESCAPE_WHITESPACE_RE = re.compile(r"\s+")
+
 
 def reset_fts_available() -> None:
     """Reset FTS availability flag. For testing only - no-op in original implementation."""
@@ -170,8 +173,8 @@ def remove_fts(post_id: int) -> bool:
 
 def _escape_fts_term(term: str) -> str:
     term = term.strip()
-    term = re.sub(r'[()*:+"<>\-]', " ", term)
-    term = re.sub(r"\s+", " ", term)
+    term = _ESCAPE_SPECIAL_CHARS_RE.sub(" ", term)
+    term = _ESCAPE_WHITESPACE_RE.sub(" ", term)
     term = term.replace('"', '""')
     return term if term else ""
 
@@ -199,15 +202,15 @@ def search(query: str) -> list[tuple[int, int]]:
 
 
 def get_indexed_terms() -> list[str]:
-    """Get all unique terms from the FTS index for 'Did you mean?' suggestions.
+    """Get all unique terms from post titles for 'Did you mean?' suggestions.
 
-    Returns a list of unique terms (title, body, summary) from published posts.
+    Returns a list of unique words from published post titles.
     """
     try:
         if not _check_fts_enabled():
             return []
         result = db.session.execute(
-            text("SELECT DISTINCT title FROM posts WHERE published = 1 UNION SELECT DISTINCT title FROM posts_fts")
+            text("SELECT title FROM posts WHERE published = 1")
         ).fetchall()
         terms = []
         for row in result:
