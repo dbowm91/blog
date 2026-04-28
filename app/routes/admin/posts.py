@@ -247,6 +247,10 @@ def new_post() -> Response:
             flash(error, "error")
             return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
+        if image:
+            from app.routes.admin.media import _invalidate_media_cache
+            _invalidate_media_cache()
+
         now = utc_now()
         post = _create_post_object(
             title=title,
@@ -362,6 +366,8 @@ def edit_post(post_id: int) -> Response:
             return render_template("admin/editor.html", post=post, tag_names=tag_names)
         old_image = None
         if image:
+            from app.routes.admin.media import _invalidate_media_cache
+            _invalidate_media_cache()
             old_image = post.image
             post.image = image
         elif "remove_image" in request.form:

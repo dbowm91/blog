@@ -1,6 +1,28 @@
 import pytest
 
 
+def test_session_fixation_prevention(app, client, db, admin_user):
+    """Test that session is cleared before login to prevent session fixation."""
+    with app.test_request_context():
+        from flask import session
+
+        # Set a known session value before login
+        with client.session_transaction() as sess:
+            sess['test_value'] = 'before_login'
+            sess['_fresh'] = True
+
+        # Login
+        response = client.post('/admin/login', data={
+            'username': 'admin',
+            'password': 'testpassword',
+        }, follow_redirects=True)
+
+        # After login, the test_value should NOT be present (session was cleared)
+        with client.session_transaction() as sess:
+            assert 'test_value' not in sess
+            assert sess.get('admin_session_id') is not None
+
+
 def test_csp_header(client):
     """Test CSP header present and correct."""
     response = client.get('/')
