@@ -346,6 +346,10 @@ The codebase implements robust security controls:
 - CSV formula injection prevention
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
 
+### Known Vulnerabilities to Fix
+
+- **API Key Timing Attack** (`app/routes/api.py:32`): Uses `!=` for comparison which is vulnerable to timing attacks. Use `hmac.compare_digest()` instead.
+
 ## Database Indexes
 
 Key indexes for query optimization:
