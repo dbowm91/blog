@@ -27,7 +27,7 @@ _fts_enabled: bool | None = None
 _fts_check_time: float = 0
 _FTS_CHECK_TTL = 300
 
-_ESCAPE_SPECIAL_CHARS_RE = re.compile(r'[()*:+"<>\-]')
+_ESCAPE_SPECIAL_CHARS_RE = re.compile(r'[()*+:+"<>\-]')
 _ESCAPE_WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -61,7 +61,7 @@ def init_fts() -> None:
         db.session.execute(
             text(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5("
-                "title, body, summary"
+                "title, body, summary, prefix='2 3 4'"
                 ")"
             )
         )
@@ -185,14 +185,15 @@ def _escape_fts_term(term: str) -> str:
 
 
 def search(query: str) -> list[tuple[int, int]]:
-    """Search using FTS5. Returns list of (post_id, rank) tuples or empty list if unavailable."""
+    """Search using FTS5 with prefix matching. Returns list of (post_id, rank) tuples or empty list if unavailable."""
     try:
         if not _check_fts_enabled():
             return []
 
         terms = [_escape_fts_term(w) for w in query.split()]
         terms = [t for t in terms if t]
-        fts_query = " OR ".join(f'"{t}"' for t in terms)
+        # Add prefix matching: each term matches the term itself or any term starting with it
+        fts_query = " OR ".join(f'"{t}"*' for t in terms)
         if not fts_query:
             return []
         result = db.session.execute(

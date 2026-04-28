@@ -259,6 +259,107 @@ class TestSearchNoResults:
         assert results == []
 
 
+class TestFTSPrefixSearch:
+    """Test FTS5 prefix search with prefix='2 3 4' option."""
+
+    def test_prefix_search_matches_partial_words(self, db, admin_user):
+        """Prefix search should match words starting with the prefix (e.g., 'Py' matches 'Python')."""
+        post = Post(
+            title="Python Flask Tutorial",
+            slug="python-flask-tutorial",
+            body="Learn Python and Flask for web development. Python is great.",
+            summary="Python Flask web development tutorial",
+            published=True,
+            published_at=utc_now(),
+        )
+        db.session.add(post)
+        db.session.commit()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        db.session.commit()
+
+        # Search with prefix "Py" should match "Python"
+        results = search("Py")
+        post_ids = [r[0] for r in results]
+        assert post.id in post_ids
+
+        # Search with full word should also match
+        results_full = search("Python")
+        post_ids_full = [r[0] for r in results_full]
+        assert post.id in post_ids_full
+
+    def test_prefix_search_multiple_terms(self, db, admin_user):
+        """Prefix search should work with multiple search terms."""
+        post = Post(
+            title="JavaScript React Vue Angular",
+            slug="js-frameworks",
+            body="Comparison of JavaScript frameworks: React, Vue, and Angular.",
+            summary="JS frameworks comparison",
+            published=True,
+            published_at=utc_now(),
+        )
+        db.session.add(post)
+        db.session.commit()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        db.session.commit()
+
+        # Search with prefix "Re" should match "React"
+        results = search("Re")
+        post_ids = [r[0] for r in results]
+        assert post.id in post_ids
+
+        # Search with prefix "An" should match "Angular"
+        results2 = search("An")
+        post_ids2 = [r[0] for r in results2]
+        assert post.id in post_ids2
+
+    def test_prefix_search_uses_fts5_prefix_index(self, db):
+        """Verify FTS5 table was created with prefix index option."""
+        result = db.session.execute(
+            text("SELECT sql FROM sqlite_master WHERE type='table' AND name='posts_fts'")
+        ).fetchone()
+        assert result is not None
+        # The CREATE statement should contain the prefix option
+        create_sql = result[0]
+        assert "prefix" in create_sql
+        assert "2 3 4" in create_sql
+
+    def test_prefix_search_exact_word_no_prefix(self, db, admin_user):
+        """Search with exact word should still work (no false positives from prefix)."""
+        post1 = Post(
+            title="Python Programming",
+            slug="python-programming",
+            body="Learn Python programming.",
+            summary="Python programming guide",
+            published=True,
+            published_at=utc_now(),
+        )
+        post2 = Post(
+            title="PyTorch Deep Learning",
+            slug="pytorch-deep-learning",
+            body="Deep learning with PyTorch.",
+            summary="PyTorch deep learning",
+            published=True,
+            published_at=utc_now(),
+        )
+        db.session.add_all([post1, post2])
+        db.session.commit()
+        sync_fts(post1.id, post1.title, post1.body, post1.summary, post1.published)
+        sync_fts(post2.id, post2.title, post2.body, post2.summary, post2.published)
+        db.session.commit()
+
+        # Search for "Py" should match both (prefix match)
+        results = search("Py")
+        post_ids = [r[0] for r in results]
+        assert post1.id in post_ids
+        assert post2.id in post_ids
+
+        # Search for "Python" should only match post1
+        results_exact = search("Python")
+        post_ids_exact = [r[0] for r in results_exact]
+        assert post1.id in post_ids_exact
+        assert post2.id not in post_ids_exact
+
+
 class TestRemoveFTS:
     def test_remove_fts_removes_post(self, db, admin_user):
         """Remove a post from FTS and verify it's no longer found."""

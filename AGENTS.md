@@ -203,7 +203,8 @@ Post.title.ilike(search_term, escape="\\")
 `_get_tag_counts()` in `app/cache.py` uses double-checked locking — DB query runs outside the lock.
 
 ### FTS5 Search
-- `app/search.py` — FTS5 virtual table `posts_fts` (title, body, summary)
+- `app/search.py` — FTS5 virtual table `posts_fts` (title, body, summary) with `prefix='2 3 4'` for prefix matching
+- Prefix search enabled: searching "Py" matches "Python" (automatically appends `*` to terms)
 - FTS index synced via `sync_fts()` on post create/edit/publish/unpublish/delete
 - `sync_fts()` called BEFORE `db.session.commit()` for create/edit/publish; `remove_fts()` called AFTER for delete
 - FTS table existence cached with 5-minute TTL

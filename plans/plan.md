@@ -8,7 +8,7 @@
 
 ## Verification Status
 
-- 509 tests pass (excluding E2E)
+- 514 tests pass (excluding E2E)
 - All completed items marked ✓ COMPLETED
 - Deferred items marked ✗ SKIPPED or ✓ COMPLETED (if implemented)
 
@@ -36,13 +36,13 @@ The following items were originally deferred/SKIPPED but have now been implement
 **Files:** `tests/test_admin.py`
 **Effort:** 2 hours
 
-**Implementation:** Added 12 new tests for settings and pages routes:
-- Settings page rendering and theme update
+**Implementation:** Added 13 new tests for settings and pages routes:
+- Settings page rendering and theme update (4 tests)
 - Settings invalid preset rejection
-- Pages list, create, edit, and delete operations
+- Pages list, create, edit, and delete operations (9 tests)
 - Validation for missing title/body on page creation
 
-**Verification:** All 12 new tests pass. Test coverage improved for `app/routes/admin/settings.py` and `app/routes/admin/pages.py`.
+**Verification:** All 13 new tests pass. Test coverage improved for `app/routes/admin/settings.py` and `app/routes/admin/pages.py`.
 
 ### Wave 7: Database & Search Optimizations
 
@@ -145,12 +145,14 @@ These items were considered and confirmed as correctly skipped:
 
 **Verification:** All 57 FTS/search tests pass.
 
-#### 7.5 Add FTS5 Prefix Index ✗ SKIPPED
+#### 7.5 Add FTS5 Prefix Index ✓ COMPLETED
 **Priority:** MEDIUM
-**Files:** `app/search.py`
+**Files:** `app/search.py`, `tests/test_search.py`
 **Effort:** 30 minutes
 
-**Reason:** SQLite FTS5 handles prefix search adequately.
+**Implementation:** Added `prefix='2 3 4'` to FTS5 table creation in `init_fts()` to enable prefix searching. Modified `search()` function to append `*` to each search term for automatic prefix matching (e.g., "Py" now matches "Python"). Updated `_ESCAPE_SPECIAL_CHARS_RE` to not escape `*` so users can also explicitly use prefix syntax.
+
+**Verification:** 4 new tests added to `tests/test_search.py` (TestFTSPrefixSearch class). All 514 tests pass (510 original + 4 new).
 
 #### 7.6 Alembic SQLite Batch Mode ✓ COMPLETED (moved to Completed Items above)
 
@@ -172,12 +174,12 @@ These items were considered and confirmed as correctly skipped:
 
 **Reason:** Existing caching mechanism is sufficient.
 
-#### 8.3 Create Centralized Error Handlers ✗ SKIPPED
+#### 8.3 Create Centralized Error Handlers ✓ COMPLETED
 **Priority:** MEDIUM
-**Files:** `app/error_handlers.py` (NEW)
-**Effort:** 2-3 hours
+**Files:** `app/routes/errors.py`
+**Effort:** 0 hours (already implemented)
 
-**Reason:** Current error handling is adequate.
+**Implementation:** `app/routes/errors.py` already exists and is properly registered in `app/__init__.py`. Handles 404, 500, and 413 errors. No additional work needed.
 
 #### 8.4 Strategic Logic Extraction ✗ SKIPPED
 **Priority:** LOW
@@ -252,9 +254,11 @@ The following items were completed and verified:
 | 6.4 pytest-cov Configuration | ✓ COMPLETED | `pytest.ini` configured |
 | 7.2 Fix Regex Recompilation in Loop | ✓ COMPLETED | Compiled regex at module level in `app/search.py` |
 | 7.4 Fix FTS5 Initialization | ✓ COMPLETED | `reset_fts_available()` fixed; `sync_fts()` uses atomic `INSERT OR REPLACE` |
+| 7.5 Add FTS5 Prefix Index | ✓ COMPLETED | `prefix='2 3 4'` in FTS5 table; `search()` appends `*` for prefix matching |
 | 7.7 Simplify get_indexed_terms() | ✓ COMPLETED | Simplified in `app/search.py` |
 | 4.3 Editor Preview Latency Reduction | ✓ COMPLETED | Client-side marked.js + server-side fallback in `editor.js` |
 | 6.5 CI/CD Workflow Definition | ✓ COMPLETED | `.github/workflows/test.yml` created |
+| 8.3 Create Centralized Error Handlers | ✓ COMPLETED | `app/routes/errors.py` already exists |
 | 9.2 AGENTS.md Updates | ✓ COMPLETED | AGENTS.md updated |
 
 ---

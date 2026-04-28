@@ -305,6 +305,8 @@ Post.title.ilike(search_term, escape="\\")
 - `sync_fts()` uses `INSERT OR REPLACE` for atomic upsert (no separate DELETE+INSERT)
 - `sync_fts_batch()` separates published/unpublished items for correct batch handling
 - `reset_fts_available()` properly resets FTS cache for testing/cache invalidation
+- FTS5 table created with `prefix='2 3 4'` for prefix matching (e.g., "Py" matches "Python")
+- `search()` automatically appends `*` to terms for prefix search
 
 ## Security Headers
 
