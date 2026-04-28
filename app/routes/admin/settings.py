@@ -18,9 +18,7 @@ def settings():
     GET: Renders settings page with current SiteSettings and available theme presets.
     Requires: Admin authentication.
     """
-    settings_obj = db.session.execute(
-        select(SiteSettings).order_by(SiteSettings.id).limit(1)
-    ).scalar_one_or_none()
+    settings_obj = SiteSettings.get_instance()
     return render_template(
         "admin/settings.html",
         settings=settings_obj,
@@ -43,11 +41,7 @@ def settings_theme():
         custom_css: Custom CSS text (sanitized before storage)
         logo_text: Site logo text (max 100 chars)
     """
-    settings_obj = db.session.execute(
-        select(SiteSettings).order_by(SiteSettings.id).limit(1)
-    ).scalar_one_or_none()
-    if not settings_obj:
-        abort(404)
+    settings_obj = SiteSettings.get_instance()
 
     preset = request.form.get("preset", "github-dark")
     if preset not in THEME_PRESETS:

@@ -23,7 +23,7 @@
                         <input type="radio" name="preset" value="{{ preset_id }}" {% if settings.theme_preset == preset_id %}checked{% endif %}>
                         <div class="preset-preview" style="background: {{ preset.bg }}; border-color: {{ preset.border }};">
                             <div class="preset-swatch" style="background: {{ preset.text }};"></div>
-                            <div class="preset-swatch" style="background: {{ preset.text-muted }};"></div>
+                            <div class="preset-swatch" style="background: {{ preset['text-muted'] }};"></div>
                             <div class="preset-swatch" style="background: {{ preset.accent }};"></div>
                         </div>
                         <span class="preset-name">{{ preset.name }}</span>

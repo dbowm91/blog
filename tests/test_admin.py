@@ -401,3 +401,263 @@ def test_newsletter_reset_clears_attempts(authenticated_client, db, sample_post)
     post = db.session.get(Post, sample_post.id)
     assert post.newsletter_sent_at is None
     assert post.newsletter_attempts == 0
+
+
+def test_forgot_password_page(client):
+    """Test forgot password page renders."""
+    response = client.get('/admin/forgot-password')
+    assert response.status_code == 200
+
+
+def test_forgot_password_valid_user(client, admin_user, db, monkeypatch):
+    """Test forgot password sends email for valid admin user."""
+    send_called = []
+    original_send = __import__('app.routes.admin.auth', fromlist=['send_password_reset']).send_password_reset
+    def mock_send(user, token):
+        send_called.append((user, token))
+    monkeypatch.setattr('app.routes.admin.auth.send_password_reset', mock_send)
+    response = client.post('/admin/forgot-password', data={
+        'identifier': 'admin',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'If that account exists' in response.data
+    assert len(send_called) == 1
+    user = db.session.execute(db.select(admin_user.__class__).filter_by(username='admin')).scalar_one()
+    assert user.reset_token is not None
+    assert user.reset_token_expires_at is not None
+
+
+def test_forgot_password_invalid_user(client, db, monkeypatch):
+    """Test forgot password with non-existent user shows success (token enumeration prevention)."""
+    send_called = []
+    def mock_send(user, token):
+        send_called.append((user, token))
+    monkeypatch.setattr('app.routes.admin.auth.send_password_reset', mock_send)
+    response = client.post('/admin/forgot-password', data={
+        'identifier': 'nonexistent',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'If that account exists' in response.data
+    assert len(send_called) == 0
+
+
+def test_forgot_password_empty_identifier(client):
+    """Test forgot password with empty identifier shows error."""
+    response = client.post('/admin/forgot-password', data={
+        'identifier': '',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Please enter your username or email' in response.data
+
+
+def test_reset_password_valid_token(client, admin_user, db):
+    """Test password reset with valid token."""
+    from app.routes.admin.auth import _hash_token
+    import secrets
+    token = secrets.token_hex(32)
+    admin_user.reset_token = _hash_token(token)
+    from datetime import datetime, timezone, timedelta
+    admin_user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.session.commit()
+
+    response = client.get(f'/admin/reset/{token}')
+    assert response.status_code == 200
+
+    response = client.post(f'/admin/reset/{token}', data={
+        'password': 'NewPass123!',
+        'confirm_password': 'NewPass123!',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Your password has been reset' in response.data
+    user = db.session.get(admin_user.__class__, admin_user.id)
+    assert user.reset_token is None
+    assert user.reset_token_expires_at is None
+
+
+def test_reset_password_invalid_token(client):
+    """Test password reset with invalid token."""
+    response = client.get('/admin/reset/invalid-token')
+    assert response.status_code == 302
+
+
+def test_reset_password_expired_token(client, admin_user, db):
+    """Test password reset with expired token."""
+    from app.routes.admin.auth import _hash_token
+    import secrets
+    from datetime import datetime, timezone, timedelta
+    token = secrets.token_hex(32)
+    admin_user.reset_token = _hash_token(token)
+    admin_user.reset_token_expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    db.session.commit()
+
+    response = client.get(f'/admin/reset/{token}', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'expired' in response.data.lower()
+
+
+def test_reset_password_mismatch(client, admin_user, db):
+    """Test password reset with mismatched passwords."""
+    from app.routes.admin.auth import _hash_token
+    import secrets
+    from datetime import datetime, timezone, timedelta
+    token = secrets.token_hex(32)
+    admin_user.reset_token = _hash_token(token)
+    admin_user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.session.commit()
+
+    response = client.post(f'/admin/reset/{token}', data={
+        'password': 'NewPass123!',
+        'confirm_password': 'DifferentPass123!',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Passwords do not match' in response.data
+
+
+def test_reset_password_weak_password(client, admin_user, db):
+    """Test password reset with weak password."""
+    from app.routes.admin.auth import _hash_token
+    import secrets
+    from datetime import datetime, timezone, timedelta
+    token = secrets.token_hex(32)
+    admin_user.reset_token = _hash_token(token)
+    admin_user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.session.commit()
+
+    response = client.post(f'/admin/reset/{token}', data={
+        'password': 'weak',
+        'confirm_password': 'weak',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Password must be at least 8 characters' in response.data
+
+
+# Settings tests
+def test_settings_requires_auth(client):
+    """Test settings page requires authentication."""
+    response = client.get('/admin/settings')
+    assert response.status_code == 302
+
+
+def test_settings_page(authenticated_client, db):
+    """Test settings page renders with current settings."""
+    response = authenticated_client.get('/admin/settings')
+    assert response.status_code == 200
+    assert b'Theme Settings' in response.data or b'theme' in response.data.lower()
+
+
+def test_settings_theme_update(authenticated_client, db):
+    """Test updating theme settings."""
+    from app.models import SiteSettings
+    response = authenticated_client.post('/admin/settings/theme', data={
+        'preset': 'github-light',
+        'custom_css_enabled': 'on',
+        'custom_css': 'body { color: red; }',
+        'logo_text': 'Test Logo',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Theme settings saved' in response.data
+    settings = db.session.execute(db.select(SiteSettings).limit(1)).scalar_one()
+    assert settings.theme_preset == 'github-light'
+    assert settings.custom_css_enabled is True
+    assert settings.logo_text == 'Test Logo'
+
+
+def test_settings_invalid_preset(authenticated_client, db):
+    """Test settings rejects invalid theme preset."""
+    response = authenticated_client.post('/admin/settings/theme', data={
+        'preset': 'invalid-preset',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Invalid theme preset' in response.data
+
+
+# Pages tests
+def test_pages_list_requires_auth(client):
+    """Test pages list requires authentication."""
+    response = client.get('/admin/pages')
+    assert response.status_code == 302
+
+
+def test_pages_list(authenticated_client, db):
+    """Test pages list renders."""
+    response = authenticated_client.get('/admin/pages')
+    assert response.status_code == 200
+
+
+def test_new_page_requires_auth(client):
+    """Test new page requires authentication."""
+    response = client.get('/admin/pages/new')
+    assert response.status_code == 302
+
+
+def test_new_page_get(authenticated_client):
+    """Test new page form renders."""
+    response = authenticated_client.get('/admin/pages/new')
+    assert response.status_code == 200
+
+
+def test_create_page(authenticated_client, db):
+    """Test creating a new page."""
+    response = authenticated_client.post('/admin/pages/new', data={
+        'title': 'Test Page',
+        'body': '# Test Page Content',
+        'published': 'on',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Page' in response.data and b'created' in response.data
+    from app.models import Page
+    page = db.session.execute(db.select(Page).filter_by(title='Test Page')).scalar_one()
+    assert page is not None
+    assert page.published is True
+
+
+def test_create_page_missing_title(authenticated_client):
+    """Test creating page with missing title."""
+    response = authenticated_client.post('/admin/pages/new', data={
+        'body': '# Content',
+    }, follow_redirects=True)
+    assert response.status_code == 400
+    assert b'Title is required' in response.data
+
+
+def test_create_page_missing_body(authenticated_client):
+    """Test creating page with missing body."""
+    response = authenticated_client.post('/admin/pages/new', data={
+        'title': 'Test Page',
+    }, follow_redirects=True)
+    assert response.status_code == 400
+    assert b'Content is required' in response.data
+
+
+def test_edit_page(authenticated_client, db):
+    """Test editing a page."""
+    from app.models import Page
+    page = Page(title='Original', slug='original', body='Original body', published=False)
+    db.session.add(page)
+    db.session.commit()
+    page_id = page.id
+
+    response = authenticated_client.post(f'/admin/pages/edit/{page_id}', data={
+        'title': 'Updated Page',
+        'body': 'Updated body',
+        'published': 'on',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Page' in response.data and b'updated' in response.data
+    page = db.session.get(Page, page_id)
+    assert page.title == 'Updated Page'
+    assert page.published is True
+
+
+def test_delete_page(authenticated_client, db):
+    """Test deleting a page."""
+    from app.models import Page
+    page = Page(title='To Delete', slug='to-delete', body='Content', published=False)
+    db.session.add(page)
+    db.session.commit()
+    page_id = page.id
+
+    response = authenticated_client.post(f'/admin/pages/delete/{page_id}', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'deleted' in response.data.lower()
+    assert db.session.get(Page, page_id) is None
