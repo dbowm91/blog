@@ -429,6 +429,6 @@ Key indexes for query optimization:
 
 ## Testing Notes
 
-- 509 unit tests pass (excluding E2E)
+- 510 unit tests pass (excluding E2E)
 - New tests added for: password reset flow, settings routes, pages routes
 - E2E tests require Playwright: `pip install playwright && playwright install`
