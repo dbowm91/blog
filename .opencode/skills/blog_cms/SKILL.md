@@ -191,8 +191,8 @@ SIGTERM handler:
 
 ## Testing
 
-- 509 unit tests pass (excluding E2E)
-- New tests: password reset flow, settings/pages routes
+- 514 unit tests pass (excluding E2E)
+- New tests: password reset flow, settings/pages routes, FTS5 prefix search
 - E2E tests require Playwright installation
 
 ## Shell Context
