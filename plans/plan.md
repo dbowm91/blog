@@ -8,24 +8,80 @@
 
 ## Verification Status
 
-- 488 tests pass (excluding E2E)
+- 509 tests pass (excluding E2E)
 - All completed items marked ✓ COMPLETED
-- Deferred items marked ✗ SKIPPED
+- Deferred items marked ✗ SKIPPED or ✓ COMPLETED (if implemented)
 
 ---
 
-## Deferred Items (Not Yet Implemented)
+## Completed Items (Previously Deferred)
 
-These items were considered but deferred for various reasons (see each item for rationale).
+The following items were originally deferred/SKIPPED but have now been implemented:
 
 ### Wave 2: High Priority Bug Fixes
 
-#### 2.4 Password Reset Token Hashing ✗ SKIPPED
+#### 2.4 Password Reset Token Hashing ✓ COMPLETED
 **Priority:** HIGH
-**Files:** `app/routes/admin/auth.py`
+**Files:** `app/routes/admin/auth.py`, `tests/test_admin.py`
 **Effort:** 30 minutes
 
-**Reason:** Current implementation using raw tokens is acceptable for password reset flows because tokens are cryptographically random (secrets.token_hex), expire quickly (1 hour), and are single-use. The security model is appropriate for this use case.
+**Implementation:** Added SHA-256 hashing for password reset tokens before storing in database. Tokens are now hashed using `hashlib.sha256()` in a new `_hash_token()` helper function. The `forgot_password` route stores the hashed token, and `reset_password` route hashes the URL token for comparison. This follows OWASP best practices and prevents token theft from database compromise.
+
+**Verification:** 10 new tests added to `tests/test_admin.py` covering forgot password flow, token validation, expiration, password mismatch, and weak password rejection. All tests pass.
+
+### Wave 6: Code Quality & Testing
+
+#### 6.1 Missing Admin Tests ✓ COMPLETED
+**Priority:** HIGH
+**Files:** `tests/test_admin.py`
+**Effort:** 2 hours
+
+**Implementation:** Added 12 new tests for settings and pages routes:
+- Settings page rendering and theme update
+- Settings invalid preset rejection
+- Pages list, create, edit, and delete operations
+- Validation for missing title/body on page creation
+
+**Verification:** All 12 new tests pass. Test coverage improved for `app/routes/admin/settings.py` and `app/routes/admin/pages.py`.
+
+### Wave 7: Database & Search Optimizations
+
+#### 7.1 Combine Redundant COUNT Queries ✓ COMPLETED
+**Priority:** MEDIUM
+**Files:** `app/routes/api.py`
+**Effort:** 20 minutes
+
+**Implementation:** Refactored the `/api/stats` endpoint to use a single SQL query with subqueries instead of 6 separate COUNT queries. This reduces database roundtrips from 6 to 1, improving performance.
+
+**Verification:** All API tests pass (27 tests).
+
+#### 7.3 Add post_tags.tag_id Index ✓ COMPLETED
+**Priority:** MEDIUM
+**Files:** `app/models.py`
+**Effort:** 30 minutes
+
+**Implementation:** Added explicit index on `tag_id` column in the `post_tags` table (`ix_post_tags_tag_id`). This improves query performance for finding posts by tag (reverse lookup).
+
+**Verification:** Index created in database. All tests pass (509 total).
+
+#### 7.6 Alembic SQLite Batch Mode ✓ COMPLETED
+**Priority:** MEDIUM
+**Files:** `migrations/env.py`
+**Effort:** 30 minutes
+
+**Implementation:** Added `render_as_batch=True` to both `context.configure()` calls in `migrations/env.py`. This enables safe handling of DROP COLUMN and ALTER COLUMN operations in SQLite migrations by using table recreation.
+
+**Verification:** Configuration updated. Existing migrations continue to work correctly.
+
+---
+
+## Deferred Items (Not Yet Implemented - Confirmed Skip)
+
+These items were considered and confirmed as correctly skipped:
+
+### Wave 2: High Priority Bug Fixes
+
+#### 2.4 Password Reset Token Hashing ✓ COMPLETED (moved above)
 
 ---
 
@@ -51,12 +107,7 @@ These items were considered but deferred for various reasons (see each item for 
 
 ### Wave 6: Code Quality & Testing
 
-#### 6.1 Missing Admin Tests ✗ SKIPPED
-**Priority:** HIGH
-**Files:** `tests/` (new files)
-**Effort:** 5-7 hours
-
-**Reason:** Existing test coverage is adequate for current functionality.
+#### 6.1 Missing Admin Tests ✓ COMPLETED (moved to Completed Items above)
 
 #### 6.5 CI/CD Workflow Definition ✓ COMPLETED
 **Priority:** HIGH
@@ -78,19 +129,9 @@ These items were considered but deferred for various reasons (see each item for 
 
 ### Wave 7: Database & Search Optimizations
 
-#### 7.1 Combine Redundant COUNT Queries ✗ SKIPPED
-**Priority:** MEDIUM
-**Files:** `app/routes/admin/helpers/dashboard.py`
-**Effort:** 20 minutes
+#### 7.1 Combine Redundant COUNT Queries ✓ COMPLETED (moved to Completed Items above)
 
-**Reason:** Current query performance is acceptable.
-
-#### 7.3 Add post_tags.tag_id Index ✗ SKIPPED
-**Priority:** MEDIUM
-**Files:** `app/models.py`
-**Effort:** 30 minutes + migration
-
-**Reason:** Existing indexes are sufficient.
+#### 7.3 Add post_tags.tag_id Index ✓ COMPLETED (moved to Completed Items above)
 
 #### 7.4 Fix FTS5 Initialization ✓ COMPLETED
 **Priority:** MEDIUM
@@ -111,14 +152,7 @@ These items were considered but deferred for various reasons (see each item for 
 
 **Reason:** SQLite FTS5 handles prefix search adequately.
 
-#### 7.6 Alembic SQLite Batch Mode ✗ SKIPPED (PERMANENT)
-**Priority:** MEDIUM
-**Files:** `migrations/env.py`
-**Effort:** 1 hour
-
-**Note:** Move from Wave 9. Required for SQLite to handle DROP/ALTER column operations safely during migrations.
-
-**Reason:** Not needed for current schema. All migrations are additive (new tables/columns), never destructive. No DROP COLUMN or ALTER COLUMN operations are performed.
+#### 7.6 Alembic SQLite Batch Mode ✓ COMPLETED (moved to Completed Items above)
 
 ---
 
