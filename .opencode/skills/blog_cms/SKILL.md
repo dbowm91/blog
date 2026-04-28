@@ -280,6 +280,22 @@ Post.title.ilike(search_term, escape="\\")
 - Escape key closes modals
 - Media cache invalidation on post create/edit
 
+### Editor Preview Latency (`app/static/js/admin/editor.js`)
+- Client-side markdown rendering via `app/static/js/lib/marked.min.js`
+- Instant preview feedback as user types (no debounce needed)
+- Server-side `/admin/preview-markdown` still called for nh3 sanitization
+- Abortable fetch requests prevent race conditions
+
+### CI/CD Workflow (`.github/workflows/test.yml`)
+- GitHub Actions workflow runs on push and pull request
+- Python 3.12 with pip caching
+- Full test suite: `pytest tests/ --ignore=tests/e2e`
+
+### FTS5 Atomic Sync (`app/search.py`)
+- `sync_fts()` uses `INSERT OR REPLACE` for atomic upsert (no separate DELETE+INSERT)
+- `sync_fts_batch()` separates published/unpublished items for correct batch handling
+- `reset_fts_available()` properly resets FTS cache for testing/cache invalidation
+
 ## Security Headers
 
 `set_security_headers` in `app/__init__.py` applies:

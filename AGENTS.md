@@ -55,6 +55,7 @@ app/context_processors.py  # Template context (theme, footer, canonical_url)
 app/cli.py              # CLI commands (export-data, import-data, seed, etc.)
 app/backup_integrity.py # Backup integrity verification
 app/static/js/          # JavaScript modules (ES6 with dynamic imports)
+app/static/js/lib/     # Third-party JS libraries (marked.js for markdown preview)
 app/static/js/shared/   # Shared JS modules (utils, dark-mode, modal, mobile-menu, toast, etc.)
 app/static/js/public/   # Public-facing JS modules (share, lightbox, toc, search, etc.)
 app/static/js/admin/    # Admin JS modules (editor, bulk, shortcuts)
@@ -332,6 +333,23 @@ Always use `.options(joinedload(PostRevision.author))` when querying revisions t
 - Live search suggestions via `/api/posts` endpoint
 - Debounced input with keyboard navigation
 - Search suggestions CSS styling
+
+### Editor Preview Latency
+- Client-side markdown rendering via marked.js in `app/static/js/lib/marked.min.js`
+- Instant preview feedback as user types
+- Server-side `/admin/preview-markdown` still called for nh3 sanitization
+- Abortable fetch requests prevent race conditions
+
+### CI/CD Workflow
+- GitHub Actions workflow at `.github/workflows/test.yml`
+- Runs on push and pull request events
+- Python 3.12 with pip caching
+- Full test suite: `pytest tests/ --ignore=tests/e2e`
+
+### FTS5 Atomic Sync
+- `sync_fts()` uses `INSERT OR REPLACE` for atomic upsert
+- `sync_fts_batch()` separates published/unpublished for correct batch handling
+- `reset_fts_available()` properly resets FTS cache for testing/cache invalidation
 
 ## Dependencies (Python 3.14 compatible)
 
