@@ -4,7 +4,7 @@ import time
 import threading
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.extensions import db
 from app.models import PageView, ShareEvent, Subscriber, Post
@@ -75,23 +75,27 @@ def _get_dashboard_metrics():
 
     thirty_days_ago = utc_now() - timedelta(days=30)
     month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    sixty_days_ago = utc_now() - timedelta(days=60)
 
-    total_views = db.session.execute(select(func.count(PageView.id))).scalar_one() or 0
-    total_posts = (
-        db.session.execute(
-            select(func.count(Post.id)).filter(Post.published == True)
-        ).scalar_one()
-        or 0
-    )
-    total_shares = (
-        db.session.execute(select(func.count(ShareEvent.id))).scalar_one() or 0
-    )
-    total_subscribers = (
-        db.session.execute(
-            select(func.count(Subscriber.id)).filter(Subscriber.confirmed == True)
-        ).scalar_one()
-        or 0
-    )
+    counts = db.session.execute(
+        text("""
+            SELECT
+                (SELECT COUNT(*) FROM page_views) as total_views,
+                (SELECT COUNT(*) FROM posts WHERE published = 1) as total_posts,
+                (SELECT COUNT(*) FROM share_events) as total_shares,
+                (SELECT COUNT(*) FROM subscribers WHERE confirmed = 1) as total_subscribers,
+                (SELECT COUNT(*) FROM subscribers WHERE created_at >= :month_start) as new_this_month,
+                (SELECT COUNT(*) FROM page_views WHERE created_at >= :sixty_days_ago AND created_at < :thirty_days_ago) as views_last_period
+        """),
+        {"month_start": month_start, "sixty_days_ago": sixty_days_ago, "thirty_days_ago": thirty_days_ago}
+    ).fetchone()
+
+    total_views = counts[0] or 0
+    total_posts = counts[1] or 0
+    total_shares = counts[2] or 0
+    total_subscribers = counts[3] or 0
+    new_this_month = counts[4] or 0
+    views_last_period = counts[5] or 0
 
     trending = db.session.execute(
         select(Post, func.count(PageView.id).label("view_count"))
@@ -106,27 +110,8 @@ def _get_dashboard_metrics():
     top_shares = _get_top_posts_by_shares(5)
     daily_views = _get_daily_views(30)
 
-    new_this_month = (
-        db.session.execute(
-            select(func.count(Subscriber.id)).filter(
-                Subscriber.created_at >= month_start
-            )
-        ).scalar_one()
-        or 0
-    )
-
-    views_trend = None
     views_this_period = total_views
-    sixty_days_ago = utc_now() - timedelta(days=60)
-    views_last_period = (
-        db.session.execute(
-            select(func.count(PageView.id)).filter(
-                PageView.created_at >= sixty_days_ago,
-                PageView.created_at < thirty_days_ago,
-            )
-        ).scalar_one()
-        or 0
-    )
+    views_trend = None
     if views_last_period > 0:
         change = ((views_this_period - views_last_period) / views_last_period) * 100
         views_trend = round(change, 1)
