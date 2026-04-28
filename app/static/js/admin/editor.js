@@ -1,4 +1,7 @@
 import { getCsrfToken, announce } from '../shared/utils.js';
+import { marked } from '../lib/marked.min.js';
+
+marked.setOptions({ gfm: true, breaks: false });
 
 export function initEditor() {
     const bodyTextarea = document.getElementById('body');
@@ -26,36 +29,60 @@ export function initEditor() {
     }
 
     if (bodyTextarea && previewDiv) {
-        let debounceTimer;
-        const updatePreview = () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                const text = bodyTextarea.value;
-                if (!text.trim()) {
-                    previewDiv.innerHTML = '<p class="empty-state">Live preview will appear here...</p>';
-                    return;
+        let serverRequest = null;
+        let clientRendered = false;
+
+        const renderClientPreview = (text) => {
+            if (!text.trim()) {
+                previewDiv.innerHTML = '<p class="empty-state">Live preview will appear here...</p>';
+                return;
+            }
+            try {
+                previewDiv.innerHTML = marked.parse(text);
+                clientRendered = true;
+            } catch (e) {
+                previewDiv.innerHTML = '<p class="form-error">Preview unavailable</p>';
+                clientRendered = false;
+            }
+        };
+
+        const fetchServerPreview = (text) => {
+            if (serverRequest) {
+                serverRequest.abortController.abort();
+            }
+            const abortController = new AbortController();
+            serverRequest = { abortController };
+
+            previewDiv.classList.add('preview-loading');
+            fetch("/admin/preview-markdown", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": csrfToken,
+                },
+                body: JSON.stringify({ text: text }),
+                signal: abortController.signal,
+            })
+            .then(r => r.json())
+            .then(data => {
+                previewDiv.classList.remove('preview-loading');
+                if (data.html) {
+                    clientRendered = false;
+                    previewDiv.innerHTML = data.html;
                 }
-                previewDiv.classList.add('preview-loading');
-                fetch("/admin/preview-markdown", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-Token": csrfToken,
-                    },
-                    body: JSON.stringify({ text: text }),
-                })
-                .then(r => r.json())
-                .then(data => {
-                    previewDiv.classList.remove('preview-loading');
-                    if (data.html) {
-                        previewDiv.innerHTML = data.html;
-                    }
-                })
-                .catch(() => {
-                    previewDiv.classList.remove('preview-loading');
+            })
+            .catch((err) => {
+                previewDiv.classList.remove('preview-loading');
+                if (err.name !== 'AbortError' && clientRendered === false) {
                     previewDiv.innerHTML = '<p class="form-error">Preview unavailable</p>';
-                });
-            }, 300);
+                }
+            });
+        };
+
+        const updatePreview = () => {
+            const text = bodyTextarea.value;
+            renderClientPreview(text);
+            fetchServerPreview(text);
         };
 
         bodyTextarea.addEventListener('input', updatePreview);

@@ -32,8 +32,10 @@ _ESCAPE_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def reset_fts_available() -> None:
-    """Reset FTS availability flag. For testing only - no-op in original implementation."""
-    pass
+    """Reset FTS availability flag. For testing and cache invalidation."""
+    global _fts_enabled, _fts_check_time
+    _fts_enabled = None
+    _fts_check_time = 0
 
 
 def _check_fts_enabled() -> bool:
@@ -100,15 +102,16 @@ def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool)
     rollback the transaction to maintain FTS/DB consistency.
     """
     try:
-        db.session.execute(
-            text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
-        )
         if published:
             db.session.execute(
                 text(
-                    "INSERT INTO posts_fts(rowid, title, body, summary) VALUES(:id, :title, :body, :summary)"
+                    "INSERT OR REPLACE INTO posts_fts(rowid, title, body, summary) VALUES(:id, :title, :body, :summary)"
                 ),
                 {"id": post_id, "title": title, "body": body, "summary": summary},
+            )
+        else:
+            db.session.execute(
+                text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
             )
         return True
     except (OperationalError, ProgrammingError, DatabaseError) as e:
@@ -128,16 +131,18 @@ def sync_fts_batch(items: list[tuple]) -> bool:
     if not items:
         return True
     try:
-        post_ids = [item[0] for item in items]
-        db.session.execute(
-            text("DELETE FROM posts_fts WHERE rowid = :id"),
-            [{"id": pid} for pid in post_ids],
-        )
         published_items = [item for item in items if item[4]]
+        unpublished_ids = [item[0] for item in items if not item[4]]
+
+        if unpublished_ids:
+            db.session.execute(
+                text("DELETE FROM posts_fts WHERE rowid = :id"),
+                [{"id": pid} for pid in unpublished_ids],
+            )
         if published_items:
             db.session.execute(
                 text(
-                    "INSERT INTO posts_fts(rowid, title, body, summary) VALUES(:id, :title, :body, :summary)"
+                    "INSERT OR REPLACE INTO posts_fts(rowid, title, body, summary) VALUES(:id, :title, :body, :summary)"
                 ),
                 [
                     {
