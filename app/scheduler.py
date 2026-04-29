@@ -1,7 +1,7 @@
 """APScheduler newsletter scheduler with file locking.
 
 Multi-worker limitation:
-    The scheduler runs in-process with fcntl file locks to prevent duplicate
+    The scheduler runs in-process with filelock to prevent duplicate
     newsletter sends on a single machine. This does NOT protect across multiple
     machines (e.g., container clusters). For multi-machine deployments, use an
     external scheduler (cron, Celery Beat) or distributed lock (Redis, etcd).
@@ -25,12 +25,7 @@ __all__ = [
     "get_scheduler_next_run",
 ]
 
-try:
-    import fcntl
-
-    HAS_FCNTL = True
-except ImportError:
-    HAS_FCNTL = False
+from filelock import FileLock, Timeout as FileLockTimeout
 
 _scheduler_running = threading.Event()
 _scheduler: Optional["BackgroundScheduler"] = None
@@ -74,14 +69,10 @@ def get_scheduler_health() -> dict:
 
 def send_daily_newsletter(app) -> None:
     lock_path = os.path.join(app.instance_path, "newsletter.lock")
-    lock_file = None
+    lock = FileLock(lock_path, timeout=0)
     try:
-        lock_file = open(lock_path, "w")
-        if HAS_FCNTL:
-            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        if lock_file:
-            lock_file.close()
+        lock.acquire()
+    except FileLockTimeout:
         try:
             os.remove(lock_path)
         except FileNotFoundError:
@@ -151,27 +142,20 @@ def send_daily_newsletter(app) -> None:
                     len(posts),
                 )
     finally:
-        if lock_file:
-            if HAS_FCNTL:
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
-            lock_file.close()
-            try:
-                os.remove(lock_path)
-            except FileNotFoundError:
-                pass
+        lock.release()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
 
 
 def cleanup_expired_subscribers(app) -> None:
     """Remove unconfirmed subscribers whose confirmation window has expired."""
     lock_path = os.path.join(app.instance_path, "cleanup.lock")
-    lock_file = None
+    lock = FileLock(lock_path, timeout=0)
     try:
-        lock_file = open(lock_path, "w")
-        if HAS_FCNTL:
-            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        if lock_file:
-            lock_file.close()
+        lock.acquire()
+    except FileLockTimeout:
         try:
             os.remove(lock_path)
         except FileNotFoundError:
@@ -209,27 +193,20 @@ def cleanup_expired_subscribers(app) -> None:
                 "Cleaned up %d expired unconfirmed subscribers", len(expired)
             )
     finally:
-        if lock_file:
-            if HAS_FCNTL:
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
-            lock_file.close()
-            try:
-                os.remove(lock_path)
-            except FileNotFoundError:
-                pass
+        lock.release()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
 
 
 def publish_scheduled_posts(app) -> None:
     """Auto-publish posts whose scheduled_publish_at time has passed."""
     lock_path = os.path.join(app.instance_path, "scheduled.lock")
-    lock_file = None
+    lock = FileLock(lock_path, timeout=0)
     try:
-        lock_file = open(lock_path, "w")
-        if HAS_FCNTL:
-            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        if lock_file:
-            lock_file.close()
+        lock.acquire()
+    except FileLockTimeout:
         try:
             os.remove(lock_path)
         except FileNotFoundError:
@@ -275,14 +252,11 @@ def publish_scheduled_posts(app) -> None:
             invalidate_tag_cache()
             app.logger.info("Auto-published %d scheduled post(s)", len(posts))
     finally:
-        if lock_file:
-            if HAS_FCNTL:
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
-            lock_file.close()
-            try:
-                os.remove(lock_path)
-            except FileNotFoundError:
-                pass
+        lock.release()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
 
 
 def init_scheduler(app) -> Optional["BackgroundScheduler"]:

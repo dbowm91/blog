@@ -19,6 +19,7 @@ import os
 import logging
 import tempfile
 import shutil
+import threading
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -142,21 +143,24 @@ class S3StorageBackend(StorageBackend):
         self.secret_key = secret_key
         self.public_url = public_url
         self._client = None
+        self._lock = threading.Lock()
 
     @property
     def client(self):
         if self._client is None:
-            import boto3
+            with self._lock:
+                if self._client is None:
+                    import boto3
 
-            client_kwargs = {
-                "region_name": self.region,
-                "aws_access_key_id": self.access_key,
-                "aws_secret_access_key": self.secret_key,
-            }
-            if self.endpoint:
-                client_kwargs["endpoint_url"] = self.endpoint
+                    client_kwargs = {
+                        "region_name": self.region,
+                        "aws_access_key_id": self.access_key,
+                        "aws_secret_access_key": self.secret_key,
+                    }
+                    if self.endpoint:
+                        client_kwargs["endpoint_url"] = self.endpoint
 
-            self._client = boto3.client("s3", **client_kwargs)
+                    self._client = boto3.client("s3", **client_kwargs)
         return self._client
 
     def save(self, filename: str, data: bytes) -> str:
@@ -315,11 +319,18 @@ def upload_with_processing(filename: str, file_content: bytes, generate_variants
             upload_file(tmp_path, filename)
 
             if generate_variants:
+                basename = os.path.splitext(filename)[0]
+                ext = os.path.splitext(filename)[1].lstrip(".")
                 for width in (400, 800, 1200):
-                    variant_name = f"{width}_{filename}"
-                    variant_path = os.path.join(tmpdir, variant_name)
-                    if os.path.exists(variant_path):
-                        upload_file(variant_path, variant_name)
+                    webp_variant_name = f"{width}_{basename}.webp"
+                    webp_variant_path = os.path.join(tmpdir, webp_variant_name)
+                    if os.path.exists(webp_variant_path):
+                        upload_file(webp_variant_path, webp_variant_name)
+                    if ext != "webp":
+                        variant_name = f"{width}_{basename}.{ext}"
+                        variant_path = os.path.join(tmpdir, variant_name)
+                        if os.path.exists(variant_path):
+                            upload_file(variant_path, variant_name)
 
         return filename, None
 
