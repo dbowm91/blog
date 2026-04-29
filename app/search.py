@@ -1,5 +1,8 @@
 """Full-text search using SQLite FTS5 with LIKE fallback."""
 
+import html
+import re
+
 __all__ = [
     "init_fts",
     "rebuild_fts",
@@ -320,5 +323,6 @@ def highlight_query(text: str, query: str) -> str:
     if not text or not query:
         return text
 
+    escaped_text = html.escape(text)
     pattern = re.compile(re.escape(query), re.IGNORECASE)
-    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", text)
+    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", escaped_text)

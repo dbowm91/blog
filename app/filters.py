@@ -1,7 +1,5 @@
 """Template filters for the blog CMS."""
 
-import os
-
 import markdown
 import nh3
 from flask import g, has_request_context
@@ -41,6 +39,52 @@ def register_filters(app):
             post_id = id(post)
             if post_id in g._post_image_cache:
                 return g._post_image_cache[post_id]
+            from app.storage import get_storage
+            storage = get_storage()
+            result = post.image if storage.exists(post.image) else None
+            g._post_image_cache[post_id] = result
+            return result
+        from app.storage import get_storage
+        storage = get_storage()
+        return post.image if storage.exists(post.image) else None
+
+    @app.template_filter("post_image_srcset")
+    def post_image_srcset_filter(post):
+        if not post or not post.image:
+            return None
+        if has_request_context():
+            cache_key = f"_post_srcset_cache_{id(post)}"
+            if not hasattr(g, "_post_image_cache"):
+                g._post_image_cache = {}
+            if cache_key in g._post_image_cache:
+                return g._post_image_cache[cache_key]
+
+            from app.storage import get_storage
+            from app.config import BASE_URL
+            storage = get_storage()
+            srcset_parts = []
+            for width in (400, 800, 1200):
+                variant_name = f"{width}_{post.image}"
+                if storage.exists(variant_name):
+                    srcset_parts.append(f"{BASE_URL.rstrip('/')}/static/uploads/{variant_name} {width}w")
+
+            g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
+            return g._post_image_cache[cache_key]
+        return None
+
+    @app.template_filter("file_url")
+    def file_url_filter(filename):
+        if not filename:
+            return None
+        from app.storage import get_storage
+        storage = get_storage()
+        return storage.url(filename)
+        if has_request_context():
+            if not hasattr(g, "_post_image_cache"):
+                g._post_image_cache = {}
+            post_id = post.id
+            if post_id in g._post_image_cache:
+                return g._post_image_cache[post_id]
             path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
             result = post.image if os.path.isfile(path) else None
             g._post_image_cache[post_id] = result
@@ -53,7 +97,7 @@ def register_filters(app):
         if not post or not post.image:
             return None
         if has_request_context():
-            cache_key = f"_post_srcset_cache_{id(post)}"
+            cache_key = f"_post_srcset_cache_{post.id}"
             if not hasattr(g, "_post_image_cache"):
                 g._post_image_cache = {}
             if cache_key in g._post_image_cache:

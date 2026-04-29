@@ -55,6 +55,9 @@ def validate_csrf_token() -> None:
     for i, t in enumerate(tokens):
         if hmac.compare_digest(token, t):
             tokens.pop(i)
+            tokens.append(secrets.token_hex(32))
+            if len(tokens) > CSRF_TOKEN_WINDOW_SIZE:
+                tokens = tokens[-CSRF_TOKEN_WINDOW_SIZE:]
             session["csrf_tokens"] = tokens
             return
 

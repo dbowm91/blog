@@ -252,7 +252,7 @@ def register_cli_commands(app):
                     select(Post).filter_by(slug=post_data["slug"])
                 ).scalar_one_or_none()
                 if existing and post_data.get("tags"):
-                    sync_fts(existing)
+                    sync_fts(existing.id, existing.title, existing.body, existing.summary, existing.published)
 
         for subscriber_data in data.get("subscribers", []):
             if skip_confirmed and subscriber_data.get("confirmed"):

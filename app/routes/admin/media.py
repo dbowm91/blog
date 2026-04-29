@@ -57,18 +57,25 @@ def _get_cached_media_list(
 
 
 def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
+    from app.storage import get_storage
+    storage = get_storage()
     all_files = []
-    with os.scandir(upload_dir) as entries:
-        for entry in entries:
-            if not entry.is_file():
+    for name in storage.list_files():
+        from app.storage import get_storage
+        storage = get_storage()
+        if storage.exists(name):
+            import os as _os
+            path = storage.path(name)
+            try:
+                stat = _os.stat(path)
+                file_info = (
+                    stat.st_mtime,
+                    name,
+                    stat.st_size,
+                )
+                all_files.append(file_info)
+            except OSError:
                 continue
-            stat = entry.stat()
-            file_info = (
-                stat.st_mtime,
-                entry.name,
-                stat.st_size,
-            )
-            all_files.append(file_info)
     all_files = heapq.nlargest(MEDIA_MAX_FILES, all_files, key=lambda f: f[0])
     return [
         {
@@ -161,14 +168,11 @@ def delete_media(filename: str) -> Response:
     filename = secure_filename(filename)
     if not filename:
         abort(400)
-    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    real_path = os.path.realpath(filepath)
-    upload_dir = os.path.realpath(current_app.config["UPLOAD_FOLDER"])
-    if not real_path.startswith(upload_dir + os.sep):
-        abort(400)
-    if not os.path.exists(real_path):
+    from app.storage import get_storage
+    storage = get_storage()
+    if not storage.exists(filename):
         abort(404)
-    if not safe_delete_file(real_path):
+    if not storage.delete(filename):
         flash("Failed to delete file.", "error")
         return redirect(url_for("admin.media"))
     _invalidate_media_cache()
@@ -184,12 +188,9 @@ def cleanup_orphaned_images(app) -> tuple[int, int]:
         - missing_count: number of DB entries pointing to missing files (cleared)
     """
     from app.models import Post
+    from app.storage import get_storage
 
-    upload_dir = app.config["UPLOAD_FOLDER"]
-    if not os.path.isdir(upload_dir):
-        logger.warning("Upload directory does not exist: %s", upload_dir)
-        return 0, 0
-
+    storage = get_storage()
     db_images = set()
     missing_db_entries = []
     posts_with_missing_images = []
@@ -201,8 +202,7 @@ def cleanup_orphaned_images(app) -> tuple[int, int]:
     for img in posts:
         if img:
             db_images.add(img)
-            filepath = os.path.join(upload_dir, img)
-            if not os.path.exists(filepath):
+            if not storage.exists(img):
                 missing_db_entries.append(img)
                 missing_posts = db.session.execute(
                     select(Post).filter_by(image=img)
@@ -214,18 +214,14 @@ def cleanup_orphaned_images(app) -> tuple[int, int]:
     missing_count = 0
 
     try:
-        with os.scandir(upload_dir) as entries:
-            for entry in entries:
-                if not entry.is_file():
-                    continue
-                if entry.name not in db_images:
-                    filepath = os.path.join(upload_dir, entry.name)
-                    if safe_delete_file(filepath):
-                        orphaned_count += 1
-                        logger.info("Deleted orphaned image: %s", entry.name)
-                    else:
-                        logger.warning("Failed to delete orphaned image: %s", entry.name)
-    except OSError as e:
+        for name in storage.list_files():
+            if name not in db_images:
+                if storage.delete(name):
+                    orphaned_count += 1
+                    logger.info("Deleted orphaned image: %s", name)
+                else:
+                    logger.warning("Failed to delete orphaned image: %s", name)
+    except Exception as e:
         logger.error("Error scanning upload directory: %s", e)
 
     for post in posts_with_missing_images:
