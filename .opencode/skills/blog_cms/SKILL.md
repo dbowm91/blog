@@ -128,20 +128,24 @@ Authentication: `X-API-Key` header (env var `API_KEY`)
 Strips dangerous properties: `url()`, `expression()`, `content`, `behavior`, `-webkit-text-security`, `unicode-bidi`, `direction`
 
 ### Rate Limiting
-Application does NOT include rate limiting. Configure at reverse proxy/WAF/CDN level:
+Application includes **flask-limiter** for rate limiting:
 - `/admin/login`: 5 req/min per IP
-- `/admin/*`: 20 req/min per IP
-- Public routes: 100 req/min per IP
+- API GET: 20 req/min, API write: 10/min
+- `/subscribe`: 10 req/min, Default: 100 req/min
+- Storage: configurable via `RATE_LIMIT_STORAGE_URI` env var (default: memory)
+
+Configure at reverse proxy/WAF/CDN level for production deployments.
 
 ## Performance Patterns
 
-### Caching
-- Tag counts: TTL-based in-memory cache with double-checked locking
-- Site settings: singleton pattern with cache
-- Footer data: invalidate on post CRUD
+### Caching (flask-caching)
+- Tag counts: `flask_cache.memoize()` in `app/tag_cache.py`
+- Site settings: `flask_cache.cached()` in `app/context_processors.py`
+- Footer data: cached with flask-caching
 - Media listing: 30s TTL cache
 - FTS table check: 5-minute TTL cache
-- Dashboard analytics: 5-minute TTL cache
+- Dashboard analytics: 2-minute TTL cache
+- Analytics data: 5-minute TTL cache
 - **Template filter results**: Use `{% set %}` in template loops to cache filter results:
 ```jinja2
 {% set rt = post.body | reading_time %}
@@ -276,13 +280,52 @@ Post.title.ilike(search_term, escape="\\")
 
 ### Granian ASGI Server
 - Recommended ASGI server (faster than Gunicorn)
-- Dockerfile uses `granian --interface asgi`
+- Dockerfile uses `granian --interface wsgi run:app`
 - `requirements.txt` includes `granian>=1.0.0`
+- WsgiToAsgi wrapper removed (not needed with granian)
 
 ### Search Enhancements (`app/static/js/public/search.js`)
 - Live search suggestions via API
 - Debounced input with keyboard navigation (arrow keys, Enter, Escape)
 - CSS styled suggestions dropdown
+
+### Account Lockout Mechanism
+- `failed_login_count` and `locked_until` columns on `User` model
+- `User.is_locked()`, `record_failed_login()`, `reset_failed_login()` methods
+- Config: `MAX_FAILED_ATTEMPTS` (5) and `LOCKOUT_DURATION_MINUTES` (15)
+- Login checks lockout status before password verification
+
+### APScheduler Persistence
+- Uses `SQLAlchemyJobStore` instead of `MemoryJobStore`
+- All `fcntl` file locking removed
+- Maintenance jobs:
+  - Daily DB Integrity Check (3AM)
+  - Daily WAL Checkpoint (4AM) 
+  - Weekly FTS Integrity Check (Sun 2AM)
+  - Daily DB Optimize (1AM)
+
+### Responsive Images
+- `Pillow` generates 400w, 800w, 1200w variants on upload
+- `responsive_image` Jinja filter provides srcset URLs
+- Updated templates use `srcset` for responsive images
+
+### Template Filters (`app/filters.py`)
+- `markdown_safe` - renders markdown with nh3 sanitization
+- `reading_time` - calculates reading time from word count
+- `sanitize_css` - strips dangerous CSS properties
+- `post_image_url` - returns validated image URL
+- `responsive_image` - returns dict of responsive image URLs
+
+### Transaction Helpers (`app/transaction.py`)
+- `@transactional` decorator for common rollback patterns
+- `commit_with_slug_retry()` helper for slug collision retry
+
+### JS Module Initialization
+All JavaScript modules export a default initialization function:
+```javascript
+export default initXxx;  // e.g., export default initDarkMode;
+```
+`main.js` calls `module.default()` to invoke the exported function.
 
 ### Admin Enhancements
 - Pages link in admin navigation dropdown
