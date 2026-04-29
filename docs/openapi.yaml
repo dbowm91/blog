@@ -59,18 +59,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PostListResponse"
+              example:
+                posts:
+                  - id: 1
+                    title: "Getting Started with Flask"
+                    slug: "getting-started-with-flask"
+                    body: "# Introduction\n\nFlask is a lightweight WSGI web application framework..."
+                    summary: "Learn how to build web applications with Flask."
+                    image: null
+                    created_at: "2026-04-15T10:30:00Z"
+                    updated_at: "2026-04-15T14:22:00Z"
+                    published: true
+                    published_at: "2026-04-15T10:30:00Z"
+                    scheduled_publish_at: null
+                    newsletter_sent_at: "2026-04-15T10:35:00Z"
+                    newsletter_attempts: 1
+                    tags: ["flask", "python", "web"]
+                total: 42
+                pages: 3
+                page: 1
+                per_page: 20
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "503":
           description: API not configured (API_KEY not set)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "API key not configured"
     post:
       summary: Create a post
       description: Create a new blog post. The slug is auto-generated if not provided.
@@ -92,24 +116,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Post"
+              example:
+                id: 1
+                title: "Getting Started with Flask"
+                slug: "getting-started-with-flask"
+                body: "# Introduction\n\nFlask is a lightweight WSGI web application framework..."
+                summary: "Learn how to build web applications with Flask."
+                image: null
+                created_at: "2026-04-15T10:30:00Z"
+                updated_at: "2026-04-15T14:22:00Z"
+                published: false
+                published_at: null
+                scheduled_publish_at: null
+                newsletter_sent_at: null
+                newsletter_attempts: 0
+                tags: ["flask", "python"]
         "400":
           description: Invalid request body or missing required fields
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "title and body are required"
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "503":
           description: Search index unavailable
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Search index unavailable"
 
   /api/posts/{post_id}:
     get:
@@ -134,18 +179,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Post"
+              example:
+                id: 1
+                title: "Getting Started with Flask"
+                slug: "getting-started-with-flask"
+                body: "# Introduction\n\nFlask is a lightweight WSGI web application framework..."
+                summary: "Learn how to build web applications with Flask."
+                image: null
+                created_at: "2026-04-15T10:30:00Z"
+                updated_at: "2026-04-15T14:22:00Z"
+                published: true
+                published_at: "2026-04-15T10:30:00Z"
+                scheduled_publish_at: null
+                newsletter_sent_at: "2026-04-15T10:35:00Z"
+                newsletter_attempts: 1
+                tags: ["flask", "python", "web"]
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "404":
           description: Post not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Post not found"
     put:
       summary: Update a post
       description: Update an existing post. Only provided fields are updated.
@@ -174,30 +238,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Post"
+              example:
+                id: 1
+                title: "Getting Started with Flask - Updated"
+                slug: "getting-started-with-flask"
+                body: "# Introduction\n\nUpdated content..."
+                summary: "Learn how to build web applications with Flask."
+                image: null
+                created_at: "2026-04-15T10:30:00Z"
+                updated_at: "2026-04-16T09:00:00Z"
+                published: true
+                published_at: "2026-04-15T10:30:00Z"
+                scheduled_publish_at: null
+                newsletter_sent_at: "2026-04-15T10:35:00Z"
+                newsletter_attempts: 1
+                tags: ["flask", "python", "web", "updated"]
         "400":
           description: Invalid request body
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid request body"
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "404":
           description: Post not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Post not found"
         "503":
           description: Search index unavailable
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Search index unavailable"
     delete:
       summary: Delete a post
       description: Delete a post and its associated image file.
@@ -230,12 +317,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "404":
           description: Post not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Post not found"
 
   /api/subscribers:
     get:
@@ -275,18 +366,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SubscriberListResponse"
+              example:
+                subscribers:
+                  - id: 1
+                    email: "reader@example.com"
+                    confirmed: true
+                    created_at: "2026-04-01T08:00:00Z"
+                    expires_at: "2026-04-03T08:00:00Z"
+                    unsubscribed_at: null
+                  - id: 2
+                    email: "pending@example.com"
+                    confirmed: false
+                    created_at: "2026-04-10T12:30:00Z"
+                    expires_at: "2026-04-12T12:30:00Z"
+                    unsubscribed_at: null
+                total: 2
+                pages: 1
+                page: 1
+                per_page: 50
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "503":
           description: API not configured
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "API key not configured"
     post:
       summary: Create a subscriber
       description: Create a new subscriber. If the email already exists, returns the existing subscriber.
@@ -308,18 +421,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Subscriber"
+              example:
+                id: 3
+                email: "new@example.com"
+                confirmed: false
+                created_at: "2026-04-29T10:00:00Z"
+                expires_at: "2026-05-01T10:00:00Z"
+                unsubscribed_at: null
         "400":
           description: Invalid request body, missing email, or invalid email format
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid email format"
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
 
   /api/subscribers/{subscriber_id}:
     delete:
@@ -377,18 +501,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatsResponse"
+              example:
+                total_views: 15420
+                total_posts: 42
+                total_shares: 387
+                total_subscribers: 156
+                views_this_month: 2340
+                new_subscribers_this_month: 12
         "401":
           description: Invalid or missing API key
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
         "503":
           description: API not configured
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "API key not configured"
 
   /api/track-share:
     post:
@@ -432,7 +567,7 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: invalid
+                    example: "missing post_id or platform"
         "404":
           description: Post not found or not published
           content:
@@ -442,7 +577,7 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: not found
+                    example: "not found"
         "500":
           description: Database error
           content:
@@ -452,7 +587,7 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: database error
+                    example: "database error"
 
 components:
   securitySchemes:
@@ -548,28 +683,34 @@ components:
         title:
           type: string
           description: Post title (required)
+          example: "Getting Started with Flask"
         slug:
           type: string
           description: URL slug (optional, auto-generated if not provided)
+          example: "getting-started-with-flask"
         body:
           type: string
           description: Post content/markdown (required)
+          example: "# Introduction\n\nFlask is a lightweight WSGI web application framework..."
         summary:
           type: string
           description: Post summary/excerpt
-          default: ""
+          example: "Learn how to build web applications with Flask."
         image:
           type: string
           description: Image filename
+          example: "flask-logo.png"
         published:
           type: boolean
           description: Publication status
           default: false
+          example: false
         tags:
           type: array
           items:
             type: string
           description: List of tag names
+          example: ["flask", "python"]
       required:
         - title
         - body
@@ -580,26 +721,33 @@ components:
         title:
           type: string
           description: Post title
+          example: "Getting Started with Flask - Updated"
         slug:
           type: string
           description: URL slug
+          example: "getting-started-with-flask"
         body:
           type: string
           description: Post content/markdown
+          example: "# Introduction\n\nUpdated content..."
         summary:
           type: string
           description: Post summary/excerpt
+          example: "Updated summary for the post"
         image:
           type: string
           description: Image filename
+          example: "new-image.png"
         published:
           type: boolean
           description: Publication status
+          example: true
         tags:
           type: array
           items:
             type: string
           description: List of tag names
+          example: ["flask", "python", "web"]
 
     PostListResponse:
       type: object
@@ -670,6 +818,7 @@ components:
           type: string
           format: email
           description: Subscriber email address (required)
+          example: "reader@example.com"
       required:
         - email
 

@@ -287,26 +287,26 @@ SELECT setval('tags_id_seq', (SELECT MAX(id) FROM tags)) FROM tags;
 SELECT setval('subscribers_id_seq', (SELECT MAX(id) FROM subscribers)) FROM subscribers;
 
 -- Page Views
-\COPY page_views(id, post_id, created_at, ip_address, user_agent) FROM 'page_views.csv' WITH (FORMAT csv, NULL 'NULL');
+\COPY page_views(id, post_id, referrer, created_at) FROM 'page_views.csv' WITH (FORMAT csv, NULL 'NULL');
 SELECT setval('page_views_id_seq', (SELECT MAX(id) FROM page_views)) FROM page_views;
 
 -- Share Events
-\COPY share_events(id, post_id, platform, created_at, ip_address, user_agent) FROM 'share_events.csv' WITH (FORMAT csv, NULL 'NULL');
+\COPY share_events(id, post_id, platform, created_at) FROM 'share_events.csv' WITH (FORMAT csv, NULL 'NULL');
 SELECT setval('share_events_id_seq', (SELECT MAX(id) FROM share_events)) FROM share_events;
 
 -- Admin Sessions
 \COPY admin_sessions(id, user_id, session_id, ip_address, user_agent, created_at, last_activity) FROM 'admin_sessions.csv' WITH (FORMAT csv, NULL 'NULL');
-SELECT setval('admin_sessions_id_seq', (SELECT MAX(id) FROM admin_sessions)) FROM share_events;
+SELECT setval('admin_sessions_id_seq', (SELECT MAX(id) FROM admin_sessions)) FROM admin_sessions;
 
 -- Site Settings
-\COPY site_settings(id, theme_name, logo_text, logo_type, custom_css_enabled, custom_css, footer_html, created_at, updated_at) FROM 'site_settings.csv' WITH (FORMAT csv, NULL 'NULL');
+\COPY site_settings(id, theme_preset, custom_css_enabled, custom_css, logo_text, updated_at) FROM 'site_settings.csv' WITH (FORMAT csv, NULL 'NULL');
 
 -- Post Revisions
 \COPY post_revisions(id, post_id, title, slug, body, summary, created_at, author_id) FROM 'post_revisions.csv' WITH (FORMAT csv, NULL 'NULL');
 SELECT setval('post_revisions_id_seq', (SELECT MAX(id) FROM post_revisions)) FROM post_revisions;
 
 -- Pages (static pages)
-\COPY pages(id, title, slug, content, published, created_at, updated_at) FROM 'pages.csv' WITH (FORMAT csv, NULL 'NULL');
+\COPY pages(id, title, slug, body, published, created_at, updated_at) FROM 'pages.csv' WITH (FORMAT csv, NULL 'NULL');
 SELECT setval('pages_id_seq', (SELECT MAX(id) FROM pages)) FROM pages;
 
 -- Re-enable triggers
@@ -1052,7 +1052,30 @@ tail -f /opt/blog/logs/blog.log
 
 Or use `journalctl -u blog` for systemd-managed deployments.
 
-## 10. Security Checklist
+## 10. Maintenance Cron Jobs
+
+Schedule these maintenance tasks with cron to keep the blog running smoothly:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Database integrity check (weekly)
+0 2 * * 0 cd /opt/blog && ADMIN_PASSWORD=yourpass SECRET_KEY=yourkey flask check-integrity >> logs/integrity.log 2>&1
+
+# Rebuild search index (weekly, after integrity check)
+0 3 * * 0 cd /opt/blog && ADMIN_PASSWORD=yourpass SECRET_KEY=yourkey flask rebuild-search >> logs/search.log 2>&1
+
+# Clean up orphaned images (monthly)
+0 4 1 * * cd /opt/blog && ADMIN_PASSWORD=yourpass SECRET_KEY=yourkey flask cleanup-orphaned-images >> logs/cleanup.log 2>&1
+
+# Sync backups to off-site storage (daily at 4 AM)
+0 4 * * * /opt/blog/scripts/sync_backups.sh --verify --cleanup 7 >> /opt/blog/logs/backup_sync.log 2>&1
+```
+
+**Newsletter:** The newsletter scheduler runs in-process via APScheduler and requires no external cron setup. The scheduler wakes every 5 minutes to check for scheduled posts and newsletters.
+
+## 11. Security Checklist
 
 - [ ] `SECRET_KEY` is a random 64-character hex string and is not committed to version control
 - [ ] `ADMIN_PASSWORD` is strong (12+ characters, mixed case, numbers, symbols)
@@ -1069,7 +1092,7 @@ Or use `journalctl -u blog` for systemd-managed deployments.
 - [ ] SMTP credentials are set via environment variables, not in `config.toml`
 - [ ] Regular backups are configured (see Section 8)
 
-## 11. Dependencies
+## 12. Dependencies
 
 The application uses these key packages:
 

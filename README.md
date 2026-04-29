@@ -2,301 +2,289 @@
 
 A personal blog platform built with Flask, featuring an admin dashboard, newsletter, RSS feed, and analytics.
 
-## Features
+## Quick Start
 
-- **Blog posts** — Markdown editor with image uploads, tags, and SEO-friendly slugs
-- **Admin dashboard** — Create, edit, delete posts with page view and share analytics
-- **Newsletter** — Email subscriptions with confirmation and daily digest (scheduler starts automatically)
-- **RSS feed** — Auto-generated feed at `/rss`
-- **Search** — Full-text search across posts
-- **Security** — CSRF protection, security headers, password hashing
-
-## Requirements
-
-- Python 3.14+
-- SQLite
-
-## Setup
-
-### Quick Start
+Get from zero to running in 5 minutes:
 
 ```bash
+git clone <repo-url> /opt/blog
+cd /opt/blog
 ./setup.sh
 ```
 
-This will:
-- Check Python version (3.14+ required)
-- Create a virtual environment
-- Install production dependencies
-- Generate `.env` with random `SECRET_KEY` and `ADMIN_PASSWORD`
-- Create required directories (`instance/`, `logs/`, `static/uploads/`)
+This creates a virtual environment, generates secure credentials, and starts the dev server. Visit `http://localhost:5000`. Admin at `http://localhost:5000/admin/login`.
 
-For development (includes pytest):
+For production, see [DEPLOY.md](DEPLOY.md).
 
-```bash
-./setup.sh --dev
-```
+---
 
-### Manual Setup
+## Common Tasks
 
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+### Writing a Post
 
-# Install dependencies
-pip install -r requirements.txt
+1. Log in at `/admin/login`
+2. Click **New Post** in the dashboard
+3. Enter title, write in Markdown, add tags
+4. Click **Publish** (or schedule via **Publish At**)
+5. Use the **Preview** button to see how it looks
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your values
-```
+**Tips:**
+- Add a `---` divider in Markdown to set a summary/excerpt
+- Use `## Heading` (h2) and `### Heading` (h3) for automatic table of contents
+- Drag images into the editor to upload
+- Your draft saves to localStorage automatically
 
-### Environment Variables
+### Sending a Newsletter
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SECRET_KEY` | Yes | Flask secret key (generate with `python -c "import secrets; print(secrets.token_hex(32))"`) |
-| `ADMIN_PASSWORD` | Yes | Admin login password |
-| `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
-| `SMTP_USER` | No | SMTP username for newsletter emails |
-| `SMTP_PASSWORD` | No | SMTP password for newsletter emails |
+1. Write and publish your post
+2. Go to **Subscribers** in the admin sidebar
+3. Click **Send Newsletter** button
+4. The newsletter sends to all confirmed subscribers at the scheduled time (`config.toml` `[newsletter] send_time`)
 
-> **First run**: The admin user is auto-created on startup using `ADMIN_USERNAME` and `ADMIN_PASSWORD`. The SQLite database is created in `instance/blog.db`.
+**Troubleshooting:**
+- No subscribers? Visit `/subscribe` on your blog to let people sign up
+- Confirmation emails not arriving? Check SMTP settings in `config.toml` and `SMTP_USER`/`SMTP_PASSWORD` env vars
+- Newsletter not sending? Check `logs/blog.log` for scheduler errors
 
-> **Production**: Use a unique, random `SECRET_KEY`. Never reuse the development key in production.
+### Managing Subscribers
 
-### Configuration
+- **Add manually:** POST to `/api/subscribers` with `{"email": "user@example.com"}` using the API key
+- **Bulk resend confirmation:** Select subscribers in `/admin/subscribers`, choose "Resend Confirmation" from bulk actions
+- **Export:** Click **Export CSV** in `/admin/subscribers`
+- **Unsubscribe:** Each email includes an unsubscribe link (`/unsubscribe/<token>`)
 
-Edit `config.toml` for site settings:
+### Scheduling Posts
 
-```toml
-[app]
-title = "DevLog"
-description = "A place for thoughts on code..."
-posts_per_page = 10
+1. When editing a post, set **Publish At** to a future datetime
+2. The scheduler runs every 5 minutes and publishes automatically
+3. Scheduled posts appear in the dashboard with a clock icon
 
-[author]
-name = "Your Name"
-role = "Your Role"
+### Customizing Appearance
 
-[site]
-base_url = "http://localhost:5000"
-```
+1. Go to `/admin/settings`
+2. Choose a **Theme Preset** (GitHub Dark, GitHub Light, Solarized Dark, Monokai)
+3. Optionally enable **Custom CSS** for additional styling
+4. Set a **Logo Text** or leave blank to use site title
 
-## Running
-
-### Development
-
-```bash
-# Set environment variables
-export SECRET_KEY="your-secret-key"
-export ADMIN_PASSWORD="your-password"
-
-# Run with Flask dev server
-python run.py
-```
-
-Visit `http://localhost:5000`. Admin at `http://localhost:5000/admin/`.
-
-### Production (Granian)
-
-[Granian](https://github.com/emmett-framework/granian) is a Rust-based Python server supporting HTTP/1, HTTP/2, and WebSockets.
-
-```bash
-# Install Granian
-pip install granian
-
-# ASGI mode (recommended)
-granian --interface asgi --host 0.0.0.0 --port 5000 run:asgi_app
-
-# WSGI mode
-granian --interface wsgi --host 0.0.0.0 --port 5000 run:app
-```
-
-#### ASGI vs WSGI
-
-This app exports both `app` (WSGI) and `asgi_app` (ASGI) from `run.py`:
-
-- **ASGI** (`run:asgi_app`) — Uses `asgiref.WsgiToAsgi` adapter. Supports HTTP/2 natively. Recommended for Granian.
-- **WSGI** (`run:app`) — Traditional sync interface. Works with Gunicorn, uWSGI, Granian.
-
-Both modes use the same Flask codebase. The ASGI wrapper is a thin adapter that passes requests through to Flask's WSGI layer.
-
-#### Granian Options
-
-```bash
-granian --interface asgi \
-    --host 0.0.0.0 \
-    --port 5000 \
-    --workers 4 \
-    --http auto \
-    run:asgi_app
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--interface` | `asgi`, `wsgi`, or `rsgi` | `rsgi` |
-| `--host` | Bind address | `127.0.0.1` |
-| `--port` | Bind port | `8000` |
-| `--workers` | Worker processes | `1` |
-| `--http` | HTTP version (`1`, `2`, `auto`) | `auto` |
-
-### Production (Gunicorn)
-
-```bash
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 run:app
-```
-
-## Testing
-
-```bash
-# Run all tests
-ADMIN_PASSWORD=test SECRET_KEY=test python -m pytest tests/ -v
-
-# Run specific test file
-python -m pytest tests/test_public.py -v
-```
-
-## Project Structure
-
-```
-blog/
-├── app/
-│   ├── __init__.py          # App factory, middleware, logging
-│   ├── config.py            # Configuration from TOML + env vars
-│   ├── models.py            # SQLAlchemy models
-│   ├── extensions.py        # Flask extensions (db, login, migrate)
-│   ├── csrf.py              # CSRF token generation/validation
-│   ├── email.py             # SMTP email sending
-│   ├── utils.py             # Slug generation, XML escaping
-│   ├── base62.py            # Short URL encoding
-│   ├── scheduler.py         # APScheduler newsletter job
-│   ├── cache.py             # Tag count caching
-│   ├── search.py            # FTS5 full-text search
-│   ├── routes/
-│   │   ├── public.py        # Public routes (posts, search, subscribe)
-│   │   ├── rss.py           # RSS feed
-│   │   ├── errors.py        # Error handlers
-│   │   └── admin/           # Admin blueprint package
-│   │       ├── __init__.py  # Blueprint registration, helpers
-│   │       ├── auth.py      # Login/logout
-│   │       ├── posts.py     # Post CRUD, dashboard
-│   │       ├── subscribers.py  # Subscriber management
-│   │       ├── tags.py      # Tag management
-│   │       ├── users.py     # User management
-│   │       ├── sessions.py  # Admin session management
-│   │       ├── media.py     # Media library
-│   │       ├── backup.py    # Backup/restore
-│   │       ├── analytics.py # Analytics page
-│   │       └── newsletter.py # Newsletter test
-│   ├── templates/           # Jinja2 templates
-│   └── static/              # CSS, JS, fonts, uploads
-├── migrations/              # Alembic database migrations
-├── tests/                   # pytest test suite
-├── instance/                # SQLite database (auto-created, gitignored)
-├── logs/                    # Application logs (auto-created, gitignored)
-├── config.toml              # Site configuration
-├── requirements.txt         # Python dependencies
-├── run.py                   # Entry point (WSGI + ASGI)
-├── .env.example             # Environment variable template
-├── .gitignore               # Git ignore rules
-├── AGENTS.md                # Agent coding guidelines
-├── DEPLOY.md                # Deployment guide
-└── README.md                # This file
-```
-
-## Routes
-
-### Public
-
-| Route | Description |
-|-------|-------------|
-| `GET /` | Homepage with paginated posts |
-| `GET /post/<slug>` | Individual post |
-| `GET /tag/<slug>` | Posts by tag |
-| `GET /search?q=<query>` | Search posts |
-| `GET /rss` | RSS feed |
-| `GET /sitemap.xml` | XML sitemap |
-| `GET /robots.txt` | Robots file |
-| `POST /subscribe` | Newsletter subscription |
-| `GET /confirm/<token>` | Confirm subscription |
-| `GET /unsubscribe/<token>` | Unsubscribe |
-
-### Admin
-
-| Route | Description |
-|-------|-------------|
-| `GET /admin/login` | Login page |
-| `POST /admin/login` | Authenticate |
-| `GET /admin/` | Dashboard |
-| `GET /admin/new` | New post form |
-| `POST /admin/new` | Create post |
-| `GET /admin/edit/<id>` | Edit post form |
-| `POST /admin/edit/<id>` | Update post |
-| `POST /admin/delete/<id>` | Delete post |
-| `GET /admin/logout` | Logout |
-
-## Database Migrations
-
-```bash
-# Initialize migrations (first time only)
-flask db init
-
-# Create migration after model changes
-flask db migrate -m "description"
-
-# Apply migrations
-flask db upgrade
-```
-
-## Customization
-
-### Theming
-
-The blog supports theme switching via the admin panel at `/admin/settings`. Available presets:
-
-- **GitHub Dark** — Dark theme with blue accents (default)
-- **GitHub Light** — Light theme with blue accents
-- **Solarized Dark** — Dark theme with cyan/green accents
-- **Monokai** — Dark theme with vibrant colors
-
-You can also enable custom CSS for additional styling. Use CSS custom properties to override theme colors:
-
+CSS custom properties available:
 ```css
 :root {
-    --accent: #ff6600;  /* Changes link/button colors */
-    --bg: #1a1a2e;       /* Changes background */
+    --accent: #ff6600;      /* links, buttons */
+    --bg: #1a1a2e;           /* page background */
+    --bg-surface: #252542;  /* cards, surfaces */
+    --text: #e0e0e0;         /* primary text */
+    --text-muted: #888;     /* secondary text */
+    --border: #3a3a5c;      /* borders */
 }
 ```
 
-### Logo
+### Adding Static Pages
 
-Set a custom logo text in `/admin/settings` under "Logo Text". Leave empty to use the site title from `config.toml`.
+1. Go to `/admin/pages`
+2. Click **New Page**
+3. Write content in Markdown
+4. Pages appear at `/page/<slug>`
 
-### Custom CSS
+### User Management
 
-Enable "Custom CSS" in settings to add your own CSS rules. The blog uses CSS custom properties (variables) for easy theming:
+- **Create admin:** `flask create-admin <username>`
+- **Promote user:** `POST /admin/users/<id>/promote` (makes admin)
+- **Demote admin:** `POST /admin/users/<id>/demote` (removes admin)
+- **Transfer ownership:** `POST /admin/users/<id>/make-owner`
+- **Password reset:** Visit `/admin/forgot-password`
 
-| Variable | Description |
-|---|---|
-| `--bg` | Page background |
-| `--bg-surface` | Card/surface background |
-| `--text` | Primary text color |
-| `--text-muted` | Secondary/muted text |
-| `--accent` | Link/button color |
-| `--accent-hover` | Link/button hover color |
-| `--border` | Border color |
+### Media Library
 
-Full list of available variables is in `app/static/css/style.css` under `:root`.
+1. Go to `/admin/media`
+2. Upload images (JPEG, PNG, GIF, WebP, SVG)
+3. Click an image to copy its URL or delete it
 
-## Known Limitations
+Images are stored in `app/static/uploads/`. Include in backups.
 
-- **SQLite only** — No PostgreSQL/MySQL support configured
-- **File uploads** — Stored locally in `static/uploads/`, no S3/cloud storage support
-- **Newsletter scheduler** — Runs in-process via APScheduler; not suitable for multi-worker setups (file locking prevents duplicate sends on Unix)
+---
 
-## License
+## Troubleshooting
 
-Private
+### "RuntimeError: ADMIN_PASSWORD is required"
+
+Set the environment variable before running:
+```bash
+export ADMIN_PASSWORD="your-password"
+python run.py
+```
+
+### "RuntimeError: SECRET_KEY is required"
+
+Generate and set a secret key:
+```bash
+export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+python run.py
+```
+
+### Login页面不加载 / Login page shows error
+
+1. Check `logs/blog.log` for errors
+2. Verify `SECRET_KEY` and `ADMIN_PASSWORD` are set
+3. Try clearing browser cookies
+
+### Posts not appearing on homepage
+
+- Check post is **Published** (not draft)
+- Verify `base_url` in `config.toml` is correct
+- Check post's **Created At** date is not in the future
+
+### Search returns no results
+
+1. Rebuild the search index: `flask rebuild-search`
+2. Check FTS5 is working: look for `posts_fts` table in database
+3. Try a simpler search term (FTS5 prefix mode may not match)
+
+### Newsletter not sending
+
+1. Verify SMTP credentials (`SMTP_USER`, `SMTP_PASSWORD` env vars)
+2. Check `config.toml` `[email]` section has correct `smtp_host`, `smtp_port`
+3. Look in `logs/blog.log` for `newsletter` or `smtp` errors
+4. Ensure subscribers are **Confirmed** (not pending)
+
+### Images not uploading
+
+- Check `app/static/uploads/` exists and is writable
+- Verify file size under 16 MB
+- Ensure file type is allowed (JPEG, PNG, GIF, WebP, SVG)
+
+### Database locked errors
+
+- Usually means another process is writing
+- With multiple workers, use `--workers 1` for newsletter to avoid conflicts
+- Restart the server to clear stale connections
+
+### High memory usage
+
+- Reduce `workers` in Granian/Gunicorn
+- Check `logs/blog.log` for memory leaks
+- Run `flask cleanup-orphaned-images` to remove unused uploads
+
+### Backup restore fails
+
+- Ensure backup file is from the same version
+- Check backup integrity: `flask check-integrity`
+- Restore to empty database first, then import data
+
+### CSS changes not applying
+
+- Hard refresh: `Ctrl+Shift+R` (or `Cmd+Shift+R` on Mac)
+- Clear browser cache
+- Check Custom CSS is enabled in `/admin/settings`
+- Verify CSS syntax (look for red text in Custom CSS editor)
+
+### Admin session expired
+
+- Sessions last 24 hours by default (`SESSION_LIFETIME_HOURS` in `config.toml`)
+- Check server time is correct
+- Verify `PROXY_COUNT` is set correctly if behind reverse proxy
+
+### Rate limiting causing 429 errors
+
+Rate limiting is configured at the reverse proxy, not the app. Check your nginx/Caddy config. See [DEPLOY.md](DEPLOY.md#6-rate-limiting) for recommended limits.
+
+---
+
+## FAQ
+
+### How do I change the site title/description?
+
+Edit `config.toml`:
+```toml
+[app]
+title = "My Blog"
+description = "A blog about things"
+```
+
+### Can I use PostgreSQL instead of SQLite?
+
+Yes. See the [PostgreSQL Migration Guide](DEPLOY.md#h4-postgresql-migration-guide) in DEPLOY.md.
+
+### How do I enable HTTPS?
+
+Configure a reverse proxy (nginx, Caddy) with SSL in front of the app. The app sets `SESSION_COOKIE_SECURE=True` automatically when `debug=False`.
+
+### How do I export my data?
+
+```bash
+flask export-data backup.json
+```
+
+This exports posts, subscribers, and tags as JSON.
+
+### How do I import data?
+
+```bash
+flask import-data backup.json
+```
+
+### How do I reset my admin password?
+
+```bash
+flask create-admin admin
+```
+
+Or use the password reset flow at `/admin/forgot-password`.
+
+### How do I add multiple admins?
+
+```bash
+flask create-admin <username>
+```
+
+Then promote via `/admin/users` or `POST /admin/users/<id>/promote`.
+
+### Can I disable newsletter?
+
+Yes. Remove or comment out `[newsletter]` section in `config.toml`, or set `send_time=""`.
+
+### How do I customize the footer?
+
+Edit `config.toml`:
+```toml
+[site]
+footer_html = "© 2026 My Blog"
+```
+
+### How do I get an API key?
+
+```bash
+python3 -c 'import secrets; print(secrets.token_hex(32))'
+```
+
+Set as `API_KEY` environment variable. Use as `X-API-Key` header.
+
+### Where are the logs?
+
+- Development: output to stdout
+- Production: `logs/blog.log` (rotated at 10 MB, 10 backups)
+
+### How do I rebuild the search index?
+
+```bash
+flask rebuild-search
+```
+
+### How do I clean up unused images?
+
+```bash
+flask cleanup-orphaned-images
+```
+
+### Why am I getting CSRF errors?
+
+- Try clearing browser cookies
+- Check that `CSRF_ENABLED` is not set to `false`
+- Session may have expired—log out and back in
+
+---
+
+## Full Documentation
+
+- [DEPLOY.md](DEPLOY.md) — Production deployment, PostgreSQL migration, Docker, systemd, monitoring
+- [USAGE.md](USAGE.md) — Detailed user guide for all admin features
+- [AGENTS.md](AGENTS.md) — Developer/contributor guidelines

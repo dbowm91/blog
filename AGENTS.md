@@ -316,6 +316,32 @@ Granian (Rust-based ASGI server) is significantly faster than Gunicorn. Use `gra
 ### PostRevision Eager Loading
 Always use `.options(joinedload(PostRevision.author))` when querying revisions to avoid N+1 queries in templates that display the author.
 
+### Media Cache Invalidation
+When uploading images via post create/edit, the media cache must be invalidated:
+```python
+from app.routes.admin.media import _invalidate_media_cache
+_invalidate_media_cache()
+```
+The cache is in `app/routes/admin/media.py` and uses 30-second TTL. This is called automatically in `posts.py` after image save.
+
+### Granian Timeout Flags
+When running with Granian, set `--timeout` for request timeouts:
+```bash
+granian --interface asgi --workers 4 --timeout 60 run:asgi_app
+```
+Without explicit timeout, long-running requests (backup/restore, newsletter) may hang indefinitely.
+
+### Graceful Shutdown
+The shutdown handler in `run.py` sets a shutdown event and waits for in-flight requests to complete. Scheduler jobs finish before DB connections close via `db.engine.dispose()`. Never call `db.session.close_all()` — use `db.engine.dispose()` instead.
+
+### JSON Feed content_html Requirement
+The JSON Feed 1.1 spec requires either `content_html` or `content_text`. The `/json` endpoint must include `content_html`. See `app/routes/rss.py`.
+
+### Route-Based JS Code Splitting
+Admin pages load: utils, modal, shortcuts, bulk.
+Public pages load: utils, dark-mode, mobile-menu, lazy-load, share, lightbox, toc.
+The main.js loader uses dynamic imports based on `document.body.classList.contains('admin-body')`.
+
 ## Assets
 
 - **No external assets**—all fonts (Inter, JetBrains Mono) are self-hosted in `app/static/fonts/`

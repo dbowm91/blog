@@ -181,7 +181,10 @@ class PostRevision(db.Model):
     post = db.relationship("Post", back_populates="revisions")
     author = db.relationship("User", lazy="select")
 
-    __table_args__ = (db.Index("ix_post_revisions_post_created", "post_id", "created_at"),)
+    __table_args__ = (
+        db.Index("ix_post_revisions_post_created", "post_id", "created_at"),
+        db.Index("ix_post_revisions_author_id", "author_id"),
+    )
 
     def __repr__(self) -> str:
         return f"<PostRevision post_id={self.post_id} created_at={self.created_at}>"

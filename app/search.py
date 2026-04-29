@@ -208,10 +208,18 @@ def search(query: str) -> list[tuple[int, int]]:
 
 
 def get_indexed_terms() -> list[str]:
-    """Get all unique terms from post titles for 'Did you mean?' suggestions.
+    """Get all indexed terms using fts5vocab table for efficiency."""
+    try:
+        result = db.session.execute(
+            text("SELECT DISTINCT term FROM posts_fts_vocab WHERE term IS NOT NULL ORDER BY term")
+        ).fetchall()
+        return [row[0] for row in result]
+    except (OperationalError, ProgrammingError):
+        return get_indexed_terms_fallback()
 
-    Returns a list of unique words from published post titles.
-    """
+
+def get_indexed_terms_fallback() -> list[str]:
+    """Fallback get_indexed_terms when fts5vocab is not available."""
     try:
         if not _check_fts_enabled():
             return []
