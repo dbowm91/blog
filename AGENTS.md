@@ -120,7 +120,7 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - `ADMIN_PASSWORD` required; `RuntimeError` in `create_app()` if missing
 - Environment variables override config values
 - Pagination and limits loaded from `config.toml [app]` section
-- **Custom CSS sanitization**: `sanitize_css()` strips dangerous properties (`url()`, `expression()`, `content`, etc.) — must be applied BEFORE saving custom_css in settings.py (currently missing, see plan.md CB-8)
+- **Custom CSS sanitization**: `sanitize_css()` strips dangerous properties (`url()`, `expression()`, `content`, etc.) — must be applied BEFORE saving custom_css in settings.py.
 
 ## Common Tasks
 
@@ -143,13 +143,13 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 ## Known Limitations
 
 - **SQLite with PostgreSQL migration path**—default uses SQLite (WAL mode); PostgreSQL migration documented in DEPLOY.md
-- **File uploads**—stored locally in `static/uploads/`, no S3 support
-- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking (Unix only)
-- **E2E tests** require Playwright installation to run
+- **File uploads**—stored locally in `static/uploads/`. **CRITICAL:** Clean this directory before production deployment.
+- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking (Unix only). Persistence via `SQLAlchemyJobStore` is planned.
+- **E2E tests** require Playwright installation to run.
 
 ## Rate Limiting
 
-This codebase intentionally **does not include application-level rate limiting**. Configure at reverse proxy/WAF level.
+This codebase is transitioning to **application-level rate limiting** via `flask-limiter`. Until complete, continue to configure at reverse proxy/WAF level.
 
 ```nginx
 # nginx example for /admin/login
@@ -165,7 +165,7 @@ Suggested: 5 req/min for `/admin/login`, 20 req/min for `/admin/*`, 100 req/min 
 All JavaScript modules must export a default function for initialization. When adding new modules to `app/static/js/shared/` or `app/static/js/public/`, you **must** add `export default initXxx;` where `initXxx` is the initialization function. The main.js loader calls `module.default()` to invoke the exported function. Modules without this export will not be called on page load.
 
 ### Critical: Share Platform Names
-The share buttons template (`_share_buttons.html`) and API (`ALLOWED_SHARE_PLATFORMS` in `public.py`) must use the same platform identifiers. The API expects `"hackernews"` not `"hn"`. Always check that template `data-platform` attributes match the API constants.
+The share buttons template (`_post_content.html`) and API (`ALLOWED_SHARE_PLATFORMS` in `public.py`) must use the same platform identifiers. The API expects `"hackernews"` not `"hn"`. Always check that template `data-platform` attributes match the API constants.
 
 ### Critical: JSON Feed content_html
 When updating the JSON Feed in `app/routes/rss.py`, ensure `content_html` field is included per JSON Feed 1.1 spec. Either `content_html` or `content_text` is required.
