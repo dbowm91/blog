@@ -53,6 +53,12 @@ These items fix broken functionality or prepare the infrastructure for subsequen
 2.  **Cleanup:** Manually delete all 1,580+ files in `app/static/uploads/`.
 3.  **Fixture:** Add a session-scoped `autouse` fixture to `tests/conftest.py` that clears `UPLOAD_FOLDER` after tests finish.
 
+### 1.6: Health Monitoring & Docker Readiness
+**Files:** `app/routes/public.py`, `Dockerfile`
+**Action:**
+1.  **Endpoint:** Add `/health` route to `public.py` that checks `db.session.execute(text("SELECT 1"))` and returns JSON `{"status": "healthy"}`.
+2.  **Dockerfile:** Add `HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:5000/health || exit 1`.
+
 ---
 
 ## WAVE 2: Security Hardening & Performance [Parallelizable]
@@ -155,4 +161,8 @@ These items fix broken functionality or prepare the infrastructure for subsequen
 ## Testing Strategy
 - **Unit Tests:** After each WAVE, run `python3 -m pytest tests/ --ignore=tests/e2e -v`.
 - **Manual Verification:** Verify JS initialization in browser, check rate limiting with `curl`, and inspect FTS5 index consistency.
+- **CI/CD:** Ensure all changes pass the new linting and coverage checks.
+Verify JS initialization in browser, check rate limiting with `curl`, and inspect FTS5 index consistency.
+- **CI/CD:** Ensure all changes pass the new linting and coverage checks.
+rate limiting with `curl`, and inspect FTS5 index consistency.
 - **CI/CD:** Ensure all changes pass the new linting and coverage checks.
