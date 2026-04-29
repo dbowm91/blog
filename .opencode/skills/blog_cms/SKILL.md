@@ -346,6 +346,46 @@ export default initXxx;  // e.g., export default initDarkMode;
 - FTS5 table created with `prefix='2 3 4'` for prefix matching (e.g., "Py" matches "Python")
 - `search()` automatically appends `*` to terms for prefix search
 
+### Celery Integration (`app/celery_app.py`, `app/tasks.py`)
+- Redis as message broker (configure via `REDIS_URL` env var)
+- Tasks: `generate_image_variants`, `send_newsletter_task`, `deliver_webhook`
+- Celery Beat for periodic tasks (daily backup at 2:00 AM)
+
+### Admin Audit Logging (`AdminAuditLog` model in `app/models.py`)
+- Fields: actor_id, action, target_id, target_type, details, ip_address, timestamp
+- Tracks admin actions for security and compliance
+
+### Webhook System (`app/webhooks.py`)
+- `Webhook` and `WebhookEvent` models
+- HMAC-SHA256 signing for webhook payloads
+- Automatic delivery with retry logic
+- Events: post.published, post.unpublished, subscriber.created, subscriber.deleted
+
+### Automated Backup System
+- `run_daily_backup()` in scheduler.py runs at 2:00 AM daily
+- Retention: keeps last 7 backups
+- Supports compression and GPG encryption
+
+### Cross-Platform Locking (filelock)
+- `app/scheduler.py` uses `filelock.FileLock` instead of `fcntl` (Unix-only)
+- Cross-platform compatible file locking
+- `FileLockTimeout` exception handling
+
+### S3 Client Thread-Safety
+- `app/storage.py` uses double-checked locking with `threading.Lock()`
+- Thread-safe S3 client initialization
+- `S3StorageBackend._lock` protects client creation
+
+### Error Logging Utilities (`app/utils.py`)
+- `ErrorLogContext` - context manager for event categorization
+- `log_storage_error()`, `log_security_event()`, `log_scheduler_error()`
+- `handle_error()` - unified error handler
+- `unified_error_handler()` - decorator for route error handling
+
+### Cache Helpers
+- `_build_tag_counts_query()` in `app/tag_cache.py` - encapsulates tag count query pattern
+- `_invalidate_all_caches()` in `app/routes/admin/__init__.py` - invalidates tag, FTS, analytics, dashboard, and footer caches
+
 ## Security Headers
 
 `set_security_headers` in `app/__init__.py` applies:

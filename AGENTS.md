@@ -425,13 +425,43 @@ See `requirements.txt`. Key packages:
 
 ## Email
 
-- Uses `smtplib` directly (no Celery/Redis)
+- Uses `smtplib` directly OR Celery tasks for async newsletter sending (configure via `REDIS_URL`)
 - SMTP connection uses `starttls()` with `ssl.create_default_context()`
 - Individual emails open a fresh SMTP connection per call
 - Newsletter batch reuses a single SMTP connection via `_connect_smtp()` helper
 - **Do not use `with smtplib.SMTP() as server:` for newsletter batch** — use manual `try/finally`
 - Per-subscriber exception handling; failures are logged but don't stop the batch
 - On `SMTPServerDisconnected`, reconnects and retries
+
+## Celery Integration
+
+For async task processing (image variant generation, newsletter sending, webhook delivery):
+
+```bash
+# Start worker
+celery -A app.celery_app worker --loglevel=info
+
+# Start beat scheduler (for periodic tasks like daily backup)
+celery -A app.celery_app beat --loglevel=info
+```
+
+Tasks in `app/tasks.py`:
+- `generate_image_variants` - Background image processing
+- `send_newsletter_task` - Async newsletter delivery
+- `deliver_webhook` - Async webhook delivery with retry
+
+## Error Logging
+
+Structured error handling utilities in `app/utils.py`:
+- `ErrorLogContext` - Context manager for event categorization
+- `log_storage_error()`, `log_security_event()`, `log_scheduler_error()` - Specialized loggers
+- `handle_error()` - Unified error handler
+- `unified_error_handler()` - Decorator for route error handling
+
+## Cache Helpers
+
+- `_build_tag_counts_query()` in `app/tag_cache.py` - Encapsulates tag count query pattern
+- `_invalidate_all_caches()` in `app/routes/admin/__init__.py` - Invalidates tag, FTS, analytics, dashboard, and footer caches
 
 ## Security Headers
 
