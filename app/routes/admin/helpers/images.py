@@ -4,6 +4,7 @@ import os
 import uuid
 from typing import Optional
 
+from PIL import Image
 from flask import current_app
 from werkzeug.datastructures import FileStorage
 
@@ -45,6 +46,24 @@ def _save_image(
             return None, "Uploaded file is not a valid image."
         ext = detected
         filename = f"{uuid.uuid4().hex}.{ext}"
-        file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
+        filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+        file.save(filepath)
+        _generate_responsive_variants(filepath, ext)
         return filename, None
     return None, None
+
+
+def _generate_responsive_variants(filepath: str, ext: str):
+    for width in (400, 800, 1200):
+        variant_filename = f"{width}_{os.path.basename(filepath)}"
+        variant_path = os.path.join(os.path.dirname(filepath), variant_filename)
+        try:
+            with Image.open(filepath) as img:
+                if img.width > width:
+                    ratio = width / img.width
+                    new_height = int(img.height * ratio)
+                    img.resize((width, new_height), Image.LANCZOS).save(
+                        variant_path, optimize=True
+                    )
+        except Exception:
+            pass

@@ -3,8 +3,6 @@
 __all__ = ["invalidate_settings_cache", "invalidate_footer_cache"]
 
 import logging
-import threading
-import time as _time
 
 from datetime import datetime
 
@@ -12,6 +10,7 @@ from flask import request
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
+from app import cache as flask_cache
 from app.extensions import db
 
 logger = logging.getLogger(__name__)
@@ -24,61 +23,74 @@ from app.config import (
     BASE_URL,
 )
 from app.csrf import generate_csrf_token
-from app.cache import _get_tag_counts
+from app.tag_cache import _get_tag_counts
 
 
-_SITE_SETTINGS_CACHE: dict[str, object] = {"data": None, "timestamp": 0}
-_SETTINGS_CACHE_LOCK = threading.Lock()
-_SETTINGS_TTL = 300
-
-_FOOTER_CACHE: dict[str, object] = {"data": None, "timestamp": 0}
-_FOOTER_CACHE_LOCK = threading.Lock()
-_FOOTER_TTL = 45
-
-
-def invalidate_settings_cache() -> None:
+def invalidate_settings_cache():
     """Invalidate the SiteSettings cache."""
-    with _SETTINGS_CACHE_LOCK:
-        _SITE_SETTINGS_CACHE["data"] = None
-        _SITE_SETTINGS_CACHE["timestamp"] = 0
+    flask_cache.delete("site_settings")
 
 
-def invalidate_footer_cache() -> None:
+def invalidate_footer_cache():
     """Invalidate the footer cache."""
-    with _FOOTER_CACHE_LOCK:
-        _FOOTER_CACHE["data"] = None
-        _FOOTER_CACHE["timestamp"] = 0
+    flask_cache.delete_memoized(_get_footer_data)
 
 
-def _get_cached_settings() -> dict | None:
-    with _SETTINGS_CACHE_LOCK:
-        now = _time.monotonic()
-        if (
-            _SITE_SETTINGS_CACHE["data"] is not None
-            and (now - _SITE_SETTINGS_CACHE["timestamp"]) < _SETTINGS_TTL
-        ):
-            return _SITE_SETTINGS_CACHE["data"]
-    return None
+def _get_settings_cache_key():
+    return "site_settings"
 
 
-def _set_cached_settings(data: dict) -> dict:
-    with _SETTINGS_CACHE_LOCK:
-        now = _time.monotonic()
-        _SITE_SETTINGS_CACHE["data"] = data
-        _SITE_SETTINGS_CACHE["timestamp"] = now
-        return data
+@flask_cache.cached(timeout=300, key_prefix=_get_settings_cache_key)
+def _get_cached_settings():
+    """Get cached site settings."""
+    from app.models import THEME_PRESETS
+
+    try:
+        from app.models import SiteSettings
+
+        settings = db.session.execute(
+            select(SiteSettings).order_by(SiteSettings.id).limit(1)
+        ).scalar_one_or_none()
+
+        if not settings:
+            return {
+                "theme_preset": "github-dark",
+                "theme_vars": THEME_PRESETS["github-dark"],
+                "custom_css_enabled": False,
+                "custom_css": "",
+                "logo_text": "",
+                "theme_presets": THEME_PRESETS,
+            }
+
+        preset = THEME_PRESETS.get(
+            settings.theme_preset, THEME_PRESETS["github-dark"]
+        )
+        return {
+            "theme_preset": settings.theme_preset,
+            "theme_vars": preset,
+            "custom_css_enabled": settings.custom_css_enabled,
+            "custom_css": settings.custom_css if settings.custom_css_enabled else "",
+            "logo_text": settings.logo_text,
+            "theme_presets": THEME_PRESETS,
+        }
+    except OperationalError:
+        logger.exception("Database error loading theme settings, using fallback")
+        from app.models import THEME_PRESETS
+
+        return {
+            "theme_preset": "github-dark",
+            "theme_vars": THEME_PRESETS["github-dark"],
+            "custom_css_enabled": False,
+            "custom_css": "",
+            "logo_text": "",
+            "theme_presets": THEME_PRESETS,
+        }
 
 
-def _get_footer_data() -> dict:
+@flask_cache.memoize(timeout=45)
+def _get_footer_data():
+    """Get footer data with caching."""
     from app.models import Post, Tag
-
-    with _FOOTER_CACHE_LOCK:
-        now = _time.monotonic()
-        if (
-            _FOOTER_CACHE["data"] is not None
-            and (now - _FOOTER_CACHE["timestamp"]) < _FOOTER_TTL
-        ):
-            return _FOOTER_CACHE["data"].copy()
 
     recent_posts = (
         db.session.execute(
@@ -97,17 +109,11 @@ def _get_footer_data() -> dict:
     tag_counts = _get_tag_counts()
     footer_tag_counts = {tag_id: tag_counts.get(tag_id, 0) for tag_id in [t.id for t in footer_tags]}
 
-    data = {
+    return {
         "recent_posts_footer": list(recent_posts),
         "footer_tags": list(footer_tags),
         "footer_tag_counts": footer_tag_counts,
     }
-
-    with _FOOTER_CACHE_LOCK:
-        _FOOTER_CACHE["data"] = data
-        _FOOTER_CACHE["timestamp"] = _time.monotonic()
-
-    return data.copy()
 
 
 def register_context_processors(app):
@@ -138,54 +144,7 @@ def register_context_processors(app):
 
     @app.context_processor
     def inject_theme():
-        from app.models import THEME_PRESETS
-
-        cached = _get_cached_settings()
-        if cached is not None:
-            return cached
-
-        try:
-            from app.models import SiteSettings
-
-            settings = db.session.execute(
-                select(SiteSettings).order_by(SiteSettings.id).limit(1)
-            ).scalar_one_or_none()
-
-            if not settings:
-                result = {
-                    "theme_preset": "github-dark",
-                    "theme_vars": THEME_PRESETS["github-dark"],
-                    "custom_css_enabled": False,
-                    "custom_css": "",
-                    "logo_text": "",
-                    "theme_presets": THEME_PRESETS,
-                }
-                return _set_cached_settings(result)
-
-            preset = THEME_PRESETS.get(
-                settings.theme_preset, THEME_PRESETS["github-dark"]
-            )
-            result = {
-                "theme_preset": settings.theme_preset,
-                "theme_vars": preset,
-                "custom_css_enabled": settings.custom_css_enabled,
-                "custom_css": settings.custom_css
-                if settings.custom_css_enabled
-                else "",
-                "logo_text": settings.logo_text,
-                "theme_presets": THEME_PRESETS,
-            }
-            return _set_cached_settings(result)
-        except OperationalError:
-            logger.exception("Database error loading theme settings, using fallback")
-            return {
-                "theme_preset": "github-dark",
-                "theme_vars": THEME_PRESETS["github-dark"],
-                "custom_css_enabled": False,
-                "custom_css": "",
-                "logo_text": "",
-                "theme_presets": THEME_PRESETS,
-            }
+        return _get_cached_settings()
 
     @app.context_processor
     def inject_footer_data():

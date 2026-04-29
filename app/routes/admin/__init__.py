@@ -67,10 +67,9 @@ from app.routes.admin.helpers import (
 )
 from app.routes.admin.helpers.analytics import (
     _get_analytics_data,
-    _analytics_cache,
-    _analytics_cache_lock,
+    invalidate_analytics_cache,
 )
-from app.cache import invalidate_tag_cache
+from app.tag_cache import invalidate_tag_cache
 from app.utils import safe_delete_file
 from app.utils import utc_now
 from app.search import sync_fts

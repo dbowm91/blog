@@ -38,7 +38,7 @@ from app.config import (
 from app.email import send_confirmation
 from app.csrf import validate_csrf_token
 from app.utils import xml_escape, is_valid_email, utc_now
-from app.cache import _get_tag_counts
+from app.tag_cache import _get_tag_counts
 from app.search import search as _fts_search, get_search_snippets, get_did_you_mean, get_indexed_terms
 from app import limiter
 

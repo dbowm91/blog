@@ -1,21 +1,17 @@
 """Dashboard metrics helpers for admin routes."""
 
 import time
-import threading
 from datetime import timedelta
 
 from sqlalchemy import func, select, text
 
+from app import cache as flask_cache
 from app.extensions import db
 from app.models import PageView, ShareEvent, Subscriber, Post
 from app.utils import utc_now
 
-_dashboard_cache = {}
-_dashboard_cache_lock = threading.Lock()
-_DASHBOARD_CACHE_TTL = 120
 
-
-def _get_daily_views(days: int = 30) -> list[dict]:
+def _get_daily_views(days: int = 30):
     """Get daily view counts for the last N days.
 
     Returns list of dicts with 'date' and 'count' keys, oldest first.
@@ -50,7 +46,7 @@ def _get_daily_views(days: int = 30) -> list[dict]:
     return result
 
 
-def _get_top_posts_by_shares(limit: int = 5) -> list[tuple]:
+def _get_top_posts_by_shares(limit: int = 5):
     """Get top posts by share count."""
     thirty_days_ago = utc_now() - timedelta(days=30)
     return db.session.execute(
@@ -64,15 +60,9 @@ def _get_top_posts_by_shares(limit: int = 5) -> list[tuple]:
     ).all()
 
 
-def _get_dashboard_metrics():
+@flask_cache.memoize(timeout=120)
+def _get_dashboard_metrics_cached():
     """Get dashboard metrics with 2-minute cache."""
-    now = time.time()
-
-    with _dashboard_cache_lock:
-        cached = _dashboard_cache.get("metrics")
-        if cached and (now - cached["timestamp"]) < _DASHBOARD_CACHE_TTL:
-            return cached["data"]
-
     thirty_days_ago = utc_now() - timedelta(days=30)
     month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     sixty_days_ago = utc_now() - timedelta(days=60)
@@ -118,7 +108,7 @@ def _get_dashboard_metrics():
     elif views_this_period > 0:
         views_trend = 100.0
 
-    data = {
+    return {
         "total_views": total_views,
         "total_posts": total_posts,
         "total_shares": total_shares,
@@ -130,18 +120,17 @@ def _get_dashboard_metrics():
         "views_trend": views_trend,
     }
 
-    with _dashboard_cache_lock:
-        _dashboard_cache["metrics"] = {"timestamp": now, "data": data}
 
-    return data
-
-
-def _invalidate_dashboard_cache():
-    """Clear the dashboard metrics cache."""
-    with _dashboard_cache_lock:
-        _dashboard_cache.clear()
+def _get_dashboard_metrics():
+    """Get dashboard metrics (uses cached version)."""
+    return _get_dashboard_metrics_cached()
 
 
 def invalidate_dashboard_cache():
-    """Public function to invalidate dashboard metrics cache."""
-    _invalidate_dashboard_cache()
+    """Clear the dashboard metrics cache."""
+    flask_cache.delete_memoized(_get_dashboard_metrics_cached)
+
+
+def _clear_dashboard_cache():
+    """Clear all dashboard cache entries (for testing)."""
+    flask_cache.delete_memoized(_get_dashboard_metrics_cached)

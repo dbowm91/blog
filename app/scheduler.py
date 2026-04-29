@@ -242,7 +242,7 @@ def publish_scheduled_posts(app) -> None:
             from app.extensions import db
             from app.utils import utc_now
             from app.search import sync_fts_batch
-            from app.cache import invalidate_tag_cache
+            from app.tag_cache import invalidate_tag_cache
 
             now = utc_now()
             posts = (

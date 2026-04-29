@@ -308,7 +308,7 @@ class TestTagCachingPerformance:
     def test_get_tag_counts_performance(self, app, clean_db, admin_user):
         """Benchmark tag counts retrieval."""
         from tests.benchmarks.conftest import create_posts_bulk
-        from app.cache import _get_tag_counts, invalidate_tag_cache
+        from app.tag_cache import _get_tag_counts, invalidate_tag_cache
 
         posts = create_posts_bulk(clean_db, count=30)
 

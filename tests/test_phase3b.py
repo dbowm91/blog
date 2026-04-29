@@ -384,9 +384,8 @@ class TestAnalyticsDataCorrectness:
 
     def test_share_event_referrer_categorization(self, app, db, admin_user):
         """Test referrer query params are categorized correctly in analytics."""
-        from app.routes import admin as admin_module
-        with admin_module._analytics_cache_lock:
-            admin_module._analytics_cache.clear()
+        from app.routes.admin.helpers.analytics import _clear_analytics_cache
+        _clear_analytics_cache()
 
         post = Post(title='Share Test', slug='share-test', body='Content', published=True, published_at=utc_now())
         db.session.add(post)

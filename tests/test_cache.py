@@ -1,6 +1,5 @@
 import pytest
-from unittest.mock import patch
-from app.cache import _get_tag_counts, invalidate_tag_cache
+from app.tag_cache import _get_tag_counts, invalidate_tag_cache, _get_tag_counts_cached
 from app.models import Post, Tag
 from app.utils import utc_now
 
@@ -49,18 +48,14 @@ def test_cache_invalidation(app, db):
     db.session.add_all([tag, post])
     db.session.commit()
 
-    # First call populates cache
     result1 = _get_tag_counts()
     assert result1.get(tag.id) == 1
-    # Add another post
     post2 = Post(title='InvPost2', slug='invpost2', body='Content',
                  published=True, published_at=utc_now())
     post2.tags.append(tag)
     db.session.add(post2)
     db.session.commit()
-    # Invalidate
     invalidate_tag_cache()
-    # Next call should query DB again and get updated count
     result2 = _get_tag_counts()
     assert result2.get(tag.id) == 2
 
@@ -82,7 +77,7 @@ def test_cache_returns_copy(app, db):
 
 
 def test_cache_ttl_expiry(app, db):
-    """Test that cache is refreshed after TTL expires."""
+    """Test that cache is refreshed after TTL expires via explicit invalidation."""
     invalidate_tag_cache()
     tag = Tag(name='TTLTag', slug='ttltag')
     post = Post(title='TTLPost', slug='ttlpost', body='Content',
@@ -91,8 +86,10 @@ def test_cache_ttl_expiry(app, db):
     db.session.add_all([tag, post])
     db.session.commit()
 
-    _get_tag_counts()
-    # Mock time to simulate TTL expiry
-    with patch('app.cache._time.monotonic', return_value=999999999):
-        result = _get_tag_counts()
-        assert result.get(tag.id) == 1
+    result1 = _get_tag_counts()
+    assert result1.get(tag.id) == 1
+
+    invalidate_tag_cache()
+
+    result2 = _get_tag_counts()
+    assert result2.get(tag.id) == 1

@@ -34,7 +34,7 @@ from app.context_processors import invalidate_footer_cache
 from app.routes.admin.helpers.dashboard import _get_dashboard_metrics
 from app.config import DASHBOARD_PER_PAGE
 from app.utils import utc_now, safe_delete_file
-from app.cache import invalidate_tag_cache
+from app.tag_cache import invalidate_tag_cache
 from app.search import sync_fts, sync_fts_batch, remove_fts
 from app.config import BASE_URL, PREVIEW_TOKEN_EXPIRY_DAYS
 from sqlalchemy import func, select

@@ -1,32 +1,20 @@
 """Analytics helpers for admin routes."""
 
-import time
-import threading
 from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
+from app import cache as flask_cache
 from app.extensions import db
 from app.models import PageView, ShareEvent, Subscriber, Post
 from app.utils import utc_now
 from app.routes.admin.helpers.shared import _categorize_referrer
 
-_analytics_cache = {}
-_analytics_cache_lock = threading.Lock()
-_ANALYTICS_CACHE_TTL = 300
-_ANALYTICS_MAX_SIZE = 16
 
-
+@flask_cache.memoize(timeout=300)
 def _get_analytics_data(days: int):
-    cache_key = days
-    now = time.time()
-
-    with _analytics_cache_lock:
-        cached = _analytics_cache.get(cache_key)
-        if cached and (now - cached["timestamp"]) < _ANALYTICS_CACHE_TTL:
-            return cached["data"]
-
+    """Get analytics data with 5-minute cache."""
     start_date = utc_now() - timedelta(days=days)
 
     daily_views_cte = (
@@ -109,7 +97,7 @@ def _get_analytics_data(days: int):
         )
     ).all()
 
-    data = {
+    return {
         "daily_views": daily_views,
         "total_views": total_views,
         "top_posts": top_posts,
@@ -120,21 +108,15 @@ def _get_analytics_data(days: int):
         "confirmed_subscribers": confirmed_subscribers,
     }
 
-    with _analytics_cache_lock:
-        if len(_analytics_cache) >= _ANALYTICS_MAX_SIZE:
-            oldest = min(
-                _analytics_cache, key=lambda k: _analytics_cache[k]["timestamp"]
-            )
-            del _analytics_cache[oldest]
-        _analytics_cache[cache_key] = {"timestamp": now, "data": data}
-
-    return data
-
 
 def invalidate_analytics_cache():
     """Clear the analytics cache. Call when post data changes."""
-    with _analytics_cache_lock:
-        _analytics_cache.clear()
-    from app.routes.admin.helpers.dashboard import _invalidate_dashboard_cache
+    flask_cache.delete_memoized(_get_analytics_data)
+    from app.routes.admin.helpers.dashboard import invalidate_dashboard_cache
 
-    _invalidate_dashboard_cache()
+    invalidate_dashboard_cache()
+
+
+def _clear_analytics_cache():
+    """Clear all analytics cache entries (for testing)."""
+    flask_cache.delete_memoized(_get_analytics_data)
