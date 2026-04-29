@@ -68,6 +68,7 @@ cache_key = f"_post_srcset_cache_{post.id}"  # Line 56
 - **Issue:** Storage abstraction is partially implemented but bypassed by `os.path.isfile()`, `os.scandir()`, and `os.remove()`.
 - **Impact:** S3 backend is broken for reads and deletes.
 - **Fix:** 
+    - **Storage Abstraction Audit:** Audit `app/` for all instances of `os.path.isfile`, `os.remove`, `os.scandir`, and `open()`.
     - Update `app/filters.py` to use `storage.exists()` and `storage.url()`.
     - Update `app/routes/admin/media.py` to use `storage.list_files()`.
     - Update `app/utils.py` `safe_delete_file()` to use `storage.delete()`.
@@ -139,6 +140,10 @@ signatures = {
 }
 ```
 
+### 2.5: Sanitization Audit [P2] [REVIEW]
+- **Audit:** Verify `SiteSettings.custom_css` and all user-input fields in admin dashboard pass through `nh3` or `sanitize_css`.
+- **Nonce Check:** Verify CSP nonces are applied to all remaining inline scripts/styles.
+
 ---
 
 ## WAVE 3: N+1 Query Fixes (Sequential after Wave 1)
@@ -168,6 +173,9 @@ signatures = {
 
 ### 4.3: Add Type Hints to Public API [P3] [REVIEW]
 - **Scope:** `app/routes/admin/`, `app/routes/public.py`, `app/context_processors.py`.
+
+### 4.4: Structured Error Logging [P2] [REVIEW]
+- **Fix:** Implement unified error handling decorator/utility in `app/utils.py` for storage, security, and scheduler events.
 
 ---
 
@@ -205,6 +213,9 @@ finally:
 ### 6.4: Automated Backup System [P3] [REVIEW]
 - **Fix:** Daily APScheduler job with retention cleanup.
 
+### 6.5: Dev/CI Environment Updates [P2] [REVIEW]
+- **Fix:** Update `scripts/dev.sh` and `Dockerfile` to include Redis and Celery worker setup.
+
 ---
 
 ## WAVE 7: Frontend UX & UI Improvements (Parallelizable)
@@ -233,6 +244,23 @@ finally:
 
 ---
 
+## WAVE 9: Performance Benchmarking & Validation (Sequential)
+
+### 9.1: Optimization Validation [P2] [REVIEW]
+- **Task:** Use `tests/benchmarks/` to verify performance improvements from N+1 fixes (Wave 3) and Page View Buffer (Wave 6).
+- **Goal:** Empirical proof of gain in request latency and database load.
+
+---
+
+## EXECUTION STANDARDS: Database Migrations
+
+For any wave involving model changes (Audit Logs, Webhooks, Media Alt-Text):
+1. **Verification:** Always run `flask db migrate` and review the script for SQLite compatibility.
+2. **Batch Mode:** Ensure `render_as_batch=True` is used for destructive SQLite operations.
+3. **Round-trip:** Test both `upgrade` and `downgrade` paths.
+
+---
+
 ## IMPLEMENTATION ORDER SUMMARY
 
 | Wave | Dependencies | Focus |
@@ -245,6 +273,7 @@ finally:
 | 6 | Waves 1-5 | Advanced Backend Features |
 | 7 | Waves 1-2 | Frontend UX & UI |
 | 8 | None | Documentation |
+| 9 | Waves 3, 6 | Performance Validation |
 
 ---
 
@@ -255,7 +284,7 @@ finally:
 3. `app/routes/public.py` (Waves 2, 3, 4, 7)
 4. `app/routes/admin/posts.py` (Waves 4, 6)
 5. `app/scheduler.py` (Waves 1, 5, 6)
-6. `app/cli.py` (Wave 1)
+6. `app/utils.py` (Waves 1, 4, 5)
 7. `app/search.py` (Wave 1)
 8. `app/csrf.py` (Wave 1)
 9. `app/templates/macros.html` (Wave 7)
