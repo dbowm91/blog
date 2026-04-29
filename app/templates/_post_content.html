@@ -1,9 +1,10 @@
 <article class="post-full animate-in">
     <div class="post-hero">
         {% set img = post|post_image_url %}
+        {% set srcset = post|post_image_srcset %}
         {% set rt = post.body | reading_time %}
         {% if img %}
-            <img src="{{ url_for('static', filename='uploads/' + img) }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
+            <img src="{{ url_for('static', filename='uploads/' + img) }}" srcset="{{ srcset }}" sizes="(max-width: 800px) 100vw, 800px" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% else %}
             <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% endif %}

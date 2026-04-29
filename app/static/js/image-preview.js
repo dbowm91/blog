@@ -42,4 +42,3 @@ export function initImagePreview() {
 }
 
 export default initImagePreview;
-}
