@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-29
 **Status:** COMPLETED
-**Summary:** All waves verified complete - 514 tests pass. Post-verification fixes applied: orphaned JS code removed, responsive images srcset implemented.
+**Summary:** All waves verified complete - 514 tests pass. Post-verification fixes applied: orphaned JS code removed, responsive images srcset implemented. Wave 5 (S3 storage, Page View Buffer, Backup Encryption) implemented.
 
 ---
 
@@ -96,14 +96,34 @@
 
 ---
 
-## WAVE 5: Advanced Features (Optional/Deferred)
+## WAVE 5: Advanced Features (Optional/Deferred) [COMPLETED]
 
-1. **S3 Storage:** Implement storage abstraction layer for optional S3-compatible media storage.
-2. **Page View Buffer:** Implement in-memory buffer for batching page view writes (for high-traffic sites).
-3. **Backup Encryption:** Add GPG encryption support for database backups.
+### 5.1: S3 Storage Abstraction Layer [COMPLETED]
+- `app/storage.py` implements `StorageBackend` abstract class
+- `LocalStorageBackend` for local filesystem storage
+- `S3StorageBackend` for S3-compatible storage via boto3
+- `upload_with_processing()` handles image variant generation for both backends
+- Configure via `STORAGE_BACKEND=s3` and S3_* environment variables
+- Responsive variants generated locally then uploaded to S3
+
+### 5.2: Page View Buffer [COMPLETED]
+- `app/page_view_buffer.py` implements `PageViewBuffer` class
+- Thread-safe buffering with background flush thread
+- Configurable via `PAGE_VIEW_BUFFER_SIZE` and `PAGE_VIEW_FLUSH_INTERVAL` env vars
+- Graceful shutdown flush via `shutdown_page_view_buffer()`
+- Uses `record_page_view()` in `public.py` for unified recording
+
+### 5.3: Backup Encryption (GPG) [COMPLETED]
+- `app/backup_encryption.py` implements GPG symmetric encryption
+- `BACKUP_ENCRYPTION_KEY` env var provides passphrase
+- Supports `gnupg` library or falls back to subprocess gpg call
+- `backup.py` CLI supports `--encrypt` flag
+- Admin UI backup/restore handles `.gpg` extension
+- `BACKUP_FILENAME_RE` updated to allow `.gpg` extension
 
 ---
 
 ## Testing Strategy
 - **Unit Tests:** All 514 tests pass (excluding E2E which require Playwright)
 - **Verification:** 2026-04-29 - All items verified in code, fixes applied where needed
+- **Wave 5:** All three advanced features implemented and tested

@@ -11,7 +11,7 @@ from flask import current_app
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 TAG_NAME_REGEX = re.compile(r"^[a-zA-Z0-9\s\-]+$")
-BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
+BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$")
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ def backup():
     if os.path.isdir(backup_dir):
         for fname in sorted(os.listdir(backup_dir), reverse=True):
             if fname.startswith("blog_") and (
-                fname.endswith(".db") or fname.endswith(".db.gz")
+                fname.endswith(".db") or fname.endswith(".db.gz") or fname.endswith(".db.gpg")
             ):
                 fpath = os.path.join(backup_dir, fname)
                 stat = os.stat(fpath)
@@ -39,6 +39,7 @@ def backup():
                         "name": fname,
                         "size": stat.st_size,
                         "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                        "encrypted": fname.endswith(".gpg"),
                     }
                 )
     return render_template("admin/backup.html", backups=backups)
@@ -53,18 +54,21 @@ def create_backup():
     Methods: POST
     POST: Creates a timestamped database backup. Optional gzip compression.
     Requires: Admin authentication.
-    Form params: compress (checkbox) - Enable gzip compression.
+    Form params:
+        compress (checkbox) - Enable gzip compression
+        encrypt (checkbox) - Enable GPG encryption (requires BACKUP_ENCRYPTION_KEY env var)
     """
     from backup import create_backup as _create_backup
 
     compress = "compress" in request.form
+    encrypt = "encrypt" in request.form
     db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
     if db_uri.startswith("sqlite:///"):
         db_path = db_uri.replace("sqlite:///", "/")
     else:
         db_path = os.path.join(current_app.instance_path, "blog.db")
     backup_dir = _get_backup_dir()
-    result = _create_backup(db_path, backup_dir, compress=compress, keep=10)
+    result = _create_backup(db_path, backup_dir, compress=compress, keep=10, encrypt=encrypt)
     if result:
         flash("Backup created successfully.", "success")
     else:
@@ -102,7 +106,7 @@ def restore_backup(filename):
     Restore database from a backup.
 
     Methods: POST
-    POST: Restores database from backup file. Handles gzip decompression.
+    POST: Restores database from backup file. Handles gzip decompression and GPG decryption.
           Closes existing connections before overwriting.
     Requires: Admin authentication.
     Path params: filename - Name of backup file to restore.
@@ -123,7 +127,25 @@ def restore_backup(filename):
     else:
         db_path = os.path.join(current_app.instance_path, "blog.db")
     db.engine.dispose()
-    if filename.endswith(".gz"):
+
+    is_encrypted = filename.endswith(".gpg")
+    is_compressed = filename.endswith(".gz")
+
+    if is_encrypted:
+        try:
+            from app.backup_encryption import decrypt_backup_file
+            with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+                tmp_path = tmp.name
+            success = decrypt_backup_file(real_path, tmp_path)
+            if not success:
+                flash("Failed to decrypt backup file.", "error")
+                return redirect(url_for("admin.backup"))
+            shutil.copy2(tmp_path, db_path)
+            os.unlink(tmp_path)
+        except Exception as e:
+            flash(f"Failed to decrypt backup file: {e}", "error")
+            return redirect(url_for("admin.backup"))
+    elif is_compressed:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             tmp_path = tmp.name
         with gzip.open(real_path, "rb") as f_in:
@@ -133,6 +155,7 @@ def restore_backup(filename):
         os.unlink(tmp_path)
     else:
         shutil.copy2(real_path, db_path)
+
     flash(
         f"Database restored from {filename}. You may need to restart the app for all changes to take effect.",
         "success",

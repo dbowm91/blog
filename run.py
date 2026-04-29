@@ -38,6 +38,9 @@ def _shutdown_handler(signum, frame):
         scheduler.shutdown(wait=True)
         logger.info("Scheduler stopped")
 
+    from app.page_view_buffer import shutdown_page_view_buffer
+    shutdown_page_view_buffer()
+
     from app.extensions import db
     logger.info("Closing database connections")
     db.engine.dispose()

@@ -481,3 +481,81 @@ Key indexes for query optimization:
 - 514 tests pass (excluding E2E)
 - New tests added for: password reset flow, settings routes, pages routes
 - E2E tests require Playwright: `pip install playwright && playwright install`
+
+## Storage Abstraction Layer (`app/storage.py`)
+
+Supports local filesystem and S3-compatible storage backends:
+
+```bash
+# Local storage (default)
+export STORAGE_BACKEND=local
+
+# S3 storage
+export STORAGE_BACKEND=s3
+export S3_BUCKET=my-bucket
+export S3_REGION=us-east-1
+export S3_ACCESS_KEY=...
+export S3_SECRET_KEY=...
+export S3_ENDPOINT=https://s3.amazonaws.com  # optional, for S3-compatible services
+export S3_PUBLIC_URL=https://cdn.example.com   # optional, for custom CDN URLs
+```
+
+**Key classes:**
+- `StorageBackend` — Abstract base class defining the interface
+- `LocalStorageBackend` — Local filesystem storage
+- `S3StorageBackend` — S3-compatible storage via boto3
+
+**Key functions:**
+- `get_storage()` — Returns the singleton storage instance
+- `upload_with_processing()` — Saves an image with responsive variant generation
+
+**Note:** Image processing (responsive variants) requires local file access. For S3, files are saved to a temp directory, processed locally, then uploaded to S3.
+
+## Page View Buffer (`app/page_view_buffer.py`)
+
+For high-traffic sites, page views can be buffered and batch-written to reduce database load:
+
+```bash
+# Enable buffer (flush when buffer reaches 100 views)
+export PAGE_VIEW_BUFFER_SIZE=100
+
+# Flush interval in seconds (default: 5)
+export PAGE_VIEW_FLUSH_INTERVAL=10
+```
+
+**Key classes:**
+- `PageViewBuffer` — Thread-safe buffer with background flush thread
+
+**Key functions:**
+- `record_page_view(post_id, referrer)` — Record a page view (uses buffer if enabled, else immediate)
+- `shutdown_page_view_buffer()` — Graceful shutdown with buffer flush
+
+**Note:** Buffer is disabled by default (`PAGE_VIEW_BUFFER_SIZE=0`). Enable for high-traffic deployments.
+
+## Backup Encryption (`app/backup_encryption.py`)
+
+GPG symmetric encryption for database backups:
+
+```bash
+# Set encryption passphrase (min 8 characters)
+export BACKUP_ENCRYPTION_KEY=your-secure-passphrase
+
+# Optional: specify cipher (default: AES256)
+export BACKUP_GPG_CIPHER=AES256
+```
+
+**Key functions:**
+- `encrypt_backup(data)` — Encrypt bytes using GPG symmetric encryption
+- `decrypt_backup(data)` — Decrypt GPG-encrypted bytes
+- `encrypt_backup_file(input_path, output_path)` — Encrypt a file
+- `decrypt_backup_file(input_path, output_path)` — Decrypt a file
+- `is_encryption_available()` — Check if GPG and key are configured
+
+**CLI support via `backup.py`:**
+```bash
+python backup.py --encrypt              # Create encrypted backup
+python backup.py --compress --encrypt   # Compressed and encrypted
+python backup.py --decrypt backup.db.gpg  # Decrypt a backup file
+```
+
+**Admin UI:** The backup/restore route handles `.gpg` encrypted files transparently.

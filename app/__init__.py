@@ -378,6 +378,10 @@ def create_app():
 
     init_scheduler(app)
 
+    from app.page_view_buffer import init_page_view_buffer
+    from app.models import PageView
+    init_page_view_buffer(db, PageView)
+
     from app.cli import register_cli_commands
 
     register_cli_commands(app)

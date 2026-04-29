@@ -23,7 +23,7 @@ from sqlalchemy.orm import joinedload
 import logging
 
 from app.extensions import db
-from app.models import Post, Tag, Subscriber, PageView, ShareEvent
+from app.models import Post, Tag, Subscriber, ShareEvent
 from app.config import (
     POSTS_PER_PAGE,
     BASE_URL,
@@ -254,15 +254,10 @@ def post(slug) -> Response:
                 (parsed.scheme, parsed.netloc, parsed.path, "", "", "")
             )
             referrer = sanitized[:512] if sanitized else None
-        pv = PageView(
-            post_id=post.id,
-            referrer=referrer,
-        )
-        db.session.add(pv)
-        try:
-            db.session.commit()
-        except (IntegrityError, OperationalError):
-            db.session.rollback()
+
+        from app.page_view_buffer import record_page_view
+        record_page_view(post.id, referrer)
+
         if post.id in viewed:
             viewed.remove(post.id)
         viewed.insert(0, post.id)
