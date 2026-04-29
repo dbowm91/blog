@@ -4,9 +4,9 @@ Registers the admin blueprint and imports route handlers from submodules.
 All shared helpers live in `helpers.py` — import from there, not via star imports.
 """
 
-from flask import Blueprint, abort, request, session
+from flask import Blueprint, abort, request, session, redirect, url_for, flash
 from functools import wraps
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user, logout_user
 from sqlalchemy import select
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
@@ -21,12 +21,18 @@ def admin_required(f):
 
         from app.extensions import db
         from app.models import AdminSession
+        from app.config import SESSION_IP_BINDING
 
         sid = session.get("admin_session_id")
         if sid:
             stored_ip = session.get("admin_session_ip")
             current_ip = request.remote_addr
             if stored_ip and current_ip and stored_ip != current_ip:
+                if SESSION_IP_BINDING == "enforce":
+                    logout_user()
+                    session.clear()
+                    flash("Session invalidated due to IP address change.", "error")
+                    return redirect(url_for("admin.login"))
                 logger.warning(
                     "IP address changed for admin session %s: expected %s, got %s",
                     sid,

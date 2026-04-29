@@ -16,7 +16,14 @@ from flask import (
     has_request_context,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import current_user, logout_user
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["100 per minute"],
+)
 from sqlalchemy import event
 from app.extensions import db, login_manager, migrate
 from app.config import (
@@ -152,6 +159,23 @@ def create_app():
             )
 
     db.init_app(app)
+
+    from app.config import RATE_LIMIT_STORAGE_URI
+
+    app.config["RATELIMIT_STORAGE_URL"] = RATE_LIMIT_STORAGE_URI
+    app.config["RATELIMIT_HEADERS_ENABLED"] = False
+
+    limiter.init_app(app)
+
+    if os.environ.get("TESTING") or app.config.get("TESTING"):
+        limiter.enabled = False
+
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        if req.is_json:
+            from flask import jsonify
+            return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
+        return render_template("429.html", error=str(e.description)), 429
 
     with app.app_context():
 

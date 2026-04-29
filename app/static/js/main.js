@@ -63,7 +63,25 @@ function getModulesForPath(path) {
     ];
 }
 
+function loadPrismIfNeeded() {
+    const codeBlocks = document.querySelectorAll('pre[class*="language-"]');
+    if (codeBlocks.length === 0) return;
+    const prismCSS = document.createElement('link');
+    prismCSS.rel = 'stylesheet';
+    prismCSS.href = '/static/css/prism-okaidia.css';
+    document.head.appendChild(prismCSS);
+    const prismJS = document.createElement('script');
+    prismJS.src = '/static/js/prism.min.js';
+    prismJS.onload = () => {
+        const langJS = document.createElement('script');
+        langJS.src = '/static/js/prism-languages.js';
+        document.body.appendChild(langJS);
+    };
+    document.body.appendChild(prismJS);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const modules = getModulesForPath(window.location.pathname);
     modules.forEach(m => loadModule(m));
+    loadPrismIfNeeded();
 });

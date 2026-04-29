@@ -15,6 +15,8 @@ from app.routes.admin.helpers import logger
 from app.csrf import validate_csrf_token
 from app.email import send_password_reset
 from app.routes.admin.helpers import _check_password_complexity
+from app.config import MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES
+from app import limiter
 
 
 def _hash_token(token: str) -> str:
@@ -23,6 +25,7 @@ def _hash_token(token: str) -> str:
 
 
 @admin.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login() -> Response:
     """
     Admin login page.
@@ -41,9 +44,13 @@ def login() -> Response:
         user = db.session.execute(
             select(User).filter_by(username=username)
         ).scalar_one_or_none()
+        if user and user.is_locked():
+            flash("Account is locked due to too many failed attempts. Try again later.", "error")
+            return redirect(url_for("admin.login"))
         if user and user.check_password(password) and user.is_admin:
             session.clear()
             login_user(user)
+            user.reset_failed_login()
             sid = secrets.token_hex(32)
             admin_session = AdminSession(
                 user_id=user.id,
@@ -56,6 +63,9 @@ def login() -> Response:
             session["admin_session_id"] = sid
             session["admin_session_ip"] = request.remote_addr
             return redirect(url_for("admin.dashboard"))
+        if user:
+            user.record_failed_login(MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES)
+            db.session.commit()
         flash("Invalid credentials.", "error")
         time.sleep(0.05)
 

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from typing import Optional
 
@@ -27,6 +27,8 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     reset_token = db.Column(db.String(64), nullable=True, unique=True)
     reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
+    failed_login_count = db.Column(db.Integer, default=0)
+    locked_until = db.Column(UTCDateTime, nullable=True)
 
     admin_sessions = db.relationship(
         "AdminSession",
@@ -40,6 +42,23 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
+    def is_locked(self) -> bool:
+        """Check if account is currently locked."""
+        if self.locked_until is None:
+            return False
+        return utc_now() < self.locked_until
+
+    def record_failed_login(self, max_attempts: int, lockout_minutes: int) -> None:
+        """Record a failed login attempt."""
+        self.failed_login_count += 1
+        if self.failed_login_count >= max_attempts:
+            self.locked_until = utc_now() + timedelta(minutes=lockout_minutes)
+
+    def reset_failed_login(self) -> None:
+        """Reset failed login counter on successful login."""
+        self.failed_login_count = 0
+        self.locked_until = None
 
     def __repr__(self) -> str:
         return f"<User {self.username!r} admin={self.is_admin}>"

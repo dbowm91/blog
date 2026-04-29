@@ -1,11 +1,11 @@
-import secrets
-from flask import render_template, redirect, url_for, request, flash, abort
+from flask import render_template, redirect, url_for, request, flash, abort, session
 from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import User
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _check_password_complexity, logger
+from app.csrf import generate_csrf_token
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -142,7 +142,7 @@ def promote_user(user_id):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    session["csrf_token"] = secrets.token_hex(32)
+    session["csrf_tokens"] = [generate_csrf_token()]
     logger.info("User promoted to admin: user_id=%d username=%s", user_id, user.username)
     flash(f"'{user.username}' promoted to admin.", "success")
     return redirect(url_for("admin.users_list"))
@@ -179,7 +179,7 @@ def demote_user(user_id):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    session["csrf_token"] = secrets.token_hex(32)
+    session["csrf_tokens"] = [generate_csrf_token()]
     logger.info("User demoted from admin: user_id=%d username=%s", user_id, user.username)
     flash(f"'{user.username}' demoted from admin.", "success")
     return redirect(url_for("admin.users_list"))
@@ -215,19 +215,21 @@ def make_owner(user_id):
     if admin_count <= 1:
         flash("Cannot transfer ownership while you are the only admin.", "error")
         return redirect(url_for("admin.users_list"))
+    user.is_admin = True
+    db.session.flush()
+
     all_admins = db.session.execute(
-        select(User).filter(User.is_admin == True)
+        select(User).filter(User.is_admin == True, User.id != user_id)
     ).scalars().all()
     for admin in all_admins:
         admin.is_admin = False
-    user.is_admin = True
     try:
         db.session.commit()
     except (IntegrityError, OperationalError):
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    session["csrf_token"] = secrets.token_hex(32)
+    session["csrf_tokens"] = [generate_csrf_token()]
     logger.info("Ownership transferred: from user_id=%d to user_id=%d", current_user.id, user_id)
     flash(f"Ownership transferred to '{user.username}'.", "success")
     return redirect(url_for("admin.users_list"))

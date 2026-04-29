@@ -15,10 +15,14 @@ from app.extensions import db
 from app.models import Post, Subscriber, PageView, ShareEvent
 from app.config import DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE
 from app.utils import utc_now, is_valid_email
+from app import limiter
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
 API_KEY = os.environ.get("API_KEY", "")
+
+DEFAULT_LIMIT = "20 per minute"
+WRITE_LIMIT = "10 per minute"
 
 
 def require_api_key(f):
@@ -88,6 +92,7 @@ def _subscriber_to_dict(subscriber: Subscriber) -> dict:
 
 @api.route("/posts", methods=["GET"])
 @require_api_key
+@limiter.limit(DEFAULT_LIMIT)
 def list_posts() -> Response:
     """List posts with pagination.
 
@@ -124,6 +129,7 @@ def list_posts() -> Response:
 
 @api.route("/posts/<int:post_id>", methods=["GET"])
 @require_api_key
+@limiter.limit(DEFAULT_LIMIT)
 def get_post(post_id: int) -> Response:
     """Get a single post by ID.
 
@@ -139,6 +145,7 @@ def get_post(post_id: int) -> Response:
 
 @api.route("/posts", methods=["POST"])
 @require_api_key
+@limiter.limit(WRITE_LIMIT)
 def create_post() -> Response:
     """Create a new post.
 
@@ -205,6 +212,7 @@ def create_post() -> Response:
 
 @api.route("/posts/<int:post_id>", methods=["PUT"])
 @require_api_key
+@limiter.limit(WRITE_LIMIT)
 def update_post(post_id: int) -> Response:
     """Update an existing post.
 
@@ -265,6 +273,7 @@ def update_post(post_id: int) -> Response:
 
 @api.route("/posts/<int:post_id>", methods=["DELETE"])
 @require_api_key
+@limiter.limit(WRITE_LIMIT)
 def delete_post(post_id: int) -> Response:
     """Delete a post.
 
@@ -296,6 +305,7 @@ def delete_post(post_id: int) -> Response:
 
 @api.route("/subscribers", methods=["GET"])
 @require_api_key
+@limiter.limit(DEFAULT_LIMIT)
 def list_subscribers() -> Response:
     """List subscribers with pagination.
 
@@ -332,6 +342,7 @@ def list_subscribers() -> Response:
 
 @api.route("/subscribers", methods=["POST"])
 @require_api_key
+@limiter.limit(WRITE_LIMIT)
 def create_subscriber() -> Response:
     """Create a new subscriber.
 
@@ -374,6 +385,7 @@ def create_subscriber() -> Response:
 
 @api.route("/subscribers/<int:subscriber_id>", methods=["DELETE"])
 @require_api_key
+@limiter.limit(WRITE_LIMIT)
 def delete_subscriber(subscriber_id: int) -> Response:
     """Delete a subscriber.
 
@@ -392,6 +404,7 @@ def delete_subscriber(subscriber_id: int) -> Response:
 
 @api.route("/stats", methods=["GET"])
 @require_api_key
+@limiter.limit(DEFAULT_LIMIT)
 def get_stats() -> Response:
     """Get dashboard statistics.
 

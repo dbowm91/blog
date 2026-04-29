@@ -10,6 +10,7 @@ __all__ = [
     "SECRET_KEY",
     "MAX_VIEWED_POSTS",
     "SESSION_LIFETIME_HOURS",
+    "SESSION_IP_BINDING",
     "ADMIN_USERNAME",
     "ADMIN_PASSWORD",
     "SERVER_HOST",
@@ -40,6 +41,7 @@ __all__ = [
     "TOKEN_ENUMERATION_DELAY",
     "PREVIEW_TOKEN_EXPIRY_DAYS",
     "HEALTH_CHECK_SECRET",
+    "RATE_LIMIT_STORAGE_URI",
 ]
 
 
@@ -74,6 +76,7 @@ POSTS_PER_PAGE = _config["app"]["posts_per_page"]
 SECRET_KEY = _env("SECRET_KEY", "")
 MAX_VIEWED_POSTS = int(_config["app"].get("max_viewed_posts", 100))
 SESSION_LIFETIME_HOURS = int(_config["app"].get("session_lifetime_hours", 24))
+SESSION_IP_BINDING = _config["app"].get("session_ip_binding", "warn")
 
 ADMIN_USERNAME = _env("ADMIN_USERNAME", _config["admin"]["username"])
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "")
@@ -112,8 +115,12 @@ FTS_RESULT_LIMIT = int(_config["app"].get("fts_result_limit", 100))
 TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.1))
 PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
+RATE_LIMIT_STORAGE_URI = _env("RATE_LIMIT_STORAGE_URI", "memory://")
 
 SMTP_TIMEOUT = int(_config["email"].get("smtp_timeout", 30))
+
+MAX_FAILED_ATTEMPTS = int(_config.get("security", {}).get("max_failed_attempts", 5))
+LOCKOUT_DURATION_MINUTES = int(_config.get("security", {}).get("lockout_duration_minutes", 15))
 
 
 def _validate_config(config: dict) -> None:

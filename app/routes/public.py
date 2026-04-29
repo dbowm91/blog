@@ -40,6 +40,7 @@ from app.csrf import validate_csrf_token
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.cache import _get_tag_counts
 from app.search import search as _fts_search, get_search_snippets, get_did_you_mean, get_indexed_terms
+from app import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -536,6 +537,7 @@ def _send_or_flash_confirmation(subscriber, skip_conflict=False):
 
 
 @public.route("/subscribe", methods=["POST"])
+@limiter.limit("10 per minute")
 def subscribe() -> Response:
     """Subscribe to the newsletter.
 
