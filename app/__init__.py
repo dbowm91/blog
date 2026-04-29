@@ -21,8 +21,13 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from flask_login import current_user, logout_user
 
+def get_client_ip():
+    from flask import request
+    return request.headers.get('X-Forwarded-For', request.remote_addr) or request.remote_addr
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=get_client_ip,
     default_limits=["100 per minute"],
 )
 cache = Cache()

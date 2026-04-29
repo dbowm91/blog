@@ -11,15 +11,19 @@ from app.routes.admin.helpers.shared import ALLOWED_EXTENSIONS
 from app.config import MAX_UPLOAD_SIZE
 
 
+signatures = {
+    b"\x89PNG\r\n\x1a\n": "png",
+    b"\xff\xd8\xff": "jpeg",
+    b"GIF87a": "gif",
+    b"GIF89a": "gif",
+    b"RIFF": "webp",
+}
+
+
 def _detect_image_type(header: bytes) -> Optional[str]:
-    if header[:8] == b"\x89PNG\r\n\x1a\n":
-        return "png"
-    if header[:3] == b"\xff\xd8\xff":
-        return "jpeg"
-    if header[:3] == b"GIF" and header[3:6] in (b"87a", b"89a"):
-        return "gif"
-    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
-        return "webp"
+    for sig, ext in signatures.items():
+        if header.startswith(sig):
+            return ext
     return None
 
 

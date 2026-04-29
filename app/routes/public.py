@@ -604,6 +604,7 @@ def subscribe() -> Response:
 
 
 @public.route("/confirm/<token>")
+@limiter.limit("5 per minute")
 def confirm(token) -> Response:
     """Confirm newsletter subscription via token.
 
@@ -644,6 +645,7 @@ def confirm(token) -> Response:
 
 
 @public.route("/unsubscribe/<token>")
+@limiter.limit("5 per minute")
 def unsubscribe(token) -> Response:
     """Unsubscribe from the newsletter via token.
 

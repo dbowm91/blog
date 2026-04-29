@@ -131,6 +131,7 @@ def newsletter_reset(post_id) -> Response:
 
 
 @admin.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def forgot_password() -> Response:
     """
     Request a password reset.
