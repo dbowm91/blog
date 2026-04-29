@@ -15,6 +15,12 @@ fi
 
 echo "Python version: $PYTHON_VERSION ✓"
 
+# Check for Redis (required for Celery)
+if ! command -v redis-server &> /dev/null; then
+    echo "Warning: redis-server not found. Install with: sudo apt-get install redis-server"
+    echo "Celery will not be available without Redis."
+fi
+
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
@@ -65,6 +71,14 @@ echo "Optional environment variables:"
 echo "  ADMIN_USERNAME - Admin username (default: admin)"
 echo "  SMTP_USER      - SMTP username for email"
 echo "  SMTP_PASSWORD  - SMTP password for email"
+echo "  REDIS_URL      - Redis URL for Celery (default: redis://localhost:6379/0)"
+echo ""
+echo "To start Redis (required for Celery):"
+echo "  redis-server --daemonize yes"
+echo ""
+echo "To start the Celery worker:"
+echo "  source venv/bin/activate"
+echo "  REDIS_URL=redis://localhost:6379/0 celery -A app.celery_app worker --loglevel=info"
 echo ""
 echo "To start the development server:"
 echo "  source venv/bin/activate"

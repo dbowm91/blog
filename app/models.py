@@ -122,6 +122,7 @@ class Post(db.Model):
     body = db.Column(db.Text, nullable=False)
     summary = db.Column(db.String(500), default="")
     image = db.Column(db.String(256), nullable=True)
+    image_alt_text = db.Column(db.String(256), nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
     updated_at = db.Column(
         UTCDateTime,
@@ -387,3 +388,68 @@ THEME_PRESETS = {
         "coral-dim": "rgba(253, 151, 31, 0.15)",
     },
 }
+
+
+class AdminAuditLog(db.Model):
+    __tablename__ = "admin_audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    action = db.Column(db.String(64), nullable=False)
+    target_id = db.Column(db.Integer, nullable=True)
+    target_type = db.Column(db.String(32), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+    timestamp = db.Column(UTCDateTime, default=utc_now)
+
+    actor = db.relationship("User", lazy="select")
+
+    __table_args__ = (
+        db.Index("ix_admin_audit_logs_actor_timestamp", "actor_id", "timestamp"),
+        db.Index("ix_admin_audit_logs_action_timestamp", "action", "timestamp"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AdminAuditLog action={self.action!r} actor={self.actor_id}>"
+
+
+class Webhook(db.Model):
+    __tablename__ = "webhooks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(512), nullable=False)
+    secret = db.Column(db.String(64), nullable=False)
+    event_type = db.Column(db.String(32), nullable=False)
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    __table_args__ = (
+        db.Index("ix_webhooks_event_type_enabled", "event_type", "enabled"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Webhook {self.name!r} event={self.event_type!r}>"
+
+
+class WebhookEvent(db.Model):
+    __tablename__ = "webhook_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    webhook_id = db.Column(db.Integer, db.ForeignKey("webhooks.id"), nullable=True)
+    event_type = db.Column(db.String(32), nullable=False)
+    payload = db.Column(db.JSON, nullable=False)
+    target_id = db.Column(db.Integer, nullable=True)
+    target_type = db.Column(db.String(32), nullable=True)
+    delivered = db.Column(db.Boolean, default=False, nullable=False)
+    delivery_attempts = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    webhook = db.relationship("Webhook", lazy="select")
+
+    __table_args__ = (
+        db.Index("ix_webhook_events_event_type_delivered", "event_type", "delivered"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<WebhookEvent event={self.event_type!r} delivered={self.delivered}>"

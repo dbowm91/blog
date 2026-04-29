@@ -259,6 +259,68 @@ def publish_scheduled_posts(app) -> None:
             pass
 
 
+BACKUP_RETENTION_COUNT = 7
+
+
+def run_daily_backup(app) -> None:
+    """Run daily database backup with retention cleanup."""
+    import shutil
+    import glob as glob_module
+    from datetime import datetime
+
+    lock_path = os.path.join(app.instance_path, "backup.lock")
+    lock = FileLock(lock_path, timeout=0)
+    try:
+        lock.acquire()
+    except FileLockTimeout:
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
+        return
+
+    try:
+        with app.app_context():
+            from app.config import DATA_BACKUP_DIR
+
+            backup_dir = os.path.join(app.instance_path, DATA_BACKUP_DIR)
+            os.makedirs(backup_dir, exist_ok=True)
+
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            db_path = os.path.join(app.instance_path, "blog.db")
+
+            if not os.path.exists(db_path):
+                app.logger.warning("Database file not found at %s, skipping backup", db_path)
+                return
+
+            backup_filename = f"backup_{timestamp}.db"
+            backup_path = os.path.join(backup_dir, backup_filename)
+
+            shutil.copy2(db_path, backup_path)
+            app.logger.info("Created backup: %s", backup_filename)
+
+            backup_pattern = os.path.join(backup_dir, "backup_*.db")
+            backups = sorted(
+                glob_module.glob(backup_pattern),
+                key=os.path.getmtime,
+                reverse=True
+            )
+
+            retention = BACKUP_RETENTION_COUNT
+            for old_backup in backups[retention:]:
+                try:
+                    os.remove(old_backup)
+                    app.logger.info("Removed old backup: %s", os.path.basename(old_backup))
+                except OSError as e:
+                    app.logger.warning("Failed to remove old backup %s: %s", old_backup, e)
+    finally:
+        lock.release()
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
+
+
 def init_scheduler(app) -> Optional["BackgroundScheduler"]:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
@@ -292,6 +354,13 @@ def init_scheduler(app) -> Optional["BackgroundScheduler"]:
         CronTrigger(minute="*/5"),
         args=[app],
         id="publish_scheduled_posts",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        run_daily_backup,
+        CronTrigger(hour=2, minute=0),
+        args=[app],
+        id="daily_backup",
         replace_existing=True,
     )
     scheduler.start()

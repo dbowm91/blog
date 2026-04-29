@@ -42,6 +42,9 @@ __all__ = [
     "PREVIEW_TOKEN_EXPIRY_DAYS",
     "HEALTH_CHECK_SECRET",
     "RATE_LIMIT_STORAGE_URI",
+    "REDIS_URL",
+    "DATA_BACKUP_DIR",
+    "WEBHOOK_TIMEOUT",
 ]
 
 
@@ -116,6 +119,10 @@ TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.
 PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
 RATE_LIMIT_STORAGE_URI = _env("RATE_LIMIT_STORAGE_URI", "memory://")
+
+REDIS_URL = _env("REDIS_URL", "redis://localhost:6379/0")
+DATA_BACKUP_DIR = _config.get("backup", {}).get("data_backup_dir", "backups")
+WEBHOOK_TIMEOUT = int(_config.get("webhook", {}).get("timeout", 10))
 
 SMTP_TIMEOUT = int(_config["email"].get("smtp_timeout", 30))
 
