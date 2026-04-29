@@ -1,10 +1,14 @@
 # DevLog
 
-A personal blog platform built with Flask, featuring an admin dashboard, newsletter, RSS feed, and analytics.
+A personal blog platform built with Flask, featuring an admin dashboard, newsletter, RSS/JSON feeds, and analytics.
 
-## Quick Start
+---
 
-Get from zero to running in 5 minutes:
+## Tutorial: Getting Started
+
+Get from zero to a running blog in 5 minutes.
+
+### 1. Clone and Install
 
 ```bash
 git clone <repo-url> /opt/blog
@@ -12,71 +16,94 @@ cd /opt/blog
 ./setup.sh
 ```
 
-This creates a virtual environment, generates secure credentials, and starts the dev server. Visit `http://localhost:5000`. Admin at `http://localhost:5000/admin/login`.
+This creates a virtual environment, generates secure credentials, and starts the dev server.
 
-For production, see [DEPLOY.md](DEPLOY.md).
+### 2. Access Your Blog
 
----
+Visit `http://localhost:5000`. Admin panel at `http://localhost:5000/admin/login`.
 
-## Common Tasks
-
-### Writing a Post
+### 3. Write Your First Post
 
 1. Log in at `/admin/login`
 2. Click **New Post** in the dashboard
-3. Enter title, write in Markdown, add tags
-4. Click **Publish** (or schedule via **Publish At**)
-5. Use the **Preview** button to see how it looks
+3. Enter a title, write in Markdown
+4. Add tags (comma-separated)
+5. Click **Publish**
 
-**Tips:**
-- Add a `---` divider in Markdown to set a summary/excerpt
+### 4. Set Up Newsletter (Optional)
+
+1. Configure SMTP in `config.toml` under `[email]`
+2. Set `SMTP_USER` and `SMTP_PASSWORD` environment variables
+3. Add subscribers via `/subscribe` or the API
+4. Send newsletters from `/admin/subscribers`
+
+For production deployment, see [DEPLOY.md](DEPLOY.md).
+
+---
+
+## How-To: Common Tasks
+
+### Writing Posts
+
+**Markdown Tips:**
+- Add `---` as a divider to set summary/excerpt
 - Use `## Heading` (h2) and `### Heading` (h3) for automatic table of contents
 - Drag images into the editor to upload
-- Your draft saves to localStorage automatically
+- Drafts auto-save to localStorage
 
-### Sending a Newsletter
+**Previewing:**
+Click **Preview** to see how your post will look with theme styling.
+
+### Sending Newsletters
 
 1. Write and publish your post
 2. Go to **Subscribers** in the admin sidebar
-3. Click **Send Newsletter** button
-4. The newsletter sends to all confirmed subscribers at the scheduled time (`config.toml` `[newsletter] send_time`)
+3. Click **Send Newsletter**
+4. Newsletter sends to all confirmed subscribers at `config.toml` `[newsletter] send_time`
 
 **Troubleshooting:**
-- No subscribers? Visit `/subscribe` on your blog to let people sign up
-- Confirmation emails not arriving? Check SMTP settings in `config.toml` and `SMTP_USER`/`SMTP_PASSWORD` env vars
-- Newsletter not sending? Check `logs/blog.log` for scheduler errors
+- No subscribers? Visit `/subscribe` on your blog
+- Confirmation emails not arriving? Check SMTP settings and `SMTP_USER`/`SMTP_PASSWORD` env vars
+- Newsletter not sending? Check `logs/blog.log`
 
 ### Managing Subscribers
 
-- **Add manually:** POST to `/api/subscribers` with `{"email": "user@example.com"}` using the API key
-- **Bulk resend confirmation:** Select subscribers in `/admin/subscribers`, choose "Resend Confirmation" from bulk actions
+- **Add via API:** `POST /api/subscribers` with `{"email": "user@example.com"}` using `X-API-Key`
+- **Bulk resend confirmation:** Select subscribers → "Resend Confirmation" bulk action
 - **Export:** Click **Export CSV** in `/admin/subscribers`
-- **Unsubscribe:** Each email includes an unsubscribe link (`/unsubscribe/<token>`)
+- **Unsubscribe:** Each email includes `/unsubscribe/<token>` link
 
 ### Scheduling Posts
 
-1. When editing a post, set **Publish At** to a future datetime
-2. The scheduler runs every 5 minutes and publishes automatically
-3. Scheduled posts appear in the dashboard with a clock icon
+1. Set **Publish At** to a future datetime when editing a post
+2. Scheduler runs every 5 minutes and publishes automatically
+3. Scheduled posts show a clock icon in the dashboard
 
 ### Customizing Appearance
 
 1. Go to `/admin/settings`
 2. Choose a **Theme Preset** (GitHub Dark, GitHub Light, Solarized Dark, Monokai)
-3. Optionally enable **Custom CSS** for additional styling
-4. Set a **Logo Text** or leave blank to use site title
+3. Optionally enable **Custom CSS**
+4. Set **Logo Text** or leave blank to use site title
 
-CSS custom properties available:
+**CSS Custom Properties:**
 ```css
 :root {
-    --accent: #ff6600;      /* links, buttons */
-    --bg: #1a1a2e;           /* page background */
-    --bg-surface: #252542;  /* cards, surfaces */
-    --text: #e0e0e0;         /* primary text */
-    --text-muted: #888;     /* secondary text */
-    --border: #3a3a5c;      /* borders */
+    --accent: #ff6600;
+    --bg: #1a1a2e;
+    --bg-surface: #252542;
+    --text: #e0e0e0;
+    --text-muted: #888;
+    --border: #3a3a5c;
 }
 ```
+
+### Managing Tags
+
+1. Go to `/admin/tags`
+2. Click **New Tag** to create
+3. Edit or delete existing tags
+4. Tags appear in the sidebar and can be filtered
 
 ### Adding Static Pages
 
@@ -88,8 +115,8 @@ CSS custom properties available:
 ### User Management
 
 - **Create admin:** `flask create-admin <username>`
-- **Promote user:** `POST /admin/users/<id>/promote` (makes admin)
-- **Demote admin:** `POST /admin/users/<id>/demote` (removes admin)
+- **Promote user:** `POST /admin/users/<id>/promote`
+- **Demote admin:** `POST /admin/users/<id>/demote`
 - **Transfer ownership:** `POST /admin/users/<id>/make-owner`
 - **Password reset:** Visit `/admin/forgot-password`
 
@@ -99,7 +126,64 @@ CSS custom properties available:
 2. Upload images (JPEG, PNG, GIF, WebP, SVG)
 3. Click an image to copy its URL or delete it
 
-Images are stored in `app/static/uploads/`. Include in backups.
+### Accessing Feeds
+
+- **RSS Feed:** `/rss.xml`
+- **JSON Feed:** `/json`
+- Add `?limit=N` to limit number of items
+
+---
+
+## Reference
+
+### Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `SECRET_KEY` | Yes | Flask session signing key (32+ chars) |
+| `ADMIN_PASSWORD` | Yes | Admin login password |
+| `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
+| `SMTP_USER` | No | SMTP username |
+| `SMTP_PASSWORD` | No | SMTP password |
+| `SESSION_COOKIE_SECURE` | No | Require HTTPS (default: `true`) |
+| `API_KEY` | No | REST API authentication |
+
+### CLI Commands
+
+```bash
+flask create-admin <username>     # Create admin user
+flask promote-admin <username>    # Promote to admin
+flask rebuild-search              # Rebuild FTS5 index
+flask cleanup-orphaned-images     # Remove unused images
+flask check-integrity            # Verify database integrity
+flask export-data <file>         # Export data to JSON
+flask import-data <file>        # Import data from JSON
+flask seed                       # Generate sample data
+flask shell                      # Interactive shell
+```
+
+### API Endpoints
+
+See `docs/openapi.yaml` for full API documentation.
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/posts` | GET | List posts (supports `?q=`, `?page=`, `?per_page=`) |
+| `/api/posts/<slug>` | GET | Get single post |
+| `/api/posts` | POST | Create post (requires API key) |
+| `/api/posts/<slug>` | PUT | Update post |
+| `/api/posts/<slug>` | DELETE | Delete post |
+| `/api/subscribers` | GET | List subscribers |
+| `/api/subscribers` | POST | Add subscriber |
+
+### Database Models
+
+Key tables: `posts`, `users`, `tags`, `subscribers`, `page_views`, `share_events`, `admin_sessions`, `site_settings`, `pages`, `post_revisions`
+
+### Ports
+
+- Development server: `0.0.0.0:5000`
+- Granian (production): `127.0.0.1:5000`
 
 ---
 
@@ -107,7 +191,6 @@ Images are stored in `app/static/uploads/`. Include in backups.
 
 ### "RuntimeError: ADMIN_PASSWORD is required"
 
-Set the environment variable before running:
 ```bash
 export ADMIN_PASSWORD="your-password"
 python run.py
@@ -115,17 +198,10 @@ python run.py
 
 ### "RuntimeError: SECRET_KEY is required"
 
-Generate and set a secret key:
 ```bash
 export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 python run.py
 ```
-
-### Login页面不加载 / Login page shows error
-
-1. Check `logs/blog.log` for errors
-2. Verify `SECRET_KEY` and `ADMIN_PASSWORD` are set
-3. Try clearing browser cookies
 
 ### Posts not appearing on homepage
 
@@ -135,156 +211,89 @@ python run.py
 
 ### Search returns no results
 
-1. Rebuild the search index: `flask rebuild-search`
-2. Check FTS5 is working: look for `posts_fts` table in database
-3. Try a simpler search term (FTS5 prefix mode may not match)
+1. Rebuild: `flask rebuild-search`
+2. Check FTS5: look for `posts_fts` table in database
+3. Try simpler terms (FTS5 prefix mode)
 
 ### Newsletter not sending
 
-1. Verify SMTP credentials (`SMTP_USER`, `SMTP_PASSWORD` env vars)
-2. Check `config.toml` `[email]` section has correct `smtp_host`, `smtp_port`
-3. Look in `logs/blog.log` for `newsletter` or `smtp` errors
-4. Ensure subscribers are **Confirmed** (not pending)
+1. Verify SMTP credentials
+2. Check `config.toml` `[email]` section
+3. Look in `logs/blog.log`
+4. Ensure subscribers are **Confirmed**
 
 ### Images not uploading
 
 - Check `app/static/uploads/` exists and is writable
 - Verify file size under 16 MB
-- Ensure file type is allowed (JPEG, PNG, GIF, WebP, SVG)
+- Allowed types: JPEG, PNG, GIF, WebP, SVG
 
 ### Database locked errors
 
-- Usually means another process is writing
-- With multiple workers, use `--workers 1` for newsletter to avoid conflicts
-- Restart the server to clear stale connections
+- Another process is writing
+- Use `--workers 1` with multiple workers for newsletter
+- Restart to clear stale connections
 
 ### High memory usage
 
-- Reduce `workers` in Granian/Gunicorn
-- Check `logs/blog.log` for memory leaks
-- Run `flask cleanup-orphaned-images` to remove unused uploads
-
-### Backup restore fails
-
-- Ensure backup file is from the same version
-- Check backup integrity: `flask check-integrity`
-- Restore to empty database first, then import data
+- Reduce workers in Granian/Gunicorn
+- Check `logs/blog.log` for leaks
+- Run `flask cleanup-orphaned-images`
 
 ### CSS changes not applying
 
-- Hard refresh: `Ctrl+Shift+R` (or `Cmd+Shift+R` on Mac)
-- Clear browser cache
-- Check Custom CSS is enabled in `/admin/settings`
-- Verify CSS syntax (look for red text in Custom CSS editor)
-
-### Admin session expired
-
-- Sessions last 24 hours by default (`SESSION_LIFETIME_HOURS` in `config.toml`)
-- Check server time is correct
-- Verify `PROXY_COUNT` is set correctly if behind reverse proxy
-
-### Rate limiting causing 429 errors
-
-Rate limiting is configured at the reverse proxy, not the app. Check your nginx/Caddy config. See [DEPLOY.md](DEPLOY.md#6-rate-limiting) for recommended limits.
+- Hard refresh: `Ctrl+Shift+R` / `Cmd+Shift+R`
+- Verify Custom CSS is enabled in `/admin/settings`
+- Check CSS syntax in Custom CSS editor
 
 ---
 
-## FAQ
+## Explanation: Architecture
 
-### How do I change the site title/description?
+### Why SQLite by Default?
 
-Edit `config.toml`:
-```toml
-[app]
-title = "My Blog"
-description = "A blog about things"
-```
+SQLite with WAL mode provides:
+- Single-file backup (simple `cp` or `.backup`)
+- No separate server process
+- Excellent read performance for <10,000 posts
+- Concurrent reads while writing
 
-### Can I use PostgreSQL instead of SQLite?
+For higher traffic or multi-server deployments, migrate to PostgreSQL. See [DEPLOY.md](DEPLOY.md#postgresql-migration-guide).
 
-Yes. See the [PostgreSQL Migration Guide](DEPLOY.md#h4-postgresql-migration-guide) in DEPLOY.md.
+### Why Granian?
 
-### How do I enable HTTPS?
-
-Configure a reverse proxy (nginx, Caddy) with SSL in front of the app. The app sets `SESSION_COOKIE_SECURE=True` automatically when `debug=False`.
-
-### How do I export my data?
+Granian is a Rust-based ASGI server that outperforms Python alternatives (Uvicorn, Gunicorn) in benchmarks. Use:
 
 ```bash
-flask export-data backup.json
+granian --interface asgi --workers 4 --timeout 60 run:asgi_app
 ```
 
-This exports posts, subscribers, and tags as JSON.
+### Why APScheduler for Newsletter?
 
-### How do I import data?
+The newsletter uses in-process APScheduler with file locking (`fcntl`) for single-machine deployments. For multi-machine setups, use an external scheduler (Celery, cron) or distributed lock (Redis).
 
-```bash
-flask import-data backup.json
-```
+### Storage Abstraction
 
-### How do I reset my admin password?
+The `app/storage.py` module abstracts file storage between local filesystem and S3-compatible backends. Configure via `STORAGE_BACKEND` environment variable.
 
-```bash
-flask create-admin admin
-```
+### Session Security
 
-Or use the password reset flow at `/admin/forgot-password`.
+- Sessions expire after 24 hours of inactivity
+- IP binding warns on address change (doesn't invalidate)
+- CSRF tokens use sliding window (5 tokens)
 
-### How do I add multiple admins?
+### Security Headers
 
-```bash
-flask create-admin <username>
-```
-
-Then promote via `/admin/users` or `POST /admin/users/<id>/promote`.
-
-### Can I disable newsletter?
-
-Yes. Remove or comment out `[newsletter]` section in `config.toml`, or set `send_time=""`.
-
-### How do I customize the footer?
-
-Edit `config.toml`:
-```toml
-[site]
-footer_html = "© 2026 My Blog"
-```
-
-### How do I get an API key?
-
-```bash
-python3 -c 'import secrets; print(secrets.token_hex(32))'
-```
-
-Set as `API_KEY` environment variable. Use as `X-API-Key` header.
-
-### Where are the logs?
-
-- Development: output to stdout
-- Production: `logs/blog.log` (rotated at 10 MB, 10 backups)
-
-### How do I rebuild the search index?
-
-```bash
-flask rebuild-search
-```
-
-### How do I clean up unused images?
-
-```bash
-flask cleanup-orphaned-images
-```
-
-### Why am I getting CSRF errors?
-
-- Try clearing browser cookies
-- Check that `CSRF_ENABLED` is not set to `false`
-- Session may have expired—log out and back in
+The app sets:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Strict-Transport-Security` (when HTTPS)
+- `Content-Security-Policy` (self-only, nonces for scripts)
 
 ---
 
 ## Full Documentation
 
-- [DEPLOY.md](DEPLOY.md) — Production deployment, PostgreSQL migration, Docker, systemd, monitoring
+- [DEPLOY.md](DEPLOY.md) — Production deployment, Docker, PostgreSQL migration, systemd, monitoring
 - [USAGE.md](USAGE.md) — Detailed user guide for all admin features
 - [AGENTS.md](AGENTS.md) — Developer/contributor guidelines

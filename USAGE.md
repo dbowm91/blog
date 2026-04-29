@@ -5,10 +5,17 @@ Detailed documentation for blog administration and content management.
 ## Contents
 
 - [Post Writing Guide](#post-writing-guide)
+- [Tags](#tags)
+- [Feeds (RSS and JSON)](#feeds-rss-and-json)
 - [Newsletter Management](#newsletter-management)
 - [Admin Tasks](#admin-tasks)
+- [Analytics](#analytics)
 - [User Management](#user-management)
 - [Media Library](#media-library)
+- [S3 Storage](#s3-storage)
+- [Page View Buffer](#page-view-buffer)
+- [Search](#search)
+- [Short URLs](#short-urls)
 
 ---
 
@@ -131,6 +138,148 @@ Each post gets a short URL: `/s/<code>` where `<code>` is a base62-encoded post 
 
 ---
 
+## Tags
+
+Tags organize posts by topic and appear in the sidebar for filtering.
+
+### Viewing Tags
+
+Go to `/admin/tags` to see all tags with post counts.
+
+### Creating Tags
+
+1. Go to `/admin/tags`
+2. Click **New Tag**
+3. Enter:
+   - **Name** — Display name (e.g., "Python")
+   - **Slug** — URL-friendly version (auto-generated from name)
+4. Click **Save**
+
+### Editing Tags
+
+1. Go to `/admin/tags`
+2. Click on a tag name
+3. Modify name or slug
+4. Click **Save**
+
+**Note:** Changing a tag's slug may break existing links to posts filtered by that tag.
+
+### Deleting Tags
+
+1. Go to `/admin/tags`
+2. Click **Delete** next to the tag
+3. Confirm deletion
+
+**Warning:** Deleting a tag removes it from all posts. This cannot be undone.
+
+### Tag Sidebar
+
+The sidebar shows all tags with post counts. Click a tag to filter posts.
+
+**Sidebar Configuration:**
+In `config.toml`:
+```toml
+[app]
+show_tags = true              # Show tags in sidebar (default: true)
+tags_per_sidebar = 20         # Maximum tags to show (default: 20)
+```
+
+### Tag Cloud
+
+Tags are displayed as a simple list sorted by name. No weighted tag cloud by default.
+
+---
+
+## Feeds (RSS and JSON)
+
+The blog provides RSS and JSON feeds for subscribers and feed readers.
+
+### RSS Feed
+
+**URL:** `/rss.xml`
+
+RSS 2.0 compliant feed with:
+- Post title, link, description (summary or body excerpt)
+- Publication date
+- Category tags
+- Author name
+
+**Parameters:**
+- `?limit=N` — Number of items (default: all published posts)
+
+**Usage:**
+```xml
+<!-- Example RSS feed item -->
+<item>
+  <title>My Blog Post</title>
+  <link>https://blog.example.com/post/my-blog-post</link>
+  <description>Summary of the post...</description>
+  <pubDate>Wed, 29 Apr 2026 12:00:00 GMT</pubDate>
+  <guid isPermaLink="true">/s/abc123</guid>
+</item>
+```
+
+### JSON Feed
+
+**URL:** `/json`
+
+JSON Feed 1.1 compliant feed with:
+- Title, description, URL
+- Post items with `content_html` (full rendered content)
+- Author information
+- Tags as categories
+
+**Parameters:**
+- `?limit=N` — Number of items (default: all published posts)
+
+**Usage:**
+```json
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "DevLog",
+  "items": [
+    {
+      "id": "/s/abc123",
+      "url": "/post/my-blog-post",
+      "title": "My Blog Post",
+      "content_html": "<p>Full rendered content...</p>",
+      "date_published": "2026-04-29T12:00:00Z",
+      "tags": ["python", "flask"]
+    }
+  ]
+}
+```
+
+### Feed Discovery
+
+Add feed links to your `<head>` for automatic feed reader detection:
+
+```html
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml">
+<link rel="alternate" type="application/json" title="JSON Feed" href="/json">
+```
+
+### Conditional GET (ETag Support)
+
+Both feeds support conditional GET:
+- Request with `If-None-Match` header
+- Returns `304 Not Modified` if feed hasn't changed
+- Reduces bandwidth for frequent feed readers
+
+### Cache-Control Headers
+
+Feeds include cache headers to control caching:
+- `Cache-Control: private, max-age=300` (5 minutes)
+- Varies on `Accept-Encoding` for compression
+
+### Feed Validation
+
+Validate your feeds at:
+- RSS: https://validator.w3.org/feed/
+- JSON: https://jsonfeed.org/validator/
+
+---
+
 ## Newsletter Management
 
 ### How Newsletter Works
@@ -227,7 +376,8 @@ The dashboard at `/admin/` shows:
 1. Go to `/admin/backup`
 2. Click **Create Backup**
 3. Optionally enable compression
-4. Backups appear in the list below
+4. Optionally enable encryption (requires `BACKUP_ENCRYPTION_KEY` env var)
+5. Backups appear in the list below
 
 **To restore:**
 1. Find your backup in the list
@@ -236,7 +386,14 @@ The dashboard at `/admin/` shows:
 
 **Warning:** Restoring overwrites all current data.
 
-**Backup location:** `instance/backups/` (included in off-site backup scripts)
+**Backup location:** `instance/backups/`
+
+**Backup encryption:**
+```bash
+export BACKUP_ENCRYPTION_KEY="your-secure-passphrase"
+```
+
+Encrypted backups use GPG symmetric encryption (AES256).
 
 ### Database Integrity Check
 
@@ -279,13 +436,13 @@ Navigate to `/admin/settings` for:
 **CSS Custom Properties:**
 ```css
 :root {
-    --bg: #0d1117;          /* page background */
-    --bg-surface: #161b22;   /* card/surface background */
-    --text: #c9d1d9;         /* primary text */
-    --text-muted: #8b949e;   /* secondary text */
-    --accent: #58a6ff;       /* links, buttons */
-    --accent-hover: #79c0ff; /* hover state */
-    --border: #30363d;       /* borders */
+    --bg: #0d1117;
+    --bg-surface: #161b22;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-hover: #79c0ff;
+    --border: #30363d;
 }
 ```
 
@@ -296,7 +453,7 @@ The REST API uses API key authentication. Set via environment variable:
 export API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 ```
 
-See `docs/openapi.yaml` for API documentation.
+Use as `X-API-Key` header in requests. See `docs/openapi.yaml` for API documentation.
 
 ### CLI Commands
 
@@ -327,6 +484,56 @@ flask seed
 
 # Shell access
 flask shell
+```
+
+---
+
+## Analytics
+
+### Page Views
+
+The blog tracks page views for each published post.
+
+**How it works:**
+- When a post is viewed, `PageViewBuffer.record_page_view()` is called
+- By default, views are recorded directly to the database
+- For high-traffic sites, enable the **Page View Buffer** (see below)
+
+**Viewing analytics:**
+1. Go to `/admin/analytics`
+2. See charts for:
+   - Page views over time (last 30 days)
+   - Top posts by views
+   - Traffic sources (referrers)
+
+**Manual view recording:**
+```python
+from app.page_view_buffer import record_page_view
+record_page_view(post_id=1, referrer="https://twitter.com/")
+```
+
+### Share Events
+
+When a visitor shares a post via the share buttons, a `ShareEvent` is recorded.
+
+**Share platforms:**
+- `twitter` — Twitter/X
+- `facebook` — Facebook
+- `linkedin` — LinkedIn
+- `hackernews` — Hacker News
+- `reddit` — Reddit
+- `copy` — Copy link
+
+**Viewing share data:**
+Top shares appear on the dashboard at `/admin/`.
+
+### Analytics API
+
+```bash
+# Get posts with view counts
+GET /api/posts?sort=views
+
+# View counts included in post response
 ```
 
 ---
@@ -417,6 +624,21 @@ Go to `/admin/media`
 - Max file size: 16 MB
 - Allowed types: image/jpeg, image/png, image/gif, image/webp, image/svg+xml
 
+### Responsive Images
+
+On upload, images are automatically resized to create variants:
+- 400w, 800w, 1200w widths
+- WebP format when supported
+
+Templates use `srcset` for responsive loading:
+```html
+<img src="/static/uploads/image.jpg"
+     srcset="/static/uploads/400w/image.jpg 400w,
+             /static/uploads/800w/image.jpg 800w,
+             /static/uploads/1200w/image.jpg 1200w"
+     sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px">
+```
+
 ### Using Images in Posts
 
 1. Copy the image URL from the media library
@@ -438,9 +660,14 @@ Or drag and drop directly into the post editor.
 
 ### Image Storage
 
+**Local storage (default):**
 Images are stored in `app/static/uploads/`. This directory should be included in backups.
 
-**Cleaning unused images:**
+**S3 storage:**
+Images are stored in S3-compatible storage. See [S3 Storage](#s3-storage) section.
+
+### Cleaning unused images
+
 ```bash
 flask cleanup-orphaned-images
 ```
@@ -449,10 +676,123 @@ This removes images not referenced by any post.
 
 ### How Image Uploads Work
 
-1. File uploaded to `app/static/uploads/`
+1. File uploaded to storage
 2. Magic bytes detected to verify file type
 3. Extension set based on detected type (not user-provided)
-4. Filename: `YYYYMMDD_HHMMSS_<random>.ext`
+4. Filename: `YYYYMMDD_HHMMSS_<random>.<ext>`
+
+---
+
+## S3 Storage
+
+The blog supports storing media files in S3-compatible storage instead of local filesystem.
+
+### Configuration
+
+Set environment variables:
+
+```bash
+export STORAGE_BACKEND=s3
+export S3_BUCKET=my-blog-uploads
+export S3_REGION=us-east-1
+export S3_ACCESS_KEY=AKIA...
+export S3_SECRET_KEY=...
+```
+
+**Optional:**
+```bash
+export S3_ENDPOINT=https://s3.amazonaws.com    # For S3-compatible services
+export S3_PUBLIC_URL=https://cdn.example.com      # Custom CDN URL
+```
+
+### Supported S3-Compatible Services
+
+- Amazon S3
+- Cloudflare R2
+- MinIO
+- Wasabi
+- Any S3-compatible API
+
+### How S3 Storage Works
+
+1. Image uploaded via admin panel
+2. Saved to temp directory locally
+3. Responsive variants generated
+4. All variants uploaded to S3
+5. Local temp files deleted
+
+**Reading images:**
+- The `post_image_url` filter uses `storage.url()` to generate URLs
+- For private buckets, signed URLs are generated
+
+### Storage Backend Detection
+
+The app auto-detects storage backend from `STORAGE_BACKEND`:
+- `local` (default) — Local filesystem
+- `s3` — S3-compatible storage
+
+### Local Storage Fallback
+
+If S3 is unavailable, the app falls back to local storage at `app/static/uploads/`.
+
+### Migration from Local to S3
+
+1. Configure S3 environment variables
+2. Restart the app
+3. New uploads go to S3
+4. Existing local uploads remain in place
+
+---
+
+## Page View Buffer
+
+For high-traffic sites, page views can be buffered and batch-written to reduce database load.
+
+### Enabling the Buffer
+
+```bash
+# Enable buffer (flush when buffer reaches 100 views)
+export PAGE_VIEW_BUFFER_SIZE=100
+
+# Flush interval in seconds (default: 5)
+export PAGE_VIEW_FLUSH_INTERVAL=10
+```
+
+Set `PAGE_VIEW_BUFFER_SIZE=0` to disable buffering (default behavior).
+
+### How It Works
+
+1. Visitor views a post
+2. `record_page_view()` adds to buffer (thread-safe)
+3. Background thread flushes buffer when:
+   - Buffer reaches `PAGE_VIEW_BUFFER_SIZE`, OR
+   - `PAGE_VIEW_FLUSH_INTERVAL` seconds elapsed since last flush
+4. All buffered views written in single batch insert
+
+### Benefits
+
+- Reduces database writes for high-traffic sites
+- Thread-safe (works with multiple workers)
+- Graceful shutdown (flushes remaining buffer)
+
+### Monitoring
+
+Check logs for buffer activity:
+```
+PageViewBuffer: flushed 100 views to database
+PageViewBuffer: shutdown - flushed 23 remaining views
+```
+
+### Manual Flush
+
+```python
+from app.page_view_buffer import shutdown_page_view_buffer
+shutdown_page_view_buffer()  # Flushes and stops background thread
+```
+
+### Integration with Analytics
+
+The analytics system (page views, share events) works identically with or without buffering. No code changes required.
 
 ---
 
@@ -491,6 +831,12 @@ GET /api/posts?q=search+term
 GET /api/posts?q=search+term&page=1&per_page=20
 ```
 
+### FTS5 Limitations
+
+- FTS5 is SQLite-specific (PostgreSQL migration requires different search implementation)
+- Prefix search limited to 2-4 character prefixes
+- Very long documents may not be fully indexed
+
 ---
 
 ## Short URLs
@@ -508,3 +854,15 @@ Each post has a short URL at `/s/<code>` where `<code>` is a base62-encoded post
 - Always works regardless of slug
 
 Find the short URL in the post edit page.
+
+**Encoding:**
+```python
+from app.base62 import encode
+code = encode(post_id)  # e.g., 1000 -> "S0"
+```
+
+**Decoding:**
+```python
+from app.base62 import decode
+post_id = decode(code)  # e.g., "S0" -> 1000
+```
