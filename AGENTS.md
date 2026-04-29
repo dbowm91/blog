@@ -203,6 +203,49 @@ In `app/routes/admin/users.py`, the `make_owner()` function demotes ALL admins f
 ### File Deletion Timing
 Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
 
+### Cache Key Uses id(post) Instead of post.id
+The `post_image_url` filter in `app/filters.py` uses `id(post)` (Python object memory address) for cache keys. This changes on every query instance, making the request-level cache ineffective. Use `post.id` (database primary key) instead.
+
+### S3 Storage Not Fully Integrated
+The storage abstraction in `app/storage.py` is incomplete. These files bypass the storage layer:
+- `app/filters.py` — uses `os.path.isfile()` instead of `storage.exists()`
+- `app/routes/admin/media.py` — uses `os.scandir()` instead of `storage.list_files()`
+- `app/utils.py` — `safe_delete_file()` uses `os.remove()` instead of `storage.delete()`
+- `app/routes/rss.py` — hardcoded `/static/uploads/` path
+- Templates — hardcoded `/static/uploads/` URLs
+
+When implementing S3 storage, these must be updated to use the storage abstraction.
+
+### CLI Import FTS Sync Bug
+`app/cli.py:255` calls `sync_fts(existing)` with only 1 argument, but the function requires 5 (post_id, title, body, summary, published). The import-data command silently fails to sync FTS index.
+
+### Search highlight_query XSS Risk
+`app/search.py:highlight_query()` wraps user search input in `<mark>` tags without HTML escaping the text first. If search results contain HTML special characters, this could lead to XSS.
+
+### CSRF Token Rotation Gap
+`app/csrf.py:validate_csrf_token()` removes the used token but doesn't generate a new one. The docs say "Rotate token after each successful validation" but no new token is created. Only happens on privilege changes (promote/demote/make_owner).
+
+### Storage Bare except Exception
+`app/storage.py` catches all exceptions with bare `except Exception` at lines 168, 175, 182, 198, 325. This swallows critical exceptions like KeyboardInterrupt and SystemExit. Should catch specific boto exceptions instead.
+
+### Backup Encryption UI Missing Checkbox
+The admin backup template (`app/templates/admin/backup.html`) is missing the encrypt checkbox. The route at `app/routes/admin/backup.py` expects `form.get("encrypt")` but the template only has compress.
+
+### Scheduler Bare except is Low Risk
+`app/scheduler.py:57` uses bare `except Exception` when getting next run time. This is intentional - it returns None on failure, which is handled gracefully. Not a critical bug.
+
+### Email Module Exception Handling is Intentional
+`app/email.py:99` uses `except Exception: pass` when calling `server.quit()` after a connection failure. This is intentional cleanup code - catching errors from quit() when cleaning up after a failed connection. Not a bug.
+
+### S3 Storage Thread-Safety Issue
+`app/storage.py` creates boto3 client in a lazy property without thread locking. `boto3.client()` is NOT thread-safe. Race condition exists when multiple threads access the client property simultaneously.
+
+### Plan Verification Required
+When creating improvement plans, verify items against actual codebase before marking as verified. Some items in existing plans (like email module exceptions, scheduler bare except) are intentional or low-risk. Others (like N+1 queries in public routes) require checking if tags are actually accessed in templates.
+
+### Rate Limiting Already Present
+The codebase already has `@limiter.limit` decorators on most API routes and `/admin/login`. Adding more requires checking existing limits first.
+
 ### LIKE Wildcard Escaping
 Search input containing `%` or `_` causes unexpected pattern matching. Escape them before interpolating:
 ```python
