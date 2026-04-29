@@ -26,9 +26,12 @@ def safe_delete_file(filepath: str) -> bool:
     logger = logging.getLogger(__name__)
     try:
         from app.storage import get_storage
+
         storage = get_storage()
-        filename = os.path.basename(filepath)
-        storage.delete(filename)
+        if hasattr(storage, "base_dir") and filepath.startswith(storage.base_dir):
+            filename = os.path.basename(filepath)
+            return storage.delete(filename)
+        os.remove(filepath)
         return True
     except FileNotFoundError:
         return True

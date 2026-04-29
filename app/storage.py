@@ -260,6 +260,12 @@ def init_storage(base_dir: str) -> StorageBackend:
     return _storage
 
 
+def storage_delete_file(filename: str) -> bool:
+    """Delete a file from storage, returning True on success."""
+    storage = get_storage()
+    return storage.delete(filename)
+
+
 def upload_with_processing(filename: str, file_content: bytes, generate_variants: bool = True) -> tuple[str, None] | tuple[None, str]:
     """Save an image file with local processing (responsive variants).
 

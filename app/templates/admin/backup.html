@@ -13,6 +13,9 @@
             <label class="flex-row items-center gap-xs text-muted">
                 <input type="checkbox" name="compress"> Compress
             </label>
+            <label class="flex-row items-center gap-xs text-muted">
+                <input type="checkbox" name="encrypt" value="yes"> Encrypt backup (requires BACKUP_ENCRYPTION_KEY env var)
+            </label>
             <button type="submit" class="btn btn-primary">Create Backup</button>
         </form>
     </div>
