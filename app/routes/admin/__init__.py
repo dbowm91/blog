@@ -45,6 +45,21 @@ def admin_required(f):
     return decorated
 
 
+def _invalidate_all_caches() -> None:
+    """Invalidate all application caches.
+
+    Handles tag cache, FTS cache availability flag, analytics cache,
+    dashboard cache, and footer cache.
+    """
+    invalidate_tag_cache()
+    from app.search import reset_fts_available
+    reset_fts_available()
+    invalidate_analytics_cache()
+    invalidate_dashboard_cache()
+    from app.context_processors import invalidate_footer_cache
+    invalidate_footer_cache()
+
+
 from app.routes.admin.helpers import (
     ALLOWED_EXTENSIONS,
     TAG_NAME_REGEX,

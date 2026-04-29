@@ -1,8 +1,11 @@
 import html as _html
+import logging
 import os
 import re
 import unicodedata
 from datetime import datetime, timezone
+from functools import wraps
+from typing import Any, Callable, TypeVar
 
 from sqlalchemy import TypeDecorator, DateTime
 
@@ -16,7 +19,142 @@ __all__ = [
     "xml_escape",
     "safe_delete_file",
     "sanitize_css",
+    "log_storage_error",
+    "log_security_event",
+    "log_scheduler_error",
+    "handle_error",
+    "unified_error_handler",
 ]
+
+logger = logging.getLogger(__name__)
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+class ErrorLogContext:
+    """Context for structured error logging with event categorization."""
+
+    STORAGE = "storage"
+    SECURITY = "security"
+    SCHEDULER = "scheduler"
+    DATABASE = "database"
+    GENERAL = "general"
+
+
+def log_storage_error(operation: str, detail: str, exc: Exception | None = None) -> None:
+    """Log a storage-related error with structured parameters.
+
+    Args:
+        operation: The storage operation that failed (e.g., 'upload', 'delete', 'list').
+        detail: Human-readable description of what was being attempted.
+        exc: The exception that was raised, if any.
+    """
+    msg = f"storage_error: operation={operation} detail={detail}"
+    if exc:
+        logger.error("%s exception=%s: %s", msg, type(exc).__name__, exc)
+    else:
+        logger.error("%s", msg)
+
+
+def log_security_event(event: str, **kwargs: Any) -> None:
+    """Log a security-related event with structured parameters.
+
+    Args:
+        event: The security event type (e.g., 'login_failed', 'csrf_violation', 'token_enumeration').
+        **kwargs: Additional context fields (e.g., user_id, ip_address, token_hash).
+    """
+    parts = [f"event={event}"]
+    parts.extend(f"{k}={v!r}" for k, v in kwargs.items())
+    logger.warning("security_event: " + " ".join(parts))
+
+
+def log_scheduler_error(operation: str, detail: str, exc: Exception | None = None) -> None:
+    """Log a scheduler-related error with structured parameters.
+
+    Args:
+        operation: The scheduler operation that failed (e.g., 'newsletter_send', 'backup').
+        detail: Human-readable description of what was being attempted.
+        exc: The exception that was raised, if any.
+    """
+    msg = f"scheduler_error: operation={operation} detail={detail}"
+    if exc:
+        logger.error("%s exception=%s: %s", msg, type(exc).__name__, exc)
+    else:
+        logger.error("%s", msg)
+
+
+def handle_error(
+    context: str,
+    operation: str,
+    detail: str,
+    exc: Exception | None = None,
+    reraise: bool = False,
+    default: Any = None,
+) -> Any:
+    """Unified error handling utility for storage, security, and scheduler events.
+
+    Logs the error with structured parameters and optionally re-raises or returns a default value.
+
+    Args:
+        context: Error context (ErrorLogContext.STORAGE, SECURITY, SCHEDULER, DATABASE, GENERAL).
+        operation: The operation that failed.
+        detail: Human-readable description of what was being attempted.
+        exc: The exception that was raised, if any.
+        reraise: If True, re-raise the original exception after logging.
+        default: Value to return if not reraising.
+
+    Returns:
+        The default value if reraise is False, otherwise None.
+    """
+    if context == ErrorLogContext.STORAGE:
+        log_storage_error(operation, detail, exc)
+    elif context == ErrorLogContext.SCHEDULER:
+        log_scheduler_error(operation, detail, exc)
+    elif context == ErrorLogContext.SECURITY:
+        log_security_event(operation, detail=detail, exc_type=type(exc).__name__ if exc else None)
+    else:
+        msg = f"{context}_error: operation={operation} detail={detail}"
+        if exc:
+            logger.error("%s exception=%s: %s", msg, type(exc).__name__, exc)
+        else:
+            logger.error("%s", msg)
+
+    if reraise:
+        if exc:
+            raise exc
+        raise RuntimeError(f"{operation} failed: {detail}")
+    return default
+
+
+def unified_error_handler(
+    context: str,
+    operation: str,
+    detail: str,
+    reraise: bool = False,
+    default: Any = None,
+) -> Callable[[F], F]:
+    """Decorator for uniform error handling across functions.
+
+    Args:
+        context: Error context (ErrorLogContext.STORAGE, SECURITY, SCHEDULER, DATABASE, GENERAL).
+        operation: The operation being performed.
+        detail: Human-readable description of what the function does.
+        reraise: If True, re-raise the original exception after logging.
+        default: Value to return if not reraising.
+
+    Returns:
+        Decorated function with error handling.
+    """
+    def decorator(func: F) -> F:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except Exception as exc:
+                handle_error(context, operation, detail, exc, reraise=reraise, default=default)
+                return default
+        return wrapper
+    return decorator
 
 
 def safe_delete_file(filepath: str) -> bool:
