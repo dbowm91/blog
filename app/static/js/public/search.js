@@ -6,6 +6,7 @@ export function initSearch() {
 
     const searchForm = searchInput.closest('form');
     const suggestionsContainer = document.getElementById('search-suggestions');
+    const clearBtn = searchInput.parentElement.querySelector('.search-clear');
 
     if (!suggestionsContainer) {
         createSuggestionsContainer(searchInput);
@@ -13,9 +14,30 @@ export function initSearch() {
 
     let currentRequest = null;
 
+    const updateClearButton = () => {
+        if (clearBtn) {
+            clearBtn.style.display = searchInput.value ? 'block' : 'none';
+        }
+    };
+
+    const clearSearch = () => {
+        searchInput.value = '';
+        updateClearButton();
+        hideSuggestions();
+        searchInput.focus();
+    };
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearSearch);
+    }
+
+    searchInput.addEventListener('input', updateClearButton);
+    updateClearButton();
+
     const fetchSuggestions = debounce(async (query) => {
         if (!query || query.length < 2) {
             hideSuggestions();
+            searchForm.classList.remove('loading');
             return;
         }
 
@@ -23,6 +45,7 @@ export function initSearch() {
             currentRequest.abort();
         }
 
+        searchForm.classList.add('loading');
         currentRequest = new AbortController();
 
         try {
@@ -41,6 +64,8 @@ export function initSearch() {
             if (err.name !== 'AbortError') {
                 console.warn('Search suggestions error:', err);
             }
+        } finally {
+            searchForm.classList.remove('loading');
         }
     }, 250);
 

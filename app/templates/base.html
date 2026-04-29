@@ -126,7 +126,10 @@
             <div class="nav-links">
                 <a href="{{ url_for('public.index') }}" {% if request.endpoint == 'public.index' %}aria-current="page" class="active"{% endif %}>Posts</a>
                 <form action="{{ url_for('public.search') }}" method="GET" class="search-form" aria-label="Search posts">
-                    <input type="text" name="q" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
+                    <div class="search-input-wrapper">
+                        <input type="text" name="q" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
+                        <button type="button" class="search-clear" aria-label="Clear search" style="display:none">&times;</button>
+                    </div>
                     <button type="submit" class="search-btn" aria-label="Submit search"><span class="btn-text">Search</span></button>
                 </form>
                 {% if current_user.is_authenticated %}

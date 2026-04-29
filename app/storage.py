@@ -342,20 +342,29 @@ def _generate_responsive_variants_local(filepath: str):
     from PIL import Image
 
     ext = os.path.splitext(filepath)[1].lower().lstrip(".")
+    basename = os.path.splitext(os.path.basename(filepath))[0]
+    dirpath = os.path.dirname(filepath)
+
     for width in (400, 800, 1200):
-        variant_filename = f"{width}_{os.path.basename(filepath)}"
-        variant_path = os.path.join(os.path.dirname(filepath), variant_filename)
         try:
             with Image.open(filepath) as img:
                 if img.width > width:
                     ratio = width / img.width
                     new_height = int(img.height * ratio)
-                    img.resize((width, new_height), Image.LANCZOS).save(
-                        variant_path, optimize=True
-                    )
+                    resized = img.resize((width, new_height), Image.LANCZOS)
+                else:
+                    resized = img.copy()
+
+                webp_filename = f"{width}_{basename}.webp"
+                webp_path = os.path.join(dirpath, webp_filename)
+                resized.save(webp_path, format="WEBP", optimize=True)
+
+                if ext != "webp":
+                    variant_filename = f"{width}_{basename}.{ext}"
+                    variant_path = os.path.join(dirpath, variant_filename)
+                    resized.save(variant_path, optimize=True)
         except (ClientError, BotoCoreError) as e:
             logger.error("S3 operation failed: %s", e)
-            pass
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception:

@@ -18,18 +18,18 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="form-group">
             <label for="title">Title</label>
-            <input type="text" id="title" name="title" value="{{ page.title if page else '' }}" required placeholder="Page title">
+            <input type="text" id="title" name="title" value="{{ page.title if page else '' }}" required placeholder="Page title"{{ ' aria-invalid="true" aria-describedby="title-error"' if errors and errors.title else '' }}>
             {% if errors and errors.title %}
-                <span class="field-error">{{ errors.title }}</span>
+                <span class="field-error" id="title-error" role="alert">{{ errors.title }}</span>
             {% endif %}
         </div>
 
         <div class="form-group">
             <label for="slug">Slug</label>
             <span id="slug-hint" class="label-hint">Leave empty to auto-generate from title</span>
-            <input type="text" id="slug" name="slug" value="{{ page.slug if page else '' }}" placeholder="/page/your-slug" aria-describedby="slug-hint">
+            <input type="text" id="slug" name="slug" value="{{ page.slug if page else '' }}" placeholder="/page/your-slug" aria-describedby="slug-hint{{ '-error' if errors and errors.slug else '' }}">
             {% if errors and errors.slug %}
-                <span class="field-error">{{ errors.slug }}</span>
+                <span class="field-error" id="slug-error" role="alert">{{ errors.slug }}</span>
             {% endif %}
         </div>
 
@@ -37,13 +37,13 @@
             <label for="body">Content</label>
             <span id="body-hint" class="label-hint">Markdown formatting supported</span>
             <div class="editor-split">
-                <textarea id="body" name="body" rows="20" required placeholder="Write your page content in Markdown..." aria-describedby="body-hint">{{ page.body if page else '' }}</textarea>
+                <textarea id="body" name="body" rows="20" required placeholder="Write your page content in Markdown..." aria-describedby="body-hint{{ '-error' if errors and errors.body else '' }}"{{ ' aria-invalid="true"' if errors and errors.body else '' }}>{{ page.body if page else '' }}</textarea>
                 <div id="markdown-preview" class="markdown-preview prose">
                     <p class="empty-state">Live preview will appear here...</p>
                 </div>
             </div>
             {% if errors and errors.body %}
-                <span class="field-error">{{ errors.body }}</span>
+                <span class="field-error" id="body-error" role="alert">{{ errors.body }}</span>
             {% endif %}
         </div>
 

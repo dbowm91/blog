@@ -1309,6 +1309,51 @@ a:hover {
     font-size: 0.8rem;
 }
 
+.page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    transition: color var(--transition), background var(--transition);
+}
+
+.page-number:hover {
+    color: var(--text);
+    background: var(--bg-elevated);
+}
+
+.page-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.page-ellipsis {
+    color: var(--text-dim);
+    padding: 0 4px;
+}
+
 /* --- Archive Year Navigation --- */
 .archive-year-nav {
     display: flex;
@@ -3215,6 +3260,54 @@ a:hover {
 @media (min-width: 769px) {
     .search-form .search-btn::before { display: none; }
     .search-form .search-btn .btn-text { display: inline; }
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-clear {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+    border-radius: 50%;
+    transition: color var(--transition), background var(--transition);
+}
+
+.search-clear:hover {
+    color: var(--text);
+    background: var(--bg-elevated);
+}
+
+.search-form.loading .search-input {
+    opacity: 0.7;
+}
+
+.search-form.loading .search-btn {
+    position: relative;
+}
+
+.search-form.loading .search-btn::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    top: 50%;
+    left: 50%;
+    margin-top: -7px;
+    margin-left: -7px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
 }
 
 /* --- Search Suggestions --- */
