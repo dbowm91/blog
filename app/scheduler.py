@@ -54,7 +54,7 @@ def get_scheduler_next_run() -> Optional[datetime]:
             return None
         next_job = min(jobs, key=lambda j: j.next_run_time)
         return next_job.next_run_time
-    except Exception:
+    except (AttributeError, KeyError, ValueError):
         return None
 
 

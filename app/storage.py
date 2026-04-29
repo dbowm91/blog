@@ -22,6 +22,8 @@ import shutil
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from botocore.exceptions import ClientError, BotoCoreError
+
 logger = logging.getLogger(__name__)
 
 STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND", "local")
@@ -165,22 +167,31 @@ class S3StorageBackend(StorageBackend):
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=filename)
             return response["Body"].read()
-        except Exception:
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 operation failed: %s", e)
             return None
+        except (KeyboardInterrupt, SystemExit):
+            raise
 
     def delete(self, filename: str) -> bool:
         try:
             self.client.delete_object(Bucket=self.bucket, Key=filename)
             return True
-        except Exception:
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 operation failed: %s", e)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            raise
 
     def exists(self, filename: str) -> bool:
         try:
             self.client.head_object(Bucket=self.bucket, Key=filename)
             return True
-        except Exception:
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 operation failed: %s", e)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            raise
 
     def url(self, filename: str) -> str:
         if self.public_url:
@@ -195,8 +206,11 @@ class S3StorageBackend(StorageBackend):
             response = self.client.list_objects_v2(**kwargs)
             contents = response.get("Contents", [])
             return sorted([obj["Key"] for obj in contents])
-        except Exception:
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 operation failed: %s", e)
             return []
+        except (KeyboardInterrupt, SystemExit):
+            raise
 
 
 def get_storage_backend() -> StorageBackend:
@@ -322,5 +336,10 @@ def _generate_responsive_variants_local(filepath: str):
                     img.resize((width, new_height), Image.LANCZOS).save(
                         variant_path, optimize=True
                     )
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 operation failed: %s", e)
+            pass
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception:
             pass
