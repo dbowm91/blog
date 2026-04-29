@@ -126,3 +126,5 @@ export function initUpload() {
         });
     }
 }
+
+export default initUpload;

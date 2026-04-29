@@ -18,3 +18,5 @@ export function initMediaCopy() {
         });
     });
 }
+
+export default initMediaCopy;

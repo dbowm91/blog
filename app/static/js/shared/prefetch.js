@@ -35,3 +35,5 @@ export function initPrefetch() {
         clearTimeout(prefetchTimer);
     });
 }
+
+export default initPrefetch;

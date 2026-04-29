@@ -29,3 +29,5 @@ export function initCodeCopy() {
         pre.appendChild(button);
     });
 }
+
+export default initCodeCopy;

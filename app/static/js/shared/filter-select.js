@@ -17,3 +17,5 @@ export function initFilterSelect() {
         });
     });
 }
+
+export default initFilterSelect;

@@ -76,7 +76,15 @@ def new_page():
     db.session.add(page)
     try:
         db.session.commit()
-    except (IntegrityError, OperationalError):
+    except IntegrityError:
+        db.session.rollback()
+        page.slug = _generate_unique_slug(Page, title)
+        page.title = title
+        page.body = body
+        page.published = published
+        db.session.add(page)
+        db.session.commit()
+    except OperationalError:
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.pages_list"))
@@ -142,7 +150,15 @@ def edit_page(page_id):
 
     try:
         db.session.commit()
-    except (IntegrityError, OperationalError):
+    except IntegrityError:
+        db.session.rollback()
+        page = db.session.get(Page, page_id)
+        page.slug = _generate_unique_slug(Page, title, exclude_id=page_id)
+        page.title = title
+        page.body = body
+        page.published = published
+        db.session.commit()
+    except OperationalError:
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.pages_list"))

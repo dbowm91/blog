@@ -1,8 +1,8 @@
 document.documentElement.classList.add('js');
 
-const loadModule = (path, initFn) => {
+const loadModule = (path) => {
     import(path).then(module => {
-        if (initFn) initFn(module);
+        if (typeof module.default === 'function') { module.default(); }
     }).catch(err => {
         console.error(`Failed to load module: ${path}`, err);
     });
@@ -65,5 +65,5 @@ function getModulesForPath(path) {
 
 document.addEventListener("DOMContentLoaded", () => {
     const modules = getModulesForPath(window.location.pathname);
-    modules.forEach(m => loadModule(m, fn => fn()));
+    modules.forEach(m => loadModule(m));
 });

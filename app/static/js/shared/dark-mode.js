@@ -48,3 +48,5 @@ export function initDarkMode() {
         }
     });
 }
+
+export default initDarkMode;

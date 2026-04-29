@@ -179,3 +179,5 @@ export function initLightbox() {
         }, { passive: true });
     }
 }
+
+export default initLightbox;

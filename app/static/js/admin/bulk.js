@@ -35,22 +35,11 @@ export function initBulk() {
                 }
                 updateBulkActions();
             });
-        });
+});
     }
+}
 
-    // --- Bulk form submission loading overlay ---
-    const bulkForm = document.getElementById('bulk-form');
-    const bulkOverlay = document.getElementById('bulk-loading-overlay');
-    if (bulkForm && bulkOverlay) {
-        bulkForm.addEventListener('submit', () => {
-            bulkOverlay.classList.add('visible');
-            const action = bulkForm.querySelector('button[name="action"]:focus');
-            if (action) {
-                const originalText = action.textContent;
-                action.dataset.originalText = originalText;
-                action.textContent = 'Working...';
-                action.disabled = true;
-            }
+export default initBulk;
         });
         window.addEventListener('load', () => {
             bulkOverlay.classList.remove('visible');

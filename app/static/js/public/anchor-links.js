@@ -66,3 +66,5 @@ export function initAnchorLinks() {
         heading.appendChild(anchor);
     });
 }
+
+export default initAnchorLinks;

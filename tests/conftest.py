@@ -1,4 +1,5 @@
 import os
+import shutil
 import pytest
 from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, field
@@ -158,3 +159,15 @@ class FakeSubscriber:
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime | None = None
     unsubscribed_at: datetime | None = None
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_uploads():
+    """Clean up uploads directory after all tests in session."""
+    yield
+    upload_folder = os.path.join(os.path.dirname(__file__), '..', 'app', 'static', 'uploads')
+    if os.path.exists(upload_folder):
+        for item in os.listdir(upload_folder):
+            item_path = os.path.join(upload_folder, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)

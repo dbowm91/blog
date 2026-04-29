@@ -97,3 +97,5 @@ export function initShortcuts() {
         }
     });
 }
+
+export default initShortcuts;

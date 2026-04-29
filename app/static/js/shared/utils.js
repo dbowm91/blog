@@ -193,3 +193,5 @@ export function initSharedUtils() {
         startTimer();
     });
 }
+
+export default initSharedUtils;

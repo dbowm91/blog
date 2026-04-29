@@ -48,8 +48,10 @@ function showToast(message, type = 'info') {
         <button class="toast-close" aria-label="Dismiss" onclick="this.parentElement.remove()">&times;</button>
     `;
 
+    let cumulativeOffset = 0;
     toastStack.forEach(t => {
-        t.style.transform = 'translateY(-100%)';
+        t.style.transform = `translateY(-${cumulativeOffset}px)`;
+        cumulativeOffset += t.offsetHeight + 12;
     });
 
     if (toastStack.length >= MAX_TOASTS) {

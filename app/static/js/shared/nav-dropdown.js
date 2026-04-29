@@ -21,3 +21,5 @@ export function initNavDropdown() {
         });
     });
 }
+
+export default initNavDropdown;

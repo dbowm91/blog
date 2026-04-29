@@ -210,3 +210,5 @@ export function initEditor() {
         updateCounts();
     }
 }
+
+export default initEditor;

@@ -86,3 +86,5 @@ export function initShare() {
         });
     });
 }
+
+export default initShare;

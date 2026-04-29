@@ -21,14 +21,16 @@ export function initModal() {
     let previousActiveElement = null;
 
     document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('transitionend', () => {
-            if (!modal.classList.contains('hidden')) {
-                previousActiveElement = document.activeElement;
-                const focusable = modal.querySelector(focusableSelectors);
-                if (focusable) focusable.focus();
-            } else if (previousActiveElement) {
-                previousActiveElement.focus();
-                previousActiveElement = null;
+        modal.addEventListener('transitionend', (event) => {
+            if (event.propertyName === 'opacity') {
+                if (!modal.classList.contains('hidden')) {
+                    previousActiveElement = document.activeElement;
+                    const focusable = modal.querySelector(focusableSelectors);
+                    if (focusable) focusable.focus();
+                } else if (previousActiveElement) {
+                    previousActiveElement.focus();
+                    previousActiveElement = null;
+                }
             }
         });
 
@@ -60,3 +62,5 @@ export function initModal() {
         });
     });
 }
+
+export default initModal;

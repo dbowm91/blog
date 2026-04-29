@@ -6,6 +6,7 @@ from app.extensions import db
 from app.models import SiteSettings, THEME_PRESETS
 from app.routes.admin import admin, admin_required
 from app.context_processors import invalidate_settings_cache
+from app.utils import sanitize_css
 
 
 @admin.route("/settings", methods=["GET"])
@@ -50,7 +51,7 @@ def settings_theme():
 
     settings_obj.theme_preset = preset
     settings_obj.custom_css_enabled = request.form.get("custom_css_enabled") == "on"
-    settings_obj.custom_css = request.form.get("custom_css", "").strip()
+    settings_obj.custom_css = sanitize_css(request.form.get("custom_css", "").strip())
     settings_obj.logo_text = request.form.get("logo_text", "").strip()[:100]
 
     try:

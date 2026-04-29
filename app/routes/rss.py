@@ -1,12 +1,15 @@
-from flask import Blueprint, Response, request, make_response
+from flask import Blueprint, Response, request, make_response, current_app
 from sqlalchemy import select
 from app.models import Post
 from app.extensions import db
 from app.config import APP_TITLE, APP_DESCRIPTION, BASE_URL, AUTHOR_NAME
 from app.utils import xml_escape, utc_now
+from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 import re
 import hashlib
 import json
+import markdown
+import nh3
 
 _MARKDOWN_RE = re.compile(r"[#*_`~\[\]\(\)!>|]+")
 
@@ -131,6 +134,12 @@ def json_feed() -> Response:
 
         if post.image:
             item["image"] = f"{BASE_URL}/static/uploads/{post.image}"
+
+        item["content_html"] = nh3.clean(
+            markdown.markdown(post.body, extensions=["fenced_code", "tables"]),
+            tags=MARKDOWN_ALLOWED_TAGS,
+            attributes=MARKDOWN_ALLOWED_ATTRIBUTES,
+        )
 
         items.append(item)
 

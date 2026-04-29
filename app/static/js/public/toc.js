@@ -47,3 +47,5 @@ export function initToc() {
         }
     }
 }
+
+export default initToc;
