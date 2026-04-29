@@ -120,7 +120,7 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - `ADMIN_PASSWORD` required; `RuntimeError` in `create_app()` if missing
 - Environment variables override config values
 - Pagination and limits loaded from `config.toml [app]` section
-- **Custom CSS sanitization**: `sanitize_css()` strips dangerous properties (`url()`, `expression()`, `content`, etc.)
+- **Custom CSS sanitization**: `sanitize_css()` strips dangerous properties (`url()`, `expression()`, `content`, etc.) — must be applied BEFORE saving custom_css in settings.py (currently missing, see plan.md CB-8)
 
 ## Common Tasks
 
@@ -161,6 +161,15 @@ Suggested: 5 req/min for `/admin/login`, 20 req/min for `/admin/*`, 100 req/min 
 
 ## Lessons Learned
 
+### Critical: JS Module Initialization
+All JavaScript modules must export a default function for initialization. When adding new modules to `app/static/js/shared/` or `app/static/js/public/`, you **must** add `export default initXxx;` where `initXxx` is the initialization function. The main.js loader calls `module.default()` to invoke the exported function. Modules without this export will not be called on page load.
+
+### Critical: Share Platform Names
+The share buttons template (`_share_buttons.html`) and API (`ALLOWED_SHARE_PLATFORMS` in `public.py`) must use the same platform identifiers. The API expects `"hackernews"` not `"hn"`. Always check that template `data-platform` attributes match the API constants.
+
+### Critical: JSON Feed content_html
+When updating the JSON Feed in `app/routes/rss.py`, ensure `content_html` field is included per JSON Feed 1.1 spec. Either `content_html` or `content_text` is required.
+
 ### SMTP Context Manager Gotcha
 `with smtplib.SMTP() as server:` binds `server` at `__enter__` time. Reassigning `server` inside the block creates a new local variable—the `with` statement's `__exit__` still calls the **original** object. Use manual `try/finally` instead.
 
@@ -181,6 +190,15 @@ Two concurrent subscribe requests with same email can both pass `scalar_one_or_n
 
 ### IntegrityError Rollback Gotcha
 In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rollback, SQLAlchemy marks all attributes as expired. If you only re-set one field and commit, all other edits are silently lost. Always reapply all field changes after rollback.
+
+### IntegrityError Rollback in pages.py
+The same rollback issue exists in `app/routes/admin/pages.py` (`new_page()` and `edit_page()`). Unlike `posts.py` which has slug regeneration and retry logic, `pages.py` simply redirects after rollback without reapplying changes. When fixing, follow the `posts.py` pattern.
+
+### CSRF Token Rotation on Privilege Change
+When promoting/demoting users or making an owner, the code sets `session["csrf_token"]` (singular) but the sliding window uses `session["csrf_tokens"]` (list). Must reset the list `session["csrf_tokens"]` = `[generate_csrf_token()]` not the singular token.
+
+### make_owner() Race Condition
+In `app/routes/admin/users.py`, the `make_owner()` function demotes ALL admins first, then promotes the target. If commit fails between these operations, there would be zero admins. Fix: promote target first (so at least one admin always exists), then demote others. Use `db.session.flush()` after promoting.
 
 ### File Deletion Timing
 Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
@@ -230,6 +248,9 @@ db.session.execute(select(func.count(...))).scalar_one()           # counts
 db.session.execute(delete(Model).where(...))                        # deletes
 db.paginate(select(...), page=..., per_page=..., error_out=False)    # pagination
 ```
+
+### API Error Handling
+All `db.session.commit()` calls in API endpoints must be wrapped in try/except for `IntegrityError` and `OperationalError`. Return 409 Conflict on duplicate slug, 500 Internal Server Error on operational errors. Import from `sqlalchemy.exc`.
 
 ### `assert` Statements Under `python -O`
 `assert` is stripped when Python runs with `-O`. Never use `assert` for runtime safety checks.
