@@ -43,7 +43,7 @@ app/routes/admin/helpers/slug.py  # Slug generation helper
 app/routes/api.py       # REST API (Post/Subscriber endpoints)
 app/routes/rss.py       # RSS feed
 app/csrf.py             # CSRF token handling (sliding window)
-app/cache.py            # Tag count cache (double-checked locking)
+app/tag_cache.py      # Tag count cache (flask-cache memoization)
 app/search.py           # FTS5 full-text search with LIKE fallback + snippet extraction
 app/utils.py            # Slug generation, email validation, XML escaping, UTCDateTime type
 app/base62.py           # Short URL encoding (base62)
@@ -217,8 +217,8 @@ Post.title.ilike(search_term, escape="\\")
 ### Token Enumeration Prevention
 /confirm/<token> uses `scalar_one_or_none()` + `time.sleep(0.1)` to prevent token enumeration. Invalid tokens return success (not 404).
 
-### Double-Checked Locking for Caches
-`_get_tag_counts()` in `app/cache.py` uses double-checked locking — DB query runs outside the lock.
+### Tag Count Caching
+Tag counts use `flask_cache.memoize` decorator in `app/tag_cache.py`. The `_get_tag_counts_cached()` function is memoized with TTL from config. `_get_tag_counts()` checks `has_request_context()` to use cached or uncached version. Invalidate with `invalidate_tag_cache()`.
 
 ### FTS5 Search
 - `app/search.py` — FTS5 virtual table `posts_fts` (title, body, summary) with `prefix='2 3 4'` for prefix matching
@@ -275,20 +275,21 @@ To avoid redundant computations, cache filter results in template loops:
 This is especially important for filters with file I/O or string processing.
 
 ### Request-Level Image Caching
-The `post_image_url` filter uses Flask `g` object for request-level caching to avoid repeated file I/O:
+The `post_image_url` filter in `app/filters.py` uses Flask `g` object for request-level caching to avoid repeated file I/O:
 ```python
-# In app/__init__.py - filter implementation
 if not hasattr(g, "_post_image_cache"):
     g._post_image_cache = {}
+post_id = id(post)
 if post_id in g._post_image_cache:
     return g._post_image_cache[post_id]
-result = compute_image_url(post_id)
+path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
+result = post.image if os.path.isfile(path) else None
 g._post_image_cache[post_id] = result
 return result
 ```
 
-### Tag Count Caching
-Tag counts use double-checked locking in `app/cache.py` with a cached function.
+### Responsive Images
+Post images support responsive srcset via the `post_image_srcset` filter. Variants are generated at 400w, 800w, and 1200w widths on upload. Templates use `srcset` with `sizes` attribute for proper responsive behavior.
 
 ### GPU Acceleration for Blur Effects
 For `backdrop-filter: blur()`, use `will-change: backdrop-filter` in CSS to enable GPU compositing:

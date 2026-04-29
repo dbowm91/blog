@@ -280,9 +280,9 @@ Post.title.ilike(search_term, escape="\\")
 
 ### Granian ASGI Server
 - Recommended ASGI server (faster than Gunicorn)
-- Dockerfile uses `granian --interface wsgi run:app`
+- `run.py` exports `asgi_app` via `WsgiToAsgi` wrapper
+- Dockerfile uses `granian --interface asgi`
 - `requirements.txt` includes `granian>=1.0.0`
-- WsgiToAsgi wrapper removed (not needed with granian)
 
 ### Search Enhancements (`app/static/js/public/search.js`)
 - Live search suggestions via API
@@ -296,29 +296,24 @@ Post.title.ilike(search_term, escape="\\")
 - Login checks lockout status before password verification
 
 ### APScheduler Persistence
-- Uses `SQLAlchemyJobStore` instead of `MemoryJobStore`
-- All `fcntl` file locking removed
-- Maintenance jobs:
-  - Daily DB Integrity Check (3AM)
-  - Daily WAL Checkpoint (4AM) 
-  - Weekly FTS Integrity Check (Sun 2AM)
-  - Daily DB Optimize (1AM)
+- Uses `fcntl` file locking for newsletter job (Unix-only, single-machine)
+- For multi-machine deployments, use distributed lock (Redis, etcd) instead
 
 ### Responsive Images
-- `Pillow` generates 400w, 800w, 1200w variants on upload
-- `responsive_image` Jinja filter provides srcset URLs
-- Updated templates use `srcset` for responsive images
+- Variants generated at 400w, 800w, 1200w widths on upload via `_generate_responsive_variants()` in `app/routes/admin/helpers/images.py`
+- `post_image_srcset` Jinja filter provides srcset string from variants
+- Templates use `srcset` with `sizes` attribute for responsive behavior
 
 ### Template Filters (`app/filters.py`)
 - `markdown_safe` - renders markdown with nh3 sanitization
 - `reading_time` - calculates reading time from word count
 - `sanitize_css` - strips dangerous CSS properties
-- `post_image_url` - returns validated image URL
-- `responsive_image` - returns dict of responsive image URLs
+- `post_image_url` - returns validated image URL with request-level caching
+- `post_image_srcset` - returns srcset string for responsive images
 
 ### Transaction Helpers (`app/transaction.py`)
-- `@transactional` decorator for common rollback patterns
-- `commit_with_slug_retry()` helper for slug collision retry
+- `@transactional` decorator handles IntegrityError/OperationalError with rollback
+- `commit_with_slug_retry()` helper retries slug regeneration on collision
 
 ### JS Module Initialization
 All JavaScript modules export a default initialization function:
