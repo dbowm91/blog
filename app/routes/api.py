@@ -238,7 +238,14 @@ def create_post() -> Response:
         db.session.rollback()
         return jsonify({"error": "Search index unavailable"}), 503
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Duplicate slug or database constraint violation"}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({"error": "Database operational error"}), 500
 
     return jsonify(_post_to_dict(post)), 201
 
@@ -318,7 +325,14 @@ def update_post(post_id: int) -> Response:
         db.session.rollback()
         return jsonify({"error": "Search index unavailable"}), 503
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Duplicate slug or database constraint violation"}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({"error": "Database operational error"}), 500
 
     return jsonify(_post_to_dict(post))
 
@@ -345,7 +359,14 @@ def delete_post(post_id: int) -> Response:
     post_tags = list(post.tags)
 
     db.session.delete(post)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Database constraint violation"}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({"error": "Database operational error"}), 500
 
     if old_image:
         safe_delete_file(old_image)

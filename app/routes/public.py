@@ -112,6 +112,7 @@ def _get_related_posts(post):
 
 
 @public.route("/")
+@limiter.limit("60 per minute")
 def index() -> Response:
     """Paginated list of published posts with tag sidebar."""
     page = request.args.get("page", 1, type=int)
@@ -427,6 +428,7 @@ def series_view(slug) -> Response:
 
 
 @public.route("/s/<code>")
+@limiter.limit("60 per minute")
 def short_url_redirect(code) -> Response:
     """Redirect short URL (base62-encoded post ID) to canonical post URL."""
     from app.base62 import decode
@@ -450,6 +452,7 @@ def short_url_redirect(code) -> Response:
 
 
 @public.route("/preview/<int:post_id>")
+@limiter.limit("30 per minute")
 def public_preview(post_id: int) -> Response:
     """Render a shared preview of a post via signed token.
 
