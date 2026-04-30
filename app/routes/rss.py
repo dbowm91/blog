@@ -75,6 +75,11 @@ def _add_cache_headers(response: Response, etag: str, is_feed: bool = True) -> R
     return response
 
 
+def invalidate_rss_cache():
+    """Stub for cache invalidation - RSS uses ETag-based caching."""
+    pass
+
+
 @rss.route("/rss")
 def feed() -> Response:
     posts = _get_cached_feed_posts()
