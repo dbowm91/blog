@@ -22,7 +22,7 @@ from sqlalchemy.orm import joinedload, defer
 import logging
 
 from app.extensions import db
-from app.models import Post, Tag, Subscriber, ShareEvent, Series, PostSeries
+from app.models import Post, Tag, Subscriber, ShareEvent, Series, PostSeries, post_tags
 from app.config import (
     POSTS_PER_PAGE,
     BASE_URL,
@@ -92,16 +92,24 @@ def _get_related_posts(post):
         return []
     tag_ids = [t.id for t in post.tags]
     limit = min(RELATED_POSTS_COUNT, HARD_RELATED_POST_LIMIT)
+    # Subquery to count shared tags per post (excluding current post)
+    shared_tags_subq = (
+        select(post_tags.c.post_id, func.count(post_tags.c.tag_id).label("shared_count"))
+        .filter(
+            post_tags.c.tag_id.in_(tag_ids),
+            post_tags.c.post_id != post.id,
+        )
+        .group_by(post_tags.c.post_id)
+        .subquery()
+    )
+    # Main query: join with shared tag count, order by count desc then date desc
     related = (
         db.session.execute(
             select(Post)
             .options(joinedload(Post.tags))
-            .filter(
-                Post.published == True,
-                Post.id != post.id,
-                Post.tags.any(Tag.id.in_(tag_ids)),
-            )
-            .order_by(Post.created_at.desc())
+            .join(shared_tags_subq, Post.id == shared_tags_subq.c.post_id)
+            .filter(Post.published == True)
+            .order_by(shared_tags_subq.c.shared_count.desc(), Post.created_at.desc())
             .limit(limit)
         )
         .unique()
@@ -725,6 +733,7 @@ def unsubscribe(token) -> Response:
 
 
 @public.route("/robots.txt")
+@limiter.limit("60 per minute")
 def robots_txt() -> Response:
     """Serve robots.txt with sitemap URL and AI crawler blocking."""
     content = f"""User-agent: *
@@ -864,12 +873,14 @@ def _generate_sitemap():
 
 
 @public.route("/sitemap.xml")
+@limiter.limit("60 per minute")
 def sitemap_xml() -> Response:
     """Stream sitemap XML for all published posts, pages, and tags."""
     return Response(_generate_sitemap(), mimetype="application/xml")
 
 
 @public.route("/favicon.ico")
+@limiter.limit("60 per minute")
 def favicon() -> Response:
     """Redirect to SVG favicon."""
     return Response(
@@ -878,6 +889,7 @@ def favicon() -> Response:
 
 
 @public.route("/health")
+@limiter.limit("60 per minute")
 def health_check() -> Response:
     """Health check endpoint for monitoring.
 

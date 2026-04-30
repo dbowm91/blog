@@ -281,6 +281,7 @@ class SiteSettings(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     theme_preset = db.Column(db.String(32), default="github-dark", nullable=False)
+    syntax_theme = db.Column(db.String(50), default="prism", nullable=False)
     custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
     custom_css = db.Column(db.Text, default="", nullable=False)
     logo_text = db.Column(db.String(100), default="", nullable=False)
@@ -296,7 +297,7 @@ class SiteSettings(db.Model):
         return instance
 
     def __repr__(self) -> str:
-        return f"<SiteSettings preset={self.theme_preset!r}>"
+        return f"<SiteSettings preset={self.theme_preset!r} syntax={self.syntax_theme!r}>"
 
 
 THEME_PRESETS = {

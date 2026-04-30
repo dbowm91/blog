@@ -90,12 +90,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/public.css') }}" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' + syntax_theme + '.css') }}" media="print" onload="this.media='all'">
     <noscript>
         <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/public.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/' + syntax_theme + '.css') }}">
     </noscript>
     <link rel="preload" href="{{ url_for('static', filename='fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="{{ url_for('static', filename='fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>

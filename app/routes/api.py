@@ -485,7 +485,11 @@ def delete_subscriber(subscriber_id: int) -> Response:
         return jsonify({"error": "Subscriber not found"}), 404
 
     db.session.delete(subscriber)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        return jsonify({"error": "Database error occurred"}), 500
 
     return jsonify({"message": "Subscriber deleted successfully"})
 

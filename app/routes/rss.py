@@ -21,14 +21,13 @@ def _strip_markdown(text: str) -> str:
     return _MARKDOWN_RE.sub("", text)
 
 
-def _generate_etag(posts: list, use_json: bool = False) -> str:
+def _generate_etag(posts: list, feed_type: str = "rss") -> str:
     """Generate ETag from post IDs and timestamps."""
     content = ",".join(
         f"{p.id}:{int((p.updated_at or p.created_at).timestamp())}"
         for p in posts
     )
-    suffix = "_json" if use_json else "_rss"
-    return hashlib.md5(content.encode()).hexdigest() + suffix
+    return hashlib.md5(content.encode()).hexdigest() + f"_{feed_type}"
 
 
 def _get_feed_posts(limit: int = 20):
@@ -83,7 +82,7 @@ def invalidate_rss_cache():
 @rss.route("/rss")
 def feed() -> Response:
     posts = _get_cached_feed_posts()
-    etag = _generate_etag(posts)
+    etag = _generate_etag(posts, "rss")
 
     if_none_match = request.headers.get("If-None-Match")
     if if_none_match and if_none_match.strip('"') == etag:
@@ -133,7 +132,7 @@ def feed() -> Response:
 def json_feed() -> Response:
     """JSON Feed implementation (https://jsonfeed.org/)"""
     posts = _get_cached_feed_posts()
-    etag = _generate_etag(posts)
+    etag = _generate_etag(posts, "json")
 
     if_none_match = request.headers.get("If-None-Match")
     if if_none_match and if_none_match.strip('"') == etag:
@@ -184,4 +183,83 @@ def json_feed() -> Response:
 
     response = make_response(json.dumps(feed_data, indent=2))
     response.headers["Content-Type"] = "application/feed+json; charset=utf-8"
+    return _add_cache_headers(response, etag, is_feed=False)
+
+
+@flask_cache.cached(timeout=300, key_prefix="atom_feed_posts")
+def _get_cached_atom_posts(limit: int = 20):
+    """Cached version for Atom feed."""
+    posts, _ = _get_feed_posts(limit)
+    return posts
+
+
+def _get_atom_feed_posts(limit: int = 20):
+    """Get posts for Atom feed with caching."""
+    if current_app.testing:
+        return _get_feed_posts()[0]
+    return _get_cached_atom_posts(limit)
+
+
+@rss.route("/atom")
+def atom_feed() -> Response:
+    """Atom 1.0 feed implementation."""
+    posts = _get_atom_feed_posts()
+    etag = _generate_etag(posts, "atom")
+
+    if_none_match = request.headers.get("If-None-Match")
+    if if_none_match and if_none_match.strip('"') == etag:
+        return Response(status=304)
+
+    feed_id = xml_escape(f"{BASE_URL}/atom")
+    feed_updated = utc_now().isoformat() + "Z"
+    if posts:
+        latest = max(post.updated_at or post.created_at for post in posts)
+        feed_updated = latest.isoformat() + "Z"
+
+    entries = []
+    for post in posts:
+        post_link = f"{BASE_URL}/post/{post.slug}"
+        post_id = xml_escape(post_link)
+        post_title = xml_escape(post.title)
+        post_updated = (post.updated_at or post.created_at).isoformat() + "Z"
+        post_published = (post.published_at or post.created_at).isoformat() + "Z"
+
+        content_html = nh3.clean(
+            markdown.markdown(post.body, extensions=["fenced_code", "tables"]),
+            tags=MARKDOWN_ALLOWED_TAGS,
+            attributes=MARKDOWN_ALLOWED_ATTRIBUTES,
+        )
+
+        categories = "".join(
+            f'    <category term="{xml_escape(tag.name)}"/>\n'
+            for tag in post.tags
+        )
+
+        entries.append(f"""    <entry>
+      <id>{post_id}</id>
+      <title>{post_title}</title>
+      <link href="{xml_escape(post_link)}"/>
+      <updated>{post_updated}</updated>
+      <published>{post_published}</published>
+      <author>
+        <name>{xml_escape(AUTHOR_NAME or "admin")}</name>
+      </author>
+{categories}      <content type="html">{xml_escape(content_html)}</content>
+    </entry>""")
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>{feed_id}</id>
+  <title>{xml_escape(APP_TITLE)}</title>
+  <subtitle>{xml_escape(APP_DESCRIPTION)}</subtitle>
+  <updated>{feed_updated}</updated>
+  <link href="{xml_escape(BASE_URL)}" rel="alternate"/>
+  <link href="{feed_id}" rel="self" type="application/atom+xml"/>
+  <author>
+    <name>{xml_escape(AUTHOR_NAME or "admin")}</name>
+  </author>
+{"".join(entries)}
+</feed>"""
+
+    response = Response(xml, mimetype="application/atom+xml")
     return _add_cache_headers(response, etag, is_feed=False)

@@ -56,6 +56,7 @@ def _get_cached_settings():
             return {
                 "theme_preset": "github-dark",
                 "theme_vars": THEME_PRESETS["github-dark"],
+                "syntax_theme": "prism",
                 "custom_css_enabled": False,
                 "custom_css": "",
                 "logo_text": "",
@@ -66,25 +67,28 @@ def _get_cached_settings():
             settings.theme_preset, THEME_PRESETS["github-dark"]
         )
         return {
-            "theme_preset": settings.theme_preset,
-            "theme_vars": preset,
-            "custom_css_enabled": settings.custom_css_enabled,
-            "custom_css": settings.custom_css if settings.custom_css_enabled else "",
-            "logo_text": settings.logo_text,
-            "theme_presets": THEME_PRESETS,
-        }
+                "theme_preset": settings.theme_preset,
+                "theme_vars": preset,
+                "syntax_theme": settings.syntax_theme,
+                "custom_css_enabled": settings.custom_css_enabled,
+                "custom_css": settings.custom_css if settings.custom_css_enabled else "",
+                "logo_text": settings.logo_text,
+                "theme_presets": THEME_PRESETS,
+            }
     except OperationalError:
         logger.exception("Database error loading theme settings, using fallback")
         from app.models import THEME_PRESETS
 
         return {
-            "theme_preset": "github-dark",
-            "theme_vars": THEME_PRESETS["github-dark"],
-            "custom_css_enabled": False,
-            "custom_css": "",
-            "logo_text": "",
-            "theme_presets": THEME_PRESETS,
-        }
+                "theme_preset": "github-dark",
+                "theme_vars": THEME_PRESETS["github-dark"],
+                "syntax_theme": "prism",
+                "custom_css_enabled": False,
+                "custom_css": "",
+                "logo_text": "",
+                "theme_presets": THEME_PRESETS,
+            }
+
 
 
 @flask_cache.memoize(timeout=45)
