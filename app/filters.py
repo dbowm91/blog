@@ -10,7 +10,7 @@ from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TA
 def register_filters(app):
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text: str) -> str:
-        html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+        html = markdown.markdown(text, extensions=["fenced_code", "tables", "footnotes"])
         return nh3.clean(
             html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
         )

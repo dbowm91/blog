@@ -47,6 +47,16 @@
     <span class="breadcrumb-current">{{ post.title }}</span>
 </nav>
 
+{% if post.series_entries %}
+    {% set ps = post.series_entries[0] %}
+    {% if ps.series %}
+        <div class="series-badge">
+            Part {{ ps.order_index }} of 
+            <a href="{{ url_for('public.series_view', slug=ps.series.slug) }}">{{ ps.series.name }}</a>
+        </div>
+    {% endif %}
+{% endif %}
+
 <div class="reading-progress" id="reading-progress"></div>
 
 {% if post.updated_at and post.updated_at > post.created_at %}

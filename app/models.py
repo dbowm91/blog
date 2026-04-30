@@ -147,6 +147,9 @@ class Post(db.Model):
     revisions = db.relationship(
         "PostRevision", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
+    series_entries = db.relationship(
+        "PostSeries", back_populates="post", lazy="select", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         db.Index("ix_posts_published_created", "published", "created_at"),
@@ -451,5 +454,50 @@ class WebhookEvent(db.Model):
         db.Index("ix_webhook_events_event_type_delivered", "event_type", "delivered"),
     )
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"<WebhookEvent event={self.event_type!r} delivered={self.delivered}>"
+
+
+class Series(db.Model):
+    __tablename__ = "series"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    slug = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.String(500), default="")
+    image = db.Column(db.String(256))
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    posts = db.relationship("PostSeries", back_populates="series", order_by="PostSeries.order_index")
+
+    __table_args__ = (
+        db.Index("ix_series_slug", "slug"),
+    )
+
+    @staticmethod
+    def generate_slug(name: str) -> str:
+        return generate_slug(name)
+
+    def __repr__(self) -> str:
+        return f"<Series {self.name!r}>"
+
+
+class PostSeries(db.Model):
+    __tablename__ = "post_series"
+
+    id = db.Column(db.Integer, primary_key=True)
+    series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    order_index = db.Column(db.Integer, nullable=False)
+
+    series = db.relationship("Series", back_populates="posts")
+    post = db.relationship("Post")
+
+    __table_args__ = (
+        db.Index("ix_post_series_series_id", "series_id"),
+        db.Index("ix_post_series_post_id", "post_id"),
+        db.UniqueConstraint("series_id", "post_id", name="uq_series_post"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<PostSeries series_id={self.series_id} post_id={self.post_id} order={self.order_index}>"

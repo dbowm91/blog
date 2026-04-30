@@ -2,6 +2,8 @@
 
 {% block title %}{{ page.title | escape }} | {{ site_title }}{% endblock %}
 {% block meta_description %}{{ page.title | escape }}{% endblock %}
+{% block og_image %}<meta property="og:image" content="{{ base_url }}/static/img/default-post.svg">{% endblock %}
+{% block twitter_image %}<meta name="twitter:image" content="{{ base_url }}/static/img/default-post.svg">{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb" aria-label="Breadcrumb">

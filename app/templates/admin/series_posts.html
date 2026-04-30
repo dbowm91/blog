@@ -1,0 +1,93 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([
+    { 'label': 'Series', 'url': url_for('admin.series_list') },
+    { 'label': series.name, 'url': url_for('admin.series_edit', series_id=series.id) },
+    { 'label': 'Manage Posts' }
+]) }}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Manage Posts: {{ series.name }}</h1>
+        <a href="{{ url_for('admin.series_list') }}" class="btn btn-ghost">Back to Series</a>
+    </div>
+    
+    {% if series_posts %}
+    <h3>Posts in this Series</h3>
+    <div class="series-posts-list">
+        <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="reorder">
+            
+            {% for ps in series_posts %}
+            <div class="series-post-item" data-post-series-id="{{ ps.id }}">
+                <span class="drag-handle">⋮⋮</span>
+                <span class="post-order">{{ loop.index }}</span>
+                <a href="{{ url_for('admin.edit_post', post_id=ps.post.id) }}" class="post-title">{{ ps.post.title }}</a>
+                <input type="hidden" name="post_order[]" value="{{ ps.id }}">
+                <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="remove">
+                    <input type="hidden" name="post_series_id" value="{{ ps.id }}">
+                    <button type="submit" class="btn btn-small btn-danger" data-confirm="Remove this post from the series?">Remove</button>
+                </form>
+            </div>
+            {% endfor %}
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No posts in this series yet</h3>
+        <p>Add posts from the list below.</p>
+    </div>
+    {% endif %}
+    
+    {% if available_posts %}
+    <h3>Add Posts to Series</h3>
+    <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="add">
+        
+        <div class="form-group">
+            <select name="post_id" required>
+                <option value="">Select a post...</option>
+                {% for post in available_posts %}
+                <option value="{{ post.id }}">{{ post.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Add Post to Series</button>
+    </form>
+    {% else %}
+    <div class="empty-state">
+        <h3>All published posts are already in this series</h3>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.series-posts-list {
+    margin: 20px 0;
+}
+.series-post-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+}
+.drag-handle {
+    cursor: move;
+    color: var(--text-muted);
+}
+.post-order {
+    font-weight: bold;
+    min-width: 30px;
+}
+.post-title {
+    flex: 1;
+}
+</style>
+{% endblock %}

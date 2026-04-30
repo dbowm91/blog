@@ -22,7 +22,7 @@ from sqlalchemy.orm import joinedload, defer
 import logging
 
 from app.extensions import db
-from app.models import Post, Tag, Subscriber, ShareEvent
+from app.models import Post, Tag, Subscriber, ShareEvent, Series, PostSeries
 from app.config import (
     POSTS_PER_PAGE,
     BASE_URL,
@@ -393,6 +393,36 @@ def search() -> Response:
         tag_counts=tag_counts,
         search_snippets=snippets,
         did_you_mean=did_you_mean,
+    )
+
+
+@public.route("/series/<slug>")
+@limiter.limit("60 per minute")
+def series_view(slug) -> Response:
+    """View a series and all its posts in order."""
+    series = db.session.execute(
+        select(Series).filter_by(slug=slug)
+    ).scalar_one_or_none()
+    if not series:
+        abort(404)
+    
+    # Get posts in this series ordered by order_index
+    series_posts = (
+        db.session.execute(
+            select(PostSeries)
+            .filter_by(series_id=series.id)
+            .order_by(PostSeries.order_index)
+        )
+        .scalars()
+        .all()
+    )
+    
+    posts = [sp.post for sp in series_posts if sp.post and sp.post.published]
+    
+    return render_template(
+        "series.html",
+        series=series,
+        posts=posts,
     )
 
 
@@ -783,6 +813,12 @@ def _generate_sitemap():
     <loc>{xml_escape(BASE_URL)}/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>\n"""
+    # Archive page
+    yield f"""  <url>
+    <loc>{xml_escape(BASE_URL)}/archive</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>\n"""
     # Static pages
     for pg in (

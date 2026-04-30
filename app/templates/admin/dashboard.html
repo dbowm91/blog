@@ -7,6 +7,7 @@
     <div class="dashboard-header">
         <h1>Dashboard</h1>
         <div class="flex-row gap-sm">
+            <a href="{{ url_for('admin.newsletter_preview') }}" class="btn btn-ghost btn-small" title="Preview newsletter email">Preview Newsletter</a>
             <form method="POST" action="{{ url_for('admin.newsletter_test') }}" class="inline-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-ghost btn-small" title="Send latest 3 posts to admin email">Test Newsletter</button>
@@ -38,6 +39,13 @@
             <span class="stat-sub">+{{ new_this_month }} this month</span>
             {% endif %}
         </div>
+        {% if scheduled_posts_count and scheduled_posts_count > 0 %}
+        <div class="stat-card stat-card-accent-scheduled">
+            <span class="stat-value">{{ scheduled_posts_count }}</span>
+            <span class="stat-label">Scheduled & Ready</span>
+            <span class="stat-sub">Ready to publish</span>
+        </div>
+        {% endif %}
     </div>
 
     {% if trending or top_shares or daily_views %}

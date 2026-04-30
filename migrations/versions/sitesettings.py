@@ -17,26 +17,32 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table(
-        "site_settings",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("theme_preset", sa.String(length=32), nullable=False),
-        sa.Column("custom_css_enabled", sa.Boolean(), nullable=False),
-        sa.Column("custom_css", sa.Text(), nullable=True),
-        sa.Column("logo_text", sa.String(length=100), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    # Insert default site settings row using SQLAlchemy
-    from sqlalchemy import text
-    op.execute(
-        text(
-            """
-            INSERT INTO site_settings (id, theme_preset, custom_css_enabled, custom_css, logo_text)
-            VALUES (1, 'github-dark', 0, '', '')
-            """
+    # Check if table already exists (might exist from manual creation)
+    from sqlalchemy import inspect, text
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    tables = inspector.get_table_names()
+    
+    if "site_settings" not in tables:
+        op.create_table(
+            "site_settings",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("theme_preset", sa.String(length=32), nullable=False),
+            sa.Column("custom_css_enabled", sa.Boolean(), nullable=False),
+            sa.Column("custom_css", sa.Text(), nullable=True),
+            sa.Column("logo_text", sa.String(length=100), nullable=True),
+            sa.Column("updated_at", sa.DateTime(), nullable=True),
+            sa.PrimaryKeyConstraint("id"),
         )
-    )
+        # Insert default site settings row
+        op.execute(
+            text(
+                """
+                INSERT INTO site_settings (id, theme_preset, custom_css_enabled, custom_css, logo_text)
+                VALUES (1, 'github-dark', 0, '', '')
+                """
+            )
+        )
 
 
 def downgrade():

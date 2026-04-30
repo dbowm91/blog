@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([
+    { 'label': 'Series', 'url': url_for('admin.series_list') }
+]) }}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Series</h1>
+        <a href="{{ url_for('admin.series_new') }}" class="btn btn-primary">+ New Series</a>
+    </div>
+
+    {% if series_with_counts %}
+    <div class="series-list">
+        <div class="series-list-header">
+            <span>Name</span>
+            <span class="series-list-header-right">Posts</span>
+        </div>
+        {% for series, post_count in series_with_counts %}
+            <div class="series-list-item">
+                <div class="series-list-info">
+                    <h3><a href="{{ url_for('admin.series_edit', series_id=series.id) }}">{{ series.name }}</a></h3>
+                    <div class="series-list-meta">
+                        <span class="badge badge-info">{{ series.slug }}</span>
+                        {% if series.description %}
+                        <span class="series-description">{{ series.description|truncate(100) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="series-list-metrics">
+                    <span class="metric" title="Posts in series">
+                        {{ post_count }} post{{ 's' if post_count != 1 else '' }}
+                    </span>
+                </div>
+                <div class="series-list-actions">
+                    <a href="{{ url_for('admin.series_posts', series_id=series.id) }}" class="btn btn-small btn-ghost">Manage Posts</a>
+                    <a href="{{ url_for('admin.series_edit', series_id=series.id) }}" class="btn btn-small btn-ghost">Edit</a>
+                    <form method="POST" action="{{ url_for('admin.series_delete', series_id=series.id) }}" id="delete-series-form-{{ series.id }}" data-confirm="Are you sure you want to delete this series? This cannot be undone.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" form="delete-series-form-{{ series.id }}" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No series yet</h3>
+        <p>Create your first series to group related posts together.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

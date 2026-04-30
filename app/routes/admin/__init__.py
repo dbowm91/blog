@@ -132,6 +132,14 @@ from app.routes.admin.backup import (
     delete_backup,
 )
 from app.routes.admin.analytics import analytics
-from app.routes.admin.newsletter import newsletter_test
+from app.routes.admin.newsletter import newsletter_test, newsletter_preview
 from app.routes.admin.settings import settings, settings_theme
 from app.routes.admin.pages import pages_list, new_page, edit_page, delete_page
+from app.routes.admin.series import (
+    series_list,
+    series_new,
+    series_edit,
+    series_delete,
+    series_posts,
+    series_reorder,
+)

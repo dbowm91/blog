@@ -66,7 +66,8 @@ def _get_dashboard_metrics_cached():
     thirty_days_ago = utc_now() - timedelta(days=30)
     month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     sixty_days_ago = utc_now() - timedelta(days=60)
-
+    now = utc_now()
+    
     counts = db.session.execute(
         text("""
             SELECT
@@ -79,13 +80,22 @@ def _get_dashboard_metrics_cached():
         """),
         {"month_start": month_start, "sixty_days_ago": sixty_days_ago, "thirty_days_ago": thirty_days_ago}
     ).fetchone()
-
+    
     total_views = counts[0] or 0
     total_posts = counts[1] or 0
     total_shares = counts[2] or 0
     total_subscribers = counts[3] or 0
     new_this_month = counts[4] or 0
     views_last_period = counts[5] or 0
+    
+    # Get scheduled posts count (scheduled but not yet published)
+    scheduled_count = db.session.execute(
+        select(func.count(Post.id)).filter(
+            Post.scheduled_publish_at != None,
+            Post.scheduled_publish_at <= now,
+            Post.published == False
+        )
+    ).scalar() or 0
 
     trending = db.session.execute(
         select(Post, func.count(PageView.id).label("view_count"))
@@ -118,6 +128,7 @@ def _get_dashboard_metrics_cached():
         "daily_views": daily_views,
         "new_this_month": new_this_month,
         "views_trend": views_trend,
+        "scheduled_posts_count": scheduled_count,
     }
 
 
