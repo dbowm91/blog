@@ -209,7 +209,7 @@ Two concurrent subscribe requests with same email can both pass `scalar_one_or_n
 In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rollback, SQLAlchemy marks all attributes as expired. If you only re-set one field and commit, all other edits are silently lost. Always reapply all field changes after rollback.
 
 ### IntegrityError Rollback in pages.py
-The same rollback issue exists in `app/routes/admin/pages.py` (`new_page()`). The `edit_page()` function at lines 156-161 correctly re-fetches and re-applies fields after rollback, but `new_page()` at lines 78-91 only makes one retry attempt. Consider adding a retry loop similar to `posts.py` `_attempt_post_commit()` helper.
+The `new_page()` function in `app/routes/admin/pages.py` implements a retry loop with `max_attempts=100`. On `IntegrityError`, it rolls back, regenerates the slug, and retries the commit.
 
 ### CSRF Token Rotation on Privilege Change
 When promoting/demoting users or making an owner, the code sets `session["csrf_token"]` (singular) but the sliding window uses `session["csrf_tokens"]` (list). Must reset the list `session["csrf_tokens"]` = `[generate_csrf_token()]` not the singular token.
@@ -222,9 +222,6 @@ Old image files are deleted *after* `db.session.commit()` to prevent dangling fi
 
 ### Search highlight_query XSS Risk (FIXED)
 `app/search.py:highlight_query()` was fixed to use `html.escape()` before wrapping in `<mark>` tags.
-
-### Plan Verification Required
-When creating improvement plans, verify items against actual codebase before marking as verified. Some items may be intentional or low-risk. Always check if features are actually accessed in templates (e.g., N+1 queries only occur if tags are accessed).
 
 ### Rate Limiting Already Present
 The codebase already has `@limiter.limit` decorators on most API routes and `/admin/login`. Adding more requires checking existing limits first.
@@ -347,6 +344,13 @@ Use `document.body.classList.contains('admin-body')` to scope admin-only JS hand
 ### `yield_per()` Usage
 Calling `.all()` after `.yield_per()` defeats streaming by materializing all rows into a list. In `app/scheduler.py`, the subscriber query uses `.yield_per(500).scalars()` without `.all()` to stream results.
 
+### Related Posts Scoring
+`_get_related_posts()` in `app/routes/public.py` uses tag intersection scoring:
+- Subquery counts shared tags per post via `post_tags` table
+- Orders by `shared_count DESC, created_at DESC`
+- Uses `.unique()` after `.options(joinedload(Post.tags))` to avoid SQLAlchemy "unique() required" error
+- Configurable via `RELATED_POSTS_COUNT` in `config.toml` (default: 3, hard limit: 6)
+
 ### Docker-Compose Circular Dependency
 Avoid circular `depends_on` with `condition: service_healthy`. The blog service previously depended on nginx; nginx depended on blog being healthy → deadlock.
 
@@ -376,11 +380,6 @@ The shutdown handler in `run.py` sets a shutdown event and waits for in-flight r
 
 ### JSON Feed content_html Requirement
 The JSON Feed 1.1 spec requires either `content_html` or `content_text`. The `/json` endpoint must include `content_html`. See `app/routes/rss.py`.
-
-### Route-Based JS Code Splitting
-Admin pages load: utils, modal, shortcuts, bulk.
-Public pages load: utils, dark-mode, mobile-menu, lazy-load, share, lightbox, toc.
-The main.js loader uses dynamic imports based on `document.body.classList.contains('admin-body')`.
 
 ## Assets
 
@@ -498,11 +497,11 @@ Key indexes for query optimization:
 - E2E tests require Playwright: `pip install playwright && playwright install`
 
 ## Frontend Build System
-Uses **Vite** for modern JavaScript/CSS bundling:
+Uses **Vite** for modern JavaScript/CSS bundling (properly configured and installed):
 
 ```bash
-# Install dependencies (may need --registry flag if proxy issues)
-npm install
+# Install dependencies (if not already installed)
+npm install --registry https://registry.npmjs.org/
 
 # Development with HMR
 npm run dev
@@ -512,23 +511,22 @@ npm run build
 ```
 
 Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
-
-**Note:** If npm install fails with ERR_INVALID_URL, try:
-```bash
-npm config delete https-proxy && npm config delete http-proxy && npm config delete proxy
-npm install --registry https://registry.npmjs.org/
-```
+Dependencies are installed in `node_modules/` (gitignored).
 
 ## CSS Architecture
-Styles split into modular files (from `app/static/css/style.css`):
+Styles are split into modular files (processed by Vite for production):
 - `base.css` — CSS variables, reset, typography
 - `layout.css` — Grid layout, navbar, sidebar, footer
 - `forms.css` — Form elements, buttons, validation
 - `admin.css` — Admin-specific styles
 - `public.css` — Public-facing page styles
 - `utilities.css` — Helper classes
+- `prism.css`, `prism-coy.css`, `prism-dark.css`, `prism-funky.css`, `prism-okaidia.css`, `prism-tomorrow.css` — Syntax highlighting themes
 
 Import via `app/static/css/style.css` which aggregates all files.
+- Self-hosted fonts (Inter, JetBrains Mono) via `@font-face`
+- Responsive design with CSS grid and flexbox
+- Dark mode is default; light theme toggled via `data-theme` attribute
 
 ## OpenAPI/Swagger UI
 API documentation available at `/api/docs` via Flask-SwaggerUI:
@@ -547,7 +545,7 @@ Cache invalidation on post publish/unpublish/delete.
 ## Sitemap
 Dynamic sitemap.xml generation at `/sitemap.xml`:
 - Includes homepage, archive page, static pages, posts, and tags
-- Archive page added at `/archive` (Wave 8.2)
+- Archive page at `/archive`
 - Uses streaming XML generation to handle large sites
 - Respects `BASE_URL` from config
 
@@ -562,6 +560,8 @@ Dashboard widgets show scheduled posts count:
 - `scheduled_posts_count` added to dashboard metrics
 - View in admin dashboard at `/admin/`
 - Displays number of posts scheduled for future publication
+
+## Syntax Highlighting Themes
 Configurable syntax highlighting for code blocks:
 - `SiteSettings.syntax_theme` field stores selected theme
 - Admin: `/admin/settings` has theme selector with 6 Prism themes

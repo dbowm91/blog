@@ -1,6 +1,6 @@
 ---
 name: blog_cms
-description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming. Triggers: Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment."
+description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed. Triggers: Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler."
 metadata:
   requires: "python>=3.12, flask>=3.1"
   homepage: "https://github.com/sugarwookie/blog"
@@ -10,16 +10,17 @@ metadata:
 
 Flask-based blogging platform with:
 - SQLAlchemy + SQLite (WAL mode) with PostgreSQL migration path
-- FTS5 full-text search with LIKE fallback and snippet extraction
-- Admin dashboard with session management and multi-admin support
+- FTS5 full-text search with LIKE fallback, snippet extraction, and prefix matching
+- Admin dashboard with session management, multi-admin support, and related posts (tag intersection scoring)
 - Newsletter scheduling via APScheduler with file locking
-- Custom CSS theming with sanitization and syntax highlighting theme selector
-- REST API for post/subscriber management with input validation
+- Custom CSS theming with sanitization and 6 syntax highlighting theme options (Prism)
+- REST API for post/subscriber management with input validation and error handling
 - Post revisions, scheduled publishing, shareable preview links
 - Post series/collections feature
-- Async task processing via Celery (image variants, newsletter, webhooks)
-- RSS 2.0, Atom 1.0, and JSON Feed 1.1 support
-- OpenAPI/Swagger UI documentation
+- Async task processing via Celery (image variants, newsletter, webhooks, email)
+- RSS 2.0, Atom 1.0, and JSON Feed 1.1 support with caching
+- OpenAPI/Swagger UI documentation at `/api/docs`
+- Vite bundler for modern JavaScript/CSS
 
 ## Quick Reference
 
@@ -105,13 +106,15 @@ Authentication: `X-API-Key` header (env var `API_KEY`)
 - Markdown rendering with HTML sanitization via nh3
 - Table of contents from h2/h3 headings
 - Image lightbox with swipe/zoom/keyboard nav
-- Share tracking (Twitter, LinkedIn, Hacker News)
+- Share tracking (Twitter, LinkedIn, Hacker News, Reddit, Facebook)
 - Schema.org JSON-LD structured data
-- Twitter card meta tags
+- Twitter card and Open Graph meta tags
 - Canonical URLs
 - Draft autosave to localStorage
 - Scheduled publishing (scheduler checks every 5 minutes)
 - Post revisions tracked on each publish
+- Related posts via tag intersection scoring (`_get_related_posts()` in `public.py`)
+- Configurable `RELATED_POSTS_COUNT` in `config.toml` (default: 3, hard limit: 6)
 
 ## Security Features
 
@@ -270,185 +273,11 @@ Post.title.ilike(search_term, escape="\\")
 ### `assert` Under `python -O`
 `assert` is stripped with `-O`. Never use for runtime safety checks.
 
-## New Features
-
-### JSON Feed (`/json`)
-- JSON Feed 1.1 format implementation
-- Includes title, summary, url, tags, image, author
-- Conditional GET with ETag support
-- Cache-Control headers for feeds
-
-### RSS Feed Enhancements
-- Author element and category elements for post tags
-- Conditional GET with ETag for both `/rss` and `/json`
-- Cache headers: ETag, Cache-Control, Expires
-
-### Backup Integrity (`app/backup_integrity.py`)
-- `verify_backup_integrity()` - Single backup verification
-- `verify_backup_set()` - Directory verification with summary
-- `detect_backup_corruption()` - Heuristic corruption detection
-- Admin endpoints: `/admin/backup/verify/<filename>`, `/admin/backup/verify-all`
-
-### Off-site Backup Sync (`scripts/sync_backups.sh`)
-- Supports rclone and AWS S3
-- Options: --dry-run, --verify, --cleanup
-- Cron automation examples in DEPLOY.md
-
-### Granian ASGI Server
-- Recommended ASGI server (faster than Gunicorn)
-- `run.py` exports `asgi_app` via `WsgiToAsgi` wrapper
-- Dockerfile uses `granian --interface asgi`
-- `requirements.txt` includes `granian>=1.0.0`
-- `docker-compose.yml` includes separate `celery` and `redis` services for async task processing
-
-### Search Enhancements (`app/static/js/public/search.js`)
-- Live search suggestions via API
-- Debounced input with keyboard navigation (arrow keys, Enter, Escape)
-- CSS styled suggestions dropdown
-
-### Account Lockout Mechanism
-- `failed_login_count` and `locked_until` columns on `User` model
-- `User.is_locked()`, `record_failed_login()`, `reset_failed_login()` methods
-- Config: `MAX_FAILED_ATTEMPTS` (5) and `LOCKOUT_DURATION_MINUTES` (15)
-- Login checks lockout status before password verification
-
-### Sitemap (`/sitemap.xml`)
-Dynamic sitemap generation:
-- Includes homepage, archive page, static pages, posts, and tags
-- Archive page added at `/archive` (Wave 8.2)
-- Uses streaming XML generation to handle large sites
-- Respects `BASE_URL` from config
-
-### Open Graph / Social Meta
-Templates include Open Graph and Twitter Card meta tags:
-- `og:image` and `twitter:image` in `post.html`, `page.html`, `index.html`
-- Defaults to `/static/img/default-post.svg` when no image set
-- Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
-
-### Syntax Highlighting Theme
-Configurable syntax highlighting for code blocks:
-- `SiteSettings.syntax_theme` field stores selected theme
-- Admin: `/admin/settings` has theme selector with 6 Prism themes
-- Themes loaded dynamically based on `syntax_theme` setting
-- Default theme: `prism` (standard)
-
-### Newsletter Preview
-Newsletter email preview feature:
-- Admin: `/admin/newsletter/preview` route
-- Preview button added to newsletter page
-- Shows exactly what subscribers receive
-- Uses existing newsletter template rendering
-
-### Scheduled Post Notifications
-Dashboard widgets show scheduled posts count:
-- `scheduled_posts_count` added to dashboard metrics
-- View in admin dashboard at `/admin/`
-- Displays number of posts scheduled for future publication
-
-### Responsive Images
-- Variants generated at 400w, 800w, 1200w widths on upload via `_generate_responsive_variants()` in `app/routes/admin/helpers/images.py`
-- `post_image_srcset` Jinja filter provides srcset string from variants
-- Templates use `srcset` with `sizes` attribute for responsive behavior
-
-### Template Filters (`app/filters.py`)
-- `markdown_safe` - renders markdown with nh3 sanitization
-- `reading_time` - calculates reading time from word count
-- `sanitize_css` - strips dangerous CSS properties
-- `post_image_url` - returns validated image URL with request-level caching
-- `post_image_srcset` - returns srcset string for responsive images
-
-### Transaction Helpers (`app/transaction.py`)
-- `@transactional` decorator handles IntegrityError/OperationalError with rollback
-- `commit_with_slug_retry()` helper retries slug regeneration on collision
-
-### JS Module Initialization
-All JavaScript modules export a default initialization function:
-```javascript
-export default initXxx;  // e.g., export default initDarkMode;
-```
-`main.js` calls `module.default()` to invoke the exported function.
-
-### Admin Enhancements
-- Pages link in admin navigation dropdown
-- Restore button uses distinct `btn-warning` (amber) styling
-- Escape key closes modals
-- Media cache invalidation on post create/edit
-
-### Editor Preview Latency (`app/static/js/admin/editor.js`)
-- Client-side markdown rendering via `app/static/js/lib/marked.min.js`
-- Instant preview feedback as user types (no debounce needed)
-- Server-side `/admin/preview-markdown` still called for nh3 sanitization
-- Abortable fetch requests prevent race conditions
-
-### CI/CD Workflow (`.github/workflows/test.yml`)
-- GitHub Actions workflow runs on push and pull request
-- Python 3.12 with pip caching
-- Full test suite: `pytest tests/ --ignore=tests/e2e`
-
-### FTS5 Atomic Sync (`app/search.py`)
-- `sync_fts()` uses `INSERT OR REPLACE` for atomic upsert (no separate DELETE+INSERT)
-- `sync_fts_batch()` separates published/unpublished items for correct batch handling
-- `reset_fts_available()` properly resets FTS cache for testing/cache invalidation
-- FTS5 table created with `prefix='2 3 4'` for prefix matching (e.g., "Py" matches "Python")
-- `search()` automatically appends `*` to terms for prefix search
-
-### Celery Integration (`app/celery_app.py`, `app/tasks.py`)
-- Redis as message broker (configure via `REDIS_URL` env var)
-- Tasks: `generate_image_variants`, `send_newsletter_task`, `send_confirmation_task`, `send_password_reset_task`, `deliver_webhook`
-- Celery Beat for periodic tasks (daily backup at 2:00 AM)
-
-### Redis Infrastructure
-- **Redis Cache**: Production uses Redis backend (`CACHE_TYPE: RedisCache`) configured in `app/__init__.py`
-- **Redis Rate Limiting**: Production uses Redis for rate limit storage (`RATE_LIMIT_STORAGE_URI` in `app/config.py`)
-- **DB Connection Pool**: Production uses pooled connections (`SQLALCHEMY_ENGINE_OPTIONS` in `app/__init__.py`)
-- Configuration: Set `FLASK_ENV=production` to enable Redis backends
-
-### Admin Audit Logging (`AdminAuditLog` model in `app/models.py`)
-- Fields: actor_id, action, target_id, target_type, details, ip_address, timestamp
-- Tracks admin actions for security and compliance
-
-### Webhook System (`app/webhooks.py`)
-- `Webhook` and `WebhookEvent` models
-- HMAC-SHA256 signing for webhook payloads
-- Automatic delivery with retry logic
-- Events: post.published, post.unpublished, subscriber.created, subscriber.deleted
-
-### Automated Backup System
-- `run_daily_backup()` in scheduler.py runs at 2:00 AM daily
-- Retention: keeps last 7 backups
-- Supports compression and GPG encryption
-
-### Cross-Platform Locking (filelock)
-- `app/scheduler.py` uses `filelock.FileLock` for cross-platform file locking
-- `FileLockTimeout` exception handling
-
-### S3 Client Thread-Safety
-- `app/storage.py` uses double-checked locking with `threading.Lock()`
-- Thread-safe S3 client initialization
-- `S3StorageBackend._lock` protects client creation
-
-### Error Logging Utilities (`app/utils.py`)
-- `ErrorLogContext` - context manager for event categorization
-- `log_storage_error()`, `log_security_event()`, `log_scheduler_error()`
-- `handle_error()` - unified error handler
-- `unified_error_handler()` - decorator for route error handling
-
-### Cache Helpers
-- `_build_tag_counts_query()` in `app/tag_cache.py` - encapsulates tag count query pattern
-- `_invalidate_all_caches()` in `app/routes/admin/__init__.py` - invalidates tag, FTS, analytics, dashboard, and footer caches
-
-## Security Headers
-
-`set_security_headers` in `app/__init__.py` applies:
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `X-Download-Options: noopen`
-- `X-Permitted-Cross-Domain-Policies: none`
-- `Cross-Origin-Opener-Policy: same-origin`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-- `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy` (self-only, nonces for scripts/styles, `frame-src 'none'`)
+### Verified Completion
+All plan items (plans/plan.md) have been verified as complete:
+- 514 tests passing
+- All 37 actionable items implemented and tested
+- Features verified: syntax highlighting themes, Atom feed, related posts scoring, reading time in dashboard, rate limiting on all routes, proper API error handling
 
 ## Security Posture
 
