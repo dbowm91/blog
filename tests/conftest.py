@@ -162,6 +162,37 @@ class FakeSubscriber:
     unsubscribed_at: datetime | None = None
 
 
+@pytest.fixture(autouse=True)
+def mock_image_processing():
+    """Mock image processing to avoid Celery calls during tests.
+    
+    Saves the file but doesn't call Celery for variant generation.
+    """
+    import app.storage
+    from unittest.mock import patch, MagicMock
+    import os
+    
+    original = app.storage.upload_with_processing
+    
+    def mock_upload(filename, file_content, generate_variants=True):
+        # Save the file to the upload folder
+        upload_folder = os.environ.get(
+            "UPLOAD_FOLDER",
+            os.path.join(os.path.dirname(app.storage.__file__), "static", "uploads"),
+        )
+        os.makedirs(upload_folder, exist_ok=True)
+        filepath = os.path.join(upload_folder, filename)
+        with open(filepath, "wb") as f:
+            f.write(file_content)
+        return filename, None
+    
+    app.storage.upload_with_processing = mock_upload
+    
+    yield
+    
+    app.storage.upload_with_processing = original
+
+
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_uploads():
     """Clean up uploads directory after all tests in session."""

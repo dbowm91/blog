@@ -17,13 +17,22 @@ from __future__ import annotations
 
 import os
 import logging
-import tempfile
-import shutil
 import threading
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from botocore.exceptions import ClientError, BotoCoreError
+# Optional botocore imports - only needed for S3 storage backend
+try:
+    from botocore.exceptions import ClientError as _ClientError
+    from botocore.exceptions import BotoCoreError as _BotoCoreError
+    ClientError = _ClientError
+    BotoCoreError = _BotoCoreError
+except ImportError:
+    # For type checking purposes when botocore is not installed
+    class ClientError(Exception):
+        pass
+    class BotoCoreError(Exception):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -118,14 +127,7 @@ class LocalStorageBackend(StorageBackend):
 
 
 class S3StorageBackend(StorageBackend):
-    """S3-compatible storage backend using boto3.
-
-    Note: Image processing (responsive variants) requires local file access,
-    so uploads should go through a temp file workflow:
-    1. Save uploaded file to temp location
-    2. Process variants locally
-    3. Upload final files to S3
-    """
+    """S3-compatible storage backend using boto3."""
 
     def __init__(
         self,
@@ -271,103 +273,47 @@ def storage_delete_file(filename: str) -> bool:
 
 
 def upload_with_processing(filename: str, file_content: bytes, generate_variants: bool = True) -> tuple[str, None] | tuple[None, str]:
-    """Save an image file with local processing (responsive variants).
+    """Save an image file and optionally queue async variant generation.
 
     For local storage: saves directly to upload folder.
-    For S3 storage: saves to temp, processes locally, uploads to S3, cleans up temp.
+    For S3 storage: saves to temp, uploads to S3.
+    Variant generation is queued as a Celery task if generate_variants is True.
 
     Args:
         filename: The filename to store as
         file_content: The raw file bytes
-        generate_variants: Whether to generate responsive variants
+        generate_variants: Whether to queue async responsive variant generation
 
     Returns:
         (filename, None) on success, (None, error_message) on failure
     """
     storage = get_storage()
-    upload_folder = os.environ.get(
-        "UPLOAD_FOLDER",
-        os.path.join(os.path.dirname(__file__), "static", "uploads"),
-    )
 
     if isinstance(storage, LocalStorageBackend):
+        upload_folder = os.environ.get(
+            "UPLOAD_FOLDER",
+            os.path.join(os.path.dirname(__file__), "static", "uploads"),
+        )
         filepath = os.path.join(upload_folder, filename)
         with open(filepath, "wb") as f:
             f.write(file_content)
-        if generate_variants:
-            _generate_responsive_variants_local(filepath)
-        return filename, None
 
     elif isinstance(storage, S3StorageBackend):
-        import boto3
-        from PIL import Image
+        storage.save(filename, file_content)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp_path = os.path.join(tmpdir, filename)
-            with open(tmp_path, "wb") as f:
-                f.write(file_content)
+    else:
+        return None, "Unknown storage backend"
 
-            if generate_variants:
-                _generate_responsive_variants_local(tmp_path)
+    if generate_variants:
+        from app.tasks import generate_image_variants
+        generate_image_variants.delay(filename)
 
-            s3_client = storage.client
-
-            def upload_file(local_path, s3_key):
-                with open(local_path, "rb") as f:
-                    s3_client.put_object(Bucket=storage.bucket, Key=s3_key, Body=f.read())
-
-            upload_file(tmp_path, filename)
-
-            if generate_variants:
-                basename = os.path.splitext(filename)[0]
-                ext = os.path.splitext(filename)[1].lstrip(".")
-                for width in (400, 800, 1200):
-                    webp_variant_name = f"{width}_{basename}.webp"
-                    webp_variant_path = os.path.join(tmpdir, webp_variant_name)
-                    if os.path.exists(webp_variant_path):
-                        upload_file(webp_variant_path, webp_variant_name)
-                    if ext != "webp":
-                        variant_name = f"{width}_{basename}.{ext}"
-                        variant_path = os.path.join(tmpdir, variant_name)
-                        if os.path.exists(variant_path):
-                            upload_file(variant_path, variant_name)
-
-        return filename, None
-
-    return None, "Unknown storage backend"
+    return filename, None
 
 
 def _generate_responsive_variants_local(filepath: str):
-    """Generate responsive variants from a local image file."""
-    from PIL import Image
-
-    ext = os.path.splitext(filepath)[1].lower().lstrip(".")
-    basename = os.path.splitext(os.path.basename(filepath))[0]
-    dirpath = os.path.dirname(filepath)
-
-    for width in (400, 800, 1200):
-        try:
-            with Image.open(filepath) as img:
-                if img.width > width:
-                    ratio = width / img.width
-                    new_height = int(img.height * ratio)
-                    resized = img.resize((width, new_height), Image.LANCZOS)
-                else:
-                    resized = img.copy()
-
-                webp_filename = f"{width}_{basename}.webp"
-                webp_path = os.path.join(dirpath, webp_filename)
-                resized.save(webp_path, format="WEBP", optimize=True)
-
-                if ext != "webp":
-                    variant_filename = f"{width}_{basename}.{ext}"
-                    variant_path = os.path.join(dirpath, variant_filename)
-                    resized.save(variant_path, optimize=True)
-        except (ClientError, BotoCoreError) as e:
-            logger.error("S3 operation failed: %s", e)
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except OSError as e:
-            logger.error("Image processing I/O error: %s", e)
-        except Exception as e:
-            logger.error("Image processing failed: %s", e)
+    """Deprecated: Variant generation is now handled by Celery task generate_image_variants."""
+    from app.tasks import generate_image_variants
+    import os
+    filename = os.path.basename(filepath)
+    generate_image_variants.delay(filename)
