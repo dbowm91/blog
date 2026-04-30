@@ -43,12 +43,13 @@ These fixes address data integrity and security issues. Execute in sequence due 
 
 ## Wave 2: Security Hardening (COMPLETED - 2026-04-30)
 
-### 2.1 Login Failure Delay Standardization (COMPLETED)
+### 2.1 Login Failure Delay Standardization (COMPLETED - Fixed 2026-04-30)
 - **Priority:** HIGH
-- **File:** `app/routes/admin/auth.py:70`
-- **Status:** FIXED - Added `LOGIN_FAILURE_DELAY` config in `app/config.py`
-- **Commit:** Wave 2.1-2.2 fixed in master branch
+- **File:** `app/routes/admin/auth.py:70`, `app/config.py`
+- **Status:** FIXED - Added `LOGIN_FAILURE_DELAY` config in `app/config.py`, removed duplicate definition
+- **Commit:** `38f1dc9` in dev branch
 - **Verification:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/test_security.py -v -k login` - PASSED
+- **Fix Note:** Removed duplicate `LOGIN_FAILURE_DELAY` definition (line 119 was redundant, kept line 122 with env var support). Added `LOGIN_FAILURE_DELAY` to `__all__` exports.
 
 ### 2.2 SESSION_COOKIE_SECURE Runtime Enforcement (COMPLETED)
 - **Priority:** HIGH
@@ -117,12 +118,13 @@ These fixes address data integrity and security issues. Execute in sequence due 
 - **Commit:** `wave-4-performance` merged to dev
 - **Verification:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v -k share` - PASSED
 
-### 4.6 Public Route Rate Limiting (COMPLETED)
+### 4.6 Public Route Rate Limiting (COMPLETED - Fixed 2026-04-30)
 - **Priority:** HIGH
 - **File:** `app/routes/public.py`
 - **Status:** FIXED - Added rate limiting to all public routes
-- **Commit:** `wave-4-performance` merged to dev
+- **Commit:** `wave-4-performance` merged to dev, `38f1dc9` added missing routes
 - **Verification:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v -k "rate or limit"` - PASSED
+- **Fix Note:** Added missing rate limits to `/` (60/min), `/s/<code>` (60/min), and `/preview/<int:post_id>` (30/min) routes.
 
 ---
 
@@ -135,12 +137,13 @@ These fixes address data integrity and security issues. Execute in sequence due 
 - **Commit:** `wave-5-api` merged to dev
 - **Verification:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v -k api` - PASSED
 
-### 5.2 API IntegrityError Handling (COMPLETED)
+### 5.2 API IntegrityError Handling (COMPLETED - Fixed 2026-04-30)
 - **Priority:** HIGH
 - **File:** `app/routes/api.py`
-- **Status:** FIXED - Added try/except around commit with collision handling
-- **Commit:** `wave-5-api` merged to dev
+- **Status:** FIXED - Added try/except around commit with collision handling for all write endpoints
+- **Commit:** `wave-5-api` merged to dev, `38f1dc9` fixed remaining endpoints
 - **Verification:** `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v -k api` - PASSED
+- **Fix Note:** Added IntegrityError/OperationalError handling to `create_post()`, `update_post()`, and `delete_post()` endpoints. Previously only `create_subscriber()` had proper error handling.
 
 ---
 
@@ -224,11 +227,12 @@ def get_client_ip():
 
 ## Wave 7: Frontend Improvements (COMPLETED - 2026-04-30)
 
-### 7.1 Add Vite Bundler (COMPLETED)
+### 7.1 Add Vite Bundler (PARTIALLY COMPLETE - Fixed 2026-04-30)
 - **Priority:** HIGH
-- **Status:** FIXED - Added Vite bundler with `package.json` and `vite.config.js`
+- **Status:** Configuration files exist (`package.json`, `vite.config.js`), but npm install fails due to environment proxy issues
 - **Commit:** `wave-7-frontend` merged to dev
-- **Verification:** Load admin page, check network tab for reduced requests - PASSED
+- **Verification:** Config files present, but `npm install` needs to be run manually
+- **Note:** Vite dependencies need to be installed manually: `cd /home/sugarwookie/projects/blog && npm install --registry https://registry.npmjs.org/`
 
 ### 7.2 CSS Architecture Split (COMPLETED)
 - **Priority:** HIGH
@@ -456,21 +460,21 @@ For parallel execution with sub-agents:
 
 ## Completion Summary
 
-**All waves completed on:** 2026-04-30
-**Total items completed:** 37 actionable items
+**Waves 1-8 mostly completed on:** 2026-04-30
+**Fixes applied on:** 2026-04-30
+**Total items:** 37 actionable items
 **Branch:** dev (ready to merge to master)
 
 | Wave | Items | Priority | Status |
 |------|-------|----------|--------|
 | Wave 1: Critical Bug Fixes | 4 | CRITICAL | ✅ COMPLETED |
-| Wave 2: Security Hardening | 2 | HIGH | ✅ COMPLETED |
+| Wave 2: Security Hardening | 2 | HIGH | ✅ COMPLETED (fixed duplicate config) |
 | Wave 3: Async Infrastructure | 3 | HIGH | ✅ COMPLETED |
-| Wave 4: Performance Optimizations | 6 | MEDIUM-LOW | ✅ COMPLETED |
-| Wave 5: API Improvements | 2 | HIGH | ✅ COMPLETED |
+| Wave 4: Performance Optimizations | 6 | MEDIUM-LOW | ✅ COMPLETED (fixed missing rate limits) |
+| Wave 5: API Improvements | 2 | HIGH | ✅ COMPLETED (fixed missing error handling) |
 | Wave 6: Infrastructure | 4 | MEDIUM | ✅ COMPLETED |
-| Wave 7: Frontend Improvements | 5 | HIGH | ✅ COMPLETED |
+| Wave 7: Frontend Improvements | 5 | HIGH | ⚠️ PARTIAL (Vite deps not installed) |
 | Wave 8: Feature Enhancements | 11 | MEDIUM-LOW | ✅ COMPLETED |
-| **TOTAL** | **37 actionable** | - | **ALL COMPLETE** |
 
 ### Key Achievements:
 - Async task processing via Celery (email, image variants)
@@ -480,7 +484,10 @@ For parallel execution with sub-agents:
 - Post series/collections feature
 - Syntax highlighting theme selector
 - OpenAPI/Swagger UI documentation
-- Frontend improvements (Vite bundler, CSS split, debouncing)
+- Frontend improvements (CSS split, debouncing)
 - All 514 tests passing
+
+### Remaining Action:
+- Run `npm install --registry https://registry.npmjs.org/` in `/home/sugarwookie/projects/blog` to complete Vite setup
 
 (End of file - 682 lines)
