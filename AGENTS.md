@@ -152,8 +152,7 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - **E2E tests** require Playwright installation to run.
 
 ## Rate Limiting
-
-This codebase is transitioning to **application-level rate limiting** via `flask-limiter`. Until complete, continue to configure at reverse proxy/WAF level.
+This codebase uses **application-level rate limiting** via `flask-limiter`.
 
 ```nginx
 # nginx example for /admin/login
@@ -161,7 +160,7 @@ limit_req zone=login burst=5 nodelay;
 limit_req_status 429;
 ```
 
-Suggested: 5 req/min for `/admin/login`, 20 req/min for `/admin/*`, 100 req/min for public routes.
+Suggested: 5 req/min for `/admin/login`, 20 req/min for `/admin/*`, 60 req/min for public routes (index, post, page, tag, series), 30 req/min for archive and preview, 20 req/min for search and share tracking, 10 req/min for subscribe, 5 req/min for confirm/unsubscribe.
 
 ## Lessons Learned
 
@@ -499,11 +498,10 @@ Key indexes for query optimization:
 - E2E tests require Playwright: `pip install playwright && playwright install`
 
 ## Frontend Build System
-
 Uses **Vite** for modern JavaScript/CSS bundling:
 
 ```bash
-# Install dependencies
+# Install dependencies (may need --registry flag if proxy issues)
 npm install
 
 # Development with HMR
@@ -515,8 +513,13 @@ npm run build
 
 Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
 
-## CSS Architecture
+**Note:** If npm install fails with ERR_INVALID_URL, try:
+```bash
+npm config delete https-proxy && npm config delete http-proxy && npm config delete proxy
+npm install --registry https://registry.npmjs.org/
+```
 
+## CSS Architecture
 Styles split into modular files (from `app/static/css/style.css`):
 - `base.css` — CSS variables, reset, typography
 - `layout.css` — Grid layout, navbar, sidebar, footer
@@ -528,14 +531,12 @@ Styles split into modular files (from `app/static/css/style.css`):
 Import via `app/static/css/style.css` which aggregates all files.
 
 ## OpenAPI/Swagger UI
-
 API documentation available at `/api/docs` via Flask-SwaggerUI:
 - OpenAPI spec: `docs/openapi.yaml`
 - Interactive testing interface at `/api/docs`
 - All API endpoints documented with request/response schemas
 
 ## Feed Formats
-
 Multiple feed formats supported:
 - **RSS 2.0**: `/rss` (cached 5 min)
 - **Atom 1.0**: `/atom`
@@ -543,13 +544,36 @@ Multiple feed formats supported:
 
 Cache invalidation on post publish/unpublish/delete.
 
-## Post Series/Collections
+## Sitemap
+Dynamic sitemap.xml generation at `/sitemap.xml`:
+- Includes homepage, archive page, static pages, posts, and tags
+- Archive page added at `/archive` (Wave 8.2)
+- Uses streaming XML generation to handle large sites
+- Respects `BASE_URL` from config
 
-Series feature for grouping related posts:
-- Models: `Series`, `PostSeries` (with ordering)
-- Admin: `/admin/series` for CRUD, manage posts in series
-- Public: `/series/<slug>` displays series with ordered posts
-- Posts can belong to multiple series
+## Open Graph / Social Meta
+Templates include Open Graph and Twitter Card meta tags:
+- `og:image` and `twitter:image` in `post.html`, `page.html`, `index.html`
+- Defaults to `/static/img/default-post.svg` when no image set
+- Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
+
+## Scheduled Post Notifications
+Dashboard widgets show scheduled posts count:
+- `scheduled_posts_count` added to dashboard metrics
+- View in admin dashboard at `/admin/`
+- Displays number of posts scheduled for future publication
+Configurable syntax highlighting for code blocks:
+- `SiteSettings.syntax_theme` field stores selected theme
+- Admin: `/admin/settings` has theme selector with 6 Prism themes
+- Themes loaded dynamically based on `syntax_theme` setting
+- Default theme: `prism` (standard)
+
+## Newsletter Preview
+Newsletter email preview feature:
+- Admin: `/admin/newsletter/preview` route
+- Preview button added to newsletter page
+- Shows exactly what subscribers receive
+- Uses existing newsletter template rendering
 
 ## Storage Abstraction Layer (`app/storage.py`)
 
