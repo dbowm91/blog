@@ -23,8 +23,7 @@ from flask_caching import Cache
 from flask_login import current_user, logout_user
 
 def get_client_ip():
-    from flask import request
-    return request.headers.get('X-Forwarded-For', request.remote_addr) or request.remote_addr
+    return req.headers.get('X-Forwarded-For', req.remote_addr) or req.remote_addr
 
 
 limiter = Limiter(
@@ -173,16 +172,34 @@ def create_app():
 
     db.init_app(app)
 
+    if not app.debug and not app.testing:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 10,
+            "max_overflow": 20,
+            "pool_recycle": 3600,
+            "pool_pre_ping": True,
+            "pool_timeout": 30,
+        }
+
     from app.config import RATE_LIMIT_STORAGE_URI
 
     app.config["RATELIMIT_STORAGE_URL"] = RATE_LIMIT_STORAGE_URI
     app.config["RATELIMIT_HEADERS_ENABLED"] = False
 
     limiter.init_app(app)
-    cache.init_app(app, config={
-        "CACHE_TYPE": "SimpleCache",
-        "CACHE_DEFAULT_TIMEOUT": 300,
-    })
+    if os.environ.get("FLASK_ENV") == "production":
+        cache_config = {
+            "CACHE_TYPE": "RedisCache",
+            "CACHE_REDIS_URL": os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/0"),
+            "CACHE_DEFAULT_TIMEOUT": 300,
+            "CACHE_KEY_PREFIX": "blog_",
+        }
+    else:
+        cache_config = {
+            "CACHE_TYPE": "SimpleCache",
+            "CACHE_DEFAULT_TIMEOUT": 300,
+        }
+    cache.init_app(app, config=cache_config)
 
     if os.environ.get("TESTING") or app.config.get("TESTING"):
         limiter.enabled = False
