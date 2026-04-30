@@ -1,5 +1,6 @@
 """Celery tasks for heavy operations."""
 
+from celery import shared_task
 from typing import Optional, List, TYPE_CHECKING
 from celery import shared_task
 
@@ -15,32 +16,109 @@ __all__ = [
 ]
 
 
-def generate_image_variants(image_path: str, post_id: int) -> bool:
-    """Generate responsive image variants for a post image."""
+@shared_task(bind=True, max_retries=3)
+def generate_image_variants(self, filename: str) -> bool:
+    """Generate responsive image variants for an image file.
+
+    Generates 400w, 800w, 1200w variants in WebP and original format.
+    Matches the naming convention used by _generate_responsive_variants_local.
+    """
+    from PIL import Image
+    import os
     from app.storage import get_storage
+
     storage = get_storage()
-    variants = [400, 800, 1200]
     try:
         if storage.__class__.__name__ == "LocalStorageBackend":
-            from PIL import Image
-            import os
-            upload_folder = "app/static/uploads"
-            full_path = os.path.join(upload_folder, image_path)
-            if not os.path.exists(full_path):
+            upload_folder = os.environ.get(
+                "UPLOAD_FOLDER",
+                os.path.join(os.path.dirname(__file__), "static", "uploads"),
+            )
+            filepath = os.path.join(upload_folder, filename)
+            if not os.path.exists(filepath):
                 return False
-            img = Image.open(full_path)
-            for width in variants:
-                height = int(img.height * (width / img.width))
-                resized = img.resize((width, height), Image.Resampling.LANCZOS)
-                name, ext = os.path.splitext(image_path)
-                variant_path = os.path.join(upload_folder, f"{name}_{width}w{ext}")
-                resized.save(variant_path, quality=85, optimize=True)
+
+            ext = os.path.splitext(filepath)[1].lower().lstrip(".")
+            basename = os.path.splitext(os.path.basename(filepath))[0]
+
+            with Image.open(filepath) as img:
+                for width in (400, 800, 1200):
+                    if img.width > width:
+                        ratio = width / img.width
+                        new_height = int(img.height * ratio)
+                        resized = img.resize((width, new_height), Image.Resampling.LANCZOS)
+                    else:
+                        resized = img.copy()
+
+                    webp_filename = f"{width}_{basename}.webp"
+                    webp_path = os.path.join(upload_folder, webp_filename)
+                    resized.save(webp_path, format="WEBP", optimize=True)
+
+                    if ext != "webp":
+                        variant_filename = f"{width}_{basename}.{ext}"
+                        variant_path = os.path.join(upload_folder, variant_filename)
+                        resized.save(variant_path, optimize=True)
+        elif storage.__class__.__name__ == "S3StorageBackend":
+            # For S3, download the file first, process locally, then re-upload
+            import tempfile
+            from botocore.exceptions import ClientError, BotoCoreError
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = os.path.join(tmpdir, filename)
+                file_data = storage.load(filename)
+                if not file_data:
+                    return False
+                with open(tmp_path, "wb") as f:
+                    f.write(file_data)
+
+                ext = os.path.splitext(tmp_path)[1].lower().lstrip(".")
+                basename = os.path.splitext(os.path.basename(tmp_path))[0]
+
+                with Image.open(tmp_path) as img:
+                    for width in (400, 800, 1200):
+                        if img.width > width:
+                            ratio = width / img.width
+                            new_height = int(img.height * ratio)
+                            resized = img.resize((width, new_height), Image.Resampling.LANCZOS)
+                        else:
+                            resized = img.copy()
+
+                        webp_filename = f"{width}_{basename}.webp"
+                        webp_path = os.path.join(tmpdir, webp_filename)
+                        resized.save(webp_path, format="WEBP", optimize=True)
+
+                        if ext != "webp":
+                            variant_filename = f"{width}_{basename}.{ext}"
+                            variant_path = os.path.join(tmpdir, variant_filename)
+                            resized.save(variant_path, optimize=True)
+
+                # Upload all generated variants
+                storage.save(filename, file_data)
+                for width in (400, 800, 1200):
+                    webp_variant_name = f"{width}_{basename}.webp"
+                    webp_variant_path = os.path.join(tmpdir, webp_variant_name)
+                    if os.path.exists(webp_variant_path):
+                        with open(webp_variant_path, "rb") as f:
+                            storage.save(webp_variant_name, f.read())
+
+                    if ext != "webp":
+                        variant_name = f"{width}_{basename}.{ext}"
+                        variant_path = os.path.join(tmpdir, variant_name)
+                        if os.path.exists(variant_path):
+                            with open(variant_path, "rb") as f:
+                                storage.save(variant_name, f.read())
+
         return True
-    except Exception:
+    except (ClientError, BotoCoreError) as e:
+        logger.error("S3 operation failed: %s", e)
+        return False
+    except Exception as e:
+        logger.error("Image variant generation failed: %s", e)
         return False
 
 
-def send_newsletter_task(post_ids: List[int]) -> bool:
+@shared_task(bind=True, max_retries=3, time_limit=600, soft_time_limit=540)
+def send_newsletter_task(self, post_ids: List[int]) -> bool:
     """Send newsletter for specified posts (async)."""
     from app.email import send_newsletter
     from app.extensions import db
@@ -86,7 +164,8 @@ def send_newsletter_task(post_ids: List[int]) -> bool:
     return success
 
 
-def deliver_webhook_task(webhook_event_id: int) -> bool:
+@shared_task(bind=True, max_retries=3)
+def deliver_webhook_task(self, webhook_event_id: int) -> bool:
     """Deliver a webhook event to registered endpoints."""
     import requests
     from app.extensions import db
