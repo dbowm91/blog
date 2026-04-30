@@ -164,6 +164,11 @@ def create_app():
                 "CSRF protection is disabled in production mode. "
                 "This is a security risk. Set CSRF_ENABLED=True in production."
             )
+        if not app.config.get("SESSION_COOKIE_SECURE", True):
+            raise RuntimeError(
+                "SESSION_COOKIE_SECURE must be True in production. "
+                "This is a security requirement."
+            )
 
     db.init_app(app)
 

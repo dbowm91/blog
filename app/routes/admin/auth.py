@@ -15,7 +15,7 @@ from app.routes.admin.helpers import logger
 from app.csrf import validate_csrf_token
 from app.email import send_password_reset
 from app.routes.admin.helpers import _check_password_complexity
-from app.config import MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES
+from app.config import MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES, LOGIN_FAILURE_DELAY
 from app import limiter
 
 
@@ -67,7 +67,7 @@ def login() -> Response:
             user.record_failed_login(MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES)
             db.session.commit()
         flash("Invalid credentials.", "error")
-        time.sleep(0.05)
+        time.sleep(LOGIN_FAILURE_DELAY)
 
     from flask import render_template
 
