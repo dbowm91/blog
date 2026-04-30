@@ -158,6 +158,7 @@ Configure at reverse proxy/WAF/CDN level for production deployments.
 
 ### Query Optimization
 - Bulk eager loading with `joinedload(Post.tags)` in bulk operations
+- When using `joinedload()` with `scalar_one_or_none()`, must call `.unique()` first to avoid SQLAlchemy error "The unique() method must be invoked on this Result"
 - Batch tag queries (single `IN` query instead of per-tag)
 - `yield_per(100)` for newsletter post streaming
 - LEFT JOIN for combined queries
@@ -296,7 +297,7 @@ Post.title.ilike(search_term, escape="\\")
 - Login checks lockout status before password verification
 
 ### APScheduler Persistence
-- Uses `fcntl` file locking for newsletter job (Unix-only, single-machine)
+- Uses `filelock` for cross-platform file locking (replaces fcntl which was Unix-only)
 - For multi-machine deployments, use distributed lock (Redis, etcd) instead
 
 ### Responsive Images
@@ -367,8 +368,7 @@ export default initXxx;  // e.g., export default initDarkMode;
 - Supports compression and GPG encryption
 
 ### Cross-Platform Locking (filelock)
-- `app/scheduler.py` uses `filelock.FileLock` instead of `fcntl` (Unix-only)
-- Cross-platform compatible file locking
+- `app/scheduler.py` uses `filelock.FileLock` for cross-platform file locking
 - `FileLockTimeout` exception handling
 
 ### S3 Client Thread-Safety
