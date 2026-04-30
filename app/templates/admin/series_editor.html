@@ -1,0 +1,42 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([
+    { 'label': 'Series', 'url': url_for('admin.series_list') },
+    { 'label': 'New Series' if series is none else 'Edit Series' }
+]) }}
+<div class="editor animate-in">
+    <h1>{% if series is none %}New Series{% else %}Edit Series{% endif %}</h1>
+    
+    <form method="POST" action="{% if series is none %}{{ url_for('admin.series_new') }}{% else %}{{ url_for('admin.series_edit', series_id=series.id) }}{% endif %}" class="editor-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        
+        <div class="form-group">
+            <label for="name">Series Name</label>
+            <input type="text" id="name" name="name" required 
+                   value="{% if series %}{{ series.name }}{% else %}{{ request.form.name or '' }}{% endif %}"
+                   placeholder="Enter series name">
+        </div>
+        
+        <div class="form-group">
+            <label for="slug">Slug</label>
+            <input type="text" id="slug" name="slug" 
+                   value="{% if series %}{{ series.slug }}{% else %}{{ request.form.slug or '' }}{% endif %}"
+                   placeholder="URL-friendly slug (auto-generated if empty)">
+            <small class="form-help">Leave empty to auto-generate from name</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="3" 
+                      placeholder="Brief description of the series">{% if series %}{{ series.description }}{% else %}{{ request.form.description or '' }}{% endif %}</textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if series is none %}Create Series{% else %}Update Series{% endif %}</button>
+            <a href="{{ url_for('admin.series_list') }}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

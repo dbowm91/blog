@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ series.name }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="series-view animate-in">
+    <div class="series-header">
+        <h1>{{ series.name }}</h1>
+        {% if series.description %}
+        <p class="series-description">{{ series.description }}</p>
+        {% endif %}
+        <div class="series-meta">
+            <span class="badge badge-info">{{ posts|length }} post{{ 's' if posts|length != 1 else '' }}</span>
+        </div>
+    </div>
+    
+    {% if posts %}
+    <div class="series-posts">
+        <div class="series-posts-header">
+            <span>Post</span>
+            <span class="series-posts-header-right">Published</span>
+        </div>
+        {% for post in posts %}
+        <div class="series-post-item">
+            <div class="series-post-info">
+                <span class="series-post-order">{{ loop.index }}</span>
+                <div>
+                    <h3><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></h3>
+                    <div class="series-post-meta">
+                        {% if post.summary %}
+                        <p class="post-summary">{{ post.summary|truncate(150) }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="series-post-date">
+                {{ post.published_at.strftime('%b %d, %Y') if post.published_at else post.created_at.strftime('%b %d, %Y') }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No published posts in this series yet</h3>
+        <p>Check back later for updates.</p>
+    </div>
+    {% endif %}
+    
+    <div class="series-actions">
+        <a href="{{ url_for('public.index') }}" class="btn btn-ghost">← Back to Home</a>
+    </div>
+</div>
+{% endblock %}
