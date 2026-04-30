@@ -120,7 +120,10 @@ LOGIN_FAILURE_DELAY = float(_config["app"].get("login_failure_delay", 0.05))
 PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
 LOGIN_FAILURE_DELAY = float(_env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05)))
-RATE_LIMIT_STORAGE_URI = _env("RATE_LIMIT_STORAGE_URI", "memory://")
+RATE_LIMIT_STORAGE_URI = _env(
+    "RATE_LIMIT_STORAGE_URI",
+    "redis://localhost:6379/1" if os.environ.get("FLASK_ENV") == "production" else "memory://"
+)
 
 REDIS_URL = _env("REDIS_URL", "redis://localhost:6379/0")
 DATA_BACKUP_DIR = _config.get("backup", {}).get("data_backup_dir", "backups")
