@@ -367,5 +367,7 @@ def _generate_responsive_variants_local(filepath: str):
             logger.error("S3 operation failed: %s", e)
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
-            pass
+        except OSError as e:
+            logger.error("Image processing I/O error: %s", e)
+        except Exception as e:
+            logger.error("Image processing failed: %s", e)

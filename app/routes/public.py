@@ -240,8 +240,8 @@ def page(slug) -> Response:
 def post(slug) -> Response:
     """Single post page with related posts and share tracking."""
     post = db.session.execute(
-        select(Post).filter_by(slug=slug, published=True)
-    ).scalar_one_or_none()
+        select(Post).options(joinedload(Post.tags)).filter_by(slug=slug, published=True)
+    ).unique().scalar_one_or_none()
     if not post:
         abort(404)
 
@@ -446,7 +446,9 @@ def public_preview(post_id: int) -> Response:
     if not hmac.compare_digest(token, expected_b64):
         abort(403)
 
-    post = db.session.get(Post, post_id)
+    post = db.session.execute(
+        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+    ).unique().scalar_one_or_none()
     if not post:
         abort(404)
 

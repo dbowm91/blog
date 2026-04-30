@@ -36,7 +36,7 @@ def register_filters(app):
         if has_request_context():
             if not hasattr(g, "_post_image_cache"):
                 g._post_image_cache = {}
-            post_id = id(post)
+            post_id = post.id
             if post_id in g._post_image_cache:
                 return g._post_image_cache[post_id]
             from app.storage import get_storage
@@ -53,7 +53,7 @@ def register_filters(app):
         if not post or not post.image:
             return None
         if has_request_context():
-            cache_key = f"_post_srcset_cache_{id(post)}"
+            cache_key = f"_post_srcset_cache_{post.id}"
             if not hasattr(g, "_post_image_cache"):
                 g._post_image_cache = {}
             if cache_key in g._post_image_cache:

@@ -10,6 +10,7 @@ from functools import wraps
 
 from flask import Blueprint, jsonify, request, Response
 from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import Post, Subscriber, PageView, ShareEvent
@@ -108,7 +109,7 @@ def list_posts() -> Response:
     per_page = min(request.args.get("per_page", 20, type=int), 100)
     published_filter = request.args.get("published")
 
-    query = select(Post).order_by(Post.created_at.desc())
+    query = select(Post).options(joinedload(Post.tags)).order_by(Post.created_at.desc())
 
     if published_filter is not None:
         published_val = published_filter.lower() in ("true", "1", "yes")
@@ -136,7 +137,9 @@ def get_post(post_id: int) -> Response:
     Returns:
         JSON with post data or 404 error
     """
-    post = db.session.get(Post, post_id)
+    post = db.session.execute(
+        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+    ).unique().scalar_one_or_none()
     if not post:
         return jsonify({"error": "Post not found"}), 404
 
@@ -228,7 +231,9 @@ def update_post(post_id: int) -> Response:
     Returns:
         JSON with updated post data or 404 error
     """
-    post = db.session.get(Post, post_id)
+    post = db.session.execute(
+        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+    ).unique().scalar_one_or_none()
     if not post:
         return jsonify({"error": "Post not found"}), 404
 
@@ -280,7 +285,9 @@ def delete_post(post_id: int) -> Response:
     Returns:
         JSON with success message or 404 error
     """
-    post = db.session.get(Post, post_id)
+    post = db.session.execute(
+        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+    ).unique().scalar_one_or_none()
     if not post:
         return jsonify({"error": "Post not found"}), 404
 
