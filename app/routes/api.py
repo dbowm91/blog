@@ -10,12 +10,14 @@ from functools import wraps
 
 from flask import Blueprint, jsonify, request, Response
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import Post, Subscriber, PageView, ShareEvent
 from app.config import DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE
 from app.utils import utc_now, is_valid_email
+from app.validators import validate_string, validate_email, validate_boolean
 from app import limiter
 
 api = Blueprint("api", __name__, url_prefix="/api")
@@ -171,12 +173,23 @@ def create_post() -> Response:
     title = data.get("title")
     if not title:
         return jsonify({"error": "title is required"}), 400
+    title, err = validate_string(title, 200, "title")
+    if err:
+        return jsonify({"error": err}), 400
 
     body = data.get("body")
     if not body:
         return jsonify({"error": "body is required"}), 400
+    body, err = validate_string(body, 50000, "body")
+    if err:
+        return jsonify({"error": err}), 400
 
     slug = data.get("slug")
+    if slug:
+        slug, err = validate_string(slug, 100, "slug")
+        if err:
+            return jsonify({"error": err}), 400
+
     if not slug:
         slug = Post.generate_slug(title)
 
@@ -184,13 +197,30 @@ def create_post() -> Response:
 
     slug = _generate_unique_slug(Post, title, slug)
 
+    summary = data.get("summary", "")
+    if summary:
+        summary, err = validate_string(summary, 500, "summary")
+        if err:
+            return jsonify({"error": err}), 400
+
+    image = data.get("image")
+    if image:
+        image, err = validate_string(image, 200, "image")
+        if err:
+            return jsonify({"error": err}), 400
+
+    published = data.get("published", False)
+    published, err = validate_boolean(published, "published")
+    if err:
+        return jsonify({"error": err}), 400
+
     post = Post(
         title=title,
         slug=slug,
         body=body,
-        summary=data.get("summary", ""),
-        image=data.get("image"),
-        published=data.get("published", False),
+        summary=summary,
+        image=image,
+        published=published,
     )
 
     tags = data.get("tags", [])
@@ -242,22 +272,39 @@ def update_post(post_id: int) -> Response:
         return jsonify({"error": "Invalid JSON body"}), 400
 
     if "title" in data:
-        post.title = data["title"]
+        title, err = validate_string(data["title"], 200, "title")
+        if err:
+            return jsonify({"error": err}), 400
+        post.title = title
     if "slug" in data:
-        new_slug = data["slug"]
+        new_slug, err = validate_string(data["slug"], 100, "slug")
+        if err:
+            return jsonify({"error": err}), 400
         if new_slug != post.slug:
             from app.routes.admin.helpers.slug import _generate_unique_slug
 
-            post.slug = _generate_unique_slug(Post, data["title"] or post.title, new_slug, exclude_id=post_id)
+            post.slug = _generate_unique_slug(Post, post.title, new_slug, exclude_id=post_id)
     if "body" in data:
-        post.body = data["body"]
+        body, err = validate_string(data["body"], 50000, "body")
+        if err:
+            return jsonify({"error": err}), 400
+        post.body = body
     if "summary" in data:
-        post.summary = data["summary"]
+        summary, err = validate_string(data["summary"], 500, "summary")
+        if err:
+            return jsonify({"error": err}), 400
+        post.summary = summary
     if "image" in data:
-        post.image = data["image"]
+        image, err = validate_string(data["image"], 200, "image")
+        if err:
+            return jsonify({"error": err}), 400
+        post.image = image
     if "published" in data:
-        post.published = data["published"]
-        if data["published"] and not post.published_at:
+        published, err = validate_boolean(data["published"], "published")
+        if err:
+            return jsonify({"error": err}), 400
+        post.published = published
+        if published and not post.published_at:
             post.published_at = utc_now()
 
     if "tags" in data:
@@ -367,8 +414,9 @@ def create_subscriber() -> Response:
     if not email:
         return jsonify({"error": "email is required"}), 400
 
-    if not is_valid_email(email):
-        return jsonify({"error": "Invalid email format"}), 400
+    email, err = validate_email(email)
+    if err:
+        return jsonify({"error": err}), 400
 
     existing = db.session.execute(
         select(Subscriber).filter_by(email=email)
@@ -385,7 +433,19 @@ def create_subscriber() -> Response:
         + __import__("datetime").timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
     )
     db.session.add(subscriber)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existing = db.session.execute(
+            select(Subscriber).filter_by(email=email)
+        ).scalar_one_or_none()
+        if existing:
+            return jsonify(_subscriber_to_dict(existing))
+        return jsonify({"error": "Failed to create subscriber"}), 500
+    except OperationalError as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error"}), 500
 
     return jsonify(_subscriber_to_dict(subscriber)), 201
 
