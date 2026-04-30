@@ -378,8 +378,10 @@ The main.js loader uses dynamic imports based on `document.body.classList.contai
 
 ### Granian ASGI Server
 - Granian is the recommended ASGI server (faster than Gunicorn)
-- Dockerfile updated to use `granian --interface asgi`
+- `run.py` exports `asgi_app` via `WsgiToAsgi` wrapper
+- Dockerfile uses `granian --interface asgi`
 - `requirements.txt` includes granian>=1.0.0
+- `docker-compose.yml` includes separate `celery` and `redis` services for async task processing
 
 ### Admin Enhancements
 - Pages link added to admin navigation dropdown
