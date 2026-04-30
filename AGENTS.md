@@ -82,6 +82,7 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
 - `Post.scheduled_publish_at` — optional datetime for scheduled auto-publish (scheduler checks every 5 minutes)
 - `PostRevision` model tracks revision history on each publish
+- `Series` and `PostSeries` models for post series/collections
 - `Subscriber.token` is a UUID hex used for confirm/unsubscribe links
 - `Subscriber.expires_at` has no model default; the subscribe route sets it explicitly from config (`confirmation_expiry_hours`)
 - All models have `__repr__` methods for debugging
@@ -121,6 +122,9 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - Environment variables override config values
 - Pagination and limits loaded from `config.toml [app]` section
 - **Custom CSS sanitization**: `sanitize_css()` strips dangerous properties (`url()`, `expression()`, `content`, etc.) — must be applied BEFORE saving custom_css in settings.py.
+- **Redis Cache**: In production, uses Redis backend (`CACHE_TYPE: RedisCache`)
+- **Redis Rate Limiting**: Production uses Redis for rate limit storage (`RATE_LIMIT_STORAGE_URI`)
+- **DB Connection Pool**: Production uses pooled connections (`SQLALCHEMY_ENGINE_OPTIONS`)
 
 ## Common Tasks
 
@@ -178,6 +182,20 @@ Both `admin` routes and `public.py` import `invalidate_tag_cache` and `_get_tag_
 
 ### Admin Routes Use `@admin_required`
 All admin routes (except `login()` and `logout()`) use `@admin_required`, which combines `@login_required` with `is_admin` check.
+
+### Admin Routes (`app/routes/admin/`)
+- `/admin/` - Dashboard with widgets (traffic chart, top shares, trending, scheduled posts count)
+- `/admin/posts` - Post CRUD with bulk operations
+- `/admin/posts/<id>/revisions` - Post revision history
+- `/admin/subscribers` - Subscriber management with bulk resend
+- `/admin/users` - User management with promote/demote/make-owner
+- `/admin/sessions` - Active session viewing/revocation
+- `/admin/media` - Media library with upload/delete
+- `/admin/backup` - Database backup/restore with encryption support
+- `/admin/settings` - Theme presets, custom CSS, logo, syntax highlighting theme
+- `/admin/pages` - Static pages CRUD
+- `/admin/series` - Post series/collections management
+- `/admin/newsletter` - Newsletter with preview feature
 
 ### `generate_slug` Edge Cases
 Empty string and whitespace-only input both fall back to `"untitled"`.
@@ -239,6 +257,12 @@ Tag counts use `flask_cache.memoize` decorator in `app/tag_cache.py`. The `_get_
 - "Did you mean?" suggestions via `difflib.get_close_matches()`
 - Query term highlighting with `<mark>` tags
 
+### RSS/Atom Feed Caching
+- RSS feed (`/rss`) cached with `@flask_cache.cached(timeout=300)`
+- Atom feed (`/atom`) available with Atom 1.0 format
+- Cache invalidation on post publish/unpublish/delete
+- JSON Feed (`/json`) with content_html field (1.1 spec)
+
 ### Route-Based JavaScript Code Splitting
 `app/static/js/main.js` uses route-based dynamic imports. Admin pages get utils, modal, shortcuts, bulk. Public pages get utils, dark-mode, mobile-menu, lazy-load, share, lightbox, toc.
 
@@ -260,6 +284,13 @@ db.paginate(select(...), page=..., per_page=..., error_out=False)    # paginatio
 
 ### API Error Handling
 All `db.session.commit()` calls in API endpoints must be wrapped in try/except for `IntegrityError` and `OperationalError`. Return 409 Conflict on duplicate slug, 500 Internal Server Error on operational errors. Import from `sqlalchemy.exc`.
+
+### API Input Validation
+Input validation via `app/validators.py`:
+- `validate_string(value, max_length, field_name)` - validates string fields
+- `validate_email(value, max_length)` - validates email format and length
+- `validate_boolean(value, field_name)` - validates boolean fields
+- Returns `(value, error_message)` tuple
 
 ### `assert` Statements Under `python -O`
 `assert` is stripped when Python runs with `-O`. Never use `assert` for runtime safety checks.

@@ -13,9 +13,13 @@ Flask-based blogging platform with:
 - FTS5 full-text search with LIKE fallback and snippet extraction
 - Admin dashboard with session management and multi-admin support
 - Newsletter scheduling via APScheduler with file locking
-- Custom CSS theming with sanitization
-- REST API for post/subscriber management
+- Custom CSS theming with sanitization and syntax highlighting theme selector
+- REST API for post/subscriber management with input validation
 - Post revisions, scheduled publishing, shareable preview links
+- Post series/collections feature
+- Async task processing via Celery (image variants, newsletter, webhooks)
+- RSS 2.0, Atom 1.0, and JSON Feed 1.1 support
+- OpenAPI/Swagger UI documentation
 
 ## Quick Reference
 
@@ -65,20 +69,23 @@ flask cleanup-orphaned-images      # Clean unused images
 Authentication: `X-API-Key` header (env var `API_KEY`)
 
 ### Admin Routes (`app/routes/admin/`)
-- `/admin/` - Dashboard with widgets (traffic chart, top shares, trending)
+- `/admin/` - Dashboard with widgets (traffic chart, top shares, trending, scheduled posts)
 - `/admin/posts` - Post CRUD with bulk operations
 - `/admin/posts/<id>/revisions` - Post revision history
 - `/admin/subscribers` - Subscriber management with bulk resend
 - `/admin/users` - User management with promote/demote/make-owner
 - `/admin/sessions` - Active session viewing/revocation
 - `/admin/media` - Media library with upload/delete
-- `/admin/backup` - Database backup/restore
-- `/admin/settings` - Theme presets, custom CSS, logo
+- `/admin/backup` - Database backup/restore with encryption
+- `/admin/settings` - Theme presets, custom CSS, logo, syntax highlighting theme
+- `/admin/pages` - Static pages CRUD
+- `/admin/series` - Post series/collections management
+- `/admin/newsletter` - Newsletter with preview feature
 
 ### Public Routes (`app/routes/public.py`)
 - `/` - Home page with post listing
-- `/post/<slug>` - Individual post with lightbox, TOC
-- `/archive` - Archive by year/month
+- `/post/<slug>` - Individual post with lightbox, TOC, series badge
+- `/archive` - Archive by year/month (cached)
 - `/tag/<tag>` - Posts by tag
 - `/search` - Full-text search with suggestions
 - `/page/<slug>` - Static pages
@@ -86,6 +93,12 @@ Authentication: `X-API-Key` header (env var `API_KEY`)
 - `/confirm/<token>` - Email confirmation
 - `/unsubscribe/<token>` - Unsubscribe
 - `/preview/<post_id>?token=&expires=` - Shareable preview links
+- `/series/<slug>` - Post series/collections view
+- `/rss` - RSS 2.0 feed (cached)
+- `/atom` - Atom 1.0 feed
+- `/json` - JSON Feed 1.1
+- `/sitemap.xml` - Sitemap including archive page
+- `/api/docs` - Swagger UI for API documentation
 - `/health` - Health check endpoint
 
 ### Post Features

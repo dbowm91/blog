@@ -412,10 +412,9 @@ def test_forgot_password_page(client):
 def test_forgot_password_valid_user(client, admin_user, db, monkeypatch):
     """Test forgot password sends email for valid admin user."""
     send_called = []
-    original_send = __import__('app.routes.admin.auth', fromlist=['send_password_reset']).send_password_reset
-    def mock_send(user, token):
-        send_called.append((user, token))
-    monkeypatch.setattr('app.routes.admin.auth.send_password_reset', mock_send)
+    def mock_send_task(user_id, token):
+        send_called.append((user_id, token))
+    monkeypatch.setattr('app.tasks.send_password_reset_task.delay', mock_send_task)
     response = client.post('/admin/forgot-password', data={
         'identifier': 'admin',
     }, follow_redirects=True)
@@ -430,9 +429,9 @@ def test_forgot_password_valid_user(client, admin_user, db, monkeypatch):
 def test_forgot_password_invalid_user(client, db, monkeypatch):
     """Test forgot password with non-existent user shows success (token enumeration prevention)."""
     send_called = []
-    def mock_send(user, token):
-        send_called.append((user, token))
-    monkeypatch.setattr('app.routes.admin.auth.send_password_reset', mock_send)
+    def mock_send_task(user_id, token):
+        send_called.append((user_id, token))
+    monkeypatch.setattr('app.tasks.send_password_reset_task.delay', mock_send_task)
     response = client.post('/admin/forgot-password', data={
         'identifier': 'nonexistent',
     }, follow_redirects=True)
