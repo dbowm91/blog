@@ -2,6 +2,7 @@ from flask import Blueprint, Response, request, make_response, current_app
 from sqlalchemy import select
 from app.models import Post
 from app.extensions import db
+from app import cache as flask_cache
 from app.config import APP_TITLE, APP_DESCRIPTION, BASE_URL, AUTHOR_NAME
 from app.utils import xml_escape, utc_now
 from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
@@ -30,7 +31,7 @@ def _generate_etag(posts: list, use_json: bool = False) -> str:
     return hashlib.md5(content.encode()).hexdigest() + suffix
 
 
-def _get_feed_posts(limit: int = 20) -> tuple[list, str]:
+def _get_feed_posts(limit: int = 20):
     """Get posts for feed with conditional GET support.
 
     Returns (posts, etag) tuple.
@@ -47,6 +48,25 @@ def _get_feed_posts(limit: int = 20) -> tuple[list, str]:
     return posts, etag
 
 
+def _get_cached_feed_posts(limit: int = 20):
+    """Get cached feed posts - uses cache unless in testing mode."""
+    if current_app.testing:
+        return _get_feed_posts()[0]
+    return _get_cached_feed_posts_cached(limit)
+
+
+@flask_cache.cached(timeout=300, key_prefix="rss_feed_posts")
+def _get_cached_feed_posts_cached(limit: int = 20):
+    """Cached version - only called when not testing."""
+    posts, _ = _get_feed_posts(limit)
+    return posts
+
+
+def invalidate_rss_cache():
+    """Invalidate RSS feed cache."""
+    flask_cache.delete("rss_feed_posts")
+
+
 def _add_cache_headers(response: Response, etag: str, is_feed: bool = True) -> Response:
     """Add cache headers to feed response."""
     response.headers["ETag"] = f'"{etag}"'
@@ -57,7 +77,8 @@ def _add_cache_headers(response: Response, etag: str, is_feed: bool = True) -> R
 
 @rss.route("/rss")
 def feed() -> Response:
-    posts, etag = _get_feed_posts()
+    posts = _get_cached_feed_posts()
+    etag = _generate_etag(posts)
 
     if_none_match = request.headers.get("If-None-Match")
     if if_none_match and if_none_match.strip('"') == etag:
@@ -106,7 +127,8 @@ def feed() -> Response:
 @rss.route("/json")
 def json_feed() -> Response:
     """JSON Feed implementation (https://jsonfeed.org/)"""
-    posts, etag = _get_feed_posts()
+    posts = _get_cached_feed_posts()
+    etag = _generate_etag(posts)
 
     if_none_match = request.headers.get("If-None-Match")
     if if_none_match and if_none_match.strip('"') == etag:

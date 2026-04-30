@@ -79,38 +79,3 @@ def register_filters(app):
         from app.storage import get_storage
         storage = get_storage()
         return storage.url(filename)
-        if has_request_context():
-            if not hasattr(g, "_post_image_cache"):
-                g._post_image_cache = {}
-            post_id = post.id
-            if post_id in g._post_image_cache:
-                return g._post_image_cache[post_id]
-            path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
-            result = post.image if os.path.isfile(path) else None
-            g._post_image_cache[post_id] = result
-            return result
-        path = os.path.join(app.config["UPLOAD_FOLDER"], post.image)
-        return post.image if os.path.isfile(path) else None
-
-    @app.template_filter("post_image_srcset")
-    def post_image_srcset_filter(post):
-        if not post or not post.image:
-            return None
-        if has_request_context():
-            cache_key = f"_post_srcset_cache_{post.id}"
-            if not hasattr(g, "_post_image_cache"):
-                g._post_image_cache = {}
-            if cache_key in g._post_image_cache:
-                return g._post_image_cache[cache_key]
-
-            srcset_parts = []
-            upload_folder = app.config["UPLOAD_FOLDER"]
-            for width in (400, 800, 1200):
-                variant_name = f"{width}_{post.image}"
-                variant_path = os.path.join(upload_folder, variant_name)
-                if os.path.isfile(variant_path):
-                    srcset_parts.append(f"{app.config['BASE_URL'].rstrip('/')}/static/uploads/{variant_name} {width}w")
-
-            g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
-            return g._post_image_cache[cache_key]
-        return None
