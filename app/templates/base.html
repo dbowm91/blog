@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -85,8 +85,18 @@
         }
         @media (prefers-reduced-motion: reduce) { .navbar, .post-card { transition: none; } }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></noscript>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/public.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/public.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}">
+    </noscript>
     <link rel="preload" href="{{ url_for('static', filename='fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="{{ url_for('static', filename='fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <style nonce="{{ csp_nonce }}">

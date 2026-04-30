@@ -31,6 +31,7 @@ export function initEditor() {
     if (bodyTextarea && previewDiv) {
         let serverRequest = null;
         let clientRendered = false;
+        let previewTimeout = null;
 
         const renderClientPreview = (text) => {
             if (!text.trim()) {
@@ -79,10 +80,15 @@ export function initEditor() {
             });
         };
 
+        const debouncedFetchServerPreview = (text) => {
+            clearTimeout(previewTimeout);
+            previewTimeout = setTimeout(() => fetchServerPreview(text), 300);
+        };
+
         const updatePreview = () => {
             const text = bodyTextarea.value;
             renderClientPreview(text);
-            fetchServerPreview(text);
+            debouncedFetchServerPreview(text);
         };
 
         bodyTextarea.addEventListener('input', updatePreview);
