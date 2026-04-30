@@ -36,6 +36,8 @@ from app.config import DASHBOARD_PER_PAGE
 from app.utils import utc_now, safe_delete_file
 from app.tag_cache import invalidate_tag_cache
 from app.search import sync_fts, sync_fts_batch, remove_fts
+from app.routes.rss import invalidate_rss_cache
+from app.routes.public import invalidate_archive_cache
 from app.config import BASE_URL, PREVIEW_TOKEN_EXPIRY_DAYS
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
@@ -158,6 +160,8 @@ def _apply_cache_and_fts_updates(post: Post, searchable_changed: bool) -> bool:
     invalidate_analytics_cache()
     invalidate_dashboard_cache()
     invalidate_footer_cache()
+    invalidate_rss_cache()
+    invalidate_archive_cache()
     _cleanup_orphan_tags()
     return fts_ok
 
@@ -434,6 +438,8 @@ def delete_post(post_id: int) -> Response:
     invalidate_tag_cache()
     invalidate_analytics_cache()
     invalidate_footer_cache()
+    invalidate_rss_cache()
+    invalidate_archive_cache()
     _cleanup_orphan_tags()
     db.session.commit()
     remove_fts(post_id_for_fts)
@@ -558,6 +564,8 @@ def bulk_operations() -> Response:
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_footer_cache()
+        invalidate_rss_cache()
+        invalidate_archive_cache()
         if not sync_fts_batch(fts_items):
             db.session.rollback()
             flash("Search index temporarily unavailable. Please try again.", "error")
@@ -577,6 +585,8 @@ def bulk_operations() -> Response:
         invalidate_tag_cache()
         invalidate_analytics_cache()
         invalidate_footer_cache()
+        invalidate_rss_cache()
+        invalidate_archive_cache()
         if not sync_fts_batch(fts_items):
             db.session.rollback()
             flash("Search index temporarily unavailable. Please try again.", "error")

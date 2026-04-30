@@ -39,7 +39,7 @@ from app.csrf import validate_csrf_token
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.tag_cache import _get_tag_counts
 from app.search import search as _fts_search, get_search_snippets, get_did_you_mean, get_indexed_terms
-from app import limiter
+from app import limiter, cache as flask_cache
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,23 @@ def _get_cached_tags_and_counts():
     if not hasattr(g, "_cached_tag_counts"):
         g._cached_tag_counts = _get_tag_counts()
     return g._cached_tags, g._cached_tag_counts
+
+
+@flask_cache.cached(timeout=3600, key_prefix="archive_available_years")
+def _get_available_years():
+    """Get available years for archive with caching."""
+    years_query = (
+        select(func.extract("year", Post.created_at).label("year"))
+        .filter(Post.published == True)
+        .distinct()
+        .order_by(func.extract("year", Post.created_at).desc())
+    )
+    return [int(row.year) for row in db.session.execute(years_query).fetchall()]
+
+
+def invalidate_archive_cache():
+    """Invalidate archive years cache."""
+    flask_cache.delete("archive_available_years")
 
 
 def _get_related_posts(post):
@@ -121,6 +138,7 @@ ARCHIVE_PER_PAGE = 200
 
 
 @public.route("/archive")
+@limiter.limit("30 per minute")
 def archive() -> Response:
     """Chronological archive of all published posts grouped by year/month.
 
@@ -133,13 +151,7 @@ def archive() -> Response:
     cursor = request.args.get("cursor", type=str)
     direction = request.args.get("direction", "next", type=str)
 
-    years_query = (
-        select(func.extract("year", Post.created_at).label("year"))
-        .filter(Post.published == True)
-        .distinct()
-        .order_by(func.extract("year", Post.created_at).desc())
-    )
-    available_years = [int(row.year) for row in db.session.execute(years_query).fetchall()]
+    available_years = _get_available_years()
 
     if year_filter and year_filter not in available_years:
         year_filter = None
@@ -220,6 +232,7 @@ def archive() -> Response:
 
 
 @public.route("/page/<slug>")
+@limiter.limit("60 per minute")
 def page(slug) -> Response:
     """Static content page."""
     from app.models import Page
@@ -236,6 +249,7 @@ def page(slug) -> Response:
 
 
 @public.route("/post/<slug>")
+@limiter.limit("60 per minute")
 def post(slug) -> Response:
     """Single post page with related posts and share tracking."""
     post = db.session.execute(
@@ -279,6 +293,7 @@ def post(slug) -> Response:
 
 
 @public.route("/tag/<slug>")
+@limiter.limit("60 per minute")
 def tag(slug) -> Response:
     """Posts filtered by tag with pagination."""
     tag = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
@@ -308,6 +323,7 @@ def tag(slug) -> Response:
 
 
 @public.route("/search")
+@limiter.limit("20 per minute")
 def search() -> Response:
     """Full-text search for published posts.
 
@@ -464,6 +480,7 @@ ALLOWED_SHARE_PLATFORMS = {"twitter", "facebook", "linkedin", "reddit", "hackern
 
 
 @public.route("/api/track-share", methods=["POST"])
+@limiter.limit("20 per minute")
 def track_share() -> Response:
     """Track social share events.
 
