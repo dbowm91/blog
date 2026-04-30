@@ -1,4 +1,5 @@
-from flask import render_template, redirect, url_for, request, flash, abort
+from __future__ import annotations
+from flask import render_template, redirect, url_for, request, flash, abort, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -11,7 +12,7 @@ from app.utils import sanitize_css
 
 @admin.route("/settings", methods=["GET"])
 @admin_required
-def settings():
+def settings() -> Response:
     """
     Theme and site settings page.
 
@@ -29,7 +30,7 @@ def settings():
 
 @admin.route("/settings/theme", methods=["POST"])
 @admin_required
-def settings_theme():
+def settings_theme() -> Response:
     """
     Update theme and site settings.
 

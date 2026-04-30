@@ -11,6 +11,7 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
     volumes:
       - blog_data:/home/blog/instance
       - blog_logs:/home/blog/logs
@@ -21,6 +22,33 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    profiles:
+      - production
+
+  celery:
+    build: .
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+    volumes:
+      - blog_data:/home/blog/instance
+      - blog_uploads:/home/blog/app/static/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - production
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     profiles:
       - production
 

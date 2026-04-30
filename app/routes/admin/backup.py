@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import os
 import shutil
 import gzip
 import tempfile
+from datetime import datetime, timezone
 
-from flask import render_template, redirect, url_for, request, flash, send_file, abort
+from flask import (
+    render_template, redirect, url_for, request, flash, send_file, abort, current_app, Response
+)
 from flask_login import login_required
 
 from app.extensions import db
@@ -11,13 +16,11 @@ from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _get_backup_dir
 from app.utils import safe_delete_file
 from app.routes.admin.helpers.shared import BACKUP_FILENAME_RE
-from flask import current_app
-from datetime import datetime, timezone
 
 
 @admin.route("/backup")
 @admin_required
-def backup():
+def backup() -> Response:
     """
     Backup management - list available backups.
 
@@ -47,7 +50,7 @@ def backup():
 
 @admin.route("/backup/create", methods=["POST"])
 @admin_required
-def create_backup():
+def create_backup() -> Response:
     """
     Create a new database backup.
 
@@ -78,7 +81,7 @@ def create_backup():
 
 @admin.route("/backup/download/<filename>")
 @admin_required
-def download_backup(filename):
+def download_backup(filename) -> Response:
     """
     Download a backup file.
 
@@ -101,7 +104,7 @@ def download_backup(filename):
 
 @admin.route("/backup/restore/<filename>", methods=["POST"])
 @admin_required
-def restore_backup(filename):
+def restore_backup(filename) -> Response:
     """
     Restore database from a backup.
 
@@ -165,7 +168,7 @@ def restore_backup(filename):
 
 @admin.route("/backup/delete/<filename>", methods=["POST"])
 @admin_required
-def delete_backup(filename):
+def delete_backup(filename) -> Response:
     """
     Delete a backup file.
 
@@ -193,7 +196,7 @@ def delete_backup(filename):
 
 @admin.route("/backup/verify/<filename>")
 @admin_required
-def verify_backup(filename):
+def verify_backup(filename) -> Response:
     """
     Verify the integrity of a backup file.
 
@@ -221,7 +224,7 @@ def verify_backup(filename):
 
 @admin.route("/backup/verify-all")
 @admin_required
-def verify_all_backups():
+def verify_all_backups() -> Response:
     """
     Verify integrity of all backups in the backup directory.
 

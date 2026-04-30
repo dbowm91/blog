@@ -1,4 +1,5 @@
-from flask import render_template, redirect, url_for, request, flash, session, abort
+from __future__ import annotations
+from flask import render_template, redirect, url_for, request, flash, session, abort, Response
 from flask_login import login_required
 
 from app.extensions import db
@@ -12,7 +13,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 @admin.route("/sessions")
 @admin_required
-def sessions_list():
+def sessions_list() -> Response:
     """
     List all active admin sessions.
 
@@ -40,7 +41,7 @@ def sessions_list():
 
 @admin.route("/sessions/revoke/<int:sess_id>", methods=["POST"])
 @admin_required
-def revoke_session(sess_id):
+def revoke_session(sess_id) -> Response:
     """
     Revoke an admin session.
 

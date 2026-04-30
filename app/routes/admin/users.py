@@ -1,4 +1,6 @@
-from flask import render_template, redirect, url_for, request, flash, abort, session
+from __future__ import annotations
+
+from flask import render_template, redirect, url_for, request, flash, abort, session, Response
 from flask_login import login_required, current_user
 
 from app.extensions import db
@@ -12,7 +14,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 @admin.route("/users")
 @admin_required
-def users_list():
+def users_list() -> Response:
     """
     List all admin users.
 
@@ -36,7 +38,7 @@ def users_list():
 
 @admin.route("/users/create", methods=["POST"])
 @admin_required
-def create_user():
+def create_user() -> Response:
     """
     Create a new admin user.
 
@@ -86,7 +88,7 @@ def create_user():
 
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
-def delete_user(user_id):
+def delete_user(user_id: int) -> Response:
     """
     Delete a user.
 
@@ -120,7 +122,7 @@ def delete_user(user_id):
 
 @admin.route("/users/<int:user_id>/promote", methods=["POST"])
 @admin_required
-def promote_user(user_id):
+def promote_user(user_id: int) -> Response:
     """
     Promote a user to admin.
 
@@ -150,7 +152,7 @@ def promote_user(user_id):
 
 @admin.route("/users/<int:user_id>/demote", methods=["POST"])
 @admin_required
-def demote_user(user_id):
+def demote_user(user_id: int) -> Response:
     """
     Demote an admin to regular user.
 
@@ -187,7 +189,7 @@ def demote_user(user_id):
 
 @admin.route("/users/<int:user_id>/make-owner", methods=["POST"])
 @admin_required
-def make_owner(user_id):
+def make_owner(user_id: int) -> Response:
     """
     Transfer ownership to another admin.
 
@@ -237,7 +239,7 @@ def make_owner(user_id):
 
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
-def change_password(user_id):
+def change_password(user_id: int) -> Response:
     """
     Change a user's password.
 

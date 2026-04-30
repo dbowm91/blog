@@ -1,4 +1,5 @@
-from flask import redirect, url_for, request, flash
+from __future__ import annotations
+from flask import redirect, url_for, request, flash, Response
 from flask_login import login_required
 from datetime import datetime, timezone
 import smtplib
@@ -22,7 +23,7 @@ class FakeSubscriber:
 
 @admin.route("/newsletter-test", methods=["POST"])
 @admin_required
-def newsletter_test():
+def newsletter_test() -> Response:
     """
     Send a test newsletter to a specific email.
 

@@ -1,4 +1,5 @@
-from flask import render_template, redirect, url_for, request, flash, abort
+from __future__ import annotations
+from flask import render_template, redirect, url_for, request, flash, abort, Response
 from flask_login import login_required
 
 from app.extensions import db
@@ -12,7 +13,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 @admin.route("/tags")
 @admin_required
-def tags_list():
+def tags_list() -> Response:
     """
     List all tags with post counts.
 
@@ -37,7 +38,7 @@ def tags_list():
 
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
 @admin_required
-def rename_tag(tag_id):
+def rename_tag(tag_id) -> Response:
     """
     Rename a tag.
 
@@ -84,7 +85,7 @@ def rename_tag(tag_id):
 
 @admin.route("/tags/delete/<int:tag_id>", methods=["POST"])
 @admin_required
-def delete_tag(tag_id):
+def delete_tag(tag_id) -> Response:
     """
     Delete a tag.
 
@@ -112,7 +113,7 @@ def delete_tag(tag_id):
 
 @admin.route("/tags/create", methods=["POST"])
 @admin_required
-def create_tag():
+def create_tag() -> Response:
     """
     Create a new tag.
 
