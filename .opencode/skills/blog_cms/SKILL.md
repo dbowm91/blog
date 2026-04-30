@@ -284,6 +284,7 @@ Post.title.ilike(search_term, escape="\\")
 - `run.py` exports `asgi_app` via `WsgiToAsgi` wrapper
 - Dockerfile uses `granian --interface asgi`
 - `requirements.txt` includes `granian>=1.0.0`
+- `docker-compose.yml` includes separate `celery` and `redis` services for async task processing
 
 ### Search Enhancements (`app/static/js/public/search.js`)
 - Live search suggestions via API
