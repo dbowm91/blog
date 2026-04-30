@@ -144,10 +144,12 @@ Strips dangerous properties: `url()`, `expression()`, `content`, `behavior`, `-w
 Application includes **flask-limiter** for rate limiting:
 - `/admin/login`: 5 req/min per IP
 - API GET: 20 req/min, API write: 10/min
-- `/subscribe`: 10 req/min, Default: 100 req/min
-- Storage: configurable via `RATE_LIMIT_STORAGE_URI` env var (default: memory)
-
-Configure at reverse proxy/WAF/CDN level for production deployments.
+- `/subscribe`: 10 req/min
+- Public routes (index, post, page, tag, series): 60 req/min
+- Archive and preview: 30 req/min
+- Search and share tracking: 20 req/min
+- Confirm/unsubscribe: 5 req/min
+- Storage: configurable via `RATE_LIMIT_STORAGE_URI` env var (Redis for production, memory for dev/test)
 
 ## Performance Patterns
 
@@ -310,9 +312,38 @@ Post.title.ilike(search_term, escape="\\")
 - Config: `MAX_FAILED_ATTEMPTS` (5) and `LOCKOUT_DURATION_MINUTES` (15)
 - Login checks lockout status before password verification
 
-### APScheduler Persistence
-- Uses `filelock` for cross-platform file locking (replaces fcntl which was Unix-only)
-- For multi-machine deployments, use distributed lock (Redis, etcd) instead
+### Sitemap (`/sitemap.xml`)
+Dynamic sitemap generation:
+- Includes homepage, archive page, static pages, posts, and tags
+- Archive page added at `/archive` (Wave 8.2)
+- Uses streaming XML generation to handle large sites
+- Respects `BASE_URL` from config
+
+### Open Graph / Social Meta
+Templates include Open Graph and Twitter Card meta tags:
+- `og:image` and `twitter:image` in `post.html`, `page.html`, `index.html`
+- Defaults to `/static/img/default-post.svg` when no image set
+- Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
+
+### Syntax Highlighting Theme
+Configurable syntax highlighting for code blocks:
+- `SiteSettings.syntax_theme` field stores selected theme
+- Admin: `/admin/settings` has theme selector with 6 Prism themes
+- Themes loaded dynamically based on `syntax_theme` setting
+- Default theme: `prism` (standard)
+
+### Newsletter Preview
+Newsletter email preview feature:
+- Admin: `/admin/newsletter/preview` route
+- Preview button added to newsletter page
+- Shows exactly what subscribers receive
+- Uses existing newsletter template rendering
+
+### Scheduled Post Notifications
+Dashboard widgets show scheduled posts count:
+- `scheduled_posts_count` added to dashboard metrics
+- View in admin dashboard at `/admin/`
+- Displays number of posts scheduled for future publication
 
 ### Responsive Images
 - Variants generated at 400w, 800w, 1200w widths on upload via `_generate_responsive_variants()` in `app/routes/admin/helpers/images.py`
