@@ -13,7 +13,7 @@ from app.models import User, AdminSession, Post
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.csrf import validate_csrf_token
-from app.email import send_password_reset
+from app.tasks import send_password_reset_task
 from app.routes.admin.helpers import _check_password_complexity
 from app.config import MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES, LOGIN_FAILURE_DELAY
 from app import limiter
@@ -159,7 +159,7 @@ def forgot_password() -> Response:
             user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
             try:
                 db.session.commit()
-                send_password_reset(user, token)
+                send_password_reset_task.delay(user.id, token)
                 flash("If that account exists, a password reset email has been sent.", "success")
             except (IntegrityError, OperationalError):
                 db.session.rollback()

@@ -1,6 +1,7 @@
 """Celery tasks for heavy operations."""
 
 from typing import Optional, List, TYPE_CHECKING
+from celery import shared_task
 
 if TYPE_CHECKING:
     from celery import Celery
@@ -9,6 +10,8 @@ __all__ = [
     "generate_image_variants",
     "send_newsletter_task",
     "deliver_webhook_task",
+    "send_confirmation_task",
+    "send_password_reset_task",
 ]
 
 
@@ -127,3 +130,39 @@ def deliver_webhook_task(webhook_event_id: int) -> bool:
     event.delivered = delivered_count > 0
     db.session.commit()
     return event.delivered
+
+
+@shared_task(bind=True, max_retries=3)
+def send_confirmation_task(self, subscriber_id: int) -> bool:
+    """Send confirmation email to a subscriber asynchronously."""
+    from app.extensions import db
+    from app.models import Subscriber
+    from app.email import send_confirmation
+
+    subscriber = db.session.get(Subscriber, subscriber_id)
+    if not subscriber:
+        return False
+
+    try:
+        send_confirmation(subscriber)
+        return True
+    except Exception:
+        return False
+
+
+@shared_task(bind=True, max_retries=3)
+def send_password_reset_task(self, user_id: int, token: str) -> bool:
+    """Send password reset email to a user asynchronously."""
+    from app.extensions import db
+    from app.models import User
+    from app.email import send_password_reset
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return False
+
+    try:
+        send_password_reset(user, token)
+        return True
+    except Exception:
+        return False

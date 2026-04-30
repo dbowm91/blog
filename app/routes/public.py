@@ -1,4 +1,3 @@
-import smtplib
 import time
 import uuid
 from datetime import timedelta, datetime
@@ -35,7 +34,7 @@ from app.config import (
     PREVIEW_TOKEN_EXPIRY_DAYS,
 )
 
-from app.email import send_confirmation
+from app.tasks import send_confirmation_task
 from app.csrf import validate_csrf_token
 from app.utils import xml_escape, is_valid_email, utc_now
 from app.tag_cache import _get_tag_counts
@@ -509,13 +508,9 @@ def track_share() -> Response:
 
 
 def _try_send_confirmation(subscriber):
-    """Send confirmation email. Returns True on success, False on SMTP failure."""
-    try:
-        send_confirmation(subscriber)
-        return True
-    except (smtplib.SMTPException, OSError):
-        logger.exception("Failed to send confirmation email to %s", subscriber.email)
-        return False
+    """Queue confirmation email task. Returns True (task queued)."""
+    send_confirmation_task.delay(subscriber.id)
+    return True
 
 
 def _reset_subscriber_token(subscriber):

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from flask import render_template, redirect, url_for, request, flash, Response, abort
 from flask_login import login_required
-import smtplib
 
 from app.extensions import db
 from app.models import Subscriber
@@ -10,7 +9,7 @@ from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.csv_utils import generate_subscribers_csv
 from app.config import SUBSCRIBERS_PER_PAGE, EXPORT_BATCH_SIZE
-from app.email import send_confirmation
+from app.tasks import send_confirmation_task
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -194,22 +193,11 @@ def subscribers_bulk() -> Response:
                 .all()
             )
             sent_count = 0
-            failed_count = 0
             for sub in subs:
                 if sub.confirmed and not sub.unsubscribed_at:
                     continue
-                try:
-                    send_confirmation(sub)
-                    sent_count += 1
-                except (smtplib.SMTPException, OSError):
-                    logger.exception("Failed to resend confirmation to %s", sub.email)
-                    failed_count += 1
-            if failed_count > 0:
-                flash(
-                    f"Sent {sent_count} confirmation(s), {failed_count} failed.",
-                    "warning",
-                )
-            else:
-                flash(f"Sent {sent_count} confirmation(s).", "success")
+                send_confirmation_task.delay(sub.id)
+                sent_count += 1
+            flash(f"Queued {sent_count} confirmation(s).", "success")
 
     return redirect(url_for("admin.subscribers", status=filter_status))
