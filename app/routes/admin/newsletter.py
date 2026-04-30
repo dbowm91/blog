@@ -1,5 +1,5 @@
 from __future__ import annotations
-from flask import redirect, url_for, request, flash, Response
+from flask import redirect, url_for, request, flash, Response, render_template
 from flask_login import login_required
 from datetime import datetime, timezone
 import smtplib
@@ -9,7 +9,7 @@ from app.models import Post, User
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.email import send_newsletter
-from app.config import FROM_ADDRESS
+from app.config import FROM_ADDRESS, APP_TITLE, BASE_URL
 from app.utils import is_valid_email
 from sqlalchemy import select
 
@@ -64,3 +64,39 @@ def newsletter_test() -> Response:
     except (smtplib.SMTPException, OSError) as e:
         flash(f"Failed to send test newsletter: {e}", "error")
     return redirect(url_for("admin.dashboard"))
+
+
+@admin.route("/newsletter/preview")
+@admin_required
+def newsletter_preview() -> Response:
+    """Preview the newsletter email with recent posts.
+    
+    Methods: GET
+    Returns: HTML preview of the newsletter email.
+    Requires: Admin authentication.
+    """
+    posts = (
+        db.session.execute(
+            select(Post)
+            .filter_by(published=True)
+            .order_by(Post.created_at.desc())
+            .limit(3)
+        )
+        .scalars()
+        .all()
+    )
+    
+    if not posts:
+        flash("No published posts to preview.", "warning")
+        return redirect(url_for("admin.dashboard"))
+    
+    # Render the newsletter email template
+    html = render_template(
+        "email/newsletter.html",
+        posts=posts,
+        site_title=APP_TITLE,
+        base_url=BASE_URL,
+        unsubscribe_url="#preview-mode",
+    )
+    
+    return Response(html, mimetype="text/html")
