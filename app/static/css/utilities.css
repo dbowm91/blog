@@ -1,0 +1,33 @@
+/* ============================================
+   utilities.css - Generated from style.css
+   ============================================ */
+
+/* --- Utility classes (replacing inline styles for CSP compliance) --- */
+.flex-row {
+    display: flex;
+}
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: var(--space-md); }
+.items-center { align-items: center; }
+.ml-auto { margin-left: auto; }
+.mt-sm { margin-top: 0.5rem; }
+.mt-md { margin-top: 1rem; }
+.mt-lg { margin-top: 2rem; }
+.autosave-status-base {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.editor-status-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.editor-status-sep {
+    color: var(--border);
+}
+

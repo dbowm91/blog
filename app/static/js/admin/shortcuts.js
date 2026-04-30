@@ -1,5 +1,3 @@
-import { focusableSelectors } from '../shared/utils.js';
-
 export function initShortcuts() {
     if (!document.body.classList.contains('admin-body')) return;
 
@@ -28,7 +26,12 @@ export function initShortcuts() {
 
         // gd = Dashboard, gp = Posts, gs = Subscribers, gt = Tags
         if (vimKey === 'g') {
-            const routes = { d: '/admin/', p: '/admin/posts', s: '/admin/subscribers', t: '/admin/tags' };
+            const routes = {
+                d: window.ADMIN_ROUTES.dashboard,
+                p: window.ADMIN_ROUTES.posts,
+                s: window.ADMIN_ROUTES.subscribers,
+                t: window.ADMIN_ROUTES.tags,
+            };
             if (routes[e.key]) {
                 window.location.href = routes[e.key];
                 vimKey = null;

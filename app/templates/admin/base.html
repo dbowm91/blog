@@ -7,7 +7,11 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/prism-okaidia.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}">
     <style nonce="{{ csp_nonce }}">
         :root {
             {% for key, value in theme_vars.items() %}
@@ -146,6 +150,15 @@
         </div>
     </footer>
 
+    <script nonce="{{ csp_nonce }}">
+        window.ADMIN_ROUTES = {
+            dashboard: "{{ url_for('admin.dashboard') }}",
+            posts: "{{ url_for('admin.new_post') }}",
+            subscribers: "{{ url_for('admin.subscribers') }}",
+            tags: "{{ url_for('admin.tags_list') }}",
+            pages: "{{ url_for('admin.pages_list') }}",
+        };
+    </script>
     <script defer src="{{ url_for('static', filename='js/prism.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/prism-languages.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/main.js') }}"></script>
