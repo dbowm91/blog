@@ -6,7 +6,7 @@ import logging
 
 from datetime import datetime
 
-from flask import request
+from flask import request, session
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
@@ -127,7 +127,9 @@ def register_context_processors(app):
             nonce = getattr(g, "csp_nonce", "")
         except RuntimeError:
             nonce = ""
-        return {"csrf_token": generate_csrf_token(), "csp_nonce": nonce}
+        tokens = session.get("csrf_tokens", [])
+        csrf_token = tokens[-1] if tokens else generate_csrf_token()
+        return {"csrf_token": csrf_token, "csp_nonce": nonce}
 
     @app.context_processor
     def inject_config():

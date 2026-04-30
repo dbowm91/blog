@@ -29,6 +29,18 @@ def admin_required(f):
             current_ip = request.remote_addr
             if stored_ip and current_ip and stored_ip != current_ip:
                 if SESSION_IP_BINDING == "enforce":
+                    from app.extensions import db
+                    from app.models import AdminSession
+                    from sqlalchemy.exc import IntegrityError, OperationalError
+                    admin_session = db.session.execute(
+                        select(AdminSession).filter_by(session_id=sid)
+                    ).scalar_one_or_none()
+                    if admin_session:
+                        try:
+                            db.session.delete(admin_session)
+                            db.session.commit()
+                        except (IntegrityError, OperationalError):
+                            db.session.rollback()
                     logout_user()
                     session.clear()
                     flash("Session invalidated due to IP address change.", "error")

@@ -19,7 +19,7 @@ from flask import (
 )
 from sqlalchemy import func, or_, select, text, case
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, defer
 import logging
 
 from app.extensions import db
@@ -154,7 +154,7 @@ def archive() -> Response:
 
     posts_query = (
         select(Post)
-        .options(joinedload(Post.tags))
+        .options(joinedload(Post.tags), defer(Post.body))
         .filter(Post.published == True)
     )
 

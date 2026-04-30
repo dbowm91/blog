@@ -75,20 +75,23 @@ def new_page() -> Response:
         published=published,
     )
     db.session.add(page)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        page.slug = _generate_unique_slug(Page, title)
-        page.title = title
-        page.body = body
-        page.published = published
-        db.session.add(page)
-        db.session.commit()
-    except OperationalError:
-        db.session.rollback()
-        flash("Database error occurred. Please try again.", "error")
-        return redirect(url_for("admin.pages_list"))
+    
+    max_attempts = 100
+    for attempt in range(max_attempts):
+        try:
+            db.session.flush()
+            db.session.commit()
+            break
+        except IntegrityError:
+            db.session.rollback()
+            if attempt == max_attempts - 1:
+                raise
+            page.slug = _generate_unique_slug(Page, title, exclude_id=page.id if page.id else None)
+            db.session.add(page)
+        except OperationalError:
+            db.session.rollback()
+            flash("Database error occurred. Please try again.", "error")
+            return redirect(url_for("admin.pages_list"))
 
     flash(f"Page '{title}' created.", "success")
     return redirect(url_for("admin.pages_list"))
