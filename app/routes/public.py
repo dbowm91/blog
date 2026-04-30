@@ -789,6 +789,12 @@ def _generate_sitemap():
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>\n"""
+    # Archive page
+    yield f"""  <url>
+    <loc>{xml_escape(BASE_URL)}/archive</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>\n"""
     # Static pages
     for pg in (
         db.session.execute(

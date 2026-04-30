@@ -14,6 +14,7 @@ from flask import (
     session,
     g,
     has_request_context,
+    send_from_directory,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
@@ -216,6 +217,16 @@ def create_app():
     app.register_blueprint(rss)
     app.register_blueprint(errors)
     app.register_blueprint(api)
+
+    from flask_swagger_ui import get_swaggerui_blueprint
+    SWAGGER_URL = '/api/docs'
+    API_URL = '/openapi.yaml'
+    swaggerui_blueprint = get_swaggerui_blueprint(SWAGGER_URL, API_URL)
+    app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+    @app.route('/openapi.yaml')
+    def openapi_spec():
+        return send_from_directory(app.root_path, '../docs/openapi.yaml')
 
     from app.filters import register_filters
 
