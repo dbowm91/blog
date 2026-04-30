@@ -144,7 +144,7 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 
 - **SQLite with PostgreSQL migration path**—default uses SQLite (WAL mode); PostgreSQL migration documented in DEPLOY.md
 - **File uploads**—stored locally in `static/uploads/`. **CRITICAL:** Clean this directory before production deployment.
-- **Newsletter scheduler**—runs in-process via APScheduler with `fcntl` file locking (Unix only). Persistence via `SQLAlchemyJobStore` is planned.
+- **Newsletter scheduler**—runs in-process via APScheduler with `filelock` for cross-platform file locking. Persistence via `SQLAlchemyJobStore` is planned.
 - **E2E tests** require Playwright installation to run.
 
 ## Rate Limiting
@@ -203,11 +203,11 @@ In `app/routes/admin/users.py`, the `make_owner()` function demotes ALL admins f
 ### File Deletion Timing
 Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
 
-### Search highlight_query XSS Risk
-`app/search.py:highlight_query()` wraps user search input in `<mark>` tags without HTML escaping the text first. If search results contain HTML special characters, this could lead to XSS.
+### Search highlight_query XSS Risk (FIXED)
+`app/search.py:highlight_query()` was fixed to use `html.escape()` before wrapping in `<mark>` tags.
 
 ### Plan Verification Required
-When creating improvement plans, verify items against actual codebase before marking as verified. Some items in existing plans (like email module exceptions, scheduler bare except) are intentional or low-risk. Others (like N+1 queries in public routes) require checking if tags are actually accessed in templates.
+When creating improvement plans, verify items against actual codebase before marking as verified. Some items may be intentional or low-risk. Always check if features are actually accessed in templates (e.g., N+1 queries only occur if tags are accessed).
 
 ### Rate Limiting Already Present
 The codebase already has `@limiter.limit` decorators on most API routes and `/admin/login`. Adding more requires checking existing limits first.
