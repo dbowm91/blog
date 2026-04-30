@@ -75,8 +75,8 @@ scripts/sync_backups.sh  # Off-site backup sync script (rclone/S3)
 - Use `db.paginate(select(...), page=..., per_page=..., error_out=False)` for pagination
 
 ### Models
-- `Post.slug` must be unique—use `_generate_unique_slug()` in `app/routes/admin/posts.py`
-- `Page.slug` must be unique—use `_generate_unique_page_slug()` in `app/routes/admin/pages.py`
+- `Post.slug` must be unique—use `_generate_unique_slug()` in `app/routes/admin/helpers/slug.py`
+- `Page.slug` must be unique—use `_generate_unique_slug()` in `app/routes/admin/helpers/slug.py` (same function used for both posts and pages)
 - `Post.updated_at` has automatic `onupdate` trigger in the model
 - Tags use a many-to-many relationship via `post_tags` table
 - `Post.short_code()` encodes the post ID to base62 for short URLs (`/s/<code>`)
@@ -192,7 +192,7 @@ Two concurrent subscribe requests with same email can both pass `scalar_one_or_n
 In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rollback, SQLAlchemy marks all attributes as expired. If you only re-set one field and commit, all other edits are silently lost. Always reapply all field changes after rollback.
 
 ### IntegrityError Rollback in pages.py
-The same rollback issue exists in `app/routes/admin/pages.py` (`new_page()` and `edit_page()`). Unlike `posts.py` which has slug regeneration and retry logic, `pages.py` simply redirects after rollback without reapplying changes. When fixing, follow the `posts.py` pattern.
+The same rollback issue exists in `app/routes/admin/pages.py` (`new_page()`). The `edit_page()` function at lines 156-161 correctly re-fetches and re-applies fields after rollback, but `new_page()` at lines 78-91 only makes one retry attempt. Consider adding a retry loop similar to `posts.py` `_attempt_post_commit()` helper.
 
 ### CSRF Token Rotation on Privilege Change
 When promoting/demoting users or making an owner, the code sets `session["csrf_token"]` (singular) but the sliding window uses `session["csrf_tokens"]` (list). Must reset the list `session["csrf_tokens"]` = `[generate_csrf_token()]` not the singular token.
