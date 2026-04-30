@@ -363,8 +363,14 @@ export default initXxx;  // e.g., export default initDarkMode;
 
 ### Celery Integration (`app/celery_app.py`, `app/tasks.py`)
 - Redis as message broker (configure via `REDIS_URL` env var)
-- Tasks: `generate_image_variants`, `send_newsletter_task`, `deliver_webhook`
+- Tasks: `generate_image_variants`, `send_newsletter_task`, `send_confirmation_task`, `send_password_reset_task`, `deliver_webhook`
 - Celery Beat for periodic tasks (daily backup at 2:00 AM)
+
+### Redis Infrastructure
+- **Redis Cache**: Production uses Redis backend (`CACHE_TYPE: RedisCache`) configured in `app/__init__.py`
+- **Redis Rate Limiting**: Production uses Redis for rate limit storage (`RATE_LIMIT_STORAGE_URI` in `app/config.py`)
+- **DB Connection Pool**: Production uses pooled connections (`SQLALCHEMY_ENGINE_OPTIONS` in `app/__init__.py`)
+- Configuration: Set `FLASK_ENV=production` to enable Redis backends
 
 ### Admin Audit Logging (`AdminAuditLog` model in `app/models.py`)
 - Fields: actor_id, action, target_id, target_type, details, ip_address, timestamp

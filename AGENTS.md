@@ -423,6 +423,8 @@ celery -A app.celery_app beat --loglevel=info
 Tasks in `app/tasks.py`:
 - `generate_image_variants` - Background image processing
 - `send_newsletter_task` - Async newsletter delivery
+- `send_confirmation_task` - Async email confirmation
+- `send_password_reset_task` - Async password reset email
 - `deliver_webhook` - Async webhook delivery with retry
 
 ## Error Logging
@@ -495,6 +497,59 @@ Key indexes for query optimization:
 - 514 tests pass (excluding E2E)
 - New tests added for: password reset flow, settings routes, pages routes
 - E2E tests require Playwright: `pip install playwright && playwright install`
+
+## Frontend Build System
+
+Uses **Vite** for modern JavaScript/CSS bundling:
+
+```bash
+# Install dependencies
+npm install
+
+# Development with HMR
+npm run dev
+
+# Build for production
+npm run build
+```
+
+Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
+
+## CSS Architecture
+
+Styles split into modular files (from `app/static/css/style.css`):
+- `base.css` — CSS variables, reset, typography
+- `layout.css` — Grid layout, navbar, sidebar, footer
+- `forms.css` — Form elements, buttons, validation
+- `admin.css` — Admin-specific styles
+- `public.css` — Public-facing page styles
+- `utilities.css` — Helper classes
+
+Import via `app/static/css/style.css` which aggregates all files.
+
+## OpenAPI/Swagger UI
+
+API documentation available at `/api/docs` via Flask-SwaggerUI:
+- OpenAPI spec: `docs/openapi.yaml`
+- Interactive testing interface at `/api/docs`
+- All API endpoints documented with request/response schemas
+
+## Feed Formats
+
+Multiple feed formats supported:
+- **RSS 2.0**: `/rss` (cached 5 min)
+- **Atom 1.0**: `/atom`
+- **JSON Feed 1.1**: `/json` (includes `content_html`)
+
+Cache invalidation on post publish/unpublish/delete.
+
+## Post Series/Collections
+
+Series feature for grouping related posts:
+- Models: `Series`, `PostSeries` (with ordering)
+- Admin: `/admin/series` for CRUD, manage posts in series
+- Public: `/series/<slug>` displays series with ordered posts
+- Posts can belong to multiple series
 
 ## Storage Abstraction Layer (`app/storage.py`)
 
