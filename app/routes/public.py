@@ -422,6 +422,7 @@ def series_view(slug) -> Response:
     series_posts = (
         db.session.execute(
             select(PostSeries)
+            .options(joinedload(PostSeries.post))
             .filter_by(series_id=series.id)
             .order_by(PostSeries.order_index)
         )
