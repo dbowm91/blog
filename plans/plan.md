@@ -41,10 +41,10 @@ This plan serves as the single source of truth for all identified improvements, 
 ## Wave 3: Configuration & Infrastructure (Parallelizable)
 
 - [x] **CFG-1: Configuration Fail-Fast** - Remove empty string defaults for `SECRET_KEY` and `ADMIN_PASSWORD` in `app/config.py` to force environment validation.
-- [ ] **CFG-2: Database Connection Pool SQLite Protection** - Add dialect check in `app/__init__.py:214` to only apply pool settings for non-SQLite databases.
-- [ ] **CFG-3: Add HTTP Compression** - Install `flask-compress`, configure in `app/__init__.py` and `config.py` with `COMPRESS_ALGORITHM = ['zstd', 'br', 'gzip']`.
-- [ ] **CFG-4: Tune Granian Server** - Update `Dockerfile` to use 4 workers and 60s timeout.
-- [ ] **CFG-5: Infrastructure-Aware Health Checks** - Expand `/health` to monitor disk space (crucial for SQLite), background worker status, and database integrity. Add a Prometheus-compatible `/metrics` endpoint.
+- [x] **CFG-2: Database Connection Pool SQLite Protection** - Add dialect check in `app/__init__.py:214` to only apply pool settings for non-SQLite databases.
+- [x] **CFG-3: Add HTTP Compression** - Install `flask-compress`, configure in `app/__init__.py` and `config.py` with `COMPRESS_ALGORITHM = ['zstd', 'br', 'gzip']`.
+- [x] **CFG-4: Tune Granian Server** - Update `Dockerfile` to use 4 workers and 60s timeout.
+- [x] **CFG-5: Infrastructure-Aware Health Checks** - Expand `/health` to monitor disk space (crucial for SQLite), background worker status, and database integrity. Add a Prometheus-compatible `/metrics` endpoint.
 
 ---
 
