@@ -19,6 +19,7 @@ Comprehensive guide for deploying DevLog in production.
 - [Maintenance](#13-maintenance)
 - [Security Checklist](#14-security-checklist)
 - [Dependencies](#15-dependencies)
+- [Vite for Admins](#16-vite-for-admins)
 
 ---
 
@@ -749,6 +750,11 @@ For Cloudflare deployments, use custom rules:
 1. **Login protection:** Rate limit `/admin/login` at 5 req/min
 2. **Admin protection:** Rate limit `/admin/*` at 20 req/min
 
+### Troubleshooting Rate Limiting
+- **429 Too Many Requests**: Check if your IP is hitting rate limits, especially for admin routes. Adjust limits in nginx/Caddy config if needed.
+- **Rate limits not applying**: Verify `limit_req_zone` is correctly configured for the right keys (e.g., `$binary_remote_addr` for per-IP limits).
+- **Cloudflare conflicts**: If using Cloudflare WAF rate limiting, ensure limits align with reverse proxy limits to avoid double-limiting.
+
 ---
 
 ## 11. Systemd Service
@@ -887,3 +893,20 @@ The newsletter scheduler runs in-process via APScheduler—no external cron need
 | granian | ASGI server |
 
 For Python 3.14 compatibility, see `requirements.txt`.
+
+---
+
+## 16. Vite for Admins
+
+Vite is used for frontend asset bundling with content hashing for cache busting.
+
+### How Vite Works
+- **Development**: `npm run dev` starts Vite dev server with HMR (Hot Module Replacement)
+- **Production**: `npm run build` generates content-hashed assets in `app/static/dist/`
+- Flask's `vite_asset()` helper maps unhashed paths to hashed filenames via `manifest.json`
+
+### Admin Tasks
+- **Rebuild assets**: After changing JS/CSS files, run `npm run build` and restart the app
+- **Check manifest**: Verify `app/static/dist/.vite/manifest.json` exists after build
+- **Troubleshooting**: If assets return 404, ensure `vite_asset()` is used in templates instead of `url_for('static', ...)`
+- **Content hashing**: Hashed filenames (e.g., `main-BVtPp-ke.js`) allow aggressive caching (`Cache-Control: max-age=31536000, immutable`)
