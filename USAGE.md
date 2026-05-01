@@ -626,6 +626,24 @@ When a visitor shares a post via the share buttons, a `ShareEvent` is recorded.
 **Viewing share data:**
 Top shares appear on the dashboard at `/admin/`.
 
+### Interpreting Analytics
+
+#### Traffic Sources
+Traffic sources are captured from the `referrer` header of page views:
+- **Direct**: No referrer (user typed URL or used bookmark)
+- **Search Engines**: Google, Bing, DuckDuckGo (referrer contains `google.com`, `bing.com`, etc.)
+- **Social**: Twitter/X, Facebook, LinkedIn, Reddit, Hacker News (referrer matches share platforms)
+- **Other**: All other referrers
+
+Use traffic sources to identify which channels drive the most engagement.
+
+#### Share Events
+- **Count**: Total shares per platform
+- **Trend**: Compare week-over-week share counts
+- **Top Shared Posts**: Appear on the dashboard, indicating popular content worth promoting
+
+High share counts correlate with increased traffic from social channels.
+
 ### Analytics API
 
 ```bash
