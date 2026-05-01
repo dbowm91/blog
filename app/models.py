@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
     failed_login_count = db.Column(db.Integer, default=0)
     locked_until = db.Column(UTCDateTime, nullable=True)
+    totp_secret = db.Column(db.String(32), nullable=True)
 
     admin_sessions = db.relationship(
         "AdminSession",

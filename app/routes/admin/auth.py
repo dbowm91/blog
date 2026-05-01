@@ -1,6 +1,10 @@
 import hashlib
 import secrets
 import time
+import pyotp
+import qrcode
+import io
+import base64
 from datetime import datetime, timedelta, timezone
 
 from flask import redirect, url_for, request, flash, session, Response, abort, render_template
@@ -32,7 +36,8 @@ def login() -> Response:
 
     Methods: GET, POST
     GET: Renders the login form. Redirects if already authenticated.
-    POST: Authenticates user with username/password. Creates AdminSession on success.
+    POST: Authenticates user with username/password. If 2FA is enabled,
+          redirects to TOTP verification. Creates AdminSession on success.
     Requires: Admin user with valid credentials.
 
     SECURITY (SEC-7): Session Fixation Protection
@@ -55,12 +60,16 @@ def login() -> Response:
             flash("Account is locked due to too many failed attempts. Try again later.", "error")
             return redirect(url_for("admin.login"))
         if user and user.check_password(password) and user.is_admin:
+            if user.totp_secret:
+                session["pending_2fa_user_id"] = user.id
+                return redirect(url_for("admin.login_2fa"))
+
             # SEC-7: Session Fixation Protection
             # Clear the session before logging in to regenerate session ID
             # This prevents session fixation attacks where an attacker sets
             # a known session ID before the user authenticates
             session.clear()
-            
+
             login_user(user)
             user.reset_failed_login()
             sid = secrets.token_hex(32)
@@ -248,3 +257,125 @@ def reset_password(token: str) -> Response:
         return redirect(url_for("admin.login"))
 
     return render_template("admin/reset-password.html", token=token)
+
+
+@admin.route("/2fa/setup", methods=["GET", "POST"])
+@login_required
+@admin_required
+def setup_2fa() -> Response:
+    """
+    2FA setup - generate secret and verify.
+
+    Methods: GET, POST
+    GET: Generates TOTP secret, renders setup page with QR code.
+    POST: Verifies TOTP code and enables 2FA.
+    Requires: Admin authentication.
+    """
+    user = db.session.get(User, current_user.id)
+    if not user:
+        abort(404)
+
+    if request.method == "POST":
+        token = request.form.get("token", "").strip()
+        if user.totp_secret and pyotp.TOTP(user.totp_secret).verify(token):
+            flash("2FA is already enabled.", "info")
+            return redirect(url_for("admin.dashboard"))
+
+        secret = pyotp.random_base32()
+        user.totp_secret = secret
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash("Database error occurred.", "error")
+            return redirect(url_for("admin.setup_2fa"))
+
+        logger.info("2FA secret generated: user_id=%d", user.id)
+        flash("2FA secret generated. Scan the QR code with your authenticator app.", "success")
+        return redirect(url_for("admin.verify_2fa"))
+
+    qr_code = None
+    if user.totp_secret:
+        uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
+            name=user.username, issuer_name="DevLog Blog"
+        )
+        img = qrcode.make(uri)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        qr_code = base64.b64encode(buf.getvalue()).decode()
+
+    return render_template("admin/2fa_setup.html", secret=user.totp_secret, qr_code=qr_code)
+
+
+@admin.route("/2fa/verify", methods=["GET", "POST"])
+@login_required
+@admin_required
+def verify_2fa() -> Response:
+    """
+    Verify 2FA token and enable 2FA.
+
+    Methods: GET, POST
+    GET: Renders verification page.
+    POST: Verifies TOTP code and enables 2FA.
+    Requires: Admin authentication and 2FA secret generated.
+    """
+    user = db.session.get(User, current_user.id)
+    if not user or not user.totp_secret:
+        flash("Please set up 2FA first.", "error")
+        return redirect(url_for("admin.setup_2fa"))
+
+    if request.method == "POST":
+        token = request.form.get("token", "").strip()
+        if pyotp.TOTP(user.totp_secret).verify(token):
+            logger.info("2FA enabled: user_id=%d", user.id)
+            flash("2FA has been enabled.", "success")
+            return redirect(url_for("admin.dashboard"))
+        flash("Invalid code. Please try again.", "error")
+
+    return render_template("admin/2fa_verify.html")
+
+
+@admin.route("/login-2fa", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def login_2fa() -> Response:
+    """
+    TOTP verification during login.
+
+    Methods: GET, POST
+    GET: Renders TOTP verification form.
+    POST: Verifies TOTP code and completes login if valid.
+    """
+    user_id = session.get("pending_2fa_user_id")
+    if not user_id:
+        return redirect(url_for("admin.login"))
+
+    user = db.session.get(User, user_id)
+    if not user or not user.totp_secret:
+        session.pop("pending_2fa_user_id", None)
+        return redirect(url_for("admin.login"))
+
+    if request.method == "POST":
+        token = request.form.get("token", "").strip()
+        if pyotp.TOTP(user.totp_secret).verify(token):
+            session.pop("pending_2fa_user_id", None)
+            session.clear()
+
+            login_user(user)
+            user.reset_failed_login()
+            sid = secrets.token_hex(32)
+            admin_session = AdminSession(
+                user_id=user.id,
+                session_id=sid,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent", "")[:256],
+            )
+            db.session.add(admin_session)
+            db.session.commit()
+            session["admin_session_id"] = sid
+            session["admin_session_ip"] = request.remote_addr
+            return redirect(url_for("admin.dashboard"))
+
+        flash("Invalid code. Please try again.", "error")
+        time.sleep(LOGIN_FAILURE_DELAY)
+
+    return render_template("admin/login_2fa.html")

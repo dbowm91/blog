@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': '2FA Setup' }]) }}
+<div class="2fa-setup animate-in">
+    <h1>Two-Factor Authentication Setup</h1>
+
+    {% if qr_code %}
+    <div class="qr-code-section">
+        <h2>Scan QR Code</h2>
+        <p>Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):</p>
+        <img src="data:image/png;base64,{{ qr_code }}" alt="2FA QR Code" class="qr-code">
+        <p class="help-text">Or manually enter this secret: <strong>{{ secret }}</strong></p>
+    </div>
+    {% endif %}
+
+    <div class="setup-actions">
+        <form method="POST" action="{{ url_for('admin.setup_2fa') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-primary">Generate New Secret</button>
+        </form>
+        {% if secret %}
+        <a href="{{ url_for('admin.verify_2fa') }}" class="btn btn-success">Verify & Enable</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

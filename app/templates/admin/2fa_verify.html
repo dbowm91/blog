@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': '2FA Verification' }]) }}
+<div class="2fa-verify animate-in">
+    <h1>Verify 2FA Code</h1>
+    <p>Enter the 6-digit code from your authenticator app:</p>
+
+    <form method="POST" action="{{ url_for('admin.verify_2fa') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label for="token">Verification Code</label>
+            <input type="text" name="token" id="token" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}">
+        </div>
+        <button type="submit" class="btn btn-primary">Verify</button>
+    </form>
+</div>
+{% endblock %}
