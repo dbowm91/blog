@@ -30,7 +30,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
-PAGE_VIEW_BUFFER_SIZE = int(os.environ.get("PAGE_VIEW_BUFFER_SIZE", "0"))
+from app.config import PAGE_VIEW_BUFFER_SIZE
 PAGE_VIEW_FLUSH_INTERVAL = int(os.environ.get("PAGE_VIEW_FLUSH_INTERVAL", "5"))
 
 _buffer: Optional["PageViewBuffer"] = None
