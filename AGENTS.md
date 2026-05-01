@@ -32,3 +32,35 @@ When adding agent guidance for a specific module:
 2. Do not create a separate "agents" directory
 3. Override files should be focused on module-specific concerns
 4. Update this index when adding new override files
+
+## Codebase Structure Reference
+
+Important actual file locations (verify before assuming):
+
+| Item | Actual Location |
+|------|-----------------|
+| API routes | `app/routes/api.py` (SINGLE FILE, not `app/routes/api/` directory) |
+| Validators | `app/validators.py` (NOT `app/core/validators.py`) |
+| Backup logic | `app/scheduler.py:run_daily_backup()` (NOT separate `app/backup.py`) |
+| Admin Audit Log model | `app/models.py:397-417` |
+| PostRevision model | `app/models.py:173` |
+| User model `__repr__` | `app/models.py:63-64` |
+
+## High-Risk Files (Broad Exception Handling)
+
+These files need careful review when modifying exception handling:
+- `app/backup_encryption.py:243,268`
+- `app/webhooks.py:83`
+- `app/tasks.py:115,228,246`
+- `app/page_view_buffer.py:129,190`
+- `app/routes/admin/series.py` (multiple flash with exception details)
+
+## Skills
+
+Load specialized skills using the `skill` tool with the skill name.
+
+| Skill | Description | Triggers |
+|-------|-------------|----------|
+| `blog_cms` | Blog CMS - Flask-based blogging platform | Flask app, SQLAlchemy, session, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard, Docker, Vite |
+| `e2e_testing` | E2E browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright |
+| `ainews` | AI news pipeline with Celery/LLM | pipeline, celery, newsletter, article, source, subscriber |

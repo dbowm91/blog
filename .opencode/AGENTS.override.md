@@ -30,3 +30,30 @@ When an agent operates within a module, it should:
 ## Package.json
 
 Minimal Node.js configuration for Vite frontend build.
+
+## Implementation Planning
+
+When working on the consolidated improvement plan (`plans/plan.md`):
+
+### Parallelization Strategy
+- **Wave 1A (Backend Bugs)**: BUG-1 through BUG-5, P0-1, P0-2 - Can run in parallel
+- **Wave 1B (Frontend Bugs)**: FE-BUG-1, FE-BUG-2, FE-BUG-3 - Can run in parallel (separate agent)
+- **Wave 2 (Security)**: SEC-1 through SEC-6 - Can run in parallel
+- **Wave 3 (Config)**: CFG-1 through CFG-4 - Can run in parallel
+- **Wave 4, 5, 6, 7**: Can be split across 4 sub-agents working in parallel
+- **Wave 8, 9, 10**: Sequential work, can have 1 sub-agent handle all
+
+### Critical Path Dependencies
+1. Wave 1 (Bugs) must complete before Wave 4+ (Code Quality)
+2. Wave 2 (Security) can run in parallel with Wave 1
+3. Wave 3 (Config) can run in parallel with Wave 1-2
+4. Wave 8 (Docs) can run anytime (informational)
+5. Wave 9 (Features) and Wave 10 (Tech Debt) are independent
+
+### Known Implementation Issues
+- `app/static/js/main.js:4` uses variable-based `import(path).then(...)` instead of `import.meta.glob()` - Vite cannot statically analyze
+- `app/routes/admin/series.py` has multiple `flash(f"Error ...: {str(e)}")` exposing exception details
+- Admin templates use `url_for('static', ...)` instead of `vite_asset()` - bypasses Vite cache-busting
+- Nested anchor tags in post cards (`app/templates/index.html:22,40`) - invalid HTML5
+- `app/__init__.py:186` uses wrong config key `RATELIMIT_STORAGE_URL` instead of `RATELIMIT_STORAGE_URI`
+- `app/scheduler.py` has 8 lock file deletion locations that are dangerous on Linux
