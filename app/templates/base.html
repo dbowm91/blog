@@ -212,18 +212,10 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="footer-section">
-                <h3 class="footer-heading">Subscribe</h3>
-                <p class="footer-subscribe-text">Get notified of new posts via email.</p>
-                <form action="{{ url_for('public.subscribe') }}" method="POST" class="subscribe-form-footer">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="email" name="email" placeholder="your@email.com" required aria-label="Email address">
-                    <button type="submit" class="btn btn-primary btn-small">Subscribe</button>
-                </form>
-            </div>
+
         </div>
         <div class="container footer-bottom">
-            <p>&copy; 2026{% if current_year and current_year > 2026 %} - {{ current_year }}{% endif %} {{ site_title }}. Built with Flask.</p>
+            <p>&copy; {{ current_year }} {{ site_title }}. Built with Flask.</p>
         </div>
     </footer>
 

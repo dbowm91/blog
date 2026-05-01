@@ -293,6 +293,18 @@ def post(slug) -> Response:
     related = _get_related_posts(post)
     short_code = post.short_code()
     share_url = f"{BASE_URL}/s/{short_code}"
+    series_nav = None
+    if post.series_id:
+        series = post.series
+        series_posts = sorted(series.posts, key=lambda x: x.series_order or 0)
+        current_idx = next((i for i, p in enumerate(series_posts) if p.id == post.id), -1)
+        if current_idx != -1:
+            series_nav = {
+                "series_slug": series.slug,
+                "series_title": series.title,
+                "prev": series_posts[current_idx-1] if current_idx > 0 else None,
+                "next": series_posts[current_idx+1] if current_idx < len(series_posts)-1 else None,
+            }
 
     return render_template(
         "post.html",
@@ -301,6 +313,7 @@ def post(slug) -> Response:
         share_url=share_url,
         short_code=short_code,
         show_full_share=True,
+        series_nav=series_nav,
     )
 
 

@@ -1,12 +1,26 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-section">
-        <h3 class="sidebar-title">Subscribe</h3>
-        <form method="POST" action="{{ url_for('public.subscribe') }}" class="subscribe-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
-            <button type="submit" class="btn btn-primary btn-small">Subscribe</button>
-        </form>
+        <h3 class="sidebar-title">Recent Posts</h3>
+        <ul class="sidebar-links">
+            {% for post in recent_posts_sidebar %}
+            <li><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></li>
+            {% endfor %}
+        </ul>
     </div>
+    {% if series_nav %}
+    <div class="sidebar-section">
+        <h3 class="sidebar-title">Series Navigation</h3>
+        <div class="series-nav">
+            {% if series_nav.prev %}
+            <a href="{{ url_for('public.post', slug=series_nav.prev.slug) }}" class="series-link prev">&larr; {{ series_nav.prev.title }}</a>
+            {% endif %}
+            <a href="{{ url_for('public.series', slug=series_nav.series_slug) }}" class="series-link series-index">{{ series_nav.series_title }}</a>
+            {% if series_nav.next %}
+            <a href="{{ url_for('public.post', slug=series_nav.next.slug) }}" class="series-link next">{{ series_nav.next.title }} &rarr;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     <div class="sidebar-section">
         <h3 class="sidebar-title">Tags</h3>
         <div class="tag-cloud">
