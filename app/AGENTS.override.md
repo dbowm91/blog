@@ -60,6 +60,7 @@ Specialized handling for the Flask application core.
 ## Database
 
 - SQLite stored in `instance/blog.db` (auto-created, WAL mode)
+- **WAL-Compatible Backups**: When WAL mode is enabled, `shutil.copy2` is insufficient as it misses the `.wal` and `.shm` files. ALWAYS use the `sqlite3.backup()` API for consistent database snapshots.
 - Uses Flask-SQLAlchemy + Flask-Migrate (Alembic)
 - SQLAlchemy 2.0 patterns exclusively — `db.session.execute(select(Model).filter(...))`
 - Use `db.session.get(Model, id)` instead of `Model.query.get(id)`

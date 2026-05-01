@@ -40,8 +40,9 @@ POST `/share` tracks share events. `ALLOWED_SHARE_PLATFORMS` in public.py expect
 
 - FTS5 virtual table `posts_fts` (title, body, summary) with `prefix='2 3 4'` for prefix matching
 - Prefix search enabled: searching "Py" matches "Python" (automatically appends `*` to terms)
-- FTS index synced via `sync_fts()` on post create/edit/publish/unpublish/delete
-- `sync_fts()` called BEFORE `db.session.commit()` for create/edit/publish; `remove_fts()` called AFTER for delete
+- **FTS5 Sync Timing**: 
+    - `sync_fts()` MUST be called **BEFORE** `db.session.commit()` for create/edit/publish.
+    - `remove_fts()` MUST be called **AFTER** `db.session.commit()` for delete.
 - FTS table existence cached with 5-minute TTL
 - LIKE fallback filters by `Post.published == True`
 - "Did you mean?" suggestions via `difflib.get_close_matches()`
@@ -102,14 +103,6 @@ Templates include Open Graph and Twitter Card meta tags:
 - `og:image` and `twitter:image` in `post.html`, `page.html`, `index.html`
 - Defaults to `/static/img/default-post.svg` when no image set
 
-## Subscribe Race Condition
-
-Two concurrent subscribe requests with same email can both pass `scalar_one_or_none()` check, then both try to insert. The unique constraint causes `IntegrityError` → 500. Fixed by wrapping insert + commit in `try/except IntegrityError` and re-querying on collision.
-
 ## Token Enumeration Prevention
 
 /confirm/<token> uses `scalar_one_or_none()` + `time.sleep(0.1)` to prevent token enumeration. Invalid tokens return success (not 404).
-
-## Rate Limiting
-
-The codebase already has `@limiter.limit` decorators on most API routes. Suggested: 60 req/min for public routes (index, post, page, tag, series), 30 req/min for archive and preview, 20 req/min for search and share tracking, 10 req/min for subscribe, 5 req/min for confirm/unsubscribe.

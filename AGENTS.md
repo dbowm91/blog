@@ -46,14 +46,19 @@ Important actual file locations (verify before assuming):
 | PostRevision model | `app/models.py:173` |
 | User model `__repr__` | `app/models.py:63-64` |
 
+## Security & Privacy Rules
+
+- **Log ID, not Username**: When logging user actions or system events, always use `user.id`. Never log raw User objects or usernames to prevent PII leakage.
+- **Credential Protection**: Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys.
+
 ## High-Risk Files (Broad Exception Handling)
 
-These files need careful review when modifying exception handling:
-- `app/backup_encryption.py:243,268`
-- `app/webhooks.py:83`
-- `app/tasks.py:115,228,246`
-- `app/page_view_buffer.py:129,190`
-- `app/routes/admin/series.py` (multiple flash with exception details)
+These files use broad `except Exception` clauses and need careful review when modifying error handling:
+- `app/backup_encryption.py`
+- `app/webhooks.py`
+- `app/tasks.py`
+- `app/page_view_buffer.py`
+- `app/routes/admin/series.py`
 
 ## Skills
 

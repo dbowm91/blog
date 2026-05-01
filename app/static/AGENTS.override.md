@@ -56,6 +56,8 @@ Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
 
 All JavaScript modules must export a default function for initialization. When adding new modules to `shared/` or `public/`, you **must** add `export default initXxx;` where `initXxx` is the initialization function. The main.js loader calls `module.default()` to invoke the exported function. Modules without this export will not be called on page load.
 
+**Dynamic Imports**: Vite requires static analysis for bundling. ALWAYS use `import.meta.glob(['./path/*.js'])` for dynamic route-based module loading in `main.js`. Never use variable-based `import(path)`.
+
 ## Route-Based Code Splitting
 
 `app/static/js/main.js` uses route-based dynamic imports. Admin pages get utils, modal, shortcuts, bulk. Public pages get utils, dark-mode, mobile-menu, lazy-load, share, lightbox, toc.
