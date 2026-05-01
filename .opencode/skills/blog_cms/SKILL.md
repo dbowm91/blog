@@ -26,9 +26,14 @@ Flask-based blogging platform with:
 
 ### Running Tests
 ```bash
+# All tests (requires Playwright browsers installed)
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
-# Without E2E tests (require Playwright):
+
+# Without E2E tests (if Playwright not installed):
 ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ --ignore=tests/e2e
+
+# Install Playwright: pip install playwright && playwright install chromium
+# Current test count: 524 (514 unit + 10 E2E)
 ```
 
 ### Development Server
