@@ -61,7 +61,7 @@ class User(UserMixin, db.Model):
         self.locked_until = None
 
     def __repr__(self) -> str:
-        return f"<User {self.username!r} admin={self.is_admin}>"
+        return f"<User id={self.id}>"
 
 
 @login_manager.user_loader
