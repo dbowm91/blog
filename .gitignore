@@ -16,3 +16,4 @@ docker-compose.yml
 nginx/
 backups/
 node_modules/
+app/static/dist/
