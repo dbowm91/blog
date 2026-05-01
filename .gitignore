@@ -17,3 +17,4 @@ nginx/
 backups/
 node_modules/
 app/static/dist/
+.skills
