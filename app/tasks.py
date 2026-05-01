@@ -1,11 +1,16 @@
 """Celery tasks for heavy operations."""
 
-from celery import shared_task
+import hashlib
+import hmac
+import json
+import logging
 from typing import Optional, List, TYPE_CHECKING
 from celery import shared_task
 
 if TYPE_CHECKING:
     from celery import Celery
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "generate_image_variants",
@@ -164,13 +169,25 @@ def send_newsletter_task(self, post_ids: List[int]) -> bool:
     return success
 
 
+def _sign_webhook_payload(payload: Dict[str, Any], secret: str) -> str:
+    """Generate HMAC-SHA256 signature for webhook payload (internal helper)."""
+    payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
+    signature = hmac.new(
+        secret.encode("utf-8"),
+        payload_bytes,
+        hashlib.sha256
+    ).hexdigest()
+    return f"sha256={signature}"
+
+
 @shared_task(bind=True, max_retries=3)
 def deliver_webhook_task(self, webhook_event_id: int) -> bool:
-    """Deliver a webhook event to registered endpoints."""
+    """Deliver a webhook event to registered endpoints with SSRF protection and HMAC signing."""
     import requests
     from app.extensions import db
     from app.models import Webhook, WebhookEvent
     from app.config import WEBHOOK_TIMEOUT
+    from app.utils import is_safe_webhook_url
 
     event = db.session.get(WebhookEvent, webhook_event_id)
     if not event or event.delivered:
@@ -185,20 +202,31 @@ def deliver_webhook_task(self, webhook_event_id: int) -> bool:
         db.session.commit()
         return True
 
-    headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Blog-CMS-Webhook/1.0",
-    }
     payload = event.payload
-
     delivered_count = 0
+
     for webhook in webhooks:
+        # SSRF Protection: validate URL before making request
+        is_safe, reason = is_safe_webhook_url(webhook.url)
+        if not is_safe:
+            logger.warning("SSRF protection blocked webhook URL: %s - %s", webhook.url, reason)
+            event.delivery_attempts += 1
+            continue
+
+        # Prepare headers with HMAC signature
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Blog-CMS-Webhook/1.0",
+            "X-Webhook-Signature": _sign_webhook_payload(payload, webhook.secret),
+        }
+
         try:
             response = requests.post(
                 webhook.url,
                 json=payload,
                 headers=headers,
                 timeout=WEBHOOK_TIMEOUT,
+                allow_redirects=False,  # Prevent redirect-based SSRF
             )
             event.delivery_attempts += 1
             if response.status_code < 400:

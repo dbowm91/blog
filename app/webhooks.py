@@ -1,9 +1,9 @@
-"""Webhook delivery system."""
+"""Webhook delivery system with SSRF protection."""
 
 import hashlib
 import hmac
 import json
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from typing import Optional, Dict, Any, List, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -35,9 +35,24 @@ def sign_webhook_payload(payload: Dict[str, Any], secret: str) -> str:
     return f"sha256={signature}"
 
 
-def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> bool:
-    """Deliver a webhook to a single URL with signature header."""
+def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> Tuple[bool, str]:
+    """Deliver a webhook to a single URL with signature header and SSRF protection.
+
+    Args:
+        webhook_url: The URL to deliver the webhook to
+        payload: The payload to send
+        secret: The secret for HMAC signing
+
+    Returns:
+        A tuple of (success: bool, message: str)
+    """
     import requests
+    from app.utils import is_safe_webhook_url
+
+    # SSRF protection: validate URL before making request
+    is_safe, reason = is_safe_webhook_url(webhook_url)
+    if not is_safe:
+        return False, f"SSRF protection: {reason}"
 
     headers = {
         "Content-Type": "application/json",
@@ -51,10 +66,11 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> b
             json=payload,
             headers=headers,
             timeout=WEBHOOK_TIMEOUT,
+            allow_redirects=False,  # Prevent redirect-based SSRF
         )
-        return response.status_code < 400
-    except requests.RequestException:
-        return False
+        return response.status_code < 400, f"HTTP {response.status_code}"
+    except requests.RequestException as e:
+        return False, str(e)
 
 
 def create_webhook_event(

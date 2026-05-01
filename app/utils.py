@@ -24,6 +24,7 @@ __all__ = [
     "log_scheduler_error",
     "handle_error",
     "unified_error_handler",
+    "is_safe_webhook_url",
 ]
 
 logger = logging.getLogger(__name__)
@@ -271,3 +272,107 @@ def sanitize_css(css_text: str) -> str:
     css_text = re.sub(r"direction\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
 
     return css_text.strip()
+
+def is_safe_webhook_url(url: str) -> tuple[bool, str]:
+    """Check if a URL is safe for webhook delivery (SSRF protection).
+
+    Validates the URL to prevent Server-Side Request Forgery (SSRF) attacks by:
+    1. Ensuring the URL uses HTTP or HTTPS scheme
+    2. Resolving the hostname to IP addresses using socket.getaddrinfo
+    3. Blocking requests to private, loopback, link-local, and metadata IPs
+    4. Using ipaddress.is_global to verify the IP is publicly routable
+
+    Args:
+        url: The URL to validate
+
+    Returns:
+        A tuple of (is_safe: bool, reason: str)
+        - If safe: (True, "URL is safe")
+        - If unsafe: (False, "Reason why unsafe")
+    """
+    import socket
+    import ipaddress
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False, "Invalid URL format"
+
+    # Check scheme - only allow http and https
+    if parsed.scheme not in ("http", "https"):
+        return False, f"Unsupported scheme: {parsed.scheme}"
+
+    # Must have a hostname
+    if not parsed.hostname:
+        return False, "No hostname in URL"
+
+    # Block URLs with userinfo (security concern)
+    if parsed.username or parsed.password:
+        return False, "URL contains userinfo (username/password)"
+
+    hostname = parsed.hostname
+
+    # Block suspicious hostnames
+    if hostname in ("127.0.0.1", "::1", "localhost", "0.0.0.0"):
+        return False, f"Blocked loopback hostname: {hostname}"
+
+    # Resolve hostname to IP addresses
+    try:
+        # Get all address info (handles both IPv4 and IPv6)
+        addr_infos = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    except socket.gaierror:
+        return False, f"Cannot resolve hostname: {hostname}"
+
+    if not addr_infos:
+        return False, f"No IP addresses found for: {hostname}"
+
+    # Check each resolved IP address
+    for addr_info in addr_infos:
+        sockaddr = addr_info[4]
+        ip_str = sockaddr[0]
+
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False, f"Invalid IP address: {ip_str}"
+
+        # Block loopback addresses
+        if ip.is_loopback:
+            return False, f"Blocked loopback IP: {ip_str}"
+
+        # Block private addresses (RFC 1918)
+        if ip.is_private:
+            return False, f"Blocked private IP: {ip_str}"
+
+        # Block link-local addresses
+        if ip.is_link_local:
+            return False, f"Blocked link-local IP: {ip_str}"
+
+        # Block reserved addresses
+        if ip.is_reserved:
+            return False, f"Blocked reserved IP: {ip_str}"
+
+        # Block multicast addresses
+        if ip.is_multicast:
+            return False, f"Blocked multicast IP: {ip_str}"
+
+        # Block IPv4-mapped IPv6 addresses that map to private IPv4
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            mapped_ip = ip.ipv4_mapped
+            if mapped_ip.is_private or mapped_ip.is_loopback:
+                return False, f"Blocked IPv4-mapped IPv6 to private IP: {mapped_ip}"
+
+        # Specifically block AWS metadata endpoint (169.254.169.254)
+        if ip_str == "169.254.169.254":
+            return False, "Blocked cloud metadata endpoint"
+
+        # Specifically block Google Cloud metadata (metadata.google.internal)
+        if hostname == "metadata.google.internal":
+            return False, "Blocked Google Cloud metadata endpoint"
+
+        # Must be globally routable (public)
+        if not ip.is_global:
+            return False, f"Blocked non-global IP: {ip_str}"
+
+    return True, "URL is safe"
