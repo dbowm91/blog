@@ -17,6 +17,7 @@ This plan serves as the single source of truth for all identified improvements, 
 - [ ] **P0-1: Fix Broken CI Pipeline** - Add `ruff>=0.8.0` and `mypy>=1.8.0` to `requirements-dev.txt`.
 - [ ] **P0-2: Fix JavaScript Dynamic Imports** - Replace variable-based `import(m)` in `app/static/js/main.js` with `import.meta.glob()` for Vite-compatible bundling.
 - [ ] **BUG-5: Fix Python 3.12 sqlite3 Datetime Deprecation** - Register custom adapters in `app/__init__.py` using `sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())` and corresponding converters.
+- [ ] **ALIGN-1: Standardize Python Environment** - Harmonize Python version to 3.12 across `setup.sh`, `pyproject.toml`, and `Dockerfile` to ensure Celery/Granian stability.
 
 ### Wave 1B: Frontend Bugs
 - [ ] **FE-BUG-1: Fix Invalid Nested Anchor Tags** - Implement "Stretched Link" pattern for post cards in `index.html`, `tag.html`, `search.html`, and `archive.html`. Use `.post-card-link::before` with `z-index: 1` and ensure `.post-tags` has `z-index: 2`.
@@ -30,9 +31,10 @@ This plan serves as the single source of truth for all identified improvements, 
 - [ ] **SEC-1: Fix Information Leakage** - Strip `str(e)` from flash messages in `admin/newsletter.py:65`, `admin/series.py`, and `backup_integrity.py:78,80`. Use generic error messages and log the details instead.
 - [ ] **SEC-2: Upgrade Backup Encryption (PBKDF2)** - Upgrade `_derive_key()` in `app/backup_encryption.py` to use PBKDF2-HMAC-SHA256 with 600,000 iterations (NIST SP 800-132) and a 16-byte random salt.
 - [ ] **SEC-3: SSRF Protection for Webhooks** - Implement `is_safe_webhook_url(url)` in `app/utils.py` using `socket.getaddrinfo` and `ipaddress.is_global` to block private/loopback/metadata IPs. Apply to `deliver_webhook` in `app/webhooks.py` and `app/tasks.py:197`. Set `allow_redirects=False`.
-- [ ] **SEC-4: API Input Validation Gaps** - Add `validate_integer()`, `validate_list()`, and regex-based `validate_tags()` (max 10 tags, 50 chars each, alpha-numeric) to `app/validators.py`. Add `require_json_content_type` decorator.
-- [ ] **SEC-5: Fix User __repr__ Leaks** - Change `User.__repr__` in `app/models.py:63` to return `id` instead of `username` to prevent log leakage.
-- [ ] **SEC-6: Implement Session Fixation Protection** - Add `session.regenerate_id()` (requires `Flask-Session` with Redis) or document current `session.clear()` mitigation and IP binding limitation.
+- [ ] **SEC-4: Webhook Logic Reconciliation** - Integrate HMAC-SHA256 signing from `app/webhooks.py` into the Celery task in `app/tasks.py`. Ensure all background deliveries are signed.
+- [ ] **SEC-5: API Input Validation Gaps** - Add `validate_integer()`, `validate_list()`, and regex-based `validate_tags()` (max 10 tags, 50 chars each, alpha-numeric) to `app/validators.py`. Add `require_json_content_type` decorator.
+- [ ] **SEC-6: Fix User __repr__ Leaks** - Change `User.__repr__` in `app/models.py:63` to return `id` instead of `username` to prevent log leakage.
+- [ ] **SEC-7: Implement Session Fixation Protection** - Add `session.regenerate_id()` (requires `Flask-Session` with Redis) or document current `session.clear()` mitigation and IP binding limitation.
 
 ---
 
@@ -42,16 +44,19 @@ This plan serves as the single source of truth for all identified improvements, 
 - [ ] **CFG-2: Database Connection Pool SQLite Protection** - Add dialect check in `app/__init__.py:214` to only apply pool settings for non-SQLite databases.
 - [ ] **CFG-3: Add HTTP Compression** - Install `flask-compress`, configure in `app/__init__.py` and `config.py` with `COMPRESS_ALGORITHM = ['zstd', 'br', 'gzip']`.
 - [ ] **CFG-4: Tune Granian Server** - Update `Dockerfile` to use 4 workers and 60s timeout.
+- [ ] **CFG-5: Infrastructure-Aware Health Checks** - Expand `/health` to monitor disk space (crucial for SQLite), background worker status, and database integrity. Add a Prometheus-compatible `/metrics` endpoint.
 
 ---
 
 ## Wave 4: Code Quality Improvements
 
-- [ ] **CQ-1: Replace Broad `except Exception`** - Replace with specific exceptions (e.g., `SQLAlchemyError`, `OSError`, `ValueError`) in high-risk files: `backup_encryption.py:243,268`, `webhooks.py:83`, `tasks.py:115,228,246`, `page_view_buffer.py:129,190`.
-- [ ] **CQ-2: Improve Transaction Management** - Implement `db_transaction()` context manager in `app/transaction.py` with automatic rollback on `IntegrityError` or `SQLAlchemyError`.
-- [ ] **CQ-3: Refactor Large Route Files** - Split `app/routes/public.py` (978 lines) and `app/routes/admin/posts.py` (762 lines) into sub-packages following the `admin/helpers/` pattern.
-- [ ] **CQ-4: Standardize String Formatting** - Convert ~89 instances of `%` formatting to f-strings, focusing on `posts.py`, `public.py`, and `scheduler.py`.
-- [ ] **CQ-5: CLI Error Handling** - Add `commit_with_rollback()` or `db_transaction()` to all `db.session.commit()` calls in `app/cli.py` (15+ instances).
+- [ ] **CQ-1: Create Unified Backup Service** - Move robust logic from `backup.py` and `app/scheduler.py` into a centralized `app/services/backup.py` used by CLI, cron, and scheduler.
+- [ ] **CQ-2: Service Layer Extraction** - Centralize shared logic for Slug Generation, Serialization, and Tag Management into `app/services/` to reduce duplication between CLI, API, and Admin routes.
+- [ ] **CQ-3: Replace Broad `except Exception`** - Replace with specific exceptions (e.g., `SQLAlchemyError`, `OSError`, `ValueError`) in high-risk files: `backup_encryption.py:243,268`, `webhooks.py:83`, `tasks.py:115,228,246`, `page_view_buffer.py:129,190`.
+- [ ] **CQ-4: Improve Transaction Management** - Implement `db_transaction()` context manager in `app/transaction.py` with automatic rollback on `IntegrityError` or `SQLAlchemyError`.
+- [ ] **CQ-5: Refactor Large Route Files** - Split `app/routes/public.py` (978 lines) and `app/routes/admin/posts.py` (762 lines) into sub-packages following the `admin/helpers/` pattern.
+- [ ] **CQ-6: Standardize String Formatting** - Convert ~89 instances of `%` formatting to f-strings, focusing on `posts.py`, `public.py`, and `scheduler.py`.
+- [ ] **CQ-7: CLI Error Handling** - Add `commit_with_rollback()` or `db_transaction()` to all `db.session.commit()` calls in `app/cli.py` (15+ instances).
 
 ---
 
