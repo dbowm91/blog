@@ -17,7 +17,7 @@
     <link rel="canonical" href="{{ canonical_url }}">
     {% block article_schema %}{% endblock %}
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ vite_asset('img/favicon.svg') }}">
     <link rel="alternate" type="application/rss+xml" title="{{ site_title }}" href="{{ url_for('rss.feed') }}">
     <link rel="alternate" type="application/feed+json" title="{{ site_title }} (JSON)" href="{{ url_for('rss.json_feed') }}">
     <style nonce="{{ csp_nonce }}">
@@ -85,22 +85,22 @@
         }
         @media (prefers-reduced-motion: reduce) { .navbar, .post-card { transition: none; } }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/public.css') }}" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' + syntax_theme + '.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/base.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/layout.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/public.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/forms.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}" media="print" onload="this.media='all'">
     <noscript>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/public.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/' + syntax_theme + '.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/base.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/layout.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/public.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/forms.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}">
     </noscript>
-    <link rel="preload" href="{{ url_for('static', filename='fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="{{ url_for('static', filename='fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ vite_asset('fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ vite_asset('fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
     <style nonce="{{ csp_nonce }}">
         :root {
             {% for key, value in theme_vars.items() %}
@@ -207,6 +207,6 @@
         </div>
     </footer>
 
-    <script defer src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script defer src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>

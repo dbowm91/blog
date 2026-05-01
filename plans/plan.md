@@ -12,7 +12,7 @@
 
 ## Completion Summary
 
-All 37 actionable items across 8 waves have been verified as COMPLETE:
+All 37 actionable items across 8 waves have been verified as COMPLETE, plus deferred item 5A.5 (Static asset content hashing) completed on 2026-05-01:
 
 | Wave | Items | Priority | Status |
 |------|-------|----------|--------|
@@ -24,6 +24,7 @@ All 37 actionable items across 8 waves have been verified as COMPLETE:
 | Wave 6: Infrastructure | 4 | MEDIUM | ✅ COMPLETED |
 | Wave 7: Frontend Improvements | 5 | HIGH | ✅ COMPLETED |
 | Wave 8: Feature Enhancements | 11 | MEDIUM-LOW | ✅ COMPLETED |
+| Deferred: 5A.5 Content Hashing | 1 | HIGH | ✅ COMPLETED (2026-05-01) |
 
 ### Key Achievements:
 - Async task processing via Celery (email, image variants)
@@ -40,12 +41,14 @@ All 37 actionable items across 8 waves have been verified as COMPLETE:
 - Rate limiting on all public routes
 - Proper error handling in all API endpoints
 - E2E tests passing with Playwright (10 tests)
+- Static asset content hashing (Vite manifest + Flask helper)
 
 ### Verification:
 - **524 tests passing** (514 unit + 10 E2E)
 - All implementation items verified in code
 - Fixed items that were incorrectly marked complete: 4.6, 5.2, 8.5, 8.6, 8.7, 8.8
 - E2E tests fixed: updated to use toast message selector instead of flash message
+- Content hashing: Vite build generates manifest with hashed filenames, Flask helper `vite_asset()` serves correct URLs
 
 ---
 
@@ -68,5 +71,5 @@ All 37 actionable items across 8 waves have been verified as COMPLETE:
 
 ## Notes
 
-This plan is now COMPLETE. All items have been implemented, verified, and tested.
+This plan is now COMPLETE. All items (including deferred item 5A.5) have been implemented, verified, and tested.
 For future improvement plans, create a new plan file (e.g., `plans/plan2.md`).

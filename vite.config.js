@@ -1,13 +1,15 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
 export default defineConfig({
-  root: 'app/static',
+  root: resolve(__dirname, 'app/static'),
   build: {
-    outDir: 'app/static/dist',
+    outDir: 'dist',
     assetsDir: '',
+    manifest: true,
     rollupOptions: {
       input: {
-        main: 'app/static/js/main.js',
+        main: resolve(__dirname, 'app/static/js/main.js'),
       },
     },
   },

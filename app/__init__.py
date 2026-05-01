@@ -424,6 +424,9 @@ def create_app():
 
     register_cli_commands(app)
 
+    from app.vite import init_vite
+    init_vite(app)
+
     @app.shell_context_processor
     def make_shell_context():
         from app.models import (
