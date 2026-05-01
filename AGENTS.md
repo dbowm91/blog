@@ -4,13 +4,20 @@ Quick reference for AI agents working on this codebase.
 
 ## Running Tests
 
+Use the project's virtual environment (`.venv`) Python to avoid fixture errors:
 ```bash
-ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ -v
 ```
 
-To run without E2E tests (which require Playwright):
+To run without E2E tests (which require Playwright installed in `.venv`):
 ```bash
-ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ --ignore=tests/e2e
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e
+```
+
+E2E tests require `pytest-playwright` and Chromium browser installed in `.venv`:
+```bash
+.venv/bin/pip install pytest-playwright
+.venv/bin/playwright install chromium
 ```
 
 Both `ADMIN_PASSWORD` and `SECRET_KEY` environment variables are **required**—the app raises `RuntimeError` when `create_app()` is called without them.
