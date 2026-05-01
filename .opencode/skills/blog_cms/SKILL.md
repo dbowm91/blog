@@ -122,6 +122,7 @@ Authentication: `X-API-Key` header (env var `API_KEY`)
 - Post revisions tracked on each publish
 - Related posts via tag intersection scoring (`_get_related_posts()` in `public.py`)
 - Configurable `RELATED_POSTS_COUNT` in `config.toml` (default: 3, hard limit: 6)
+- `image_alt_text` field for accessibility in feeds
 
 ## Security Features
 
