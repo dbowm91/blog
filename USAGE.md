@@ -6,6 +6,9 @@ Detailed documentation for blog administration and content management.
 
 - [Post Writing Guide](#post-writing-guide)
 - [Tags](#tags)
+- [Post Series Guide](#post-series-guide)
+- [Preview Links](#preview-links)
+- [Syntax Highlighting](#syntax-highlighting)
 - [Feeds (RSS and JSON)](#feeds-rss-and-json)
 - [Newsletter Management](#newsletter-management)
 - [Admin Tasks](#admin-tasks)
@@ -187,6 +190,35 @@ tags_per_sidebar = 20         # Maximum tags to show (default: 20)
 ### Tag Cloud
 
 Tags are displayed as a simple list sorted by name. No weighted tag cloud by default.
+
+---
+
+## Post Series Guide
+
+Post series let you group related posts into ordered collections with sequential navigation.
+
+### Workflow
+1. Go to `/admin/series`
+2. Click **New Series**
+3. Enter:
+   - **Name** — Display name (e.g., "Flask Tutorials")
+   - **Slug** — URL-friendly version (auto-generated from name)
+   - **Description** — Optional summary
+4. Click **Save**
+5. Add posts to a series:
+   - Edit a post, select the series from the **Series** dropdown
+   - Or go to the series page, click **Add Post** to select posts and set order
+
+### Example
+Create a "Python Basics" series, add 3 posts in order: "Variables", "Loops", "Functions". The series page at `/series/python-basics` shows all posts in order with previous/next navigation.
+
+### Comparison with Tags
+| Feature | Tags | Post Series |
+|---------|------|-------------|
+| Organization | Unordered many-to-many | Ordered one-to-many (post belongs to 0-1 series) |
+| Purpose | Filter posts by topic | Group sequential/related content |
+| Display | Sidebar filter, post tags | Series badge on posts, dedicated series page |
+| Navigation | None | Previous/next post links in series |
 
 ---
 
