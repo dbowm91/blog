@@ -1,6 +1,7 @@
 import os
 import time
 import json
+from urllib.parse import urlparse
 import sqlite3
 import secrets
 import logging
@@ -179,13 +180,17 @@ def create_app():
     db.init_app(app)
 
     if not app.debug and not app.testing:
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "pool_size": 10,
-            "max_overflow": 20,
-            "pool_recycle": 3600,
-            "pool_pre_ping": True,
-            "pool_timeout": 30,
-        }
+        # Only apply connection pool settings for non-SQLite databases
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        parsed_uri = urlparse(db_uri)
+        if parsed_uri.scheme != "sqlite":
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+                "pool_size": 10,
+                "max_overflow": 20,
+                "pool_recycle": 3600,
+                "pool_pre_ping": True,
+                "pool_timeout": 30,
+            }
 
     from app.config import RATE_LIMIT_STORAGE_URI
 
