@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 from typing import Optional, Dict, Any, List, Tuple, TYPE_CHECKING
+from requests.exceptions import RequestException
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -96,7 +97,7 @@ def create_webhook_event(
     try:
         from app.tasks import deliver_webhook_task
         deliver_webhook_task.delay(event.id)
-    except Exception:
+    except (RequestException, ValueError, OSError):
         pass
 
     return event.id

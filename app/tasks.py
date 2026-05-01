@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Optional, List, TYPE_CHECKING
 from celery import shared_task
+from sqlalchemy.exc import SQLAlchemyError
 
 if TYPE_CHECKING:
     from celery import Celery
@@ -117,7 +118,7 @@ def generate_image_variants(self, filename: str) -> bool:
     except (ClientError, BotoCoreError) as e:
         logger.error("S3 operation failed: %s", e)
         return False
-    except Exception as e:
+    except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Image variant generation failed: %s", e)
         return False
 
@@ -253,7 +254,7 @@ def send_confirmation_task(self, subscriber_id: int) -> bool:
     try:
         send_confirmation(subscriber)
         return True
-    except Exception:
+    except (SQLAlchemyError, OSError, ImportError):
         return False
 
 
@@ -271,5 +272,5 @@ def send_password_reset_task(self, user_id: int, token: str) -> bool:
     try:
         send_password_reset(user, token)
         return True
-    except Exception:
+    except (SQLAlchemyError, OSError, ImportError):
         return False

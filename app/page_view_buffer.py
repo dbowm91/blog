@@ -26,6 +26,7 @@ from queue import Queue, Empty
 from typing import Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ class PageViewBuffer:
                 self.db.session.commit()
                 self._stats["flushed"] += len(views)
                 logger.debug("Flushed %d page views to database", len(views))
-            except Exception as e:
+            except (SQLAlchemyError, OSError) as e:
                 self.db.session.rollback()
                 self._stats["dropped"] += len(views)
                 logger.error("Failed to flush page views: %s. Dropped %d views", e, len(views))
@@ -183,11 +184,12 @@ def record_page_view(post_id: int, referrer: Optional[str] = None) -> None:
     else:
         from app.extensions import db
         from app.models import PageView
+        from sqlalchemy.exc import SQLAlchemyError
         pv = PageView(post_id=post_id, referrer=referrer)
         db.session.add(pv)
         try:
             db.session.commit()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             db.session.rollback()
 
 
