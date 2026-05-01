@@ -73,10 +73,6 @@ def send_daily_newsletter(app) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
         return
 
     try:
@@ -143,10 +139,6 @@ def send_daily_newsletter(app) -> None:
                 )
     finally:
         lock.release()
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
 
 
 def cleanup_expired_subscribers(app) -> None:
@@ -156,10 +148,6 @@ def cleanup_expired_subscribers(app) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
         return
 
     try:
@@ -194,10 +182,6 @@ def cleanup_expired_subscribers(app) -> None:
             )
     finally:
         lock.release()
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
 
 
 def publish_scheduled_posts(app) -> None:
@@ -207,10 +191,6 @@ def publish_scheduled_posts(app) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
         return
 
     try:
@@ -253,10 +233,6 @@ def publish_scheduled_posts(app) -> None:
             app.logger.info("Auto-published %d scheduled post(s)", len(posts))
     finally:
         lock.release()
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
 
 
 BACKUP_RETENTION_COUNT = 7
@@ -273,10 +249,6 @@ def run_daily_backup(app) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
         return
 
     try:
@@ -315,10 +287,6 @@ def run_daily_backup(app) -> None:
                     app.logger.warning("Failed to remove old backup %s: %s", old_backup, e)
     finally:
         lock.release()
-        try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
 
 
 def init_scheduler(app) -> Optional["BackgroundScheduler"]:
