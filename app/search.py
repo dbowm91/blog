@@ -187,21 +187,21 @@ def _escape_fts_term(term: str) -> str:
     return term if term else ""
 
 
-def search(query: str) -> list[tuple[int, int]]:
-    """Search using FTS5 with prefix matching. Returns list of (post_id, rank) tuples or empty list if unavailable."""
+def search(query: str) -> list[tuple[int, float]]:
+    """Search using FTS5 with bm25 ranking. Returns list of (post_id, rank) tuples or empty list if unavailable."""
     try:
         if not _check_fts_enabled():
             return []
 
         terms = [_escape_fts_term(w) for w in query.split()]
         terms = [t for t in terms if t]
-        # Add prefix matching: each term matches the term itself or any term starting with it
         fts_query = " OR ".join(f'"{t}"*' for t in terms)
         if not fts_query:
             return []
         result = db.session.execute(
             text(
-                "SELECT rowid, rank FROM posts_fts WHERE posts_fts MATCH :q ORDER BY rank LIMIT :limit"
+                "SELECT rowid, bm25(posts_fts) as rank FROM posts_fts "
+                "WHERE posts_fts MATCH :q ORDER BY bm25(posts_fts) LIMIT :limit"
             ),
             {"q": fts_query, "limit": FTS_RESULT_LIMIT},
         ).fetchall()
@@ -269,15 +269,34 @@ def extract_snippet(text: str, query: str, context_chars: int = 200) -> str:
 
 
 def get_search_snippets(posts: list, query: str) -> dict[int, str]:
-    """Generate search snippets for a list of posts with query highlighting.
+    """Generate search snippets using FTS5 native snippet() function.
 
     Returns a dict mapping post_id to highlighted snippet string.
     """
     snippets: dict[int, str] = {}
-    for post in posts:
-        snippet_text = post.summary if post.summary else post.body
-        raw_snippet = extract_snippet(snippet_text, query)
-        snippets[post.id] = highlight_query(raw_snippet, query)
+    if not posts or not query or not _check_fts_enabled():
+        return snippets
+
+    post_ids = [p.id for p in posts]
+    terms = [_escape_fts_term(w) for w in query.split()]
+    terms = [t for t in terms if t]
+    fts_query = " OR ".join(f'"{t}"*' for t in terms)
+    if not fts_query:
+        return snippets
+
+    try:
+        # Use FTS5 snippet() on body column (1), wrap matches in <mark> tags
+        result = db.session.execute(
+            text(
+                "SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
+                "FROM posts_fts WHERE rowid IN :ids AND posts_fts MATCH :q"
+            ),
+            {"ids": tuple(post_ids) if len(post_ids) > 1 else (post_ids[0],), "q": fts_query},
+        ).fetchall()
+        for row in result:
+            snippets[row[0]] = row[1]
+    except (OperationalError, ProgrammingError, DatabaseError):
+        pass
     return snippets
 
 
