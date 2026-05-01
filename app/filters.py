@@ -71,11 +71,3 @@ def register_filters(app):
             g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
             return g._post_image_cache[cache_key]
         return None
-
-    @app.template_filter("file_url")
-    def file_url_filter(filename):
-        if not filename:
-            return None
-        from app.storage import get_storage
-        storage = get_storage()
-        return storage.url(filename)
