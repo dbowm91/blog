@@ -22,6 +22,7 @@ from flask import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_compress import Compress
 from flask_caching import Cache
 from flask_login import current_user, logout_user
 
@@ -36,6 +37,7 @@ def get_client_ip():
 limiter = Limiter(
     key_func=get_client_ip,
     default_limits=["100 per minute"],
+compress = Compress()
 )
 cache = Cache()
 from sqlalchemy import event
@@ -211,6 +213,7 @@ def create_app():
             "CACHE_DEFAULT_TIMEOUT": 300,
         }
     cache.init_app(app, config=cache_config)
+    compress.init_app(app)
 
     if os.environ.get("TESTING") or app.config.get("TESTING"):
         limiter.enabled = False
