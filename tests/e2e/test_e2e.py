@@ -30,9 +30,10 @@ class TestAdminLogin:
         page.fill('input[name="password"]', "wrong-password")
         page.click('button[type="submit"]')
 
-        page.wait_for_selector(".flash", timeout=3000)
-        flash = page.text_content(".flash")
-        assert flash and "invalid" in flash.lower()
+        page.wait_for_load_state("networkidle")
+        page.wait_for_selector(".toast-message", timeout=5000)
+        toast = page.text_content(".toast-message")
+        assert toast and "invalid" in toast.lower()
 
     def test_logout(self, page, app_server):
         """Admin should be able to log out."""
