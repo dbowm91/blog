@@ -29,12 +29,12 @@ This plan serves as the single source of truth for all identified improvements, 
 ## Wave 2: Security Hardening (HIGH - Parallelizable with Wave 1)
 
 - [ ] **SEC-1: Fix Information Leakage** - Strip `str(e)` from flash messages in `admin/newsletter.py:65`, `admin/series.py`, and `backup_integrity.py:78,80`. Use generic error messages and log the details instead.
-- [ ] **SEC-2: Upgrade Backup Encryption (PBKDF2)** - Upgrade `_derive_key()` in `app/backup_encryption.py` to use PBKDF2-HMAC-SHA256 with 600,000 iterations (NIST SP 800-132) and a 16-byte random salt.
-- [ ] **SEC-3: SSRF Protection for Webhooks** - Implement `is_safe_webhook_url(url)` in `app/utils.py` using `socket.getaddrinfo` and `ipaddress.is_global` to block private/loopback/metadata IPs. Apply to `deliver_webhook` in `app/webhooks.py` and `app/tasks.py:197`. Set `allow_redirects=False`.
-- [ ] **SEC-4: Webhook Logic Reconciliation** - Integrate HMAC-SHA256 signing from `app/webhooks.py` into the Celery task in `app/tasks.py`. Ensure all background deliveries are signed.
-- [ ] **SEC-5: API Input Validation Gaps** - Add `validate_integer()`, `validate_list()`, and regex-based `validate_tags()` (max 10 tags, 50 chars each, alpha-numeric) to `app/validators.py`. Add `require_json_content_type` decorator.
+- [x] **SEC-2: Upgrade Backup Encryption (PBKDF2)** - Upgrade `_derive_key()` in `app/backup_encryption.py` to use PBKDF2-HMAC-SHA256 with 600,000 iterations (NIST SP 800-132) and a 16-byte random salt.
+- [x] **SEC-3: SSRF Protection for Webhooks** - Implement `is_safe_webhook_url(url)` in `app/utils.py` using `socket.getaddrinfo` and `ipaddress.is_global` to block private/loopback/metadata IPs. Apply to `deliver_webhook` in `app/webhooks.py` and `app/tasks.py:197`. Set `allow_redirects=False`.
+- [x] **SEC-4: Webhook Logic Reconciliation** - Integrate HMAC-SHA256 signing from `app/webhooks.py` into the Celery task in `app/tasks.py`. Ensure all background deliveries are signed.
+- [x] **SEC-5: API Input Validation Gaps** - Add `validate_integer()`, `validate_list()`, and regex-based `validate_tags()` (max 10 tags, 50 chars each, alpha-numeric) to `app/validators.py`. Add `require_json_content_type` decorator.
 - [x] **SEC-6: Fix User __repr__ Leaks** - Change `User.__repr__` in `app/models.py:63` to return `id` instead of `username` to prevent log leakage.
-- [ ] **SEC-7: Implement Session Fixation Protection** - Add `session.regenerate_id()` (requires `Flask-Session` with Redis) or document current `session.clear()` mitigation and IP binding limitation.
+- [x] **SEC-7: Implement Session Fixation Protection** - Add `session.regenerate_id()` (requires `Flask-Session` with Redis) or document current `session.clear()` mitigation and IP binding limitation.
 
 ---
 
