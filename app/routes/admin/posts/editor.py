@@ -1,0 +1,345 @@
+"""Editor routes - new post and edit post."""
+
+from __future__ import annotations
+
+import os
+from datetime import datetime, timezone
+
+from flask import (
+    render_template,
+    redirect,
+    url_for,
+    request,
+    flash,
+    jsonify,
+    abort,
+    current_app,
+    Response,
+)
+from flask_login import login_required, current_user
+
+from app.extensions import db
+from app.models import Post, PostRevision
+from app.routes.admin import admin, admin_required
+from app.routes.admin.helpers import (
+    _generate_unique_slug,
+    _save_image,
+    _apply_post_updates,
+    _cleanup_orphan_tags,
+    _get_or_create_tags,
+    invalidate_analytics_cache,
+    invalidate_dashboard_cache,
+    logger,
+)
+from app.models import PostRevision
+
+
+def _save_revision(post: Post, author_id: int | None) -> None:
+    """Save a revision snapshot of the post."""
+    revision = PostRevision(
+        post_id=post.id,
+        title=post.title,
+        slug=post.slug,
+        body=post.body,
+        summary=post.summary,
+        author_id=author_id,
+    )
+    db.session.add(revision)
+from app.context_processors import invalidate_footer_cache
+from app.routes.admin.helpers.dashboard import _get_dashboard_metrics
+from app.config import DASHBOARD_PER_PAGE
+from app.utils import utc_now, safe_delete_file
+from app.tag_cache import invalidate_tag_cache
+from app.search import sync_fts, sync_fts_batch, remove_fts
+from app.routes.rss import invalidate_rss_cache
+from app.routes.public import invalidate_archive_cache
+from app.config import BASE_URL, PREVIEW_TOKEN_EXPIRY_DAYS
+from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError, OperationalError
+
+
+def _create_post_object(
+    *,
+    title: str,
+    body: str,
+    summary: str,
+    published: bool,
+    image: str | None,
+    now: datetime,
+    scheduled_publish_at: datetime | None,
+    tag_names: list[str],
+) -> Post:
+    """Create a Post instance with all fields set."""
+    post = Post(
+        title=title,
+        slug=_generate_unique_slug(Post, title),
+        body=body,
+        summary=summary,
+        published=published,
+        image=image,
+        published_at=now if published else None,
+        scheduled_publish_at=scheduled_publish_at,
+    )
+    post.tags = _get_or_create_tags(tag_names)
+    return post
+
+
+def _apply_cache_and_fts_updates(post: Post, searchable_changed: bool) -> bool:
+    """Apply cache invalidation and FTS sync for a post."""
+    fts_ok = True
+    if searchable_changed:
+        fts_ok = sync_fts(post.id, post.title, post.body, post.summary, post.published)
+    invalidate_tag_cache()
+    invalidate_analytics_cache()
+    invalidate_dashboard_cache()
+    invalidate_footer_cache()
+    invalidate_rss_cache()
+    invalidate_archive_cache()
+    _cleanup_orphan_tags()
+    return fts_ok
+
+
+def _commit_post_with_rollback(
+    *,
+    post: Post,
+    image: str | None,
+    title: str,
+    body: str,
+    summary: str,
+    published: bool,
+    now: datetime,
+    scheduled_publish_at: datetime | None,
+    tag_names: list[str],
+) -> tuple[str, bool]:
+    """Attempt to commit a post, handling IntegrityError by regenerating slug and retrying."""
+    try:
+        db.session.flush()
+        if not sync_fts(post.id, post.title, post.body, post.summary, post.published):
+            db.session.rollback()
+            raise Exception("FTS sync failed for post %d" % post.id)
+        db.session.commit()
+        return post.slug, True
+    except IntegrityError as e:
+        db.session.rollback()
+        if "slug" not in str(e).lower():
+            raise
+        if image:
+            safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+        post.slug = _generate_unique_slug(Post, title)
+        db.session.add(post)
+        db.session.flush()
+        if not sync_fts(post.id, post.title, post.body, post.summary, post.published):
+            db.session.rollback()
+            raise Exception("FTS sync failed for post %d" % post.id)
+        db.session.commit()
+        return post.slug, False
+
+
+def register_editor_routes(admin):
+    """Register editor routes on the admin Blueprint."""
+
+    @admin.route("/new", methods=["GET", "POST"])
+    @admin_required
+    def new_post() -> Response:
+        """Create a new blog post."""
+        if request.method == "POST":
+            title = request.form.get("title", "").strip()[:200]
+            body = request.form.get("body", "").strip()
+            summary = request.form.get("summary", "").strip()[:500]
+            tag_names = [
+                t.strip() for t in request.form.get("tags", "").split(",") if t.strip()
+            ]
+            published = "published" in request.form
+            scheduled_str = request.form.get("scheduled_publish_at", "").strip()
+            scheduled_publish_at = None
+            if scheduled_str:
+                try:
+                    scheduled_publish_at = datetime.fromisoformat(scheduled_str)
+                    if scheduled_publish_at.tzinfo is None:
+                        scheduled_publish_at = scheduled_publish_at.replace(
+                            tzinfo=timezone.utc
+                        )
+                except (ValueError, TypeError):
+                    flash("Invalid schedule date format.", "error")
+                    return render_template("admin/editor.html", post=None, tag_names=tag_names)
+
+            if not title or not body:
+                flash("Title and body are required.", "error")
+                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+
+            image, error = _save_image(request.files.get("image"))
+            if error:
+                flash(error, "error")
+                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+
+            if image:
+                from app.routes.admin.media import _invalidate_media_cache
+                _invalidate_media_cache()
+
+            now = utc_now()
+            post = _create_post_object(
+                title=title,
+                body=body,
+                summary=summary,
+                published=published,
+                image=image,
+                now=now,
+                scheduled_publish_at=scheduled_publish_at,
+                tag_names=tag_names,
+            )
+            db.session.add(post)
+            try:
+                slug, _ = _commit_post_with_rollback(
+                    post=post,
+                    image=image,
+                    title=title,
+                    body=body,
+                    summary=summary,
+                    published=published,
+                    now=now,
+                    scheduled_publish_at=scheduled_publish_at,
+                    tag_names=tag_names,
+                )
+            except (IntegrityError, OperationalError) as e:
+                logger.warning("FTS sync failed during new post: %s", e)
+                if image:
+                    safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
+                flash("Search index temporarily unavailable. Please try again.", "error")
+                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+            invalidate_tag_cache()
+            invalidate_analytics_cache()
+            invalidate_dashboard_cache()
+            invalidate_footer_cache()
+            flash("Post created.", "success")
+            return redirect(url_for("admin.dashboard"))
+
+        return render_template("admin/editor.html", post=None, tag_names=[])
+
+    @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
+    @admin_required
+    def edit_post(post_id: int) -> Response:
+        """Edit an existing blog post."""
+        post = db.session.get(Post, post_id)
+        if not post:
+            abort(404)
+
+        if request.method == "POST":
+            title = request.form.get("title", "").strip()[:200]
+            body = request.form.get("body", "").strip()
+            summary = request.form.get("summary", "").strip()[:500]
+            tag_names = [
+                t.strip() for t in request.form.get("tags", "").split(",") if t.strip()
+            ]
+            published = "published" in request.form
+            scheduled_str = request.form.get("scheduled_publish_at", "").strip()
+            scheduled_publish_at = None
+            if scheduled_str:
+                try:
+                    scheduled_publish_at = datetime.fromisoformat(scheduled_str)
+                    if scheduled_publish_at.tzinfo is None:
+                        scheduled_publish_at = scheduled_publish_at.replace(
+                            tzinfo=timezone.utc
+                        )
+                except (ValueError, TypeError):
+                    flash("Invalid schedule date format.", "error")
+                    return render_template("admin/editor.html", post=post, tag_names=tag_names)
+
+            if not title or not body:
+                flash("Title and body are required.", "error")
+                return render_template("admin/editor.html", post=post, tag_names=tag_names)
+
+            searchable_changed = (
+                title != post.title
+                or body != post.body
+                or summary != post.summary
+                or published != post.published
+            )
+            was_published = post.published
+            if was_published:
+                _save_revision(post, current_user.id)
+            elif published:
+                _save_revision(post, current_user.id)
+            if title != post.title:
+                post.slug = _generate_unique_slug(Post, title, exclude_id=post.id)
+            _apply_post_updates(
+                post,
+                title,
+                body,
+                summary,
+                published,
+                was_published,
+                scheduled_publish_at,
+                tag_names,
+            )
+
+            image, error = _save_image(request.files.get("image"))
+            if error:
+                flash(error, "error")
+                return render_template("admin/editor.html", post=post, tag_names=tag_names)
+            old_image = None
+            if image:
+                from app.routes.admin.media import _invalidate_media_cache
+                _invalidate_media_cache()
+                old_image = post.image
+                post.image = image
+            elif "remove_image" in request.form:
+                old_image = post.image
+                post.image = None
+
+            try:
+                fts_ok = _apply_cache_and_fts_updates(post, searchable_changed)
+                if not fts_ok:
+                    db.session.rollback()
+                    logger.warning("FTS sync failed for post %d during edit; rolling back", post.id)
+                    flash("Search index temporarily unavailable. Please try again.", "error")
+                    return render_template("admin/editor.html", post=post, tag_names=tag_names)
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                if image:
+                    safe_delete_file(
+                        os.path.join(current_app.config["UPLOAD_FOLDER"], image)
+                    )
+                post = db.session.get(Post, post_id)
+                post.slug = _generate_unique_slug(Post, title, exclude_id=post.id)
+                _apply_post_updates(
+                    post,
+                    title,
+                    body,
+                    summary,
+                    published,
+                    was_published,
+                    scheduled_publish_at,
+                    tag_names,
+                )
+                _apply_cache_and_fts_updates(post, True)
+                db.session.commit()
+            if old_image:
+                safe_delete_file(
+                    os.path.join(current_app.config["UPLOAD_FOLDER"], old_image)
+                )
+            flash("Post updated.", "success")
+            return redirect(url_for("admin.dashboard"))
+
+        tag_names = [t.name for t in post.tags]
+        return render_template("admin/editor.html", post=post, tag_names=tag_names)
+
+    @admin.route("/preview-markdown", methods=["POST"])
+    @admin_required
+    def preview_markdown():
+        """Render markdown preview for live editing."""
+        if request.content_length and request.content_length > 1024 * 1024:
+            return jsonify({"error": "payload too large"}), 413
+        data = request.get_json(silent=True)
+        if not data or "text" not in data:
+            return jsonify({"error": "invalid"}), 400
+        import nh3
+        import markdown as md
+        from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
+
+        html = md.markdown(data["text"], extensions=["fenced_code", "tables"])
+        clean = nh3.clean(
+            html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
+        )
+        return jsonify({"html": clean})
