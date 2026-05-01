@@ -1,9 +1,11 @@
 import os
 import time
 import json
+import sqlite3
 import secrets
 import logging
 from logging.handlers import RotatingFileHandler
+from datetime import datetime
 from flask import (
     Flask,
     render_template,
@@ -21,6 +23,10 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from flask_login import current_user, logout_user
+
+# Register sqlite3 datetime adapters for Python 3.12+ compatibility
+sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
+sqlite3.register_converter("datetime", lambda s: datetime.fromisoformat(s.decode()))
 
 def get_client_ip():
     return req.headers.get('X-Forwarded-For', req.remote_addr) or req.remote_addr
