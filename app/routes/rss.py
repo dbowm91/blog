@@ -1,5 +1,6 @@
 from flask import Blueprint, Response, request, make_response, current_app
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from app.models import Post
 from app.extensions import db
 from app import cache as flask_cache
@@ -38,6 +39,7 @@ def _get_feed_posts(limit: int = 20):
     posts = (
         db.session.execute(
             select(Post)
+            .options(joinedload(Post.tags))
             .filter_by(published=True)
             .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
             .limit(limit)
