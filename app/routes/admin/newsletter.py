@@ -3,6 +3,7 @@ from flask import redirect, url_for, request, flash, Response, render_template
 from flask_login import login_required
 from datetime import datetime, timezone
 import smtplib
+import logging
 
 from app.extensions import db
 from app.models import Post, User
@@ -62,7 +63,8 @@ def newsletter_test() -> Response:
         send_newsletter(posts, [fake_sub], total_subscribers=1)
         flash(f"Test newsletter sent to {test_email}.", "success")
     except (smtplib.SMTPException, OSError) as e:
-        flash(f"Failed to send test newsletter: {e}", "error")
+        logger.error("Failed to send test newsletter: %s", e)
+        flash("Failed to send test newsletter. Please try again later.", "error")
     return redirect(url_for("admin.dashboard"))
 
 

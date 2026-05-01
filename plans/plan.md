@@ -33,7 +33,7 @@ This plan serves as the single source of truth for all identified improvements, 
 - [ ] **SEC-3: SSRF Protection for Webhooks** - Implement `is_safe_webhook_url(url)` in `app/utils.py` using `socket.getaddrinfo` and `ipaddress.is_global` to block private/loopback/metadata IPs. Apply to `deliver_webhook` in `app/webhooks.py` and `app/tasks.py:197`. Set `allow_redirects=False`.
 - [ ] **SEC-4: Webhook Logic Reconciliation** - Integrate HMAC-SHA256 signing from `app/webhooks.py` into the Celery task in `app/tasks.py`. Ensure all background deliveries are signed.
 - [ ] **SEC-5: API Input Validation Gaps** - Add `validate_integer()`, `validate_list()`, and regex-based `validate_tags()` (max 10 tags, 50 chars each, alpha-numeric) to `app/validators.py`. Add `require_json_content_type` decorator.
-- [ ] **SEC-6: Fix User __repr__ Leaks** - Change `User.__repr__` in `app/models.py:63` to return `id` instead of `username` to prevent log leakage.
+- [x] **SEC-6: Fix User __repr__ Leaks** - Change `User.__repr__` in `app/models.py:63` to return `id` instead of `username` to prevent log leakage.
 - [ ] **SEC-7: Implement Session Fixation Protection** - Add `session.regenerate_id()` (requires `Flask-Session` with Redis) or document current `session.clear()` mitigation and IP binding limitation.
 
 ---
