@@ -42,6 +42,7 @@ pip install -r requirements.txt
 
 ## Running E2E Tests
 
+Use the project's `.venv` Python to avoid fixture errors:
 ```bash
 # Run all E2E tests
 ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/e2e/ -v

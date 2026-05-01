@@ -25,14 +25,16 @@ Flask-based blogging platform with:
 ## Quick Reference
 
 ### Running Tests
+Use the project's `.venv` Python to avoid fixture errors:
 ```bash
-# All tests (requires Playwright browsers installed)
-ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v
+# All tests (requires Playwright browsers installed in .venv)
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ -v
 
 # Without E2E tests (if Playwright not installed):
-ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ --ignore=tests/e2e
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e
 
-# Install Playwright: pip install playwright && playwright install chromium
+# Install Playwright in .venv:
+.venv/bin/pip install pytest-playwright && .venv/bin/playwright install chromium
 # Current test count: 524 (514 unit + 10 E2E)
 ```
 
