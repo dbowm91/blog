@@ -101,6 +101,11 @@ def register_cli_commands(app):
     @click.argument("output_file")
     def export_data_command(output_file):
         """Export all posts and subscribers as JSON."""
+        from app.services.serialization import (
+            serialize_post, serialize_subscriber, serialize_page, serialize_tag,
+            export_data_to_dict
+        )
+
         posts = db.session.execute(
             select(Post).order_by(Post.created_at)
         ).scalars().all()
@@ -117,60 +122,7 @@ def register_cli_commands(app):
             select(Page).order_by(Page.created_at)
         ).scalars().all()
 
-        def serialize_post(post):
-            return {
-                "title": post.title,
-                "slug": post.slug,
-                "body": post.body,
-                "summary": post.summary,
-                "image": post.image,
-                "created_at": post.created_at.isoformat() if post.created_at else None,
-                "updated_at": post.updated_at.isoformat() if post.updated_at else None,
-                "published": post.published,
-                "published_at": post.published_at.isoformat() if post.published_at else None,
-                "scheduled_publish_at": (
-                    post.scheduled_publish_at.isoformat()
-                    if post.scheduled_publish_at
-                    else None
-                ),
-                "tags": [tag.name for tag in post.tags],
-            }
-
-        def serialize_subscriber(subscriber):
-            return {
-                "email": subscriber.email,
-                "confirmed": subscriber.confirmed,
-                "created_at": (
-                    subscriber.created_at.isoformat() if subscriber.created_at else None
-                ),
-                "expires_at": (
-                    subscriber.expires_at.isoformat() if subscriber.expires_at else None
-                ),
-                "unsubscribed_at": (
-                    subscriber.unsubscribed_at.isoformat()
-                    if subscriber.unsubscribed_at
-                    else None
-                ),
-            }
-
-        def serialize_page(page):
-            return {
-                "title": page.title,
-                "slug": page.slug,
-                "body": page.body,
-                "created_at": page.created_at.isoformat() if page.created_at else None,
-                "updated_at": page.updated_at.isoformat() if page.updated_at else None,
-                "published": page.published,
-            }
-
-        data = {
-            "version": 1,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "posts": [serialize_post(p) for p in posts],
-            "subscribers": [serialize_subscriber(s) for s in subscribers],
-            "tags": [{"name": t.name, "slug": t.slug} for t in tags],
-            "pages": [serialize_page(p) for p in pages],
-        }
+        data = export_data_to_dict(posts, subscribers, tags, pages)
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
