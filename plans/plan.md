@@ -104,10 +104,10 @@ This plan serves as the single source of truth for all identified improvements, 
 ---
 
 ## Wave 9: Strategic Cleanup & Simplification
-
-- [ ] **STRAT-1: Celery vs APScheduler** - Strategic decision: Either stabilize Celery (downgrade to Python 3.12 for worker stability) OR remove Celery entirely and use APScheduler for all async tasks to simplify the stack (removes Redis dependency).
-- [ ] **STRAT-2: Codebase Reduction** - If simplifying, remove: `webhooks.py`, `celery_app.py`, `page_view_buffer.py`, `backup_encryption.py` (if GPG subprocess is enough), and `tag_cache.py`.
-- [ ] **STRAT-3: Python 3.14 Compatibility** - If keeping Celery, wait for 3.14 support or stick to 3.12 for stability.
+ 
+- [x] **STRAT-1: Celery vs APScheduler** - Decision: KEEP Celery with Python 3.12. Rationale: Python 3.12 standardized in Wave 1A-7, Celery tasks optimized in Wave 5 (PERF-7), and backup encryption (SEC-2) integrates with Celery. Removing Celery would require significant rework.
+- [x] **STRAT-2: Codebase Reduction** - Does not apply: Keeping Celery stack (webhooks.py, celery_app.py, page_view_buffer.py, backup_encryption.py, tag_cache.py are retained).
+- [x] **STRAT-3: Python 3.14 Compatibility** - Decision: Stick to Python 3.12 for stability. Already implemented in Wave 1A-7 (setup.sh, pyproject.toml, Dockerfile all set to 3.12). Wait for Celery 3.14 support before upgrading.
 
 ---
 
