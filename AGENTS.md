@@ -221,8 +221,8 @@ In `app/routes/admin/users.py`, the `make_owner()` function demotes ALL admins f
 ### File Deletion Timing
 Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
 
-### Search highlight_query XSS Risk (FIXED)
-`app/search.py:highlight_query()` was fixed to use `html.escape()` before wrapping in `<mark>` tags.
+### Search highlight_query XSS Risk
+`app/search.py:highlight_query()` uses `html.escape()` before wrapping in `<mark>` tags.
 
 ### Rate Limiting Already Present
 The codebase already has `@limiter.limit` decorators on most API routes and `/admin/login`. Adding more requires checking existing limits first.
@@ -516,7 +516,7 @@ npm run build
 Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
 Dependencies are installed in `node_modules/` (gitignored).
 
-### Content Hashing (Item 5A.5 - COMPLETED 2026-05-01)
+### Content Hashing
 - Vite generates content-hashed filenames (e.g., `main-BVtPp-ke.js`)
 - Manifest file generated at `app/static/dist/.vite/manifest.json`
 - Flask helper `vite_asset()` in `app/vite.py`:
