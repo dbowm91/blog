@@ -258,6 +258,37 @@ def generate_preview_link(post_id):
 
 ---
 
+## Syntax Highlighting
+
+The blog uses Prism.js for syntax highlighting of code blocks in posts.
+
+### Available Themes
+| Theme | Description |
+|-------|-------------|
+| GitHub Dark | Default dark theme |
+| GitHub Light | Light theme matching GitHub's style |
+| Solarized Dark | Low-contrast dark theme for reduced eye strain |
+| Monokai | High-contrast colorful theme |
+| Atom One Dark | Inspired by Atom editor's dark theme |
+| VS Code Light | Light theme matching VS Code's default |
+
+Change themes in `/admin/settings` under **Syntax Highlighting Theme**.
+
+### Main.js Hardcoding Bug & Fix
+**Bug:** Previously, `app/static/js/main.js` used variable-based dynamic imports (`import(moduleName)`) to load syntax highlighting themes, which Vite could not bundle correctly.
+
+**Fix:** Replaced with `import.meta.glob()` to explicitly pre-declare theme modules, making them compatible with Vite's build system:
+```javascript
+const themeModules = import.meta.glob('/node_modules/prismjs/themes/*.css', { import: 'default' });
+// Load theme by name
+function loadTheme(themeName) {
+  const path = `/node_modules/prismjs/themes/prism-${themeName}.css`;
+  return themeModules[path]();
+}
+```
+
+---
+
 ## Feeds (RSS and JSON)
 
 The blog provides RSS and JSON feeds for subscribers and feed readers.
