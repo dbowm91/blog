@@ -1,3 +1,5 @@
+import '../css/style.css';
+
 document.documentElement.classList.add('js');
 
 // Use Vite-compatible import.meta.glob() for static analysis
