@@ -20,7 +20,7 @@ Flask-based blogging platform with:
 - Async task processing via Celery (image variants, newsletter, webhooks, email)
 - RSS 2.0, Atom 1.0, and JSON Feed 1.1 support with caching
 - OpenAPI/Swagger UI documentation at `/api/docs`
-- Vite bundler for modern JavaScript/CSS with content hashing (item 5A.5 COMPLETED)
+- Vite bundler for modern JavaScript/CSS with content hashing
 
 ## Quick Reference
 
@@ -253,37 +253,6 @@ db.session.get(Model, id)
 
 ## Key Operational Lessons
 
-### IntegrityError Rollback Gotcha
-In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rollback, SQLAlchemy marks all attributes as expired. Always reapply all field changes after rollback.
-
-### File Deletion Timing
-Old image files are deleted *after* `db.session.commit()` to prevent dangling file references on rollback. Use `safe_delete_file()` from `app/utils.py`.
-
-### Media Cache Invalidation
-When uploading images via post creation/edit, the media cache must be invalidated:
-```python
-from app.routes.admin.media import _invalidate_media_cache
-_invalidate_media_cache()
-```
-The cache is in `app/routes/admin/media.py` and uses 30-second TTL.
-
-### LIKE Wildcard Escaping
-Escape `%` and `_` in search:
-```python
-escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-search_term = f"%{escaped}%"
-Post.title.ilike(search_term, escape="\\")
-```
-
-### `assert` Under `python -O`
-`assert` is stripped with `-O`. Never use for runtime safety checks.
-
-### Verified Completion
-All plan items (plans/plan.md) have been verified as complete:
-- 514 tests passing
-- All 37 actionable items implemented and tested
-- Features verified: syntax highlighting themes, Atom feed, related posts scoring, reading time in dashboard, rate limiting on all routes, proper API error handling
-
 ## Security Posture
 
 The codebase implements robust security controls:
@@ -308,7 +277,7 @@ See `requirements.txt`. Key packages:
 - nh3 0.2+ (HTML sanitization—**not** `bleach`, which is deprecated since 2023)
 - pillow 10.0+ (image processing for responsive variants)
 
-## Frontend Build System (Content Hashing - Item 5A.5 COMPLETED)
+## Frontend Build System
 
 Uses **Vite** for modern JavaScript/CSS bundling with content hashing:
 
