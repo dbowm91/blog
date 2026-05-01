@@ -27,4 +27,4 @@ EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:5000/health || exit 1
 
-CMD granian --interface asgi --workers 2 --host 0.0.0.0 --port 5000 run:asgi_app
+CMD granian --interface asgi --workers 4 --timeout 60 --host 0.0.0.0 --port 5000 run:asgi_app
