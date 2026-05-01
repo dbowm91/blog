@@ -54,6 +54,7 @@ app/csv_utils.py        # Subscriber CSV export with formula injection preventio
 app/context_processors.py  # Template context (theme, footer, canonical_url)
 app/cli.py              # CLI commands (export-data, import-data, seed, etc.)
 app/backup_integrity.py # Backup integrity verification
+app/vite.py            # Vite integration for content-hashed assets
 app/static/js/          # JavaScript modules (ES6 with dynamic imports)
 app/static/js/lib/     # Third-party JS libraries (marked.js for markdown preview)
 app/static/js/shared/   # Shared JS modules (utils, dark-mode, modal, mobile-menu, toast, etc.)
@@ -492,9 +493,11 @@ Key indexes for query optimization:
 
 ## Testing Notes
 
-- 514 tests pass (excluding E2E)
-- New tests added for: password reset flow, settings routes, pages routes
+- 524 tests pass (514 unit + 10 E2E)
+- New tests added for: password reset flow, settings routes, pages routes, content hashing
 - E2E tests require Playwright: `pip install playwright && playwright install`
+- Run all tests: `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ -v`
+- Run without E2E: `ADMIN_PASSWORD=test SECRET_KEY=test python3 -m pytest tests/ --ignore=tests/e2e`
 
 ## Frontend Build System
 Uses **Vite** for modern JavaScript/CSS bundling (properly configured and installed):
@@ -506,12 +509,21 @@ npm install --registry https://registry.npmjs.org/
 # Development with HMR
 npm run dev
 
-# Build for production
+# Build for production (with content hashing)
 npm run build
 ```
 
 Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
 Dependencies are installed in `node_modules/` (gitignored).
+
+### Content Hashing (Item 5A.5 - COMPLETED 2026-05-01)
+- Vite generates content-hashed filenames (e.g., `main-BVtPp-ke.js`)
+- Manifest file generated at `app/static/dist/.vite/manifest.json`
+- Flask helper `vite_asset()` in `app/vite.py`:
+  - JS files: Looks up hashed filename from manifest
+  - CSS/other: Appends MD5 content hash as query string (e.g., `base.css?v=3544ab62`)
+- Templates use `{{ vite_asset('path/to/file') }}` instead of `{{ url_for('static', ...) }}`
+- Enables aggressive caching with `Cache-Control: max-age=31536000, immutable` for static assets
 
 ## CSS Architecture
 Styles are split into modular files (processed by Vite for production):
