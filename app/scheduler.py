@@ -241,7 +241,6 @@ BACKUP_RETENTION_COUNT = 7
 
 def run_daily_backup(app) -> None:
     """Run daily database backup with retention cleanup."""
-    import shutil
     import glob as glob_module
     from datetime import datetime
 
