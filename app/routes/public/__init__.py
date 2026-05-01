@@ -13,6 +13,7 @@ from app.routes.public.browse import register_browse_routes
 from app.routes.public.posts import register_post_routes
 from app.routes.public.subscribe import register_subscribe_routes
 from app.routes.public.meta import register_meta_routes
+from app.routes.public import comments  # noqa: F401
 
 # Register all routes
 register_browse_routes(public)

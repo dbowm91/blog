@@ -37,8 +37,8 @@ def get_client_ip():
 limiter = Limiter(
     key_func=get_client_ip,
     default_limits=["100 per minute"],
-compress = Compress()
 )
+compress = Compress()
 cache = Cache()
 from sqlalchemy import event
 from app.extensions import db, login_manager, migrate

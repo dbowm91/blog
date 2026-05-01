@@ -502,3 +502,27 @@ class PostSeries(db.Model):
 
     def __repr__(self) -> str:
         return f"<PostSeries series_id={self.series_id} post_id={self.post_id} order={self.order_index}>"
+
+
+class Comment(db.Model):
+    __tablename__ = "comments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey("comments.id"), nullable=True)
+    author_name = db.Column(db.String(100), nullable=False)
+    author_email = db.Column(db.String(256), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    approved = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    post = db.relationship("Post", backref="comments")
+    parent = db.relationship("Comment", remote_side=[id], backref="replies")
+
+    __table_args__ = (
+        db.Index("ix_comments_post_approved", "post_id", "approved"),
+        db.Index("ix_comments_created_at", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Comment post_id={self.post_id} approved={self.approved}>"

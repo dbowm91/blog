@@ -1,0 +1,35 @@
+{% macro render_comments(comments) %}
+{% for comment in comments %}
+<div class="comment" id="comment-{{ comment.id }}">
+    <div class="comment-meta">
+        <strong>{{ comment.author_name }}</strong>
+        <time datetime="{{ comment.created_at.isoformat() }}">{{ comment.created_at.strftime('%b %d, %Y at %H:%M') }}</time>
+    </div>
+    <div class="comment-body">{{ comment.content }}</div>
+    {% if comment.replies %}
+    <div class="comment-replies">
+        {{ render_comments(comment.replies) }}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endmacro %}
+
+{% macro comment_form(slug, parent_id=None) %}
+<form method="POST" action="{{ url_for('public.add_comment', slug=slug) }}" class="comment-form">
+    <input type="hidden" name="parent_id" value="{{ parent_id or '' }}">
+    <div class="form-group">
+        <label for="author_name">Name</label>
+        <input type="text" name="author_name" required>
+    </div>
+    <div class="form-group">
+        <label for="author_email">Email</label>
+        <input type="email" name="author_email" required>
+    </div>
+    <div class="form-group">
+        <label for="content">Comment</label>
+        <textarea name="content" rows="4" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit Comment</button>
+</form>
+{% endmacro %}

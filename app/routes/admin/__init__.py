@@ -144,3 +144,4 @@ from app.routes.admin.series import (
     series_reorder,
 )
 from app.routes.admin.audit import audit_log
+from app.routes.admin.comments import comments_list, approve_comment, delete_comment

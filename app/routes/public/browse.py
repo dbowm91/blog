@@ -1,6 +1,7 @@
 """Browse routes - index, archive, tags, search, series, pages."""
 
 import time
+import logging
 from datetime import timedelta, datetime
 from urllib.parse import urlparse, urlunparse
 from flask import current_app
