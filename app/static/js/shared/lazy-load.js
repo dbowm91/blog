@@ -22,6 +22,7 @@ export function initLazyLoad() {
                     img.src = img.dataset.src;
                 }
                 img.removeAttribute('loading');
+                img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
                 observer.unobserve(img);
             }
         });

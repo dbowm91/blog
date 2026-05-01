@@ -38,7 +38,10 @@
                     <div class="post-card-body">
                         <div class="post-meta">
                             <time datetime="{{ post.created_at.isoformat() }}">{{ post.created_at.strftime('%b %d, %Y') }}</time>
-                            <span class="reading-time" aria-label="Estimated reading time">{{ rt }}</span>
+                            <span class="reading-time" aria-label="Estimated reading time">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                {{ rt }}
+                            </span>
                             <span class="post-author">{{ author_name }}</span>
                         </div>
                         <h2 class="post-card-title">
