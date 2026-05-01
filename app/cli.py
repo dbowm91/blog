@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import User, Post, Tag, Subscriber, Page, SiteSettings
 from app.utils import utc_now
+from app.transaction import commit_with_rollback
 
 
 def register_cli_commands(app):
@@ -55,14 +56,14 @@ def register_cli_commands(app):
         if existing:
             existing.is_admin = True
             existing.set_password(password)
-            db.session.commit()
+            commit_with_rollback()
             click.echo(f"User '{username}' promoted to admin.")
         else:
             user = User(username=username, is_admin=True)
             user.set_password(password)
             db.session.add(user)
             try:
-                db.session.commit()
+                commit_with_rollback()
             except IntegrityError:
                 db.session.rollback()
                 click.echo(f"User '{username}' already exists.")
@@ -83,7 +84,7 @@ def register_cli_commands(app):
             click.echo(f"User '{username}' is already an admin.")
             return
         user.is_admin = True
-        db.session.commit()
+        commit_with_rollback()
         click.echo(f"User '{username}' promoted to admin.")
 
     @app.cli.command("check-integrity")
@@ -160,7 +161,7 @@ def register_cli_commands(app):
                 db.session.add(tag)
                 imported_tags += 1
         if imported_tags > 0:
-            db.session.commit()
+            commit_with_rollback()
 
         tag_cache = {
             t.slug: t for t in db.session.execute(select(Tag)).scalars().all()
@@ -196,7 +197,7 @@ def register_cli_commands(app):
             db.session.add(post)
             imported_posts += 1
         if imported_posts > 0:
-            db.session.commit()
+            commit_with_rollback()
             from app.search import sync_fts
 
             for post_data in data.get("posts", []):
@@ -237,7 +238,7 @@ def register_cli_commands(app):
             db.session.add(subscriber)
             imported_subscribers += 1
         if imported_subscribers > 0:
-            db.session.commit()
+            commit_with_rollback()
 
         for page_data in data.get("pages", []):
             existing = db.session.execute(
@@ -260,7 +261,7 @@ def register_cli_commands(app):
             db.session.add(page)
             imported_pages += 1
         if imported_pages > 0:
-            db.session.commit()
+            commit_with_rollback()
 
         click.echo(
             f"Imported {imported_posts} posts, {imported_subscribers} subscribers, "
@@ -284,7 +285,7 @@ def register_cli_commands(app):
             tag = Tag(name=name, slug=Tag.generate_slug(name))
             db.session.add(tag)
             sample_tags.append(tag)
-        db.session.commit()
+        commit_with_rollback()
         click.echo(f"Created {len(sample_tags)} tags.")
 
         sample_users = []
@@ -293,7 +294,7 @@ def register_cli_commands(app):
             user.set_password("Password123!")
             db.session.add(user)
             sample_users.append(user)
-        db.session.commit()
+        commit_with_rollback()
         click.echo(f"Created {len(sample_users)} users.")
 
         for i in range(posts):
@@ -315,7 +316,7 @@ def register_cli_commands(app):
             for tag in sample_tags[: (i % len(sample_tags)) + 1]:
                 post.tags.append(tag)
             db.session.add(post)
-        db.session.commit()
+        commit_with_rollback()
 
         from app.search import sync_fts
 
@@ -331,7 +332,7 @@ def register_cli_commands(app):
                 confirmed=True,
             )
             db.session.add(subscriber)
-        db.session.commit()
+        commit_with_rollback()
         click.echo(f"Created {subscribers} subscribers.")
 
         sample_pages = [
@@ -341,7 +342,7 @@ def register_cli_commands(app):
         for page_data in sample_pages:
             page = Page(**page_data, published=True)
             db.session.add(page)
-        db.session.commit()
+        commit_with_rollback()
         click.echo(f"Created {len(sample_pages)} pages.")
 
         click.echo("Seed complete!")
