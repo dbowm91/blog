@@ -98,8 +98,8 @@ This plan serves as the single source of truth for all identified improvements, 
 
 - [x] **FEAT-1: Audit Log UI** - Integrate existing `AdminAuditLog` model with a dashboard UI for tracking admin actions.
 - [x] **FEAT-2: Post Revision Diff** - Implement a diff viewer for `PostRevision` using Python's `difflib`.
-- [ ] **FEAT-3: Comments System** - Implement `Comment` model with nested replies and moderation.
-- [ ] **FEAT-4: 2FA** - Add TOTP support for admin logins.
+- [x] **FEAT-3: Comments System** - Implement `Comment` model with nested replies and moderation.
+- [x] **FEAT-4: 2FA** - Add TOTP support for admin logins.
 
 ---
 
