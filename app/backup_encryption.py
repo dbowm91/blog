@@ -1,7 +1,10 @@
-"""Backup encryption utilities using GPG symmetric encryption.
+"""Backup encryption utilities using PBKDF2-HMAC-SHA256 with AES encryption.
 
-Uses the `gnupg` library for GPG operations, with fallback to subprocess
-calling the `gpg` command-line tool if the library is not available.
+Implements NIST SP 800-132 compliant key derivation using PBKDF2-HMAC-SHA256
+with 600,000 iterations and a 16-byte random salt.
+
+The encrypted format is: salt(16 bytes) + nonce(12 bytes) + ciphertext + tag(16 bytes)
+Uses AES-256-GCM for authenticated encryption.
 
 Encryption key is derived from the BACKUP_ENCRYPTION_KEY environment variable.
 If not set, no encryption is applied.
@@ -9,10 +12,10 @@ If not set, no encryption is applied.
 Usage:
     # Encrypt a backup file
     encrypted_data = encrypt_backup(open("blog_20260101.db", "rb").read())
-    open("blog_20260101.db.gpg", "wb").write(encrypted_data)
+    open("blog_20260101.db.enc", "wb").write(encrypted_data)
 
     # Decrypt a backup file
-    decrypted_data = decrypt_backup(open("blog_20260101.db.gpg", "rb").read())
+    decrypted_data = decrypt_backup(open("blog_20260101.db.enc", "rb").read())
     open("blog_20260101.db", "wb").write(decrypted_data)
 """
 
@@ -21,203 +24,170 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-import subprocess
 from typing import Optional
+
+try:
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.backends import default_backend
+
+    CRYPTOGRAPHY_AVAILABLE = True
+except ImportError:
+    CRYPTOGRAPHY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 BACKUP_ENCRYPTION_KEY = os.environ.get("BACKUP_ENCRYPTION_KEY", "")
 
+# NIST SP 800-132 recommended iterations for PBKDF2-HMAC-SHA256
+PBKDF2_ITERATIONS = 600_000
+SALT_SIZE = 16  # 16-byte salt as per NIST SP 800-132
+KEY_SIZE = 32  # 256-bit key for AES-256
+NONCE_SIZE = 12  # 12-byte nonce for AES-GCM (recommended size)
 
-def _get_cipher_algo() -> str:
-    """Get the GPG cipher algorithm. AES256 is the default."""
-    return os.environ.get("BACKUP_GPG_CIPHER", "AES256")
 
+def _derive_key(password: str, salt: bytes) -> bytes:
+    """Derive a 256-bit encryption key from password using PBKDF2-HMAC-SHA256.
 
-def _derive_key(password: str) -> bytes:
-    """Derive a GPG-compatible key from the password using SHA-256.
+    Uses NIST SP 800-132 recommended parameters:
+    - PBKDF2 with HMAC-SHA256
+    - 600,000 iterations
+    - 16-byte random salt
+    - 256-bit output key for AES-256
 
-    GPG expects a passphrase, not a raw key. We use the password directly
-    but ensure it meets minimum length requirements.
+    Args:
+        password: The user-provided password (BACKUP_ENCRYPTION_KEY)
+        salt: 16-byte random salt value
+
+    Returns:
+        32-byte derived key
+
+    Raises:
+        ValueError: If password is too short or salt is invalid
     """
     if len(password) < 8:
         raise ValueError(
-            "BACKUP_ENCRYPTION_KEY must be at least 8 characters for GPG encryption"
+            "BACKUP_ENCRYPTION_KEY must be at least 8 characters for encryption"
         )
-    return password.encode("utf-8")
+    if len(salt) != SALT_SIZE:
+        raise ValueError(f"Salt must be exactly {SALT_SIZE} bytes")
+
+    # Use hashlib's pbkdf2_hmac (available in stdlib)
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        PBKDF2_ITERATIONS,
+        dklen=KEY_SIZE,
+    )
+    return key
 
 
 def _has_gnupg() -> bool:
-    """Check if the gnupg library is available."""
-    try:
-        import gnupg
-        return True
-    except ImportError:
-        return False
+    """Check if cryptography library is available (kept for backward compatibility)."""
+    return CRYPTOGRAPHY_AVAILABLE
 
 
 def encrypt_backup(data: bytes, filename: str = "backup.db") -> bytes:
-    """Encrypt backup data using GPG symmetric encryption.
+    """Encrypt backup data using AES-256-GCM with PBKDF2 key derivation.
 
     Args:
         data: The raw backup bytes to encrypt
-        filename: Optional filename hint for GPG (stored in metadata)
+        filename: Optional filename hint (unused, kept for compatibility)
 
     Returns:
-        Encrypted bytes (ASCII-armored GPG output)
+        Encrypted bytes (salt + nonce + ciphertext + tag)
 
     Raises:
-        RuntimeError: If GPG is not available or encryption fails
+        RuntimeError: If encryption is not available or encryption fails
+        ValueError: If BACKUP_ENCRYPTION_KEY is not set or too short
     """
     if not BACKUP_ENCRYPTION_KEY:
-        raise RuntimeError(
+        raise ValueError(
             "BACKUP_ENCRYPTION_KEY environment variable is not set. "
             "Cannot encrypt backup."
         )
 
-    try:
-        import gnupg
-
-        key = _derive_key(BACKUP_ENCRYPTION_KEY)
-        gpg = gnupg.GPG()
-        gpg.encoding = "utf-8"
-
-        encrypted = gpg.encrypt(
-            data,
-            recipients=None,
-            symmetric=True,
-            passphrase=BACKUP_ENCRYPTION_KEY,
-            cipher_algo=_get_cipher_algo(),
-            protect=True,
-            passphrase_from_environment=False,
+    if not CRYPTOGRAPHY_AVAILABLE:
+        raise RuntimeError(
+            "cryptography library is not available. "
+            "Install with: pip install cryptography"
         )
 
-        if not encrypted.ok:
-            raise RuntimeError(f"GPG encryption failed: {encrypted.status}")
+    try:
+        # Generate random salt and nonce
+        salt = os.urandom(SALT_SIZE)
+        nonce = os.urandom(NONCE_SIZE)
 
-        return bytes(encrypted.data)
+        # Derive key using PBKDF2-HMAC-SHA256
+        key = _derive_key(BACKUP_ENCRYPTION_KEY, salt)
 
-    except ImportError:
-        return _encrypt_backup_subprocess(data, filename)
+        # Encrypt using AES-256-GCM
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce), backend=default_backend())
+        encryptor = cipher.encryptor()
+        ciphertext = encryptor.update(data) + encryptor.finalize()
 
+        # Output format: salt + nonce + ciphertext + tag
+        return salt + nonce + ciphertext + encryptor.tag
 
-def _encrypt_backup_subprocess(data: bytes, filename: str) -> bytes:
-    """Encrypt using the gpg command-line tool (fallback when gnupg not available)."""
-    key = _derive_key(BACKUP_ENCRYPTION_KEY)
-
-    env = os.environ.copy()
-    env["GPG_TTY"] = "tty"
-
-    process = subprocess.Popen(
-        [
-            "gpg",
-            "--batch",
-            "--symmetric",
-            "--passphrase-fd", "0",
-            "--cipher-algo", _get_cipher_algo(),
-            "--armor",
-            "--compress-algo", "none",
-            "-o", "-",
-        ],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
-    )
-
-    stdout, stderr = process.communicate(input=BACKUP_ENCRYPTION_KEY.encode("utf-8"))
-
-    if process.returncode != 0:
-        raise RuntimeError(f"GPG encryption failed: {stderr.decode('utf-8', errors='replace')}")
-
-    return stdout
+    except Exception as e:
+        raise RuntimeError(f"Encryption failed: {e}")
 
 
 def decrypt_backup(data: bytes) -> bytes:
-    """Decrypt GPG-encrypted backup data.
+    """Decrypt backup data encrypted with AES-256-GCM and PBKDF2 key derivation.
 
     Args:
-        data: Encrypted bytes (ASCII-armored or binary GPG input)
+        data: Encrypted bytes (salt + nonce + ciphertext + tag)
 
     Returns:
         Decrypted raw backup bytes
 
     Raises:
-        RuntimeError: If GPG is not available or decryption fails
+        RuntimeError: If decryption fails
+        ValueError: If BACKUP_ENCRYPTION_KEY is not set or data is invalid
     """
     if not BACKUP_ENCRYPTION_KEY:
-        raise RuntimeError(
+        raise ValueError(
             "BACKUP_ENCRYPTION_KEY environment variable is not set. "
             "Cannot decrypt backup."
         )
 
-    try:
-        import gnupg
-
-        gpg = gnupg.GPG()
-        gpg.encoding = "utf-8"
-
-        decrypted = gpg.decrypt(
-            data,
-            passphrase=BACKUP_ENCRYPTION_KEY,
-            passphrase_from_environment=False,
+    if not CRYPTOGRAPHY_AVAILABLE:
+        raise RuntimeError(
+            "cryptography library is not available. "
+            "Install with: pip install cryptography"
         )
 
-        if not decrypted.ok:
-            raise RuntimeError(f"GPG decryption failed: {decrypted.status}")
+    try:
+        # Minimum size check: salt(16) + nonce(12) + tag(16) = 44 bytes minimum
+        if len(data) < SALT_SIZE + NONCE_SIZE + 16:
+            raise ValueError("Encrypted data is too short to be valid")
 
-        return bytes(decrypted.data)
+        # Extract components
+        salt = data[:SALT_SIZE]
+        nonce = data[SALT_SIZE:SALT_SIZE + NONCE_SIZE]
+        tag = data[-16:]
+        ciphertext = data[SALT_SIZE + NONCE_SIZE:-16]
 
-    except ImportError:
-        return _decrypt_backup_subprocess(data)
+        # Derive key using PBKDF2-HMAC-SHA256
+        key = _derive_key(BACKUP_ENCRYPTION_KEY, salt)
 
+        # Decrypt using AES-256-GCM
+        cipher = Cipher(
+            algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend()
+        )
+        decryptor = cipher.decryptor()
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 
-def _decrypt_backup_subprocess(data: bytes) -> bytes:
-    """Decrypt using the gpg command-line tool (fallback when gnupg not available)."""
-    env = os.environ.copy()
-    env["GPG_TTY"] = "tty"
+        return plaintext
 
-    process = subprocess.Popen(
-        [
-            "gpg",
-            "--batch",
-            "--decrypt",
-            "--passphrase-fd", "0",
-            "--armor",
-            "-o", "-",
-        ],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
-    )
-
-    stdout, stderr = process.communicate(input=BACKUP_ENCRYPTION_KEY.encode("utf-8"))
-
-    if process.returncode != 0:
-        raise RuntimeError(f"GPG decryption failed: {stderr.decode('utf-8', errors='replace')}")
-
-    return stdout
+    except Exception as e:
+        raise RuntimeError(f"Decryption failed: {e}")
 
 
 def is_encryption_available() -> bool:
-    """Check if backup encryption is available (GPG and key configured)."""
-    if not BACKUP_ENCRYPTION_KEY:
-        return False
-
-    try:
-        import gnupg
-        return True
-    except ImportError:
-        try:
-            result = subprocess.run(
-                ["gpg", "--version"],
-                capture_output=True,
-                timeout=5,
-            )
-            return result.returncode == 0
-        except (subprocess.SubprocessError, FileNotFoundError):
-            return False
+    """Check if backup encryption is available (library installed and key configured)."""
+    return CRYPTOGRAPHY_AVAILABLE and bool(BACKUP_ENCRYPTION_KEY)
 
 
 def encrypt_backup_file(input_path: str, output_path: str) -> bool:
