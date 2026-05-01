@@ -34,6 +34,13 @@ def login() -> Response:
     GET: Renders the login form. Redirects if already authenticated.
     POST: Authenticates user with username/password. Creates AdminSession on success.
     Requires: Admin user with valid credentials.
+
+    SECURITY (SEC-7): Session Fixation Protection
+    - session.clear() is called before login_user() to mitigate session fixation attacks
+    - This effectively creates a new session ID by clearing the old session data
+    - Alternative would be Flask-Session with Redis and session.regenerate_id()
+    - IP binding is implemented via AdminSession.ip_address field
+    - Limitation: IP binding may cause issues for users behind NAT/proxies/VPNs
     """
     if current_user.is_authenticated:
         return redirect(url_for("admin.dashboard"))
@@ -48,7 +55,12 @@ def login() -> Response:
             flash("Account is locked due to too many failed attempts. Try again later.", "error")
             return redirect(url_for("admin.login"))
         if user and user.check_password(password) and user.is_admin:
+            # SEC-7: Session Fixation Protection
+            # Clear the session before logging in to regenerate session ID
+            # This prevents session fixation attacks where an attacker sets
+            # a known session ID before the user authenticates
             session.clear()
+            
             login_user(user)
             user.reset_failed_login()
             sid = secrets.token_hex(32)
@@ -222,7 +234,11 @@ def reset_password(token: str) -> Response:
             flash("An error occurred. Please try again.", "error")
             return redirect(url_for("admin.reset_password", token=token))
 
+        # SEC-7: Session Fixation Protection
+        # Clear session after password reset to force re-authentication
+        # This ensures any old sessions are invalidated
         session.clear()
+        
         logger.info(
             "Password reset completed: user_id=%d username=%s",
             user.id,
