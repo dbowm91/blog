@@ -183,7 +183,7 @@ def create_app():
 
     from app.config import RATE_LIMIT_STORAGE_URI
 
-    app.config["RATELIMIT_STORAGE_URL"] = RATE_LIMIT_STORAGE_URI
+    app.config["RATELIMIT_STORAGE_URI"] = RATE_LIMIT_STORAGE_URI
     app.config["RATELIMIT_HEADERS_ENABLED"] = False
 
     limiter.init_app(app)
