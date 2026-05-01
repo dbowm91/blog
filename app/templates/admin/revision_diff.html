@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': post.title, 'url': url_for('admin.edit_post', post_id=post.id) }, { 'label': 'Revisions', 'url': url_for('admin.post_revisions', post_id=post.id) }, { 'label': 'Diff' }]) }}
+<div class="diff-page animate-in">
+    <div class="diff-header">
+        <h1>Revision Diff</h1>
+        <div class="flex-row gap-sm">
+            <a href="{{ url_for('admin.post_revisions', post_id=post.id) }}" class="btn btn-small btn-ghost">&larr; Back to Revisions</a>
+        </div>
+    </div>
+
+    <div class="diff-info">
+        <p>
+            Comparing
+            <strong>v{{ new_revision.created_at.strftime('%b %d, %Y %H:%M') }}</strong>
+            with
+            <strong>v{{ old_revision.created_at.strftime('%b %d, %Y %H:%M') }}</strong>
+        </p>
+    </div>
+
+    {% for label, diff_text in [('Title', title_diff), ('Slug', slug_diff), ('Body', body_diff)] %}
+    {% if diff_text %}
+    <div class="diff-section">
+        <h2>{{ label }} Changes</h2>
+        <pre class="diff-output"><code>{{ diff_text }}</code></pre>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}

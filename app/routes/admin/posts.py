@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import difflib
 from datetime import datetime, timezone
 
 from flask import (
@@ -760,3 +761,70 @@ def restore_revision(post_id: int, revision_id: int):
 
     flash("Post restored to previous revision.", "success")
     return redirect(url_for("admin.post_revisions", post_id=post_id))
+
+
+@admin.route("/posts/<int:post_id>/revisions/<int:revision_id>/diff")
+@admin_required
+def revision_diff(post_id: int, revision_id: int):
+    """
+    View diff between a revision and the previous one.
+
+    Methods: GET
+    GET: Renders unified diff of title, slug, and body changes.
+    Requires: Admin authentication.
+    Path params:
+        post_id (int) - ID of the post
+        revision_id (int) - ID of the revision to diff
+    Query params:
+        compare (int) - Optional revision ID to compare against (default: previous)
+    """
+    post = db.session.get(Post, post_id)
+    if not post:
+        abort(404)
+
+    revision = db.session.get(PostRevision, revision_id)
+    if not revision or revision.post_id != post_id:
+        abort(404)
+
+    compare_id = request.args.get("compare", type=int)
+    if compare_id:
+        old_revision = db.session.get(PostRevision, compare_id)
+        if not old_revision or old_revision.post_id != post_id:
+            abort(404)
+    else:
+        old_revision = db.session.execute(
+            select(PostRevision)
+            .filter(
+                PostRevision.post_id == post_id,
+                PostRevision.created_at < revision.created_at,
+            )
+            .order_by(PostRevision.created_at.desc())
+        ).scalar_one_or_none()
+
+    if not old_revision:
+        flash("No previous revision to compare against.", "error")
+        return redirect(url_for("admin.post_revisions", post_id=post_id))
+
+    def _make_diff(old_text: str, new_text: str, label: str) -> str:
+        old_lines = (old_text or "").splitlines()
+        new_lines = (new_text or "").splitlines()
+        diff = difflib.unified_diff(
+            old_lines, new_lines,
+            fromfile=f"{label} (old)", tofile=f"{label} (new)",
+            lineterm="",
+        )
+        return "\n".join(diff)
+
+    title_diff = _make_diff(old_revision.title, revision.title, "Title")
+    slug_diff = _make_diff(old_revision.slug, revision.slug, "Slug")
+    body_diff = _make_diff(old_revision.body, revision.body, "Body")
+
+    return render_template(
+        "admin/revision_diff.html",
+        post=post,
+        old_revision=old_revision,
+        new_revision=revision,
+        title_diff=title_diff,
+        slug_diff=slug_diff,
+        body_diff=body_diff,
+    )

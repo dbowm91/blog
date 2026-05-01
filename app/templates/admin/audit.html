@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': 'Audit Log' }]) }}
+<div class="audit-page animate-in">
+    <div class="audit-header">
+        <h1>Audit Log</h1>
+    </div>
+
+    <div class="audit-filters">
+        <form method="GET" class="filter-form">
+            <select name="action" class="form-select" onchange="this.form.submit()">
+                <option value="">All Actions</option>
+                {% for act in actions %}
+                <option value="{{ act }}" {% if act == current_action %}selected{% endif %}>{{ act }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    {% if entries %}
+    <div class="audit-list">
+        {% for entry in entries %}
+        <div class="audit-item">
+            <div class="audit-info">
+                <span class="audit-action badge">{{ entry.action }}</span>
+                <span class="audit-target">{{ entry.target_type }} #{{ entry.target_id }}</span>
+                {% if entry.details %}
+                <span class="audit-details">{{ entry.details }}</span>
+                {% endif %}
+            </div>
+            <div class="audit-meta">
+                {% if entry.actor %}
+                <span class="audit-actor">User #{{ entry.actor_id }}</span>
+                {% else %}
+                <span class="audit-actor">System</span>
+                {% endif %}
+                <time datetime="{{ entry.timestamp.isoformat() }}">
+                    {{ entry.timestamp.strftime('%b %d, %Y at %H:%M') }}
+                </time>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+        <a href="{{ url_for('admin.audit_log', page=pagination.prev_num, action=current_action) }}" class="btn btn-small">&larr; Previous</a>
+        {% endif %}
+        <span class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        {% if pagination.has_next %}
+        <a href="{{ url_for('admin.audit_log', page=pagination.next_num, action=current_action) }}" class="btn btn-small">Next &rarr;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <h3>No audit entries found</h3>
+        <p>Admin actions will appear here as they occur.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
