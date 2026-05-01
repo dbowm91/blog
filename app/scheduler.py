@@ -9,6 +9,7 @@ Multi-worker limitation:
 """
 
 import os
+import sqlite3
 import threading
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
@@ -268,7 +269,13 @@ def run_daily_backup(app) -> None:
             backup_filename = f"backup_{timestamp}.db"
             backup_path = os.path.join(backup_dir, backup_filename)
 
-            shutil.copy2(db_path, backup_path)
+            # Use sqlite3.backup() for WAL mode consistency (captures WAL/SHM files)
+            source = sqlite3.connect(db_path)
+            backup = sqlite3.connect(backup_path)
+            source.backup(backup)
+            backup.commit()
+            source.close()
+            backup.close()
             app.logger.info("Created backup: %s", backup_filename)
 
             backup_pattern = os.path.join(backup_dir, "backup_*.db")
