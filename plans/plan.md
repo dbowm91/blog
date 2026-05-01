@@ -2,11 +2,11 @@
 
 **Date:** 2026-04-30
 **Status:** COMPLETED AND VERIFIED
-**Summary:** All improvement items have been implemented and verified. 514 tests passing.
+**Summary:** All improvement items have been implemented and verified. 524 tests passing (514 unit + 10 E2E).
 
-**Completion Date:** 2026-04-30
+**Completion Date:** 2026-05-01
 **Verified by:** AI agent (opencode/big-pickle)
-**Branch:** dev (merged to master)
+**Branch:** dev
 
 ---
 
@@ -39,11 +39,13 @@ All 37 actionable items across 8 waves have been verified as COMPLETE:
 - Reading time in admin dashboard
 - Rate limiting on all public routes
 - Proper error handling in all API endpoints
+- E2E tests passing with Playwright (10 tests)
 
 ### Verification:
-- **514 tests passing** (excluding E2E)
+- **524 tests passing** (514 unit + 10 E2E)
 - All implementation items verified in code
 - Fixed items that were incorrectly marked complete: 4.6, 5.2, 8.5, 8.6, 8.7, 8.8
+- E2E tests fixed: updated to use toast message selector instead of flash message
 
 ---
 
@@ -52,10 +54,15 @@ All 37 actionable items across 8 waves have been verified as COMPLETE:
 ### Python Packages
 - `flask-swagger-ui>=4.0.0` (Wave 8, item 8.1)
 - `vite` + `vite-plugin-flask` (Wave 7, item 7.1)
+- `filelock>=3.0.0` (Wave 3, async infrastructure)
+- `playwright>=1.58.0` (E2E tests)
+- `pytest-playwright>=0.7.0` (E2E tests)
 
 ### Database Migrations Applied
 - `Series`/`PostSeries` models (Wave 8, item 8.9)
 - `SiteSettings.syntax_theme` field (Wave 8, item 8.8)
+- `WebhookEvent` model (webhook support)
+- `Webhook` model (webhook support)
 
 ---
 
