@@ -12,7 +12,7 @@ This plan serves as the single source of truth for all identified improvements, 
 
 ### Wave 1A: Backend Bugs
 - [x] **BUG-1: Fix Rate Limiter Config Key Mismatch** - `app/__init__.py:186` assigns to `RATELIMIT_STORAGE_URL` but Flask-Limiter expects `RATELIMIT_STORAGE_URI`. Ensure it uses `RATE_LIMIT_STORAGE_URI` from config.
-- [ ] **BUG-2: Fix Scheduler File Lock Race Condition** - Remove all `os.remove(lock_path)` calls from `app/scheduler.py` (8 locations: lines 77, 147, 160, 198, 211, 257, 277, 319). Linux file locks are advisory and shouldn't be deleted.
+- [x] **BUG-2: Fix Scheduler File Lock Race Condition** - Remove all `os.remove(lock_path)` calls from `app/scheduler.py` (8 locations: lines 77, 147, 160, 198, 211, 257, 277, 319). Linux file locks are advisory and shouldn't be deleted.
 - [ ] **BUG-3: Fix Backup Strategy (WAL Mode)** - `shutil.copy2()` in `app/scheduler.py:299` misses WAL file. Replace with `sqlite3.backup()` API for consistent snapshots.
 - [ ] **P0-1: Fix Broken CI Pipeline** - Add `ruff>=0.8.0` and `mypy>=1.8.0` to `requirements-dev.txt`.
 - [ ] **P0-2: Fix JavaScript Dynamic Imports** - Replace variable-based `import(m)` in `app/static/js/main.js` with `import.meta.glob()` for Vite-compatible bundling.
