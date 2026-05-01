@@ -1,12 +1,29 @@
 document.documentElement.classList.add('js');
 
-const loadModule = (path) => {
-    import(path).then(module => {
-        if (typeof module.default === 'function') { module.default(); }
-    }).catch(err => {
-        console.error(`Failed to load module: ${path}`, err);
-    });
-};
+// Use Vite-compatible import.meta.glob() for static analysis
+const moduleGlob = import.meta.glob([
+    './shared/utils.js',
+    './shared/modal.js',
+    './shared/nav-dropdown.js',
+    './shared/filter-select.js',
+    './shared/toast.js',
+    './admin/shortcuts.js',
+    './admin/bulk.js',
+    './admin/editor.js',
+    './image-preview.js',
+    './upload.js',
+    './shared/dark-mode.js',
+    './shared/mobile-menu.js',
+    './shared/lazy-load.js',
+    './shared/prefetch.js',
+    './public/share.js',
+    './public/lightbox.js',
+    './public/toc.js',
+    './public/code-copy.js',
+    './public/anchor-links.js',
+    './public/media-copy.js',
+    './public/search.js',
+]);
 
 const ROUTE_MODULES = {
     '/admin/posts': [
@@ -63,6 +80,18 @@ function getModulesForPath(path) {
     ];
 }
 
+const loadModule = (path) => {
+    const loader = moduleGlob[path];
+    if (loader) {
+        loader().then(module => {
+            if (typeof module.default === 'function') { module.default(); }
+        }).catch(err => {
+            console.error(`Failed to load module: ${path}`, err);
+        });
+    } else {
+        console.warn(`Module not found in glob: ${path}`);
+    }
+};
 function loadPrismIfNeeded() {
     const codeBlocks = document.querySelectorAll('pre[class*="language-"]');
     if (codeBlocks.length === 0) return;
