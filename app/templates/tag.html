@@ -59,17 +59,8 @@
             </div>
         {% endfor %}
 
-        {% if pagination.pages > 1 %}
-            <nav class="pagination" aria-label="Pagination">
-                {% if pagination.has_prev %}
-                    <a href="{{ url_for('public.tag', slug=tag.slug, page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
-                {% endif %}
-                <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
-                {% if pagination.has_next %}
-                    <a href="{{ url_for('public.tag', slug=tag.slug, page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
-                {% endif %}
-            </nav>
-        {% endif %}
+        {% from "macros.html" import pagination %}
+        {{ pagination(pagination, url_for('public.tag'), tag_slug=tag.slug) }}
     </section>
 
     {% set active_tag_id = tag.id %}
