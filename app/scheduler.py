@@ -241,8 +241,7 @@ BACKUP_RETENTION_COUNT = 7
 
 def run_daily_backup(app) -> None:
     """Run daily database backup with retention cleanup."""
-    import glob as glob_module
-    from datetime import datetime
+    from app.services.backup import run_daily_backup as _run_backup
 
     lock_path = os.path.join(app.instance_path, "backup.lock")
     lock = FileLock(lock_path, timeout=0)
@@ -253,44 +252,7 @@ def run_daily_backup(app) -> None:
 
     try:
         with app.app_context():
-            from app.config import DATA_BACKUP_DIR
-
-            backup_dir = os.path.join(app.instance_path, DATA_BACKUP_DIR)
-            os.makedirs(backup_dir, exist_ok=True)
-
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            db_path = os.path.join(app.instance_path, "blog.db")
-
-            if not os.path.exists(db_path):
-                app.logger.warning("Database file not found at %s, skipping backup", db_path)
-                return
-
-            backup_filename = f"backup_{timestamp}.db"
-            backup_path = os.path.join(backup_dir, backup_filename)
-
-            # Use sqlite3.backup() for WAL mode consistency (captures WAL/SHM files)
-            source = sqlite3.connect(db_path)
-            backup = sqlite3.connect(backup_path)
-            source.backup(backup)
-            backup.commit()
-            source.close()
-            backup.close()
-            app.logger.info("Created backup: %s", backup_filename)
-
-            backup_pattern = os.path.join(backup_dir, "backup_*.db")
-            backups = sorted(
-                glob_module.glob(backup_pattern),
-                key=os.path.getmtime,
-                reverse=True
-            )
-
-            retention = BACKUP_RETENTION_COUNT
-            for old_backup in backups[retention:]:
-                try:
-                    os.remove(old_backup)
-                    app.logger.info("Removed old backup: %s", os.path.basename(old_backup))
-                except OSError as e:
-                    app.logger.warning("Failed to remove old backup %s: %s", old_backup, e)
+            _run_backup(app)
     finally:
         lock.release()
 
