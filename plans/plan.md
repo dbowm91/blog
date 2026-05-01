@@ -50,13 +50,13 @@ This plan serves as the single source of truth for all identified improvements, 
 
 ## Wave 4: Code Quality Improvements
 
-- [ ] **CQ-1: Create Unified Backup Service** - Move robust logic from `backup.py` and `app/scheduler.py` into a centralized `app/services/backup.py` used by CLI, cron, and scheduler.
-- [ ] **CQ-2: Service Layer Extraction** - Centralize shared logic for Slug Generation, Serialization, and Tag Management into `app/services/` to reduce duplication between CLI, API, and Admin routes.
-- [ ] **CQ-3: Replace Broad `except Exception`** - Replace with specific exceptions (e.g., `SQLAlchemyError`, `OSError`, `ValueError`) in high-risk files: `backup_encryption.py:243,268`, `webhooks.py:83`, `tasks.py:115,228,246`, `page_view_buffer.py:129,190`.
-- [ ] **CQ-4: Improve Transaction Management** - Implement `db_transaction()` context manager in `app/transaction.py` with automatic rollback on `IntegrityError` or `SQLAlchemyError`.
-- [ ] **CQ-5: Refactor Large Route Files** - Split `app/routes/public.py` (978 lines) and `app/routes/admin/posts.py` (762 lines) into sub-packages following the `admin/helpers/` pattern.
-- [ ] **CQ-6: Standardize String Formatting** - Convert ~89 instances of `%` formatting to f-strings, focusing on `posts.py`, `public.py`, and `scheduler.py`.
-- [ ] **CQ-7: CLI Error Handling** - Add `commit_with_rollback()` or `db_transaction()` to all `db.session.commit()` calls in `app/cli.py` (15+ instances).
+- [x] **CQ-1: Create Unified Backup Service** - Move robust logic from `backup.py` and `app/scheduler.py` into a centralized `app/services/backup.py` used by CLI, cron, and scheduler.
+- [x] **CQ-2: Service Layer Extraction** - Centralize shared logic for Slug Generation, Serialization, and Tag Management into `app/services/` to reduce duplication between CLI, API, and Admin routes.
+- [x] **CQ-3: Replace Broad `except Exception`** - Replace with specific exceptions (e.g., `SQLAlchemyError`, `OSError`, `ValueError`) in high-risk files: `backup_encryption.py:243,268`, `webhooks.py:83`, `tasks.py:115,228,246`, `page_view_buffer.py:129,190`.
+- [x] **CQ-4: Improve Transaction Management** - Implement `db_transaction()` context manager in `app/transaction.py` with automatic rollback on `IntegrityError` or `SQLAlchemyError`.
+- [x] **CQ-5: Refactor Large Route Files** - Split `app/routes/public.py` (978 lines) and `app/routes/admin/posts.py` (762 lines) into sub-packages following the `admin/helpers/` pattern.
+- [x] **CQ-6: Standardize String Formatting** - Convert ~89 instances of `%` formatting to f-strings, focusing on `posts.py`, `public.py`, and `scheduler.py`.
+- [x] **CQ-7: CLI Error Handling** - Add `commit_with_rollback()` or `db_transaction()` to all `db.session.commit()` calls in `app/cli.py` (15+ instances).
 
 ---
 
