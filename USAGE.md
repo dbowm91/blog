@@ -222,6 +222,42 @@ Create a "Python Basics" series, add 3 posts in order: "Variables", "Loops", "Fu
 
 ---
 
+## Preview Links
+
+Shareable preview links let you share unpublished posts with reviewers without publishing them.
+
+### HMAC Security
+Preview links use HMAC-SHA256 signed tokens to prevent unauthorized access:
+- Token includes post ID and expiry timestamp
+- Signed with `SECRET_KEY` to prevent tampering
+- Tokens are validated on every access
+
+### Expiry
+Tokens expire after 24 hours by default. Configure `PREVIEW_LINK_EXPIRY_HOURS` in `config.toml` to customize expiry time.
+
+### Programmatic Generation
+Generate preview links via the admin panel or code:
+1. **Admin panel**: Edit a post, click **Generate Preview Link**
+2. **Code**:
+```python
+import hmac
+import hashlib
+import time
+from flask import current_app
+
+def generate_preview_link(post_id):
+    expires = int(time.time()) + 86400  # 24 hours
+    message = f"{post_id}:{expires}".encode()
+    token = hmac.new(
+        current_app.config["SECRET_KEY"].encode(),
+        message,
+        hashlib.sha256
+    ).hexdigest()
+    return f"/preview/{post_id}?token={token}&expires={expires}"
+```
+
+---
+
 ## Feeds (RSS and JSON)
 
 The blog provides RSS and JSON feeds for subscribers and feed readers.
