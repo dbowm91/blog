@@ -143,3 +143,4 @@ from app.routes.admin.series import (
     series_posts,
     series_reorder,
 )
+from app.routes.admin.audit import audit_log

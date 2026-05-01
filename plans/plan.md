@@ -62,42 +62,42 @@ This plan serves as the single source of truth for all identified improvements, 
 
 ## Wave 5: Performance Optimizations
 
-- [ ] **PERF-1: Fix N+1 in RSS/Atom Feeds** - Add `joinedload(Post.tags)` to `_get_feed_posts()` in `app/routes/rss.py`.
-- [ ] **PERF-2: Fix N+1 in Series View** - Add `joinedload(PostSeries.post)` in `app/routes/public.py:419-429`.
-- [ ] **PERF-3: Add Missing Database Indexes** - Create migration for `ix_posts_scheduled_publish_at` and `ix_share_events_platform`.
-- [ ] **PERF-4: CSS Minification & Consolidation** - Import CSS in `main.js` for Vite processing. Delete redundant `style.css` (80KB) after verifying no references.
-- [ ] **PERF-5: Fix Lazy Load Fallback** - Replace existing fallback in `lazy-load.js` with a proper `IntersectionObserver` polyfill.
-- [ ] **PERF-6: Prefetch Rate Limiting** - Add `MAX_CONCURRENT = 3` and `MAX_QUEUE = 10` to `prefetch.js`. Use `AbortController` for cancellation.
-- [ ] **PERF-7: Optimize Celery Tasks** - Add `retry_backoff=True`, `task_routes` for different queues, and ensure `db.session.remove()` in `finally` blocks.
-- [ ] **PERF-8: Optimize FTS5 Search** - Replace custom ranking logic in `app/search.py` with native `bm25()` and `snippet()` functions.
-- [ ] **PERF-9: Enable Page View Buffer** - Set `PAGE_VIEW_BUFFER_SIZE = 100` for production in `config.toml`.
+- [x] **PERF-1: Fix N+1 in RSS/Atom Feeds** - Add `joinedload(Post.tags)` to `_get_feed_posts()` in `app/routes/rss.py`.
+- [x] **PERF-2: Fix N+1 in Series View** - Add `joinedload(PostSeries.post)` in `app/routes/public.py:419-429`.
+- [x] **PERF-3: Add Missing Database Indexes** - Create migration for `ix_posts_scheduled_publish_at` and `ix_share_events_platform`.
+- [x] **PERF-4: CSS Minification & Consolidation** - Import CSS in `main.js` for Vite processing. Delete redundant `style.css` (80KB) after verifying no references.
+- [x] **PERF-5: Fix Lazy Load Fallback** - Replace existing fallback in `lazy-load.js` with a proper `IntersectionObserver` polyfill.
+- [x] **PERF-6: Prefetch Rate Limiting** - Add `MAX_CONCURRENT = 3` and `MAX_QUEUE = 10` to `prefetch.js`. Use `AbortController` for cancellation.
+- [x] **PERF-7: Optimize Celery Tasks** - Add `retry_backoff=True`, `task_routes` for different queues, and ensure `db.session.remove()` in `finally` blocks.
+- [x] **PERF-8: Optimize FTS5 Search** - Replace custom ranking logic in `app/search.py` with native `bm25()` and `snippet()` functions.
+- [x] **PERF-9: Enable Page View Buffer** - Set `PAGE_VIEW_BUFFER_SIZE = 100` for production in `config.toml`.
 
 ---
 
 ## Wave 6: Frontend Improvements
 
-- [ ] **FE-1: Navigation Enhancements** - Remove unnecessary homepage breadcrumb. Add mobile search icon toggle and reorder search in mobile menu.
-- [ ] **FE-2: Sidebar & Footer Polish** - Remove duplicate subscribe form from footer. Add "Recent Posts" and context-aware "Series Navigation" to sidebar. Fix hardcoded footer year.
-- [ ] **FE-3: Visual Improvements** - Add Toast CSS to public stylesheet. Implement "Reading Time" clock icon in post cards. Fix image skeleton animation by adding `.loaded` class in `lazy-load.js`.
-- [ ] **FE-4: Pagination** - Replace "Newer/Older" with numbered pagination using the existing macro in `macros.html`.
-- [ ] **FE-5: Critical CSS Automation** - Install `vite-plugin-beasties` to automate inlining of critical CSS and remove ~65 lines of manual inline CSS from `base.html`.
+- [x] **FE-1: Navigation Enhancements** - Remove unnecessary homepage breadcrumb. Add mobile search icon toggle and reorder search in mobile menu.
+- [x] **FE-2: Sidebar & Footer Polish** - Remove duplicate subscribe form from footer. Add "Recent Posts" and context-aware "Series Navigation" to sidebar. Fix hardcoded footer year.
+- [x] **FE-3: Visual Improvements** - Add Toast CSS to public stylesheet. Implement "Reading Time" clock icon in post cards. Fix image skeleton animation by adding `.loaded` class in `lazy-load.js`.
+- [x] **FE-4: Pagination** - Replace "Newer/Older" with numbered pagination using the existing macro in `macros.html`.
+- [x] **FE-5: Critical CSS Automation** - Install `vite-plugin-beasties` to automate inlining of critical CSS and remove ~65 lines of manual inline CSS from `base.html`.
 
 ---
 
 ## Wave 7: Documentation (Parallelizable)
 
-- [ ] **DOC-1: Post Series Guide** - Document workflow, examples, and comparison with tags in `USAGE.md`.
-- [ ] **DOC-2: Preview Links Guide** - Document HMAC security, expiry, and programmatic generation in `USAGE.md`.
-- [ ] **DOC-3: Syntax Highlighting Docs** - Add theme table and document the `main.js` hardcoding bug/fix in `USAGE.md`.
-- [ ] **DOC-4: Analytics Guide** - Add interpretation guide (Traffic Sources, Share Events) to `USAGE.md`.
-- [ ] **DOC-5: Rate Limiting & Vite Guides** - Add troubleshooting for rate limiting and a "Vite for Admins" guide to `DEPLOY.md`.
+- [x] **DOC-1: Post Series Guide** - Document workflow, examples, and comparison with tags in `USAGE.md`.
+- [x] **DOC-2: Preview Links Guide** - Document HMAC security, expiry, and programmatic generation in `USAGE.md`.
+- [x] **DOC-3: Syntax Highlighting Docs** - Add theme table and document the `main.js` hardcoding bug/fix in `USAGE.md`.
+- [x] **DOC-4: Analytics Guide** - Add interpretation guide (Traffic Sources, Share Events) to `USAGE.md`.
+- [x] **DOC-5: Rate Limiting & Vite Guides** - Add troubleshooting for rate limiting and a "Vite for Admins" guide to `DEPLOY.md`.
 
 ---
 
 ## Wave 8: Future Features (Implementation)
 
-- [ ] **FEAT-1: Audit Log UI** - Integrate existing `AdminAuditLog` model with a dashboard UI for tracking admin actions.
-- [ ] **FEAT-2: Post Revision Diff** - Implement a diff viewer for `PostRevision` using Python's `difflib`.
+- [x] **FEAT-1: Audit Log UI** - Integrate existing `AdminAuditLog` model with a dashboard UI for tracking admin actions.
+- [x] **FEAT-2: Post Revision Diff** - Implement a diff viewer for `PostRevision` using Python's `difflib`.
 - [ ] **FEAT-3: Comments System** - Implement `Comment` model with nested replies and moderation.
 - [ ] **FEAT-4: 2FA** - Add TOTP support for admin logins.
 
