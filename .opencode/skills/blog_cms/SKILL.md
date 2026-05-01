@@ -20,7 +20,7 @@ Flask-based blogging platform with:
 - Async task processing via Celery (image variants, newsletter, webhooks, email)
 - RSS 2.0, Atom 1.0, and JSON Feed 1.1 support with caching
 - OpenAPI/Swagger UI documentation at `/api/docs`
-- Vite bundler for modern JavaScript/CSS
+- Vite bundler for modern JavaScript/CSS with content hashing (item 5A.5 COMPLETED)
 
 ## Quick Reference
 
@@ -307,6 +307,37 @@ See `requirements.txt`. Key packages:
 - asgiref 3.8+ (ASGI adapter for Granian)
 - nh3 0.2+ (HTML sanitization—**not** `bleach`, which is deprecated since 2023)
 - pillow 10.0+ (image processing for responsive variants)
+
+## Frontend Build System (Content Hashing - Item 5A.5 COMPLETED)
+
+Uses **Vite** for modern JavaScript/CSS bundling with content hashing:
+
+```bash
+# Install dependencies
+npm install --registry https://registry.npmjs.org/
+
+# Development with HMR
+npm run dev
+
+# Build for production (with content hashing)
+npm run build
+```
+
+Configuration: `vite.config.js` with `build.manifest: true` for content-hashed filenames.
+
+### Content Hashing Implementation
+- Vite generates content-hashed JS filenames (e.g., `main-BVtPp-ke.js`)
+- Manifest file generated at `app/static/dist/.vite/manifest.json`
+- Flask helper `vite_asset()` in `app/vite.py`:
+  - JS files: Looks up hashed filename from manifest
+  - CSS/other: Appends MD5 content hash as query string (e.g., `base.css?v=3544ab62`)
+- Templates use `{{ vite_asset('path/to/file') }}` instead of `{{ url_for('static', ...) }}`
+- Enables aggressive caching: `Cache-Control: max-age=31536000, immutable`
+
+Key files:
+- `vite.config.js` - Vite configuration with manifest generation
+- `app/vite.py` - Flask helper for content-hashed asset URLs
+- `app/__init__.py` - Initializes Vite integration via `init_vite(app)`
 
 ## Storage Abstraction Layer (`app/storage.py`)
 
