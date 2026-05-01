@@ -2,6 +2,9 @@ import time
 import uuid
 from datetime import timedelta, datetime
 from urllib.parse import urlparse, urlunparse
+import shutil
+from pathlib import Path
+from flask import current_app
 
 from flask import (
     Blueprint,
@@ -948,6 +951,21 @@ def health_check() -> Response:
         checks["search"] = "ok" if has_fts else "unavailable"
     except (OperationalError, ProgrammingError):
         checks["search"] = "error"
+    # Disk space check (critical for SQLite)
+    try:
+        disk_path = Path(current_app.instance_path)
+        disk_usage = shutil.disk_usage(disk_path)
+        free_percent = (disk_usage.free / disk_usage.total) * 100
+        checks["disk_space"] = "ok" if free_percent >= 10 else "low"
+    except Exception:
+        checks["disk_space"] = "error"
+
+    # Database integrity check
+    try:
+        integrity_result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
+        checks["db_integrity"] = "ok" if integrity_result and integrity_result[0] == "ok" else "error"
+    except Exception:
+        checks["db_integrity"] = "error"
 
     # Determine overall status - exclude None values (like last_newsletter_send when never sent)
     overall = (
@@ -976,3 +994,59 @@ def health_check() -> Response:
             )
 
     return jsonify(result), status_code
+
+@public.route("/metrics")
+def metrics():
+    """Prometheus-compatible metrics endpoint."""
+    from flask import current_app
+    import shutil
+    from pathlib import Path
+    from sqlalchemy import text
+    from app.extensions import db
+    from app.config import SMTP_HOST
+
+    metrics_lines = []
+
+    # Health status
+    metrics_lines.append("# HELP blog_health_status Overall health status (1=ok, 0=degraded)")
+    metrics_lines.append("# TYPE blog_health_status gauge")
+    try:
+        db.session.execute(text("SELECT 1"))
+        metrics_lines.append("blog_health_status 1")
+    except Exception:
+        metrics_lines.append("blog_health_status 0")
+
+    # Disk free
+    metrics_lines.append("# HELP blog_disk_free_bytes Free disk space in bytes")
+    metrics_lines.append("# TYPE blog_disk_free_bytes gauge")
+    try:
+        disk_path = Path(current_app.instance_path)
+        disk_usage = shutil.disk_usage(disk_path)
+        metrics_lines.append(f"blog_disk_free_bytes {disk_usage.free}")
+    except Exception:
+        metrics_lines.append("blog_disk_free_bytes 0")
+
+    # DB integrity
+    metrics_lines.append("# HELP blog_db_integrity Database integrity (1=ok, 0=error)")
+    metrics_lines.append("# TYPE blog_db_integrity gauge")
+    try:
+        result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
+        integrity_ok = result and result[0] == "ok"
+        metrics_lines.append(f"blog_db_integrity {1 if integrity_ok else 0}")
+    except Exception:
+        metrics_lines.append("blog_db_integrity 0")
+
+    # Scheduler status
+    metrics_lines.append("# HELP blog_scheduler_status Scheduler status (1=running, 0=stopped)")
+    metrics_lines.append("# TYPE blog_scheduler_status gauge")
+    scheduler_status = 1  # disabled is ok
+    if SMTP_HOST:
+        try:
+            from app.scheduler import get_scheduler_health
+            health = get_scheduler_health()
+            scheduler_status = 1 if health["status"] == "running" else 0
+        except Exception:
+            scheduler_status = 0
+    metrics_lines.append(f"blog_scheduler_status {scheduler_status}")
+
+    return "\n".join(metrics_lines), 200, {"Content-Type": "text/plain; version=0.0.4"}
