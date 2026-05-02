@@ -61,6 +61,7 @@ def init_fts() -> None:
     """Create FTS5 virtual table and populate with existing posts. Idempotent."""
     try:
         db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
+        db.session.commit()
         db.session.execute(
             text(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5("
@@ -68,13 +69,19 @@ def init_fts() -> None:
                 ")"
             )
         )
-        db.session.execute(
-            text(
-                "INSERT OR IGNORE INTO posts_fts(rowid, title, body, summary) "
-                "SELECT id, title, body, summary FROM posts WHERE published = 1"
-            )
-        )
         db.session.commit()
+        # Check if posts table exists before inserting
+        posts_exist = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'")
+        ).fetchone()
+        if posts_exist:
+            db.session.execute(
+                text(
+                    "INSERT OR IGNORE INTO posts_fts(rowid, title, body, summary) "
+                    "SELECT id, title, body, summary FROM posts WHERE published = 1"
+                )
+            )
+            db.session.commit()
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         db.session.rollback()
         try:
