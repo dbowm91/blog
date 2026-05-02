@@ -415,3 +415,43 @@ python backup.py --decrypt backup.db.gpg  # Decrypt a backup file
 - Use `db.engine.connect()` to directly query FTS5 virtual tables
 - Check `get_search_snippets()` returns empty? Verify FTS5 table has data
 - Fix snippet() query parameter binding carefully
+
+## Mypy Type Annotation Patterns
+
+### Common Fixes
+1. **Optional Attribute Access**: Always check `None` before accessing attributes of `Optional` types:
+   ```python
+   post = db.session.get(Post, post_id)
+   if not post:
+       flash("Post not found.", "error")
+       return redirect(...)
+   post.slug = ...  # Safe after None check
+   ```
+
+2. **Sequence vs List**: When passing query results to functions expecting `list`, cast or annotate:
+   ```python
+   posts: list[Post] = list(db.session.execute(...).scalars().all())
+   ```
+
+3. **Type Annotations for Dicts**: Annotate empty dicts to avoid `var-annotated` errors:
+   ```python
+   share_counts: dict[int, int] = {}
+   referrer_summary: dict[str, int] = {}
+   ```
+
+4. **Callable Key Prefix (flask-caching)**: Add type ignore for `key_prefix` callables:
+   ```python
+   @flask_cache.cached(timeout=300, key_prefix=_get_cache_key)  # type: ignore[arg-type]
+   ```
+
+5. **Response Return Types**: Cast `render_template` to `Response` if mypy complains:
+   ```python
+   from typing import cast
+   from werkzeug.wrappers import Response
+   return cast(Response, render_template(...))
+   ```
+
+6. **Import Missing Stubs**: Install type stubs for untyped packages:
+   ```bash
+   pip install types-requests types-Markdown
+   ```
