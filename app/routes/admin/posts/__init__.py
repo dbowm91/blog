@@ -24,16 +24,16 @@ from app.routes.admin.helpers import (
     _cleanup_orphan_tags,
     invalidate_analytics_cache,
     invalidate_dashboard_cache,
-    invalidate_footer_cache,
-    invalidate_tag_cache,
     logger,
 )
+from app.context_processors import invalidate_footer_cache
 from app.routes.admin.helpers.dashboard import _get_dashboard_metrics
 from app.config import DASHBOARD_PER_PAGE
 from app.tag_cache import invalidate_tag_cache
 from app.routes.rss import invalidate_rss_cache
 from app.routes.public import invalidate_archive_cache
 from app.search import sync_fts_batch
+from app.search import remove_fts
 
 # Import registration functions from sub-modules
 from app.routes.admin.posts.editor import register_editor_routes
