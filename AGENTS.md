@@ -46,7 +46,7 @@ Important actual file locations (verify before assuming):
 | Admin Audit Log model | `app/models.py:397-417` |
 | PostRevision model | `app/models.py:173` |
 | User model `__repr__` | `app/models.py:63-64` |
-| Comment model | `app/models.py` (new in Wave 8) |
+| Comment model | `app/models.py` |
 | Services | `app/services/` (backup, slug, serialization, tag) |
 
 ## Security & Privacy Rules
@@ -54,9 +54,9 @@ Important actual file locations (verify before assuming):
 - **Log ID, not Username**: When logging user actions or system events, always use `user.id`. Never log raw User objects or usernames to prevent PII leakage.
 - **Credential Protection**: Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys.
 
-## High-Risk Files (Broad Exception Handling)
+## High-Risk Files (Error Handling)
 
-These files use broad `except Exception` clauses and need careful review when modifying error handling:
+These files previously used broad `except Exception` clauses, now replaced with specific exceptions (SQLAlchemyError, OSError, ValueError) per CQ-3 completion. Review carefully when modifying error handling:
 - `app/backup_encryption.py`
 - `app/webhooks.py`
 - `app/tasks.py`
@@ -86,6 +86,8 @@ Load specialized skills using the `skill` tool with the skill name.
  
 | Skill | Description | Triggers |
 |-------|-------------|----------|
-| `blog_cms` | Blog CMS - Flask-based blogging platform | Flask app, SQLAlchemy, session, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard, Docker, Vite, 2FA, Comments, Audit Log, Post Revision Diff |
-| `e2e_testing` | E2E browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright |
-| `ainews` | AI news pipeline with Celery/LLM | pipeline, celery, newsletter, article, source, subscriber |
+| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log |
+| `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
+| `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline (select→research→write→edit), subagent system, SQLite/WAL, Granian ASGI | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
+| `nara` | Nara chain CLI agent — free PoMI mining, wallet, transfer, quest, on-chain skills, ZK ID, agent registry | NARA, quest, mining, airdrop, earn/claim/collect NARA, wallet, balance, transfer, skills, zkid, agent, referral, PoMI, keypair, mnemonic, faucet, deposit, withdraw |
+| `osinit` | OSINIT Dashboard - FastAPI backend with 24 intelligence sources, React/TypeScript frontend with 3D globe | build, test, deploy, run, data source, panel, SSE, sweep, synthesis, authentication, rate limiting, cache, delta, VIX, SSRF, circuit breaker, routers, Granian |
