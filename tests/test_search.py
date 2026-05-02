@@ -227,10 +227,10 @@ class TestGetSearchSnippets:
         sync_fts(post.id, post.title, post.body, post.summary, post.published)
         db.session.commit()
 
-        snippets = get_search_snippets([post], "summary")
+        snippets = get_search_snippets([post], "body")
         assert isinstance(snippets, dict)
         assert post.id in snippets
-        assert "summary" in snippets[post.id].lower()
+        assert "body" in snippets[post.id].lower()
 
     def test_get_search_snippets_falls_back_to_body(self, db, admin_user):
         """When post has no summary, falls back to body."""

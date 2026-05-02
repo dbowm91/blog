@@ -293,16 +293,30 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
 
     try:
         # Use FTS5 snippet() on body column (1), wrap matches in <mark> tags
-        result = db.session.execute(
-            text(
+        # Build the query with proper parameter binding
+        if len(post_ids) == 1:
+            query_str = (
                 "SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
-                "FROM posts_fts WHERE rowid IN :ids AND posts_fts MATCH :q"
-            ),
-            {"ids": tuple(post_ids) if len(post_ids) > 1 else (post_ids[0],), "q": fts_query},
-        ).fetchall()
+                "FROM posts_fts WHERE rowid = :id AND posts_fts MATCH :q"
+            )
+            params = {"id": post_ids[0], "q": fts_query}
+        else:
+            # For multiple IDs, use IN clause with individual parameters
+            id_list = ",".join([str(pid) for pid in post_ids])
+            query_str = (
+                f"SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
+                f"FROM posts_fts WHERE rowid IN ({id_list}) AND posts_fts MATCH :q"
+            )
+            params = {"q": fts_query}
+        
+        logger.info("FTS snippet query: %s", query_str)
+        logger.info("FTS snippet params: %s", params)
+        result = db.session.execute(text(query_str), params).fetchall()
+        logger.info("FTS snippet result: %s", result)
         for row in result:
             snippets[row[0]] = row[1]
-    except (OperationalError, ProgrammingError, DatabaseError):
+    except (OperationalError, ProgrammingError, DatabaseError) as e:
+        logger.error("FTS snippet query failed: %s", e)
         pass
     return snippets
 
