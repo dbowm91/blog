@@ -38,6 +38,15 @@ ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --ignore=
 # Current test count: 524 (514 unit + 10 E2E)
 ```
 
+### Frontend Build
+Requires Node.js and npm. First fix any proxy issues, then install dependencies and build:
+```bash
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+npm config set registry https://registry.npmjs.org/
+npm install
+npm run build
+```
+
 ### Development Server
 ```bash
 python run.py
