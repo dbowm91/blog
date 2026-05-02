@@ -1,8 +1,9 @@
 """Serialization service for exporting data to JSON."""
 
 from datetime import datetime, timezone
+from typing import cast, Any, Sequence
 
-from app.models import Post, Subscriber, Page
+from app.models import Post, Subscriber, Page, Tag
 
 
 def serialize_post(post: Post) -> dict:
@@ -22,7 +23,7 @@ def serialize_post(post: Post) -> dict:
             if post.scheduled_publish_at
             else None
         ),
-        "tags": [tag.name for tag in post.tags],
+        "tags": [tag.name for tag in cast(list[Tag], post.tags)],
     }
 
 
@@ -57,7 +58,7 @@ def serialize_page(page: Page) -> dict:
     }
 
 
-def serialize_tag(tag) -> dict:
+def serialize_tag(tag: Tag) -> dict:
     """Serialize a Tag instance to a dictionary."""
     return {
         "name": tag.name,
@@ -65,7 +66,7 @@ def serialize_tag(tag) -> dict:
     }
 
 
-def export_data_to_dict(posts, subscribers, tags, pages, version: int = 1) -> dict:
+def export_data_to_dict(posts: Sequence[Post], subscribers: Sequence[Subscriber], tags: Sequence[Tag], pages: Sequence[Page], version: int = 1) -> dict:
     """Export all data to a dictionary structure for JSON serialization."""
     return {
         "version": version,

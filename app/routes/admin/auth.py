@@ -6,6 +6,7 @@ import qrcode
 import io
 import base64
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 
 from flask import redirect, url_for, request, flash, session, Response, abort, render_template
 from flask_login import login_user, logout_user, login_required, current_user
@@ -30,7 +31,7 @@ def _hash_token(token: str) -> str:
 
 @admin.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
-def login() -> Response:
+def login() -> Any:
     """
     Admin login page.
 
@@ -93,11 +94,12 @@ def login() -> Response:
     from flask import render_template
 
     return render_template("admin/login.html")
+from flask.typing import ResponseReturnValue
 
 
 @admin.route("/logout", methods=["POST"])
 @login_required
-def logout() -> Response:
+def logout() -> Any:
     """
     Log out the current admin user.
 
@@ -123,7 +125,7 @@ def logout() -> Response:
 
 @admin.route("/newsletter-reset/<int:post_id>", methods=["POST"])
 @admin_required
-def newsletter_reset(post_id) -> Response:
+def newsletter_reset(post_id: int) -> Any:
     """
     Reset newsletter status for a post.
 
@@ -153,7 +155,7 @@ def newsletter_reset(post_id) -> Response:
 
 @admin.route("/forgot-password", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
-def forgot_password() -> Response:
+def forgot_password() -> Any:
     """
     Request a password reset.
 
@@ -195,7 +197,7 @@ def forgot_password() -> Response:
 
 
 @admin.route("/reset/<token>", methods=["GET", "POST"])
-def reset_password(token: str) -> Response:
+def reset_password(token: str) -> Any:
     """
     Reset password using a token.
 
@@ -233,7 +235,7 @@ def reset_password(token: str) -> Response:
         user.reset_token = None
         user.reset_token_expires_at = None
 
-        for admin_session in user.admin_sessions:
+        for admin_session in cast(list[AdminSession], user.admin_sessions):
             db.session.delete(admin_session)
 
         try:
@@ -262,7 +264,7 @@ def reset_password(token: str) -> Response:
 @admin.route("/2fa/setup", methods=["GET", "POST"])
 @login_required
 @admin_required
-def setup_2fa() -> Response:
+def setup_2fa() -> Any:
     """
     2FA setup - generate secret and verify.
 
@@ -310,7 +312,7 @@ def setup_2fa() -> Response:
 @admin.route("/2fa/verify", methods=["GET", "POST"])
 @login_required
 @admin_required
-def verify_2fa() -> Response:
+def verify_2fa() -> Any:
     """
     Verify 2FA token and enable 2FA.
 
@@ -337,7 +339,7 @@ def verify_2fa() -> Response:
 
 @admin.route("/login-2fa", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
-def login_2fa() -> Response:
+def login_2fa() -> Any:
     """
     TOTP verification during login.
 

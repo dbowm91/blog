@@ -11,8 +11,10 @@ from flask import (
     Response,
     g,
 )
+from flask.typing import ResponseReturnValue
 from sqlalchemy import func, or_, select, case
-from sqlalchemy.orm import joinedload, defer
+from sqlalchemy.orm import joinedload, defer, QueryableAttribute
+from typing import cast, Union
 
 from app.extensions import db
 from app.models import Post, Tag, Series, PostSeries, post_tags
@@ -75,7 +77,7 @@ def _get_related_posts(post):
     related = (
         db.session.execute(
             select(Post)
-            .options(joinedload(Post.tags))
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
             .join(shared_tags_subq, Post.id == shared_tags_subq.c.post_id)
             .filter(Post.published)
             .order_by(shared_tags_subq.c.shared_count.desc(), Post.created_at.desc())
@@ -93,12 +95,12 @@ def register_browse_routes(public):
 
     @public.route("/")
     @limiter.limit("60 per minute")
-    def index() -> Response:
+    def index() -> ResponseReturnValue:
         """Paginated list of published posts with tag sidebar."""
         page = request.args.get("page", 1, type=int)
         pagination = db.paginate(
             select(Post)
-            .options(joinedload(Post.tags))
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
             .filter_by(published=True)
             .order_by(Post.created_at.desc()),
             page=page,
@@ -118,7 +120,7 @@ def register_browse_routes(public):
 
     @public.route("/archive")
     @limiter.limit("30 per minute")
-    def archive() -> Response:
+    def archive() -> ResponseReturnValue:
         """Chronological archive of all published posts grouped by year/month."""
         year_filter = request.args.get("year", type=int)
         cursor = request.args.get("cursor", type=str)
@@ -138,7 +140,7 @@ def register_browse_routes(public):
 
         posts_query = (
             select(Post)
-            .options(joinedload(Post.tags), defer(Post.body))
+            .options(joinedload(cast(QueryableAttribute, Post.tags)), defer(Post.body))
             .filter(Post.published)
         )
 
@@ -205,7 +207,7 @@ def register_browse_routes(public):
 
     @public.route("/page/<slug>")
     @limiter.limit("60 per minute")
-    def page(slug) -> Response:
+    def page(slug) -> ResponseReturnValue:
         """Static content page."""
         from app.models import Page
 
@@ -218,7 +220,7 @@ def register_browse_routes(public):
 
     @public.route("/tag/<slug>")
     @limiter.limit("60 per minute")
-    def tag(slug) -> Response:
+    def tag(slug) -> ResponseReturnValue:
         """Posts filtered by tag with pagination."""
         tag_obj = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
         if not tag_obj:
@@ -226,7 +228,7 @@ def register_browse_routes(public):
         page_num = request.args.get("page", 1, type=int)
         pagination = db.paginate(
             select(Post)
-            .options(joinedload(Post.tags))
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
             .filter(Post.published, Post.tags.any(Tag.id == tag_obj.id))
             .order_by(Post.created_at.desc()),
             page=page_num,
@@ -247,7 +249,7 @@ def register_browse_routes(public):
 
     @public.route("/search")
     @limiter.limit("20 per minute")
-    def search() -> Response:
+    def search() -> ResponseReturnValue:
         """Full-text search for published posts."""
         query = request.args.get("q", "", type=str)[:200].strip()
         page_num = request.args.get("page", 1, type=int)
@@ -265,7 +267,7 @@ def register_browse_routes(public):
             post_ids = [pid for pid, _ in post_results]
             pagination = db.paginate(
                 select(Post)
-                .options(joinedload(Post.tags))
+                .options(joinedload(cast(QueryableAttribute, Post.tags)))
                 .filter(Post.published, Post.id.in_(post_ids))
                 .order_by(case({pid: rank for pid, rank in post_results}, value=Post.id)),
                 page=page_num,
@@ -277,7 +279,7 @@ def register_browse_routes(public):
             search_term = f"%{escaped}%"
             pagination = db.paginate(
                 select(Post)
-                .options(joinedload(Post.tags))
+                .options(joinedload(cast(QueryableAttribute, Post.tags)))
                 .filter(
                     Post.published,
                     or_(
@@ -311,7 +313,7 @@ def register_browse_routes(public):
 
     @public.route("/series/<slug>")
     @limiter.limit("60 per minute")
-    def series_view(slug) -> Response:
+    def series_view(slug) -> ResponseReturnValue:
         """View a series and all its posts in order."""
         series = db.session.execute(
             select(Series).filter_by(slug=slug)

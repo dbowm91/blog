@@ -7,7 +7,6 @@ from sqlalchemy import select, func
 from app.extensions import db
 from app.models import Tag, Post
 
-
 def get_or_create_tags(tag_names: List[str]) -> List[Tag]:
     """Get existing tags or create new ones from a list of tag names.
 
@@ -17,7 +16,7 @@ def get_or_create_tags(tag_names: List[str]) -> List[Tag]:
     Returns:
         List of Tag model instances
     """
-    tags = []
+    tags: List[Tag] = []
     for name in tag_names:
         slug = Tag.generate_slug(name)
         tag = db.session.execute(
@@ -39,9 +38,9 @@ def get_tag_by_slug(slug: str) -> Optional[Tag]:
 
 def get_all_tags() -> List[Tag]:
     """Get all tags ordered by name."""
-    return db.session.execute(
+    return list(db.session.execute(
         select(Tag).order_by(Tag.name)
-    ).scalars().all()
+    ).scalars().all())
 
 
 def get_tag_post_count(tag_id: int) -> int:

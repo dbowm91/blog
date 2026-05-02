@@ -3,6 +3,9 @@
 from datetime import timedelta
 
 from sqlalchemy import func, select, text
+from sqlalchemy import Row as SARow
+from sqlalchemy import Result as SAResult
+from typing import Any
 
 from app import cache as flask_cache
 from app.extensions import db
@@ -10,7 +13,7 @@ from app.models import PageView, ShareEvent, Post
 from app.utils import utc_now
 
 
-def _get_daily_views(days: int = 30):
+def _get_daily_views(days: int = 30) -> list[dict[str, Any]]:
     """Get daily view counts for the last N days.
 
     Returns list of dicts with 'date' and 'count' keys, oldest first.
@@ -45,10 +48,10 @@ def _get_daily_views(days: int = 30):
     return result
 
 
-def _get_top_posts_by_shares(limit: int = 5):
+def _get_top_posts_by_shares(limit: int = 5) -> list[Any]:
     """Get top posts by share count."""
     thirty_days_ago = utc_now() - timedelta(days=30)
-    return db.session.execute(
+    return list(db.session.execute(
         select(Post, func.count(ShareEvent.id).label("share_count"))
         .join(ShareEvent)
         .filter(Post.published)
@@ -56,17 +59,17 @@ def _get_top_posts_by_shares(limit: int = 5):
         .group_by(Post.id)
         .order_by(func.count(ShareEvent.id).desc())
         .limit(limit)
-    ).all()
+    ).all())
 
 
 @flask_cache.memoize(timeout=120)
-def _get_dashboard_metrics_cached():
+def _get_dashboard_metrics_cached() -> dict[str, Any]:
     """Get dashboard metrics with 2-minute cache."""
     thirty_days_ago = utc_now() - timedelta(days=30)
     month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     sixty_days_ago = utc_now() - timedelta(days=60)
     now = utc_now()
-    
+
     counts = db.session.execute(
         text("""
             SELECT
@@ -79,20 +82,21 @@ def _get_dashboard_metrics_cached():
         """),
         {"month_start": month_start, "sixty_days_ago": sixty_days_ago, "thirty_days_ago": thirty_days_ago}
     ).fetchone()
-    
+
+    assert counts is not None
     total_views = counts[0] or 0
     total_posts = counts[1] or 0
     total_shares = counts[2] or 0
     total_subscribers = counts[3] or 0
     new_this_month = counts[4] or 0
     views_last_period = counts[5] or 0
-    
+
     # Get scheduled posts count (scheduled but not yet published)
     scheduled_count = db.session.execute(
         select(func.count(Post.id)).filter(
-            Post.scheduled_publish_at is not None,
+            Post.scheduled_publish_at.isnot(None),
             Post.scheduled_publish_at <= now,
-            not Post.published
+            Post.published.is_(False)
         )
     ).scalar() or 0
 
@@ -131,16 +135,16 @@ def _get_dashboard_metrics_cached():
     }
 
 
-def _get_dashboard_metrics():
+def _get_dashboard_metrics() -> dict[str, Any]:
     """Get dashboard metrics (uses cached version)."""
     return _get_dashboard_metrics_cached()
 
 
-def invalidate_dashboard_cache():
+def invalidate_dashboard_cache() -> None:
     """Clear the dashboard metrics cache."""
     flask_cache.delete_memoized(_get_dashboard_metrics_cached)
 
 
-def _clear_dashboard_cache():
+def _clear_dashboard_cache() -> None:
     """Clear all dashboard cache entries (for testing)."""
     flask_cache.delete_memoized(_get_dashboard_metrics_cached)

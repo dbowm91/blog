@@ -13,8 +13,10 @@ from flask import (
     session,
     Response,
 )
+from flask.typing import ResponseReturnValue
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, QueryableAttribute
+from typing import cast, Union, Any
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_SHARE_PLATFORMS = {"twitter", "facebook", "linkedin", "reddit", "hackernews", "link"}
 
 
-def _safe_redirect_url():
+def _safe_redirect_url() -> str:
     """Return a safe redirect URL, preventing open redirects via spoofed Referer header."""
     referrer = request.referrer
     if referrer:
@@ -38,15 +40,15 @@ def _safe_redirect_url():
     return url_for("public.index")
 
 
-def register_post_routes(public):
+def register_post_routes(public: Any) -> None:
     """Register post-related routes on the Blueprint."""
 
     @public.route("/post/<slug>")
     @limiter.limit("60 per minute")
-    def post(slug) -> Response:
+    def post(slug: str) -> ResponseReturnValue:
         """Single post page with related posts and share tracking."""
         post_obj = db.session.execute(
-            select(Post).options(joinedload(Post.tags)).filter_by(slug=slug, published=True)
+            select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter_by(slug=slug, published=True)
         ).unique().scalar_one_or_none()
         if not post_obj:
             abort(404)
@@ -88,7 +90,7 @@ def register_post_routes(public):
 
     @public.route("/preview/<int:post_id>")
     @limiter.limit("30 per minute")
-    def public_preview(post_id: int) -> Response:
+    def public_preview(post_id: int) -> ResponseReturnValue:
         """Render a shared preview of a post via signed token."""
         import hmac
         import hashlib
@@ -121,7 +123,7 @@ def register_post_routes(public):
             abort(403)
 
         post_obj = db.session.execute(
-            select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+            select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
         ).unique().scalar_one_or_none()
         if not post_obj:
             abort(404)
@@ -136,7 +138,7 @@ def register_post_routes(public):
 
     @public.route("/s/<code>")
     @limiter.limit("60 per minute")
-    def short_url_redirect(code) -> Response:
+    def short_url_redirect(code: str) -> ResponseReturnValue:
         """Redirect short URL (base62-encoded post ID) to canonical post URL."""
         from app.base62 import decode
 
@@ -159,7 +161,7 @@ def register_post_routes(public):
 
     @public.route("/api/track-share", methods=["POST"])
     @limiter.limit("20 per minute")
-    def track_share() -> Response:
+    def track_share() -> ResponseReturnValue:
         """Track social share events."""
         data = request.get_json(silent=True)
         if not data:

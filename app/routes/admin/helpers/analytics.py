@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from sqlalchemy import func, select
+from typing import Any
 
 from app import cache as flask_cache
 from app.extensions import db
@@ -12,7 +13,7 @@ from app.routes.admin.helpers.shared import _categorize_referrer
 
 
 @flask_cache.memoize(timeout=300)
-def _get_analytics_data(days: int):
+def _get_analytics_data(days: int) -> dict[str, Any]:
     """Get analytics data with 5-minute cache."""
     start_date = utc_now() - timedelta(days=days)
 
@@ -70,7 +71,7 @@ def _get_analytics_data(days: int):
 
     referrer_data = db.session.execute(
         select(PageView.referrer, func.count(PageView.id).label("count"))
-        .filter(PageView.referrer is not None, PageView.created_at >= start_date)
+        .filter(PageView.referrer.isnot(None), PageView.created_at >= start_date)
         .group_by(PageView.referrer)
         .order_by(func.count(PageView.id).desc())
         .limit(15)
@@ -108,7 +109,7 @@ def _get_analytics_data(days: int):
     }
 
 
-def invalidate_analytics_cache():
+def invalidate_analytics_cache() -> None:
     """Clear the analytics cache. Call when post data changes."""
     flask_cache.delete_memoized(_get_analytics_data)
     from app.routes.admin.helpers.dashboard import invalidate_dashboard_cache
@@ -116,6 +117,6 @@ def invalidate_analytics_cache():
     invalidate_dashboard_cache()
 
 
-def _clear_analytics_cache():
+def _clear_analytics_cache() -> None:
     """Clear all analytics cache entries (for testing)."""
     flask_cache.delete_memoized(_get_analytics_data)

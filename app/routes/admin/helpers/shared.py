@@ -16,7 +16,7 @@ BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$")
 logger = logging.getLogger(__name__)
 
 
-def _categorize_referrer(url):
+def _categorize_referrer(url: str | None) -> str:
     if not url:
         return "Direct"
     try:
@@ -59,5 +59,5 @@ def _check_password_complexity(password: str) -> bool:
     return sum((has_lower, has_upper, has_digit, has_special)) >= 3
 
 
-def _get_backup_dir():
+def _get_backup_dir() -> str:
     return os.path.join(current_app.instance_path, "backups")

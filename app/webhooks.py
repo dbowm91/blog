@@ -99,7 +99,7 @@ def create_webhook_event(
     except (RequestException, ValueError, OSError):
         pass
 
-    return event.id
+    return int(event.id)
 
 
 def init_webhooks(app: "Flask") -> None:

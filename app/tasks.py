@@ -4,8 +4,10 @@ import hashlib
 import hmac
 import json
 import logging
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, Dict, Any, TYPE_CHECKING, cast
+
 from celery import shared_task
+from celery.app.task import Task
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -24,7 +26,7 @@ __all__ = [
 
 
 @shared_task(bind=True, max_retries=3, retry_backoff=True, queue='images')
-def generate_image_variants(self, filename: str) -> bool:
+def generate_image_variants(self: Any, filename: str) -> bool:
     """Generate responsive image variants for an image file.
 
     Generates 400w, 800w, 1200w variants in WebP and original format.
@@ -125,7 +127,7 @@ def generate_image_variants(self, filename: str) -> bool:
 
 
 @shared_task(bind=True, max_retries=3, retry_backoff=True, time_limit=600, soft_time_limit=540, queue='newsletter')
-def send_newsletter_task(self, post_ids: List[int]) -> bool:
+def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
     """Send newsletter for specified posts (async)."""
     from app.email import send_newsletter
     from app.extensions import db
@@ -148,12 +150,12 @@ def send_newsletter_task(self, post_ids: List[int]) -> bool:
         if not subscriber_count:
             return False
 
-        subscribers = db.session.execute(
+        stmt = (
             select(Subscriber)
             .filter_by(confirmed=True)
             .filter(Subscriber.unsubscribed_at.is_(None))
-            .yield_per(500)
-        ).scalars()
+        )
+        subscribers = db.session.execute(stmt).scalars()
 
         success = send_newsletter(posts, subscribers, subscriber_count)
 
@@ -161,12 +163,14 @@ def send_newsletter_task(self, post_ids: List[int]) -> bool:
             from app.utils import utc_now
             now = utc_now()
             for post in posts:
-                post.newsletter_sent_at = now
-                post.newsletter_attempts = 0
+                if post is not None:
+                    post.newsletter_sent_at = now
+                    post.newsletter_attempts = 0
             db.session.commit()
         else:
             for post in posts:
-                post.newsletter_attempts = (post.newsletter_attempts or 0) + 1
+                if post is not None:
+                    post.newsletter_attempts = (post.newsletter_attempts or 0) + 1
             db.session.commit()
 
         return success
@@ -186,7 +190,7 @@ def _sign_webhook_payload(payload: Dict[str, Any], secret: str) -> str:
 
 
 @shared_task(bind=True, max_retries=3, retry_backoff=True, queue='webhooks')
-def deliver_webhook_task(self, webhook_event_id: int) -> bool:
+def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
     """Deliver a webhook event to registered endpoints with SSRF protection and HMAC signing."""
     import requests
     from app.extensions import db
@@ -240,15 +244,16 @@ def deliver_webhook_task(self, webhook_event_id: int) -> bool:
             except requests.RequestException:
                 event.delivery_attempts += 1
 
+        assert event is not None
         event.delivered = delivered_count > 0
         db.session.commit()
-        return event.delivered
+        return bool(event.delivered)
     finally:
         db.session.remove()
 
 
 @shared_task(bind=True, max_retries=3, retry_backoff=True, queue='email')
-def send_confirmation_task(self, subscriber_id: int) -> bool:
+def send_confirmation_task(self: Any, subscriber_id: int) -> bool:
     """Send confirmation email to a subscriber asynchronously."""
     from app.extensions import db
     from app.models import Subscriber
@@ -269,7 +274,7 @@ def send_confirmation_task(self, subscriber_id: int) -> bool:
 
 
 @shared_task(bind=True, max_retries=3, retry_backoff=True, queue='email')
-def send_password_reset_task(self, user_id: int, token: str) -> bool:
+def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
     """Send password reset email to a user asynchronously."""
     from app.extensions import db
     from app.models import User

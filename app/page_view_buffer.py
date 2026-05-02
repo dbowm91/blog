@@ -21,7 +21,7 @@ import threading
 import logging
 from datetime import datetime, timezone
 from queue import Queue, Empty
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 from app.config import PAGE_VIEW_BUFFER_SIZE
@@ -40,7 +40,7 @@ class PageViewBuffer:
     reducing database load for high-traffic sites.
     """
 
-    def __init__(self, db, PageView, max_size: int = 0, flush_interval: int = 5):
+    def __init__(self, db: Any, PageView: Any, max_size: int = 0, flush_interval: int = 5) -> None:
         self.db = db
         self.PageView = PageView
         self.max_size = max_size
@@ -149,7 +149,7 @@ def get_buffer() -> Optional["PageViewBuffer"]:
     return None
 
 
-def init_page_view_buffer(db, PageView) -> Optional["PageViewBuffer"]:
+def init_page_view_buffer(db: Any, PageView: Any) -> Optional["PageViewBuffer"]:
     """Initialize the page view buffer if enabled.
 
     Returns the buffer if PAGE_VIEW_BUFFER_SIZE > 0, otherwise None.

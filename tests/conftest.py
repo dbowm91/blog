@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
 os.environ["TESTING"] = "True"
+os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 from app import create_app
 from app.extensions import db as _db

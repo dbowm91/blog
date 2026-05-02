@@ -1,5 +1,7 @@
 from __future__ import annotations
 from flask import redirect, url_for, request, flash, Response, render_template
+from flask.typing import ResponseReturnValue
+from typing import Union
 import smtplib
 
 from app.extensions import db
@@ -21,7 +23,7 @@ class FakeSubscriber:
 
 @admin.route("/newsletter-test", methods=["POST"])
 @admin_required
-def newsletter_test() -> Response:
+def newsletter_test() -> ResponseReturnValue:
     """
     Send a test newsletter to a specific email.
 
@@ -67,7 +69,7 @@ def newsletter_test() -> Response:
 
 @admin.route("/newsletter/preview")
 @admin_required
-def newsletter_preview() -> Response:
+def newsletter_preview() -> ResponseReturnValue:
     """Preview the newsletter email with recent posts.
     
     Methods: GET

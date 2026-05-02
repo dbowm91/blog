@@ -19,20 +19,22 @@ import os
 import logging
 import threading
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Any
 
 # Optional botocore imports - only needed for S3 storage backend
 try:
-    from botocore.exceptions import ClientError as _ClientError
-    from botocore.exceptions import BotoCoreError as _BotoCoreError
-    ClientError = _ClientError
-    BotoCoreError = _BotoCoreError
+    from botocore.exceptions import ClientError
+    from botocore.exceptions import BotoCoreError
 except ImportError:
     # For type checking purposes when botocore is not installed
-    class ClientError(Exception):
-        pass
-    class BotoCoreError(Exception):
-        pass
+    if TYPE_CHECKING:
+        from botocore.exceptions import ClientError
+        from botocore.exceptions import BotoCoreError
+    else:
+        class ClientError(Exception):
+            pass
+        class BotoCoreError(Exception):
+            pass
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +150,7 @@ class S3StorageBackend(StorageBackend):
         self._lock = threading.Lock()
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             with self._lock:
                 if self._client is None:
@@ -172,7 +174,8 @@ class S3StorageBackend(StorageBackend):
     def load(self, filename: str) -> Optional[bytes]:
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=filename)
-            return response["Body"].read()
+            body = response["Body"].read()
+            return bytes(body) if body else None
         except (ClientError, BotoCoreError) as e:
             logger.error("S3 operation failed: %s", e)
             return None
@@ -311,7 +314,7 @@ def upload_with_processing(filename: str, file_content: bytes, generate_variants
     return filename, None
 
 
-def _generate_responsive_variants_local(filepath: str):
+def _generate_responsive_variants_local(filepath: str) -> None:
     """Deprecated: Variant generation is now handled by Celery task generate_image_variants."""
     from app.tasks import generate_image_variants
     import os

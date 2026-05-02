@@ -6,12 +6,13 @@ from app.extensions import db
 from app.models import AdminAuditLog
 from app.routes.admin import admin, admin_required
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, QueryableAttribute
+from typing import cast, Union
 
 
 @admin.route("/audit")
 @admin_required
-def audit_log() -> Response:
+def audit_log() -> Union[Response, str, tuple[Union[Response, str], int]]:
     """
     View admin audit log entries.
 
@@ -26,7 +27,7 @@ def audit_log() -> Response:
     action_filter = request.args.get("action", "").strip()
 
     query = select(AdminAuditLog).options(
-        joinedload(AdminAuditLog.actor)
+        joinedload(cast(QueryableAttribute, AdminAuditLog.actor))
     ).order_by(AdminAuditLog.timestamp.desc())
 
     if action_filter:

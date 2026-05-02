@@ -1,8 +1,10 @@
 """Error handlers blueprint."""
 
 import logging
+from typing import Any
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request as req
+from werkzeug.wrappers import Response
 
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError, IntegrityError
@@ -16,10 +18,10 @@ logger = logging.getLogger(__name__)
 errors = Blueprint("errors", __name__)
 
 
-def _get_recent_posts(limit=5):
+def _get_recent_posts(limit: int = 5) -> list[Post]:
     """Shared helper to fetch recent published posts for error pages."""
     try:
-        return (
+        result = (
             db.session.execute(
                 select(Post)
                 .filter_by(published=True)
@@ -29,6 +31,7 @@ def _get_recent_posts(limit=5):
             .scalars()
             .all()
         )
+        return list(result)
     except (OperationalError, IntegrityError):
         # Intentional catch-all: graceful degradation if DB is unavailable
         # Error pages should still render even if recent posts can't be fetched
@@ -36,7 +39,7 @@ def _get_recent_posts(limit=5):
 
 
 @errors.app_errorhandler(404)
-def not_found(e):
+def not_found(e: Exception) -> tuple[str, int]:
     recent_posts = _get_recent_posts(5)
     return render_template(
         "404.html",
@@ -48,7 +51,7 @@ def not_found(e):
 
 
 @errors.app_errorhandler(500)
-def internal_error(e):
+def internal_error(e: Exception) -> tuple[str, int]:
     logger.exception("Unhandled exception on %s", req.path)
     recent_posts = _get_recent_posts(5)
     return render_template(
@@ -61,7 +64,7 @@ def internal_error(e):
 
 
 @errors.app_errorhandler(413)
-def handle_large_request(e):
+def handle_large_request(e: Exception) -> Response:
     flash(
         f"File too large. Maximum upload size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
         "error",

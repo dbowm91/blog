@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timezone
 
 from flask import render_template, redirect, url_for, request, flash, abort, current_app, Response
+from flask.typing import ResponseReturnValue
+from typing import Union, Any
 from sqlalchemy import select
 
 from app.extensions import db
@@ -33,24 +35,28 @@ def _invalidate_media_cache() -> None:
 def _get_cached_media_list(
     upload_dir: str,
     search: str | None = None,
-) -> list[tuple[float, str, int]]:
+) -> list[Any]:
     global _MEDIA_CACHE
+    all_files: list[dict[str, object]] = []
     with _MEDIA_CACHE_LOCK:
         now = _time.monotonic()
         if (
             _MEDIA_CACHE["files"] is not None
+            and _MEDIA_CACHE["timestamp"] is not None
             and (now - _MEDIA_CACHE["timestamp"]) < _MEDIA_CACHE_TTL
         ):
-            files = _MEDIA_CACHE["files"]
+            all_files = _MEDIA_CACHE["files"]  # type: ignore[assignment]
         else:
-            files = _scan_media_directory(upload_dir)
-            _MEDIA_CACHE["files"] = files
+            all_files = _scan_media_directory(upload_dir)
+            _MEDIA_CACHE["files"] = all_files
             _MEDIA_CACHE["timestamp"] = now
 
-    if search:
-        files = [(mtime, name, size) for mtime, name, size in files
-                 if search.lower() in name.lower()]
-    return files
+        if search:
+            files = [(f["mtime"], f["name"], f["size"]) for f in all_files if search.lower() in str(f["name"]).lower()]
+            return files
+        return [
+            (float(f["mtime"]), str(f["name"]), int(f["size"])) for f in all_files
+        ]
 
 
 def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
@@ -86,7 +92,7 @@ def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
 
 @admin.route("/media")
 @admin_required
-def media() -> Response:
+def media() -> ResponseReturnValue:
     """
     Media library - list uploaded files.
 
@@ -123,7 +129,7 @@ def media() -> Response:
 
 @admin.route("/media/upload", methods=["POST"])
 @admin_required
-def upload_media() -> Response:
+def upload_media() -> ResponseReturnValue:
     """
     Upload an image file.
 
@@ -153,7 +159,7 @@ def upload_media() -> Response:
 
 @admin.route("/media/delete/<filename>", methods=["POST"])
 @admin_required
-def delete_media(filename: str) -> Response:
+def delete_media(filename: str) -> ResponseReturnValue:
     """
     Delete a media file.
 

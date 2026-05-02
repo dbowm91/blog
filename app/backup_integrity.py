@@ -8,7 +8,7 @@ import hashlib
 import sqlite3
 import zlib
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 
 def calculate_checksum(backup_path: Path) -> str:
@@ -85,7 +85,7 @@ def verify_backup_integrity(backup_path: Path) -> tuple[bool, str]:
     return True, f"Backup is valid ({len(tables)} tables)"
 
 
-def verify_backup_set(backup_dir: Path, expected_count: Optional[int] = None) -> dict:
+def verify_backup_set(backup_dir: Path, expected_count: Optional[int] = None) -> dict[str, Any]:
     """Verify all backups in a directory.
 
     Args:
@@ -95,7 +95,7 @@ def verify_backup_set(backup_dir: Path, expected_count: Optional[int] = None) ->
     Returns:
         Dict with verification results
     """
-    results = {
+    results: dict[str, Any] = {
         "total": 0,
         "valid": 0,
         "invalid": 0,

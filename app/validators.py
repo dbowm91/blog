@@ -7,7 +7,7 @@ from typing import Any, Callable, Optional, List, Tuple, Union
 from flask import request, jsonify
 
 
-def validate_string(value, max_length: int, field_name: str) -> tuple:
+def validate_string(value: Any, max_length: int, field_name: str) -> tuple:
     """Returns (value, error_message)."""
     if not isinstance(value, str):
         return "", f"{field_name} must be a string"
@@ -28,7 +28,7 @@ def validate_email(value: str, max_length: int = 256) -> tuple:
     return value, None
 
 
-def validate_boolean(value, field_name: str) -> tuple:
+def validate_boolean(value: Any, field_name: str) -> tuple:
     """Returns (value, error_message)."""
     if isinstance(value, bool):
         return value, None
@@ -180,7 +180,7 @@ def require_json_content_type(f: Callable) -> Callable:
     """
 
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not request.is_json:
             return jsonify({
                 "error": "Content-Type must be application/json"

@@ -11,6 +11,8 @@ from flask import (
     flash,
     Response,
 )
+from flask.typing import ResponseReturnValue
+from typing import Union
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -26,19 +28,19 @@ from app import limiter
 logger = logging.getLogger(__name__)
 
 
-def _try_send_confirmation(subscriber):
+def _try_send_confirmation(subscriber: Subscriber) -> bool:
     """Queue confirmation email task. Returns True (task queued)."""
     send_confirmation_task.delay(subscriber.id)
     return True
 
 
-def _reset_subscriber_token(subscriber):
+def _reset_subscriber_token(subscriber: Subscriber) -> None:
     """Reset subscriber token and expiry for new confirmation."""
     subscriber.token = uuid.uuid4().hex
     subscriber.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
 
 
-def _send_or_flash_confirmation(subscriber, skip_conflict=False):
+def _send_or_flash_confirmation(subscriber: Subscriber, skip_conflict: bool = False) -> ResponseReturnValue:
     """Send confirmation and flash appropriate message. Returns redirect target."""
     if _try_send_confirmation(subscriber):
         flash("Check your inbox to confirm your subscription.", "success")
@@ -52,7 +54,7 @@ def register_subscribe_routes(public):
 
     @public.route("/subscribe", methods=["POST"])
     @limiter.limit("10 per minute")
-    def subscribe() -> Response:
+    def subscribe() -> ResponseReturnValue:
         """Subscribe to the newsletter."""
         validate_csrf_token()
 
@@ -114,7 +116,7 @@ def register_subscribe_routes(public):
 
     @public.route("/confirm/<token>")
     @limiter.limit("5 per minute")
-    def confirm(token) -> Response:
+    def confirm(token: str) -> ResponseReturnValue:
         """Confirm newsletter subscription via token."""
         time.sleep(TOKEN_ENUMERATION_DELAY)
         sub = db.session.execute(
@@ -146,7 +148,7 @@ def register_subscribe_routes(public):
 
     @public.route("/unsubscribe/<token>")
     @limiter.limit("5 per minute")
-    def unsubscribe(token) -> Response:
+    def unsubscribe(token: str) -> ResponseReturnValue:
         """Unsubscribe from the newsletter via token."""
         time.sleep(TOKEN_ENUMERATION_DELAY)
         sub = db.session.execute(

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from flask import render_template, redirect, url_for, request, flash, abort, session, Response
+from flask.typing import ResponseReturnValue
+from typing import Union
 from flask_login import current_user
 
 from app.extensions import db
@@ -14,7 +16,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 @admin.route("/users")
 @admin_required
-def users_list() -> Response:
+def users_list() -> ResponseReturnValue:
     """
     List all admin users.
 
@@ -38,7 +40,7 @@ def users_list() -> Response:
 
 @admin.route("/users/create", methods=["POST"])
 @admin_required
-def create_user() -> Response:
+def create_user() -> ResponseReturnValue:
     """
     Create a new admin user.
 
@@ -88,7 +90,7 @@ def create_user() -> Response:
 
 @admin.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
-def delete_user(user_id: int) -> Response:
+def delete_user(user_id: int) -> ResponseReturnValue:
     """
     Delete a user.
 
@@ -122,7 +124,7 @@ def delete_user(user_id: int) -> Response:
 
 @admin.route("/users/<int:user_id>/promote", methods=["POST"])
 @admin_required
-def promote_user(user_id: int) -> Response:
+def promote_user(user_id: int) -> ResponseReturnValue:
     """
     Promote a user to admin.
 
@@ -152,7 +154,7 @@ def promote_user(user_id: int) -> Response:
 
 @admin.route("/users/<int:user_id>/demote", methods=["POST"])
 @admin_required
-def demote_user(user_id: int) -> Response:
+def demote_user(user_id: int) -> ResponseReturnValue:
     """
     Demote an admin to regular user.
 
@@ -171,7 +173,7 @@ def demote_user(user_id: int) -> Response:
     admin_count = db.session.execute(
         select(func.count(User.id)).filter(User.is_admin)
     ).scalar()
-    if admin_count <= 1:
+    if (admin_count or 0) <= 1:
         flash("Cannot demote the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
     user.is_admin = False
@@ -189,7 +191,7 @@ def demote_user(user_id: int) -> Response:
 
 @admin.route("/users/<int:user_id>/make-owner", methods=["POST"])
 @admin_required
-def make_owner(user_id: int) -> Response:
+def make_owner(user_id: int) -> ResponseReturnValue:
     """
     Transfer ownership to another admin.
 
@@ -214,7 +216,7 @@ def make_owner(user_id: int) -> Response:
     admin_count = db.session.execute(
         select(func.count(User.id)).filter(User.is_admin)
     ).scalar()
-    if admin_count <= 1:
+    if (admin_count or 0) <= 1:
         flash("Cannot transfer ownership while you are the only admin.", "error")
         return redirect(url_for("admin.users_list"))
     user.is_admin = True
@@ -239,7 +241,7 @@ def make_owner(user_id: int) -> Response:
 
 @admin.route("/users/password/<int:user_id>", methods=["POST"])
 @admin_required
-def change_password(user_id: int) -> Response:
+def change_password(user_id: int) -> ResponseReturnValue:
     """
     Change a user's password.
 

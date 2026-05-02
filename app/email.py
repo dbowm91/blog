@@ -3,9 +3,9 @@ import ssl
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
-
+from typing import Optional, Any
 from flask import render_template
+from smtplib import SMTP
 
 from app.config import (
     SMTP_HOST,
@@ -43,7 +43,7 @@ def _send_email(
         server.sendmail(FROM_ADDRESS, to, msg.as_string())
 
 
-def send_confirmation(subscriber) -> None:
+def send_confirmation(subscriber: Any) -> None:
     unsub_url = f"{BASE_URL}/unsubscribe/{subscriber.token}"
     html = render_template(
         "email/confirm.html",
@@ -62,7 +62,7 @@ def send_confirmation(subscriber) -> None:
     )
 
 
-def send_password_reset(user, token: str) -> None:
+def send_password_reset(user: Any, token: str) -> None:
     reset_url = f"{BASE_URL}/admin/reset/{token}"
     html = render_template(
         "email/password_reset.html",
@@ -102,12 +102,12 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
 
 
 def _send_email_with_retry(
-    server,
+    server: Optional[SMTP],
     from_address: str,
     to: str,
     msg_str: str,
     max_retries: int = 3,
-) -> tuple[bool, str, Optional[smtplib.SMTP]]:
+) -> tuple[bool, str, Optional[SMTP]]:
     """Send an email with retry logic and exponential backoff.
 
     Returns (success, error_message, server). The server may be a new connection
@@ -117,6 +117,8 @@ def _send_email_with_retry(
     last_error = ""
     for attempt in range(max_retries):
         try:
+            if server is None:
+                return False, "Server is None", None
             server.sendmail(from_address, to, msg_str)
             return True, "", server
         except smtplib.SMTPServerDisconnected:
@@ -138,7 +140,7 @@ def _send_email_with_retry(
     return False, last_error, server
 
 
-def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
+def send_newsletter(posts: list[Any], subscribers: Any, total_subscribers: Optional[int] = None) -> bool:
     """Send newsletter to all subscribers.
 
     Args:
@@ -206,8 +208,9 @@ def send_newsletter(posts, subscribers, total_subscribers=None) -> bool:
                     "Newsletter progress: %d/%d sent", i, total_subscribers
                 )
     finally:
-        try:
-            server.quit()
-        except OSError:
-            pass
+        if server:
+            try:
+                server.quit()
+            except OSError:
+                pass
     return all_sent

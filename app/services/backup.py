@@ -10,7 +10,7 @@ import os
 import shutil
 import sqlite3
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 
 BACKUP_RETENTION_COUNT = 7
@@ -98,7 +98,7 @@ def _encrypt_backup_file(filepath: str) -> bool:
         return False
 
 
-def decrypt_backup_file(input_path: str, output_path: str = None) -> bool:
+def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> bool:
     """Decrypt a GPG-encrypted backup file.
 
     Args:
@@ -136,7 +136,7 @@ def cleanup_old_backups(backup_dir: str, keep: int) -> None:
         print(f"Removed old backup: {path}")
 
 
-def run_daily_backup(app) -> None:
+def run_daily_backup(app: Any) -> None:
     """Run daily database backup with retention cleanup.
 
     Designed to be called from scheduler or CLI.

@@ -11,7 +11,7 @@ Multi-worker limitation:
 import os
 import threading
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Any, TYPE_CHECKING
 
 from sqlalchemy import func, select, delete
 
@@ -48,7 +48,7 @@ def get_scheduler_next_run() -> Optional[datetime]:
         if not jobs:
             return None
         next_job = min(jobs, key=lambda j: j.next_run_time)
-        return next_job.next_run_time
+        return datetime.fromisoformat(next_job.next_run_time.isoformat()) if next_job.next_run_time else None
     except (AttributeError, KeyError, ValueError):
         return None
 
@@ -67,7 +67,7 @@ def get_scheduler_health() -> dict:
     }
 
 
-def send_daily_newsletter(app) -> None:
+def send_daily_newsletter(app: Any) -> None:
     lock_path = os.path.join(app.instance_path, "newsletter.lock")
     lock = FileLock(lock_path, timeout=0)
     try:
@@ -88,8 +88,8 @@ def send_daily_newsletter(app) -> None:
                     select(Post)
                     .filter(
                         Post.published,
-                        Post.published_at is not None,
-                        Post.newsletter_sent_at is None,
+                        Post.published_at.isnot(None),
+                        Post.newsletter_sent_at.is_(None),
                         Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
                     )
                     .order_by(Post.published_at.desc())
@@ -115,10 +115,9 @@ def send_daily_newsletter(app) -> None:
                 select(Subscriber)
                 .filter_by(confirmed=True)
                 .filter(Subscriber.unsubscribed_at.is_(None))
-                .yield_per(500)
             ).scalars()
 
-            success = send_newsletter(posts, subscribers, subscriber_count)
+            success = send_newsletter(list(posts), subscribers, subscriber_count)
 
             if success:
                 now = utc_now()
@@ -141,7 +140,7 @@ def send_daily_newsletter(app) -> None:
         lock.release()
 
 
-def cleanup_expired_subscribers(app) -> None:
+def cleanup_expired_subscribers(app: Any) -> None:
     """Remove unconfirmed subscribers whose confirmation window has expired."""
     lock_path = os.path.join(app.instance_path, "cleanup.lock")
     lock = FileLock(lock_path, timeout=0)
@@ -159,8 +158,8 @@ def cleanup_expired_subscribers(app) -> None:
             expired = (
                 db.session.execute(
                     select(Subscriber).filter(
-                        not Subscriber.confirmed,
-                        Subscriber.expires_at is not None,
+                        Subscriber.confirmed.is_(False),
+                        Subscriber.expires_at.isnot(None),
                         Subscriber.expires_at < utc_now(),
                     )
                 )
@@ -184,7 +183,7 @@ def cleanup_expired_subscribers(app) -> None:
         lock.release()
 
 
-def publish_scheduled_posts(app) -> None:
+def publish_scheduled_posts(app: Any) -> None:
     """Auto-publish posts whose scheduled_publish_at time has passed."""
     lock_path = os.path.join(app.instance_path, "scheduled.lock")
     lock = FileLock(lock_path, timeout=0)
@@ -205,8 +204,8 @@ def publish_scheduled_posts(app) -> None:
             posts = (
                 db.session.execute(
                     select(Post).filter(
-                        not Post.published,
-                        Post.scheduled_publish_at is not None,
+                        Post.published.is_(False),
+                        Post.scheduled_publish_at.isnot(None),
                         Post.scheduled_publish_at <= now,
                     )
                 )
@@ -238,7 +237,7 @@ def publish_scheduled_posts(app) -> None:
 BACKUP_RETENTION_COUNT = 7
 
 
-def run_daily_backup(app) -> None:
+def run_daily_backup(app: Any) -> None:
     """Run daily database backup with retention cleanup."""
     from app.services.backup import run_daily_backup as _run_backup
 
@@ -256,7 +255,7 @@ def run_daily_backup(app) -> None:
         lock.release()
 
 
-def init_scheduler(app) -> Optional["BackgroundScheduler"]:
+def init_scheduler(app: Any) -> Optional["BackgroundScheduler"]:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
     import atexit
@@ -303,7 +302,7 @@ def init_scheduler(app) -> Optional["BackgroundScheduler"]:
     _scheduler = scheduler
     _scheduler_running.set()
 
-    def _shutdown_scheduler():
+    def _shutdown_scheduler() -> None:
         _scheduler_running.clear()
         scheduler.shutdown(wait=False)
 

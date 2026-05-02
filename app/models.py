@@ -18,7 +18,7 @@ post_tags = db.Table(
 )
 
 
-class User(UserMixin, db.Model):
+class User(UserMixin, db.Model):  # type: ignore[name-defined]
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -42,13 +42,13 @@ class User(UserMixin, db.Model):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
+        return bool(check_password_hash(self.password_hash, password))
 
     def is_locked(self) -> bool:
         """Check if account is currently locked."""
         if self.locked_until is None:
             return False
-        return utc_now() < self.locked_until
+        return bool(utc_now() < self.locked_until)
 
     def record_failed_login(self, max_attempts: int, lockout_minutes: int) -> None:
         """Record a failed login attempt."""
@@ -70,7 +70,7 @@ def load_user(user_id: str) -> Optional[User]:
     return db.session.get(User, int(user_id))
 
 
-class Tag(db.Model):
+class Tag(db.Model):  # type: ignore[name-defined]
     __tablename__ = "tags"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -89,7 +89,7 @@ class Tag(db.Model):
         return f"<Tag {self.name!r}>"
 
 
-class Page(db.Model):
+class Page(db.Model):  # type: ignore[name-defined]
     __tablename__ = "pages"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -114,7 +114,7 @@ class Page(db.Model):
         return f"<Page {self.title!r} published={self.published}>"
 
 
-class Post(db.Model):
+class Post(db.Model):  # type: ignore[name-defined]
     __tablename__ = "posts"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -171,7 +171,7 @@ class Post(db.Model):
         return f"<Post {self.title!r} published={self.published}>"
 
 
-class PostRevision(db.Model):
+class PostRevision(db.Model):  # type: ignore[name-defined]
     __tablename__ = "post_revisions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -195,7 +195,7 @@ class PostRevision(db.Model):
         return f"<PostRevision post_id={self.post_id} created_at={self.created_at}>"
 
 
-class Subscriber(db.Model):
+class Subscriber(db.Model):  # type: ignore[name-defined]
     __tablename__ = "subscribers"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -222,7 +222,7 @@ class Subscriber(db.Model):
         return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
 
 
-class PageView(db.Model):
+class PageView(db.Model):  # type: ignore[name-defined]
     __tablename__ = "page_views"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -240,7 +240,7 @@ class PageView(db.Model):
         return f"<PageView post_id={self.post_id}>"
 
 
-class ShareEvent(db.Model):
+class ShareEvent(db.Model):  # type: ignore[name-defined]
     __tablename__ = "share_events"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -258,7 +258,7 @@ class ShareEvent(db.Model):
         return f"<ShareEvent post_id={self.post_id} platform={self.platform!r}>"
 
 
-class AdminSession(db.Model):
+class AdminSession(db.Model):  # type: ignore[name-defined]
     __tablename__ = "admin_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -277,7 +277,7 @@ class AdminSession(db.Model):
         return f"<AdminSession user_id={self.user_id} ip={self.ip_address!r}>"
 
 
-class SiteSettings(db.Model):
+class SiteSettings(db.Model):  # type: ignore[name-defined]
     __tablename__ = "site_settings"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -289,7 +289,7 @@ class SiteSettings(db.Model):
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> "SiteSettings":
         instance = db.session.get(cls, 1)
         if instance is None:
             instance = cls()
@@ -395,7 +395,7 @@ THEME_PRESETS = {
 }
 
 
-class AdminAuditLog(db.Model):
+class AdminAuditLog(db.Model):  # type: ignore[name-defined]
     __tablename__ = "admin_audit_logs"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -418,7 +418,7 @@ class AdminAuditLog(db.Model):
         return f"<AdminAuditLog action={self.action!r} actor={self.actor_id}>"
 
 
-class Webhook(db.Model):
+class Webhook(db.Model):  # type: ignore[name-defined]
     __tablename__ = "webhooks"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -437,7 +437,7 @@ class Webhook(db.Model):
         return f"<Webhook {self.name!r} event={self.event_type!r}>"
 
 
-class WebhookEvent(db.Model):
+class WebhookEvent(db.Model):  # type: ignore[name-defined]
     __tablename__ = "webhook_events"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -456,11 +456,11 @@ class WebhookEvent(db.Model):
         db.Index("ix_webhook_events_event_type_delivered", "event_type", "delivered"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<WebhookEvent event={self.event_type!r} delivered={self.delivered}>"
 
 
-class Series(db.Model):
+class Series(db.Model):  # type: ignore[name-defined]
     __tablename__ = "series"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -484,7 +484,7 @@ class Series(db.Model):
         return f"<Series {self.name!r}>"
 
 
-class PostSeries(db.Model):
+class PostSeries(db.Model):  # type: ignore[name-defined]
     __tablename__ = "post_series"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -505,7 +505,7 @@ class PostSeries(db.Model):
         return f"<PostSeries series_id={self.series_id} post_id={self.post_id} order={self.order_index}>"
 
 
-class Comment(db.Model):
+class Comment(db.Model):  # type: ignore[name-defined]
     __tablename__ = "comments"
 
     id = db.Column(db.Integer, primary_key=True)

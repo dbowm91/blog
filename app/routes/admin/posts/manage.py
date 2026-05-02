@@ -13,6 +13,7 @@ from flask import (
     current_app,
     Response,
 )
+from typing import Union, Any
 
 from app.extensions import db
 from app.models import Post, PostRevision
@@ -65,12 +66,12 @@ def _build_preview_url(post_id: int, expiry_timestamp: int) -> str:
     return f"{BASE_URL}/preview/{post_id}?token={token}&expires={expiry_timestamp}"
 
 
-def register_manage_routes(admin):
+def register_manage_routes(admin: Any) -> None:
     """Register manage routes on the admin Blueprint."""
 
     @admin.route("/delete/<int:post_id>", methods=["POST"])
     @admin_required
-    def delete_post(post_id: int) -> Response:
+    def delete_post(post_id: int) -> Any:
         """Delete a blog post."""
         post = db.session.get(Post, post_id)
         if not post:
@@ -95,7 +96,7 @@ def register_manage_routes(admin):
 
     @admin.route("/preview/<int:post_id>")
     @admin_required
-    def preview_post(post_id: int) -> Response:
+    def preview_post(post_id: int) -> Any:
         """Preview a post before publishing."""
         post = db.session.get(Post, post_id)
         if not post:

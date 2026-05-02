@@ -3,6 +3,7 @@
 import json
 import uuid
 from datetime import datetime
+from typing import Any
 
 import click
 from sqlalchemy import select, text
@@ -14,11 +15,11 @@ from app.utils import utc_now
 from app.transaction import commit_with_rollback
 
 
-def register_cli_commands(app):
+def register_cli_commands(app: Any) -> None:
     """Register CLI commands with the Flask app."""
 
     @app.cli.command("rebuild-search")
-    def rebuild_search_command():
+    def rebuild_search_command() -> None:
         """Rebuild the FTS5 search index."""
         from app.search import rebuild_fts
 
@@ -26,7 +27,7 @@ def register_cli_commands(app):
         click.echo("Search index rebuilt.")
 
     @app.cli.command("cleanup-orphaned-images")
-    def cleanup_orphaned_images_command():
+    def cleanup_orphaned_images_command() -> None:
         """Clean up image files not associated with any post."""
         from app.routes.admin.media import cleanup_orphaned_images
 
@@ -36,7 +37,7 @@ def register_cli_commands(app):
             click.echo(f"Cleared {missing} missing image reference(s) from posts.")
 
     @app.cli.command("create-admin")
-    def create_admin_command():
+    def create_admin_command() -> None:
         """Create a new admin user or promote an existing user."""
         username = click.prompt("Username")
         password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
@@ -72,7 +73,7 @@ def register_cli_commands(app):
 
     @app.cli.command("promote-admin")
     @click.argument("username")
-    def promote_admin_command(username):
+    def promote_admin_command(username: str) -> None:
         """Promote an existing user to admin (non-interactive)."""
         user = db.session.execute(
             select(User).filter_by(username=username)
@@ -88,7 +89,7 @@ def register_cli_commands(app):
         click.echo(f"User '{username}' promoted to admin.")
 
     @app.cli.command("check-integrity")
-    def check_integrity_command():
+    def check_integrity_command() -> None:
         """Run database integrity check."""
         result = db.session.execute(text("PRAGMA integrity_check"))
         row = result.scalar()
@@ -100,7 +101,7 @@ def register_cli_commands(app):
 
     @app.cli.command("export-data")
     @click.argument("output_file")
-    def export_data_command(output_file):
+    def export_data_command(output_file: str) -> None:
         """Export all posts and subscribers as JSON."""
         from app.services.serialization import (
             export_data_to_dict
@@ -136,7 +137,7 @@ def register_cli_commands(app):
     @click.argument("input_file")
     @click.option("--skip-confirmed/--include-confirmed", default=True,
                   help="Skip already-confirmed subscribers (default: skip)")
-    def import_data_command(input_file, skip_confirmed):
+    def import_data_command(input_file: str, skip_confirmed: bool) -> None:
         """Import posts, subscribers, tags, and pages from JSON."""
         with open(input_file, encoding="utf-8") as f:
             data = json.load(f)
@@ -271,7 +272,7 @@ def register_cli_commands(app):
     @click.option("--posts", default=10, help="Number of sample posts to create")
     @click.option("--subscribers", default=20, help="Number of sample subscribers")
     @click.option("--published/--draft", default=False, help="Set posts as published")
-    def seed_command(posts, subscribers, published):
+    def seed_command(posts: int, subscribers: int, published: bool) -> None:
         """Generate sample data for testing."""
         existing_tags = db.session.execute(select(Tag)).scalars().all()
         if existing_tags:

@@ -1,9 +1,10 @@
 """Meta routes - robots.txt, sitemap.xml, favicon, health check, metrics."""
- 
+
 import logging
 import time
 import shutil
 from pathlib import Path
+from typing import Any
 from flask import current_app
 
 from flask import (
@@ -12,6 +13,7 @@ from flask import (
     jsonify,
     Response,
 )
+from flask.typing import ResponseReturnValue
 from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
@@ -86,7 +88,7 @@ def register_meta_routes(public):
 
     @public.route("/robots.txt")
     @limiter.limit("60 per minute")
-    def robots_txt() -> Response:
+    def robots_txt() -> ResponseReturnValue:
         """Serve robots.txt with sitemap URL and AI crawler blocking."""
         content = f"""User-agent: *
 Allow: /
@@ -168,13 +170,13 @@ Sitemap: {BASE_URL}/sitemap.xml
 
     @public.route("/sitemap.xml")
     @limiter.limit("60 per minute")
-    def sitemap_xml() -> Response:
+    def sitemap_xml() -> ResponseReturnValue:
         """Stream sitemap XML for all published posts, pages, and tags."""
         return Response(_generate_sitemap(), mimetype="application/xml")
 
     @public.route("/favicon.ico")
     @limiter.limit("60 per minute")
-    def favicon() -> Response:
+    def favicon() -> ResponseReturnValue:
         """Redirect to SVG favicon."""
         return Response(
             status=302, headers={"Location": url_for("static", filename="img/favicon.svg")}
@@ -182,7 +184,7 @@ Sitemap: {BASE_URL}/sitemap.xml
 
     @public.route("/health")
     @limiter.limit("60 per minute")
-    def health_check() -> Response:
+    def health_check() -> ResponseReturnValue:
         """Health check endpoint for monitoring."""
         import hmac
 
@@ -246,7 +248,7 @@ Sitemap: {BASE_URL}/sitemap.xml
             else "degraded"
         )
 
-        result = {
+        result: dict[str, Any] = {
             "status": overall,
             "checks": checks,
             "timestamp": utc_now().isoformat(),

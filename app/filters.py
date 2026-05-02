@@ -2,12 +2,13 @@
 
 import markdown
 import nh3
-from flask import g, has_request_context
+from typing import Any
+from flask import Flask, g, has_request_context
 
 from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TAGS
 
 
-def register_filters(app):
+def register_filters(app: Flask) -> None:
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text: str) -> str:
         html = markdown.markdown(text, extensions=["fenced_code", "tables", "footnotes"])
@@ -24,13 +25,13 @@ def register_filters(app):
         return f"{minutes} min read"
 
     @app.template_filter("sanitize_css")
-    def sanitize_css_filter(text):
+    def sanitize_css_filter(text: str | None) -> str:
         from app.utils import sanitize_css
 
         return sanitize_css(text) if text else ""
 
     @app.template_filter("post_image_url")
-    def post_image_url_filter(post):
+    def post_image_url_filter(post: Any) -> str | None:
         if not post or not post.image:
             return None
         if has_request_context():
@@ -41,7 +42,7 @@ def register_filters(app):
                 return g._post_image_cache[post_id]
             from app.storage import get_storage
             storage = get_storage()
-            result = post.image if storage.exists(post.image) else None
+            result: str | None = post.image if storage.exists(post.image) else None
             g._post_image_cache[post_id] = result
             return result
         from app.storage import get_storage
@@ -49,7 +50,7 @@ def register_filters(app):
         return post.image if storage.exists(post.image) else None
 
     @app.template_filter("post_image_srcset")
-    def post_image_srcset_filter(post):
+    def post_image_srcset_filter(post: Any) -> str | None:
         if not post or not post.image:
             return None
         if has_request_context():
@@ -58,7 +59,6 @@ def register_filters(app):
                 g._post_image_cache = {}
             if cache_key in g._post_image_cache:
                 return g._post_image_cache[cache_key]
-
             from app.storage import get_storage
             from app.config import BASE_URL
             storage = get_storage()
@@ -67,7 +67,6 @@ def register_filters(app):
                 variant_name = f"{width}_{post.image}"
                 if storage.exists(variant_name):
                     srcset_parts.append(f"{BASE_URL.rstrip('/')}/static/uploads/{variant_name} {width}w")
-
             g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
             return g._post_image_cache[cache_key]
         return None

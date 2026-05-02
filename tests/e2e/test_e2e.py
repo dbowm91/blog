@@ -31,8 +31,8 @@ class TestAdminLogin:
         page.click('button[type="submit"]')
 
         page.wait_for_load_state("networkidle")
-        page.wait_for_selector(".toast-message", timeout=5000)
-        toast = page.text_content(".toast-message")
+        page.wait_for_selector(".flash-message", timeout=5000)
+        toast = page.text_content(".flash-message")
         assert toast and "invalid" in toast.lower()
 
     def test_logout(self, page, app_server):

@@ -2,17 +2,18 @@
 
 from contextlib import contextmanager
 from functools import wraps
+from typing import Callable, Any, Iterator
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db
 
 
-def transactional(f):
+def transactional(f: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator that handles common IntegrityError/OperationalError patterns."""
 
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def decorated_function(*args: Any, **kwargs: Any) -> Any:
         try:
             return f(*args, **kwargs)
         except (IntegrityError, SQLAlchemyError):
@@ -22,7 +23,7 @@ def transactional(f):
     return decorated_function
 
 
-def commit_with_rollback():
+def commit_with_rollback() -> None:
     """Commit the current transaction, rolling back on error.
 
     Raises:
@@ -36,7 +37,7 @@ def commit_with_rollback():
 
 
 @contextmanager
-def db_transaction():
+def db_transaction() -> Iterator[None]:
     """Context manager for database transactions with automatic rollback.
 
     Usage:
@@ -53,7 +54,7 @@ def db_transaction():
         raise
 
 
-def commit_with_slug_retry(page, title, max_retries=3):
+def commit_with_slug_retry(page: Any, title: str, max_retries: int = 3) -> bool:
     """Helper for slug collision retry on commit."""
     from app.services.slug import generate_unique_slug
 

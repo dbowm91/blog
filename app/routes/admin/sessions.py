@@ -1,18 +1,20 @@
 from __future__ import annotations
 from flask import render_template, redirect, url_for, flash, session, abort, Response
+from flask.typing import ResponseReturnValue
 
 from app.extensions import db
 from app.models import AdminSession
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, QueryableAttribute
+from typing import cast, Union
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 
 @admin.route("/sessions")
 @admin_required
-def sessions_list() -> Response:
+def sessions_list() -> ResponseReturnValue:
     """
     List all active admin sessions.
 
@@ -23,7 +25,7 @@ def sessions_list() -> Response:
     sessions = (
         db.session.execute(
             select(AdminSession)
-            .options(joinedload(AdminSession.user))
+            .options(joinedload(cast(QueryableAttribute, AdminSession.user)))
             .order_by(AdminSession.last_activity.desc())
         )
         .unique()
@@ -40,7 +42,7 @@ def sessions_list() -> Response:
 
 @admin.route("/sessions/revoke/<int:sess_id>", methods=["POST"])
 @admin_required
-def revoke_session(sess_id) -> Response:
+def revoke_session(sess_id) -> ResponseReturnValue:
     """
     Revoke an admin session.
 

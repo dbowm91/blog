@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from flask import (
     render_template, redirect, url_for, request, flash, send_file, abort, current_app, Response
 )
+from flask.typing import ResponseReturnValue
+from typing import Union
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required
@@ -19,7 +21,7 @@ from app.routes.admin.helpers.shared import BACKUP_FILENAME_RE
 
 @admin.route("/backup")
 @admin_required
-def backup() -> Response:
+def backup() -> ResponseReturnValue:
     """
     Backup management - list available backups.
 
@@ -49,7 +51,7 @@ def backup() -> Response:
 
 @admin.route("/backup/create", methods=["POST"])
 @admin_required
-def create_backup() -> Response:
+def create_backup() -> ResponseReturnValue:
     """
     Create a new database backup.
 
@@ -80,7 +82,7 @@ def create_backup() -> Response:
 
 @admin.route("/backup/download/<filename>")
 @admin_required
-def download_backup(filename) -> Response:
+def download_backup(filename) -> ResponseReturnValue:
     """
     Download a backup file.
 
@@ -103,7 +105,7 @@ def download_backup(filename) -> Response:
 
 @admin.route("/backup/restore/<filename>", methods=["POST"])
 @admin_required
-def restore_backup(filename) -> Response:
+def restore_backup(filename) -> ResponseReturnValue:
     """
     Restore database from a backup.
 
@@ -167,7 +169,7 @@ def restore_backup(filename) -> Response:
 
 @admin.route("/backup/delete/<filename>", methods=["POST"])
 @admin_required
-def delete_backup(filename) -> Response:
+def delete_backup(filename) -> ResponseReturnValue:
     """
     Delete a backup file.
 
@@ -195,7 +197,7 @@ def delete_backup(filename) -> Response:
 
 @admin.route("/backup/verify/<filename>")
 @admin_required
-def verify_backup(filename) -> Response:
+def verify_backup(filename) -> ResponseReturnValue:
     """
     Verify the integrity of a backup file.
 
@@ -223,7 +225,7 @@ def verify_backup(filename) -> Response:
 
 @admin.route("/backup/verify-all")
 @admin_required
-def verify_all_backups() -> Response:
+def verify_all_backups() -> ResponseReturnValue:
     """
     Verify integrity of all backups in the backup directory.
 

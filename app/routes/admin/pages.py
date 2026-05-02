@@ -1,5 +1,7 @@
 from __future__ import annotations
 from flask import render_template, redirect, url_for, request, flash, abort, Response
+from flask.typing import ResponseReturnValue
+from typing import Union
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -12,7 +14,7 @@ from app.utils import generate_slug
 
 @admin.route("/pages")
 @admin_required
-def pages_list() -> Response:
+def pages_list() -> ResponseReturnValue:
     """
     List all static pages.
 
@@ -26,7 +28,7 @@ def pages_list() -> Response:
 
 @admin.route("/pages/new", methods=["GET", "POST"])
 @admin_required
-def new_page() -> Response:
+def new_page() -> ResponseReturnValue:
     """
     Create a new static page.
 
@@ -98,7 +100,7 @@ def new_page() -> Response:
 
 @admin.route("/pages/edit/<int:page_id>", methods=["GET", "POST"])
 @admin_required
-def edit_page(page_id) -> Response:
+def edit_page(page_id) -> ResponseReturnValue:
     """
     Edit an existing static page.
 
@@ -172,7 +174,7 @@ def edit_page(page_id) -> Response:
 
 @admin.route("/pages/delete/<int:page_id>", methods=["POST"])
 @admin_required
-def delete_page(page_id) -> Response:
+def delete_page(page_id) -> ResponseReturnValue:
     """
     Delete a static page.
 

@@ -31,7 +31,7 @@ def _allowed_file(filename: str) -> bool:
 
 def _save_image(
     file: FileStorage,
-) -> tuple[str, None] | tuple[None, str] | tuple[None, None]:
+) -> tuple[str | None, str | None]:
     if file and file.filename and _allowed_file(file.filename):
         header = file.read(32)
         file.seek(0, 2)

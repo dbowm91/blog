@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import request, session
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
+from typing import Any
 
 from app import cache as flask_cache
 from app.extensions import db
@@ -26,22 +27,22 @@ from app.tag_cache import _get_tag_counts
 logger = logging.getLogger(__name__)
 
 
-def invalidate_settings_cache():
+def invalidate_settings_cache() -> None:
     """Invalidate the SiteSettings cache."""
     flask_cache.delete("site_settings")
 
 
-def invalidate_footer_cache():
+def invalidate_footer_cache() -> None:
     """Invalidate the footer cache."""
     flask_cache.delete_memoized(_get_footer_data)
 
 
-def _get_settings_cache_key():
+def _get_settings_cache_key() -> str:
     return "site_settings"
 
 
 @flask_cache.cached(timeout=300, key_prefix=_get_settings_cache_key)
-def _get_cached_settings():
+def _get_cached_settings() -> dict[str, Any]:
     """Get cached site settings."""
     from app.models import THEME_PRESETS
 
@@ -92,7 +93,7 @@ def _get_cached_settings():
 
 
 @flask_cache.memoize(timeout=45)
-def _get_footer_data():
+def _get_footer_data() -> dict[str, Any]:
     """Get footer data with caching."""
     from app.models import Post, Tag
 
@@ -131,11 +132,11 @@ def _get_footer_data():
     }
 
 
-def register_context_processors(app):
+def register_context_processors(app: Any) -> None:
     """Register all context processors with the Flask app."""
 
     @app.context_processor
-    def inject_csrf():
+    def inject_csrf() -> dict[str, str]:
         try:
             from flask import g
 
@@ -147,7 +148,7 @@ def register_context_processors(app):
         return {"csrf_token": csrf_token, "csp_nonce": nonce}
 
     @app.context_processor
-    def inject_config():
+    def inject_config() -> dict[str, Any]:
         return {
             "site_title": APP_TITLE,
             "site_description": APP_DESCRIPTION,
@@ -160,11 +161,11 @@ def register_context_processors(app):
         }
 
     @app.context_processor
-    def inject_theme():
+    def inject_theme() -> dict[str, Any]:
         return _get_cached_settings()
 
     @app.context_processor
-    def inject_footer_data():
+    def inject_footer_data() -> dict[str, Any]:
         path = request.path if request else ""
         if (
             path.startswith("/admin")
@@ -190,7 +191,7 @@ def register_context_processors(app):
             }
 
     @app.context_processor
-    def inject_show_footer_posts():
+    def inject_show_footer_posts() -> dict[str, bool]:
         path = request.path if request else ""
         return {
             "show_footer_posts": not (

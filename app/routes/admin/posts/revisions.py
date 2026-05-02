@@ -6,7 +6,9 @@ from flask import (
     url_for,
     flash,
     abort,
+    Response,
 )
+from typing import cast, Union, Any
 from flask_login import current_user
 
 from app.extensions import db
@@ -24,7 +26,7 @@ from app.search import sync_fts
 from app.routes.rss import invalidate_rss_cache
 from app.routes.public import invalidate_archive_cache
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, QueryableAttribute
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 
@@ -41,12 +43,12 @@ def _save_revision(post: Post, author_id: int | None) -> None:
     db.session.add(revision)
 
 
-def register_revisions_routes(admin):
+def register_revisions_routes(admin: Any) -> None:
     """Register revision routes on the admin Blueprint."""
 
     @admin.route("/posts/<int:post_id>/revisions")
     @admin_required
-    def post_revisions(post_id: int):
+    def post_revisions(post_id: int) -> Any:
         """View revision history for a post."""
         post = db.session.get(Post, post_id)
         if not post:
@@ -57,7 +59,7 @@ def register_revisions_routes(admin):
                 select(PostRevision)
                 .filter(PostRevision.post_id == post_id)
                 .order_by(PostRevision.created_at.desc())
-                .options(joinedload(PostRevision.author))
+                .options(joinedload(cast(QueryableAttribute, PostRevision.author)))
             )
             .scalars()
             .unique()
@@ -72,7 +74,7 @@ def register_revisions_routes(admin):
 
     @admin.route("/posts/<int:post_id>/revisions/<int:revision_id>/restore", methods=["POST"])
     @admin_required
-    def restore_revision(post_id: int, revision_id: int):
+    def restore_revision(post_id: int, revision_id: int) -> Any:
         """Restore a post to a previous revision."""
         post = db.session.get(Post, post_id)
         if not post:

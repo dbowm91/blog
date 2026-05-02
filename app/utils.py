@@ -5,9 +5,10 @@ import re
 import unicodedata
 from datetime import datetime, timezone
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, cast
 
 from sqlalchemy import TypeDecorator, DateTime
+from typing import Any
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
@@ -154,7 +155,7 @@ def unified_error_handler(
             except Exception as exc:
                 handle_error(context, operation, detail, exc, reraise=reraise, default=default)
                 return default
-        return wrapper
+        return cast(F, wrapper)
     return decorator
 
 
@@ -195,12 +196,12 @@ class UTCDateTime(TypeDecorator):
     impl = DateTime
     cache_ok = True
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
         if value is not None and value.tzinfo is not None:
             return value.astimezone(timezone.utc).replace(tzinfo=None)
         return value
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value: Any, dialect: Any) -> Any:
         if value is not None and value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value

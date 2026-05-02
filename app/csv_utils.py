@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Iterator
+from typing import Any, Iterator
 
 
 SUBSCRIBER_CSV_HEADERS = ["email", "confirmed", "created_at", "expires_at"]
@@ -13,7 +13,7 @@ def _escape_csv_cell(value: str) -> str:
     return value
 
 
-def generate_subscribers_csv(rows) -> Iterator[str]:
+def generate_subscribers_csv(rows: list[Any]) -> Iterator[str]:
     """Generate CSV output for subscriber rows.
 
     Args:

@@ -11,9 +11,11 @@ from flask import (
     current_app,
     Response,
 )
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, QueryableAttribute
+from typing import cast, Union
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -48,7 +50,7 @@ register_revisions_routes(admin)
 
 @admin.route("/")
 @admin_required
-def dashboard() -> Response:
+def dashboard() -> ResponseReturnValue:
     """Admin dashboard - lists all posts with pagination and search."""
     page = request.args.get("page", 1, type=int)
     q = request.args.get("q", "").strip()
@@ -115,7 +117,7 @@ def dashboard() -> Response:
 
 @admin.route("/bulk", methods=["POST"])
 @admin_required
-def bulk_operations() -> Response:
+def bulk_operations() -> ResponseReturnValue:
     """Bulk operations on selected posts."""
     action = request.form.get("action")
     post_ids = request.form.getlist("post_ids")
@@ -133,7 +135,7 @@ def bulk_operations() -> Response:
 
     posts = (
         db.session.execute(
-            select(Post).filter(Post.id.in_(valid_ids)).options(joinedload(Post.tags))
+            select(Post).filter(Post.id.in_(valid_ids)).options(joinedload(cast(QueryableAttribute, Post.tags)))
         ).scalars().unique().all()
     )
     if not posts:

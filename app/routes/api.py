@@ -7,14 +7,15 @@ Rate limiting should be handled by the reverse proxy (same as admin routes).
 import os
 import hmac
 from functools import wraps
+from typing import Union, Any, cast
 
 from flask import Blueprint, jsonify, request, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, QueryableAttribute
 
 from app.extensions import db
-from app.models import Post, Subscriber
+from app.models import Post, Subscriber, Tag
 from app.utils import utc_now
 from app.validators import validate_string, validate_email, validate_boolean
 from app import limiter
@@ -27,11 +28,11 @@ DEFAULT_LIMIT = "20 per minute"
 WRITE_LIMIT = "10 per minute"
 
 
-def require_api_key(f):
+def require_api_key(f: Any) -> Any:
     """Decorator to require API key authentication."""
 
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorated(*args: Any, **kwargs: Any) -> Any:
         if not API_KEY:
             return jsonify({"error": "API not configured"}), 503
 
@@ -68,7 +69,7 @@ def _post_to_dict(post: Post) -> dict:
             else None
         ),
         "newsletter_attempts": post.newsletter_attempts,
-        "tags": [tag.name for tag in post.tags],
+        "tags": [tag.name for tag in cast(list[Tag], post.tags)],
     }
 
 
@@ -95,7 +96,7 @@ def _subscriber_to_dict(subscriber: Subscriber) -> dict:
 @api.route("/posts", methods=["GET"])
 @require_api_key
 @limiter.limit(DEFAULT_LIMIT)
-def list_posts() -> Response:
+def list_posts() -> Any:
     """List posts with pagination.
 
     Query params:
@@ -110,7 +111,7 @@ def list_posts() -> Response:
     per_page = min(request.args.get("per_page", 20, type=int), 100)
     published_filter = request.args.get("published")
 
-    query = select(Post).options(joinedload(Post.tags)).order_by(Post.created_at.desc())
+    query = select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).order_by(Post.created_at.desc())
 
     if published_filter is not None:
         published_val = published_filter.lower() in ("true", "1", "yes")
@@ -132,14 +133,14 @@ def list_posts() -> Response:
 @api.route("/posts/<int:post_id>", methods=["GET"])
 @require_api_key
 @limiter.limit(DEFAULT_LIMIT)
-def get_post(post_id: int) -> Response:
+def get_post(post_id: int) -> Any:
     """Get a single post by ID.
 
     Returns:
         JSON with post data or 404 error
     """
     post = db.session.execute(
-        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+        select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
     ).unique().scalar_one_or_none()
     if not post:
         return jsonify({"error": "Post not found"}), 404
@@ -150,7 +151,7 @@ def get_post(post_id: int) -> Response:
 @api.route("/posts", methods=["POST"])
 @require_api_key
 @limiter.limit(WRITE_LIMIT)
-def create_post() -> Response:
+def create_post() -> Any:
     """Create a new post.
 
     JSON body:
@@ -226,7 +227,7 @@ def create_post() -> Response:
     if tags:
         from app.routes.admin.helpers.tags import _get_or_create_tags
 
-        post.tags = _get_or_create_tags(tags)
+        setattr(post, 'tags', _get_or_create_tags(tags))
 
     db.session.add(post)
     db.session.flush()
@@ -252,7 +253,7 @@ def create_post() -> Response:
 @api.route("/posts/<int:post_id>", methods=["PUT"])
 @require_api_key
 @limiter.limit(WRITE_LIMIT)
-def update_post(post_id: int) -> Response:
+def update_post(post_id: int) -> Any:
     """Update an existing post.
 
     JSON body (all optional):
@@ -268,7 +269,7 @@ def update_post(post_id: int) -> Response:
         JSON with updated post data or 404 error
     """
     post = db.session.execute(
-        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+        select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
     ).unique().scalar_one_or_none()
     if not post:
         return jsonify({"error": "Post not found"}), 404
@@ -289,7 +290,7 @@ def update_post(post_id: int) -> Response:
         if new_slug != post.slug:
             from app.routes.admin.helpers.slug import _generate_unique_slug
 
-            post.slug = _generate_unique_slug(Post, post.title, new_slug, exclude_id=post_id)
+            post.slug = _generate_unique_slug(Post, post.title, slug=new_slug, exclude_id=post_id)
     if "body" in data:
         body, err = validate_string(data["body"], 50000, "body")
         if err:
@@ -316,7 +317,7 @@ def update_post(post_id: int) -> Response:
     if "tags" in data:
         from app.routes.admin.helpers.tags import _get_or_create_tags
 
-        post.tags = _get_or_create_tags(data["tags"])
+        setattr(post, 'tags', _get_or_create_tags(data["tags"]))
 
     from app.search import sync_fts
 
@@ -339,14 +340,14 @@ def update_post(post_id: int) -> Response:
 @api.route("/posts/<int:post_id>", methods=["DELETE"])
 @require_api_key
 @limiter.limit(WRITE_LIMIT)
-def delete_post(post_id: int) -> Response:
+def delete_post(post_id: int) -> Any:
     """Delete a post.
 
     Returns:
         JSON with success message or 404 error
     """
     post = db.session.execute(
-        select(Post).options(joinedload(Post.tags)).filter(Post.id == post_id)
+        select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
     ).unique().scalar_one_or_none()
     if not post:
         return jsonify({"error": "Post not found"}), 404
@@ -379,7 +380,7 @@ def delete_post(post_id: int) -> Response:
 @api.route("/subscribers", methods=["GET"])
 @require_api_key
 @limiter.limit(DEFAULT_LIMIT)
-def list_subscribers() -> Response:
+def list_subscribers() -> Any:
     """List subscribers with pagination.
 
     Query params:
@@ -416,7 +417,7 @@ def list_subscribers() -> Response:
 @api.route("/subscribers", methods=["POST"])
 @require_api_key
 @limiter.limit(WRITE_LIMIT)
-def create_subscriber() -> Response:
+def create_subscriber() -> Any:
     """Create a new subscriber.
 
     JSON body:
@@ -472,7 +473,7 @@ def create_subscriber() -> Response:
 @api.route("/subscribers/<int:subscriber_id>", methods=["DELETE"])
 @require_api_key
 @limiter.limit(WRITE_LIMIT)
-def delete_subscriber(subscriber_id: int) -> Response:
+def delete_subscriber(subscriber_id: int) -> Any:
     """Delete a subscriber.
 
     Returns:
@@ -495,7 +496,7 @@ def delete_subscriber(subscriber_id: int) -> Response:
 @api.route("/stats", methods=["GET"])
 @require_api_key
 @limiter.limit(DEFAULT_LIMIT)
-def get_stats() -> Response:
+def get_stats() -> Any:
     """Get dashboard statistics.
 
     Returns:
@@ -522,6 +523,17 @@ def get_stats() -> Response:
         {"thirty_days_ago": thirty_days_ago, "month_start": month_start}
     ).fetchone()
 
+    if counts is None:
+        return jsonify(
+            {
+                "total_views": 0,
+                "total_posts": 0,
+                "total_shares": 0,
+                "total_subscribers": 0,
+                "views_this_month": 0,
+                "new_subscribers_this_month": 0,
+            }
+        )
     return jsonify(
         {
             "total_views": counts[0] or 0,

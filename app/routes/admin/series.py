@@ -9,6 +9,8 @@ from flask import (
     abort,
     Response,
 )
+from flask.typing import ResponseReturnValue
+from typing import Union
 
 from app.extensions import db
 from app.models import Series, Post, PostSeries
@@ -20,7 +22,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 @admin.route("/series")
 @admin_required
-def series_list() -> Response:
+def series_list() -> ResponseReturnValue:
     """List all series with post counts."""
     series = (
         db.session.execute(
@@ -46,7 +48,7 @@ def series_list() -> Response:
 
 @admin.route("/series/new", methods=["GET", "POST"])
 @admin_required
-def series_new() -> Response:
+def series_new() -> ResponseReturnValue:
     """Create a new series."""
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -92,7 +94,7 @@ def series_new() -> Response:
 
 @admin.route("/series/<int:series_id>/edit", methods=["GET", "POST"])
 @admin_required
-def series_edit(series_id: int) -> Response:
+def series_edit(series_id: int) -> ResponseReturnValue:
     """Edit an existing series and manage its posts."""
     series = db.session.get(Series, series_id)
     if not series:
@@ -137,7 +139,7 @@ def series_edit(series_id: int) -> Response:
 
 @admin.route("/series/<int:series_id>/delete", methods=["POST"])
 @admin_required
-def series_delete(series_id: int) -> Response:
+def series_delete(series_id: int) -> ResponseReturnValue:
     """Delete a series and its post associations."""
     series = db.session.get(Series, series_id)
     if not series:
@@ -162,7 +164,7 @@ def series_delete(series_id: int) -> Response:
 
 @admin.route("/series/<int:series_id>/posts", methods=["GET", "POST"])
 @admin_required
-def series_posts(series_id: int) -> Response:
+def series_posts(series_id: int) -> ResponseReturnValue:
     """Manage posts in a series."""
     series = db.session.get(Series, series_id)
     if not series:
@@ -262,7 +264,7 @@ def series_posts(series_id: int) -> Response:
 
 @admin.route("/series/<int:series_id>/reorder", methods=["POST"])
 @admin_required
-def series_reorder(series_id: int) -> Response:
+def series_reorder(series_id: int) -> ResponseReturnValue:
     """Update the order of posts in a series via AJAX."""
     from flask import jsonify
     

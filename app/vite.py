@@ -3,13 +3,15 @@
 import hashlib
 import json
 from pathlib import Path
+from typing import Optional
+from flask import Flask
 
-_manifest_cache = None
+_manifest_cache: Optional[dict] = None
 _manifest_path = Path(__file__).parent / "static" / "dist" / ".vite" / "manifest.json"
-_css_hash_cache = {}
+_css_hash_cache: dict[str, str] = {}
 
 
-def get_manifest():
+def get_manifest() -> dict:
     """Load and cache the Vite manifest file."""
     global _manifest_cache
     if _manifest_cache is None:
@@ -21,7 +23,7 @@ def get_manifest():
     return _manifest_cache
 
 
-def get_file_hash(filepath):
+def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate MD5 hash of file content for cache busting."""
     if filepath in _css_hash_cache:
         return _css_hash_cache[filepath]
@@ -35,7 +37,7 @@ def get_file_hash(filepath):
     return None
 
 
-def vite_asset(url):
+def vite_asset(url: str) -> str:
     """Get the content-hashed URL for a static asset.
     
     In development, returns the URL as-is (Vite dev server handles it).
@@ -65,6 +67,6 @@ def vite_asset(url):
     return f"/static/{url}"
 
 
-def init_vite(app):
+def init_vite(app: Flask) -> None:
     """Initialize Vite integration with Flask app."""
     app.jinja_env.globals["vite_asset"] = vite_asset

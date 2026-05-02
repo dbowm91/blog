@@ -170,7 +170,9 @@ class TestPostScheduling:
 
         publish_scheduled_posts(app)
 
-        db.session.refresh(post)
+        # Expire session to clear cache, then re-query
+        db.session.expire_all()
+        post = db.session.get(Post, post_id)
         assert post.published is True
         assert post.published_at is not None
         assert post.scheduled_publish_at is None

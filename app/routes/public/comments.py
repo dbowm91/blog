@@ -6,10 +6,10 @@ from sqlalchemy import select
 from app.extensions import db
 from app.models import Post, Comment
 from app.routes.public import public
-
+from flask.typing import ResponseReturnValue
 
 @public.route("/post/<slug>/comment", methods=["POST"])
-def add_comment(slug: str) -> Response:
+def add_comment(slug: str) -> ResponseReturnValue:
     """
     Submit a comment on a post.
 

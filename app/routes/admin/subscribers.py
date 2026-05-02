@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from flask import render_template, redirect, url_for, request, flash, Response, abort
+from flask.typing import ResponseReturnValue
+from typing import Union
 
 from app.extensions import db
 from app.models import Subscriber
@@ -15,7 +17,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 @admin.route("/subscribers")
 @admin_required
-def subscribers() -> Response:
+def subscribers() -> ResponseReturnValue:
     """
     List all subscribers with pagination and filtering.
 
@@ -31,9 +33,9 @@ def subscribers() -> Response:
 
     base_q = select(Subscriber)
     if filter_status == "confirmed":
-        base_q = base_q.filter(Subscriber.confirmed)
+        base_q = base_q.filter(Subscriber.confirmed.is_(True))
     elif filter_status == "unconfirmed":
-        base_q = base_q.filter(not Subscriber.confirmed)
+        base_q = base_q.filter(Subscriber.confirmed.is_(False))
     elif filter_status == "unsubscribed":
         base_q = base_q.filter(Subscriber.unsubscribed_at.isnot(None))
 
@@ -53,7 +55,7 @@ def subscribers() -> Response:
 
 @admin.route("/subscribers/delete/<int:sub_id>", methods=["POST"])
 @admin_required
-def delete_subscriber(sub_id: int) -> Response:
+def delete_subscriber(sub_id: int) -> ResponseReturnValue:
     """
     Delete a subscriber.
 
@@ -80,7 +82,7 @@ def delete_subscriber(sub_id: int) -> Response:
 
 @admin.route("/subscribers/export")
 @admin_required
-def export_subscribers() -> Response:
+def export_subscribers() -> ResponseReturnValue:
     """
     Export all confirmed subscribers to CSV.
 
@@ -118,7 +120,7 @@ def export_subscribers() -> Response:
 
 @admin.route("/subscribers/bulk", methods=["POST"])
 @admin_required
-def subscribers_bulk() -> Response:
+def subscribers_bulk() -> ResponseReturnValue:
     """
     Bulk operations on selected subscribers.
 

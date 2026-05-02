@@ -1,6 +1,7 @@
 import os
 import time
 import json
+from typing import Any
 from urllib.parse import urlparse
 import sqlite3
 import secrets
@@ -38,7 +39,7 @@ from app.csrf import validate_csrf_token
 sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
 sqlite3.register_converter("datetime", lambda s: datetime.fromisoformat(s.decode()))
 
-def get_client_ip():
+def get_client_ip() -> str:
     return req.headers.get('X-Forwarded-For', req.remote_addr) or req.remote_addr
 
 
@@ -94,13 +95,13 @@ class StructuredLogFormatter(logging.Formatter):
         return json.dumps(log_data)
 
 
-def configure_logging(app):
+def configure_logging(app: Flask) -> None:
     """Configure application logging with request context."""
 
     class RequestIdFilter(logging.Filter):
         """Inject request_id into log records."""
 
-        def filter(self, record):
+        def filter(self, record: logging.LogRecord) -> bool:
             try:
                 record.request_id = getattr(g, "request_id", "-")
             except RuntimeError:
@@ -123,7 +124,7 @@ def configure_logging(app):
         app.logger.info("Blog startup")
 
 
-def create_app():
+def create_app() -> Flask:
     if not SECRET_KEY:
         raise RuntimeError(
             "SECRET_KEY is required. Set it via the SECRET_KEY environment variable."
@@ -161,7 +162,7 @@ def create_app():
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     proxy_count = int(os.environ.get("PROXY_COUNT", 1))
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)  # type: ignore[misc]
 
     if not app.debug and not app.testing:
         csrf_disabled = not app.config.get("CSRF_ENABLED", True)
@@ -216,7 +217,7 @@ def create_app():
         limiter.enabled = False
 
     @app.errorhandler(429)
-    def ratelimit_handler(e):
+    def ratelimit_handler(e: Any) -> tuple[Any, int]:
         if req.is_json:
             from flask import jsonify  # noqa: E402
             return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
@@ -225,7 +226,7 @@ def create_app():
     with app.app_context():
 
         @event.listens_for(db.engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):
+        def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA busy_timeout=5000")
@@ -264,7 +265,7 @@ def create_app():
     SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
 
     @app.before_request
-    def before_request_handler():
+    def before_request_handler() -> None:
         # Generate request ID and CSP nonce for this request
         g.request_id = secrets.token_hex(4)
         g.csp_nonce = secrets.token_urlsafe(16)
@@ -310,7 +311,7 @@ def create_app():
             session["last_activity"] = now
 
     @app.after_request
-    def set_security_headers(response):
+    def set_security_headers(response: Any) -> Any:  # type: ignore[no-untyped-def]
         from flask import current_app  # noqa: E402
 
         nonce = getattr(g, "csp_nonce", "")
@@ -403,7 +404,7 @@ def create_app():
 
     configure_logging(app)
 
-    def _check_database_integrity(app):
+    def _check_database_integrity(app: Flask) -> None:
         """Run PRAGMA integrity_check to verify database is not corrupted."""
         with app.app_context():
             try:
@@ -438,7 +439,7 @@ def create_app():
     init_vite(app)
 
     @app.shell_context_processor
-    def make_shell_context():
+    def make_shell_context() -> dict[str, Any]:
         from app.models import (  # noqa: E402
             User,
             Post,

@@ -16,10 +16,11 @@ from flask import (
     current_app,
     Response,
 )
+from typing import Any, cast
 from flask_login import current_user
 
 from app.extensions import db
-from app.models import Post, PostRevision
+from app.models import Post, PostRevision, Tag
 from app.routes.admin import admin_required
 from app.routes.admin.helpers import (
     _generate_unique_slug,
@@ -75,7 +76,7 @@ def _create_post_object(
         published_at=now if published else None,
         scheduled_publish_at=scheduled_publish_at,
     )
-    post.tags = _get_or_create_tags(tag_names)
+    setattr(post, 'tags', _get_or_create_tags(tag_names))
     return post
 
 
@@ -135,7 +136,7 @@ def register_editor_routes(admin):
 
     @admin.route("/new", methods=["GET", "POST"])
     @admin_required
-    def new_post() -> Response:
+    def new_post() -> Any:
         """Create a new blog post."""
         if request.method == "POST":
             title = request.form.get("title", "").strip()[:200]
@@ -212,10 +213,10 @@ def register_editor_routes(admin):
 
     @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
     @admin_required
-    def edit_post(post_id: int) -> Response:
+    def edit_post(post_id: int) -> Any:
         """Edit an existing blog post."""
         post = db.session.get(Post, post_id)
-        if not post:
+        if post is None:
             abort(404)
 
         if request.method == "POST":
@@ -316,12 +317,12 @@ def register_editor_routes(admin):
             flash("Post updated.", "success")
             return redirect(url_for("admin.dashboard"))
 
-        tag_names = [t.name for t in post.tags]
+        tag_names = [t.name for t in cast(list[Tag], post.tags)]
         return render_template("admin/editor.html", post=post, tag_names=tag_names)
 
     @admin.route("/preview-markdown", methods=["POST"])
     @admin_required
-    def preview_markdown():
+    def preview_markdown() -> Any:
         """Render markdown preview for live editing."""
         if request.content_length and request.content_length > 1024 * 1024:
             return jsonify({"error": "payload too large"}), 413

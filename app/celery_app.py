@@ -1,11 +1,12 @@
 """Celery application configuration."""
 
 from celery import Celery
+from flask import Flask
 
 __all__ = ["celery_app", "init_celery"]
 
 
-def init_celery(app=None) -> Celery:
+def init_celery(app: Flask | None = None) -> Celery:
     """Initialize Celery with Flask app context."""
     from app.config import REDIS_URL
 
