@@ -43,7 +43,7 @@ def _get_feed_posts(limit: int = 20):
             .filter_by(published=True)
             .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
             .limit(limit)
-        ).scalars().all()
+        ).scalars().unique().all()
     )
     etag = _generate_etag(posts)
     return posts, etag

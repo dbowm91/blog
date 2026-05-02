@@ -1,7 +1,9 @@
 """Subscription routes - subscribe, confirm, unsubscribe."""
-
+ 
+import logging
 import uuid
 import time
+from datetime import timedelta
 from flask import current_app
 
 from flask import (
@@ -20,6 +22,7 @@ from app.config import CONFIRMATION_EXPIRY_HOURS, TOKEN_ENUMERATION_DELAY
 from app.tasks import send_confirmation_task
 from app.csrf import validate_csrf_token
 from app.utils import is_valid_email, utc_now
+from app.routes.public.posts import _safe_redirect_url
 from app import limiter
 
 logger = logging.getLogger(__name__)
