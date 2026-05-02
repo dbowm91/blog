@@ -207,7 +207,10 @@ class TestResubscribeFlows:
         response = client.post('/subscribe', data={'email': 'unsub@example.com'}, follow_redirects=True)
         assert response.status_code == 200
 
-        db.session.refresh(sub)
+        # Re-query the subscriber from the database
+        sub = db.session.execute(
+            select(Subscriber).filter_by(email='unsub@example.com')
+        ).scalar_one()
         assert sub.unsubscribed_at is None
         assert sub.confirmed is False
 
@@ -221,7 +224,10 @@ class TestResubscribeFlows:
         response = client.post('/subscribe', data={'email': 'unconfirmed@example.com'}, follow_redirects=True)
         assert response.status_code == 200
 
-        db.session.refresh(sub)
+        # Re-query the subscriber from the database
+        sub = db.session.execute(
+            select(Subscriber).filter_by(email='unconfirmed@example.com')
+        ).scalar_one()
         assert sub.token != old_token
 
     def test_expired_unconfirmed_resubscribes_gets_new_token(self, client, db):
@@ -239,7 +245,10 @@ class TestResubscribeFlows:
         response = client.post('/subscribe', data={'email': 'expired@example.com'}, follow_redirects=True)
         assert response.status_code == 200
 
-        db.session.refresh(sub)
+        # Re-query the subscriber from the database
+        sub = db.session.execute(
+            select(Subscriber).filter_by(email='expired@example.com')
+        ).scalar_one()
         assert sub.id == old_id
         assert sub.token != old_token
         assert sub.expires_at > utc_now()

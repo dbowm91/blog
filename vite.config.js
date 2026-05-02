@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import { beasties } from 'vite-plugin-beasties';
 
 export default defineConfig({
   root: resolve(__dirname, 'app/static'),
@@ -14,7 +13,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [beasties()],
+  plugins: [],
   server: {
     port: 3000,
     proxy: {

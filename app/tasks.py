@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import json
 import logging
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from celery import shared_task
 from sqlalchemy.exc import SQLAlchemyError
 

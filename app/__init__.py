@@ -239,6 +239,7 @@ def create_app():
 
     from app.routes.public import public
     from app.routes.admin import admin
+    from app.routes.admin import posts  # Triggers route registration via posts/__init__.py
     from app.routes.rss import rss
     from app.routes.errors import errors
     from app.routes.api import api

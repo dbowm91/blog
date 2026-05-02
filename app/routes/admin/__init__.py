@@ -103,17 +103,6 @@ from app.search import sync_fts
 from app.search import remove_fts
 from app.config import DASHBOARD_PER_PAGE
 from app.routes.admin.auth import login, logout, newsletter_reset
-from app.routes.admin.posts import (
-    dashboard,
-    new_post,
-    edit_post,
-    delete_post,
-    preview_post,
-    bulk_operations,
-    preview_markdown,
-    post_revisions,
-    restore_revision,
-)
 from app.routes.admin.subscribers import (
     subscribers,
     delete_subscriber,
