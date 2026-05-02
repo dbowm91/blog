@@ -1,5 +1,5 @@
 import { getCsrfToken, announce } from '../shared/utils.js';
-import { marked } from '../lib/marked.min.js';
+import { marked } from '../lib/marked-wrapper.js';
 
 marked.setOptions({ gfm: true, breaks: false });
 

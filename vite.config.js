@@ -27,7 +27,8 @@ export default defineConfig({
         '.jsx': 'jsx',
         '.svg': 'text',
       },
-      include: ['app/static/js/image-preview.jsx'],
+      target: ['chrome100', 'edge100', 'firefox100', 'safari15'],
+      include: [],
     },
   },
 });

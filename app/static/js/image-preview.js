@@ -37,6 +37,7 @@ export default function initImagePreview() {
                 if (removeImageLabel) {
                     removeImageLabel.style.display = 'none';
                 }
-});
+            });
+        }
     }
 }
