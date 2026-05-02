@@ -299,7 +299,7 @@ class TestCompressedBackupRestore:
         if sys.platform == 'win32':
             import pytest
             pytest.skip("Backup tests require Unix")
-        from backup import create_backup
+        from app.services.backup import create_backup
         db_uri = app.config['SQLALCHEMY_DATABASE_URI']
         db_path = db_uri.replace('sqlite:///', '') if db_uri.startswith('sqlite:///') else str(tmp_path / 'test.db')
         backup_dir = str(tmp_path / 'backups')
@@ -313,7 +313,7 @@ class TestCompressedBackupRestore:
 
     def test_restore_compressed_backup(self, app, db, tmp_path):
         """Test compressed backup can be decompressed and used as SQLite."""
-        from backup import create_backup
+        from app.services.backup import create_backup
         db_uri = app.config['SQLALCHEMY_DATABASE_URI']
         db_path = db_uri.replace('sqlite:///', '') if db_uri.startswith('sqlite:///') else str(tmp_path / 'test.db')
         backup_dir = str(tmp_path / 'backups')
@@ -337,7 +337,7 @@ class TestCompressedBackupRestore:
 
     def test_uncompressed_backup_still_works(self, app, db, tmp_path):
         """Test uncompressed .db backup still works."""
-        from backup import create_backup
+        from app.services.backup import create_backup
         db_uri = app.config['SQLALCHEMY_DATABASE_URI']
         db_path = db_uri.replace('sqlite:///', '') if db_uri.startswith('sqlite:///') else str(tmp_path / 'test.db')
         backup_dir = str(tmp_path / 'backups')

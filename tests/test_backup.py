@@ -228,7 +228,7 @@ def test_backup_delete_nonexistent(app, db, authenticated_client):
 
 def test_backup_retention_policy(app, db):
     """Test that old backups are cleaned up when retention limit is exceeded."""
-    from backup import create_backup, cleanup_old_backups
+    from app.services.backup import create_backup, cleanup_old_backups
 
     backup_dir = os.path.join(app.instance_path, "backups")
     os.makedirs(backup_dir, exist_ok=True)
