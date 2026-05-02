@@ -10,7 +10,7 @@ This is a **package** (not a single file like `api.py`):
 - `posts.py` - Individual post view, series
 - `subscribe.py` - Newsletter subscription
 - `meta.py` - Sitemap, robots.txt
-- `comments.py` - Public comment viewing (NEW in Wave 8)
+- `comments.py` - Public comment viewing
 
 ## Key Routes
 - `/` - Homepage with post listing
@@ -20,7 +20,7 @@ This is a **package** (not a single file like `api.py`):
 - `/search` - Full-text search
 - `/rss`, `/atom`, `/json` - Feed endpoints
 - `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` - Newsletter
-- `/comments/<post_id>` - View comments (NEW)
+- `/comments/<post_id>` - View comments
 
 ## Performance Notes
 - Uses `joinedload(Post.tags)` to fix N+1 (PERF-1, PERF-2)
