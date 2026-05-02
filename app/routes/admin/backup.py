@@ -61,7 +61,7 @@ def create_backup() -> Response:
         compress (checkbox) - Enable gzip compression
         encrypt (checkbox) - Enable GPG encryption (requires BACKUP_ENCRYPTION_KEY env var)
     """
-    from backup import create_backup as _create_backup
+    from app.services.backup import create_backup as _create_backup
 
     compress = "compress" in request.form
     encrypt = "encrypt" in request.form
