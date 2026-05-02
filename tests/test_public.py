@@ -204,7 +204,7 @@ def test_unsubscribe_timing_constant(client, db):
 
     invalid_token = "invalid-token-12345"
 
-    with patch("app.routes.public.time.sleep") as mock_sleep:
+    with patch("app.routes.public.subscribe.time.sleep") as mock_sleep:
         # Valid token
         response = client.get(f"/unsubscribe/{valid_token}")
         assert response.status_code == 302  # redirect
