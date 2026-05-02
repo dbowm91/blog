@@ -390,3 +390,19 @@ python backup.py --decrypt backup.db.gpg  # Decrypt a backup file
 **Admin UI:** The backup/restore route handles `.gpg` encrypted files transparently.
 
 ## Key Operational Lessons
+## Test Debugging Tips (Added 2026-05-02)
+
+### Page View Buffer Test Interference
+- Buffer restarts in tests cause intermittent failures
+- Fix: Set `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
+- Use autouse fixture to ensure buffer stays disabled
+
+### Database Session Issues
+- `db.session.refresh()` fails if object not in current session
+- Fix: Re-query from database instead of using `refresh()`
+- Example: `sub = db.session.execute(select(Subscriber).filter_by(email=...)).scalar_one()`
+
+### FTS5 Search Test Debugging
+- Use `db.engine.connect()` to directly query FTS5 virtual tables
+- Check `get_search_snippets()` returns empty? Verify FTS5 table has data
+- Fix snippet() query parameter binding carefully

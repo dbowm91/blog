@@ -63,6 +63,23 @@ These files use broad `except Exception` clauses and need careful review when mo
 - `app/page_view_buffer.py`
 - `app/routes/admin/series.py`
 
+## Test Interference Notes
+
+### Page View Buffer Test Issues
+- The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
+- Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
+- In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
+- The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture to ensure disabled
+
+### Test Database Session Issues
+- `db.session.refresh()` fails if object isn't in current session
+- Fix: Re-query object from database instead of using `refresh()`
+- Example: `sub = db.session.execute(select(Subscriber).filter_by(email=...)).scalar_one()`
+
+### E2E Test Requirements
+- Requires `playwright install chromium` for browser tests
+- E2E tests may timeout if application not properly started
+
 ## Skills
  
 Load specialized skills using the `skill` tool with the skill name.
