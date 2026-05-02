@@ -113,7 +113,6 @@ def _send_email_with_retry(
     Returns (success, error_message, server). The server may be a new connection
     if reconnection occurred during retry.
     """
-    import time
 
     last_error = ""
     for attempt in range(max_retries):

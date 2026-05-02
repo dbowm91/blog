@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import json
-from typing import Optional, Dict, Any, List, Tuple, TYPE_CHECKING
+from typing import Optional, Dict, Any, Tuple, TYPE_CHECKING
 from requests.exceptions import RequestException
 
 if TYPE_CHECKING:
@@ -83,7 +83,6 @@ def create_webhook_event(
     """Create a webhook event record and schedule delivery."""
     from app.extensions import db
     from app.models import WebhookEvent
-    from app.utils import utc_now
 
     event = WebhookEvent(
         event_type=event_type,

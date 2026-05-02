@@ -1,4 +1,4 @@
-import '../css/style.css';
+import '../css/public.css';
 
 document.documentElement.classList.add('js');
 
@@ -69,7 +69,7 @@ function getModulesForPath(path) {
         './shared/utils.js',
         './shared/toast.js',
         './shared/dark-mode.js',
-        './shared/mobile-menu.js',
+    './shared/mobile-menu.jsx',
         './shared/lazy-load.js',
         './shared/prefetch.js',
         './public/share.js',

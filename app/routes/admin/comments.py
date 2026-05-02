@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from flask import render_template, request, redirect, url_for, flash, abort, Response
-from flask_login import login_required
 
 from app.extensions import db
-from app.models import Comment, Post
+from app.models import Comment
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 
@@ -32,9 +32,9 @@ def comments_list() -> Response:
     ).order_by(Comment.created_at.desc())
 
     if approved_filter == "yes":
-        query = query.filter(Comment.approved == True)
+        query = query.filter(Comment.approved)
     elif approved_filter == "no":
-        query = query.filter(Comment.approved == False)
+        query = query.filter(not Comment.approved)
 
     pagination = db.paginate(query, page=page, per_page=50, error_out=False)
     comments = pagination.items

@@ -21,7 +21,7 @@ def _build_tag_counts_query() -> list[Row]:
     return db.session.execute(
         select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt"))
         .join(Post, Post.id == post_tags.c.post_id)
-        .filter(Post.published == True)
+        .filter(Post.published)
         .group_by(post_tags.c.tag_id)
     ).all()
 

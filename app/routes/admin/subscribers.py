@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from flask import render_template, redirect, url_for, request, flash, Response, abort
-from flask_login import login_required
 
 from app.extensions import db
 from app.models import Subscriber
@@ -32,9 +31,9 @@ def subscribers() -> Response:
 
     base_q = select(Subscriber)
     if filter_status == "confirmed":
-        base_q = base_q.filter(Subscriber.confirmed == True)
+        base_q = base_q.filter(Subscriber.confirmed)
     elif filter_status == "unconfirmed":
-        base_q = base_q.filter(Subscriber.confirmed == False)
+        base_q = base_q.filter(not Subscriber.confirmed)
     elif filter_status == "unsubscribed":
         base_q = base_q.filter(Subscriber.unsubscribed_at.isnot(None))
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import render_template, request, redirect, url_for, flash, abort, Response
+from flask import request, redirect, url_for, flash, abort, Response
 from sqlalchemy import select
 
 from app.extensions import db
@@ -17,7 +17,7 @@ def add_comment(slug: str) -> Response:
     POST: Validates and saves comment (requires approval).
     """
     post = db.session.execute(
-        select(Post).filter(Post.slug == slug, Post.published == True)
+        select(Post).filter(Post.slug == slug, Post.published)
     ).scalar_one_or_none()
     if not post:
         abort(404)

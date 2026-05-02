@@ -7,21 +7,19 @@ from pathlib import Path
 from flask import current_app
 
 from flask import (
-    render_template,
-    redirect,
     url_for,
     request,
     jsonify,
     Response,
 )
-from sqlalchemy import select, text, func
+from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.extensions import db
 from app.models import Post, Tag, Page
 from app.config import BASE_URL, SMTP_HOST, HEALTH_CHECK_SECRET
 from app.scheduler import get_scheduler_health
-from app.utils import xml_escape, utc_now, is_valid_email
+from app.utils import xml_escape, utc_now
 from app import limiter
 
 logger = logging.getLogger(__name__)

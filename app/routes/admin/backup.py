@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 from flask import (
     render_template, redirect, url_for, request, flash, send_file, abort, current_app, Response
 )
-from flask_login import login_required
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required

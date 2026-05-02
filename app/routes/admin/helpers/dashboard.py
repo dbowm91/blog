@@ -1,13 +1,12 @@
 """Dashboard metrics helpers for admin routes."""
 
-import time
 from datetime import timedelta
 
 from sqlalchemy import func, select, text
 
 from app import cache as flask_cache
 from app.extensions import db
-from app.models import PageView, ShareEvent, Subscriber, Post
+from app.models import PageView, ShareEvent, Post
 from app.utils import utc_now
 
 
@@ -52,7 +51,7 @@ def _get_top_posts_by_shares(limit: int = 5):
     return db.session.execute(
         select(Post, func.count(ShareEvent.id).label("share_count"))
         .join(ShareEvent)
-        .filter(Post.published == True)
+        .filter(Post.published)
         .filter(ShareEvent.created_at >= thirty_days_ago)
         .group_by(Post.id)
         .order_by(func.count(ShareEvent.id).desc())
@@ -91,16 +90,16 @@ def _get_dashboard_metrics_cached():
     # Get scheduled posts count (scheduled but not yet published)
     scheduled_count = db.session.execute(
         select(func.count(Post.id)).filter(
-            Post.scheduled_publish_at != None,
+            Post.scheduled_publish_at is not None,
             Post.scheduled_publish_at <= now,
-            Post.published == False
+            not Post.published
         )
     ).scalar() or 0
 
     trending = db.session.execute(
         select(Post, func.count(PageView.id).label("view_count"))
         .join(PageView)
-        .filter(Post.published == True)
+        .filter(Post.published)
         .filter(PageView.created_at >= thirty_days_ago)
         .group_by(Post.id)
         .order_by(func.count(PageView.id).desc())

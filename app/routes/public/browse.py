@@ -1,38 +1,29 @@
 """Browse routes - index, archive, tags, search, series, pages."""
 
-import time
 import logging
-from datetime import timedelta, datetime
-from urllib.parse import urlparse, urlunparse
-from flask import current_app
+from datetime import datetime
 
 from flask import (
     render_template,
     request,
     redirect,
-    jsonify,
     abort,
-    session,
     Response,
-    url_for,
     g,
 )
-from sqlalchemy import func, or_, select, text, case
+from sqlalchemy import func, or_, select, case
 from sqlalchemy.orm import joinedload, defer
 
 from app.extensions import db
-from app.models import Post, Tag, ShareEvent, Series, PostSeries, post_tags
+from app.models import Post, Tag, Series, PostSeries, post_tags
 from app.config import (
     POSTS_PER_PAGE,
-    BASE_URL,
     RELATED_POSTS_COUNT,
-    MAX_VIEWED_POSTS,
     FTS_RESULT_LIMIT,
 )
 from app.tag_cache import _get_tag_counts
 from app.search import search as _fts_search, get_search_snippets, get_did_you_mean, get_indexed_terms
 from app import limiter, cache as flask_cache
-from app.utils import xml_escape, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +46,7 @@ def _get_available_years():
     """Get available years for archive with caching."""
     years_query = (
         select(func.extract("year", Post.created_at).label("year"))
-        .filter(Post.published == True)
+        .filter(Post.published)
         .distinct()
         .order_by(func.extract("year", Post.created_at).desc())
     )
@@ -86,7 +77,7 @@ def _get_related_posts(post):
             select(Post)
             .options(joinedload(Post.tags))
             .join(shared_tags_subq, Post.id == shared_tags_subq.c.post_id)
-            .filter(Post.published == True)
+            .filter(Post.published)
             .order_by(shared_tags_subq.c.shared_count.desc(), Post.created_at.desc())
             .limit(limit)
         )
@@ -148,7 +139,7 @@ def register_browse_routes(public):
         posts_query = (
             select(Post)
             .options(joinedload(Post.tags), defer(Post.body))
-            .filter(Post.published == True)
+            .filter(Post.published)
         )
 
         if year_filter:
@@ -236,7 +227,7 @@ def register_browse_routes(public):
         pagination = db.paginate(
             select(Post)
             .options(joinedload(Post.tags))
-            .filter(Post.published == True, Post.tags.any(Tag.id == tag_obj.id))
+            .filter(Post.published, Post.tags.any(Tag.id == tag_obj.id))
             .order_by(Post.created_at.desc()),
             page=page_num,
             per_page=POSTS_PER_PAGE,
@@ -275,7 +266,7 @@ def register_browse_routes(public):
             pagination = db.paginate(
                 select(Post)
                 .options(joinedload(Post.tags))
-                .filter(Post.published == True, Post.id.in_(post_ids))
+                .filter(Post.published, Post.id.in_(post_ids))
                 .order_by(case({pid: rank for pid, rank in post_results}, value=Post.id)),
                 page=page_num,
                 per_page=POSTS_PER_PAGE,
@@ -288,7 +279,7 @@ def register_browse_routes(public):
                 select(Post)
                 .options(joinedload(Post.tags))
                 .filter(
-                    Post.published == True,
+                    Post.published,
                     or_(
                         Post.title.ilike(search_term, escape="\\"),
                         Post.body.ilike(search_term, escape="\\"),

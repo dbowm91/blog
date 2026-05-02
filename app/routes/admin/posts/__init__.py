@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from flask import (
     render_template,
     redirect,
@@ -9,6 +11,7 @@ from flask import (
     jsonify,
     abort,
     Response,
+    current_app,
 )
 from flask_login import login_required, current_user
 from sqlalchemy import func, select
@@ -17,7 +20,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import Post, PageView, ShareEvent, Subscriber
-from app.utils import utc_now
+from app.utils import utc_now, safe_delete_file
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import (
     _get_posts_query,
@@ -34,6 +37,7 @@ from app.routes.rss import invalidate_rss_cache
 from app.routes.public import invalidate_archive_cache
 from app.search import sync_fts_batch
 from app.search import remove_fts
+from app.routes.admin.posts.revisions import _save_revision
 
 # Import registration functions from sub-modules
 from app.routes.admin.posts.editor import register_editor_routes

@@ -50,7 +50,7 @@ def get_tag_post_count(tag_id: int) -> int:
         select(func.count(Post.id))
         .select_from(Tag)
         .outerjoin(Post.tags)
-        .filter(Tag.id == tag_id, Post.published == True)
+        .filter(Tag.id == tag_id, Post.published)
     ).scalar_one_or_none() or 0
 
 

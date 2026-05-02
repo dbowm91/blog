@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from flask import render_template, request, abort, Response
-from flask_login import login_required
+from flask import render_template, request, Response
 
 from app.extensions import db
 from app.models import AdminAuditLog
 from app.routes.admin import admin, admin_required
-from app.routes.admin.helpers import logger
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import joinedload
 
 
 @admin.route("/audit")

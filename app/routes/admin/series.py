@@ -7,17 +7,13 @@ from flask import (
     request,
     flash,
     abort,
-    current_app,
     Response,
 )
-from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import Series, Post, PostSeries
 from app.routes.admin import admin, admin_required
-from app.routes.admin.helpers import logger
-from app.utils import generate_slug, utc_now
-from app.routes.admin.helpers.slug import _generate_unique_slug
+from app.utils import generate_slug
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -249,7 +245,7 @@ def series_posts(series_id: int) -> Response:
     available_posts = (
         db.session.execute(
             select(Post)
-            .filter(Post.published == True, ~Post.id.in_(subq))
+            .filter(Post.published, ~Post.id.in_(subq))
             .order_by(Post.created_at.desc())
         )
         .scalars()

@@ -4,28 +4,23 @@ from flask import (
     render_template,
     redirect,
     url_for,
-    request,
     flash,
     abort,
-    Response,
 )
-from flask_login import login_required, current_user
+from flask_login import current_user
 
 from app.extensions import db
 from app.models import Post, PostRevision
-from app.routes.admin import admin, admin_required
+from app.routes.admin import admin_required
 from app.routes.admin.helpers import (
-    _generate_unique_slug,
-    _apply_post_updates,
     _cleanup_orphan_tags,
-    _get_or_create_tags,
     invalidate_analytics_cache,
     invalidate_dashboard_cache,
     logger,
 )
 from app.context_processors import invalidate_footer_cache
 from app.tag_cache import invalidate_tag_cache
-from app.search import sync_fts, sync_fts_batch, remove_fts
+from app.search import sync_fts
 from app.routes.rss import invalidate_rss_cache
 from app.routes.public import invalidate_archive_cache
 from sqlalchemy import select

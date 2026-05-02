@@ -4,17 +4,15 @@ import logging
 import uuid
 import time
 from datetime import timedelta
-from flask import current_app
 
 from flask import (
-    render_template,
     redirect,
-    url_for,
     request,
     flash,
     Response,
 )
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import Subscriber

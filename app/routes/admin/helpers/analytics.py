@@ -3,7 +3,6 @@
 from datetime import timedelta
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload
 
 from app import cache as flask_cache
 from app.extensions import db
@@ -43,7 +42,7 @@ def _get_analytics_data(days: int):
             func.count(PageView.id).label("view_count"),
         )
         .join(PageView)
-        .filter(Post.published == True)
+        .filter(Post.published)
         .filter(PageView.created_at >= start_date)
         .group_by(Post.id)
         .order_by(func.count(PageView.id).desc())
@@ -71,7 +70,7 @@ def _get_analytics_data(days: int):
 
     referrer_data = db.session.execute(
         select(PageView.referrer, func.count(PageView.id).label("count"))
-        .filter(PageView.referrer != None, PageView.created_at >= start_date)
+        .filter(PageView.referrer is not None, PageView.created_at >= start_date)
         .group_by(PageView.referrer)
         .order_by(func.count(PageView.id).desc())
         .limit(15)

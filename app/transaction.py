@@ -15,7 +15,7 @@ def transactional(f):
     def decorated_function(*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        except (IntegrityError, SQLAlchemyError) as e:
+        except (IntegrityError, SQLAlchemyError):
             db.session.rollback()
             raise
 
@@ -61,7 +61,7 @@ def commit_with_slug_retry(page, title, max_retries=3):
         try:
             db.session.commit()
             return True
-        except IntegrityError as e:
+        except IntegrityError:
             if attempt == max_retries - 1:
                 raise
             db.session.rollback()

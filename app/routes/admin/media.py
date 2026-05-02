@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import heapq
 import threading
 import time as _time
@@ -8,13 +7,11 @@ import logging
 from datetime import datetime, timezone
 
 from flask import render_template, redirect, url_for, request, flash, abort, current_app, Response
-from flask_login import login_required
 from sqlalchemy import select
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _save_image
-from app.utils import safe_delete_file
 from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
 from werkzeug.utils import secure_filename
 from app.models import Post
@@ -187,7 +184,6 @@ def cleanup_orphaned_images(app) -> tuple[int, int]:
         - orphaned_count: number of files deleted that weren't in DB
         - missing_count: number of DB entries pointing to missing files (cleared)
     """
-    from app.models import Post
     from app.storage import get_storage
 
     storage = get_storage()

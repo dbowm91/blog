@@ -9,9 +9,8 @@ Multi-worker limitation:
 """
 
 import os
-import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import func, select, delete
@@ -88,9 +87,9 @@ def send_daily_newsletter(app) -> None:
                 db.session.execute(
                     select(Post)
                     .filter(
-                        Post.published == True,
-                        Post.published_at != None,
-                        Post.newsletter_sent_at == None,
+                        Post.published,
+                        Post.published_at is not None,
+                        Post.newsletter_sent_at is None,
                         Post.newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS,
                     )
                     .order_by(Post.published_at.desc())
@@ -160,8 +159,8 @@ def cleanup_expired_subscribers(app) -> None:
             expired = (
                 db.session.execute(
                     select(Subscriber).filter(
-                        Subscriber.confirmed == False,
-                        Subscriber.expires_at != None,
+                        not Subscriber.confirmed,
+                        Subscriber.expires_at is not None,
                         Subscriber.expires_at < utc_now(),
                     )
                 )
@@ -206,8 +205,8 @@ def publish_scheduled_posts(app) -> None:
             posts = (
                 db.session.execute(
                     select(Post).filter(
-                        Post.published == False,
-                        Post.scheduled_publish_at != None,
+                        not Post.published,
+                        Post.scheduled_publish_at is not None,
                         Post.scheduled_publish_at <= now,
                     )
                 )

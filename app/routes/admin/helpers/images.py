@@ -1,10 +1,8 @@
 """Image handling helpers for admin routes."""
 
-import os
 import uuid
 from typing import Optional
 
-from flask import current_app
 from werkzeug.datastructures import FileStorage
 
 from app.routes.admin.helpers.shared import ALLOWED_EXTENSIONS

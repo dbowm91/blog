@@ -18,7 +18,6 @@ __all__ = [
 
 import difflib
 import logging
-import re
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, ProgrammingError, DatabaseError
 from app.extensions import db

@@ -1,6 +1,5 @@
 from __future__ import annotations
-from flask import render_template, redirect, url_for, request, flash, abort, Response
-from sqlalchemy import select
+from flask import render_template, redirect, url_for, request, flash, Response
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db

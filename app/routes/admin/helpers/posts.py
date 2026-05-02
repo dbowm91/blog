@@ -1,10 +1,8 @@
 """Post-related helpers for admin routes."""
 
-from flask import current_app, flash
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.extensions import db
 from app.models import Post
 from app.utils import utc_now
 from app.routes.admin.helpers.tags import _get_or_create_tags
@@ -17,12 +15,12 @@ def _get_posts_query(status: str, search: str, order_by=None) -> select:
         search_term = f"%{escaped}%"
         base_q = base_q.filter(Post.title.ilike(search_term, escape="\\"))
     if status == "published":
-        base_q = base_q.filter(Post.published == True)
+        base_q = base_q.filter(Post.published)
     elif status == "draft":
-        base_q = base_q.filter(Post.published == False)
+        base_q = base_q.filter(not Post.published)
     elif status == "scheduled":
         base_q = base_q.filter(
-            Post.published == False, Post.scheduled_publish_at != None
+            not Post.published, Post.scheduled_publish_at is not None
         )
     if order_by is None:
         order_by = Post.updated_at.desc()

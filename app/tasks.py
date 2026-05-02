@@ -4,12 +4,13 @@ import hashlib
 import hmac
 import json
 import logging
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
+from typing import List, Dict, Any, TYPE_CHECKING
 from celery import shared_task
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 if TYPE_CHECKING:
-    from celery import Celery
+    pass
 
 logger = logging.getLogger(__name__)
 

@@ -12,8 +12,6 @@ from sqlalchemy.exc import OperationalError
 
 from app import cache as flask_cache
 from app.extensions import db
-
-logger = logging.getLogger(__name__)
 from app.config import (
     APP_TITLE,
     APP_DESCRIPTION,
@@ -24,6 +22,8 @@ from app.config import (
 )
 from app.csrf import generate_csrf_token
 from app.tag_cache import _get_tag_counts
+
+logger = logging.getLogger(__name__)
 
 
 def invalidate_settings_cache():

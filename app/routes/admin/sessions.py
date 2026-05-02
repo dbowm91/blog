@@ -1,6 +1,5 @@
 from __future__ import annotations
-from flask import render_template, redirect, url_for, request, flash, session, abort, Response
-from flask_login import login_required
+from flask import render_template, redirect, url_for, flash, session, abort, Response
 
 from app.extensions import db
 from app.models import AdminSession

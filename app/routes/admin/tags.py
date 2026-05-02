@@ -1,6 +1,5 @@
 from __future__ import annotations
 from flask import render_template, redirect, url_for, request, flash, abort, Response
-from flask_login import login_required
 
 from app.extensions import db
 from app.models import Tag

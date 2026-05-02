@@ -34,7 +34,6 @@ from app.config import (
     CONFIRMATION_EXPIRY_HOURS,
     TOKEN_ENUMERATION_DELAY,
     FTS_RESULT_LIMIT,
-    PREVIEW_TOKEN_EXPIRY_DAYS,
 )
 
 from app.tasks import send_confirmation_task
@@ -78,7 +77,7 @@ def _get_available_years():
     """Get available years for archive with caching."""
     years_query = (
         select(func.extract("year", Post.created_at).label("year"))
-        .filter(Post.published == True)
+        .filter(Post.published)
         .distinct()
         .order_by(func.extract("year", Post.created_at).desc())
     )
@@ -111,7 +110,7 @@ def _get_related_posts(post):
             select(Post)
             .options(joinedload(Post.tags))
             .join(shared_tags_subq, Post.id == shared_tags_subq.c.post_id)
-            .filter(Post.published == True)
+            .filter(Post.published)
             .order_by(shared_tags_subq.c.shared_count.desc(), Post.created_at.desc())
             .limit(limit)
         )
@@ -178,7 +177,7 @@ def archive() -> Response:
     posts_query = (
         select(Post)
         .options(joinedload(Post.tags), defer(Post.body))
-        .filter(Post.published == True)
+        .filter(Post.published)
     )
 
     if year_filter:
@@ -328,7 +327,7 @@ def tag(slug) -> Response:
     pagination = db.paginate(
         select(Post)
         .options(joinedload(Post.tags))
-        .filter(Post.published == True, Post.tags.any(Tag.id == tag.id))
+        .filter(Post.published, Post.tags.any(Tag.id == tag.id))
         .order_by(Post.created_at.desc()),
         page=page,
         per_page=POSTS_PER_PAGE,
@@ -377,7 +376,7 @@ def search() -> Response:
         pagination = db.paginate(
             select(Post)
             .options(joinedload(Post.tags))
-            .filter(Post.published == True, Post.id.in_(post_ids))
+            .filter(Post.published, Post.id.in_(post_ids))
             .order_by(case({pid: rank for pid, rank in post_results}, value=Post.id)),
             page=page,
             per_page=POSTS_PER_PAGE,
@@ -390,7 +389,7 @@ def search() -> Response:
             select(Post)
             .options(joinedload(Post.tags))
             .filter(
-                Post.published == True,
+                Post.published,
                 or_(
                     Post.title.ilike(search_term, escape="\\"),
                     Post.body.ilike(search_term, escape="\\"),

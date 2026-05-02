@@ -1,12 +1,9 @@
 from __future__ import annotations
 from flask import redirect, url_for, request, flash, Response, render_template
-from flask_login import login_required
-from datetime import datetime, timezone
 import smtplib
-import logging
 
 from app.extensions import db
-from app.models import Post, User
+from app.models import Post
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from app.email import send_newsletter

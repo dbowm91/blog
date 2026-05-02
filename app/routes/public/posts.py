@@ -1,6 +1,5 @@
 """Post-related routes - view, preview, share tracking."""
  
-import time
 import logging
 from flask import current_app
 
@@ -14,13 +13,13 @@ from flask import (
     session,
     Response,
 )
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import Post, ShareEvent
-from app.config import MAX_VIEWED_POSTS, BASE_URL, PREVIEW_TOKEN_EXPIRY_DAYS
-from app.utils import utc_now
+from app.config import MAX_VIEWED_POSTS, BASE_URL
 from app import limiter
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ def _safe_redirect_url():
     """Return a safe redirect URL, preventing open redirects via spoofed Referer header."""
     referrer = request.referrer
     if referrer:
-        from urllib.parse import urlparse, urlunparse
+        from urllib.parse import urlparse
         parsed = urlparse(referrer)
         if parsed.netloc == "" or parsed.netloc == request.host:
             return referrer

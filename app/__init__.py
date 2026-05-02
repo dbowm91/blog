@@ -16,15 +16,23 @@ from flask import (
     flash,
     session,
     g,
-    has_request_context,
     send_from_directory,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_compress import Compress
 from flask_caching import Cache
 from flask_login import current_user, logout_user
+from sqlalchemy import event, text, delete
+from app.extensions import db, login_manager, migrate
+from app.config import (
+    SECRET_KEY,
+    ADMIN_USERNAME,
+    ADMIN_PASSWORD,
+    SESSION_LIFETIME_HOURS,
+    MAX_UPLOAD_SIZE,
+)
+from app.csrf import validate_csrf_token
 
 # Register sqlite3 datetime adapters for Python 3.12+ compatibility
 sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
@@ -40,17 +48,6 @@ limiter = Limiter(
 )
 compress = Compress()
 cache = Cache()
-from sqlalchemy import event
-from app.extensions import db, login_manager, migrate
-from app.config import (
-    SECRET_KEY,
-    ADMIN_USERNAME,
-    ADMIN_PASSWORD,
-    SESSION_LIFETIME_HOURS,
-    MAX_UPLOAD_SIZE,
-)
-from app.csrf import generate_csrf_token, validate_csrf_token
-from sqlalchemy import select, text, delete
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +236,7 @@ def create_app():
 
     from app.routes.public import public
     from app.routes.admin import admin
-    from app.routes.admin import posts  # Triggers route registration via posts/__init__.py
+    from app.routes.admin import posts  # noqa: F401 # Triggers route registration via posts/__init__.py
     from app.routes.rss import rss
     from app.routes.errors import errors
     from app.routes.api import api
@@ -268,8 +265,6 @@ def create_app():
 
     @app.before_request
     def before_request_handler():
-        from app.utils import utc_now
-
         # Generate request ID and CSP nonce for this request
         g.request_id = secrets.token_hex(4)
         g.csp_nonce = secrets.token_urlsafe(16)

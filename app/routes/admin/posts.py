@@ -15,10 +15,10 @@ from flask import (
     current_app,
     Response,
 )
-from flask_login import login_required, current_user
+from flask_login import current_user
 
 from app.extensions import db
-from app.models import Post, PageView, ShareEvent, Subscriber, PostRevision
+from app.models import Post, PageView, ShareEvent, PostRevision
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import (
     _get_posts_query,

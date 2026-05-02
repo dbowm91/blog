@@ -20,4 +20,14 @@ export default defineConfig({
       '/': 'http://localhost:5000',
     },
   },
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: {
+        '.js': 'js',
+        '.jsx': 'jsx',
+        '.svg': 'text',
+      },
+      include: ['app/static/js/image-preview.jsx'],
+    },
+  },
 });

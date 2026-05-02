@@ -2,14 +2,14 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 import click
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import User, Post, Tag, Subscriber, Page, SiteSettings
+from app.models import User, Post, Tag, Subscriber, Page
 from app.utils import utc_now
 from app.transaction import commit_with_rollback
 
@@ -103,7 +103,6 @@ def register_cli_commands(app):
     def export_data_command(output_file):
         """Export all posts and subscribers as JSON."""
         from app.services.serialization import (
-            serialize_post, serialize_subscriber, serialize_page, serialize_tag,
             export_data_to_dict
         )
 

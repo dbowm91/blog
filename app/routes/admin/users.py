@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from flask import render_template, redirect, url_for, request, flash, abort, session, Response
-from flask_login import login_required, current_user
+from flask_login import current_user
 
 from app.extensions import db
 from app.models import User
@@ -169,7 +169,7 @@ def demote_user(user_id: int) -> Response:
         flash("Cannot demote your own account.", "error")
         return redirect(url_for("admin.users_list"))
     admin_count = db.session.execute(
-        select(func.count(User.id)).filter(User.is_admin == True)
+        select(func.count(User.id)).filter(User.is_admin)
     ).scalar()
     if admin_count <= 1:
         flash("Cannot demote the last admin user.", "error")
@@ -212,7 +212,7 @@ def make_owner(user_id: int) -> Response:
         flash("Invalid password. Ownership transfer requires your password.", "error")
         return redirect(url_for("admin.users_list"))
     admin_count = db.session.execute(
-        select(func.count(User.id)).filter(User.is_admin == True)
+        select(func.count(User.id)).filter(User.is_admin)
     ).scalar()
     if admin_count <= 1:
         flash("Cannot transfer ownership while you are the only admin.", "error")
@@ -221,7 +221,7 @@ def make_owner(user_id: int) -> Response:
     db.session.flush()
 
     all_admins = db.session.execute(
-        select(User).filter(User.is_admin == True, User.id != user_id)
+        select(User).filter(User.is_admin, User.id != user_id)
     ).scalars().all()
     for admin in all_admins:
         admin.is_admin = False

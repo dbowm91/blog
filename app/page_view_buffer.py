@@ -17,20 +17,16 @@ The buffer is flushed:
 from __future__ import annotations
 
 import os
-import sys
 import threading
-import time
 import logging
 from datetime import datetime, timezone
 from queue import Queue, Empty
 from typing import Optional
 
-from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
+from app.config import PAGE_VIEW_BUFFER_SIZE
 
 logger = logging.getLogger(__name__)
-
-from app.config import PAGE_VIEW_BUFFER_SIZE
 PAGE_VIEW_FLUSH_INTERVAL = int(os.environ.get("PAGE_VIEW_FLUSH_INTERVAL", "5"))
 
 _buffer: Optional["PageViewBuffer"] = None

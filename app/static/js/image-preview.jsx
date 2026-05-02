@@ -1,4 +1,4 @@
-export function initImagePreview() {
+export default function initImagePreview() {
     const coverImageInput = document.getElementById('image');
     const imagePreviewContainer = document.getElementById('image-preview-container');
     const imagePreviewImg = document.getElementById('image-preview-img');
@@ -40,5 +40,3 @@ export function initImagePreview() {
 });
     }
 }
-
-export default initImagePreview;

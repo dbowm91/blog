@@ -9,14 +9,13 @@ import hmac
 from functools import wraps
 
 from flask import Blueprint, jsonify, request, Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import Post, Subscriber, PageView, ShareEvent
-from app.config import DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE
-from app.utils import utc_now, is_valid_email
+from app.models import Post, Subscriber
+from app.utils import utc_now
 from app.validators import validate_string, validate_email, validate_boolean
 from app import limiter
 
@@ -355,8 +354,7 @@ def delete_post(post_id: int) -> Response:
     from app.utils import safe_delete_file
 
     old_image = post.image
-    post_image = post.image
-    post_tags = list(post.tags)
+    list(post.tags)
 
     db.session.delete(post)
     try:
@@ -464,7 +462,7 @@ def create_subscriber() -> Response:
         if existing:
             return jsonify(_subscriber_to_dict(existing))
         return jsonify({"error": "Failed to create subscriber"}), 500
-    except OperationalError as e:
+    except OperationalError:
         db.session.rollback()
         return jsonify({"error": "Database error"}), 500
 
