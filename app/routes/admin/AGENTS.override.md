@@ -4,7 +4,7 @@ Specialized handling for the admin dashboard and management routes.
 
 ## Key Files
 
-- `__init__.py` - Blueprint registration, shared helpers, admin_required decorator
+- `__init__.py` - Blueprint registration (type: `admin: Blueprint`), shared helpers, admin_required decorator
 - `auth.py` - login, logout, password reset
 - `posts.py` - dashboard, post CRUD, bulk operations, revisions
 - `subscribers.py` - subscriber management (incl. bulk resend)
