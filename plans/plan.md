@@ -25,9 +25,9 @@ This plan has been fully implemented. All items are completed.
 
 ---
 
-## Verification Checklist
-1. `pytest tests/ --cov=app` (Goal: 80%+)
-2. `npm run build` (Verify dist chunks)
-3. `ruff check app/`
-4. `mypy app`
-5. `flask db upgrade` (Verify migrations)
+## Verification Checklist (Updated 2026-05-02)
+1. `pytest tests/ --cov=app` (Goal: 80%+) - Status: 53% coverage, 11 failed tests (page view buffer, E2E asset issues)
+2. `npm run build` (Verify dist chunks) - Status: ✅ Completed (Vite build successful)
+3. `ruff check app/` - Status: ✅ Completed (0 errors)
+4. `mypy app` - Status: 546 errors (Blueprint typing, Response type mismatches)
+5. `flask db upgrade` (Verify migrations) - Status: Pending (venv setup required)

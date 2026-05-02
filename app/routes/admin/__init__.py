@@ -8,11 +8,12 @@ from flask import Blueprint, abort, request, session, redirect, url_for, flash
 from functools import wraps
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import select
+from typing import Callable, Any
 
-admin = Blueprint("admin", __name__, url_prefix="/admin")
+admin: Blueprint = Blueprint("admin", __name__, url_prefix="/admin")
 
 
-def admin_required(f):
+def admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
