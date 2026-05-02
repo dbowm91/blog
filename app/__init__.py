@@ -137,7 +137,7 @@ def create_app():
         raise RuntimeError(
             "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
         )
-    from app.config import _validate_config, _config as _raw_config
+    from app.config import _validate_config, _config as _raw_config  # noqa: E402
 
     _validate_config(_raw_config)
 
@@ -191,7 +191,7 @@ def create_app():
                 "pool_timeout": 30,
             }
 
-    from app.config import RATE_LIMIT_STORAGE_URI
+    from app.config import RATE_LIMIT_STORAGE_URI  # noqa: E402
 
     app.config["RATELIMIT_STORAGE_URI"] = RATE_LIMIT_STORAGE_URI
     app.config["RATELIMIT_HEADERS_ENABLED"] = False
@@ -218,7 +218,7 @@ def create_app():
     @app.errorhandler(429)
     def ratelimit_handler(e):
         if req.is_json:
-            from flask import jsonify
+            from flask import jsonify  # noqa: E402
             return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
         return render_template("429.html", error=str(e.description)), 429
 
@@ -234,12 +234,12 @@ def create_app():
     login_manager.init_app(app)
     migrate.init_app(app, db)
 
-    from app.routes.public import public
-    from app.routes.admin import admin
+    from app.routes.public import public  # noqa: E402
+    from app.routes.admin import admin  # noqa: E402
     from app.routes.admin import posts  # noqa: F401 # Triggers route registration via posts/__init__.py
-    from app.routes.rss import rss
-    from app.routes.errors import errors
-    from app.routes.api import api
+    from app.routes.rss import rss  # noqa: E402
+    from app.routes.errors import errors  # noqa: E402
+    from app.routes.api import api  # noqa: E402
 
     app.register_blueprint(public)
     app.register_blueprint(admin)
@@ -247,7 +247,7 @@ def create_app():
     app.register_blueprint(errors)
     app.register_blueprint(api)
 
-    from flask_swagger_ui import get_swaggerui_blueprint
+    from flask_swagger_ui import get_swaggerui_blueprint  # noqa: E402
     SWAGGER_URL = '/api/docs'
     API_URL = '/openapi.yaml'
     swaggerui_blueprint = get_swaggerui_blueprint(SWAGGER_URL, API_URL)
@@ -257,7 +257,7 @@ def create_app():
     def openapi_spec():
         return send_from_directory(app.root_path, '../docs/openapi.yaml')
 
-    from app.filters import register_filters
+    from app.filters import register_filters  # noqa: E402
 
     register_filters(app)
 
@@ -289,8 +289,8 @@ def create_app():
                     # Clean up admin session tracking
                     sid = session.pop("admin_session_id", None)
                     if sid:
-                        from app.models import AdminSession
-                        from sqlalchemy.exc import IntegrityError, OperationalError
+                        from app.models import AdminSession  # noqa: E402
+                        from sqlalchemy.exc import IntegrityError, OperationalError  # noqa: E402
 
                         try:
                             db.session.execute(
@@ -311,7 +311,7 @@ def create_app():
 
     @app.after_request
     def set_security_headers(response):
-        from flask import current_app
+        from flask import current_app  # noqa: E402
 
         nonce = getattr(g, "csp_nonce", "")
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -354,14 +354,14 @@ def create_app():
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
-    from app.context_processors import register_context_processors
+    from app.context_processors import register_context_processors  # noqa: E402
 
     register_context_processors(app)
 
     with app.app_context():
-        from app.models import User
-        from app.search import init_fts
-        from sqlalchemy.exc import IntegrityError, OperationalError
+        from app.models import User  # noqa: E402
+        from app.search import init_fts  # noqa: E402
+        from sqlalchemy.exc import IntegrityError, OperationalError  # noqa: E402
 
         try:
             existing_user = db.session.execute(
@@ -384,7 +384,7 @@ def create_app():
 
         # Initialize SiteSettings if none exist
         try:
-            from app.models import SiteSettings
+            from app.models import SiteSettings  # noqa: E402
 
             existing_settings = db.session.execute(
                 db.select(SiteSettings).order_by(SiteSettings.id).limit(1)
@@ -422,24 +422,24 @@ def create_app():
 
     _check_database_integrity(app)
 
-    from app.scheduler import init_scheduler
+    from app.scheduler import init_scheduler  # noqa: E402
 
     init_scheduler(app)
 
-    from app.page_view_buffer import init_page_view_buffer
-    from app.models import PageView
+    from app.page_view_buffer import init_page_view_buffer  # noqa: E402
+    from app.models import PageView  # noqa: E402
     init_page_view_buffer(db, PageView)
 
-    from app.cli import register_cli_commands
+    from app.cli import register_cli_commands  # noqa: E402
 
     register_cli_commands(app)
 
-    from app.vite import init_vite
+    from app.vite import init_vite  # noqa: E402
     init_vite(app)
 
     @app.shell_context_processor
     def make_shell_context():
-        from app.models import (
+        from app.models import (  # noqa: E402
             User,
             Post,
             Tag,

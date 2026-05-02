@@ -8,26 +8,22 @@ from flask import (
     url_for,
     request,
     flash,
-    jsonify,
-    abort,
-    Response,
     current_app,
+    Response,
 )
-from flask_login import login_required, current_user
+from flask_login import current_user
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
-from app.models import Post, PageView, ShareEvent, Subscriber
+from app.models import Post, PageView, ShareEvent
 from app.utils import utc_now, safe_delete_file
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import (
     _get_posts_query,
     _cleanup_orphan_tags,
     invalidate_analytics_cache,
-    invalidate_dashboard_cache,
-    logger,
 )
 from app.context_processors import invalidate_footer_cache
 from app.routes.admin.helpers.dashboard import _get_dashboard_metrics

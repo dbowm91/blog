@@ -72,7 +72,7 @@ def _invalidate_all_caches() -> None:
     invalidate_footer_cache()
 
 
-from app.routes.admin.helpers import (
+from app.routes.admin.helpers import (  # noqa: E402, F401
     ALLOWED_EXTENSIONS,
     TAG_NAME_REGEX,
     BACKUP_FILENAME_RE,
@@ -91,40 +91,40 @@ from app.routes.admin.helpers import (
     _detect_image_type,
     _allowed_file,
     _save_image,
-)
-from app.routes.admin.helpers.analytics import (
+)  # noqa: E402, F401
+from app.routes.admin.helpers.analytics import (  # noqa: E402, F401
     _get_analytics_data,
-    invalidate_analytics_cache,
-)
-from app.tag_cache import invalidate_tag_cache
-from app.utils import safe_delete_file
-from app.utils import utc_now
-from app.search import sync_fts
-from app.search import remove_fts
-from app.config import DASHBOARD_PER_PAGE
-from app.routes.admin.auth import login, logout, newsletter_reset
-from app.routes.admin.subscribers import (
+    invalidate_analytics_cache as invalidate_analytics_cache_analytics,
+)  # noqa: E402
+from app.tag_cache import invalidate_tag_cache  # noqa: E402, F401
+from app.utils import safe_delete_file  # noqa: E402, F401
+from app.utils import utc_now  # noqa: E402, F401
+from app.search import sync_fts  # noqa: E402, F401
+from app.search import remove_fts  # noqa: E402, F401
+from app.config import DASHBOARD_PER_PAGE  # noqa: E402, F401
+from app.routes.admin.auth import login, logout, newsletter_reset  # noqa: E402, F401
+from app.routes.admin.subscribers import (  # noqa: E402, F401
     subscribers,
     delete_subscriber,
     export_subscribers,
     subscribers_bulk,
 )
-from app.routes.admin.tags import tags_list, rename_tag, delete_tag, create_tag
-from app.routes.admin.users import users_list, create_user, delete_user, change_password
-from app.routes.admin.sessions import sessions_list, revoke_session
-from app.routes.admin.media import media, upload_media, delete_media
-from app.routes.admin.backup import (
+from app.routes.admin.tags import tags_list, rename_tag, delete_tag, create_tag  # noqa: E402, F401
+from app.routes.admin.users import users_list, create_user, delete_user, change_password  # noqa: E402, F401
+from app.routes.admin.sessions import sessions_list, revoke_session  # noqa: E402, F401
+from app.routes.admin.media import media, upload_media, delete_media  # noqa: E402, F401
+from app.routes.admin.backup import (  # noqa: E402, F401
     backup,
     create_backup,
     download_backup,
     restore_backup,
     delete_backup,
 )
-from app.routes.admin.analytics import analytics
-from app.routes.admin.newsletter import newsletter_test, newsletter_preview
-from app.routes.admin.settings import settings, settings_theme
-from app.routes.admin.pages import pages_list, new_page, edit_page, delete_page
-from app.routes.admin.series import (
+from app.routes.admin.analytics import analytics  # noqa: E402, F401
+from app.routes.admin.newsletter import newsletter_test, newsletter_preview  # noqa: E402, F401
+from app.routes.admin.settings import settings, settings_theme  # noqa: E402, F401
+from app.routes.admin.pages import pages_list, new_page, edit_page, delete_page  # noqa: E402, F401
+from app.routes.admin.series import (  # noqa: E402, F401
     series_list,
     series_new,
     series_edit,
@@ -132,5 +132,5 @@ from app.routes.admin.series import (
     series_posts,
     series_reorder,
 )
-from app.routes.admin.audit import audit_log
-from app.routes.admin.comments import comments_list, approve_comment, delete_comment
+from app.routes.admin.audit import audit_log  # noqa: E402, F401
+from app.routes.admin.comments import comments_list, approve_comment, delete_comment  # noqa: E402, F401

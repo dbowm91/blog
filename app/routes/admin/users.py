@@ -223,8 +223,8 @@ def make_owner(user_id: int) -> Response:
     all_admins = db.session.execute(
         select(User).filter(User.is_admin, User.id != user_id)
     ).scalars().all()
-    for admin in all_admins:
-        admin.is_admin = False
+    for admin_user in all_admins:
+        admin_user.is_admin = False
     try:
         db.session.commit()
     except (IntegrityError, OperationalError):

@@ -44,13 +44,13 @@ def _save_revision(post: Post, author_id: int | None) -> None:
         author_id=author_id,
     )
     db.session.add(revision)
-from app.context_processors import invalidate_footer_cache
-from app.utils import utc_now, safe_delete_file
-from app.tag_cache import invalidate_tag_cache
-from app.search import sync_fts
-from app.routes.rss import invalidate_rss_cache
-from app.routes.public import invalidate_archive_cache
-from sqlalchemy.exc import IntegrityError, OperationalError
+from app.context_processors import invalidate_footer_cache  # noqa: E402
+from app.utils import utc_now, safe_delete_file  # noqa: E402
+from app.tag_cache import invalidate_tag_cache  # noqa: E402
+from app.search import sync_fts  # noqa: E402
+from app.routes.rss import invalidate_rss_cache  # noqa: E402
+from app.routes.public import invalidate_archive_cache  # noqa: E402
+from sqlalchemy.exc import IntegrityError, OperationalError  # noqa: E402
 
 
 def _create_post_object(
