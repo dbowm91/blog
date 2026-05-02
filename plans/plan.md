@@ -11,24 +11,24 @@ This plan serves as the single source of truth for all identified improvements, 
 ## Wave 1: Critical Fixes (DO FIRST - Parallelizable)
 
 ### Wave 1A: Backend Bugs
-- [x] **BUG-1: Fix Rate Limiter Config Key Mismatch** - `app/__init__.py:186` assigns to `RATELIMIT_STORAGE_URL` but Flask-Limiter expects `RATELIMIT_STORAGE_URI`. Ensure it uses `RATE_LIMIT_STORAGE_URI` from config.
+- [x] **BUG-1: Fix Rate Limitr Config Key Mismatch** - `app/__init__.py:186` assigns to `RATELIMIT_STORAGE_URL` but Flask-Limiter expects `RATELIMIT_STORAGE_URI`. Ensure it uses `RATE_LIMIT_STORAGE_URI` from config.
 - [x] **BUG-2: Fix Scheduler File Lock Race Condition** - Remove all `os.remove(lock_path)` calls from `app/scheduler.py` (8 locations: lines 77, 147, 160, 198, 211, 257, 277, 319). Linux file locks are advisory and shouldn't be deleted.
 - [x] **BUG-3: Fix Backup Strategy (WAL Mode)** - `shutil.copy2()` in `app/scheduler.py:299` misses WAL file. Replace with `sqlite3.backup()` API for consistent snapshots.
-- [ ] **P0-1: Fix Broken CI Pipeline** - Add `ruff>=0.8.0` and `mypy>=1.8.0` to `requirements-dev.txt`.
-- [ ] **P0-2: Fix JavaScript Dynamic Imports** - Replace variable-based `import(m)` in `app/static/js/main.js` with `import.meta.glob()` for Vite-compatible bundling.
-- [ ] **BUG-5: Fix Python 3.12 sqlite3 Datetime Deprecation** - Register custom adapters in `app/__init__.py` using `sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())` and corresponding converters.
-- [ ] **ALIGN-1: Standardize Python Environment** - Harmonize Python version to 3.12 across `setup.sh`, `pyproject.toml`, and `Dockerfile` to ensure Celery/Granian stability.
+- [x] **P0-1: Fix Broken CI Pipeline** - Add `ruff>=0.8.0` and `mypy>=1.8.0` to `requirements-dev.txt`.
+- [x] **P0-2: Fix JavaScript Dynamic Imports** - Replace variable-based `import(m)` in `app/static/js/main.js` with `import.meta.glob()` for Vite-compatible bundling.
+- [x] **BUG-5: Fix Python 3.12 sqlite3 Datetime Deprecation** - Register custom adapters in `app/__init__.py` using `sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())` and corresponding converters.
+- [x] **ALIGN-1: Standardize Python Environment** - Harmonize Python version to 3.12 across `setup.sh`, `pyproject.toml`, and `Dockerfile` to ensure Celery/Granian stability.
 
 ### Wave 1B: Frontend Bugs
-- [ ] **FE-BUG-1: Fix Invalid Nested Anchor Tags** - Implement "Stretched Link" pattern for post cards in `index.html`, `tag.html`, `search.html`, and `archive.html`. Use `.post-card-link::before` with `z-index: 1` and ensure `.post-tags` has `z-index: 2`.
-- [ ] **FE-BUG-2: Fix Admin Templates to Use vite_asset()** - Replace `url_for('static', ...)` with `vite_asset(...)` in `app/templates/admin/base.html` for all CSS and JS files.
-- [ ] **FE-BUG-3: Fix Hero Gradient Text Accessibility** - Add `@supports (background-clip: text)` wrapper and `CanvasText` fallback for High Contrast Mode in `style.css` and `base.html`. Remove duplicate inline gradient in `base.html:59`.
+- [x] **FE-BUG-1: Fix Invalid Nested Anchor Tags** - Implement "Stretched Link" pattern for post cards in `index.html`, `tag.html`, `search.html`, and `archive.html`. Use `.post-card-link::before` with `z-index: 1` and ensure `.post-tags` has `z-index: 2`.
+- [x] **FE-BUG-2: Fix Admin Templates to Use vite_asset()** - Replace `url_for('static', ...)` with `vite_asset(...)` in `app/templates/admin/base.html` for all CSS and JS files.
+- [x] **FE-BUG-3: Fix Hero Gradient Text Accessibility** - Add `@supports (background-clip: text)` wrapper and `CanvasText` fallback for High Contrast Mode in `style.css` and `base.html`. Remove duplicate inline gradient in `base.html:59`.
 
 ---
 
 ## Wave 2: Security Hardening (HIGH - Parallelizable with Wave 1)
-
-- [ ] **SEC-1: Fix Information Leakage** - Strip `str(e)` from flash messages in `admin/newsletter.py:65`, `admin/series.py`, and `backup_integrity.py:78,80`. Use generic error messages and log the details instead.
+ 
+- [x] **SEC-1: Fix Information Leakage** - Strip `str(e)` from flash messages in `admin/newsletter.py:65`, `admin/series.py`, and `backup_integrity.py:78,80`. Use generic error messages and log the details instead.
 - [x] **SEC-2: Upgrade Backup Encryption (PBKDF2)** - Upgrade `_derive_key()` in `app/backup_encryption.py` to use PBKDF2-HMAC-SHA256 with 600,000 iterations (NIST SP 800-132) and a 16-byte random salt.
 - [x] **SEC-3: SSRF Protection for Webhooks** - Implement `is_safe_webhook_url(url)` in `app/utils.py` using `socket.getaddrinfo` and `ipaddress.is_global` to block private/loopback/metadata IPs. Apply to `deliver_webhook` in `app/webhooks.py` and `app/tasks.py:197`. Set `allow_redirects=False`.
 - [x] **SEC-4: Webhook Logic Reconciliation** - Integrate HMAC-SHA256 signing from `app/webhooks.py` into the Celery task in `app/tasks.py`. Ensure all background deliveries are signed.
