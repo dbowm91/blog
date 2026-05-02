@@ -69,8 +69,8 @@
                 </div>
             {% endfor %}
 
-            {% from "macros.html" import pagination %}
-            {{ pagination(pagination, url_for('public.search'), q=query) }}
+            {% from "macros.html" import pagination as paginate_macro %}
+            {{ paginate_macro(pagination, 'public.search', q=query) }}
         </section>
 
         {% include "_sidebar.html" %}

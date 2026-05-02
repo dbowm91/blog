@@ -59,8 +59,8 @@
             </div>
         {% endfor %}
 
-        {% from "macros.html" import pagination %}
-        {{ pagination(pagination, url_for('public.tag'), tag_slug=tag.slug) }}
+        {% from "macros.html" import pagination as paginate_macro %}
+        {{ paginate_macro(pagination, 'public.tag', tag_slug=tag.slug) }}
     </section>
 
     {% set active_tag_id = tag.id %}

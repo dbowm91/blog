@@ -1,15 +1,15 @@
-{% macro pagination(pagination, endpoint_fn, q=None, status=None, tag_slug=None) %}
+{% macro pagination(pagination, endpoint, q=None, status=None, tag_slug=None) %}
 {% if pagination.pages > 1 %}
 <div class="pagination">
     {% if pagination.has_prev %}
         {% if q %}
-            <a href="{{ endpoint_fn(page=pagination.prev_num, q=q, status=status) }}" class="page-link">&larr; Newer</a>
+            <a href="{{ url_for(endpoint, page=pagination.prev_num, q=q, status=status) }}" class="page-link">&larr; Newer</a>
         {% elif status %}
-            <a href="{{ endpoint_fn(page=pagination.prev_num, status=status) }}" class="page-link">&larr; Newer</a>
+            <a href="{{ url_for(endpoint, page=pagination.prev_num, status=status) }}" class="page-link">&larr; Newer</a>
         {% elif tag_slug %}
-            <a href="{{ endpoint_fn(slug=tag_slug, page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+            <a href="{{ url_for(endpoint, slug=tag_slug, page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
         {% else %}
-            <a href="{{ endpoint_fn(page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
+            <a href="{{ url_for(endpoint, page=pagination.prev_num) }}" class="page-link">&larr; Newer</a>
         {% endif %}
     {% endif %}
     <span class="page-numbers">
@@ -20,7 +20,7 @@
     {% set start_page = 1 if not show_ellipsis_start else (current_page - 1 if current_page == total_pages - 1 else current_page - 2) %}
     {% set end_page = total_pages if not show_ellipsis_end else (current_page + 1 if current_page == 2 else current_page + 2) %}
     {% if show_ellipsis_start %}
-        <a href="{{ endpoint_fn(page=1, q=q, status=status) if q else (endpoint_fn(page=1, status=status) if status else (endpoint_fn(slug=tag_slug, page=1) if tag_slug else endpoint_fn(page=1))) }}" class="page-number">1</a>
+        <a href="{{ url_for(endpoint, page=1, q=q, status=status) if q else (url_for(endpoint, page=1, status=status) if status else (url_for(endpoint, slug=tag_slug, page=1) if tag_slug else url_for(endpoint, page=1))) }}" class="page-number">1</a>
         {% if start_page > 2 %}
             <span class="page-ellipsis">&hellip;</span>
         {% endif %}
@@ -30,13 +30,13 @@
             <span class="page-current" aria-current="page">{{ p }}</span>
         {% else %}
             {% if q %}
-                <a href="{{ endpoint_fn(page=p, q=q, status=status) }}" class="page-number">{{ p }}</a>
+                <a href="{{ url_for(endpoint, page=p, q=q, status=status) }}" class="page-number">{{ p }}</a>
             {% elif status %}
-                <a href="{{ endpoint_fn(page=p, status=status) }}" class="page-number">{{ p }}</a>
+                <a href="{{ url_for(endpoint, page=p, status=status) }}" class="page-number">{{ p }}</a>
             {% elif tag_slug %}
-                <a href="{{ endpoint_fn(slug=tag_slug, page=p) }}" class="page-number">{{ p }}</a>
+                <a href="{{ url_for(endpoint, slug=tag_slug, page=p) }}" class="page-number">{{ p }}</a>
             {% else %}
-                <a href="{{ endpoint_fn(page=p) }}" class="page-number">{{ p }}</a>
+                <a href="{{ url_for(endpoint, page=p) }}" class="page-number">{{ p }}</a>
             {% endif %}
         {% endif %}
     {% endfor %}
@@ -44,18 +44,18 @@
         {% if end_page < total_pages - 1 %}
             <span class="page-ellipsis">&hellip;</span>
         {% endif %}
-        <a href="{{ endpoint_fn(page=total_pages, q=q, status=status) if q else (endpoint_fn(page=total_pages, status=status) if status else (endpoint_fn(slug=tag_slug, page=total_pages) if tag_slug else endpoint_fn(page=total_pages))) }}" class="page-number">{{ total_pages }}</a>
+        <a href="{{ url_for(endpoint, page=total_pages, q=q, status=status) if q else (url_for(endpoint, page=total_pages, status=status) if status else (url_for(endpoint, slug=tag_slug, page=total_pages) if tag_slug else url_for(endpoint, page=total_pages))) }}" class="page-number">{{ total_pages }}</a>
     {% endif %}
     </span>
     {% if pagination.has_next %}
         {% if q %}
-            <a href="{{ endpoint_fn(page=pagination.next_num, q=q, status=status) }}" class="page-link">Older &rarr;</a>
+            <a href="{{ url_for(endpoint, page=pagination.next_num, q=q, status=status) }}" class="page-link">Older &rarr;</a>
         {% elif status %}
-            <a href="{{ endpoint_fn(page=pagination.next_num, status=status) }}" class="page-link">Older &rarr;</a>
+            <a href="{{ url_for(endpoint, page=pagination.next_num, status=status) }}" class="page-link">Older &rarr;</a>
         {% elif tag_slug %}
-            <a href="{{ endpoint_fn(slug=tag_slug, page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+            <a href="{{ url_for(endpoint, slug=tag_slug, page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
         {% else %}
-            <a href="{{ endpoint_fn(page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
+            <a href="{{ url_for(endpoint, page=pagination.next_num) }}" class="page-link">Older &rarr;</a>
         {% endif %}
     {% endif %}
 </div>
