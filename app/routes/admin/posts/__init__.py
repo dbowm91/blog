@@ -17,12 +17,15 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import Post, PageView, ShareEvent, Subscriber
+from app.utils import utc_now
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import (
     _get_posts_query,
     _cleanup_orphan_tags,
     invalidate_analytics_cache,
     invalidate_dashboard_cache,
+    invalidate_footer_cache,
+    invalidate_tag_cache,
     logger,
 )
 from app.routes.admin.helpers.dashboard import _get_dashboard_metrics
