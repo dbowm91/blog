@@ -297,7 +297,7 @@ def test_search_likes_fallback_when_fts_disabled(client, db, admin_user):
     db.session.add(post)
     db.session.commit()
 
-    with patch('app.routes.public._fts_search', return_value=[]):
+    with patch('app.routes.public.browse._fts_search', return_value=[]):
         response = client.get('/search?q=LIKE fallback')
     assert response.status_code == 200
     assert b'FTS Fallback Test' in response.data
@@ -315,7 +315,7 @@ def test_search_likes_fallback_finds_title_match(client, db, admin_user):
     db.session.add(post)
     db.session.commit()
 
-    with patch('app.routes.public._fts_search', return_value=[]):
+    with patch('app.routes.public.browse._fts_search', return_value=[]):
         response = client.get('/search?q=Uniquely Named')
     assert response.status_code == 200
     assert b'Uniquely Named Post' in response.data
@@ -334,7 +334,7 @@ def test_search_likes_fallback_finds_body_match(client, db, admin_user):
     db.session.add(post)
     db.session.commit()
 
-    with patch('app.routes.public._fts_search', return_value=[]):
+    with patch('app.routes.public.browse._fts_search', return_value=[]):
         response = client.get('/search?q=secretbody')
     assert response.status_code == 200
     assert b'Some Post' in response.data
@@ -352,7 +352,7 @@ def test_search_likes_fallback_with_special_characters(client, db, admin_user):
     db.session.add(post)
     db.session.commit()
 
-    with patch('app.routes.public._fts_search', return_value=[]):
+    with patch('app.routes.public.browse._fts_search', return_value=[]):
         response = client.get('/search?q=100%25')
     assert response.status_code == 200
 

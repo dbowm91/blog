@@ -34,6 +34,12 @@ def app(tmp_path_factory):
             "CSRF_ENABLED": False,
         }
     )
+    # Disable page view buffer in tests
+    import app.config as _app_config
+    _app_config.PAGE_VIEW_BUFFER_SIZE = 0
+    # Stop any running buffer
+    from app.page_view_buffer import shutdown_page_view_buffer
+    shutdown_page_view_buffer()
 
     # Configure Celery to run tasks eagerly (synchronously) in tests
     from celery import current_app as celery_app

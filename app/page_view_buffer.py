@@ -185,12 +185,14 @@ def record_page_view(post_id: int, referrer: Optional[str] = None) -> None:
         from app.extensions import db
         from app.models import PageView
         from sqlalchemy.exc import SQLAlchemyError
-        pv = PageView(post_id=post_id, referrer=referrer)
-        db.session.add(pv)
         try:
+            pv = PageView(post_id=post_id, referrer=referrer)
+            db.session.add(pv)
             db.session.commit()
-        except (SQLAlchemyError, OSError):
+            logger.info("PageView recorded directly: post_id=%s", post_id)
+        except (SQLAlchemyError, OSError) as e:
             db.session.rollback()
+            logger.error("Failed to record PageView directly: %s", e)
 
 
 def shutdown_page_view_buffer() -> None:
