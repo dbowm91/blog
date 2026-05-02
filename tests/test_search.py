@@ -224,6 +224,8 @@ class TestGetSearchSnippets:
         )
         db.session.add(post)
         db.session.commit()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
+        db.session.commit()
 
         snippets = get_search_snippets([post], "summary")
         assert isinstance(snippets, dict)
@@ -241,6 +243,8 @@ class TestGetSearchSnippets:
             published_at=utc_now(),
         )
         db.session.add(post)
+        db.session.commit()
+        sync_fts(post.id, post.title, post.body, post.summary, post.published)
         db.session.commit()
 
         snippets = get_search_snippets([post], "unique")
