@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import cast
 from flask import render_template, request, Response
 
 from app.routes.admin import admin, admin_required
@@ -23,7 +24,7 @@ def analytics() -> Response:
 
     data = _get_analytics_data(days)
 
-    return render_template(
+    return cast(Response, render_template(
         "admin/analytics.html",
         days=days,
         daily_views=data["daily_views"],
@@ -34,4 +35,4 @@ def analytics() -> Response:
         referrer_summary=data["referrer_summary"],
         total_subscribers=data["total_subscribers"],
         confirmed_subscribers=data["confirmed_subscribers"],
-    )
+    ))

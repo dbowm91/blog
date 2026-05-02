@@ -158,6 +158,9 @@ def edit_page(page_id) -> ResponseReturnValue:
     except IntegrityError:
         db.session.rollback()
         page = db.session.get(Page, page_id)
+        if not page:
+            flash("Page not found.", "error")
+            return redirect(url_for("admin.pages_list"))
         page.slug = _generate_unique_slug(Page, title, exclude_id=page_id)
         page.title = title
         page.body = body

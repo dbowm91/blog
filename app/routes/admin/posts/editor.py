@@ -163,7 +163,8 @@ def register_editor_routes(admin):
                 flash("Title and body are required.", "error")
                 return render_template("admin/editor.html", post=None, tag_names=tag_names)
 
-            image, error = _save_image(request.files.get("image"))
+            image_file = request.files.get("image")
+            image, error = _save_image(image_file) if image_file else (None, None)
             if error:
                 flash(error, "error")
                 return render_template("admin/editor.html", post=None, tag_names=tag_names)
@@ -268,7 +269,8 @@ def register_editor_routes(admin):
                 tag_names,
             )
 
-            image, error = _save_image(request.files.get("image"))
+            image_file = request.files.get("image")
+            image, error = _save_image(image_file) if image_file else (None, None)
             if error:
                 flash(error, "error")
                 return render_template("admin/editor.html", post=post, tag_names=tag_names)
@@ -297,6 +299,9 @@ def register_editor_routes(admin):
                         os.path.join(current_app.config["UPLOAD_FOLDER"], image)
                     )
                 post = db.session.get(Post, post_id)
+                if not post:
+                    flash("Post not found.", "error")
+                    return redirect(url_for("admin.posts_list"))
                 post.slug = _generate_unique_slug(Post, title, exclude_id=post.id)
                 _apply_post_updates(
                     post,

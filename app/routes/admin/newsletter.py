@@ -33,7 +33,7 @@ def newsletter_test() -> ResponseReturnValue:
     Form params: test_email (optional) - Email address to send test to.
                  Defaults to FROM_ADDRESS from config.
     """
-    posts = (
+    posts: list[Post] = list(
         db.session.execute(
             select(Post)
             .filter_by(published=True)

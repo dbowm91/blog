@@ -58,16 +58,14 @@ def _get_analytics_data(days: int) -> dict[str, Any]:
     ).all()
 
     top_post_ids = [p.id for p, _ in top_posts]
+    share_counts_analytics: dict[int, int] = {}
     if top_post_ids:
-        share_counts_analytics = dict(
-            db.session.execute(
-                select(ShareEvent.post_id, func.count(ShareEvent.id))
-                .filter(ShareEvent.post_id.in_(top_post_ids))
-                .group_by(ShareEvent.post_id)
-            ).all()
-        )
-    else:
-        share_counts_analytics = {}
+        results = db.session.execute(
+            select(ShareEvent.post_id, func.count(ShareEvent.id))
+            .filter(ShareEvent.post_id.in_(top_post_ids))
+            .group_by(ShareEvent.post_id)
+        ).all()
+        share_counts_analytics = {post_id: count for post_id, count in results}
 
     referrer_data = db.session.execute(
         select(PageView.referrer, func.count(PageView.id).label("count"))
@@ -77,7 +75,7 @@ def _get_analytics_data(days: int) -> dict[str, Any]:
         .limit(15)
     ).all()
 
-    referrer_summary = {}
+    referrer_summary: dict[str, int] = {}
     for url, count in referrer_data:
         category = _categorize_referrer(url)
         referrer_summary[category] = referrer_summary.get(category, 0) + count

@@ -18,6 +18,7 @@ from flask import (
     session,
     g,
     send_from_directory,
+    Response,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
@@ -40,7 +41,10 @@ sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
 sqlite3.register_converter("datetime", lambda s: datetime.fromisoformat(s.decode()))
 
 def get_client_ip() -> str:
-    return req.headers.get('X-Forwarded-For', req.remote_addr) or req.remote_addr
+    forwarded_for = req.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        return forwarded_for
+    return req.remote_addr or "unknown"
 
 
 limiter = Limiter(
@@ -162,7 +166,7 @@ def create_app() -> Flask:
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     proxy_count = int(os.environ.get("PROXY_COUNT", 1))
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)  # type: ignore[misc]
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)  # type: ignore[method-assign]
 
     if not app.debug and not app.testing:
         csrf_disabled = not app.config.get("CSRF_ENABLED", True)
@@ -265,7 +269,7 @@ def create_app() -> Flask:
     SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
 
     @app.before_request
-    def before_request_handler() -> None:
+    def before_request_handler() -> Response | None:
         # Generate request ID and CSP nonce for this request
         g.request_id = secrets.token_hex(4)
         g.csp_nonce = secrets.token_urlsafe(16)
@@ -309,9 +313,10 @@ def create_app() -> Flask:
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))
             session["last_activity"] = now
+        return None
 
     @app.after_request
-    def set_security_headers(response: Any) -> Any:  # type: ignore[no-untyped-def]
+    def set_security_headers(response: Response) -> Response:
         from flask import current_app  # noqa: E402
 
         nonce = getattr(g, "csp_nonce", "")

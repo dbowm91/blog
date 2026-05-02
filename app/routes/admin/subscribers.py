@@ -168,7 +168,7 @@ def subscribers_bulk() -> ResponseReturnValue:
                 return redirect(url_for("admin.subscribers"))
             flash(f"Deleted {count} subscriber(s).", "success")
         elif action == "export":
-            subs = (
+            export_subs: list[Subscriber] = list(
                 db.session.execute(
                     select(Subscriber)
                     .filter(Subscriber.id.in_(valid_ids))
@@ -179,7 +179,7 @@ def subscribers_bulk() -> ResponseReturnValue:
             )
 
             return Response(
-                generate_subscribers_csv(subs),
+                generate_subscribers_csv(export_subs),
                 mimetype="text/csv",
                 headers={
                     "Content-Disposition": "attachment; filename=subscribers_selected.csv"

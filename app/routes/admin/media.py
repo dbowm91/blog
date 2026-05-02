@@ -22,7 +22,7 @@ from app.models import Post
 logger = logging.getLogger(__name__)
 
 
-_MEDIA_CACHE = {"files": None, "timestamp": 0}
+_MEDIA_CACHE: dict[str, Any] = {"files": None, "timestamp": 0}
 _MEDIA_CACHE_LOCK = threading.Lock()
 _MEDIA_CACHE_TTL = 30
 
@@ -45,7 +45,7 @@ def _get_cached_media_list(
             and _MEDIA_CACHE["timestamp"] is not None
             and (now - _MEDIA_CACHE["timestamp"]) < _MEDIA_CACHE_TTL
         ):
-            all_files = _MEDIA_CACHE["files"]  # type: ignore[assignment]
+            all_files = _MEDIA_CACHE["files"]
         else:
             all_files = _scan_media_directory(upload_dir)
             _MEDIA_CACHE["files"] = all_files
@@ -55,7 +55,7 @@ def _get_cached_media_list(
             files = [(f["mtime"], f["name"], f["size"]) for f in all_files if search.lower() in str(f["name"]).lower()]
             return files
         return [
-            (float(f["mtime"]), str(f["name"]), int(f["size"])) for f in all_files
+            (float(f["mtime"]), str(f["name"]), int(f["size"])) for f in all_files  # type: ignore[arg-type, call-overload]
         ]
 
 

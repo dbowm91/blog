@@ -190,9 +190,9 @@ def register_cli_commands(app: Any) -> None:
                 )
 
             for tag_name in post_data.get("tags", []):
-                tag = tag_cache.get(Tag.generate_slug(tag_name))
-                if tag:
-                    post.tags.append(tag)
+                existing_tag: Tag | None = tag_cache.get(Tag.generate_slug(tag_name))
+                if existing_tag:
+                    post.tags.append(existing_tag)
 
             db.session.add(post)
             imported_posts += 1
@@ -322,7 +322,7 @@ def register_cli_commands(app: Any) -> None:
 
         all_posts = db.session.execute(select(Post)).scalars().all()
         for post in all_posts:
-            sync_fts(post)
+            sync_fts(post.id, post.title, post.body, post.summary, post.published)
         click.echo(f"Created {posts} posts.")
 
         for i in range(subscribers):
