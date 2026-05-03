@@ -1,41 +1,32 @@
 # Consolidated Improvement Plan
 
-**Date:** 2026-05-01
-**Status:** Completed
+**Date:** 2026-05-03
+**Status:** In Progress
 **Consolidated From:** multiple source plans
 
-This plan has been fully implemented. All items are completed.
+## Completed Items
+1. ✅ Fixed RSS endpoint references (rss.feed → rss.atom_feed) in templates
+2. ✅ Added tests for series routes (coverage 17% → 74%)
+3. ✅ Added tests for tasks (coverage 18% → 67%)
+4. ✅ Added tests for CLI commands (coverage 27% → 69%)
+5. ✅ Added tests for admin comments (coverage 36% → 89%)
+6. ✅ Added tests for public comments (coverage 31% → 86%)
+7. ✅ Added tests for scheduler (coverage 48% → 61%)
+8. ✅ Added tests for utils (coverage 46% → 67%)
+9. ✅ Added tests for validators (coverage 32% → 88%)
+10. ✅ Added tests for backup service (coverage 50% → 72%)
+11. ✅ Added tests for storage (coverage 46% → 52%)
+12. ✅ Increased total test coverage from 53% → ~74%
+
+## Remaining Items
+1. ⏳️ Increase app/routes/admin/users.py coverage from 49% to 80%+
+2. ⏳️ Increase app/filters.py coverage from 47% to 80%+
+3. ⏳️ Increase app/page_view_buffer.py coverage from 39% to 80%+
+4. ⏳️ Increase app/storage.py coverage from 52% to 80%+
+5. ⏳️ Increase app/scheduler.py coverage from 61% to 80%+
+6. ⏳️ Handle unused/low-coverage files (backup_encryption, backup_integrity, webhooks, celery_app)
+7. ⏳️ Achieve 80%+ total test coverage goal
 
 ---
 
-## Implementation Notes for Future Agents
-
-### Security Rules
-- **Log ID, not Username**: When logging user actions, always use `user.id`. Never log raw objects or usernames.
-- **SSRF Validation**: Use `is_safe_webhook_url` BEFORE any `requests.post` call in background tasks.
-- **HMAC Comparison**: Always use `hmac.compare_digest()` for tokens.
-
-### Database Rules
-- **FTS5 Sync Timing**: Sync FTS index BEFORE `db.session.commit()`. If commit fails, FTS doesn't need rollback because it's a virtual table based on real data (or handle it with a transaction if using FTS5 `content` option).
-- **WAL Mode**: Always use `sqlite3.backup()` for backups when WAL mode is enabled to ensure `shm` and `wal` files are handled correctly.
-
-### Frontend Rules
-- **Vite Imports**: Use `import.meta.glob` for all dynamic route-based module loading in `main.js`.
-- **CSS Precedence**: `vite_asset` handles hashing. Ensure `base.css` is loaded first.
-
----
-
-## Verification Checklist (Updated 2026-05-02)
-1. `pytest tests/ --cov=app` (Goal: 80%+) - Status: ✅ PASSED (524 tests, 53% coverage)
-2. `npm run build` (Verify dist chunks) - Status: ✅ Completed (Vite build successful)
-3. `ruff check app/` - Status: ✅ Completed (0 errors)
-4. `mypy app` - Status: ✅ Completed (0 errors)
-5. `flask db upgrade` (Verify migrations) - Status: ✅ Completed (migration heads merged, upgrade successful)
-
-## Implementation Notes (2026-05-02)
-- All 524 tests passing (including E2E tests after frontend build fix)
-- Mypy errors reduced from 546 to 0 (all type errors fixed)
-- Migration multiple heads issue resolved by merging
-- Frontend assets building correctly
-- Page view buffer issues in tests resolved
 - Admin Blueprint type annotations added
