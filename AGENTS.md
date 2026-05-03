@@ -74,11 +74,18 @@ These files previously used broad `except Exception` clauses, now replaced with 
 ### Test Database Session Issues
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`
-- Example: `sub = db.session.execute(select(Subscriber).filter_by(email=...)).scalar_one()`
+- Example: `sub = db.session.execute(select(Subscriber).filter_by(email=...)).scalar_one_or_none()`
 
 ### E2E Test Requirements
 - Requires `playwright install chromium` for browser tests
 - E2E tests may timeout if application not properly started
+
+## Test Patterns We Used
+- Added tests for many low-coverage modules: series, tasks, cli, comments, scheduler, validators, backup, storage, filters
+- Increased total coverage from 53% to ~75%
+- Fixed RSS endpoint references in templates (rss.feed → rss.atom_feed)
+- Added email field to User model to support password reset functionality
+- Fixed test issues with mocks, patches, and route registrations
 
 ## Skills
  
