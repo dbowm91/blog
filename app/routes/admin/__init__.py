@@ -111,7 +111,7 @@ from app.routes.admin.subscribers import (  # noqa: E402, F401
     subscribers_bulk,
 )
 from app.routes.admin.tags import tags_list, rename_tag, delete_tag, create_tag  # noqa: E402, F401
-from app.routes.admin.users import users_list, create_user, delete_user, change_password  # noqa: E402, F401
+from app.routes.admin.users import users_list, create_user, delete_user, change_password, promote_user, demote_user, make_owner  # noqa: E402, F401
 from app.routes.admin.sessions import sessions_list, revoke_session  # noqa: E402, F401
 from app.routes.admin.media import media, upload_media, delete_media  # noqa: E402, F401
 from app.routes.admin.backup import (  # noqa: E402, F401
