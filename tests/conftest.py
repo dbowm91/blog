@@ -112,7 +112,7 @@ def admin_user(db):
     ).scalar_one_or_none()
     if existing:
         return existing
-    user = User(username="admin", is_admin=True)
+    user = User(username="admin", email="admin@example.com", is_admin=True)
     user.set_password("testpassword")
     db.session.add(user)
     db.session.commit()
@@ -155,6 +155,16 @@ def sample_tag(db):
     db.session.add(tag)
     db.session.commit()
     return tag
+
+
+@pytest.fixture(scope="function")
+def sample_subscriber(db):
+    """Create a sample confirmed subscriber."""
+    from app.models import Subscriber
+    sub = Subscriber(email="test@example.com", confirmed=True)
+    db.session.add(sub)
+    db.session.commit()
+    return sub
 
 
 @pytest.fixture(scope="function")

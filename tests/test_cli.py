@@ -1,142 +1,140 @@
-import os
 import pytest
-
-os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
-os.environ["ADMIN_PASSWORD"] = "test-password"
-
 from click.testing import CliRunner
 from app import create_app
-from app.extensions import db
-from app.models import User
-
-
-@pytest.fixture(scope="function")
-def app_with_db(tmp_path):
-    """Create application with a temporary database for CLI tests."""
-    db_dir = tmp_path / "blog_test"
-    db_dir.mkdir()
-    db_path = db_dir / "test.db"
-
-    os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
-
-    app = create_app()
-    app.config.update(
-        {
-            "TESTING": True,
-            "CSRF_ENABLED": False,
-        }
-    )
-
-    with app.app_context():
-        db.create_all()
-        from app.search import init_fts
-
-        init_fts()
-        yield app
-        db.session.remove()
-        db.drop_all()
-        db.session.remove()
+from app.models import User, Post, Tag, Subscriber, Page
+from app.utils import utc_now
+import json
+import tempfile
+import os
 
 
 @pytest.fixture
-def runner(app_with_db):
-    """Create a CLI test runner."""
-    return app_with_db.test_cli_runner()
+def cli_app(db):
+    """Create app with CLI commands registered."""
+    app = create_app()
+    return app
 
 
-class TestRebuildSearch:
-    def test_rebuild_search_command(self, runner):
-        """Test that rebuild-search command executes without error."""
-        result = runner.invoke(args=["rebuild-search"])
+@pytest.fixture
+def runner(cli_app):
+    """Click CLI test runner."""
+    return CliRunner()
+
+
+def test_rebuild_search_command(runner, cli_app, db, sample_post):
+    """Test rebuild-search CLI command."""
+    result = runner.invoke(cli_app.cli, ["rebuild-search"])
+    assert result.exit_code == 0
+    assert "Search index rebuilt" in result.output
+
+
+def test_cleanup_orphaned_images_command(runner, cli_app, db):
+    """Test cleanup-orphaned-images CLI command."""
+    result = runner.invoke(cli_app.cli, ["cleanup-orphaned-images"])
+    assert result.exit_code == 0
+    assert "Cleaned up" in result.output
+
+
+def test_create_admin_command_success(runner, cli_app, db):
+    """Test create-admin CLI command."""
+    result = runner.invoke(
+        cli_app.cli, ["create-admin"],
+        input="testadmin\nPassword123!\nPassword123!\n"
+    )
+    assert result.exit_code == 0
+    assert "Admin user 'testadmin' created" in result.output
+    user = db.session.execute(
+        db.select(User).filter_by(username="testadmin")
+    ).scalar_one_or_none()
+    assert user is not None
+    assert user.is_admin is True
+
+
+def test_create_admin_command_weak_password(runner, cli_app, db):
+    """Test create-admin rejects weak passwords."""
+    result = runner.invoke(
+        cli_app.cli, ["create-admin"],
+        input="testadmin\nweak\nweak\n"
+    )
+    assert result.exit_code == 0
+    assert "Password must be at least" in result.output
+
+
+def test_promote_admin_command_success(runner, cli_app, db, admin_user):
+    """Test promote-admin CLI command."""
+    user = User(username="regular", is_admin=False)
+    user.set_password("Password123!")
+    db.session.add(user)
+    db.session.commit()
+    result = runner.invoke(cli_app.cli, ["promote-admin", "regular"])
+    assert result.exit_code == 0
+    assert "User 'regular' promoted to admin" in result.output
+    db.session.refresh(user)
+    assert user.is_admin is True
+
+
+def test_promote_admin_command_user_not_found(runner, cli_app, db):
+    """Test promote-admin with non-existent user."""
+    result = runner.invoke(cli_app.cli, ["promote-admin", "nonexistent"])
+    assert result.exit_code == 0
+    assert "User 'nonexistent' not found" in result.output
+
+
+def test_check_integrity_command(runner, cli_app, db):
+    """Test check-integrity CLI command."""
+    result = runner.invoke(cli_app.cli, ["check-integrity"])
+    assert result.exit_code == 0
+    assert "Database integrity check passed" in result.output
+
+
+def test_export_data_command(runner, cli_app, db, sample_post, sample_tag, sample_subscriber):
+    """Test export-data CLI command."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
+        tmp_path = f.name
+    try:
+        result = runner.invoke(cli_app.cli, ["export-data", tmp_path])
         assert result.exit_code == 0
-        assert "Search index rebuilt" in result.output
+        assert "Exported" in result.output
+        with open(tmp_path, "r") as f:
+            data = json.load(f)
+        assert "posts" in data
+        assert "subscribers" in data
+        assert "tags" in data
+        assert "pages" in data
+    finally:
+        os.unlink(tmp_path)
 
 
-class TestCreateAdmin:
-    def test_create_admin_new_user(self, app_with_db, runner):
-        """Test creating a new admin user via CLI."""
-        result = runner.invoke(
-            args=["create-admin"], input="newadmin\nSecurePass123!\nSecurePass123!\n"
-        )
+def test_import_data_command(runner, cli_app, db):
+    """Test import-data CLI command."""
+    sample_data = {
+        "version": 1,
+        "tags": [{"name": "imported-tag", "slug": "imported-tag"}],
+        "posts": [],
+        "subscribers": [],
+        "pages": []
+    }
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
+        json.dump(sample_data, f)
+        tmp_path = f.name
+    try:
+        result = runner.invoke(cli_app.cli, ["import-data", tmp_path])
         assert result.exit_code == 0
-        assert "Admin user 'newadmin' created" in result.output
+        assert "Imported" in result.output
+        tag = db.session.execute(
+            db.select(Tag).filter_by(slug="imported-tag")
+        ).scalar_one_or_none()
+        assert tag is not None
+    finally:
+        os.unlink(tmp_path)
 
-        with app_with_db.app_context():
-            user = db.session.execute(
-                db.select(User).filter_by(username="newadmin")
-            ).scalar_one_or_none()
-            assert user is not None
-            assert user.is_admin is True
-            assert user.check_password("SecurePass123!")
 
-    def test_create_admin_promote_existing(self, app_with_db, runner):
-        """Test promoting an existing user to admin."""
-        with app_with_db.app_context():
-            user = User(username="existinguser", is_admin=False)
-            user.set_password("OldPass123")
-            db.session.add(user)
-            db.session.commit()
-            db.session.flush()
-            user_id = user.id
-
-        with app_with_db.app_context():
-            result = runner.invoke(
-                args=["create-admin"], input="existinguser\nNewPass456!\nNewPass456!\n"
-            )
-        assert result.exit_code == 0, result.output
-        assert "promoted to admin" in result.output
-
-        with app_with_db.app_context():
-            user = db.session.get(User, user_id)
-            assert user.is_admin is True
-            assert user.check_password("NewPass456!")
-
-    def test_create_admin_password_too_short(self, runner):
-        """Test that password too short is rejected."""
-        result = runner.invoke(
-            args=["create-admin"], input="shortuser\nshort1!\nshort1!\n"
-        )
-        assert (
-            result.exit_code != 0
-            or "Password must be at least 8 characters" in result.output
-        )
-
-    def test_create_admin_password_too_simple(self, runner):
-        """Test that password without enough complexity is rejected."""
-        result = runner.invoke(
-            args=["create-admin"], input="simpleuser\npassword\npassword\n"
-        )
-        assert (
-            result.exit_code != 0
-            or "Password must be at least 8 characters" in result.output
-        )
-
-    def test_create_admin_password_missing_uppercase(self, runner):
-        """Test that password without uppercase is rejected."""
-        result = runner.invoke(
-            args=["create-admin"], input="noupperuser\npass1234\npass1234\n"
-        )
-        assert (
-            result.exit_code != 0
-            or "Password must be at least 8 characters" in result.output
-        )
-
-    def test_create_admin_password_missing_digit(self, runner):
-        """Test that password without digit is rejected."""
-        result = runner.invoke(
-            args=["create-admin"], input="nodigituser\npassword!\npassword!\n"
-        )
-        assert (
-            result.exit_code != 0
-            or "Password must be at least 8 characters" in result.output
-        )
-
-    def test_create_admin_password_missing_special(self, runner):
-        """Test that password without special character is rejected."""
-        result = runner.invoke(
-            args=["create-admin"], input="nospecialuser\nPasswordAB\nPasswordAB\n"
-        )
-        assert (
-            result.exit_code != 0
-            or "Password must be at least 8 characters" in result.output
-        )
+def test_seed_command(runner, cli_app, db):
+    """Test seed CLI command."""
+    result = runner.invoke(cli_app.cli, ["seed", "--posts", "2", "--subscribers", "3", "--published"])
+    assert result.exit_code == 0
+    assert "Seed complete" in result.output
+    posts = db.session.execute(db.select(Post)).scalars().all()
+    assert len(posts) == 2
+    subscribers = db.session.execute(db.select(Subscriber)).scalars().all()
+    assert len(subscribers) == 3

@@ -6,14 +6,13 @@ from app.utils import utc_now
 
 # --- RSS Tests ---
 
-def test_rss_feed_content_structure(client, db, sample_post):
-    """Test RSS feed has correct XML structure."""
-    response = client.get('/rss')
+def test_atom_feed_content_structure(client, db, sample_post):
+    """Test Atom feed has correct XML structure."""
+    response = client.get('/atom')
     assert response.status_code == 200
     assert b'<?xml' in response.data
-    assert b'<rss version="2.0"' in response.data
-    assert b'<channel>' in response.data
-    assert b'<item>' in response.data
+    assert b'<feed xmlns="http://www.w3.org/2005/Atom">' in response.data
+    assert b'<entry>' in response.data
     assert b'Test Post' in response.data
     assert b'test-post' in response.data
 

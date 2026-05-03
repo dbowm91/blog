@@ -79,8 +79,8 @@ def test_sitemap_xml(client, db, sample_post):
 
 
 def test_rss_feed(client, db, sample_post):
-    """Test RSS feed."""
-    response = client.get("/rss")
+    """Test Atom feed."""
+    response = client.get("/atom")
     assert response.status_code == 200
     assert b"<?xml" in response.data
     assert b"Test Post" in response.data

@@ -55,7 +55,7 @@ def _get_cached_media_list(
             files = [(f["mtime"], f["name"], f["size"]) for f in all_files if search.lower() in str(f["name"]).lower()]
             return files
         return [
-            (float(f["mtime"]), str(f["name"]), int(f["size"])) for f in all_files  # type: ignore[arg-type, call-overload]
+            {"name": str(f["name"]), "size": int(f["size"]), "mtime": f["mtime"]} for f in all_files
         ]
 
 
