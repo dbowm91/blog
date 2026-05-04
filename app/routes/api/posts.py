@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload, QueryableAttribute
 
 from app.extensions import db
 from app.models import Post, Tag
-from app.utils import utc_now, safe_delete_file
+from app.utils import utc_now, safe_delete_file, generate_slug
 from app.validators import validate_string, validate_boolean
 from app import limiter
 from app.routes.api import api
@@ -145,7 +145,7 @@ def create_post() -> Any:
             return jsonify({"error": err}), 400
 
     if not slug:
-        slug = Post.generate_slug(title)
+        slug = generate_slug(title)
 
     from app.routes.admin.helpers.slug import _generate_unique_slug
 

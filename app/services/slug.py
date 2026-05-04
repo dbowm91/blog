@@ -6,6 +6,7 @@ from typing import Optional, Type, cast
 from sqlalchemy import select
 
 from app.extensions import db
+from app.utils import generate_slug
 
 
 def generate_unique_slug(
@@ -25,7 +26,7 @@ def generate_unique_slug(
     if slug:
         base_slug = slug
     else:
-        base_slug = cast(str, model.generate_slug(title))
+        base_slug = generate_slug(title)
     slug_str: str = base_slug
     counter = 2
     while counter <= 100:
