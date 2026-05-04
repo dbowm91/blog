@@ -60,13 +60,14 @@ def register_filters(app: Flask) -> None:
             if cache_key in g._post_image_cache:
                 return g._post_image_cache[cache_key]
             from app.storage import get_storage
-            from app.config import BASE_URL
+            from app.config import BASE_URL, CDN_URL
             storage = get_storage()
+            base_url = CDN_URL if CDN_URL else BASE_URL
             srcset_parts = []
             for width in (400, 800, 1200):
                 variant_name = f"{width}_{post.image}"
                 if storage.exists(variant_name):
-                    srcset_parts.append(f"{BASE_URL.rstrip('/')}/static/uploads/{variant_name} {width}w")
+                    srcset_parts.append(f"{base_url.rstrip('/')}/static/uploads/{variant_name} {width}w")
             g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
             return g._post_image_cache[cache_key]
         return None

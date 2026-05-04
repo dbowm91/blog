@@ -20,6 +20,7 @@ __all__ = [
     "AUTHOR_ROLE",
     "AUTHOR_AVATAR",
     "BASE_URL",
+    "CDN_URL",
     "RELATED_POSTS_COUNT",
     "SMTP_HOST",
     "SMTP_PORT",
@@ -97,6 +98,7 @@ AUTHOR_ROLE = _config["author"]["role"]
 AUTHOR_AVATAR = _config["author"].get("avatar", "")
 
 BASE_URL = _config.get("site", {}).get("base_url", "http://localhost:5000").rstrip("/")
+CDN_URL = _env("CDN_URL", _config.get("site", {}).get("cdn_url", "")).rstrip("/") or ""
 RELATED_POSTS_COUNT = _config["site"]["related_posts_count"]
 
 SMTP_HOST = _config["email"]["smtp_host"]
