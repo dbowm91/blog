@@ -70,7 +70,7 @@ flask cleanup-orphaned-images      # Clean unused images
 
 ## Core Features
 
-### REST API (`app/routes/api.py`)
+### REST API (`app/routes/api/` - modularized package)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/posts` | List posts (paginated) |
@@ -84,6 +84,7 @@ flask cleanup-orphaned-images      # Clean unused images
 | GET | `/api/stats` | Dashboard statistics |
 
 Authentication: `X-API-Key` header (env var `API_KEY`)
+**Note:** API was modularized from `app/routes/api.py` into `app/routes/api/` package (Wave 2, May 2026).
 
 ### Admin Routes (`app/routes/admin/`)
 - `/admin/` - Dashboard with widgets (traffic chart, top shares, trending, scheduled posts)
@@ -279,7 +280,7 @@ The codebase implements robust security controls:
 - CSV formula injection prevention
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
 - **Webhook secrets encrypted at rest** using AES-256-GCM (`app/webhook_encryption.py`)
-- **FTS query injection prevented** via bindparam with tuple for IN clauses
+- **FTS query injection prevented** via individual bindparams for IN clauses (not tuple)
 - **Specific exception handling** (no broad `except Exception`) in critical paths
 
 ## Dependencies (Python 3.14 compatible)
@@ -345,7 +346,7 @@ export S3_PUBLIC_URL=https://cdn.example.com   # optional, for custom CDN URLs
 **Key classes:**
 - `StorageBackend` — Abstract base class defining the interface
 - `LocalStorageBackend` — Local filesystem storage
-- `S3StorageBackend` — S3-compatible storage via boto3
+- `S3StorageBackend` — S3-compatible storage via boto3 (clears access_key/secret_key after client init for security)
 
 **Key functions:**
 - `get_storage()` — Returns the singleton storage instance
