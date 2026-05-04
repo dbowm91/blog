@@ -96,7 +96,7 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         if server is not None:
             try:
                 server.quit()
-            except Exception:
+            except OSError:
                 pass
         return None
 
