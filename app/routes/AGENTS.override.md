@@ -5,7 +5,7 @@ Specialized handling for public routes, API, and RSS.
 ## Key Files
 
 - `public.py` - Public-facing routes (index, post, page, tag, series, archive, search, share, subscribe, confirm, unsubscribe)
-- `api.py` - REST API (Post/Subscriber endpoints) - **Pending Wave 2 modularization into `api/` package**
+- `api.py` - REST API (Post/Subscriber endpoints) - **Modularized into `app/routes/api/` package (Wave 2 complete)**
 - `rss.py` - RSS feed generation
 - `errors.py` - Error handlers
 - `admin/` - Admin routes package (requires login)
