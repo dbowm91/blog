@@ -375,10 +375,9 @@ class TestSanitizeCssProperties:
         assert "expression(" not in result
 
     def test_sanitize_css_removes_content(self):
-        """Sanitize CSS neutralizes content property (sets to none)."""
+        """Sanitize CSS removes content property (not in allowlist)."""
         result = sanitize_css("body { content: 'injected'; }")
-        # The content property is replaced with "content: none;" not removed
-        assert "content: none;" in result
+        assert "content" not in result
         assert "'injected'" not in result
 
     def test_sanitize_css_handles_empty_string(self):

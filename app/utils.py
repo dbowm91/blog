@@ -233,46 +233,82 @@ def xml_escape(s: str) -> str:
     return _html.escape(s, quote=True)
 
 
+ALLOWED_CSS_PROPERTIES = {
+    "color", "background", "background-color", "background-image", "background-repeat",
+    "background-size", "background-position", "background-attachment",
+    "border", "border-color", "border-width", "border-style", "border-radius",
+    "border-top", "border-right", "border-bottom", "border-left",
+    "border-top-width", "border-right-width", "border-bottom-width", "border-left-width",
+    "border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
+    "border-top-style", "border-right-style", "border-bottom-style", "border-left-style",
+    "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+    "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+    "width", "height", "min-width", "max-width", "min-height", "max-height",
+    "font", "font-family", "font-size", "font-style", "font-weight", "font-variant",
+    "line-height", "text-align", "text-decoration", "text-indent", "text-transform",
+    "letter-spacing", "word-spacing", "white-space", "overflow", "overflow-x", "overflow-y",
+    "display", "visibility", "opacity", "position", "top", "right", "bottom", "left",
+    "float", "clear", "z-index", "box-sizing", "transform", "transform-origin",
+    "cursor", "outline", "list-style", "vertical-align",
+}
+
+DANGEROUS_CSS_TOKENS = {"url", "expression", "-moz-element"}
+
+
+def _contains_dangerous_token(tokens: list) -> bool:
+    """Check if token list contains dangerous CSS tokens/functions."""
+    from tinycss2.ast import FunctionBlock, URLToken
+
+    for token in tokens:
+        if isinstance(token, FunctionBlock):
+            func_name = token.name.lower()
+            if func_name in DANGEROUS_CSS_TOKENS:
+                return True
+        elif isinstance(token, URLToken):
+            return True
+    return False
+
+
 def sanitize_css(css_text: str) -> str:
-    """Sanitize custom CSS by removing potentially dangerous properties.
+    """Sanitize custom CSS using tinycss2 with an allowlist of safe properties.
 
-    Strips url() references (data exfiltration vector), expression() (IE only),
-    and content property (can inject invisible text). Also removes IE-specific
-    behaviors like behavior:, and mso- prefixes. Uses improved regex patterns
-    that handle edge cases and are harder to bypass.
+    This approach is more robust than regex-based sanitization because tinycss2
+    properly parses CSS according to the specification, making bypass via CSS
+    obfuscation essentially impossible.
 
-    Note: For better security, consider using a proper CSS parser library like
-    tinycss2 with an allowlist of safe properties. This regex approach is a
-    compromise between security and simplicity for admin-provided CSS.
+    Only explicitly allowlisted properties are permitted. All other CSS is stripped.
+    Additionally, property values containing dangerous tokens (url, expression,
+    -moz-element) are rejected as they can be used for CSS injection.
     """
     if not css_text:
         return ""
 
-    css_text = re.sub(r"url\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
-    css_text = re.sub(r"url\s*\(\s*\)", "", css_text, flags=re.IGNORECASE)
+    try:
+        from tinycss2 import parse_stylesheet, parse_declaration_list, serialize
+        from tinycss2.ast import QualifiedRule, Declaration
 
-    css_text = re.sub(r"expression\s*\([^)]*\)", "", css_text, flags=re.IGNORECASE)
+        rules = parse_stylesheet(css_text)
+        safe_css_parts = []
 
-    css_text = re.sub(
-        r"content\s*:\s*[^;]*;",
-        "content: none;",
-        css_text,
-        flags=re.IGNORECASE,
-    )
+        for rule in rules:
+            if isinstance(rule, QualifiedRule):
+                declarations = parse_declaration_list(rule.content)
+                safe_declarations = []
 
-    css_text = re.sub(r"behavior\s*:\s*[^;]*;", "", css_text, flags=re.IGNORECASE)
+                for decl in declarations:
+                    if isinstance(decl, Declaration) and decl.name.lower() in ALLOWED_CSS_PROPERTIES:
+                        if not _contains_dangerous_token(decl.value):
+                            safe_declarations.append(decl)
 
-    css_text = re.sub(r"mso-[^\s:;]*\s*:\s*[^\s;]*;", "", css_text, flags=re.IGNORECASE)
+                if safe_declarations:
+                    prelude = serialize(rule.prelude)
+                    serialized_decls = serialize(safe_declarations)
+                    safe_css_parts.append(f"{prelude}{{{serialized_decls}}}")
 
-    css_text = re.sub(r"@import\s+", "", css_text, flags=re.IGNORECASE)
+        return "\n".join(safe_css_parts)
 
-    css_text = re.sub(r"-webkit-text-security\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
-
-    css_text = re.sub(r"unicode-bidi\s*:\s*(?:isolate|embed|bidi-override)", "", css_text, flags=re.IGNORECASE)
-
-    css_text = re.sub(r"direction\s*:\s*[^\s;]+", "", css_text, flags=re.IGNORECASE)
-
-    return css_text.strip()
+    except Exception:
+        return ""
 
 def is_safe_webhook_url(url: str) -> tuple[bool, str]:
     """Check if a URL is safe for webhook delivery (SSRF protection).

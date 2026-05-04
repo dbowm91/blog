@@ -83,10 +83,10 @@ def test_sanitize_css_removes_expression():
 
 
 def test_sanitize_css_removes_content():
-    """Test CSS sanitization removes content property."""
+    """Test CSS sanitization removes content property (not in allowlist)."""
     css = "div { content: 'hidden text'; }"
     sanitized = sanitize_css(css)
-    assert "content:" in sanitized.lower()
+    assert "content" not in sanitized.lower()
     assert "hidden text" not in sanitized
 
 
