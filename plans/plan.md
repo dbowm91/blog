@@ -46,18 +46,32 @@ This plan outlines the roadmap for security, performance, and architectural impr
 *Target: Optimize database access and modularize the codebase.*
 
 ### 2.1 Database & Query Optimization
-- **[ ] Eliminate N+1 Queries:** Refactor Series Admin route (`app/routes/admin/series.py`) and public browse/series routes to use `joinedload` for related counts/relationships.
-- **[ ] Add Missing Indexes:** Create explicit indexes for `webhook_events.webhook_id` and `comments.parent_id`.
-- **[ ] FTS5 Performance:** Implement `fts5vocab` virtual table for efficient search term indexing.
+- **[x] Eliminate N+1 Queries:** COMPLETED
+    - Refactored Series Admin route (`app/routes/admin/series.py`) to use single query with OUTER JOIN for counts
+    - Refactored `series_posts()` to use `joinedload(PostSeries.post)`
+    - Refactored public `series_view()` to use `joinedload(PostSeries.post)`
+- **[x] Add Missing Indexes:** COMPLETED
+    - Created migration `add_missing_indexes.py` for `webhook_events.webhook_id` and `comments.parent_id`
+    - Added index definitions to respective models in `app/models.py`
+- **[x] FTS5 Performance:** COMPLETED
+    - Created `fts5vocab` virtual table (`posts_fts_vocab`) in `app/search.py:init_fts()`
 
 ### 2.2 Codebase Architecture & Maintenance
-- **[ ] Modularize API (Task 2.1):** 
-    - Split `app/routes/api.py` (546 lines) into `app/routes/api/` package with `posts.py`, `subscribers.py`, and `stats.py`.
-- **[ ] Consolidate Utility Logic:**
-    - Centralize `generate_slug` in `app/utils.py` and remove duplicates from models.
-    - Move webhook signing logic to `app/utils.py`.
-    - Consolidate image variant generation in `app/routes/admin/media.py`.
-- **[ ] Improve Logging:** Replace `print()` in `app/services/backup.py` with standard `logging`.
+- **[x] Modularize API:** COMPLETED
+    - Split `app/routes/api.py` (546 lines) into `app/routes/api/` package with:
+      - `__init__.py` - Blueprint definition and imports
+      - `auth.py` - API key authentication
+      - `posts.py` - Post CRUD endpoints
+      - `subscribers.py` - Subscriber management endpoints
+      - `stats.py` - Dashboard statistics endpoint
+- **[x] Consolidate Utility Logic:** COMPLETED
+    - Centralized `generate_slug` in `app/utils.py` - updated models (Tag, Page, Post, Series) to use local import
+    - Updated `app/services/slug.py` to use `app.utils.generate_slug` directly
+    - Updated `app/services/tag.py` to use `app.utils.generate_slug`
+    - NOTE: `webhook signing` already consolidated in `app/webhooks.py:sign_webhook_payload()` - no changes needed
+    - NOTE: `image variants` already consolidated via `app/tasks.py:generate_image_variants` - no changes needed
+- **[x] Improve Logging:** COMPLETED
+    - Replaced `print()` statements with `logging` module in `app/services/backup.py`
 
 ---
 
@@ -65,13 +79,30 @@ This plan outlines the roadmap for security, performance, and architectural impr
 *Target: Infrastructure enhancements and advanced security.*
 
 ### 3.1 Infrastructure & Security Hardening
-- **[ ] Static Asset CDN Support:** Update `vite_asset()` and `post_image_srcset` to support a configurable `CDN_URL`.
-- **[ ] S3 Security Hardening:** Improve memory handling for S3 credentials to minimize the lifetime of sensitive data.
-- **[ ] Performance Benchmarking:** Establish automated performance regression tests.
+- **[x] Static Asset CDN Support:** COMPLETED
+    - Added `CDN_URL` config option (env var `CDN_URL`)
+    - Updated `app/vite.py:vite_asset()` to prepend CDN_URL when configured
+    - Updated `app/filters.py:post_image_srcset_filter()` to use CDN_URL when configured
+- **[x] S3 Security Hardening:** COMPLETED
+    - Added `_clear_credentials()` method to `S3StorageBackend` that clears access_key and secret_key after client initialization
+    - Minimizes lifetime of sensitive credentials in memory
+- **[x] Performance Benchmarking:** COMPLETED
+    - Benchmark tests already exist in `tests/benchmarks/test_benchmarks.py`:
+      - `TestSearchPerformance` - FTS5 search timing
+      - `TestLIKEFallbackPerformance` - LIKE fallback timing
+      - `TestDashboardPerformance` - Dashboard load timing
+      - `TestDatabaseQueryCounts` - Query count verification
+      - `TestNewsletterPerformance` - Newsletter send timing
+      - `TestFTSIndexingPerformance` - FTS indexing timing
+      - `TestTagCachingPerformance` - Tag cache timing
 
 ### 3.2 Cleanup & Documentation
-- **[ ] Audit Unused Modules:** Review `backup_encryption`, `backup_integrity`, `webhooks`, and `celery_app` for potential removal or refactoring.
-- **[ ] Documentation Overhaul:** Update API docs and developer guides for the new modular structure.
+- **[x] Audit Unused Modules:** COMPLETED
+    - Reviewed modules: `backup_encryption` (USED - imported in backup.py, admin/backup.py),
+      `backup_integrity` (USED - imported in admin/backup.py), `webhooks` (USED - via tasks.py),
+      `celery_app` (USED - imported in tasks.py, conftest.py)
+    - All modules are in active use - no removal needed
+- **[ ] Documentation Overhaul:** PENDING (low priority)
 
 ---
 
@@ -84,6 +115,9 @@ This plan outlines the roadmap for security, performance, and architectural impr
 - **1.2 Test Isolation (Page View Buffer):** The plan mentioned updating `test_search.py` and `test_api.py` to explicitly shutdown the buffer. However, the buffer is now disabled by default via `PAGE_VIEW_BUFFER_SIZE=0` environment variable in conftest.py, which is a cleaner solution.
 - **1.2 Restore Missing Tests:** `test_page_view_buffer.py` file did not exist, so this item was cancelled rather than created.
 - **1.3 Module Coverage:** Not started - would require significant test writing effort to reach 80%+ goal.
+- **2.2 Consolidate Utility Logic - Webhook Signing:** Already consolidated in `app/webhooks.py:sign_webhook_payload()` - no duplication found.
+- **2.2 Consolidate Utility Logic - Image Variants:** Already consolidated via `app/tasks.py:generate_image_variants` Celery task - no changes needed.
+- **3.2 Audit Unused Modules:** All reviewed modules are in active use - no removal needed.
 
 ## Commits Summary
 - `61c3b91` wave1-s1-fts-fix: Fix SQL injection risk in FTS search
@@ -91,3 +125,16 @@ This plan outlines the roadmap for security, performance, and architectural impr
 - `a8e3614` wave1-s3-webhook-encryption: Add AES-256-GCM encryption for webhook secrets
 - `ea8a46d` wave1-cq3-exceptions: Fix broad exception handling in meta.py and email.py
 - `8941c4f` wave1-test-stability: Complete Wave 1.2 fixes (db.session.refresh, duplicate fixtures)
+- `cbb8d1f` wave2-n1-queries: Fix N+1 in series_list and series_posts admin routes
+- `2a61915` wave2-add-indexes: Add missing indexes for webhook_events.webhook_id and comments.parent_id
+- `15cb1cb` wave2-fts5-vocab: Create fts5vocab virtual table for efficient term indexing
+- `9a1d508` wave2-modularize-api: Split api.py into app/routes/api/ package
+- `0aac384` wave2-utility-consolidation: Centralize generate_slug in app/utils.py
+- `9fb862e` wave2-backup-logging: Replace print() with proper logging in backup.py
+- `9872e6e` wave3-cdn-support: Add CDN_URL config and update vite_asset() and post_image_srcset
+- `e0e33a5` wave3-s3-security: Clear S3 credentials from memory after client initialization
+
+---
+
+## Final Updates
+- **AGENTS.md and skills updates:** PENDING
