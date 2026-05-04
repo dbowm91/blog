@@ -59,6 +59,7 @@ def _check_fts_enabled() -> bool:
 def init_fts() -> None:
     """Create FTS5 virtual table and populate with existing posts. Idempotent."""
     try:
+        db.session.execute(text("DROP TABLE IF EXISTS posts_fts_vocab"))
         db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
         db.session.commit()
         db.session.execute(
@@ -66,6 +67,11 @@ def init_fts() -> None:
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5("
                 "title, body, summary, prefix='2 3 4'"
                 ")"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts_vocab USING fts5vocab(posts_fts, 'row')"
             )
         )
         db.session.commit()
