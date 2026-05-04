@@ -150,7 +150,8 @@ class TestPostScheduling:
 
         response = authenticated_client.get('/admin/')
         assert response.status_code == 200
-        db.session.refresh(post)
+        db.session.expire(post)
+        post = db.session.get(Post, post.id)
         assert post.published is False
         assert post.scheduled_publish_at is not None
 
@@ -193,7 +194,8 @@ class TestPostScheduling:
 
         publish_scheduled_posts(app)
 
-        db.session.refresh(post)
+        db.session.expire(post)
+        post = db.session.get(Post, post.id)
         assert post.scheduled_publish_at is None
 
 

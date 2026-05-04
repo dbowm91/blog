@@ -88,7 +88,8 @@ def test_approve_comment(authenticated_client, db, sample_post):
     )
     assert response.status_code == 200
     assert b"Comment approved" in response.data
-    db.session.refresh(comment)
+    db.session.expire(comment)
+    comment = db.session.get(Comment, comment.id)
     assert comment.approved is True
 
 
