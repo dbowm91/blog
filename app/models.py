@@ -455,6 +455,7 @@ class WebhookEvent(db.Model):  # type: ignore[name-defined]
 
     __table_args__ = (
         db.Index("ix_webhook_events_event_type_delivered", "event_type", "delivered"),
+        db.Index("ix_webhook_events_webhook_id", "webhook_id"),
     )
 
     def __repr__(self) -> str:
@@ -524,6 +525,7 @@ class Comment(db.Model):  # type: ignore[name-defined]
     __table_args__ = (
         db.Index("ix_comments_post_approved", "post_id", "approved"),
         db.Index("ix_comments_created_at", "created_at"),
+        db.Index("ix_comments_parent_id", "parent_id"),
     )
 
     def __repr__(self) -> str:
