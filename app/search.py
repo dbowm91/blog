@@ -300,14 +300,12 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
             )
             params = {"id": post_ids[0], "q": fts_query}
         else:
-            # For multiple IDs, use IN clause with individual parameters
-            id_list = ",".join([str(pid) for pid in post_ids])
             query_str = (
-                f"SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
-                f"FROM posts_fts WHERE rowid IN ({id_list}) AND posts_fts MATCH :q"
+                "SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
+                "FROM posts_fts WHERE rowid IN :id_list AND posts_fts MATCH :q"
             )
-            params = {"q": fts_query}
-        
+            params = {"id_list": tuple(post_ids), "q": fts_query}
+
         logger.info("FTS snippet query: %s", query_str)
         logger.info("FTS snippet params: %s", params)
         result = db.session.execute(text(query_str), params).fetchall()
@@ -316,7 +314,6 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
             snippets[row[0]] = row[1]
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.error("FTS snippet query failed: %s", e)
-        pass
     return snippets
 
 
