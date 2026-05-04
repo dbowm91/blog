@@ -265,7 +265,7 @@ db.session.get(Model, id)
 
 ## Key Operational Lessons
 
-## Security Posture
+## Security Posture (Updated May 2026)
 
 The codebase implements robust security controls:
 - Session fixation prevention (`session.clear()` before `login_user()`)
@@ -275,9 +275,12 @@ The codebase implements robust security controls:
 - Token enumeration prevention with constant-time delay
 - SQLAlchemy 2.0 parameterized queries throughout
 - Magic byte detection for file uploads
-- CSS sanitization blocking `url()`, `expression()`, `content`, etc.
+- CSS sanitization using tinycss2 parser with allowlist (not regex)
 - CSV formula injection prevention
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
+- **Webhook secrets encrypted at rest** using AES-256-GCM (`app/webhook_encryption.py`)
+- **FTS query injection prevented** via bindparam with tuple for IN clauses
+- **Specific exception handling** (no broad `except Exception`) in critical paths
 
 ## Dependencies (Python 3.14 compatible)
 
