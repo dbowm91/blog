@@ -197,6 +197,7 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
     from app.models import Webhook, WebhookEvent
     from app.config import WEBHOOK_TIMEOUT
     from app.utils import is_safe_webhook_url
+    from app.webhook_encryption import decrypt_webhook_secret
 
     try:
         event = db.session.get(WebhookEvent, webhook_event_id)
@@ -223,11 +224,19 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
                 event.delivery_attempts += 1
                 continue
 
+            # Decrypt secret if encrypted (backward compatible with plaintext)
+            secret = webhook.secret
+            if secret and not secret.startswith("sha256="):
+                try:
+                    secret = decrypt_webhook_secret(secret)
+                except Exception:
+                    logger.warning("Failed to decrypt webhook secret for %s, using as-is", webhook.name)
+
             # Prepare headers with HMAC signature
             headers = {
                 "Content-Type": "application/json",
                 "User-Agent": "Blog-CMS-Webhook/1.0",
-                "X-Webhook-Signature": _sign_webhook_payload(payload, webhook.secret),
+                "X-Webhook-Signature": _sign_webhook_payload(payload, secret),
             }
 
             try:
