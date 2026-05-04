@@ -232,14 +232,14 @@ Sitemap: {BASE_URL}/sitemap.xml
             disk_usage = shutil.disk_usage(disk_path)
             free_percent = (disk_usage.free / disk_usage.total) * 100
             checks["disk_space"] = "ok" if free_percent >= 10 else "low"
-        except Exception:
+        except OSError:
             checks["disk_space"] = "error"
 
         # Database integrity check
         try:
             integrity_result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
             checks["db_integrity"] = "ok" if integrity_result and integrity_result[0] == "ok" else "error"
-        except Exception:
+        except (OperationalError, ProgrammingError):
             checks["db_integrity"] = "error"
 
         overall = (
@@ -278,7 +278,7 @@ Sitemap: {BASE_URL}/sitemap.xml
         try:
             db.session.execute(text("SELECT 1"))
             metrics_lines.append("blog_health_status 1")
-        except Exception:
+        except (OperationalError, ProgrammingError):
             metrics_lines.append("blog_health_status 0")
 
         # Disk free
@@ -288,7 +288,7 @@ Sitemap: {BASE_URL}/sitemap.xml
             disk_path = Path(current_app.instance_path)
             disk_usage = shutil.disk_usage(disk_path)
             metrics_lines.append(f"blog_disk_free_bytes {disk_usage.free}")
-        except Exception:
+        except OSError:
             metrics_lines.append("blog_disk_free_bytes 0")
 
         # DB integrity
@@ -298,7 +298,7 @@ Sitemap: {BASE_URL}/sitemap.xml
             result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
             integrity_ok = result and result[0] == "ok"
             metrics_lines.append(f"blog_db_integrity {1 if integrity_ok else 0}")
-        except Exception:
+        except (OperationalError, ProgrammingError):
             metrics_lines.append("blog_db_integrity 0")
 
         # Scheduler status
@@ -309,7 +309,7 @@ Sitemap: {BASE_URL}/sitemap.xml
             try:
                 health = get_scheduler_health()
                 scheduler_status = 1 if health["status"] == "running" else 0
-            except Exception:
+            except OSError:
                 scheduler_status = 0
         metrics_lines.append(f"blog_scheduler_status {scheduler_status}")
 
