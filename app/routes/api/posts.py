@@ -1,48 +1,22 @@
-"""REST API for Post/Subscriber Management.
+"""Posts API endpoints."""
 
-Requires API key authentication via X-API-Key header.
-Rate limiting should be handled by the reverse proxy (same as admin routes).
-"""
+from typing import Any, cast
 
-import os
-import hmac
-from functools import wraps
-from typing import Union, Any, cast
-
-from flask import Blueprint, jsonify, request, Response
+from flask import jsonify, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload, QueryableAttribute
 
 from app.extensions import db
-from app.models import Post, Subscriber, Tag
-from app.utils import utc_now
-from app.validators import validate_string, validate_email, validate_boolean
+from app.models import Post, Tag
+from app.utils import utc_now, safe_delete_file
+from app.validators import validate_string, validate_boolean
 from app import limiter
-
-api = Blueprint("api", __name__, url_prefix="/api")
-
-API_KEY = os.environ.get("API_KEY", "")
+from app.routes.api import api
+from app.routes.api.auth import require_api_key
 
 DEFAULT_LIMIT = "20 per minute"
 WRITE_LIMIT = "10 per minute"
-
-
-def require_api_key(f: Any) -> Any:
-    """Decorator to require API key authentication."""
-
-    @wraps(f)
-    def decorated(*args: Any, **kwargs: Any) -> Any:
-        if not API_KEY:
-            return jsonify({"error": "API not configured"}), 503
-
-        provided = request.headers.get("X-API-Key", "")
-        if not provided or not hmac.compare_digest(provided, API_KEY):
-            return jsonify({"error": "Invalid or missing API key"}), 401
-
-        return f(*args, **kwargs)
-
-    return decorated
 
 
 def _post_to_dict(post: Post) -> dict:
@@ -70,26 +44,6 @@ def _post_to_dict(post: Post) -> dict:
         ),
         "newsletter_attempts": post.newsletter_attempts,
         "tags": [tag.name for tag in cast(list[Tag], post.tags)],
-    }
-
-
-def _subscriber_to_dict(subscriber: Subscriber) -> dict:
-    """Serialize a Subscriber model to a dictionary."""
-    return {
-        "id": subscriber.id,
-        "email": subscriber.email,
-        "confirmed": subscriber.confirmed,
-        "created_at": (
-            subscriber.created_at.isoformat() if subscriber.created_at else None
-        ),
-        "expires_at": (
-            subscriber.expires_at.isoformat() if subscriber.expires_at else None
-        ),
-        "unsubscribed_at": (
-            subscriber.unsubscribed_at.isoformat()
-            if subscriber.unsubscribed_at
-            else None
-        ),
     }
 
 
@@ -352,8 +306,6 @@ def delete_post(post_id: int) -> Any:
     if not post:
         return jsonify({"error": "Post not found"}), 404
 
-    from app.utils import safe_delete_file
-
     old_image = post.image
     list(post.tags)
 
@@ -375,172 +327,3 @@ def delete_post(post_id: int) -> Any:
     remove_fts(post_id)
 
     return jsonify({"message": "Post deleted successfully"})
-
-
-@api.route("/subscribers", methods=["GET"])
-@require_api_key
-@limiter.limit(DEFAULT_LIMIT)
-def list_subscribers() -> Any:
-    """List subscribers with pagination.
-
-    Query params:
-        page: Page number (default 1)
-        per_page: Items per page (default 50, max 100)
-        confirmed: Filter by confirmed status (true/false)
-
-    Returns:
-        JSON with subscribers array and pagination info
-    """
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 100)
-    confirmed_filter = request.args.get("confirmed")
-
-    query = select(Subscriber).order_by(Subscriber.created_at.desc())
-
-    if confirmed_filter is not None:
-        confirmed_val = confirmed_filter.lower() in ("true", "1", "yes")
-        query = query.filter(Subscriber.confirmed == confirmed_val)
-
-    pagination = db.paginate(query, page=page, per_page=per_page, error_out=False)
-
-    return jsonify(
-        {
-            "subscribers": [_subscriber_to_dict(s) for s in pagination.items],
-            "total": pagination.total,
-            "pages": pagination.pages,
-            "page": page,
-            "per_page": per_page,
-        }
-    )
-
-
-@api.route("/subscribers", methods=["POST"])
-@require_api_key
-@limiter.limit(WRITE_LIMIT)
-def create_subscriber() -> Any:
-    """Create a new subscriber.
-
-    JSON body:
-        email: Subscriber email (required)
-
-    Returns:
-        JSON with created subscriber data
-    """
-    data = request.get_json()
-    if data is None:
-        return jsonify({"error": "Invalid JSON body"}), 400
-
-    email = data.get("email")
-    if not email:
-        return jsonify({"error": "email is required"}), 400
-
-    email, err = validate_email(email)
-    if err:
-        return jsonify({"error": err}), 400
-
-    existing = db.session.execute(
-        select(Subscriber).filter_by(email=email)
-    ).scalar_one_or_none()
-
-    if existing:
-        return jsonify(_subscriber_to_dict(existing))
-
-    from app.config import CONFIRMATION_EXPIRY_HOURS
-
-    subscriber = Subscriber(
-        email=email,
-        expires_at=utc_now()
-        + __import__("datetime").timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
-    )
-    db.session.add(subscriber)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        existing = db.session.execute(
-            select(Subscriber).filter_by(email=email)
-        ).scalar_one_or_none()
-        if existing:
-            return jsonify(_subscriber_to_dict(existing))
-        return jsonify({"error": "Failed to create subscriber"}), 500
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({"error": "Database error"}), 500
-
-    return jsonify(_subscriber_to_dict(subscriber)), 201
-
-
-@api.route("/subscribers/<int:subscriber_id>", methods=["DELETE"])
-@require_api_key
-@limiter.limit(WRITE_LIMIT)
-def delete_subscriber(subscriber_id: int) -> Any:
-    """Delete a subscriber.
-
-    Returns:
-        JSON with success message or 404 error
-    """
-    subscriber = db.session.get(Subscriber, subscriber_id)
-    if not subscriber:
-        return jsonify({"error": "Subscriber not found"}), 404
-
-    db.session.delete(subscriber)
-    try:
-        db.session.commit()
-    except (IntegrityError, OperationalError):
-        db.session.rollback()
-        return jsonify({"error": "Database error occurred"}), 500
-
-    return jsonify({"message": "Subscriber deleted successfully"})
-
-
-@api.route("/stats", methods=["GET"])
-@require_api_key
-@limiter.limit(DEFAULT_LIMIT)
-def get_stats() -> Any:
-    """Get dashboard statistics.
-
-    Returns:
-        JSON with total views, posts, shares, subscribers, and trends
-    """
-    from datetime import timedelta
-    from sqlalchemy import text
-
-    now = utc_now()
-    thirty_days_ago = now - timedelta(days=30)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    # Combine all COUNT queries into a single query using subqueries
-    counts = db.session.execute(
-        text("""
-            SELECT
-                (SELECT COUNT(*) FROM page_views) as total_views,
-                (SELECT COUNT(*) FROM posts WHERE published = 1) as total_posts,
-                (SELECT COUNT(*) FROM share_events) as total_shares,
-                (SELECT COUNT(*) FROM subscribers WHERE confirmed = 1) as total_subscribers,
-                (SELECT COUNT(*) FROM page_views WHERE created_at >= :thirty_days_ago) as views_this_month,
-                (SELECT COUNT(*) FROM subscribers WHERE created_at >= :month_start) as new_subscribers_this_month
-        """),
-        {"thirty_days_ago": thirty_days_ago, "month_start": month_start}
-    ).fetchone()
-
-    if counts is None:
-        return jsonify(
-            {
-                "total_views": 0,
-                "total_posts": 0,
-                "total_shares": 0,
-                "total_subscribers": 0,
-                "views_this_month": 0,
-                "new_subscribers_this_month": 0,
-            }
-        )
-    return jsonify(
-        {
-            "total_views": counts[0] or 0,
-            "total_posts": counts[1] or 0,
-            "total_shares": counts[2] or 0,
-            "total_subscribers": counts[3] or 0,
-            "views_this_month": counts[4] or 0,
-            "new_subscribers_this_month": counts[5] or 0,
-        }
-    )
