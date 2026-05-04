@@ -97,8 +97,8 @@ def test_publish_scheduled_posts(db, sample_post):
     with patch("app.scheduler.FileLock") as mock_lock:
         mock_lock.return_value.acquire.return_value = True
         publish_scheduled_posts(app)
-        # Post should be published
-        db.session.refresh(sample_post)
+        db.session.expire(sample_post)
+        sample_post = db.session.get(Post, sample_post.id)
         assert sample_post.published is True
         assert sample_post.scheduled_publish_at is None
 

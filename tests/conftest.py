@@ -52,35 +52,15 @@ def app(tmp_path_factory):
     yield app
 
 
-@pytest.fixture(autouse=True)
-def mock_image_processing():
-    """Mock image processing to avoid Celery calls during tests.
-    
-    Saves the file but doesn't call Celery for variant generation.
-    """
-    import app.storage
-    from unittest.mock import patch, MagicMock
-    import os
-    
-    original = app.storage.upload_with_processing
-    
-    def mock_upload(filename, file_content, generate_variants=True):
-        # Save the file to the upload folder
-        upload_folder = os.environ.get(
-            "UPLOAD_FOLDER",
-            os.path.join(os.path.dirname(app.storage.__file__), "static", "uploads"),
-        )
-        os.makedirs(upload_folder, exist_ok=True)
-        filepath = os.path.join(upload_folder, filename)
-        with open(filepath, "wb") as f:
-            f.write(file_content)
-        return filename, None
-    
-    app.storage.upload_with_processing = mock_upload
-    
-    yield
-    
-    app.storage.upload_with_processing = original
+@dataclass
+class FakeSubscriber:
+    """Test fixture for newsletter testing without real subscribers."""
+    email: str
+    token: str = "test"
+    confirmed: bool = True
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
 
 
 @pytest.fixture(scope="function")
@@ -177,11 +157,7 @@ def mock_render():
 
 @pytest.fixture(scope="function")
 def mock_smtp():
-    """Mock SMTP connection and sendmail for email tests.
-
-    Provides a mock SMTP server that tracks sent emails without actually
-    connecting to an SMTP server. Use this for tests that involve email sending.
-    """
+    """Mock SMTP connection and sendmail for email tests."""
     import smtplib
     mock_server = MagicMock()
     mock_server.sendmail = MagicMock()
@@ -206,31 +182,16 @@ def clean_analytics_cache():
     _analytics_cache.clear()
 
 
-@dataclass
-class FakeSubscriber:
-    """Test fixture for newsletter testing without real subscribers."""
-    email: str
-    token: str = "test"
-    confirmed: bool = True
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    expires_at: datetime | None = None
-    unsubscribed_at: datetime | None = None
-
-
 @pytest.fixture(autouse=True)
 def mock_image_processing():
-    """Mock image processing to avoid Celery calls during tests.
-    
-    Saves the file but doesn't call Celery for variant generation.
-    """
+    """Mock image processing to avoid Celery calls during tests."""
     import app.storage
     from unittest.mock import patch, MagicMock
     import os
-    
+
     original = app.storage.upload_with_processing
-    
+
     def mock_upload(filename, file_content, generate_variants=True):
-        # Save the file to the upload folder
         upload_folder = os.environ.get(
             "UPLOAD_FOLDER",
             os.path.join(os.path.dirname(app.storage.__file__), "static", "uploads"),
@@ -240,11 +201,11 @@ def mock_image_processing():
         with open(filepath, "wb") as f:
             f.write(file_content)
         return filename, None
-    
+
     app.storage.upload_with_processing = mock_upload
-    
+
     yield
-    
+
     app.storage.upload_with_processing = original
 
 

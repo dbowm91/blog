@@ -75,7 +75,8 @@ def test_series_edit_post_valid(authenticated_client, db):
     )
     assert response.status_code == 200
     assert b"New Name" in response.data
-    db.session.refresh(series)
+    db.session.expire(series)
+    series = db.session.get(Series, series.id)
     assert series.name == "New Name"
     assert series.slug == "new-slug"
 
@@ -161,5 +162,6 @@ def test_series_reorder(authenticated_client, db, sample_post):
     )
     assert response.status_code == 200
     assert response.json["success"] is True
-    db.session.refresh(ps)
+    db.session.expire(ps)
+    ps = db.session.get(PostSeries, ps.id)
     assert ps.order_index == 2

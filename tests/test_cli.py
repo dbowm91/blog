@@ -69,7 +69,8 @@ def test_promote_admin_command_success(runner, cli_app, db, admin_user):
     result = runner.invoke(cli_app.cli, ["promote-admin", "regular"])
     assert result.exit_code == 0
     assert "User 'regular' promoted to admin" in result.output
-    db.session.refresh(user)
+    db.session.expire(user)
+    user = db.session.get(User, user.id)
     assert user.is_admin is True
 
 

@@ -44,7 +44,8 @@ class TestPostLifecycle:
         assert resp.status_code == 200
         assert b'Post updated' in resp.data
 
-        db.session.refresh(post)
+        db.session.expire(post)
+        post = db.session.get(Post, post.id)
         assert post.title == 'Lifecycle Post Updated'
         assert post.slug == 'lifecycle-post-updated'
         tag_names = {t.name for t in post.tags}
@@ -59,7 +60,8 @@ class TestPostLifecycle:
             'published': 'on',
         }, follow_redirects=True)
         assert resp.status_code == 200
-        db.session.refresh(post)
+        db.session.expire(post)
+        post = db.session.get(Post, post.id)
         assert post.published is True
         assert post.published_at is not None
 
@@ -97,13 +99,15 @@ class TestSubscriptionFlow:
         # -- Confirm --
         resp = client.get(f'/confirm/{token}', follow_redirects=True)
         assert resp.status_code == 200
-        db.session.refresh(sub)
+        db.session.expire(sub)
+        sub = db.session.get(Subscriber, sub.id)
         assert sub.confirmed is True
 
         # -- Unsubscribe --
         resp = client.get(f'/unsubscribe/{token}', follow_redirects=True)
         assert resp.status_code == 200
-        db.session.refresh(sub)
+        db.session.expire(sub)
+        sub = db.session.get(Subscriber, sub.id)
         assert sub.unsubscribed_at is not None
 
 
@@ -214,7 +218,8 @@ class TestNewsletterResetFlow:
             f'/admin/newsletter-reset/{post.id}', follow_redirects=True)
         assert resp.status_code == 200
 
-        db.session.refresh(post)
+        db.session.expire(post)
+        post = db.session.get(Post, post.id)
         assert post.newsletter_sent_at is None
         assert post.newsletter_attempts == 0
 
@@ -331,7 +336,8 @@ class TestUserManagement:
         assert resp.status_code == 200
         assert b'Password changed' in resp.data
 
-        db.session.refresh(new_user)
+        db.session.expire(new_user)
+        new_user = db.session.get(User, new_user.id)
         assert new_user.check_password('Newpassword456!')
         assert not new_user.check_password('Editorpass123!')
 
