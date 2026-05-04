@@ -18,28 +18,20 @@ from app.routes.admin import admin, admin_required
 from app.utils import generate_slug
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import joinedload
 
 
 @admin.route("/series")
 @admin_required
 def series_list() -> ResponseReturnValue:
     """List all series with post counts."""
-    series = (
-        db.session.execute(
-            select(Series).order_by(Series.created_at.desc())
-        )
-        .scalars()
-        .all()
-    )
-    
-    # Get post counts for each series
-    series_with_counts = []
-    for s in series:
-        post_count = db.session.execute(
-            select(func.count(PostSeries.id)).filter_by(series_id=s.id)
-        ).scalar() or 0
-        series_with_counts.append((s, post_count))
-    
+    series_with_counts = db.session.execute(
+        select(Series, func.count(PostSeries.id).label("post_count"))
+        .outerjoin(PostSeries)
+        .group_by(Series.id)
+        .order_by(Series.created_at.desc())
+    ).all()
+
     return render_template(
         "admin/series.html",
         series_with_counts=series_with_counts,
@@ -231,10 +223,12 @@ def series_posts(series_id: int) -> ResponseReturnValue:
     series_posts = (
         db.session.execute(
             select(PostSeries)
+            .options(joinedload(PostSeries.post))
             .filter_by(series_id=series_id)
             .order_by(PostSeries.order_index)
         )
         .scalars()
+        .unique()
         .all()
     )
     
