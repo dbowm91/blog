@@ -61,6 +61,7 @@ The `make_owner()` function demotes ALL admins first, then promotes the target. 
 - `Post.slug` must be unique—use `_generate_unique_slug()` in `helpers/slug.py`
 - `Page.slug` must be unique—use `_generate_unique_slug()` in `helpers/slug.py` (same function)
 - Empty string and whitespace-only input both fall back to `"untitled"`
+- **Note**: Wave 2 will centralize this in `app/utils.py`.
 
 ## IntegrityError Rollback Gotcha
 

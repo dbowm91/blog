@@ -56,12 +56,13 @@ Important actual file locations (verify before assuming):
 
 ## High-Risk Files (Error Handling)
 
-These files previously used broad `except Exception` clauses, now replaced with specific exceptions (SQLAlchemyError, OSError, ValueError) per CQ-3 completion. Review carefully when modifying error handling:
-- `app/backup_encryption.py`
-- `app/webhooks.py`
-- `app/tasks.py`
-- `app/page_view_buffer.py`
-- `app/routes/admin/series.py`
+These files previously used broad `except Exception` clauses. Most have been replaced with specific exceptions (SQLAlchemyError, OSError, ValueError) per CQ-3, but some remain pending (see Wave 1 in `plans/plan.md`):
+- `app/routes/public/meta.py` (Pending)
+- `app/email.py` (Pending)
+- `app/backup_integrity.py` (Verified fixed)
+- `app/webhooks.py` (Verified fixed)
+- `app/tasks.py` (Verified fixed)
+- `app/page_view_buffer.py` (Verified fixed)
 
 ## Test Interference Notes
 
@@ -69,23 +70,18 @@ These files previously used broad `except Exception` clauses, now replaced with 
 - The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
 - In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
-- The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture to ensure disabled
+- The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture in `tests/conftest.py` to ensure disabled (Wave 1 task)
 
 ### Test Database Session Issues
 - `db.session.refresh()` fails if object isn't in current session
-- Fix: Re-query object from database instead of using `refresh()`
-- Example: `sub = db.session.execute(select(Subscriber).filter_by(email=...)).scalar_one_or_none()`
+- Fix: Re-query object from database instead of using `refresh()` (Wave 1 task)
 
-### E2E Test Requirements
-- Requires `playwright install chromium` for browser tests
-- E2E tests may timeout if application not properly started
+## Current Focus (May 2026)
 
-## Test Patterns We Used
-- Added tests for many low-coverage modules: series, tasks, cli, comments, scheduler, validators, backup, storage, filters
-- Increased total coverage from 53% to ~75%
-- Fixed RSS endpoint references in templates (rss.feed → rss.atom_feed)
-- Added email field to User model to support password reset functionality
-- Fixed test issues with mocks, patches, and route registrations
+We are currently executing the **Consolidated Improvement Plan** in `plans/plan.md`.
+- **Wave 1**: Security & Stability (SQLi, CSSi, Encryption, Exceptions)
+- **Wave 2**: Performance & Architecture (API Modularization, N+1)
+- **Wave 3**: Features & Future (CDN, S3)
 
 ## Skills
  

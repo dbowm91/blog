@@ -90,8 +90,9 @@ Structured error handling utilities in `app/utils.py`:
 - Token enumeration prevention with constant-time delay
 - SQLAlchemy 2.0 parameterized queries throughout
 - Magic byte detection for file uploads
-- CSS sanitization blocking `url()`, `expression()`, `content`, etc.
-- CSV formula injection prevention
+- **Custom CSS sanitization**: `sanitize_css()` currently uses regex (Pending Wave 1 upgrade to `tinycss2`)
+- **Webhook Encryption**: Pending Wave 1 (implement AES-256-GCM in `webhook_encryption.py`)
+- **FTS Security**: `app/search.py` needs refactor to avoid string concatenation (Pending Wave 1)
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
 
 ## Security Headers
