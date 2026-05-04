@@ -40,7 +40,7 @@ Important actual file locations (verify before assuming):
 
 | Item | Actual Location |
 |------|-----------------|
-| API routes | `app/routes/api.py` (SINGLE FILE, not `app/routes/api/` directory) |
+| API routes | `app/routes/api/` (PACKAGE with posts.py, subscribers.py, stats.py, auth.py) |
 | Validators | `app/validators.py` (NOT `app/core/validators.py`) |
 | Backup logic | `app/services/backup.py` (centralized service) |
 | Admin Audit Log model | `app/models.py:397-417` |
@@ -77,6 +77,28 @@ Test stability improvements:
 - Removed duplicate `mock_image_processing` fixture from conftest.py
 - Page view buffer properly disabled in test configuration
 
+## Wave 2 Completed Items (May 2026)
+
+Performance improvements:
+- **N+1 Queries:** Fixed in `app/routes/admin/series.py:series_list()` using OUTER JOIN for counts, and `series_posts()` and public `series_view()` using `joinedload(PostSeries.post)`
+- **Missing Indexes:** Added indexes for `webhook_events.webhook_id` and `comments.parent_id` via migration `add_missing_indexes.py`
+- **FTS5vocab:** Created `posts_fts_vocab` virtual table for efficient term indexing in `app/search.py:init_fts()`
+
+Codebase architecture:
+- **API Modularization:** Split `app/routes/api.py` (546 lines) into `app/routes/api/` package with `__init__.py`, `auth.py`, `posts.py`, `subscribers.py`, `stats.py`
+- **Utility Consolidation:** Centralized `generate_slug()` in `app/utils.py`, updated models (Tag, Page, Post, Series), `app/services/slug.py`, and `app/services/tag.py`
+- **Logging:** Replaced `print()` with proper `logging` in `app/services/backup.py`
+
+## Wave 3 Completed Items (May 2026)
+
+Infrastructure & Security:
+- **CDN Support:** Added `CDN_URL` config (env var) and updated `app/vite.py:vite_asset()` and `app/filters.py:post_image_srcset_filter()` to use CDN when configured
+- **S3 Security:** Added `_clear_credentials()` method to `S3StorageBackend` that clears access_key and secret_key after boto3 client initialization
+- **Benchmarking:** Performance tests exist in `tests/benchmarks/test_benchmarks.py` covering search, dashboard, query counts, newsletter, FTS indexing, and tag caching
+
+Cleanup:
+- **Audit:** All reviewed modules (`backup_encryption`, `backup_integrity`, `webhooks`, `celery_app`) are actively used - no removal needed
+
 ## Test Interference Notes
 
 ### Page View Buffer Test Issues
@@ -92,9 +114,9 @@ Test stability improvements:
 ## Current Focus (May 2026)
 
 We are currently executing the **Consolidated Improvement Plan** in `plans/plan.md`.
-- **Wave 1**: Security & Stability (SQLi, CSSi, Encryption, Exceptions)
-- **Wave 2**: Performance & Architecture (API Modularization, N+1)
-- **Wave 3**: Features & Future (CDN, S3)
+- **Wave 1**: Security & Stability (SQLi, CSSi, Encryption, Exceptions) - COMPLETED
+- **Wave 2**: Performance & Architecture (N+1 Queries, Indexes, FTS5vocab, API Modularization, Utility Consolidation, Logging) - COMPLETED
+- **Wave 3**: Features & Future (CDN, S3 Security, Benchmarking, Audit) - COMPLETED (Documentation Overhaul pending)
 
 ## Skills
  
