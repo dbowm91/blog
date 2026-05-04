@@ -57,12 +57,25 @@ Important actual file locations (verify before assuming):
 ## High-Risk Files (Error Handling)
 
 These files previously used broad `except Exception` clauses. Most have been replaced with specific exceptions (SQLAlchemyError, OSError, ValueError) per CQ-3, but some remain pending (see Wave 1 in `plans/plan.md`):
-- `app/routes/public/meta.py` (Pending)
-- `app/email.py` (Pending)
+- `app/routes/public/meta.py` (Verified fixed - CQ-3)
+- `app/email.py` (Verified fixed - CQ-3)
 - `app/backup_integrity.py` (Verified fixed)
 - `app/webhooks.py` (Verified fixed)
 - `app/tasks.py` (Verified fixed)
 - `app/page_view_buffer.py` (Verified fixed)
+
+## Wave 1 Completed Items (May 2026)
+
+Security remediations completed:
+- **S-1 (FTS SQL Injection):** Fixed `app/search.py:get_search_snippets()` - use bindparam with tuple for IN clause
+- **S-2 (CSS Injection):** Replaced regex with tinycss2 parser + allowlist in `app/utils.py:sanitize_css()`
+- **S-3 (Webhook Encryption):** Created `app/webhook_encryption.py` with AES-256-GCM
+- **CQ-3 (Exception Handling):** Fixed in `meta.py` and `email.py`
+
+Test stability improvements:
+- Replaced `db.session.refresh()` with `db.session.expire() + re-query` in 6 test files
+- Removed duplicate `mock_image_processing` fixture from conftest.py
+- Page view buffer properly disabled in test configuration
 
 ## Test Interference Notes
 
