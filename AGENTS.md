@@ -56,18 +56,18 @@ Important actual file locations (verify before assuming):
 
 ## High-Risk Files (Error Handling)
 
-These files previously used broad `except Exception` clauses. Most have been replaced with specific exceptions (SQLAlchemyError, OSError, ValueError) per CQ-3, but some remain pending (see Wave 1 in `plans/plan.md`):
-- `app/routes/public/meta.py` (Verified fixed - CQ-3)
-- `app/email.py` (Verified fixed - CQ-3)
-- `app/backup_integrity.py` (Verified fixed)
-- `app/webhooks.py` (Verified fixed)
-- `app/tasks.py` (Verified fixed)
-- `app/page_view_buffer.py` (Verified fixed)
+These files previously used broad `except Exception` clauses. All have been replaced with specific exceptions per CQ-3 (Wave 1 completed):
+- `app/routes/public/meta.py` (Fixed - CQ-3)
+- `app/email.py` (Fixed - CQ-3)
+- `app/backup_integrity.py` (Fixed)
+- `app/webhooks.py` (Fixed)
+- `app/tasks.py` (Fixed)
+- `app/page_view_buffer.py` (Fixed)
 
 ## Wave 1 Completed Items (May 2026)
 
 Security remediations completed:
-- **S-1 (FTS SQL Injection):** Fixed `app/search.py:get_search_snippets()` - use bindparam with tuple for IN clause
+- **S-1 (FTS SQL Injection):** Fixed `app/search.py:get_search_snippets()` - use individual bindparams for IN clause (not tuple, which SQLite doesn't expand)
 - **S-2 (CSS Injection):** Replaced regex with tinycss2 parser + allowlist in `app/utils.py:sanitize_css()`
 - **S-3 (Webhook Encryption):** Created `app/webhook_encryption.py` with AES-256-GCM
 - **CQ-3 (Exception Handling):** Fixed in `meta.py` and `email.py`
@@ -86,7 +86,7 @@ Performance improvements:
 
 Codebase architecture:
 - **API Modularization:** Split `app/routes/api.py` (546 lines) into `app/routes/api/` package with `__init__.py`, `auth.py`, `posts.py`, `subscribers.py`, `stats.py`
-- **Utility Consolidation:** Centralized `generate_slug()` in `app/utils.py`, updated models (Tag, Page, Post, Series), `app/services/slug.py`, and `app/services/tag.py`
+- **Utility Consolidation:** Centralized `generate_slug()` in `app/utils.py`, updated models (Tag, Page, Post, Series) each with `generate_slug()` method, `app/services/slug.py`, and `app/services/tag.py`
 - **Logging:** Replaced `print()` with proper `logging` in `app/services/backup.py`
 
 ## Wave 3 Completed Items (May 2026)
@@ -113,10 +113,14 @@ Cleanup:
 
 ## Current Focus (May 2026)
 
-We are currently executing the **Consolidated Improvement Plan** in `plans/plan.md`.
+The **Consolidated Improvement Plan** in `plans/plan.md` is complete:
 - **Wave 1**: Security & Stability (SQLi, CSSi, Encryption, Exceptions) - COMPLETED
 - **Wave 2**: Performance & Architecture (N+1 Queries, Indexes, FTS5vocab, API Modularization, Utility Consolidation, Logging) - COMPLETED
-- **Wave 3**: Features & Future (CDN, S3 Security, Benchmarking, Audit) - COMPLETED (Documentation Overhaul pending)
+- **Wave 3**: Features & Future (CDN, S3 Security, Benchmarking, Audit) - COMPLETED
+
+Remaining deferred items (not started, low priority):
+- **1.3 Module Coverage:** Would require significant test writing effort to reach 80%+ goal
+- **3.2 Documentation Overhaul:** Low priority, not started
 
 ## Skills
  
