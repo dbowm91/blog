@@ -6,12 +6,15 @@ Supports compression, GPG encryption, and retention policy using sqlite3.backup(
 
 import glob as glob_module
 import gzip
+import logging
 import os
 import shutil
 import sqlite3
 from datetime import datetime
 from typing import Optional, Any
 
+
+logger = logging.getLogger(__name__)
 
 BACKUP_RETENTION_COUNT = 7
 
@@ -31,7 +34,7 @@ def create_backup(db_path: str, backup_dir: str, compress: bool = False,
         Path to the created backup file, or None on failure
     """
     if not os.path.exists(db_path):
-        print(f"Error: Database not found at {db_path}")
+        logger.error("Database not found at %s", db_path)
         return None
 
     os.makedirs(backup_dir, exist_ok=True)
@@ -56,7 +59,7 @@ def create_backup(db_path: str, backup_dir: str, compress: bool = False,
 
         if encrypt:
             if not _encrypt_backup_file(backup_path):
-                print("Error: Failed to encrypt backup")
+                logger.error("Failed to encrypt backup at %s", backup_path)
                 if os.path.exists(backup_path):
                     os.remove(backup_path)
                 return None
@@ -72,14 +75,14 @@ def create_backup(db_path: str, backup_dir: str, compress: bool = False,
                     os.remove(tmp_path)
                 raise
 
-        print(f"Backup created: {backup_path}")
+        logger.info("Backup created: %s", backup_path)
 
         cleanup_old_backups(backup_dir, keep)
 
         return backup_path
 
     except (sqlite3.Error, OSError) as e:
-        print(f"Error creating backup: {e}")
+        logger.error("Error creating backup: %s", e)
         if os.path.exists(backup_path):
             os.remove(backup_path)
         return None
@@ -94,7 +97,7 @@ def _encrypt_backup_file(filepath: str) -> bool:
         from app.backup_encryption import encrypt_backup_file
         return encrypt_backup_file(filepath, filepath)
     except Exception as e:
-        print(f"Encryption error: {e}")
+        logger.error("Encryption error for %s: %s", filepath, e)
         return False
 
 
@@ -117,7 +120,7 @@ def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> b
                 output_path = input_path + ".decrypted"
         return _decrypt(input_path, output_path)
     except Exception as e:
-        print(f"Decryption error: {e}")
+        logger.error("Decryption error for %s: %s", input_path, e)
         return False
 
 
@@ -133,7 +136,7 @@ def cleanup_old_backups(backup_dir: str, keep: int) -> None:
 
     for _, path in backup_files[keep:]:
         os.remove(path)
-        print(f"Removed old backup: {path}")
+        logger.info("Removed old backup: %s", path)
 
 
 def run_daily_backup(app: Any) -> None:

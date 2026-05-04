@@ -6,6 +6,8 @@ from sqlalchemy import select, func
 
 from app.extensions import db
 from app.models import Tag, Post
+from app.utils import generate_slug
+
 
 def get_or_create_tags(tag_names: List[str]) -> List[Tag]:
     """Get existing tags or create new ones from a list of tag names.
@@ -18,7 +20,7 @@ def get_or_create_tags(tag_names: List[str]) -> List[Tag]:
     """
     tags: List[Tag] = []
     for name in tag_names:
-        slug = Tag.generate_slug(name)
+        slug = generate_slug(name)
         tag = db.session.execute(
             select(Tag).filter_by(slug=slug)
         ).scalar_one_or_none()

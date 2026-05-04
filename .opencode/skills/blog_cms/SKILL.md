@@ -317,10 +317,11 @@ Configuration: `vite.config.js` with `build.manifest: true` for content-hashed f
   - CSS/other: Appends MD5 content hash as query string (e.g., `base.css?v=3544ab62`)
 - Templates use `{{ vite_asset('path/to/file') }}` instead of `{{ url_for('static', ...) }}`
 - Enables aggressive caching: `Cache-Control: max-age=31536000, immutable`
+- **CDN Support**: Set `CDN_URL` environment variable to prepend CDN domain to all static assets
 
 Key files:
 - `vite.config.js` - Vite configuration with manifest generation
-- `app/vite.py` - Flask helper for content-hashed asset URLs
+- `app/vite.py` - Flask helper for content-hashed asset URLs (supports CDN_URL)
 - `app/__init__.py` - Initializes Vite integration via `init_vite(app)`
 
 ## Storage Abstraction Layer (`app/storage.py`)

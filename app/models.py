@@ -84,7 +84,8 @@ class Tag(db.Model):  # type: ignore[name-defined]
 
     @staticmethod
     def generate_slug(name: str) -> str:
-        return generate_slug(name)
+        from app.utils import generate_slug as util_generate_slug
+        return util_generate_slug(name)
 
     def __repr__(self) -> str:
         return f"<Tag {self.name!r}>"
@@ -106,10 +107,6 @@ class Page(db.Model):  # type: ignore[name-defined]
     published = db.Column(db.Boolean, default=False)
 
     __table_args__ = (db.Index("ix_pages_published_slug", "published", "slug"),)
-
-    @staticmethod
-    def generate_slug(title: str) -> str:
-        return generate_slug(title)
 
     def __repr__(self) -> str:
         return f"<Page {self.title!r} published={self.published}>"
@@ -163,7 +160,8 @@ class Post(db.Model):  # type: ignore[name-defined]
 
     @staticmethod
     def generate_slug(title: str) -> str:
-        return generate_slug(title)
+        from app.utils import generate_slug as util_generate_slug
+        return util_generate_slug(title)
 
     def short_code(self) -> str:
         return encode(self.id)
@@ -455,6 +453,7 @@ class WebhookEvent(db.Model):  # type: ignore[name-defined]
 
     __table_args__ = (
         db.Index("ix_webhook_events_event_type_delivered", "event_type", "delivered"),
+        db.Index("ix_webhook_events_webhook_id", "webhook_id"),
     )
 
     def __repr__(self) -> str:
@@ -476,10 +475,6 @@ class Series(db.Model):  # type: ignore[name-defined]
     __table_args__ = (
         db.Index("ix_series_slug", "slug"),
     )
-
-    @staticmethod
-    def generate_slug(name: str) -> str:
-        return generate_slug(name)
 
     def __repr__(self) -> str:
         return f"<Series {self.name!r}>"
@@ -524,6 +519,7 @@ class Comment(db.Model):  # type: ignore[name-defined]
     __table_args__ = (
         db.Index("ix_comments_post_approved", "post_id", "approved"),
         db.Index("ix_comments_created_at", "created_at"),
+        db.Index("ix_comments_parent_id", "parent_id"),
     )
 
     def __repr__(self) -> str:

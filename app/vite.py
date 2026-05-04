@@ -6,9 +6,16 @@ from pathlib import Path
 from typing import Optional
 from flask import Flask
 
+from app.config import CDN_URL
+
+
 _manifest_cache: Optional[dict] = None
 _manifest_path = Path(__file__).parent / "static" / "dist" / ".vite" / "manifest.json"
 _css_hash_cache: dict[str, str] = {}
+
+def _get_base_url() -> str:
+    """Get the base URL for static assets, respecting CDN_URL if configured."""
+    return CDN_URL if CDN_URL else ""
 
 
 def get_manifest() -> dict:
@@ -44,8 +51,11 @@ def vite_asset(url: str) -> str:
     In production:
     - For JS: Looks up the hashed filename from the manifest.
     - For CSS/other: Appends content hash as query string.
+    
+    If CDN_URL is configured, prepends it to the asset URL.
     """
     manifest = get_manifest()
+    base = _get_base_url()
     
     # Normalize the URL path (remove /static/ prefix if present)
     if url.startswith("/"):
@@ -56,15 +66,15 @@ def vite_asset(url: str) -> str:
     # Look up in manifest (for JS files processed by Vite)
     if url in manifest:
         hashed_path = manifest[url].get("file", url)
-        return f"/static/dist/{hashed_path}"
+        return f"{base}/static/dist/{hashed_path}"
     
     # For non-JS files, append content hash as query string
     file_hash = get_file_hash(url)
     if file_hash:
-        return f"/static/{url}?v={file_hash}"
+        return f"{base}/static/{url}?v={file_hash}"
     
     # Fallback: return original URL
-    return f"/static/{url}"
+    return f"{base}/static/{url}"
 
 
 def init_vite(app: Flask) -> None:
