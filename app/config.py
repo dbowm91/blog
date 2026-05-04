@@ -47,6 +47,7 @@ __all__ = [
     "REDIS_URL",
     "DATA_BACKUP_DIR",
     "WEBHOOK_TIMEOUT",
+    "WEBHOOK_ENCRYPTION_KEY",
     "COMPRESS_ALGORITHM",
 ]
 
@@ -131,6 +132,7 @@ RATE_LIMIT_STORAGE_URI = _env(
 REDIS_URL = _env("REDIS_URL", "redis://localhost:6379/0")
 DATA_BACKUP_DIR = _config.get("backup", {}).get("data_backup_dir", "backups")
 WEBHOOK_TIMEOUT = int(_config.get("webhook", {}).get("timeout", 10))
+WEBHOOK_ENCRYPTION_KEY = _env("WEBHOOK_ENCRYPTION_KEY", "")
 COMPRESS_ALGORITHM = ["zstd", "br", "gzip"]
 
 SMTP_TIMEOUT = int(_config["email"].get("smtp_timeout", 30))
