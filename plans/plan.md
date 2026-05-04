@@ -9,7 +9,7 @@ This plan outlines the roadmap for security, performance, and architectural impr
 
 ### 1.1 Critical Security Remediations
 - **[x] Fix SQL Injection Risk in FTS Search (S-1):** COMPLETED
-    - Fixed in `app/search.py:get_search_snippets()` - use bindparam with tuple for IN clause
+    - Fixed in `app/search.py:get_search_snippets()` - use individual bindparams for IN clause (not tuple)
 - **[x] Fix CSS Injection via Custom CSS (S-2):** COMPLETED
     - Replaced regex with tinycss2 parser + allowlist in `app/utils.py:sanitize_css()`
     - Added `tinycss2>=1.3.0` to requirements.txt
@@ -118,6 +118,7 @@ This plan outlines the roadmap for security, performance, and architectural impr
 - **2.2 Consolidate Utility Logic - Webhook Signing:** Already consolidated in `app/webhooks.py:sign_webhook_payload()` - no duplication found.
 - **2.2 Consolidate Utility Logic - Image Variants:** Already consolidated via `app/tasks.py:generate_image_variants` Celery task - no changes needed.
 - **3.2 Audit Unused Modules:** All reviewed modules are in active use - no removal needed.
+- **Verification Fixes (May 2026):** During verification, found that S-1 fix used `IN :id_list` with tuple which doesn't work in SQLite/SQLAlchemy - corrected to use individual bindparams. Also found Page and Series models were missing `generate_slug()` method (Plan said Tag, Page, Post, Series were updated but only Tag and Post had it) - added to both models.
 
 ## Commits Summary
 - `61c3b91` wave1-s1-fts-fix: Fix SQL injection risk in FTS search

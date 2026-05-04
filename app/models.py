@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db, login_manager
 from app.base62 import encode
-from app.utils import generate_slug, utc_now, UTCDateTime
+from app.utils import utc_now, UTCDateTime
 
 post_tags = db.Table(
     "post_tags",
@@ -107,6 +107,11 @@ class Page(db.Model):  # type: ignore[name-defined]
     published = db.Column(db.Boolean, default=False)
 
     __table_args__ = (db.Index("ix_pages_published_slug", "published", "slug"),)
+
+    @staticmethod
+    def generate_slug(title: str) -> str:
+        from app.utils import generate_slug as util_generate_slug
+        return util_generate_slug(title)
 
     def __repr__(self) -> str:
         return f"<Page {self.title!r} published={self.published}>"
@@ -475,6 +480,11 @@ class Series(db.Model):  # type: ignore[name-defined]
     __table_args__ = (
         db.Index("ix_series_slug", "slug"),
     )
+
+    @staticmethod
+    def generate_slug(name: str) -> str:
+        from app.utils import generate_slug as util_generate_slug
+        return util_generate_slug(name)
 
     def __repr__(self) -> str:
         return f"<Series {self.name!r}>"
