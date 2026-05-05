@@ -125,6 +125,10 @@ def test_demote_self(authenticated_client, admin_user):
 
 def test_make_owner(authenticated_client, db, admin_user):
     """Test transferring ownership."""
+    other_admin = User(username="otheradmin", is_admin=True)
+    other_admin.set_password("Password123!")
+    db.session.add(other_admin)
+    db.session.commit()
     new_owner = User(username="newowner", is_admin=False)
     new_owner.set_password("Password123!")
     db.session.add(new_owner)
@@ -132,9 +136,9 @@ def test_make_owner(authenticated_client, db, admin_user):
     response = authenticated_client.post(
         f"/admin/users/{new_owner.id}/make-owner",
         data={"password": "testpassword"},
-        follow_redirects=True
+        follow_redirects=False
     )
-    assert response.status_code == 200
+    assert response.status_code == 302
     db.session.expire(admin_user)
     db.session.expire(new_owner)
     admin_user = db.session.get(User, admin_user.id)
@@ -146,7 +150,7 @@ def test_make_owner(authenticated_client, db, admin_user):
 def test_change_password(authenticated_client, db, admin_user):
     """Test changing user's password."""
     response = authenticated_client.post(
-        f"/admin/users/{admin_user.id}/password",
+        f"/admin/users/password/{admin_user.id}",
         data={"password": "NewPassword123!"},
         follow_redirects=True
     )
@@ -160,7 +164,7 @@ def test_change_password(authenticated_client, db, admin_user):
 def test_change_password_weak(authenticated_client, admin_user):
     """Test changing password to weak one."""
     response = authenticated_client.post(
-        f"/admin/users/{admin_user.id}/password",
+        f"/admin/users/password/{admin_user.id}",
         data={"password": "weak"},
         follow_redirects=True
     )
@@ -236,7 +240,7 @@ def test_create_user_empty_password(authenticated_client):
 def test_user_password_change_verifies_old_password(authenticated_client, db, admin_user):
     """Test password change with wrong current password."""
     response = authenticated_client.post(
-        f"/admin/users/{admin_user.id}/password",
+        f"/admin/users/password/{admin_user.id}",
         data={
             "old_password": "wrongpassword",
             "password": "NewPassword123!",
