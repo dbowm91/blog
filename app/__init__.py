@@ -55,6 +55,24 @@ limiter = Limiter(
 compress = Compress()
 cache = Cache()
 
+PROMETHEUS_REQUEST_LATENCY = None
+PROMETHEUS_REQUEST_COUNT = None
+try:
+    from prometheus_client import Counter, Histogram
+    PROMETHEUS_REQUEST_LATENCY = Histogram(
+        "blog_request_latency_seconds",
+        "Request latency in seconds",
+        ["method", "endpoint", "status"],
+        buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+    )
+    PROMETHEUS_REQUEST_COUNT = Counter(
+        "blog_requests_total",
+        "Total request count",
+        ["method", "endpoint", "status"]
+    )
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 
@@ -274,6 +292,7 @@ def create_app() -> Flask:
         # Generate request ID and CSP nonce for this request
         g.request_id = secrets.token_hex(4)
         g.csp_nonce = secrets.token_urlsafe(16)
+        g.request_start_time = time.perf_counter()
 
         # CSRF validation for POST requests
         if req.method == "POST":
@@ -359,6 +378,20 @@ def create_app() -> Flask:
             )
         if req.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
+        if PROMETHEUS_REQUEST_LATENCY and PROMETHEUS_REQUEST_COUNT:
+            start_time = getattr(g, "request_start_time", None)
+            if start_time is not None:
+                latency = time.perf_counter() - start_time
+                status_code = str(response.status_code)
+                endpoint = req.endpoint or "unknown"
+                PROMETHEUS_REQUEST_LATENCY.labels(
+                    method=req.method, endpoint=endpoint, status=status_code
+                ).observe(latency)
+                PROMETHEUS_REQUEST_COUNT.labels(
+                    method=req.method, endpoint=endpoint, status=status_code
+                ).inc()
+
         return response
 
     from app.context_processors import register_context_processors  # noqa: E402

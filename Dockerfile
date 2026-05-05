@@ -1,12 +1,11 @@
-FROM python:3.12-slim
+FROM python:3.12-slim as builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash blog
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt \
@@ -14,10 +13,20 @@ RUN pip install --user --no-cache-dir -r requirements.txt \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --shell /bin/bash blog
+
+COPY --from=builder /home/blog/.local /home/blog/.local
+COPY --chown=blog:blog . .
+
 RUN mkdir -p /home/blog/instance /home/blog/logs /home/blog/app/static/uploads
 RUN chown -R blog:blog /home/blog
-
-COPY --chown=blog:blog . .
 
 USER blog
 

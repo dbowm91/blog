@@ -19,10 +19,16 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.extensions import db
 from app.models import Post, Tag, Page
-from app.config import BASE_URL, SMTP_HOST, HEALTH_CHECK_SECRET
+from app.config import BASE_URL, SMTP_HOST, HEALTH_CHECK_SECRET, REDIS_URL, DATA_BACKUP_DIR
 from app.scheduler import get_scheduler_health
 from app.utils import xml_escape, utc_now
 from app import limiter
+
+try:
+    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +248,41 @@ Sitemap: {BASE_URL}/sitemap.xml
         except (OperationalError, ProgrammingError):
             checks["db_integrity"] = "error"
 
+        # Redis health check
+        try:
+            import redis
+            redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+            redis_client.ping()
+            checks["redis"] = "ok"
+        except Exception:
+            checks["redis"] = "error"
+
+        # Celery health check
+        try:
+            from app.celery_app import celery_app
+            inspector = celery_app.control.inspect(timeout=3)
+            if inspector.ping():
+                checks["celery"] = "ok"
+            else:
+                checks["celery"] = "unavailable"
+        except Exception:
+            checks["celery"] = "disabled"
+
+        # Backup freshness check
+        try:
+            backup_dir = Path(current_app.instance_path) / DATA_BACKUP_DIR
+            if backup_dir.exists():
+                backups = sorted(backup_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                if backups:
+                    age_hours = (time.time() - backups[0].stat().st_mtime) / 3600
+                    checks["backup_freshness"] = "ok" if age_hours < 24 else "stale"
+                else:
+                    checks["backup_freshness"] = "no_backups"
+            else:
+                checks["backup_freshness"] = "no_backups"
+        except Exception:
+            checks["backup_freshness"] = "error"
+
         overall = (
             "ok"
             if all(v in ("ok", "running", "disabled") for v in checks.values() if v is not None)
@@ -270,6 +311,9 @@ Sitemap: {BASE_URL}/sitemap.xml
     @public.route("/metrics")
     def metrics():
         """Prometheus-compatible metrics endpoint."""
+        if PROMETHEUS_AVAILABLE:
+            return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
         metrics_lines = []
 
         # Health status
