@@ -529,7 +529,8 @@ class Comment(db.Model):  # type: ignore[name-defined]
     created_at = db.Column(UTCDateTime, default=utc_now)
 
     post = db.relationship("Post", back_populates="comments")
-    replies = db.relationship("Comment", back_populates="parent", remote_side=[id])
+    parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
+    replies = db.relationship("Comment", back_populates="parent", lazy="select")
 
     __table_args__ = (
         db.Index("ix_comments_post_approved", "post_id", "approved"),
