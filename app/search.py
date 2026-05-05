@@ -295,30 +295,30 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
     if not fts_query:
         return snippets
 
-    try:
-        # Use FTS5 snippet() on body column (1), wrap matches in <mark> tags
-        # Build the query with proper parameter binding
-        if len(post_ids) == 1:
+    _SQLITE_MAX_VARS = 500
+
+    def _fetch_snippets(ids: list[int]) -> list[tuple]:
+        if len(ids) == 1:
             query_str = (
                 "SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
                 "FROM posts_fts WHERE rowid = :id AND posts_fts MATCH :q"
             )
-            params = {"id": post_ids[0], "q": fts_query}
+            params = {"id": ids[0], "q": fts_query}
         else:
-            placeholders = ", ".join([f":id{i}" for i in range(len(post_ids))])
+            placeholders = ", ".join([f":id{i}" for i in range(len(ids))])
             query_str = (
                 f"SELECT rowid, snippet(posts_fts, 1, '<mark>', '</mark>', '...', 30) "
                 f"FROM posts_fts WHERE rowid IN ({placeholders}) AND posts_fts MATCH :q"
             )
-            params = {f"id{i}": pid for i, pid in enumerate(post_ids)}
+            params = {f"id{i}": pid for i, pid in enumerate(ids)}
             params["q"] = fts_query
+        return db.session.execute(text(query_str), params).fetchall()
 
-        logger.debug("FTS snippet query: %s", query_str)
-        logger.debug("FTS snippet params: %s", params)
-        result = db.session.execute(text(query_str), params).fetchall()
-        logger.debug("FTS snippet result: %s", result)
-        for row in result:
-            snippets[row[0]] = row[1]
+    try:
+        for i in range(0, len(post_ids), _SQLITE_MAX_VARS):
+            batch = post_ids[i:i + _SQLITE_MAX_VARS]
+            for row in _fetch_snippets(batch):
+                snippets[row[0]] = row[1]
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.error("FTS snippet query failed: %s", e)
     return snippets

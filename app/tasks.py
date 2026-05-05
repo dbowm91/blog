@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 from typing import List, Dict, Any, TYPE_CHECKING
 
 from celery import shared_task
@@ -21,6 +22,7 @@ __all__ = [
     "deliver_webhook_task",
     "send_confirmation_task",
     "send_password_reset_task",
+    "run_backup_task",
 ]
 
 
@@ -300,3 +302,22 @@ def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
             return False
     finally:
         db.session.remove()
+
+
+@shared_task(bind=True, max_retries=2, retry_backoff=True, queue='backup')
+def run_backup_task(self: Any) -> bool:
+    """Run database backup asynchronously to avoid blocking web requests."""
+    from app.services.backup import create_backup
+
+    try:
+        from app.config import DATA_BACKUP_DIR
+        from flask import current_app
+
+        backup_dir = os.path.join(current_app.instance_path, DATA_BACKUP_DIR)
+        db_path = os.path.join(current_app.instance_path, "blog.db")
+
+        result = create_backup(db_path, backup_dir, compress=True, keep=7, encrypt=False)
+        return result is not None
+    except Exception as e:
+        logger.error("Backup task failed: %s", e)
+        return False
