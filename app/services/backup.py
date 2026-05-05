@@ -13,6 +13,8 @@ import sqlite3
 from datetime import datetime
 from typing import Optional, Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +98,7 @@ def _encrypt_backup_file(filepath: str) -> bool:
     try:
         from app.backup_encryption import encrypt_backup_file
         return encrypt_backup_file(filepath, filepath)
-    except Exception as e:
+    except (OSError, ValueError, SQLAlchemyError) as e:
         logger.error("Encryption error for %s: %s", filepath, e)
         return False
 
@@ -119,7 +121,7 @@ def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> b
             else:
                 output_path = input_path + ".decrypted"
         return _decrypt(input_path, output_path)
-    except Exception as e:
+    except (OSError, ValueError, SQLAlchemyError) as e:
         logger.error("Decryption error for %s: %s", input_path, e)
         return False
 

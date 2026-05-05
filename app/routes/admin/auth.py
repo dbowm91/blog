@@ -8,7 +8,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
-from flask import redirect, url_for, request, flash, session, Response, abort, render_template
+from flask import redirect, url_for, request, flash, session, abort, render_template
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -94,7 +94,6 @@ def login() -> Any:
     from flask import render_template
 
     return render_template("admin/login.html")
-from flask.typing import ResponseReturnValue
 
 
 @admin.route("/logout", methods=["POST"])

@@ -1,7 +1,6 @@
 """Error handlers blueprint."""
 
 import logging
-from typing import Any
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request as req
 from werkzeug.wrappers import Response

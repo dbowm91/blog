@@ -76,7 +76,7 @@ def verify_backup_integrity(backup_path: Path) -> tuple[bool, str]:
 
     except sqlite3.Error as e:
         return False, f"SQLite error: {e}"
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return False, f"Verification error: {e}"
     finally:
         if actual_path != backup_path and actual_path.exists():

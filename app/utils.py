@@ -8,7 +8,6 @@ from functools import wraps
 from typing import Any, Callable, TypeVar, cast
 
 from sqlalchemy import TypeDecorator, DateTime
-from typing import Any
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
@@ -307,7 +306,7 @@ def sanitize_css(css_text: str) -> str:
 
         return "\n".join(safe_css_parts)
 
-    except Exception:
+    except (ImportError, AttributeError, ValueError):
         return ""
 
 def is_safe_webhook_url(url: str) -> tuple[bool, str]:
@@ -333,7 +332,7 @@ def is_safe_webhook_url(url: str) -> tuple[bool, str]:
 
     try:
         parsed = urlparse(url)
-    except Exception:
+    except (AttributeError, ValueError, TypeError):
         return False, "Invalid URL format"
 
     # Check scheme - only allow http and https

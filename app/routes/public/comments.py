@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask import request, redirect, url_for, flash, abort, Response
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.models import Post, Comment
@@ -42,7 +43,7 @@ def add_comment(slug: str) -> ResponseReturnValue:
     db.session.add(comment)
     try:
         db.session.commit()
-    except Exception:
+    except SQLAlchemyError:
         db.session.rollback()
         flash("An error occurred. Please try again.", "error")
         return redirect(url_for("public.post", slug=slug))

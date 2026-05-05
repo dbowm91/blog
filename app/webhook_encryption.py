@@ -1,7 +1,8 @@
 """AES-256-GCM encryption for webhook secrets at rest."""
 
-import os
+import binascii
 import base64
+import os
 import logging
 from typing import Optional
 
@@ -65,7 +66,7 @@ def encrypt_webhook_secret(plaintext: str) -> str:
 
         combined = nonce + ciphertext
         return base64.b64encode(combined).decode("utf-8")
-    except Exception as e:
+    except (ValueError, WebhookEncryptionError) as e:
         logger.error("Failed to encrypt webhook secret: %s", e)
         raise WebhookEncryptionError(f"Encryption failed: {e}") from e
 
@@ -98,6 +99,6 @@ def decrypt_webhook_secret(encrypted: str) -> str:
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         return plaintext.decode("utf-8")
-    except Exception as e:
+    except (ValueError, binascii.Error, WebhookEncryptionError) as e:
         logger.error("Failed to decrypt webhook secret: %s", e)
         raise WebhookEncryptionError(f"Decryption failed: {e}") from e

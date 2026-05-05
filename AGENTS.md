@@ -16,7 +16,7 @@ When an agent operates within a module, it should:
 | Module | Override File | Purpose |
 |--------|---------------|---------|
 | App Core | `app/AGENTS.override.md` | Flask app, models, extensions, core utilities |
-| Routes | `app/routes/AGENTS.override.md` | Public routes, API, RSS, services |
+| Routes | `app/routes/AGENTS.override.md` | General routing concerns, API authentication, RSS feeds, error handlers |
 | Admin Routes | `app/routes/admin/AGENTS.override.md` | Admin dashboard, post/subscriber/user management |
 | Frontend | `app/static/AGENTS.override.md` | JS/CSS assets, Vite build |
 | Templates | `app/templates/AGENTS.override.md` | Jinja2 templates, filters |

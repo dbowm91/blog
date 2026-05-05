@@ -4,9 +4,15 @@ Specialized handling for the admin dashboard and management routes.
 
 ## Key Files
 
+### Sub-packages
+- `helpers/` - Helper modules: `analytics.py`, `dashboard.py`, `posts.py`, `slug.py`, `tags.py`, `images.py`, `shared.py`
+- `posts/` - Post management sub-package: `editor.py`, `manage.py`, `revisions.py`
+
+### Main Files
+
 - `__init__.py` - Blueprint registration (type: `admin: Blueprint`), shared helpers, admin_required decorator
 - `auth.py` - login, logout, password reset
-- `posts.py` - dashboard, post CRUD, bulk operations, revisions
+- `posts.py` - **DEPRECATED**: Routes moved to `posts/` sub-package
 - `subscribers.py` - subscriber management (incl. bulk resend)
 - `tags.py` - tag management
 - `users.py` - user management
@@ -17,7 +23,7 @@ Specialized handling for the admin dashboard and management routes.
 - `newsletter.py` - newsletter test
 - `settings.py` - theme settings (presets, custom CSS, logo)
 - `pages.py` - static pages CRUD
-- `helpers/slug.py` - Slug generation helper
+- `series.py` - post series/collections
 
 ## Routes
 

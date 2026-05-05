@@ -4,10 +4,9 @@ import hashlib
 import hmac
 import json
 import logging
-from typing import List, Dict, Any, TYPE_CHECKING, cast
+from typing import List, Dict, Any, TYPE_CHECKING
 
 from celery import shared_task
-from celery.app.task import Task
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -197,7 +196,7 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
     from app.models import Webhook, WebhookEvent
     from app.config import WEBHOOK_TIMEOUT
     from app.utils import is_safe_webhook_url
-    from app.webhook_encryption import decrypt_webhook_secret
+    from app.webhook_encryption import decrypt_webhook_secret, WebhookEncryptionError
 
     try:
         event = db.session.get(WebhookEvent, webhook_event_id)
@@ -229,7 +228,7 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
             if secret and not secret.startswith("sha256="):
                 try:
                     secret = decrypt_webhook_secret(secret)
-                except Exception:
+                except WebhookEncryptionError:
                     logger.warning("Failed to decrypt webhook secret for %s, using as-is", webhook.name)
 
             # Prepare headers with HMAC signature

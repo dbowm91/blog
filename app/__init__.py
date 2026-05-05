@@ -26,6 +26,7 @@ from flask_compress import Compress
 from flask_caching import Cache
 from flask_login import current_user, logout_user
 from sqlalchemy import event, text, delete
+from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db, login_manager, migrate
 from app.config import (
     SECRET_KEY,
@@ -423,7 +424,7 @@ def create_app() -> Flask:
                     )
                 else:
                     logger.info("Database integrity check passed")
-            except Exception as e:
+            except SQLAlchemyError as e:
                 logger.warning("Database integrity check failed: %s", e)
 
     _check_database_integrity(app)

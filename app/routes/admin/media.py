@@ -223,7 +223,7 @@ def cleanup_orphaned_images(app) -> tuple[int, int]:
                     logger.info("Deleted orphaned image: %s", name)
                 else:
                     logger.warning("Failed to delete orphaned image: %s", name)
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         logger.error("Error scanning upload directory: %s", e)
 
     for post in posts_with_missing_images:

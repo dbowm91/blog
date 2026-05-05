@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, request, make_response, current_app
+from flask import Blueprint, Response, request, current_app
 from typing import Any, cast
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, QueryableAttribute
@@ -10,7 +10,6 @@ from app.utils import xml_escape, utc_now
 from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 import re
 import hashlib
-import json
 import markdown
 import nh3
 
