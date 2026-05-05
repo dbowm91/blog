@@ -25,6 +25,7 @@ When an agent operates within a module, it should:
 | Documentation | `docs/AGENTS.override.md` | Documentation structure |
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
+| Plans | `plans/AGENTS.override.md` | Roadmap, execution waves, project planning |
 
 ## Structure Convention
 
@@ -56,48 +57,13 @@ Important actual file locations (verify before assuming):
 
 ## High-Risk Files (Error Handling)
 
-These files previously used broad `except Exception` clauses. All have been replaced with specific exceptions per CQ-3 (Wave 1 completed):
-- `app/routes/public/meta.py` (Fixed - CQ-3)
-- `app/email.py` (Fixed - CQ-3)
-- `app/backup_integrity.py` (Fixed)
-- `app/webhooks.py` (Fixed)
-- `app/tasks.py` (Fixed)
-- `app/page_view_buffer.py` (Fixed)
-
-## Wave 1 Completed Items (May 2026)
-
-Security remediations completed:
-- **S-1 (FTS SQL Injection):** Fixed `app/search.py:get_search_snippets()` - use individual bindparams for IN clause (not tuple, which SQLite doesn't expand)
-- **S-2 (CSS Injection):** Replaced regex with tinycss2 parser + allowlist in `app/utils.py:sanitize_css()`
-- **S-3 (Webhook Encryption):** Created `app/webhook_encryption.py` with AES-256-GCM
-- **CQ-3 (Exception Handling):** Fixed in `meta.py` and `email.py`
-
-Test stability improvements:
-- Replaced `db.session.refresh()` with `db.session.expire() + re-query` in 6 test files
-- Removed duplicate `mock_image_processing` fixture from conftest.py
-- Page view buffer properly disabled in test configuration
-
-## Wave 2 Completed Items (May 2026)
-
-Performance improvements:
-- **N+1 Queries:** Fixed in `app/routes/admin/series.py:series_list()` using OUTER JOIN for counts, and `series_posts()` and public `series_view()` using `joinedload(PostSeries.post)`
-- **Missing Indexes:** Added indexes for `webhook_events.webhook_id` and `comments.parent_id` via migration `add_missing_indexes.py`
-- **FTS5vocab:** Created `posts_fts_vocab` virtual table for efficient term indexing in `app/search.py:init_fts()`
-
-Codebase architecture:
-- **API Modularization:** Split `app/routes/api.py` (546 lines) into `app/routes/api/` package with `__init__.py`, `auth.py`, `posts.py`, `subscribers.py`, `stats.py`
-- **Utility Consolidation:** Centralized `generate_slug()` in `app/utils.py`, updated models (Tag, Page, Post, Series) each with `generate_slug()` method, `app/services/slug.py`, and `app/services/tag.py`
-- **Logging:** Replaced `print()` with proper `logging` in `app/services/backup.py`
-
-## Wave 3 Completed Items (May 2026)
-
-Infrastructure & Security:
-- **CDN Support:** Added `CDN_URL` config (env var) and updated `app/vite.py:vite_asset()` and `app/filters.py:post_image_srcset_filter()` to use CDN when configured
-- **S3 Security:** Added `_clear_credentials()` method to `S3StorageBackend` that clears access_key and secret_key after boto3 client initialization
-- **Benchmarking:** Performance tests exist in `tests/benchmarks/test_benchmarks.py` covering search, dashboard, query counts, newsletter, FTS indexing, and tag caching
-
-Cleanup:
-- **Audit:** All reviewed modules (`backup_encryption`, `backup_integrity`, `webhooks`, `celery_app`) are actively used - no removal needed
+These files previously used broad `except Exception` clauses. All have been replaced with specific exceptions:
+- `app/routes/public/meta.py`
+- `app/email.py`
+- `app/backup_integrity.py`
+- `app/webhooks.py`
+- `app/tasks.py`
+- `app/page_view_buffer.py`
 
 ## Test Interference Notes
 
@@ -105,22 +71,22 @@ Cleanup:
 - The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
 - In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
-- The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture in `tests/conftest.py` to ensure disabled (Wave 1 task)
+- The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture in `tests/conftest.py` to ensure disabled.
 
 ### Test Database Session Issues
 - `db.session.refresh()` fails if object isn't in current session
-- Fix: Re-query object from database instead of using `refresh()` (Wave 1 task)
+- Fix: Re-query object from database instead of using `refresh()`.
+
+## Completed Work (Historical)
+
+- **Wave 1:** Security & Stability (SQLi, CSSi, Encryption, Exceptions)
+- **Wave 2:** Performance & Architecture (N+1 Queries, Indexes, FTS5vocab, API Modularization, Utility Consolidation, Logging)
+- **Wave 3:** Features & Future (CDN, S3 Security, Benchmarking, Audit)
 
 ## Current Focus (May 2026)
 
-The **Consolidated Improvement Plan** in `plans/plan.md` is complete:
-- **Wave 1**: Security & Stability (SQLi, CSSi, Encryption, Exceptions) - COMPLETED
-- **Wave 2**: Performance & Architecture (N+1 Queries, Indexes, FTS5vocab, API Modularization, Utility Consolidation, Logging) - COMPLETED
-- **Wave 3**: Features & Future (CDN, S3 Security, Benchmarking, Audit) - COMPLETED
-
-Remaining deferred items (not started, low priority):
-- **1.3 Module Coverage:** Would require significant test writing effort to reach 80%+ goal
-- **3.2 Documentation Overhaul:** Low priority, not started
+The project is currently executing from the **Consolidated Improvement Plan** located at `plans/plan.md`. This document replaces all prior fragmented `plan*.md` files and is organized into logical waves (Waves 4-9) that can often be parallelized. 
+Agents undertaking new work should consult `plans/plan.md` and use it as a living document to track progress.
 
 ## Skills
  
