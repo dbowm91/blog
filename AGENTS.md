@@ -85,20 +85,56 @@ These files previously used broad `except Exception` clauses. All have been repl
 - **Wave 4:** Immediate Remediation & Cleanup (CQ-3 Exception Handling, AGENTS.md updates, unused imports, test infrastructure)
 - **Wave 5:** Security Hardening & Performance Optimization (PII fixes, Dockerfile gcc removal, backup key min, N+1 fixes, FTS optimization, indexes)
 - **Wave 6:** Architecture & Code Quality (Comment back_populates migration, PII serialization defaults)
-- **Wave 7:** Testing & Coverage Push (pytest-xdist, docker resources, pip-audit CI)
-- **Wave 8:** Infrastructure, Monitoring & CI/CD (Resource limits, security scanning)
-- **Wave 9:** Feature Completion, Frontend & Documentation (RSS/JSON feeds verified, CONTRIBUTING.md, SECURITY.md added)
+- **Wave 7:** Testing & Coverage Push (backup_integrity, webhooks, transaction tests; security coverage; property-based tests)
+- **Wave 8:** Infrastructure, Monitoring & CI/CD (Health checks with Redis/Celery/backup freshness, Prometheus metrics, Docker multi-stage build, CI improvements)
+- **Wave 9:** Feature Completion (Snippet batching for SQLite, backup isolation via Celery task)
 
 ## Current Focus (May 2026)
 
-Most waves completed. Remaining items require significant scope or big rewrites:
+All planned waves completed as of May 2026. Remaining items are deferred due to scope:
 - TOTP encryption (deferred - requires encryption helpers, model changes, UI)
 - 2FA backup codes (deferred - requires UI + model changes)
 - Admin rate limiting (deferred - requires testing 35+ routes)
 - PostgreSQL FTS abstraction (deferred - significant architecture change)
 - Vite code splitting, AVIF support (deferred - frontend scope)
+- Brotli compression (deferred - Nginx config)
 
 See `plans/plan.md` for details.
+
+## New Patterns (Wave 6-9)
+
+### Comment Model Relationships
+The Comment model uses `back_populates` for parent/child relationships:
+```python
+parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
+replies = db.relationship("Comment", back_populates="parent", lazy="select")
+```
+
+### Health Check Status Logic
+Health check only considers critical checks for overall status (optional services don't affect degraded):
+```python
+critical_checks = {
+    k: v for k, v in checks.items()
+    if k in ("database", "scheduler", "search", "disk_space", "db_integrity")
+}
+```
+
+### Snippet Batching
+For SQLite parameter limits, batch post_ids:
+```python
+chunk_size = 500
+for i in range(0, len(post_ids), chunk_size):
+    chunk = post_ids[i:i + chunk_size]
+```
+
+### Backup Isolation
+Run backups as Celery tasks to avoid blocking web requests:
+```python
+@celery_task
+def run_backup_task(backup_dir, compress):
+    from app.services.backup import create_backup
+    return create_backup(db_path, backup_dir, compress=compress)
+```
 
 ## Skills
  

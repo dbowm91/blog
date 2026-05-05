@@ -482,3 +482,52 @@ The codebase implements robust security controls:
    ```bash
    pip install types-requests types-Markdown
    ```
+
+## Health Check Metrics (`/health`)
+
+The `/health` endpoint returns detailed health status:
+```json
+{
+  "status": "ok",
+  "checks": {
+    "database": "ok",
+    "scheduler": "disabled",
+    "search": "ok",
+    "disk_space": "ok",
+    "db_integrity": "ok",
+    "redis": "error",
+    "celery": "disabled",
+    "backup_freshness": "no_backups"
+  },
+  "timestamp": "2026-05-05T12:00:00Z"
+}
+```
+
+Critical checks (affect overall status): database, scheduler, search, disk_space, db_integrity
+Optional checks (don't affect status): redis, celery, backup_freshness
+
+## Prometheus Metrics (`/metrics`)
+
+The `/metrics` endpoint provides Prometheus-compatible metrics:
+- Request latency and count
+- Health status gauge
+- Disk free space
+
+Requires `prometheus_client` package.
+
+## Snippet Batching (SQLite Parameter Limits)
+
+The `get_search_snippets` function in `app/search.py` batches post_ids to handle SQLite's parameter limit:
+```python
+chunk_size = 500
+for i in range(0, len(post_ids), chunk_size):
+    chunk = post_ids[i:i + chunk_size]
+```
+
+## Backup Isolation (Celery Task)
+
+Backups can run asynchronously via Celery to avoid blocking web requests:
+```python
+from app.tasks import run_backup_task
+run_backup_task.delay(backup_dir=backup_dir, compress=True)
+```
