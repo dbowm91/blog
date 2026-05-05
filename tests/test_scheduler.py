@@ -129,3 +129,88 @@ def test_init_scheduler_with_smtp():
             assert result is not None
             assert mock_scheduler.start.called
             assert mock_scheduler.add_job.called
+
+
+def test_cleanup_expired_subscribers_with_subscribers(db):
+    """Test cleanup_expired_subscribers keeps valid subscribers."""
+    from app.scheduler import cleanup_expired_subscribers
+    from app.models import Subscriber
+    from datetime import timedelta
+
+    expired = Subscriber(
+        email="expired@example.com",
+        confirmed=False,
+        expires_at=utc_now() - timedelta(days=30)
+    )
+    valid = Subscriber(
+        email="valid@example.com",
+        confirmed=True,
+        expires_at=utc_now() + timedelta(days=30)
+    )
+    db.session.add(expired)
+    db.session.add(valid)
+    db.session.commit()
+
+    app = MagicMock()
+    with patch("app.scheduler.FileLock") as mock_lock:
+        mock_lock.return_value.acquire.return_value = True
+        cleanup_expired_subscribers(app)
+
+        deleted = db.session.execute(
+            db.select(Subscriber).filter_by(email="expired@example.com")
+        ).scalar_one_or_none()
+        assert deleted is None
+
+        kept = db.session.execute(
+            db.select(Subscriber).filter_by(email="valid@example.com")
+        ).scalar_one_or_none()
+        assert kept is not None
+
+
+def test_publish_scheduled_posts_ignores_future_posts(db, sample_post):
+    """Test publish_scheduled_posts doesn't publish posts scheduled in future."""
+    from app.scheduler import publish_scheduled_posts
+    from app.models import Post
+
+    sample_post.published = False
+    sample_post.scheduled_publish_at = utc_now() + timedelta(days=30)
+    db.session.commit()
+
+    app = MagicMock()
+    with patch("app.scheduler.FileLock") as mock_lock:
+        mock_lock.return_value.acquire.return_value = True
+        publish_scheduled_posts(app)
+
+        db.session.expire(sample_post)
+        sample_post = db.session.get(Post, sample_post.id)
+        assert sample_post.published is False
+
+
+def test_get_scheduler_next_run_with_scheduler():
+    """Test get_scheduler_next_run returns time when scheduler exists."""
+    from app.scheduler import get_scheduler_next_run
+    mock_scheduler = MagicMock()
+    mock_job = MagicMock()
+    mock_job.next_run_time = utc_now()
+    mock_scheduler.get_jobs.return_value = [mock_job]
+    with patch("app.scheduler._scheduler", mock_scheduler):
+        result = get_scheduler_next_run()
+        assert result is not None
+
+
+def test_scheduler_sends_newsletter_to_subscribers(db, sample_post, sample_subscriber):
+    """Test send_daily_newsletter sends to confirmed subscribers."""
+    from app.scheduler import send_daily_newsletter
+    from app.models import Post
+
+    sample_post.newsletter_sent_at = None
+    sample_post.published = True
+    sample_post.scheduled_publish_at = None
+    db.session.commit()
+
+    app = MagicMock()
+    with patch("app.scheduler.FileLock") as mock_lock:
+        mock_lock.return_value.acquire.return_value = True
+        with patch("app.scheduler._send_newsletter_email") as mock_send:
+            send_daily_newsletter(app)
+            assert mock_send.called or sample_post.newsletter_sent_at is not None

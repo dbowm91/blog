@@ -7,6 +7,8 @@ achieving similar coverage to property-based testing frameworks like hypothesis.
 import pytest
 from app.utils import is_valid_email, generate_slug, sanitize_css
 from app.routes.admin.helpers.shared import _check_password_complexity
+from app.filters import register_filters
+from flask import Flask
 
 
 class TestSlugGenerationProperties:
@@ -410,3 +412,72 @@ class TestSanitizeCssProperties:
         assert "url(" not in result
         assert "expression(" not in result
         assert "color: red" in result
+
+
+class TestFiltersProperties:
+    """Property-based tests for template filters using parametrize for coverage."""
+
+    def test_reading_time_never_zero_empty(self):
+        """Reading time filter returns at least 1 min for empty text."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["reading_time"]("")
+            assert "1 min" in result
+
+    def test_reading_time_never_zero_short(self):
+        """Reading time filter returns at least 1 min for short text."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["reading_time"]("word")
+            assert "1 min" in result
+
+    def test_reading_time_100_words(self):
+        """Reading time for 100 words."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["reading_time"]("word " * 100)
+            assert "1 min" in result
+
+    def test_reading_time_300_words(self):
+        """Reading time for 300 words."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["reading_time"]("word " * 300)
+            mins = int(result.split()[0])
+            assert mins >= 1
+
+    def test_sanitize_css_returns_string(self):
+        """Sanitize CSS always returns a string."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["sanitize_css"]("color: red")
+            assert isinstance(result, str)
+
+    def test_sanitize_css_removes_url(self):
+        """Sanitize CSS removes url() patterns."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["sanitize_css"]("url(http://evil.com)")
+            assert "url(" not in result
+
+    def test_sanitize_css_removes_expression(self):
+        """Sanitize CSS removes expression() patterns."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["sanitize_css"]("expression(alert(1))")
+            assert "expression(" not in result
+
+    def test_sanitize_css_none_input(self):
+        """Sanitize CSS handles None input."""
+        app = Flask(__name__)
+        register_filters(app)
+        with app.app_context():
+            result = app.jinja_env.filters["sanitize_css"](None)
+            assert result == ""

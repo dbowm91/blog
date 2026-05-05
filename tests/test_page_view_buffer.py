@@ -115,3 +115,53 @@ def test_page_view_buffer_stats(db):
         buffer.flush()
         assert buffer._stats["flushed"] == 1
         shutdown_page_view_buffer()
+
+
+def test_page_view_buffer_concurrent_access(db):
+    """Test buffer handles concurrent access safely."""
+    with patch("app.page_view_buffer.PAGE_VIEW_BUFFER_SIZE", 100):
+        buffer = init_page_view_buffer(db, PageView)
+        import threading
+        results = []
+
+        def record_views(start, count):
+            for i in range(count):
+                buffer.record(start + i)
+            results.append(count)
+
+        threads = [threading.Thread(target=record_views, args=(i * 10, 10)) for i in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert sum(results) == 50
+        shutdown_page_view_buffer()
+
+
+def test_page_view_buffer_graceful_shutdown(db):
+    """Test buffer flushes all pending views on shutdown."""
+    with patch("app.page_view_buffer.PAGE_VIEW_BUFFER_SIZE", 100):
+        buffer = init_page_view_buffer(db, PageView)
+        for i in range(20):
+            buffer.record(i + 1)
+        initial_pending = buffer.pending
+        assert initial_pending == 20
+        shutdown_page_view_buffer()
+        pvs = db.session.execute(
+            db.select(PageView).filter(PageView.post_id.in_(range(1, 21)))
+        ).scalars().all()
+        assert len(pvs) == 20
+
+
+def test_record_page_view_no_buffer(app, db):
+    """Test record_page_view creates PageView directly when buffer disabled."""
+    with patch("app.page_view_buffer.PAGE_VIEW_BUFFER_SIZE", 0):
+        shutdown_page_view_buffer()
+        from app.page_view_buffer import record_page_view
+        record_page_view(99, "http://test.com")
+        pv = db.session.execute(
+            db.select(PageView).filter_by(post_id=99)
+        ).scalar_one_or_none()
+        assert pv is not None
+        assert pv.referrer == "http://test.com"

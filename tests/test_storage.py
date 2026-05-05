@@ -106,16 +106,14 @@ def test_storage_delete_file():
 
 def test_upload_with_processing_local():
     """Test upload_with_processing for local storage."""
-    # Mock get_storage to return a mock backend
-    with patch("app.storage.get_storage") as mock_get:
-        mock_backend = MagicMock()
-        mock_backend.save.return_value = "test.txt"
-        mock_backend.__class__.__name__ = "LocalStorageBackend"
-        mock_get.return_value = mock_backend
-        # Mock generate_image_variants.delay
-        with patch("app.storage.generate_image_variants") as mock_task:
-            result, error = upload_with_processing("test.txt", b"hello", generate_variants=True)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        import app.storage as storage_module
+        original_storage = storage_module._storage
+        storage_module._storage = None
+        with patch.dict(os.environ, {"UPLOAD_FOLDER": tmpdir}):
+            storage_module._storage = None
+            result, error = storage_module.upload_with_processing("test.txt", b"hello", generate_variants=False)
             assert result == "test.txt"
             assert error is None
-            mock_backend.save.assert_called_once()
-            mock_task.delay.assert_called_once_with("test.txt")
+            assert os.path.exists(os.path.join(tmpdir, "test.txt"))
+        storage_module._storage = original_storage

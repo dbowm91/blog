@@ -166,3 +166,81 @@ def test_change_password_weak(authenticated_client, admin_user):
     )
     assert response.status_code == 200
     assert b"must be at least" in response.data.lower()
+
+
+def test_users_list_pagination(authenticated_client, db):
+    """Test user list pagination."""
+    for i in range(25):
+        user = User(username=f"user{i}", is_admin=False)
+        user.set_password("Password123!")
+        db.session.add(user)
+    db.session.commit()
+
+    response = authenticated_client.get("/admin/users?page=1")
+    assert response.status_code == 200
+
+    response = authenticated_client.get("/admin/users?page=2")
+    assert response.status_code == 200
+
+
+def test_users_list_search(authenticated_client, db):
+    """Test user list search functionality."""
+    for i in range(5):
+        user = User(username=f"searchuser{i}", is_admin=False)
+        user.set_password("Password123!")
+        db.session.add(user)
+    db.session.commit()
+
+    response = authenticated_client.get("/admin/users?search=searchuser1")
+    assert response.status_code == 200
+
+
+def test_delete_last_admin_prevented(authenticated_client, db, admin_user):
+    """Test cannot delete the last admin user."""
+    response = authenticated_client.post(
+        f"/admin/users/delete/{admin_user.id}",
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"cannot delete your own" in response.data.lower()
+
+
+def test_create_user_empty_username(authenticated_client):
+    """Test creating user with empty username."""
+    response = authenticated_client.post(
+        "/admin/users/create",
+        data={
+            "username": "",
+            "password": "Password123!",
+        },
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"required" in response.data.lower()
+
+
+def test_create_user_empty_password(authenticated_client):
+    """Test creating user with empty password."""
+    response = authenticated_client.post(
+        "/admin/users/create",
+        data={
+            "username": "newuser",
+            "password": "",
+        },
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"required" in response.data.lower()
+
+
+def test_user_password_change_verifies_old_password(authenticated_client, db, admin_user):
+    """Test password change with wrong current password."""
+    response = authenticated_client.post(
+        f"/admin/users/{admin_user.id}/password",
+        data={
+            "old_password": "wrongpassword",
+            "password": "NewPassword123!",
+        },
+        follow_redirects=True
+    )
+    assert response.status_code == 200

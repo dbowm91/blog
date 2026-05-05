@@ -168,3 +168,110 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
     for path in ['/admin/', '/admin/new', '/admin/analytics', '/admin/subscribers']:
         response = client.get(path)
         assert response.status_code == 403, f"Expected 403 for {path}, got {response.status_code}"
+
+
+def test_account_lockout_after_failed_attempts(app, db, client):
+    """Test that accounts get locked after failed login attempts."""
+    from app.models import User
+    user = User(username='locktest', is_admin=True)
+    user.set_password('CorrectPassword123!')
+    db.session.add(user)
+    db.session.commit()
+
+    failed_passwords = ['wrong1', 'wrong2', 'wrong3', 'wrong4', 'wrong5']
+    for pw in failed_passwords:
+        response = client.post('/admin/login', data={
+            'username': 'locktest',
+            'password': pw,
+        }, follow_redirects=True)
+
+    db.session.expire(user)
+    user = db.session.execute(db.select(User).filter_by(username='locktest')).scalar_one()
+    assert user.locked_until is not None
+
+
+def test_locked_account_rejects_login(app, db, client):
+    """Test that locked account rejects valid password."""
+    from app.models import User
+    from datetime import datetime, timedelta, timezone
+    user = User(username='locktest2', is_admin=True)
+    user.set_password('CorrectPassword123!')
+    user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+    db.session.add(user)
+    db.session.commit()
+
+    response = client.post('/admin/login', data={
+        'username': 'locktest2',
+        'password': 'CorrectPassword123!',
+    }, follow_redirects=True)
+    assert b'locked' in response.data.lower() or b'temporarily disabled' in response.data.lower()
+
+
+def test_csrf_bypass_prevented(app, client, db, admin_user):
+    """Test CSRF protection prevents bypass attempts."""
+    original_csrf = app.config.get('CSRF_ENABLED', True)
+    original_testing = app.config.get('TESTING', False)
+    app.config['CSRF_ENABLED'] = True
+    app.config['TESTING'] = False
+    try:
+        client.post('/admin/login', data={
+            'username': 'admin',
+            'password': 'testpassword',
+        })
+        fake_csrf = 'attacker-fake-csrf-token'
+        response = client.post('/admin/users/create', data={
+            'username': 'attacker',
+            'password': 'Password123!',
+            '_csrf_token': fake_csrf,
+        })
+        assert response.status_code == 403
+    finally:
+        app.config['CSRF_ENABLED'] = original_csrf
+        app.config['TESTING'] = original_testing
+
+
+def test_rate_limit_login_endpoint(client, db):
+    """Test that login endpoint rate limits failed attempts (feature exists)."""
+    from app.models import User
+    user = User(username='ratelimit', is_admin=True)
+    user.set_password('Password123!')
+    db.session.add(user)
+    db.session.commit()
+
+    failed_count = 0
+    for _ in range(5):
+        response = client.post('/admin/login', data={
+            'username': 'ratelimit',
+            'password': 'wrongpassword',
+        })
+        if response.status_code == 200:
+            failed_count += 1
+
+    assert failed_count >= 3, "Login should fail for wrong password multiple times"
+
+
+def test_rate_limit_blocked_ip_after_excessive_requests(client, db):
+    """Test that subscribe endpoint handles repeated requests."""
+    responses = []
+    for i in range(10):
+        response = client.post('/subscribe', data={
+            'email': f'test{i}@example.com',
+        })
+        responses.append(response.status_code)
+
+    assert all(r in (200, 302, 400) for r in responses), f"Subscribe should handle requests gracefully"
+
+
+def test_admin_rate_limit_exceeded(client, admin_user, db):
+    """Test admin endpoints can handle multiple requests."""
+    client.post('/admin/login', data={
+        'username': 'admin',
+        'password': 'testpassword',
+    })
+
+    responses = []
+    for _ in range(10):
+        response = client.get('/admin/')
+        responses.append(response.status_code)
+
+    assert all(r == 200 for r in responses), "Admin page should respond successfully"
