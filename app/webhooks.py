@@ -50,7 +50,6 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> T
     import requests
     from app.utils import is_safe_webhook_url
 
-    # SSRF protection: validate URL before making request
     is_safe, reason = is_safe_webhook_url(webhook_url)
     if not is_safe:
         return False, f"SSRF protection: {reason}"
@@ -67,7 +66,7 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> T
             json=payload,
             headers=headers,
             timeout=WEBHOOK_TIMEOUT,
-            allow_redirects=False,  # Prevent redirect-based SSRF
+            allow_redirects=False,
         )
         return response.status_code < 400, f"HTTP {response.status_code}"
     except requests.RequestException as e:
@@ -93,13 +92,15 @@ def create_webhook_event(
     db.session.add(event)
     db.session.commit()
 
+    event_id = int(event.id)
+
     try:
         from app.tasks import deliver_webhook_task
-        deliver_webhook_task.delay(event.id)
+        deliver_webhook_task.delay(event_id)
     except (RequestException, ValueError, OSError):
         pass
 
-    return int(event.id)
+    return event_id
 
 
 def init_webhooks(app: "Flask") -> None:
