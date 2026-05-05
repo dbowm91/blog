@@ -283,9 +283,13 @@ Sitemap: {BASE_URL}/sitemap.xml
         except Exception:
             checks["backup_freshness"] = "error"
 
+        critical_checks = {
+            k: v for k, v in checks.items()
+            if k in ("database", "scheduler", "search", "disk_space", "db_integrity")
+        }
         overall = (
             "ok"
-            if all(v in ("ok", "running", "disabled") for v in checks.values() if v is not None)
+            if all(v in ("ok", "running", "disabled") for v in critical_checks.values() if v is not None)
             else "degraded"
         )
 

@@ -20,7 +20,7 @@ from typing import cast, Union, Any
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
-from app.models import Post, ShareEvent
+from app.models import Post, ShareEvent, PostSeries
 from app.config import MAX_VIEWED_POSTS, BASE_URL
 from app import limiter
 
