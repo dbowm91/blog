@@ -154,6 +154,9 @@ class Post(db.Model):  # type: ignore[name-defined]
     series_entries = db.relationship(
         "PostSeries", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
+    comments = db.relationship(
+        "Comment", back_populates="post", lazy="select", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         db.Index("ix_posts_published_created", "published", "created_at"),
@@ -161,6 +164,7 @@ class Post(db.Model):  # type: ignore[name-defined]
         db.Index("ix_posts_newsletter_sent_at", "newsletter_sent_at"),
         db.Index("ix_posts_published_updated", "published", "updated_at"),
         db.Index("ix_posts_published_slug", "published", "slug"),
+        db.Index("ix_posts_scheduled_publish_at", "scheduled_publish_at"),
     )
 
     @staticmethod
@@ -223,7 +227,7 @@ class Subscriber(db.Model):  # type: ignore[name-defined]
     )
 
     def __repr__(self) -> str:
-        return f"<Subscriber {self.email!r} confirmed={self.confirmed}>"
+        return f"<Subscriber id={self.id} confirmed={self.confirmed}>"
 
 
 class PageView(db.Model):  # type: ignore[name-defined]
@@ -256,6 +260,7 @@ class ShareEvent(db.Model):  # type: ignore[name-defined]
 
     __table_args__ = (
         db.Index("ix_share_events_post_created", "post_id", "created_at"),
+        db.Index("ix_share_events_platform", "platform"),
     )
 
     def __repr__(self) -> str:
@@ -523,8 +528,8 @@ class Comment(db.Model):  # type: ignore[name-defined]
     approved = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
-    post = db.relationship("Post", backref="comments")
-    parent = db.relationship("Comment", remote_side=[id], backref="replies")
+    post = db.relationship("Post", back_populates="comments")
+    replies = db.relationship("Comment", back_populates="parent", remote_side=[id])
 
     __table_args__ = (
         db.Index("ix_comments_post_approved", "post_id", "approved"),

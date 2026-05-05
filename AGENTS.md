@@ -82,11 +82,23 @@ These files previously used broad `except Exception` clauses. All have been repl
 - **Wave 1:** Security & Stability (SQLi, CSSi, Encryption, Exceptions)
 - **Wave 2:** Performance & Architecture (N+1 Queries, Indexes, FTS5vocab, API Modularization, Utility Consolidation, Logging)
 - **Wave 3:** Features & Future (CDN, S3 Security, Benchmarking, Audit)
+- **Wave 4:** Immediate Remediation & Cleanup (CQ-3 Exception Handling, AGENTS.md updates, unused imports, test infrastructure)
+- **Wave 5:** Security Hardening & Performance Optimization (PII fixes, Dockerfile gcc removal, backup key min, N+1 fixes, FTS optimization, indexes)
+- **Wave 6:** Architecture & Code Quality (Comment back_populates migration, PII serialization defaults)
+- **Wave 7:** Testing & Coverage Push (pytest-xdist, docker resources, pip-audit CI)
+- **Wave 8:** Infrastructure, Monitoring & CI/CD (Resource limits, security scanning)
+- **Wave 9:** Feature Completion, Frontend & Documentation (RSS/JSON feeds verified, CONTRIBUTING.md, SECURITY.md added)
 
 ## Current Focus (May 2026)
 
-The project is currently executing from the **Consolidated Improvement Plan** located at `plans/plan.md`. This document replaces all prior fragmented `plan*.md` files and is organized into logical waves (Waves 4-9) that can often be parallelized. 
-Agents undertaking new work should consult `plans/plan.md` and use it as a living document to track progress.
+Most waves completed. Remaining items require significant scope or big rewrites:
+- TOTP encryption (deferred - requires encryption helpers, model changes, UI)
+- 2FA backup codes (deferred - requires UI + model changes)
+- Admin rate limiting (deferred - requires testing 35+ routes)
+- PostgreSQL FTS abstraction (deferred - significant architecture change)
+- Vite code splitting, AVIF support (deferred - frontend scope)
+
+See `plans/plan.md` for details.
 
 ## Skills
  

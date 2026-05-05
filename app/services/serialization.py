@@ -27,10 +27,15 @@ def serialize_post(post: Post) -> dict:
     }
 
 
-def serialize_subscriber(subscriber: Subscriber) -> dict:
-    """Serialize a Subscriber instance to a dictionary."""
-    return {
-        "email": subscriber.email,
+def serialize_subscriber(subscriber: Subscriber, include_email: bool = False) -> dict:
+    """Serialize a Subscriber instance to a dictionary.
+
+    Args:
+        subscriber: The Subscriber model instance
+        include_email: If True, include email in output (default False for privacy)
+    """
+    result: dict[str, Any] = {
+        "id": subscriber.id,
         "confirmed": subscriber.confirmed,
         "created_at": (
             subscriber.created_at.isoformat() if subscriber.created_at else None
@@ -44,6 +49,9 @@ def serialize_subscriber(subscriber: Subscriber) -> dict:
             else None
         ),
     }
+    if include_email:
+        result["email"] = subscriber.email
+    return result
 
 
 def serialize_page(page: Page) -> dict:

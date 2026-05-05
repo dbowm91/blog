@@ -59,9 +59,12 @@ def _check_fts_enabled() -> bool:
 def init_fts() -> None:
     """Create FTS5 virtual table and populate with existing posts. Idempotent."""
     try:
-        db.session.execute(text("DROP TABLE IF EXISTS posts_fts_vocab"))
-        db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
-        db.session.commit()
+        posts_exist = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'")
+        ).fetchone()
+        if not posts_exist:
+            return
+
         db.session.execute(
             text(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5("
@@ -75,10 +78,6 @@ def init_fts() -> None:
             )
         )
         db.session.commit()
-        # Check if posts table exists before inserting
-        posts_exist = db.session.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'")
-        ).fetchone()
         if posts_exist:
             db.session.execute(
                 text(
@@ -314,10 +313,10 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
             params = {f"id{i}": pid for i, pid in enumerate(post_ids)}
             params["q"] = fts_query
 
-        logger.info("FTS snippet query: %s", query_str)
-        logger.info("FTS snippet params: %s", params)
+        logger.debug("FTS snippet query: %s", query_str)
+        logger.debug("FTS snippet params: %s", params)
         result = db.session.execute(text(query_str), params).fetchall()
-        logger.info("FTS snippet result: %s", result)
+        logger.debug("FTS snippet result: %s", result)
         for row in result:
             snippets[row[0]] = row[1]
     except (OperationalError, ProgrammingError, DatabaseError) as e:

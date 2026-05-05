@@ -404,7 +404,29 @@ python backup.py --decrypt backup.db.gpg  # Decrypt a backup file
 **Admin UI:** The backup/restore route handles `.gpg` encrypted files transparently.
 
 ## Key Operational Lessons
-## Test Debugging Tips (Added 2026-05-02)
+
+## Security Posture (Updated May 2026 - Completed Waves 4-9)
+
+The codebase implements robust security controls:
+- Session fixation prevention (`session.clear()` before `login_user()`)
+- CSRF protection with sliding window (timing-safe via `hmac.compare_digest`)
+- API key comparison using `hmac.compare_digest()` (timing-safe)
+- Password hashing via `werkzeug.security` (pbkdf2:sha256)
+- Token enumeration prevention with constant-time delay
+- SQLAlchemy 2.0 parameterized queries throughout
+- Magic byte detection for file uploads
+- CSS sanitization using tinycss2 parser with allowlist (not regex)
+- CSV formula injection prevention
+- Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
+- **Webhook secrets encrypted at rest** using AES-256-GCM (`app/webhook_encryption.py`)
+- **FTS query injection prevented** via individual bindparams for IN clauses (not tuple)
+- **Specific exception handling** (no broad `except Exception`) in critical paths
+- **Subscriber email removed from `__repr__`** to prevent PII leakage
+- **Dockerfile gcc removed** post-install to reduce attack surface
+- **Comment model uses `back_populates`** instead of `backref`
+- **`serialize_subscriber` has `include_email=False` default** for PII protection
+
+## Test Debugging Tips
 
 ### Page View Buffer Test Interference
 - Buffer restarts in tests cause intermittent failures

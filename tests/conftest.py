@@ -183,30 +183,14 @@ def clean_analytics_cache():
 
 
 @pytest.fixture(autouse=True)
-def mock_image_processing():
-    """Mock image processing to avoid Celery calls during tests."""
-    import app.storage
-    from unittest.mock import patch, MagicMock
-    import os
-
-    original = app.storage.upload_with_processing
-
-    def mock_upload(filename, file_content, generate_variants=True):
-        upload_folder = os.environ.get(
-            "UPLOAD_FOLDER",
-            os.path.join(os.path.dirname(app.storage.__file__), "static", "uploads"),
-        )
-        os.makedirs(upload_folder, exist_ok=True)
-        filepath = os.path.join(upload_folder, filename)
-        with open(filepath, "wb") as f:
-            f.write(file_content)
-        return filename, None
-
-    app.storage.upload_with_processing = mock_upload
-
+def ensure_buffer_disabled():
+    """Ensure page view buffer is disabled during tests."""
+    from app.page_view_buffer import shutdown_page_view_buffer
+    import app.config as _app_config
+    _app_config.PAGE_VIEW_BUFFER_SIZE = 0
+    shutdown_page_view_buffer()
     yield
-
-    app.storage.upload_with_processing = original
+    shutdown_page_view_buffer()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -65,9 +65,9 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     Raises:
         ValueError: If password is too short or salt is invalid
     """
-    if len(password) < 8:
+    if len(password) < 12:
         raise ValueError(
-            "BACKUP_ENCRYPTION_KEY must be at least 8 characters for encryption"
+            "BACKUP_ENCRYPTION_KEY must be at least 12 characters for encryption"
         )
     if len(salt) != SALT_SIZE:
         raise ValueError(f"Salt must be exactly {SALT_SIZE} bytes")

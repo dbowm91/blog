@@ -248,52 +248,11 @@ python run.py
 
 ---
 
-## Explanation: Architecture
-
-### Why SQLite by Default?
-
-SQLite with WAL mode provides:
-- Single-file backup (simple `cp` or `.backup`)
-- No separate server process
-- Excellent read performance for <10,000 posts
-- Concurrent reads while writing
-
-For higher traffic or multi-server deployments, migrate to PostgreSQL. See [DEPLOY.md](DEPLOY.md#postgresql-migration-guide).
-
-### Why Granian?
-
-Granian is a Rust-based ASGI server that outperforms Python alternatives (Uvicorn, Gunicorn) in benchmarks. Use:
-
-```bash
-granian --interface asgi --workers 4 --timeout 60 run:asgi_app
-```
-
-### Why APScheduler for Newsletter?
-
-The newsletter uses in-process APScheduler with file locking (`fcntl`) for single-machine deployments. For multi-machine setups, use an external scheduler (Celery, cron) or distributed lock (Redis).
-
-### Storage Abstraction
-
-The `app/storage.py` module abstracts file storage between local filesystem and S3-compatible backends. Configure via `STORAGE_BACKEND` environment variable.
-
-### Session Security
-
-- Sessions expire after 24 hours of inactivity
-- IP binding warns on address change (doesn't invalidate)
-- CSRF tokens use sliding window (5 tokens)
-
-### Security Headers
-
-The app sets:
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `Strict-Transport-Security` (when HTTPS)
-- `Content-Security-Policy` (self-only, nonces for scripts)
-
----
-
 ## Full Documentation
 
 - [DEPLOY.md](DEPLOY.md) — Production deployment, Docker, PostgreSQL migration, systemd, monitoring
 - [USAGE.md](USAGE.md) — Detailed user guide for all admin features
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design, data flow, and component relationships
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Developer setup and contribution guidelines
+- [SECURITY.md](SECURITY.md) — Security features and vulnerability reporting
 - [AGENTS.md](AGENTS.md) — Developer/contributor guidelines

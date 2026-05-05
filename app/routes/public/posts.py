@@ -48,7 +48,10 @@ def register_post_routes(public: Any) -> None:
     def post(slug: str) -> ResponseReturnValue:
         """Single post page with related posts and share tracking."""
         post_obj = db.session.execute(
-            select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter_by(slug=slug, published=True)
+            select(Post).options(
+                joinedload(cast(QueryableAttribute, Post.tags)),
+                joinedload(Post.series_entries).joinedload(PostSeries.series)
+            ).filter_by(slug=slug, published=True)
         ).unique().scalar_one_or_none()
         if not post_obj:
             abort(404)

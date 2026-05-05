@@ -34,6 +34,9 @@ jobs:
       - name: Type check with mypy
         run: mypy app
 
+      - name: Security scan with pip-audit
+        run: pip-audit || true
+
       - name: Run tests with coverage
         env:
           ADMIN_PASSWORD: test

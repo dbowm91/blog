@@ -9,7 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --shell /bin/bash blog
 
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --user --no-cache-dir -r requirements.txt \
+    && apt-get remove -y gcc \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/blog/instance /home/blog/logs /home/blog/app/static/uploads
 RUN chown -R blog:blog /home/blog

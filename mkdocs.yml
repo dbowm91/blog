@@ -1,0 +1,62 @@
+site_name: DevLog Documentation
+site_url: https://github.com/sugarwookie/blog
+site_description: A personal blog platform built with Flask
+site_author: DevLog
+
+repo_name: sugarwookie/blog
+repo_url: https://github.com/sugarwookie/blog
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - awesome-pages
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - API Reference:
+      - Posts: api/posts.md
+      - Subscribers: api/subscribers.md
+      - Stats: api/stats.md
+  - Deployment: deployment.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.mark
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sugarwookie/blog
