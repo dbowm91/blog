@@ -41,13 +41,15 @@ app/templates/
 
 ## Template Filters
 
-Defined in `app/filters.py`:
-- `reading_time` - Calculate reading time from HTML content
+Defined in `app/filters.py` (lines 11-72):
+- `markdown_safe` - Render markdown to HTML with nh3 sanitization
+- `reading_time` - Calculate reading time from text content
+- `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with request-level caching
 - `post_image_srcset` - Generate srcset for responsive images
-- `truncate` - Truncate text with ellipsis
-- `markdown_safe` - Render markdown to HTML (uses nh3 for sanitization)
-- `custom_css` - Apply custom CSS theme
+
+Note: Jinja2 built-in filters like `truncate`, `format`, `length` are also available.
+Note: `custom_css` is a context variable (from `inject_theme()`), not a filter.
 
 ## Template Value Caching
 
