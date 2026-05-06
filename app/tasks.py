@@ -103,7 +103,6 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                             resized.save(variant_path, optimize=True)
 
                 # Upload all generated variants
-                storage.save(filename, file_data)
                 for width in (400, 800, 1200):
                     webp_variant_name = f"{width}_{basename}.webp"
                     webp_variant_path = os.path.join(tmpdir, webp_variant_name)
