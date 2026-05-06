@@ -12,9 +12,12 @@ venv/
 logs/
 .DS_Store
 app/static/uploads/
-docker-compose.yml
-nginx/
 backups/
 node_modules/
 app/static/dist/
 .skills
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+*.log
+.coverage
