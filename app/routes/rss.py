@@ -62,11 +62,29 @@ def _get_cached_atom_posts(limit: int = 20) -> list[Post]:
     posts, _ = _get_feed_posts(limit)
     return posts
 
-def _get_atom_feed_posts(limit: int = 20) -> list[Post]:
-    """Get posts for Atom feed with caching."""
+@flask_cache.cached(timeout=300, key_prefix="rss_feed_posts")
+def _get_cached_rss_posts(limit: int = 20) -> list[Post]:
+    """Cached version for RSS feed."""
+    posts, _ = _get_feed_posts(limit)
+    return posts
+
+@flask_cache.cached(timeout=300, key_prefix="json_feed_posts")
+def _get_cached_json_posts(limit: int = 20) -> list[Post]:
+    """Cached version for JSON feed."""
+    posts, _ = _get_feed_posts(limit)
+    return posts
+
+def _get_rss_feed_posts(limit: int = 20) -> list[Post]:
+    """Get posts for RSS feed with caching."""
     if current_app.testing:
         return _get_feed_posts()[0]
-    return _get_cached_atom_posts(limit)
+    return _get_cached_rss_posts(limit)
+
+def _get_json_feed_posts(limit: int = 20) -> list[Post]:
+    """Get posts for JSON feed with caching."""
+    if current_app.testing:
+        return _get_feed_posts()[0]
+    return _get_cached_json_posts(limit)
 
 
 def _add_cache_headers(response: Any, etag: str, is_feed: bool = True) -> Any:
@@ -144,3 +162,120 @@ def atom_feed() -> Any:
 
     response = Response(xml, mimetype="application/atom+xml")
     return _add_cache_headers(response, etag, is_feed=False)
+
+
+def _render_post_item(post: Post) -> dict[str, Any]:
+    """Render a post item for RSS/JSON feeds."""
+    post_link = f"{BASE_URL}/post/{post.slug}"
+    content_html = nh3.clean(
+        markdown.markdown(post.body, extensions=["fenced_code", "tables"]),
+        tags=MARKDOWN_ALLOWED_TAGS,
+        attributes=MARKDOWN_ALLOWED_ATTRIBUTES,
+    )
+    return {
+        "title": post.title,
+        "link": post_link,
+        "slug": post.slug,
+        "updated": (post.updated_at or post.created_at).isoformat() + "Z",
+        "published": (post.published_at or post.created_at).isoformat() + "Z",
+        "content_html": content_html,
+        "tags": [tag.name for tag in cast(list[Any], post.tags)],
+    }
+
+
+@rss.route("/rss")
+def rss_feed() -> Any:
+    """RSS 2.0 feed implementation."""
+    posts = _get_rss_feed_posts()
+    etag = _generate_etag(posts, "rss")
+
+    if_none_match = request.headers.get("If-None-Match")
+    if if_none_match and if_none_match.strip('"') == etag:
+        return Response(status=304)
+
+    feed_updated = utc_now().isoformat() + "Z"
+    if posts:
+        latest = max(post.updated_at or post.created_at for post in posts)
+        feed_updated = latest.isoformat() + "Z"
+
+    items = []
+    for post in posts:
+        item = _render_post_item(post)
+        categories = "".join(
+            f"        <category>{xml_escape(tag)}</category>\n"
+            for tag in item["tags"]
+        )
+        items.append(f"""  <item>
+    <title>{xml_escape(item["title"])}</title>
+    <link>{xml_escape(item["link"])}</link>
+    <guid isPermaLink="false">{xml_escape(item["slug"])}</guid>
+    <pubDate>{xml_escape(item["published"])}</pubDate>
+    <updated>{xml_escape(item["updated"])}</updated>
+{categories}    <description>{xml_escape(_strip_markdown(item["content_html"][:500]))}</description>
+    <content:encoded><![CDATA[{item["content_html"]}]]></content:encoded>
+  </item>""")
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>{xml_escape(APP_TITLE)}</title>
+    <link>{xml_escape(BASE_URL)}</link>
+    <description>{xml_escape(APP_DESCRIPTION)}</description>
+    <language>en-us</language>
+    <lastBuildDate>{xml_escape(feed_updated)}</lastBuildDate>
+    <atom:link href="{xml_escape(BASE_URL)}/rss" rel="self" type="application/rss+xml"/>
+    <managingEditor>{xml_escape(AUTHOR_NAME or "admin")}</managingEditor>
+    <generator>Blog CMS</generator>
+{"".join(items)}
+  </channel>
+</rss>"""
+
+    response = Response(xml, mimetype="application/rss+xml")
+    return _add_cache_headers(response, etag)
+
+
+@rss.route("/json")
+def json_feed() -> Any:
+    """JSON Feed (https://jsonfeed.org) implementation."""
+    posts = _get_json_feed_posts()
+    etag = _generate_etag(posts, "json")
+
+    if_none_match = request.headers.get("If-None-Match")
+    if if_none_match and if_none_match.strip('"') == etag:
+        return Response(status=304)
+
+    feed_updated = utc_now().isoformat() + "Z"
+    if posts:
+        latest = max(post.updated_at or post.created_at for post in posts)
+        feed_updated = latest.isoformat() + "Z"
+
+    items = []
+    for post in posts:
+        item = _render_post_item(post)
+        items.append({
+            "id": item["slug"],
+            "title": item["title"],
+            "url": item["link"],
+            "date_published": item["published"],
+            "date_modified": item["updated"],
+            "content_html": item["content_html"],
+            "tags": item["tags"],
+        })
+
+    import json
+    feed = {
+        "version": "https://jsonfeed.org/version/1.1",
+        "title": APP_TITLE,
+        "home_page_url": BASE_URL,
+        "feed_url": f"{BASE_URL}/json",
+        "description": APP_DESCRIPTION,
+        "authors": [{"name": AUTHOR_NAME or "admin"}],
+        "language": "en-us",
+        "items": items,
+    }
+
+    response = Response(
+        json.dumps(feed, ensure_ascii=False),
+        mimetype="application/feed+json"
+    )
+    return _add_cache_headers(response, etag)
