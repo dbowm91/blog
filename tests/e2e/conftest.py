@@ -5,6 +5,18 @@ import time
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
+os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
+
+
+@pytest.fixture(autouse=True)
+def ensure_buffer_disabled():
+    """Ensure page view buffer is disabled during e2e tests."""
+    from app.page_view_buffer import shutdown_page_view_buffer
+    import app.config as _app_config
+    _app_config.PAGE_VIEW_BUFFER_SIZE = 0
+    shutdown_page_view_buffer()
+    yield
+    shutdown_page_view_buffer()
 
 
 @pytest.fixture(scope="session")
