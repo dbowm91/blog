@@ -143,6 +143,16 @@ def register_subscribe_routes(public):
             return redirect("/")
         sub.confirmed = True
         db.session.commit()
+        try:
+            from app.webhooks import create_webhook_event
+            create_webhook_event(
+                event_type="subscriber.confirmed",
+                payload={"subscriber_id": sub.id, "email": sub.email},
+                target_id=sub.id,
+                target_type="subscriber"
+            )
+        except Exception:
+            pass
         flash("Subscription confirmed! You'll receive our newsletter.", "success")
         return redirect("/")
 

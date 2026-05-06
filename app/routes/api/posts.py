@@ -264,6 +264,7 @@ def update_post(post_id: int) -> Any:
         published, err = validate_boolean(data["published"], "published")
         if err:
             return jsonify({"error": err}), 400
+        was_published = post.published
         post.published = published
         if published and not post.published_at:
             post.published_at = utc_now()
@@ -287,6 +288,18 @@ def update_post(post_id: int) -> Any:
     except OperationalError:
         db.session.rollback()
         return jsonify({"error": "Database operational error"}), 500
+
+    if "published" in data and was_published != post.published:
+        try:
+            from app.webhooks import create_webhook_event
+            create_webhook_event(
+                event_type="post.published" if post.published else "post.unpublished",
+                payload={"post_id": post.id, "title": post.title, "slug": post.slug},
+                target_id=post.id,
+                target_type="post"
+            )
+        except Exception:
+            pass
 
     return jsonify(_post_to_dict(post))
 
