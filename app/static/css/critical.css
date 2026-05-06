@@ -1,0 +1,79 @@
+/* critical.css - Above-the-fold styles for initial page render */
+/* This file contains minimal styles needed to prevent FOUC */
+
+/* Font declarations for preloading */
+:root {
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Basic reset and box-sizing */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Body base styles - must match layout.css */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    color: #1a1a1a;
+    background-color: #fafafa;
+}
+
+/* Header/nav skeleton */
+.site-header {
+    padding: 1rem;
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.site-header .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.site-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Main content area */
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+/* Footer skeleton */
+.site-footer {
+    padding: 1rem;
+    background: #f5f5f5;
+    border-top: 1px solid #e5e5e5;
+    text-align: center;
+}
+
+/* Skeleton loading state for posts */
+.post-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+}
+
+.post-card .title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.post-card .excerpt {
+    color: #666;
+    font-size: 0.875rem;
+}
