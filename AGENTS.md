@@ -91,6 +91,16 @@ These files previously used broad `except Exception` clauses. All have been repl
 
 ## Current Focus (May 2026)
 
+Architecture review completed. Critical and high priority bugs fixed:
+- S3 image variant upload bug (tasks.py)
+- RSS 2.0 and JSON Feed endpoints (routes/rss.py)
+- Webhook event triggering (posts.py, subscribe.py)
+- Celery PYTHONPATH, nginx user directive
+- critical.css created
+- Page view buffer disabled in all test fixtures
+
+See `review_plan.md` for implementation details.
+
 All planned waves completed as of May 2026. Remaining items are deferred due to scope:
 - TOTP encryption (deferred - requires encryption helpers, model changes, UI)
 - 2FA backup codes (deferred - requires UI + model changes)
@@ -135,6 +145,36 @@ def run_backup_task(backup_dir, compress):
     from app.services.backup import create_backup
     return create_backup(db_path, backup_dir, compress=compress)
 ```
+
+### Webhook Event Triggering
+Webhook events are triggered at key state transitions:
+```python
+# Post publish/unpublish in app/routes/api/posts.py
+if "published" in data and was_published != post.published:
+    from app.webhooks import create_webhook_event
+    create_webhook_event(
+        event_type="post.published" if post.published else "post.unpublished",
+        payload={"post_id": post.id, "title": post.title, "slug": post.slug},
+        target_id=post.id,
+        target_type="post"
+    )
+
+# Subscriber confirmation in app/routes/public/subscribe.py
+sub.confirmed = True
+# ... after commit ...
+create_webhook_event(
+    event_type="subscriber.confirmed",
+    payload={"subscriber_id": sub.id, "email": sub.email},
+    target_id=sub.id,
+    target_type="subscriber"
+)
+```
+
+### Feed Endpoints
+Three feed endpoints available:
+- `/atom` - Atom 1.0 feed
+- `/rss` - RSS 2.0 feed
+- `/json` - JSON Feed 1.1
 
 ## Skills
  
