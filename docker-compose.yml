@@ -38,6 +38,7 @@ services:
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - PYTHONPATH=/home/blog
     volumes:
       - blog_data:/home/blog/instance
       - blog_uploads:/home/blog/app/static/uploads
