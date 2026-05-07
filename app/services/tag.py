@@ -60,6 +60,10 @@ def delete_tag_if_unused(tag: Tag) -> bool:
 
     Returns:
         True if deleted, False if tag still has posts
+
+    Note:
+        Slug generation for new tags uses a collision limit of 100 tries
+        before falling back to UUID suffix (see `app/services/slug.py`).
     """
     if tag.posts:
         return False

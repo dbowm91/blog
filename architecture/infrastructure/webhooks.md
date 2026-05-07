@@ -92,6 +92,19 @@ The `is_safe_webhook_url()` utility validates:
 | `post.created` | New post created |
 | `subscriber.confirmed` | New subscriber confirms |
 
+## Queue Routing
+
+Webhook delivery uses the `webhooks` Celery queue (see `app/tasks.py:192`).
+
+Other queues used by the system:
+
+| Queue | Tasks | Location |
+|-------|-------|----------|
+| `images` | Image processing | `app/tasks.py:29` |
+| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
+| `email` | Transactional email | `app/tasks.py:264,285` |
+| `backup` | Backup tasks | `app/tasks.py:306` |
+
 ## See Also
 - [Celery Tasks](../tasks/celery-tasks.md) - Async delivery
 - [Webhook Encryption](../deployment/security.md) - Secret encryption

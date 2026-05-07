@@ -145,6 +145,12 @@ def run_daily_backup(app: Any) -> None:
     """Run daily database backup with retention cleanup.
 
     Designed to be called from scheduler or CLI.
+
+    Note:
+        This uses `backup_*.db` naming pattern (not `blog_*.db`).
+        Unlike `create_backup()`, this does NOT support encryption
+        or compression. For encrypted/compressed backups, use the
+        Celery task `run_backup_task` which calls `create_backup()`.
     """
     from app.config import DATA_BACKUP_DIR
 

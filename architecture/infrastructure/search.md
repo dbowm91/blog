@@ -33,6 +33,10 @@ CREATE VIRTUAL TABLE posts_fts_vocab USING fts5vocab(posts_fts, 'row')
 
 Creates FTS5 tables and populates with existing published posts. Idempotent.
 
+### `rebuild_fts()`
+
+Rebuilds the FTS5 index from scratch using `INSERT INTO posts_fts(posts_fts) VALUES('rebuild')`. Use when index gets out of sync with actual data.
+
 ### `sync_fts()`
 
 ```python

@@ -4,8 +4,10 @@ JSON export/import for blog data.
 
 ## Features
 
-- Export posts, subscribers, pages, tags to JSON (import via CLI)
+- Export posts, subscribers, pages, tags to JSON
 - Batch processing for large datasets
+
+Note: Import functionality is handled via `app/cli.py` (CLI commands), not in the service itself.
 
 ## See Also
 - [Backup Service](services/backup.md) - Database backups
