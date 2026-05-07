@@ -72,42 +72,25 @@ These files previously used broad `except Exception` clauses. All have been repl
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
 - In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
 - The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture in `tests/conftest.py` to ensure disabled.
+- The `ensure_buffer_disabled` fixture is at `tests/conftest.py:185-193`
 
 ### Test Database Session Issues
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`.
 
-## Completed Work (Historical)
+## Deferred Items
 
-- **Wave 1:** Security & Stability (SQLi, CSSi, Encryption, Exceptions)
-- **Wave 2:** Performance & Architecture (N+1 Queries, Indexes, FTS5vocab, API Modularization, Utility Consolidation, Logging)
-- **Wave 3:** Features & Future (CDN, S3 Security, Benchmarking, Audit)
-- **Wave 4:** Immediate Remediation & Cleanup (CQ-3 Exception Handling, AGENTS.md updates, unused imports, test infrastructure)
-- **Wave 5:** Security Hardening & Performance Optimization (PII fixes, Dockerfile gcc removal, backup key min, N+1 fixes, FTS optimization, indexes)
-- **Wave 6:** Architecture & Code Quality (Comment back_populates migration, PII serialization defaults)
-- **Wave 7:** Testing & Coverage Push (backup_integrity, webhooks, transaction tests; security coverage; property-based tests)
-- **Wave 8:** Infrastructure, Monitoring & CI/CD (Health checks with Redis/Celery/backup freshness, Prometheus metrics, Docker multi-stage build, CI improvements)
-- **Wave 9:** Feature Completion (Snippet batching for SQLite, backup isolation via Celery task)
+These items are on the roadmap but deferred due to scope:
 
-## Current Focus (May 2026)
-
-Architecture review completed. Several critical bugs were already fixed prior to review:
-- S3 image variant upload bug (tasks.py) - already fixed
-- RSS 2.0 and JSON Feed endpoints - already implemented
-- Webhook event triggering - already implemented
-- Celery PYTHONPATH, nginx user directive - already correct
-- critical.css - already exists
-- Page view buffer disabled in test fixtures - already protected
-
-**Remaining work:** Documentation updates across multiple architecture documents (see `plans/plan.md`). Many discrepancies found between architecture docs and actual implementation that need correcting.
-
-See `plans/plan.md` for consolidated action items organized by phase and wave.
-
-## Wave Status
-
-- **Wave 1-9:** Completed (per historical record)
-- **Current:** Documentation consolidation from architecture reviews
-- **Deferred:** TOTP encryption, 2FA backup codes, Admin rate limiting, PostgreSQL FTS, Vite code splitting, AVIF, Brotli
+| Item | Reason Deferred |
+|------|-----------------|
+| TOTP encryption (2FA) | Requires encryption helpers, model changes, UI |
+| 2FA backup codes | Requires UI + model changes |
+| Admin rate limiting | Requires testing 35+ routes |
+| PostgreSQL FTS abstraction | Significant architecture change |
+| Vite code splitting | Frontend scope |
+| AVIF support | Frontend scope |
+| Brotli compression | Nginx config |
 
 ## Important Notes for Future Agents
 
@@ -139,7 +122,21 @@ Actual filters (defined in `app/filters.py`):
 - `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
-## New Patterns (Wave 6-9)
+### Celery Queue Names
+Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 129, 192, 264, 285, 306)
+
+### Actual Routes
+When documenting or referring to routes, verify against actual implementation:
+- New post: `/admin/new` (NOT `/admin/posts/new`)
+- Edit post: `/admin/edit/<id>` (NOT `/admin/posts/<id>/edit`)
+- Tag delete: `POST /admin/tags/delete/<id>` (NOT `DELETE`)
+- Comment submission: `POST /post/<slug>/comment` (NOT `/comment/<int:post_id>`)
+- Subscribe: Only `POST /subscribe` exists (no GET handler)
+
+### User Model `__repr__`
+Returns `<User id={self.id}>` for PII/security reasons, not username.
+
+## New Patterns
 
 ### Comment Model Relationships
 The Comment model uses `back_populates` for parent/child relationships:
@@ -215,3 +212,11 @@ Load specialized skills using the `skill` tool with the skill name.
 | `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline (select→research→write→edit), subagent system, SQLite/WAL, Granian ASGI | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
 | `nara` | Nara chain CLI agent — free PoMI mining, wallet, transfer, quest, on-chain skills, ZK ID, agent registry | NARA, quest, mining, airdrop, earn/claim/collect NARA, wallet, balance, transfer, skills, zkid, agent, referral, PoMI, keypair, mnemonic, faucet, deposit, withdraw |
 | `osinit` | OSINIT Dashboard - FastAPI backend with 24 intelligence sources, React/TypeScript frontend with 3D globe | build, test, deploy, run, data source, panel, SSE, sweep, synthesis, authentication, rate limiting, cache, delta, VIX, SSRF, circuit breaker, routers, Granian |
+
+## Implementation Plan
+
+See `plans/plan.md` for consolidated action items organized by phase and wave. This includes:
+- Documentation corrections across architecture/ directory
+- Test infrastructure improvements
+- Service layer documentation
+- Configuration changes (e.g., adding `fail_under = 80` to pytest.ini)
