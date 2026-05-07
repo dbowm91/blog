@@ -109,8 +109,12 @@ admin/
 - **Route**: `GET /admin/backup`
 - **Route**: `POST /admin/backup/create`
 - **Route**: `POST /admin/backup/restore`
+- **Route**: `GET /admin/backup/download/<filename>`
+- **Route**: `POST /admin/backup/delete/<filename>`
+- **Route**: `GET /admin/backup/verify/<filename>`
+- **Route**: `GET /admin/backup/verify-all`
 - **Purpose**: Database backup/restore
-- **Features**: Compression, encryption
+- **Features**: Compression, encryption, integrity verification
 
 ## Analytics (`analytics.py`)
 

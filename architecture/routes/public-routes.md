@@ -31,6 +31,10 @@ Public routes serve the blog's public-facing pages.
 - **Purpose**: Full-text search using FTS5
 - **Template**: `public/search.html`
 
+### Static Page
+- **Route**: `GET /page/<slug>`
+- **Purpose**: Display static pages
+
 ## Post Routes (`posts.py`)
 
 ### Published Post
@@ -47,10 +51,8 @@ Public routes serve the blog's public-facing pages.
 ## Subscribe Routes (`subscribe.py`)
 
 ### Subscribe
-- **Route**: `GET /subscribe`
-- **Purpose**: Show subscription form
 - **Route**: `POST /subscribe`
-- **Purpose**: Handle new subscription
+- **Purpose**: Handle new subscription (only POST exists; no GET handler)
 
 ### Confirm Subscription
 - **Route**: `GET /confirm/<token>`

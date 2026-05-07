@@ -96,12 +96,12 @@ GET /api/stats
 Response:
 ```json
 {
+  "total_views": 10000,
   "total_posts": 50,
-  "published_posts": 45,
+  "total_shares": 25,
   "total_subscribers": 100,
-  "confirmed_subscribers": 95,
-  "total_page_views": 10000,
-  "posts_this_month": 5
+  "views_this_month": 500,
+  "new_subscribers_this_month": 10
 }
 ```
 
