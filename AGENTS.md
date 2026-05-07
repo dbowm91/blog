@@ -91,35 +91,53 @@ These files previously used broad `except Exception` clauses. All have been repl
 
 ## Current Focus (May 2026)
 
-Architecture review completed. Critical and high priority bugs fixed:
+Architecture review completed. Several critical bugs were already fixed prior to review:
 - S3 image variant upload bug (tasks.py) - already fixed
-- RSS 2.0 and JSON Feed endpoints (routes/rss.py) - already implemented
-- Webhook event triggering (posts.py, subscribe.py) - already implemented
+- RSS 2.0 and JSON Feed endpoints - already implemented
+- Webhook event triggering - already implemented
 - Celery PYTHONPATH, nginx user directive - already correct
-- critical.css created - already exists
-- Page view buffer disabled in all test fixtures - already protected
+- critical.css - already exists
+- Page view buffer disabled in test fixtures - already protected
 
-Architecture documentation updated to match implementation:
-- Core models.md: User __repr__, relationship diagram, logo_text
-- Routes: Post editor routes, tag delete, user management, comment path
-- Services: Serialization import, tag update/caching, backup functions
-- Tasks: Scheduler job schedules corrected
-- Infrastructure: Email retry count, queues, SQLite batching
-- Frontend: Filters, context processors, CSS directory
-- Deployment: Security header alignment
-- Testing: Directory structure, fixture names, coverage
+**Remaining work:** Documentation updates across multiple architecture documents (see `plans/plan.md`). Many discrepancies found between architecture docs and actual implementation that need correcting.
 
-See `architecture/review_plan.md` for full completion status.
+See `plans/plan.md` for consolidated action items organized by phase and wave.
 
-All planned waves completed as of May 2026. Remaining items are deferred due to scope:
-- TOTP encryption (deferred - requires encryption helpers, model changes, UI)
-- 2FA backup codes (deferred - requires UI + model changes)
-- Admin rate limiting (deferred - requires testing 35+ routes)
-- PostgreSQL FTS abstraction (deferred - significant architecture change)
-- Vite code splitting, AVIF support (deferred - frontend scope)
-- Brotli compression (deferred - Nginx config)
+## Wave Status
 
-See `plans/plan.md` for details.
+- **Wave 1-9:** Completed (per historical record)
+- **Current:** Documentation consolidation from architecture reviews
+- **Deferred:** TOTP encryption, 2FA backup codes, Admin rate limiting, PostgreSQL FTS, Vite code splitting, AVIF, Brotli
+
+## Important Notes for Future Agents
+
+### Backup Implementations
+There are two separate backup implementations:
+- `app/services/backup.py:create_backup()` - Used by Celery task, supports encryption/compression, uses `blog_*.db` naming
+- `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `backup_*.db` naming
+
+### Slug Generation
+Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`).
+
+### APScheduler Job Schedules
+- `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
+- `run_daily_backup` runs at 02:00 (`hour=2, minute=0`), NOT midnight
+
+### Email Retry Count
+Newsletter retry count default is 5 (not 3 as some documentation may claim).
+
+### Context Processors
+Actual context processor function names (not the injected variable names):
+- `inject_csrf()` - Injects `csrf_token` and `csp_nonce`
+- `inject_config()` - Injects site config variables
+- `inject_theme()` - Injects theme settings and `custom_css`
+- `inject_footer_data()` - Injects footer links and data
+- `inject_show_footer_posts()` - Injects `show_footer_posts` boolean
+
+### Template Filters
+Actual filters (defined in `app/filters.py`):
+- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`
+- NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
 ## New Patterns (Wave 6-9)
 

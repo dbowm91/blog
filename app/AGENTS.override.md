@@ -20,7 +20,7 @@ Specialized handling for the Flask application core.
 - `vite.py` - Vite integration for content-hashed assets
 - `storage.py` - Storage abstraction layer (local/S3)
 - `page_view_buffer.py` - Page view buffering for high-traffic sites
-- `backup_encryption.py` - GPG symmetric encryption for backups
+- `backup_encryption.py` - AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation for backups
 - `backup_integrity.py` - Backup integrity verification
 - `validators.py` - Input validation utilities
 - `webhooks.py` - Webhook delivery with retry
@@ -91,7 +91,7 @@ Structured error handling utilities in `app/utils.py`:
 - SQLAlchemy 2.0 parameterized queries throughout
 - Magic byte detection for file uploads
 - **Custom CSS sanitization**: `sanitize_css()` uses tinycss2 parser + allowlist (Wave 1 complete)
-- **Webhook Encryption**: AES-256-GCM implemented in `webhook_encryption.py` (Wave 1 complete)
+- **Webhook Encryption**: AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation implemented in `webhook_encryption.py` (Wave 1 complete)
 - **FTS Security**: `app/search.py` uses parameterized queries with individual bindparams (Wave 1 complete)
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
 

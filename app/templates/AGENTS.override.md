@@ -88,6 +88,8 @@ Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
 ## Context Processors
 
 `app/context_processors.py` provides:
-- `theme` - Current theme settings
-- `footer` - Footer configuration
-- `canonical_url` - Canonical URL for the current page
+- `inject_csrf()` - Injects `csrf_token` and `csp_nonce`
+- `inject_config()` - Site config variables (site_name, site_tagline, etc.)
+- `inject_theme()` - Theme settings and `custom_css` variable
+- `inject_footer_data()` - Footer links and data
+- `inject_show_footer_posts()` - Injects `show_footer_posts` boolean

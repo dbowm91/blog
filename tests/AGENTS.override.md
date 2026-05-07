@@ -43,12 +43,13 @@ tests/
 ├── test_models.py       # Model unit tests
 ├── test_public.py       # Public routes tests
 ├── test_admin.py        # Admin routes tests
-├── test_api.py          # REST API tests
+├── test_api.py          # REST API tests (has its own app fixture with buffer protection)
 ├── test_rss.py          # RSS/Atom feed tests
 ├── test_search.py       # FTS5 search tests
 ├── test_utils.py        # Utility function tests
 ├── test_cli.py          # CLI command tests
-└── e2e/                 # Playwright E2E tests
+├── benchmarks/          # Benchmark tests (has buffer protection)
+└── e2e/                 # Playwright E2E tests (has buffer protection)
     ├── test_home.py
     ├── test_post.py
     └── test_admin.py
@@ -62,6 +63,16 @@ tests/
 - `admin_user` - Admin user fixture
 - `regular_user` - Regular user fixture
 - `post` - Sample post fixture
+
+## Page View Buffer in Tests
+
+The page view buffer is disabled in all test fixtures:
+- `tests/conftest.py` - Has `ensure_buffer_disabled` autouse fixture
+- `tests/e2e/conftest.py` - Has `ensure_buffer_disabled` autouse fixture
+- `tests/benchmarks/conftest.py` - Has `ensure_buffer_disabled` autouse fixture
+- `tests/test_api.py` - Has its own `ensure_buffer_disabled` fixture
+
+Do NOT re-enable the buffer in tests as it causes interference with other tests.
 
 ## SQLAlchemy 2.0 Query Patterns in Tests
 
