@@ -36,16 +36,19 @@ base.html
 ## Filters
 
 Registered in `app/filters.py`:
-- `{{ post.date | format_date }}`
-- `{{ post.body | markdown }}`
-- `{{ tag.name | slugify }}`
+- `markdown_safe` - Render markdown to HTML with nh3 sanitization
+- `reading_time` - Calculate reading time from text content
+- `sanitize_css` - Sanitize custom CSS input
+- `post_image_url` - Get post image URL with request-level caching
+- `post_image_srcset` - Generate srcset for responsive images
 
 ## Context Processors
 
 From `app/context_processors.py`:
-- `site_settings` - Theme and settings
-- `tag_cache` - Cached tag counts
-- `footer_data` - Footer links
+- `inject_config()` - Site config variables (site_name, site_tagline, etc.)
+- `inject_theme()` - Theme settings and `custom_css` variable
+- `inject_footer_data()` - Footer links and data
+- `inject_csrf()` - `csrf_token` and `csp_nonce` for forms
 
 ## See Also
 - [Static Assets](frontend/static-assets.md) - JS/CSS

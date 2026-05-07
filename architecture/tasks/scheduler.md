@@ -7,9 +7,9 @@ In-process scheduled job scheduler.
 | Job | Schedule | Purpose |
 |-----|----------|---------|
 | `send_daily_newsletter` | Daily at configured time | Send newsletter to subscribers |
-| `cleanup_expired_subscribers` | Hourly | Remove unconfirmed expired subscribers |
+| `cleanup_expired_subscribers` | Every 5 minutes | Remove unconfirmed expired subscribers |
 | `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
-| `run_daily_backup` | Daily at midnight | Create database backup |
+| `run_daily_backup` | Daily at 02:00 | Create database backup |
 
 ### `send_daily_newsletter`
 
@@ -20,7 +20,7 @@ Runs daily at `NEWSLETTER_SEND_TIME` (default: 08:00):
 
 ### `cleanup_expired_subscribers`
 
-Runs hourly:
+Runs every 5 minutes:
 1. Finds subscribers past `expires_at` without confirmation
 2. Deletes unconfirmed expired records
 
@@ -33,7 +33,7 @@ Runs every 5 minutes:
 
 ### `run_daily_backup`
 
-Runs daily at midnight:
+Runs daily at 02:00:
 1. Creates backup using `run_daily_backup()` service
 2. Respects retention policy
 

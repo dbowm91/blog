@@ -6,10 +6,11 @@ Comprehensive testing infrastructure.
 
 ```
 tests/
+├── benchmarks/          # Benchmark tests
 ├── conftest.py           # Pytest fixtures
-├── unit/                 # Unit tests
-├── integration/          # Integration tests
-└── e2e/                  # End-to-end Playwright tests
+├── e2e/                  # End-to-end Playwright tests
+├── test_*.py             # Unit/integration tests (flat)
+└── __init__.py
 ```
 
 ## Test Types
@@ -26,7 +27,7 @@ Key fixtures:
 - `app` - Flask application
 - `client` - Test client
 - `db` - Database session
-- `authenticated_admin` - Logged-in admin user
+- `admin_user` and `authenticated_client` - Logged-in admin user
 
 ## Key Configuration
 
@@ -34,7 +35,7 @@ From `pytest.ini`:
 ```ini
 [pytest]
 testpaths = tests
-addopts = --cov=app --cov-report=html --cov-report=term-missing
+addopts = --cov=app --cov-report=term-missing
 ```
 
 Minimum coverage: 80%

@@ -4,8 +4,8 @@ Tag CRUD operations and post count management.
 
 ## Features
 
-- Create, read, update, delete tags
-- Post count caching
+- Create, read, delete tags
+- Post count queries
 - Slug generation
 
 ## See Also

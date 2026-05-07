@@ -15,7 +15,7 @@ The blog uses SQLAlchemy ORM with the following models:
 | `PageView` | Analytics | post_id, referrer, created_at |
 | `ShareEvent` | Social sharing | post_id, platform |
 | `AdminSession` | Session tracking | user_id, session_id, ip_address |
-| `SiteSettings` | Theme/settings | theme_preset, custom_css |
+| `SiteSettings` | Theme/settings | theme_preset, custom_css, logo_text |
 | `AdminAuditLog` | Audit trail | actor_id, action, target_id |
 | `Webhook` | Webhook endpoints | name, url, secret, event_type |
 | `WebhookEvent` | Webhook deliveries | event_type, payload, delivered |
@@ -27,9 +27,7 @@ The blog uses SQLAlchemy ORM with the following models:
 
 ```
 User
-├── AdminSession (1:N)
-├── Posts (1:N)
-└── AdminAuditLog (1:N)
+└── AdminSession (1:N)
 
 Post
 ├── Tags (N:N via post_tags)
@@ -95,6 +93,7 @@ class User(UserMixin, db.Model):
     totp_secret = db.Column(db.String(32))  # 2FA secret
 
     # Methods
+    __repr__()  # Returns user id (for PII security)
     set_password(password)
     check_password(password)
     is_locked()

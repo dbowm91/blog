@@ -99,6 +99,26 @@ for i in range(0, len(post_ids), chunk_size):
 
 All test fixtures should disable page view buffer:
 - `tests/conftest.py` - has `ensure_buffer_disabled` autouse fixture
-- `tests/e2e/conftest.py` - needs `ensure_buffer_disabled`
-- `tests/benchmarks/conftest.py` - needs `ensure_buffer_disabled`
-- `tests/test_api.py` - needs `ensure_buffer_disabled`
+- `tests/e2e/conftest.py` - has `ensure_buffer_disabled` autouse fixture
+- `tests/benchmarks/conftest.py` - has `ensure_buffer_disabled` autouse fixture
+- `tests/test_api.py` - has `ensure_buffer_disabled` autouse fixture
+
+## Template Filters
+
+Actual filters in `app/filters.py`:
+- `markdown_safe` - Render markdown to HTML with nh3 sanitization
+- `reading_time` - Calculate reading time from text content
+- `sanitize_css` - Sanitize custom CSS input
+- `post_image_url` - Get post image URL with request-level caching
+- `post_image_srcset` - Generate srcset for responsive images
+
+Note: `truncate` is Jinja2's built-in filter, not defined in app/filters.py
+Note: `custom_css` is a context variable (from `inject_theme()`), not a filter
+
+## Context Processors
+
+From `app/context_processors.py`:
+- `inject_config()` - site_title, site_description, author_name, etc.
+- `inject_theme()` - theme settings including `custom_css`
+- `inject_footer_data()` - recent_posts_footer, footer_tags, etc.
+- `inject_csrf()` - csrf_token and csp_nonce

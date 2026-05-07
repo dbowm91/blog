@@ -10,8 +10,7 @@ app/static/
 │   ├── admin/          # Admin dashboard JS
 │   ├── public/         # Public site JS
 │   └── shared/         # Shared components
-├── css/
-│   └── styles/         # SCSS/CSS files
+├── css/               # SCSS/CSS files (base.css, layout.css, forms.css, admin.css, public.css, etc.)
 ├── uploads/            # User-uploaded media
 └── dist/               # Vite build output
 ```

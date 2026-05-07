@@ -50,6 +50,22 @@ def run_daily_backup(app: Any) -> None
 
 Scheduler-friendly daily backup function.
 
+### `decrypt_backup_file()`
+
+```python
+def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> bool
+```
+
+Decrypts a GPG-encrypted backup file.
+
+**Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `input_path` | `str` | required | Path to encrypted backup file |
+| `output_path` | `str` | `None` | Output path (defaults to input_path without `.gpg`) |
+
+**Returns:** `True` on success, `False` on failure
+
 ## Backup File Naming
 
 ```

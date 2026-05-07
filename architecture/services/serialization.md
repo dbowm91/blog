@@ -4,8 +4,7 @@ JSON export/import for blog data.
 
 ## Features
 
-- Export posts, subscribers, pages, tags to JSON
-- Import data from JSON
+- Export posts, subscribers, pages, tags to JSON (import via CLI)
 - Batch processing for large datasets
 
 ## See Also

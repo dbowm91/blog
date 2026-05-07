@@ -51,8 +51,8 @@ admin/
 ## Post Management (`posts/`)
 
 ### Post Editor (`editor.py`)
-- **Route**: `GET /admin/posts/new`
-- **Route**: `GET /admin/posts/<int:post_id>/edit`
+- **Route**: `GET /admin/new`
+- **Route**: `GET /admin/edit/<int:post_id>`
 - **Purpose**: Create/edit posts
 - **Features**: Markdown editor, tag selection, image upload, series assignment
 
@@ -78,15 +78,16 @@ admin/
 
 - **Route**: `GET /admin/tags`
 - **Route**: `POST /admin/tags`
-- **Route**: `DELETE /admin/tags/<int:tag_id>`
+- **Route**: `POST /admin/tags/delete/<int:tag_id>`
 - **Purpose**: CRUD operations for tags
 
 ## User Management (`users.py`)
 
 - **Route**: `GET /admin/users`
-- **Route**: `POST /admin/users`
-- **Route**: `PUT /admin/users/<int:user_id>`
-- **Route**: `DELETE /admin/users/<int:user_id>`
+- **Route**: `POST /admin/users/create`
+- **Route**: `POST /admin/users/delete/<int:user_id>`
+- **Route**: `POST /admin/users/<int:user_id>/promote`
+- **Route**: `POST /admin/users/<int:user_id>/demote`
 - **Purpose**: Manage admin users
 
 ## Session Monitoring (`sessions.py`)

@@ -67,6 +67,8 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
 
 Returns dict mapping post_id to highlighted snippet using FTS5 `snippet()` function.
 
+**SQLite Batching**: Uses `_SQLITE_MAX_VARS = 500` to batch queries due to SQLite's parameter limit (999). For large result sets, post_ids are chunked into groups of 500.
+
 ### `get_did_you_mean()`
 
 ```python

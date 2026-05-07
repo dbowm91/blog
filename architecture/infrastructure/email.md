@@ -80,9 +80,16 @@ Email templates in `app/templates/email/`:
 
 ## Retry Logic
 
-- Max retries: 3 (configurable via `NEWSLETTER_MAX_RETRY_ATTEMPTS`)
+- Max retries: 5 (configurable via `NEWSLETTER_MAX_RETRY_ATTEMPTS`)
 - Exponential backoff
 - Reconnects on `SMTPServerDisconnected`
+
+## Queue Configuration
+
+| Task | Queue | Purpose |
+|------|-------|---------|
+| `send_newsletter_task` | `newsletter` | Bulk newsletter delivery |
+| `send_confirmation_task` | `email` | Subscriber confirmation emails |
 
 ## See Also
 - [Celery Tasks](../tasks/celery-tasks.md) - Async email sending

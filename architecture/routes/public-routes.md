@@ -10,7 +10,7 @@ Public routes serve the blog's public-facing pages.
 | `posts.py` | `/post/<slug>`, `/post/<slug>/preview/<token>` | Individual post pages |
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
 | `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health` | Sitemap, robots, health check |
-| `comments.py` | `/comment/<post_id>` (POST) | Comment submission |
+| `comments.py` | `/post/<slug>/comment` (POST) | Comment submission |
 
 ## Browse Routes (`browse.py`)
 
@@ -79,7 +79,7 @@ Public routes serve the blog's public-facing pages.
 ## Comment Routes (`comments.py`)
 
 ### Submit Comment
-- **Route**: `POST /comment/<int:post_id>`
+- **Route**: `POST /post/<slug>/comment`
 - **Purpose**: Submit a comment on a post
 - **Fields**: author_name, author_email, content, parent_id (optional)
 - **Moderation**: Comments require approval

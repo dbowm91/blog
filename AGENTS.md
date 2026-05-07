@@ -92,14 +92,24 @@ These files previously used broad `except Exception` clauses. All have been repl
 ## Current Focus (May 2026)
 
 Architecture review completed. Critical and high priority bugs fixed:
-- S3 image variant upload bug (tasks.py)
-- RSS 2.0 and JSON Feed endpoints (routes/rss.py)
-- Webhook event triggering (posts.py, subscribe.py)
-- Celery PYTHONPATH, nginx user directive
-- critical.css created
-- Page view buffer disabled in all test fixtures
+- S3 image variant upload bug (tasks.py) - already fixed
+- RSS 2.0 and JSON Feed endpoints (routes/rss.py) - already implemented
+- Webhook event triggering (posts.py, subscribe.py) - already implemented
+- Celery PYTHONPATH, nginx user directive - already correct
+- critical.css created - already exists
+- Page view buffer disabled in all test fixtures - already protected
 
-See `review_plan.md` for implementation details.
+Architecture documentation updated to match implementation:
+- Core models.md: User __repr__, relationship diagram, logo_text
+- Routes: Post editor routes, tag delete, user management, comment path
+- Services: Serialization import, tag update/caching, backup functions
+- Tasks: Scheduler job schedules corrected
+- Infrastructure: Email retry count, queues, SQLite batching
+- Frontend: Filters, context processors, CSS directory
+- Deployment: Security header alignment
+- Testing: Directory structure, fixture names, coverage
+
+See `architecture/review_plan.md` for full completion status.
 
 All planned waves completed as of May 2026. Remaining items are deferred due to scope:
 - TOTP encryption (deferred - requires encryption helpers, model changes, UI)
