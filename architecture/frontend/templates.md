@@ -49,6 +49,7 @@ From `app/context_processors.py`:
 - `inject_theme()` - Theme settings and `custom_css` variable
 - `inject_footer_data()` - Footer links and data
 - `inject_csrf()` - `csrf_token` and `csp_nonce` for forms
+- `inject_show_footer_posts()` - `show_footer_posts` boolean (hides footer posts on search/tag pages)
 
 ## See Also
 - [Static Assets](frontend/static-assets.md) - JS/CSS

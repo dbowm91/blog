@@ -27,7 +27,7 @@ The blog uses SQLAlchemy ORM with the following models:
 
 ```
 User
-└── AdminSession (1:N)
+└── admin_sessions (1:N, defined on User model)
 
 Post
 ├── Tags (N:N via post_tags)
@@ -35,7 +35,8 @@ Post
 ├── PageView (1:N)
 ├── ShareEvent (1:N)
 ├── Comment (1:N)
-└── PostSeries (1:N)
+├── PostSeries (1:N)
+└── user (reverse lookup: Post.user_id -> User.id)
 
 Subscriber
 Tag
@@ -44,6 +45,9 @@ Series
 SiteSettings
 Webhook
 WebhookEvent
+
+AdminAuditLog
+└── actor (reverse lookup: AdminAuditLog.actor_id -> User.id)
 
 Comment
 ├── parent (self-referential, 1:N for replies)
@@ -92,14 +96,19 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(UTCDateTime)  # Account lockout
     totp_secret = db.Column(db.String(32))  # 2FA secret
 
+    # Relationships
+    admin_sessions = db.relationship("AdminSession", back_populates="user")
+
     # Methods
-    __repr__()  # Returns user id (for PII security)
+    __repr__()  # Returns <User id={self.id}> (not username - for PII/security)
     set_password(password)
     check_password(password)
     is_locked()
     record_failed_login(max_attempts, lockout_minutes)
     reset_failed_login()
 ```
+
+**Note**: The User model only has the `admin_sessions` relationship. Reverse lookups like `user.posts` or `user.audit_logs` do not exist. Post-User relationships are defined on the Post model (e.g., `Post.user_id`). AdminAuditLog-User relationship is defined on the AdminAuditLog model.
 
 ## Post Model Details
 
