@@ -122,3 +122,28 @@ From `app/context_processors.py`:
 - `inject_theme()` - theme settings including `custom_css`
 - `inject_footer_data()` - recent_posts_footer, footer_tags, etc.
 - `inject_csrf()` - csrf_token and csp_nonce
+- `inject_show_footer_posts()` - show_footer_posts boolean
+
+## Celery Queue Names
+
+Tasks use specific queues for different workloads:
+- `images` - Image processing (tasks.py:29)
+- `newsletter` - Newsletter delivery (tasks.py:129)
+- `webhooks` - Webhook delivery (tasks.py:192)
+- `email` - Transactional email (tasks.py:264,285)
+- `backup` - Backup tasks (tasks.py:306)
+
+## Backup Implementations
+
+Two separate backup implementations:
+- `app/services/backup.py:create_backup()` - Celery task, `blog_*.db`, encryption/compression
+- `app/scheduler.py:run_daily_backup()` - APScheduler, `backup_*.db`, no encryption/compression
+
+## Slug Generation
+
+Slug collision limit hardcoded to 100 tries before UUID suffix fallback (`app/services/slug.py`).
+
+## Security Headers
+
+- Flask sets `X-Frame-Options: DENY` and `Cross-Origin-Opener-Policy: same-origin`
+- nginx aligned to use `DENY` and `Cross-Origin-Opener-Policy: same-origin`
