@@ -17,8 +17,8 @@ tests/
 
 | Type | Location | Tool |
 |------|----------|------|
-| Unit | `tests/unit/` | pytest |
-| Integration | `tests/integration/` | pytest |
+| Unit/Integration | `tests/` (flat) | pytest |
+| Benchmark | `tests/benchmarks/` | pytest |
 | E2E | `tests/e2e/` | Playwright |
 
 ## Fixtures (`conftest.py`)
@@ -47,8 +47,8 @@ Minimum coverage: 80%
 pytest
 
 # Specific type
-pytest tests/unit/
-pytest tests/integration/
+pytest tests/
+pytest tests/benchmarks/
 pytest tests/e2e/
 
 # With coverage
