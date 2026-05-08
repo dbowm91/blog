@@ -151,6 +151,9 @@ ADMIN_RATE_LIMITS = {
     "post_update": (100, 60),
 }
 
+SEARCH_PROVIDER = _config.get("search", {}).get("provider", "sqlite")
+SEARCH_CONFIG = _config.get("search", {}).get("config", {})
+
 
 def _validate_config(config: dict) -> None:
     errors = []
