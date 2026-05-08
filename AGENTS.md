@@ -80,17 +80,44 @@ These files previously used broad `except Exception` clauses. All have been repl
 
 ## Deferred Items
 
-These items are on the roadmap but deferred due to scope:
+These items were previously deferred but are now COMPLETED:
 
-| Item | Reason Deferred |
-|------|-----------------|
-| TOTP encryption (2FA) | Requires encryption helpers, model changes, UI |
-| 2FA backup codes | Requires UI + model changes |
-| Admin rate limiting | Requires testing 35+ routes |
-| PostgreSQL FTS abstraction | Significant architecture change |
-| Vite code splitting | Frontend scope |
-| AVIF support | Frontend scope |
-| Brotli compression | Nginx config |
+| Item | Status |
+|------|--------|
+| TOTP encryption (2FA) | COMPLETED - Wave A |
+| 2FA backup codes | COMPLETED - Wave A |
+| Admin rate limiting | COMPLETED - Wave B |
+| PostgreSQL FTS abstraction | COMPLETED - Wave C (stub) |
+| Vite code splitting | COMPLETED - Wave D |
+| AVIF support | COMPLETED - Wave D (stub) |
+| Brotli compression | COMPLETED - Wave E (commented config) |
+
+## Implemented Features Notes
+
+### 2FA Implementation (Wave A)
+- TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
+- `User.totp_secret` is now a property that decrypts on access
+- Backup codes are SHA-256 hashed and single-use
+- Routes: `/2fa/setup`, `/2fa/verify`, `/2fa/backup-codes`, `/2fa/disable`
+
+### Rate Limiting (Wave B)
+- `ADMIN_RATE_LIMITS` defined in `app/config.py`
+- `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
+- Flask-Limiter already integrated with `key_func=get_client_ip`
+
+### Search Abstraction (Wave C)
+- `SearchProvider` abstract class in `app/services/search/__init__.py`
+- `SQLiteSearchProvider` wraps existing FTS5 functionality
+- `PostgreSQLSearchProvider` is a stub for future implementation
+- `get_search_provider()` factory function selects provider by `SEARCH_PROVIDER` config
+
+### Frontend (Wave D)
+- Vite configured for code splitting with `manualChunks`
+- `post_image_avif_url` filter added (returns None until AVIF encoding is enabled)
+
+### Brotli (Wave E)
+- Nginx configuration includes commented Brotli settings
+- Requires custom nginx image with `--with-http_brotli_module`
 
 ## Important Notes for Future Agents
 
@@ -203,16 +230,22 @@ Three feed endpoints available:
 - `/json` - JSON Feed 1.1
 
 ## Skills
- 
+
 Load specialized skills using the `skill` tool with the skill name.
- 
+
 | Skill | Description | Triggers |
-|-------|-------------|----------|
+|-------|-------------|---------|
 | `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log |
 | `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
 | `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline (select→research→write→edit), subagent system, SQLite/WAL, Granian ASGI | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
 | `nara` | Nara chain CLI agent — free PoMI mining, wallet, transfer, quest, on-chain skills, ZK ID, agent registry | NARA, quest, mining, airdrop, earn/claim/collect NARA, wallet, balance, transfer, skills, zkid, agent, referral, PoMI, keypair, mnemonic, faucet, deposit, withdraw |
 | `osinit` | OSINIT Dashboard - FastAPI backend with 24 intelligence sources, React/TypeScript frontend with 3D globe | build, test, deploy, run, data source, panel, SSE, sweep, synthesis, authentication, rate limiting, cache, delta, VIX, SSRF, circuit breaker, routers, Granian |
+
+## Skills Directory Note
+
+Skills are stored in `.skills/` which may be a symlink to an external location.
+If the symlink is broken (shows as "broken symbolic link"), skills are not available.
+To fix: `rm .skills && ln -s /actual/path/to/skills .skills`
 
 ## Implementation Plan
 

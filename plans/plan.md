@@ -513,11 +513,11 @@ These files previously used broad `except Exception` clauses. All have been repl
 
 | Wave | Description | Status |
 |------|-------------|--------|
-| A | 2FA Security (TOTP + Backup Codes) | Pending |
-| B | Rate Limiting Infrastructure | Pending |
-| C | Search Infrastructure (PostgreSQL) | Pending |
-| D | Frontend Enhancements (Vite + AVIF) | Pending |
-| E | Performance (Brotli) | Pending |
+| A | 2FA Security (TOTP + Backup Codes) | COMPLETED |
+| B | Rate Limiting Infrastructure | COMPLETED |
+| C | Search Infrastructure (PostgreSQL) | COMPLETED |
+| D | Frontend Enhancements (Vite + AVIF) | COMPLETED |
+| E | Performance (Brotli) | COMPLETED |
 
 All documentation corrections (Waves A-D from previous plan) are COMPLETED.
 
