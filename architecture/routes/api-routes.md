@@ -125,6 +125,25 @@ Response:
 }
 ```
 
+## Rate Limits
+
+API endpoints have the following rate limits:
+
+| Endpoint Type | Limit | Notes |
+|---------------|-------|-------|
+| Authenticated reads | 500/min | GET /api/posts, GET /api/stats |
+| Authenticated writes | 100/min | POST, PUT, DELETE operations |
+| Public subscribe | 10/min | POST /subscribe |
+| Public comments | 20/min | POST /post/<slug>/comment |
+| API key check | 1000/hour | Per API key |
+
+Rate limit headers are returned on all responses:
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Requests remaining in window
+- `X-RateLimit-Reset`: Unix timestamp when limit resets
+
+When limits are exceeded, `429 Too Many Requests` is returned with `Retry-After` header.
+
 ## See Also
 - [Admin Routes](routes/admin-routes.md) - Admin dashboard
 - [Public Routes](routes/public-routes.md) - Public blog routes

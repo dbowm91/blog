@@ -142,6 +142,15 @@ SMTP_TIMEOUT = int(_config["email"].get("smtp_timeout", 30))
 MAX_FAILED_ATTEMPTS = int(_config.get("security", {}).get("max_failed_attempts", 5))
 LOCKOUT_DURATION_MINUTES = int(_config.get("security", {}).get("lockout_duration_minutes", 15))
 
+ADMIN_RATE_LIMITS = {
+    "login": (5, 60),
+    "api_write": (100, 60),
+    "api_read": (500, 60),
+    "settings": (50, 60),
+    "post_create": (100, 60),
+    "post_update": (100, 60),
+}
+
 
 def _validate_config(config: dict) -> None:
     errors = []
