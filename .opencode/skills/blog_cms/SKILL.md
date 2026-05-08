@@ -147,3 +147,46 @@ Slug collision limit hardcoded to 100 tries before UUID suffix fallback (`app/se
 
 - Flask sets `X-Frame-Options: DENY` and `Cross-Origin-Opener-Policy: same-origin`
 - nginx aligned to use `DENY` and `Cross-Origin-Opener-Policy: same-origin`
+
+## 2FA Implementation (Wave A - May 2026)
+
+- TOTP secrets encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
+- `User.totp_secret` is a property that decrypts on access
+- `User.set_totp_secret()` encrypts before storage
+- Backup codes are SHA-256 hashed and single-use
+- Routes:
+  - `GET/POST /admin/2fa/setup` - Generate TOTP secret
+  - `GET/POST /admin/2fa/verify` - Verify code and enable 2FA
+  - `GET /admin/2fa/backup-codes` - Display one-time backup codes
+  - `GET/POST /admin/2fa/disable` - Disable 2FA
+  - `GET/POST /admin/login-2fa` - TOTP verification during login
+
+## Rate Limiting (Wave B - May 2026)
+
+- `ADMIN_RATE_LIMITS` in `app/config.py`:
+  - `login`: 5 per 60 seconds
+  - `api_write`: 100 per 60 seconds
+  - `api_read`: 500 per 60 seconds
+  - `settings`: 50 per 60 seconds
+- `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
+- Flask-Limiter already integrated with `key_func=get_client_ip`
+
+## Search Abstraction (Wave C - May 2026)
+
+- `app/services/search/__init__.py` - `SearchProvider` abstract class
+- `app/services/search/sqlite.py` - `SQLiteSearchProvider` (current FTS5)
+- `app/services/search/postgresql.py` - `PostgreSQLSearchProvider` (stub for future)
+- `get_search_provider()` factory selects by `SEARCH_PROVIDER` config
+- `SEARCH_PROVIDER` defaults to 'sqlite', can be set to 'postgresql'
+
+## Frontend (Wave D - May 2026)
+
+- Vite configured for code splitting in `vite.config.js`
+- `manualChunks`: vendor, admin, public chunks
+- `post_image_avif_url` filter in `app/filters.py` (stub - returns None until AVIF enabled)
+
+## Brotli (Wave E - May 2026)
+
+- `nginx/nginx.conf` includes commented Brotli configuration
+- Requires custom nginx image with `--with-http_brotli_module`
+- To enable: uncomment Brotli module load and settings sections
