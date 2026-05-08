@@ -30,7 +30,8 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
     reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
     failed_login_count = db.Column(db.Integer, default=0)
     locked_until = db.Column(UTCDateTime, nullable=True)
-    totp_secret = db.Column(db.String(32), nullable=True)
+    totp_secret_encrypted = db.Column(db.String(256), nullable=True)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
 
     admin_sessions = db.relationship(
         "AdminSession",
@@ -38,6 +39,59 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
         lazy="select",
         cascade="all,delete-orphan",
     )
+
+    @property
+    def totp_secret(self) -> Optional[str]:
+        """Get decrypted TOTP secret."""
+        if not self.totp_secret_encrypted:
+            return None
+        from app.services.encryption import decrypt
+        try:
+            return decrypt(self.totp_secret_encrypted)
+        except Exception:
+            return None
+
+    def set_totp_secret(self, secret: str) -> None:
+        """Encrypt and store TOTP secret."""
+        if not secret:
+            self.totp_secret_encrypted = None
+            return
+        from app.services.encryption import encrypt
+        self.totp_secret_encrypted = encrypt(secret)
+
+    def get_totp_uri(self) -> Optional[str]:
+        """Get TOTP provisioning URI for QR code."""
+        secret = self.totp_secret
+        if not secret:
+            return None
+        import pyotp
+        return pyotp.totp.TOTP(secret).provisioning_uri(
+            name=self.username, issuer_name="DevLog Blog"
+        )
+
+    backup_codes_hashed = db.Column(db.JSON, nullable=True)
+
+    def generate_backup_codes(self) -> list[str]:
+        """Generate 8 backup codes, return plain codes (one-time display)."""
+        import secrets
+        codes = []
+        for _ in range(8):
+            code = f"{secrets.token_hex(4).upper()[:4]}-{secrets.token_hex(4).upper()[4:8]}"
+            codes.append(code)
+        import hashlib
+        self.backup_codes_hashed = [hashlib.sha256(c.encode()).hexdigest() for c in codes]
+        return codes
+
+    def verify_backup_code(self, code: str) -> bool:
+        """Verify a backup code (single-use)."""
+        import hashlib
+        if not self.backup_codes_hashed:
+            return False
+        hashed = hashlib.sha256(code.encode()).hexdigest()
+        if hashed in self.backup_codes_hashed:
+            self.backup_codes_hashed.remove(hashed)
+            return True
+        return False
 
     def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)

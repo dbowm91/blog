@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': 'Backup Codes' }]) }}
+<div class="backup-codes-page animate-in">
+    <h1>Save Your Backup Codes</h1>
+
+    <div class="warning-box">
+        <strong>Important:</strong> Store these codes in a safe place. Each code can only be used once.
+        If you lose access to your authenticator app, you can use one of these codes to sign in.
+    </div>
+
+    <div class="backup-codes-list">
+        {% for code in codes %}
+        <div class="backup-code">{{ code }}</div>
+        {% endfor %}
+    </div>
+
+    <p>You have <strong>{{ remaining }}</strong> backup code(s) remaining.</p>
+
+    <div class="actions">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">Done</a>
+        <a href="{{ url_for('admin.disable_2fa') }}" class="btn btn-danger">Disable 2FA</a>
+    </div>
+</div>
+{% endblock %}
