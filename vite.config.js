@@ -11,6 +11,13 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'app/static/js/main.js'),
       },
+      output: {
+        manualChunks: {
+          'vendor': ['prism.min.js', 'prism-languages.js'],
+          'admin': resolve(__dirname, 'app/static/js/admin/editor.js'),
+          'public': resolve(__dirname, 'app/static/js/public/search.js'),
+        },
+      },
     },
   },
   plugins: [],
