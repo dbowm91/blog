@@ -216,8 +216,31 @@ Load specialized skills using the `skill` tool with the skill name.
 
 ## Implementation Plan
 
-See `plans/plan.md` for consolidated action items organized by phase and wave. This includes:
-- Documentation corrections across architecture/ directory
-- Test infrastructure improvements
-- Service layer documentation
-- Configuration changes (e.g., adding `fail_under = 80` to pytest.ini)
+See `plans/plan.md` for future implementation waves organized for parallel execution:
+- **Wave A**: 2FA Security (TOTP encryption + backup codes)
+- **Wave B**: Rate Limiting Infrastructure
+- **Wave C**: Search Infrastructure (PostgreSQL FTS abstraction)
+- **Wave D**: Frontend Enhancements (Vite code splitting + AVIF support)
+- **Wave E**: Performance (Brotli compression)
+
+### Wave Execution Pattern
+When executing multi-wave implementation plans:
+1. **Create separate branches** for each parallel wave to avoid conflicts
+2. **Use subagents** with separate branches to parallelize work
+3. **Merge to main** after each wave completes
+4. **Update plan status** in plan.md after each wave
+
+### Branch Naming Convention
+```
+wave-a-totp-encryption
+wave-b-rate-limiting
+wave-c-postgres-search
+wave-d-frontend
+wave-e-brotli
+```
+
+### Subagent Usage
+- Launch subagents in parallel for independent wave items
+- Each subagent works on its own branch
+- Review completed work before merging
+- Do not let subagents overwrite each other's changes
