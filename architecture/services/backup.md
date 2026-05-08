@@ -5,7 +5,7 @@ Unified backup service for CLI, scheduler, and cron jobs.
 ## Features
 
 - **Compression**: Gzip compression support
-- **Encryption**: GPG encryption support
+- **Encryption**: AES-256-GCM encryption with PBKDF2 key derivation (not GPG)
 - **Retention**: Configurable backup retention (default: 7)
 - **API**: Uses SQLite's native `backup()` API for consistency
 
@@ -56,7 +56,7 @@ Scheduler-friendly daily backup function.
 def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> bool
 ```
 
-Decrypts a GPG-encrypted backup file.
+Decrypts an AES-256-GCM-encrypted backup file.
 
 **Parameters:**
 | Param | Type | Default | Description |

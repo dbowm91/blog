@@ -132,6 +132,7 @@ When documenting or referring to routes, verify against actual implementation:
 - Tag delete: `POST /admin/tags/delete/<id>` (NOT `DELETE`)
 - Comment submission: `POST /post/<slug>/comment` (NOT `/comment/<int:post_id>`)
 - Subscribe: Only `POST /subscribe` exists (no GET handler)
+- API post publish: Use `PUT /api/posts/<id>` with `{"published": true}` body (NOT `POST /api/posts/<id>/publish`)
 
 ### User Model `__repr__`
 Returns `<User id={self.id}>` for PII/security reasons, not username.

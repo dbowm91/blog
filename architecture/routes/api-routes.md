@@ -7,8 +7,7 @@ REST API for programmatic access to blog data.
 | File | Endpoint | Methods | Purpose |
 |------|----------|---------|---------|
 | `posts.py` | `/api/posts` | GET, POST | List/create posts |
-| `posts.py` | `/api/posts/<id>` | GET, PUT, DELETE | Single post operations |
-| `posts.py` | `/api/posts/<id>/publish` | POST | Publish a post |
+| `posts.py` | `/api/posts/<id>` | GET, PUT, DELETE | Single post operations (publish via PUT with `published` field) |
 | `subscribers.py` | `/api/subscribers` | GET | List subscribers |
 | `subscribers.py` | `/api/subscribers/export` | POST | Export subscribers |
 | `stats.py` | `/api/stats` | GET | Dashboard statistics |

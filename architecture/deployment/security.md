@@ -40,10 +40,10 @@ Sliding expiration via `last_activity` in session.
 
 ```python
 X-Content-Type-Options: nosniff
-X-Frame-Options: DENY  # Flask (nginx sets SAMEORIGIN for proxy)
+X-Frame-Options: DENY  # Both Flask and nginx set DENY
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 Content-Security-Policy: default-src 'self'; ...
-Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin  # Both Flask and nginx set same-origin
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```

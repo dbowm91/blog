@@ -129,13 +129,15 @@ All module reviews completed: May 2026
 - critical.css - already created
 - Page view buffer in test fixtures - already protected
 
-**Documentation Updates Made:**
+**Documentation Updates Made (May 2026 review pass):**
+- Core app-factory.md: Context processors corrected (actual function names and injected variables)
 - Core models.md: User __repr__, relationship diagram, logo_text field
-- Routes admin-routes.md: Post editor routes, tag delete, user management routes
+- Routes admin-routes.md: Post editor routes, tag delete, user management routes, backup routes
 - Routes public-routes.md: Comment submission path
+- Routes api-routes.md: Removed non-existent `/api/posts/<id>/publish` endpoint (publish via PUT)
 - Services serialization.md: Import functionality clarification
 - Services tag.md: Update removed, caching corrected
-- Services backup.md: Added run_daily_backup() and decrypt_backup_file() docs
+- Services backup.md: Added run_daily_backup() and decrypt_backup_file() docs; corrected encryption from GPG to AES-256-GCM
 - Tasks scheduler.md: Schedule corrections (5 min, 02:00)
 - Infrastructure email.md: Newsletter retry count (5), queue docs
 - Infrastructure search.md: SQLite batching note
@@ -143,4 +145,4 @@ All module reviews completed: May 2026
 - Frontend static-assets.md: CSS directory structure
 - Frontend AGENTS.override.md: Filters corrected
 - Testing test-suite.md: Directory structure, fixture names, coverage config
-- Deployment security.md: X-Frame-Options note
+- Deployment security.md: X-Frame-Options and COOP headers aligned between Flask and nginx

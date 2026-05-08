@@ -117,9 +117,11 @@ migrate = Migrate()         # Database migrations
 ## Context Processors (`app/context_processors.py`)
 
 Provides template variables for all templates:
-- `site_settings` - Theme, syntax theme, custom CSS
-- `tag_cache` - Cached tag counts
-- `footer_data` - Recent posts, popular tags
+- `csrf_token`, `csp_nonce` - CSRF token and CSP nonce (from `inject_csrf()`)
+- `site_title`, `site_description`, `author_name`, `author_role`, `author_avatar`, `base_url`, `current_year`, `canonical_url` - Site configuration (from `inject_config()`)
+- `theme_preset`, `theme_vars`, `syntax_theme`, `custom_css_enabled`, `custom_css`, `logo_text`, `theme_presets` - Theme settings (from `inject_theme()`)
+- `recent_posts_footer`, `recent_posts_sidebar`, `footer_tags`, `footer_tag_counts` - Footer data (from `inject_footer_data()`)
+- `show_footer_posts` - Boolean controlling footer post display (from `inject_show_footer_posts()`)
 
 ## See Also
 - [Models](core/models.md) - Database models
