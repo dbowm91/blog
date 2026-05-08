@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Dashboard', 'url': url_for('admin.dashboard') }, { 'label': 'Disable 2FA' }]) }}
+<div class="disable-2fa-page animate-in">
+    <h1>Disable Two-Factor Authentication</h1>
+
+    <div class="warning-box">
+        <strong>Warning:</strong> Disabling 2FA will reduce the security of your account.
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.disable_2fa') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label for="token">Enter a code from your authenticator app to confirm:</label>
+            <input type="text" name="token" id="token" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}">
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn btn-danger">Disable 2FA</button>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

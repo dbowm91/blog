@@ -61,7 +61,7 @@ def login() -> Any:
             flash("Account is locked due to too many failed attempts. Try again later.", "error")
             return redirect(url_for("admin.login"))
         if user and user.check_password(password) and user.is_admin:
-            if user.totp_secret:
+            if user.totp_enabled and user.totp_secret:
                 session["pending_2fa_user_id"] = user.id
                 return redirect(url_for("admin.login_2fa"))
 
@@ -278,12 +278,13 @@ def setup_2fa() -> Any:
 
     if request.method == "POST":
         token = request.form.get("token", "").strip()
-        if user.totp_secret and pyotp.TOTP(user.totp_secret).verify(token):
+        secret = user.totp_secret
+        if secret and pyotp.TOTP(secret).verify(token):
             flash("2FA is already enabled.", "info")
             return redirect(url_for("admin.dashboard"))
 
         secret = pyotp.random_base32()
-        user.totp_secret = secret
+        user.set_totp_secret(secret)
         try:
             db.session.commit()
         except (IntegrityError, OperationalError):
@@ -296,16 +297,16 @@ def setup_2fa() -> Any:
         return redirect(url_for("admin.verify_2fa"))
 
     qr_code = None
-    if user.totp_secret:
-        uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
-            name=user.username, issuer_name="DevLog Blog"
-        )
-        img = qrcode.make(uri)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        qr_code = base64.b64encode(buf.getvalue()).decode()
+    secret = user.totp_secret
+    if secret:
+        uri = user.get_totp_uri()
+        if uri:
+            img = qrcode.make(uri)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            qr_code = base64.b64encode(buf.getvalue()).decode()
 
-    return render_template("admin/2fa_setup.html", secret=user.totp_secret, qr_code=qr_code)
+    return render_template("admin/2fa_setup.html", secret=secret, qr_code=qr_code)
 
 
 @admin.route("/2fa/verify", methods=["GET", "POST"])
@@ -328,9 +329,18 @@ def verify_2fa() -> Any:
     if request.method == "POST":
         token = request.form.get("token", "").strip()
         if pyotp.TOTP(user.totp_secret).verify(token):
+            user.totp_enabled = True
+            backup_codes = user.generate_backup_codes()
+            try:
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+                flash("Database error occurred.", "error")
+                return redirect(url_for("admin.verify_2fa"))
             logger.info("2FA enabled: user_id=%d", user.id)
-            flash("2FA has been enabled.", "success")
-            return redirect(url_for("admin.dashboard"))
+            session["backup_codes"] = backup_codes
+            flash("2FA has been enabled. Save your backup codes!", "success")
+            return redirect(url_for("admin.backup_codes"))
         flash("Invalid code. Please try again.", "error")
 
     return render_template("admin/2fa_verify.html")
@@ -351,13 +361,14 @@ def login_2fa() -> Any:
         return redirect(url_for("admin.login"))
 
     user = db.session.get(User, user_id)
-    if not user or not user.totp_secret:
+    if not user or not user.totp_enabled or not user.totp_secret:
         session.pop("pending_2fa_user_id", None)
         return redirect(url_for("admin.login"))
 
     if request.method == "POST":
         token = request.form.get("token", "").strip()
-        if pyotp.TOTP(user.totp_secret).verify(token):
+        secret = user.totp_secret
+        if secret and pyotp.TOTP(secret).verify(token):
             session.pop("pending_2fa_user_id", None)
             session.clear()
 
@@ -376,7 +387,80 @@ def login_2fa() -> Any:
             session["admin_session_ip"] = request.remote_addr
             return redirect(url_for("admin.dashboard"))
 
+        if user.verify_backup_code(token):
+            try:
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+            session.pop("pending_2fa_user_id", None)
+            session.clear()
+
+            login_user(user)
+            user.reset_failed_login()
+            sid = secrets.token_hex(32)
+            admin_session = AdminSession(
+                user_id=user.id,
+                session_id=sid,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent", "")[:256],
+            )
+            db.session.add(admin_session)
+            db.session.commit()
+            session["admin_session_id"] = sid
+            session["admin_session_ip"] = request.remote_addr
+            logger.info("Login via backup code: user_id=%d", user.id)
+            return redirect(url_for("admin.dashboard"))
+
         flash("Invalid code. Please try again.", "error")
         time.sleep(LOGIN_FAILURE_DELAY)
 
     return render_template("admin/login_2fa.html")
+
+
+@admin.route("/2fa/backup-codes", methods=["GET"])
+@login_required
+@admin_required
+def backup_codes() -> Any:
+    """Display backup codes after 2FA enablement."""
+    codes = session.pop("backup_codes", None)
+    if not codes:
+        flash("No backup codes to display.", "info")
+        return redirect(url_for("admin.dashboard"))
+    user = db.session.get(User, current_user.id)
+    if not user:
+        abort(404)
+    remaining = len(user.backup_codes_hashed) if user.backup_codes_hashed else 0
+    return render_template("admin/backup_codes.html", codes=codes, remaining=remaining)
+
+
+@admin.route("/2fa/disable", methods=["GET", "POST"])
+@login_required
+@admin_required
+def disable_2fa() -> Any:
+    """Disable 2FA for the current user."""
+    user = db.session.get(User, current_user.id)
+    if not user:
+        abort(404)
+
+    if not user.totp_enabled:
+        flash("2FA is not enabled.", "info")
+        return redirect(url_for("admin.dashboard"))
+
+    if request.method == "POST":
+        token = request.form.get("token", "").strip()
+        if pyotp.TOTP(user.totp_secret).verify(token):
+            user.totp_enabled = False
+            user.totp_secret_encrypted = None
+            user.backup_codes_hashed = None
+            try:
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+                flash("Database error occurred.", "error")
+                return redirect(url_for("admin.disable_2fa"))
+            logger.info("2FA disabled: user_id=%d", user.id)
+            flash("2FA has been disabled.", "success")
+            return redirect(url_for("admin.dashboard"))
+        flash("Invalid code. Please try again.", "error")
+
+    return render_template("admin/disable_2fa.html")
