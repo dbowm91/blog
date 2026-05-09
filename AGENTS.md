@@ -92,6 +92,13 @@ These items were previously deferred but are now COMPLETED:
 | AVIF support | COMPLETED - Wave D (stub) |
 | Brotli compression | COMPLETED - Wave E (commented config) |
 
+### Future Waves (F-I)
+New waves organized for execution (see `plans/plan.md`):
+- **Wave F**: Bug Fixes (12 items - security and functional)
+- **Wave G**: Code Quality (5 items)
+- **Wave H**: Documentation (37 items)
+- **Wave I**: Enhancements (0 items currently)
+
 ## Implemented Features Notes
 
 ### 2FA Implementation (Wave A)
@@ -250,11 +257,11 @@ To fix: `rm .skills && ln -s /actual/path/to/skills .skills`
 ## Implementation Plan
 
 See `plans/plan.md` for future implementation waves organized for parallel execution:
-- **Wave A**: 2FA Security (TOTP encryption + backup codes)
-- **Wave B**: Rate Limiting Infrastructure
-- **Wave C**: Search Infrastructure (PostgreSQL FTS abstraction)
-- **Wave D**: Frontend Enhancements (Vite code splitting + AVIF support)
-- **Wave E**: Performance (Brotli compression)
+- **Wave A-E**: COMPLETED (2FA, Rate Limiting, Search, Frontend, Brotli)
+- **Wave F**: Bug Fixes (12 items - security and functional)
+- **Wave G**: Code Quality (5 items)
+- **Wave H**: Documentation (37 items)
+- **Wave I**: Enhancements (0 items currently)
 
 ### Wave Execution Pattern
 When executing multi-wave implementation plans:
@@ -270,6 +277,10 @@ wave-b-rate-limiting
 wave-c-postgres-search
 wave-d-frontend
 wave-e-brotli
+wave-f-bugfixes
+wave-g-code-quality
+wave-h-documentation
+wave-i-enhancements
 ```
 
 ### Subagent Usage
@@ -277,3 +288,4 @@ wave-e-brotli
 - Each subagent works on its own branch
 - Review completed work before merging
 - Do not let subagents overwrite each other's changes
+- Within a wave, items can be parallelized by module (e.g., F.1-F.6 in parallel, F.7-F.12 in parallel)
