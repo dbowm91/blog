@@ -6,8 +6,8 @@ Public routes serve the blog's public-facing pages.
 
 | File | Routes | Purpose |
 |------|--------|---------|
-| `browse.py` | `/`, `/page/<page>`, `/tag/<tag>`, `/tag/<tag>/<page>`, `/search` | Home, archive, tag pages |
-| `posts.py` | `/post/<slug>`, `/post/<slug>/preview/<token>` | Individual post pages |
+| `browse.py` | `/`, `/page/<page>`, `/tag/<tag>`, `/tag/<tag>/<page>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
+| `posts.py` | `/post/<slug>`, `/preview/<int:post_id>` | Individual post pages |
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
 | `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health` | Sitemap, robots, health check |
 | `comments.py` | `/post/<slug>/comment` (POST) | Comment submission |
@@ -31,6 +31,16 @@ Public routes serve the blog's public-facing pages.
 - **Purpose**: Full-text search using FTS5
 - **Template**: `public/search.html`
 
+### Archive
+- **Route**: `GET /archive`
+- **Purpose**: Browse posts by year/month
+- **Template**: `public/archive.html`
+
+### Series
+- **Route**: `GET /series/<slug>`
+- **Purpose**: Display posts in a series
+- **Template**: `public/series.html`
+
 ### Static Page
 - **Route**: `GET /page/<slug>`
 - **Purpose**: Display static pages
@@ -44,9 +54,10 @@ Public routes serve the blog's public-facing pages.
 - **Features**: Related posts, comments, share buttons
 
 ### Preview Post
-- **Route**: `GET /post/<slug>/preview/<token>`
-- **Purpose**: Preview unpublished/scheduled posts
-- **Auth**: Token-based (no login required)
+- **Route**: `GET /preview/<int:post_id>?token=<hmac>&expires=<timestamp>`
+- **Purpose**: Preview unpublished/scheduled posts via signed token
+- **Auth**: HMAC token-based (no login required)
+- **Args**: `token` (HMAC signature), `expires` (Unix timestamp)
 
 ## Subscribe Routes (`subscribe.py`)
 

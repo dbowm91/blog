@@ -10,6 +10,7 @@ REST API for programmatic access to blog data.
 | `posts.py` | `/api/posts/<id>` | GET, PUT, DELETE | Single post operations (publish via PUT with `published` field) |
 | `subscribers.py` | `/api/subscribers` | GET | List subscribers |
 | `subscribers.py` | `/api/subscribers/export` | POST | Export subscribers |
+| `subscribers.py` | `/api/subscribers/<id>` | DELETE | Delete subscriber |
 | `stats.py` | `/api/stats` | GET | Dashboard statistics |
 | `auth.py` | `/api/auth` | POST | API key authentication |
 
@@ -62,11 +63,6 @@ PUT /api/posts/<id>
 ### Delete Post
 ```
 DELETE /api/posts/<id>
-```
-
-### Publish Post
-```
-POST /api/posts/<id>/publish
 ```
 
 ## Subscribers API (`subscribers.py`)
@@ -131,8 +127,8 @@ API endpoints have the following rate limits:
 
 | Endpoint Type | Limit | Notes |
 |---------------|-------|-------|
-| Authenticated reads | 500/min | GET /api/posts, GET /api/stats |
-| Authenticated writes | 100/min | POST, PUT, DELETE operations |
+| Authenticated reads | 20/min | GET /api/posts, GET /api/stats |
+| Authenticated writes | 10/min | POST, PUT, DELETE operations |
 | Public subscribe | 10/min | POST /subscribe |
 | Public comments | 20/min | POST /post/<slug>/comment |
 | API key check | 1000/hour | Per API key |

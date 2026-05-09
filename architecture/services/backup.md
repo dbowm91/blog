@@ -30,7 +30,7 @@ def create_backup(
 | `backup_dir` | `str` | required | Backup directory |
 | `compress` | `bool` | `False` | Gzip compression |
 | `keep` | `int` | `7` | Retention count |
-| `encrypt` | `bool` | `False` | GPG encryption |
+| `encrypt` | `bool` | `False` | AES-256-GCM encryption |
 
 **Returns:** Path to backup file or `None` on failure
 
@@ -48,7 +48,23 @@ Removes old backups, keeping only the most recent `keep` backups.
 def run_daily_backup(app: Any) -> None
 ```
 
-Scheduler-friendly daily backup function.
+Scheduler-friendly daily backup function used by APScheduler.
+- **Naming**: Uses `blog_*.db` pattern (same as Celery task)
+- **No encryption/compression**: For encrypted/compressed backups, use Celery task `run_backup_task`
+
+## Dual Backup Implementations
+
+This service provides two distinct backup implementations:
+
+| Aspect | `create_backup()` (Celery) | `run_daily_backup()` (APScheduler) |
+|--------|---------------------------|----------------------------------|
+| Trigger | Celery task `run_backup_task` | APScheduler job at 02:00 |
+| Naming | `blog_YYYYMMDD_HHMMSS.db` | `blog_YYYYMMDD_HHMMSS.db` |
+| Encryption | AES-256-GCM with PBKDF2 | None |
+| Compression | Optional gzip | None |
+| Use case | On-demand encrypted backups | Scheduled daily backups |
+
+The APScheduler backup uses `blog_*.db` naming (since F.2) and `cleanup_old_backups()` cleans `blog_*.db` files.
 
 ### `decrypt_backup_file()`
 

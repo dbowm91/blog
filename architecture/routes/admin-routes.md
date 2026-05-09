@@ -37,15 +37,15 @@ admin/
 - **Features**: Account lockout, failed login tracking
 
 ### Logout
-- **Route**: `GET /admin/logout`
+- **Route**: `POST /admin/logout`
 - **Purpose**: End admin session
 
 ### 2FA Setup
-- **Route**: `GET /admin/2fa-setup`
+- **Route**: `GET /admin/2fa/setup`
 - **Purpose**: Setup TOTP 2FA
 
 ### 2FA Verify
-- **Route**: `GET /admin/2fa-verify`
+- **Route**: `GET /admin/2fa/verify`
 - **Purpose**: Verify 2FA code
 
 ## Post Management (`posts/`)
@@ -57,15 +57,16 @@ admin/
 - **Features**: Markdown editor, tag selection, image upload, series assignment
 
 ### Post List (`list.py`)
-- **Route**: `GET /admin/posts`
-- **Route**: `GET /admin/posts/<int:page>`
+- **Route**: `GET /admin/`
+- **Route**: `GET /admin/<int:page>`
 - **Purpose**: List all posts with filtering
 - **Filters**: Published, drafts, scheduled
 
 ### Post Revisions (`revisions.py`)
 - **Route**: `GET /admin/posts/<int:post_id>/revisions`
 - **Route**: `GET /admin/posts/<int:post_id>/revisions/<int:rev_id>`
-- **Purpose**: View post edit history
+- **Route**: `POST /admin/posts/<int:post_id>/revisions/<int:revision_id>/restore`
+- **Purpose**: View post edit history, restore previous revisions
 - **Diff**: Side-by-side diff view
 
 ## Subscriber Management (`subscribers.py`)
@@ -77,7 +78,8 @@ admin/
 ## Tag Management (`tags.py`)
 
 - **Route**: `GET /admin/tags`
-- **Route**: `POST /admin/tags`
+- **Route**: `POST /admin/tags/create`
+- **Route**: `POST /admin/tags/rename/<int:tag_id>`
 - **Route**: `POST /admin/tags/delete/<int:tag_id>`
 - **Purpose**: CRUD operations for tags
 
@@ -88,6 +90,8 @@ admin/
 - **Route**: `POST /admin/users/delete/<int:user_id>`
 - **Route**: `POST /admin/users/<int:user_id>/promote`
 - **Route**: `POST /admin/users/<int:user_id>/demote`
+- **Route**: `POST /admin/users/<int:user_id>/make-owner`
+- **Route**: `POST /admin/users/<int:user_id>/password`
 - **Purpose**: Manage admin users
 
 ## Session Monitoring (`sessions.py`)
@@ -127,6 +131,7 @@ admin/
 - **Route**: `GET /admin/newsletter`
 - **Route**: `POST /admin/newsletter/preview`
 - **Route**: `POST /admin/newsletter/send`
+- **Route**: `POST /admin/newsletter-test`
 - **Purpose**: Preview and send newsletters
 
 ## Settings (`settings.py`)
