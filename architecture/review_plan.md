@@ -106,7 +106,7 @@ Review tasks will be executed in parallel using subagents. Each subagent will:
 
 ## Completion Status
 
-All module reviews completed: May 2026
+**Status: ALL REVIEWS COMPLETED** - May 2026 review pass
 
 | Module | Plan File | Status |
 |--------|-----------|--------|
@@ -119,30 +119,44 @@ All module reviews completed: May 2026
 | Deployment | plans/deployment_review.md | COMPLETED |
 | Testing | plans/testing_review.md | COMPLETED |
 
-### Key Findings Addressed
+### Key Findings Summary (May 2026 Review Pass)
 
-**Already Fixed (prior to review):**
-- S3 image variant upload bug - code already correct
-- RSS 2.0 and JSON Feed endpoints - already implemented in routes/rss.py
-- Celery PYTHONPATH in docker-compose.yml - already set
-- nginx user directive - already correct
-- critical.css - already created
-- Page view buffer in test fixtures - already protected
+| Module | Accurate Claims | Inaccuracies | Missing Docs | Issues |
+|--------|----------------|--------------|--------------|--------|
+| Core | 25+ | 6 | 15+ | 4 |
+| Routes | 12 | 9 | 21 | 4 |
+| Services | 5 | 4 | 4 | 4 |
+| Tasks | 14 | 4 | 4 | 3 |
+| Infrastructure | 6 | 5 | 5 | 2 |
+| Frontend | 5 | 3 | 6 | 3 |
+| Deployment | 6 | 4 | 7 | 3 |
+| Testing | 5 | 4 | 7 | 4 |
+| **Total** | **78+** | **39** | **69+** | **27** |
 
-**Documentation Updates Made (May 2026 review pass):**
-- Core app-factory.md: Context processors corrected (actual function names and injected variables)
-- Core models.md: User __repr__, relationship diagram, logo_text field
-- Routes admin-routes.md: Post editor routes, tag delete, user management routes, backup routes
-- Routes public-routes.md: Comment submission path
-- Routes api-routes.md: Removed non-existent `/api/posts/<id>/publish` endpoint (publish via PUT)
-- Services serialization.md: Import functionality clarification
-- Services tag.md: Update removed, caching corrected
-- Services backup.md: Added run_daily_backup() and decrypt_backup_file() docs; corrected encryption from GPG to AES-256-GCM
-- Tasks scheduler.md: Schedule corrections (5 min, 02:00)
-- Infrastructure email.md: Newsletter retry count (5), queue docs
-- Infrastructure search.md: SQLite batching note
-- Frontend templates.md: Filters and context processors corrected
-- Frontend static-assets.md: CSS directory structure
-- Frontend AGENTS.override.md: Filters corrected
-- Testing test-suite.md: Directory structure, fixture names, coverage config
-- Deployment security.md: X-Frame-Options and COOP headers aligned between Flask and nginx
+### Critical Fixes Required
+
+1. **User.totp_secret** - Documented as column but is encrypted property
+2. **API publish endpoint** - Non-existent `/api/posts/<id>/publish` endpoint documented
+3. **Backup encryption** - GPG documented but AES-256-GCM implemented
+4. **Routes 9 incorrect routes** - Preview, logout, tag create, media delete, newsletter, settings, etc.
+5. **Models missing** - AdminSession, Series, PostSeries, Webhook, WebhookEvent undocumented
+6. **Config settings missing** - ~17 settings not documented
+7. **Tests directory structure** - `tests/unit` and `tests/integration` don't exist
+
+### Detailed Findings
+
+Each module has a detailed improvement plan in `architecture/plans/`:
+- `core_review.md` - totp_secret, SESSION_COOKIE_SECURE, SQLite pragmas, missing models
+- `routes_review.md` - 9 incorrect routes, 21 missing documentation items
+- `services_review.md` - GPG vs AES-256-GCM, tag cache docs missing
+- `tasks_review.md` - Newsletter sync vs async, backup naming conventions
+- `infrastructure_review.md` - Search abstraction layer, health check system undocumented
+- `frontend_review.md` - Vite chunks, CSS aggregation, missing filters
+- `deployment_review.md` - nginx location, Referrer-Policy mismatch, Redis version
+- `testing_review.md` - Directory structure wrong, fixtures undocumented
+
+### Implementation Notes
+
+- Subagents used to execute reviews in sequence (not parallel) to avoid conflicts
+- Each review created detailed improvement plans cross-referenced with actual code
+- All plan files are in `architecture/plans/` for iterative documentation improvement
