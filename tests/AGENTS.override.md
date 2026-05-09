@@ -66,11 +66,9 @@ tests/
 
 ## Page View Buffer in Tests
 
-The page view buffer is disabled in all test fixtures:
-- `tests/conftest.py` - Has `ensure_buffer_disabled` autouse fixture
-- `tests/e2e/conftest.py` - Has `ensure_buffer_disabled` autouse fixture
-- `tests/benchmarks/conftest.py` - Has `ensure_buffer_disabled` autouse fixture
-- `tests/test_api.py` - Has its own `ensure_buffer_disabled` fixture
+The page view buffer is disabled in all tests via the shared `ensure_buffer_disabled` autouse fixture defined in `tests/shared_fixtures.py`.
+
+All test conftest files (`tests/conftest.py`, `tests/e2e/conftest.py`, `tests/benchmarks/conftest.py`) and `tests/test_api.py` import this fixture via `from tests.shared_fixtures import *`.
 
 Do NOT re-enable the buffer in tests as it causes interference with other tests.
 

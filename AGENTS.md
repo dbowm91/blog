@@ -62,10 +62,10 @@ These files have been flagged for exception handling issues:
 | File | Issue | Status |
 |------|-------|--------|
 | `app/routes/public/meta.py` | Previously broad exception | FIXED |
-| `app/email.py` | SMTP exception too broad | FIXED - Wave G |
+| `app/email.py` | SMTP exception too broad | FIXED |
 | `app/backup_integrity.py` | Previously broad exception | FIXED |
-| `app/webhooks.py` | Silent failure with `pass` | FIXED - Wave F |
-| `app/tasks.py` | Broad `except Exception` | FIXED - Wave F |
+| `app/webhooks.py` | Silent failure with `pass` | FIXED |
+| `app/tasks.py` | Broad `except Exception` | FIXED |
 | `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
@@ -74,94 +74,48 @@ These files have been flagged for exception handling issues:
 - The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
 - In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
-- The `ensure_buffer_disabled` fixture is now in `tests/shared_fixtures.py` (consolidated in Wave F)
+- The `ensure_buffer_disabled` fixture is in `tests/shared_fixtures.py`
 
 ### Test Database Session Issues
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`.
 
-## Completed Implementation Waves (Reference)
+## Implemented Features
 
-These items were previously deferred and are now COMPLETED:
-
-| Item | Status |
-|------|--------|
-| TOTP encryption (2FA) | COMPLETED - Wave A |
-| 2FA backup codes | COMPLETED - Wave A |
-| Admin rate limiting | COMPLETED - Wave B |
-| PostgreSQL FTS abstraction | COMPLETED - Wave C (stub) |
-| Vite code splitting | COMPLETED - Wave D |
-| AVIF support | COMPLETED - Wave D (stub) |
-| Brotli compression | COMPLETED - Wave E (commented config) |
-
-## Implementation Plan
-
-Current implementation plan: `plans/plan.md`
-
-All waves have been completed:
-- **Wave F**: Bug Fixes (12 items) - COMPLETED
-- **Wave G**: Code Quality (5 items) - COMPLETED
-- **Wave H**: Documentation (37 items) - COMPLETED
-- **Wave I**: Enhancements (0 items) - N/A
-
-### Wave Execution Pattern
-When executing multi-wave implementation plans:
-1. **Create separate branches** for each parallel wave to avoid conflicts
-2. **Use subagents** with separate branches to parallelize work
-3. **Merge to main** after each wave completes
-4. **Update plan status** in plan.md after each wave
-
-### Branch Naming Convention
-```
-wave-f-bugfixes
-wave-g-code-quality
-wave-h-documentation
-wave-i-enhancements
-```
-
-### Subagent Usage
-- Launch subagents in parallel for independent wave items
-- Each subagent works on its own branch
-- Review completed work before merging
-- Do not let subagents overwrite each other's changes
-- Within a wave, items can be parallelized by module (e.g., F.1-F.6 in parallel, F.7-F.12 in parallel)
-
-## Implemented Features Notes
-
-### 2FA Implementation (Wave A)
+### 2FA Implementation
 - TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
 - `User.totp_secret` is now a property that decrypts on access
 - Backup codes are SHA-256 hashed and single-use
 - Routes: `/admin/2fa/setup`, `/admin/2fa/verify`, `/admin/2fa/backup-codes`, `/admin/2fa/disable`
 
-### Rate Limiting (Wave B)
+### Rate Limiting
 - `ADMIN_RATE_LIMITS` defined in `app/config.py`
 - `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
 - Flask-Limiter already integrated with `key_func=get_client_ip`
 
-### Search Abstraction (Wave C)
+### Search Abstraction
 - `SearchProvider` abstract class in `app/services/search/__init__.py`
 - `SQLiteSearchProvider` wraps existing FTS5 functionality
 - `PostgreSQLSearchProvider` is a stub for future implementation
 - `get_search_provider()` factory function selects provider by `SEARCH_PROVIDER` config
 
-### Frontend (Wave D)
+### Frontend
 - Vite configured for code splitting with `manualChunks`
-- `post_image_avif_url` filter added (returns None until AVIF encoding is enabled)
+- `post_image_avif_url_stub` filter added (returns None until AVIF encoding is enabled)
 
-### Brotli (Wave E)
+### Brotli
 - Nginx configuration includes commented Brotli settings
 - Requires custom nginx image with `--with-http_brotli_module`
 
 ## Important Notes for Future Agents
 
-### Preview Route Security (FIXED)
+### Preview Route Security
 The public preview route at `/preview/<int:post_id>` now requires admin session verification. HMAC token validation alone no longer grants access - `session.get('admin_user_id')` must also exist.
 
 ### Backup Implementations
 There are two separate backup implementations:
 - `app/services/backup.py:create_backup()` - Used by Celery task, supports encryption/compression, uses `blog_*.db` naming
-- `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `blog_*.db` naming (FIXED - was `backup_*.db`)
+- `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `blog_*.db` naming
 
 Both now use `blog_*.db` naming, so `cleanup_old_backups()` correctly cleans both.
 
@@ -187,8 +141,6 @@ Actual context processor function names (not the injected variable names):
 Actual filters (defined in `app/filters.py`):
 - `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
-
-Note: `post_image_avif_url` was renamed to `post_image_avif_url_stub` since AVIF encoding is not yet implemented.
 
 ### Celery Queue Names
 Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 129, 192, 264, 285, 306)
@@ -269,6 +221,9 @@ Three feed endpoints available:
 - `/atom` - Atom 1.0 feed
 - `/rss` - RSS 2.0 feed
 - `/json` - JSON Feed 1.1
+
+### Deprecated Function
+`deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.
 
 ## Skills
 
