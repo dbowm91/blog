@@ -73,6 +73,7 @@ def send_daily_newsletter(app: Any) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
+        app.logger.warning("Could not acquire lock %s, skipping run", lock_path)
         return
 
     try:
@@ -147,6 +148,7 @@ def cleanup_expired_subscribers(app: Any) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
+        app.logger.warning("Could not acquire lock %s, skipping run", lock_path)
         return
 
     try:
@@ -190,6 +192,7 @@ def publish_scheduled_posts(app: Any) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
+        app.logger.warning("Could not acquire lock %s, skipping run", lock_path)
         return
 
     try:
@@ -246,6 +249,7 @@ def run_daily_backup(app: Any) -> None:
     try:
         lock.acquire()
     except FileLockTimeout:
+        app.logger.warning("Could not acquire lock %s, skipping run", lock_path)
         return
 
     try:
