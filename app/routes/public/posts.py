@@ -125,6 +125,9 @@ def register_post_routes(public: Any) -> None:
         if not hmac.compare_digest(token, expected_b64):
             abort(403)
 
+        if not session.get('admin_user_id'):
+            abort(403)
+
         post_obj = db.session.execute(
             select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
         ).unique().scalar_one_or_none()

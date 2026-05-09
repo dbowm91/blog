@@ -230,7 +230,8 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
                 try:
                     secret = decrypt_webhook_secret(secret)
                 except WebhookEncryptionError:
-                    logger.warning("Failed to decrypt webhook secret for %s, using as-is", webhook.name)
+                    logger.error("Failed to decrypt webhook secret for %s, delivery aborted", webhook.name)
+                    return False
 
             # Prepare headers with HMAC signature
             headers = {
