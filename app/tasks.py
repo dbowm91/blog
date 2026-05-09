@@ -11,6 +11,8 @@ from celery import shared_task
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.webhooks import sign_webhook_payload
+
 if TYPE_CHECKING:
     pass
 
@@ -34,7 +36,6 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     Matches the naming convention used by _generate_responsive_variants_local.
     """
     from PIL import Image
-    import os
     from app.storage import get_storage
 
     storage = get_storage()
@@ -178,17 +179,6 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
         db.session.remove()
 
 
-def _sign_webhook_payload(payload: Dict[str, Any], secret: str) -> str:
-    """Generate HMAC-SHA256 signature for webhook payload (internal helper)."""
-    payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
-    signature = hmac.new(
-        secret.encode("utf-8"),
-        payload_bytes,
-        hashlib.sha256
-    ).hexdigest()
-    return f"sha256={signature}"
-
-
 @shared_task(bind=True, max_retries=3, retry_backoff=True, queue='webhooks')
 def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
     """Deliver a webhook event to registered endpoints with SSRF protection and HMAC signing."""
@@ -237,7 +227,7 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
             headers = {
                 "Content-Type": "application/json",
                 "User-Agent": "Blog-CMS-Webhook/1.0",
-                "X-Webhook-Signature": _sign_webhook_payload(payload, secret),
+                "X-Webhook-Signature": sign_webhook_payload(payload, secret),
             }
 
             try:

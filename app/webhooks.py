@@ -39,6 +39,10 @@ def sign_webhook_payload(payload: Dict[str, Any], secret: str) -> str:
 def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> Tuple[bool, str]:
     """Deliver a webhook to a single URL with signature header and SSRF protection.
 
+    .. deprecated::
+        This function is deprecated. Use :func:`app.tasks.deliver_webhook_task` instead,
+        which handles all delivery with proper async processing and SSRF protection.
+
     Args:
         webhook_url: The URL to deliver the webhook to
         payload: The payload to send
@@ -47,6 +51,12 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> T
     Returns:
         A tuple of (success: bool, message: str)
     """
+    import warnings
+    warnings.warn(
+        "deliver_webhook() is deprecated. Use deliver_webhook_task instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     import requests
     from app.utils import is_safe_webhook_url
 
