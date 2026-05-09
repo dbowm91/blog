@@ -7,9 +7,12 @@ Comprehensive testing infrastructure.
 ```
 tests/
 ├── benchmarks/          # Benchmark tests
-├── conftest.py           # Pytest fixtures
-├── e2e/                  # End-to-end Playwright tests
-├── test_*.py             # Unit/integration tests (flat)
+│   └── conftest.py      # Benchmark fixtures (session-scoped `app`, `db`)
+├── conftest.py          # Pytest fixtures (session-scoped `app`, `ensure_buffer_disabled` autouse)
+├── e2e/                 # End-to-end Playwright tests
+│   └── conftest.py      # E2E fixtures (Playwright setup, app server on port 5010)
+├── shared_fixtures.py   # Shared fixtures (`ensure_buffer_disabled` autouse)
+├── test_*.py            # Unit/integration tests (flat)
 └── __init__.py
 ```
 
@@ -23,8 +26,23 @@ tests/
 
 ## Fixtures (`conftest.py`)
 
-Key fixtures:
-- `app` - Flask application
+### Fixture Locations
+
+| Fixture | Location | Scope |
+|---------|----------|-------|
+| `app` | `conftest.py`, `benchmarks/conftest.py` | session |
+| `db` | `conftest.py` (function), `benchmarks/conftest.py` (session) | varies |
+| `client` | `conftest.py` | function |
+| `admin_user` | `conftest.py`, `benchmarks/conftest.py` | function |
+| `authenticated_client` | `conftest.py`, `benchmarks/conftest.py` | function |
+| `sample_post`, `sample_tag`, `sample_subscriber` | `conftest.py` | function |
+| `ensure_buffer_disabled` | `conftest.py`, `benchmarks/conftest.py`, `shared_fixtures.py` | autouse |
+| `browser_type_launch_args` | `e2e/conftest.py` | session |
+| `app_server` | `e2e/conftest.py` | session |
+
+### Key Fixtures
+
+- `app` - Flask application (session-scoped)
 - `client` - Test client
 - `db` - Database session
 - `admin_user` and `authenticated_client` - Logged-in admin user
@@ -41,6 +59,18 @@ addopts = --cov=app --cov-report=term-missing
 Minimum coverage: 80%
 
 ## Running Tests
+
+### Setup
+
+E2E tests require Playwright:
+```bash
+npm install -D @playwright/test
+npx playwright install chromium
+```
+
+The E2E tests start the Flask server on port 5010.
+
+### Commands
 
 ```bash
 # All tests
@@ -60,6 +90,30 @@ pytest --cov=app
 The page view buffer (`app/page_view_buffer.py`) can cause test interference:
 - Disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0`
 - Call `shutdown_page_view_buffer()` in tests
+- The `ensure_buffer_disabled` fixture (autouse) handles this automatically
+
+## Database Session Considerations
+
+### `db.session.refresh()` Limitation
+
+`db.session.refresh()` fails if the object is not in the current session. If you need an up-to-date version of an object after a commit, re-query it from the database instead:
+
+```python
+# Wrong - may fail
+db.session.refresh(post)
+
+# Correct - always works
+post = db.session.get(Post, post.id)
+```
+
+### E2E Test `app` Fixture
+
+The E2E tests in `tests/e2e/conftest.py` define their own session-scoped `app` fixture which:
+- Creates a temporary database
+- Initializes FTS search
+- Creates an admin user
+- Starts the Flask server on port 5010
+- Has function-scoped buffer shutdown via `ensure_buffer_disabled`
 
 ## See Also
 - [CI/CD](../deployment/cicd.md) - CI test execution

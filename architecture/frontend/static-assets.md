@@ -8,14 +8,76 @@ Frontend JavaScript and CSS assets.
 app/static/
 ├── js/
 │   ├── admin/          # Admin dashboard JS
+│   │   ├── bulk.js
+│   │   ├── editor.js
+│   │   └── shortcuts.js
 │   ├── public/         # Public site JS
-│   └── shared/         # Shared components
-├── css/               # SCSS/CSS files (base.css, layout.css, forms.css, admin.css, public.css, etc.)
-├── uploads/            # User-uploaded media
+│   │   ├── anchor-links.js
+│   │   ├── code-copy.js
+│   │   ├── lightbox.js
+│   │   ├── media-copy.js
+│   │   ├── search.js
+│   │   ├── share.js
+│   │   └── toc.js
+│   ├── shared/         # Shared components
+│   │   ├── dark-mode.js
+│   │   ├── filter-select.js
+│   │   ├── lazy-load.js
+│   │   ├── mobile-menu.jsx  # JSX file (Vite handles via esbuildOptions)
+│   │   ├── modal.js
+│   │   ├── nav-dropdown.js
+│   │   ├── prefetch.js
+│   │   ├── toast.js
+│   │   └── utils.js
+│   ├── lib/            # Third-party libraries
+│   │   ├── marked-wrapper.js
+│   │   ├── marked.min.js
+│   │   └── prism.min.js
+│   ├── image-preview.js
+│   ├── main.js         # Entry point with route-based code splitting
+│   ├── prism-languages.js
+│   └── upload.js
+├── css/                # SCSS/CSS files
+├── fonts/              # Web fonts (woff2)
+├── img/                # Static images (favicon, default-post)
+├── uploads/            # User-uploaded media (local fallback; production may use S3)
 └── dist/               # Vite build output
 ```
 
 ## JavaScript
+
+### Route-Based Code Splitting
+
+Code splitting is implemented in `main.js:30-83` using `import.meta.glob()`. Modules are loaded dynamically based on the current route:
+
+```javascript
+const ROUTE_MODULES = {
+    '/admin/posts': ['./shared/utils.js', './shared/modal.js', ...],
+    '/admin/media': ['./shared/utils.js', './shared/modal.js', ...],
+    '/admin/': ['./shared/utils.js', './shared/modal.js', ...],
+};
+
+function getModulesForPath(path) {
+    // Returns route-specific modules or default public modules
+}
+```
+
+This allows Vite to create optimized chunks that are only loaded when needed.
+
+### JSX Support
+
+JSX files (like `mobile-menu.jsx`) are handled via Vite's esbuild options in `vite.config.js:31-39`:
+
+```javascript
+optimizeDeps: {
+    esbuildOptions: {
+        loader: {
+            '.js': 'js',
+            '.jsx': 'jsx',  // JSX support for .jsx files
+        },
+    },
+}
+```
 
 ### Admin JS
 - Dashboard functionality
@@ -38,9 +100,11 @@ Stylesheets in `app/static/css/`:
 ## Vite Configuration
 
 Located at `vite.config.js`:
-- JavaScript bundling
-- SCSS/CSS processing
-- Asset optimization
+- Entry point: `app/static/js/main.js`
+- Output: `app/static/dist/`
+- Code splitting via `manualChunks` (vendor, admin, public)
+- JSX support via esbuildOptions for `.jsx` files
+- Dev server on port 3000 with proxy to Flask on port 5000
 
 ## See Also
 - [Templates](frontend/templates.md) - Jinja2 templates

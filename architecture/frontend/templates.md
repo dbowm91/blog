@@ -6,23 +6,62 @@ Jinja2 templates for the blog.
 
 ```
 app/templates/
+├── _breadcrumbs.html            # Admin breadcrumb partial
+├── _error.html                  # Error page partial
+├── _post_content.html           # Post content partial
+├── _sidebar.html                # Admin sidebar partial
+├── 404.html                     # Not found page
+├── 429.html                     # Rate limit page
+├── 500.html                     # Server error page
+├── archive.html                 # Archive listing
 ├── base.html                    # Base template
+├── index.html                   # Homepage
+├── macros.html                  # Jinja macros
+├── page.html                    # Static page template
+├── post.html                    # Single post template
+├── public_preview.html          # Post preview template
+├── search.html                  # Search results
+├── series.html                  # Series listing
+├── tag.html                     # Tag archive
 ├── admin/                       # Admin templates
+│   ├── _breadcrumbs.html
+│   ├── analytics.html
+│   ├── audit.html
+│   ├── backup.html
+│   ├── backup_codes.html
+│   ├── base.html
+│   ├── comments.html
 │   ├── dashboard.html
+│   ├── disable_2fa.html
 │   ├── editor.html
-│   ├── posts.html
+│   ├── forgot-password.html
+│   ├── login_2fa.html
+│   ├── login_base.html
+│   ├── login.html
+│   ├── media.html
+│   ├── page_editor.html
+│   ├── pages.html
+│   ├── preview.html
+│   ├── reset-password.html
+│   ├── revision_diff.html
+│   ├── revisions.html
+│   ├── series.html
+│   ├── series_editor.html
+│   ├── series_posts.html
+│   ├── sessions.html
 │   ├── settings.html
-│   └── ...
+│   ├── subscribers.html
+│   ├── tags.html
+│   ├── users.html
+│   ├── 2fa_setup.html
+│   └── 2fa_verify.html
 ├── email/                       # Email templates
+│   ├── base_email.html
 │   ├── confirm.html
 │   ├── newsletter.html
 │   └── password_reset.html
-└── public/                      # Public templates
-    ├── index.html
-    ├── post.html
-    ├── tag.html
-    ├── search.html
-    └── ...
+└── public/                      # Public partials
+    └── comments.html
 ```
 
 ## Template Inheritance
