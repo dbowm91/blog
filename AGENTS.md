@@ -62,10 +62,10 @@ These files have been flagged for exception handling issues:
 | File | Issue | Status |
 |------|-------|--------|
 | `app/routes/public/meta.py` | Previously broad exception | FIXED |
-| `app/email.py` | SMTP exception too broad at line 94 | PENDING - G.2 |
+| `app/email.py` | SMTP exception too broad | FIXED - Wave G |
 | `app/backup_integrity.py` | Previously broad exception | FIXED |
-| `app/webhooks.py` | Silent failure with `pass` at line 97-101 | PENDING - F.4 |
-| `app/tasks.py` | Broad `except Exception` at line 320 | PENDING - F.5 |
+| `app/webhooks.py` | Silent failure with `pass` | FIXED - Wave F |
+| `app/tasks.py` | Broad `except Exception` | FIXED - Wave F |
 | `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
@@ -74,8 +74,7 @@ These files have been flagged for exception handling issues:
 - The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
 - In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
-- The `conftest.py` session-scoped `app` fixture may allow buffer restart - use autouse fixture in `tests/conftest.py` to ensure disabled.
-- The `ensure_buffer_disabled` fixture is at `tests/conftest.py:185-193`
+- The `ensure_buffer_disabled` fixture is now in `tests/shared_fixtures.py` (consolidated in Wave F)
 
 ### Test Database Session Issues
 - `db.session.refresh()` fails if object isn't in current session
@@ -99,11 +98,11 @@ These items were previously deferred and are now COMPLETED:
 
 Current implementation plan: `plans/plan.md`
 
-Upcoming waves:
-- **Wave F**: Bug Fixes (12 items - security and functional)
-- **Wave G**: Code Quality (5 items)
-- **Wave H**: Documentation (37 items)
-- **Wave I**: Enhancements (0 items currently)
+All waves have been completed:
+- **Wave F**: Bug Fixes (12 items) - COMPLETED
+- **Wave G**: Code Quality (5 items) - COMPLETED
+- **Wave H**: Documentation (37 items) - COMPLETED
+- **Wave I**: Enhancements (0 items) - N/A
 
 ### Wave Execution Pattern
 When executing multi-wave implementation plans:
@@ -156,15 +155,15 @@ wave-i-enhancements
 
 ## Important Notes for Future Agents
 
-### Preview Route Security (F.1)
-The public preview route at `/preview/<int:post_id>` validates HMAC signatures but does NOT verify user relationship to post. Any valid HMAC token grants access to ANY post including drafts. This is a security issue being tracked in Wave F.
+### Preview Route Security (FIXED)
+The public preview route at `/preview/<int:post_id>` now requires admin session verification. HMAC token validation alone no longer grants access - `session.get('admin_user_id')` must also exist.
 
 ### Backup Implementations
 There are two separate backup implementations:
 - `app/services/backup.py:create_backup()` - Used by Celery task, supports encryption/compression, uses `blog_*.db` naming
-- `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `backup_*.db` naming
+- `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `blog_*.db` naming (FIXED - was `backup_*.db`)
 
-**Important:** The APScheduler backup retention (`cleanup_old_backups()`) only cleans `blog_*.db` files, not `backup_*.db` files. This is a bug in Wave F (F.2).
+Both now use `blog_*.db` naming, so `cleanup_old_backups()` correctly cleans both.
 
 ### Slug Generation
 Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`).
@@ -186,8 +185,10 @@ Actual context processor function names (not the injected variable names):
 
 ### Template Filters
 Actual filters (defined in `app/filters.py`):
-- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`
+- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
+
+Note: `post_image_avif_url` was renamed to `post_image_avif_url_stub` since AVIF encoding is not yet implemented.
 
 ### Celery Queue Names
 Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 129, 192, 264, 285, 306)
