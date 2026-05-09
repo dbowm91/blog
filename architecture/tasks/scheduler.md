@@ -16,7 +16,9 @@ In-process scheduled job scheduler.
 Runs daily at `NEWSLETTER_SEND_TIME` (default: 08:00):
 1. Queries confirmed subscribers
 2. Gets posts published since last newsletter
-3. Triggers `send_newsletter_task` Celery task
+3. **Synchronously** calls `send_newsletter()` directly (not via Celery task)
+
+Note: This job runs synchronously within APScheduler, unlike other async operations that use Celery tasks.
 
 ### `cleanup_expired_subscribers`
 
@@ -34,10 +36,10 @@ Runs every 5 minutes:
 ### `run_daily_backup`
 
 Runs daily at 02:00 (`hour=2, minute=0`):
-1. Creates backup using inline `run_daily_backup()` service
+1. Creates backup using inline `run_daily_backup()` service function
 2. Respects retention policy
 
-Note: This scheduler job uses the `run_daily_backup()` service function which creates unencrypted, uncompressed `backup_*.db` files. For encrypted/compressed backups, use the Celery task `run_backup_task` which calls `create_backup()` with `blog_*.db` naming.
+**Naming Convention:** This scheduler job uses `blog_*.db` naming pattern (e.g., `blog_20260509_020000.db`). For encrypted/compressed backups, use the Celery task `run_backup_task` which also uses `blog_*.db` naming but supports compression and encryption via `create_backup()`.
 
 ## Queue Routing
 

@@ -53,7 +53,58 @@ Syncs a single post to/from FTS index. Called before `db.session.commit()`.
 
 ### `sync_fts_batch()`
 
-Batch sync multiple posts. Uses `INSERT OR REPLACE` for efficiency.
+```python
+def sync_fts_batch(items: list[tuple]) -> bool:
+```
+
+Batch sync multiple posts to FTS index. Call before `db.session.commit()`.
+
+**Args:**
+- `items`: List of `(post_id, title, body, summary, published)` tuples.
+
+**Returns:** True on success, False on failure. On failure, caller should rollback the transaction to maintain FTS/DB consistency.
+
+### `remove_fts()`
+
+```python
+def remove_fts(post_id: int) -> bool:
+```
+
+Remove a post from the FTS index. Call before `db.session.commit()`.
+
+**Returns:** True on success, False on failure. On failure, caller should rollback the transaction to maintain FTS/DB consistency.
+
+### `reset_fts_available()`
+
+```python
+def reset_fts_available() -> None:
+```
+
+Reset FTS availability cache. For testing and cache invalidation. Forces next search to re-check FTS5 table existence.
+
+### `get_indexed_terms()`
+
+```python
+def get_indexed_terms() -> list[str]:
+```
+
+Get all indexed terms using FTS5 vocabulary table for efficiency. Falls back to extracting terms from post titles if vocabulary table unavailable.
+
+**Returns:** Alphabetically sorted list of unique terms in the search index.
+
+### `highlight_query()`
+
+```python
+def highlight_query(text: str, query: str) -> str:
+```
+
+Add `<mark>` tags around query terms in text for highlighting.
+
+**Args:**
+- `text`: The text to highlight within
+- `query`: The search query (may contain multiple words)
+
+**Returns:** The text with `<mark>` tags around matched terms.
 
 ### `search()`
 

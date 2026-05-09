@@ -86,11 +86,12 @@ Email templates in `app/templates/email/`:
 
 ## Queue Configuration
 
-| Task | Queue | Purpose |
-|------|-------|---------|
-| `send_newsletter_task` | `newsletter` | Bulk newsletter delivery |
-| `send_confirmation_task` | `email` | Subscriber confirmation emails |
+| Task | Queue | Purpose | Wrapper Pattern |
+|------|-------|---------|-----------------|
+| `send_newsletter_task` | `newsletter` | Bulk newsletter delivery | Calls synchronous `send_newsletter()` |
+| `send_confirmation_task` | `email` | Subscriber confirmation emails | Calls synchronous `send_confirmation()` wrapper |
+| `send_password_reset_task` | `email` | Password reset emails | Calls synchronous `send_password_reset()` wrapper |
 
-## See Also
+**Wrapper Pattern:** `send_confirmation()` and `send_password_reset()` are synchronous functions that are called by their respective Celery tasks. This pattern allows the async task to handle retries and queue management while the wrapper function handles the actual SMTP delivery.
 - [Celery Tasks](../tasks/celery-tasks.md) - Async email sending
 - [Configuration](../core/configuration.md) - Email config

@@ -8,7 +8,7 @@ Multi-container Docker setup for production deployment.
 |---------|-------|---------|
 | `blog` | Custom | Main Flask app (Granian ASGI) |
 | `celery` | Custom | Celery worker |
-| `redis` | `redis:alpine` | Cache and message broker |
+| `redis` | `redis:7-alpine` | Cache and message broker |
 | `nginx` | `nginx:alpine` | Reverse proxy |
 
 ## Docker Compose Profiles
@@ -29,7 +29,8 @@ Multi-stage build:
 - Non-root user (`blog`)
 - Multi-stage for minimal image size
 - Health checks
-- Resource limits
+
+Resource limits (memory, CPU) are configured in `docker-compose.yml` under each service's `deploy.resources` section, not in the Dockerfile itself.
 
 ## Nginx Configuration
 
@@ -45,7 +46,7 @@ Located in `nginx/`:
 |----------|-------------|
 | `SECRET_KEY` | Flask secret key |
 | `ADMIN_PASSWORD` | Admin password |
-| `DATABASE_URL` | PostgreSQL connection (production) |
+| `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `blog.db`) |
 | `REDIS_URL` | Redis connection |
 | `STORAGE_BACKEND` | `local` or `s3` |
 

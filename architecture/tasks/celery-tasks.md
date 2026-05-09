@@ -33,7 +33,7 @@ Generates responsive image variants:
 ```python
 @shared_task(bind=True, max_retries=3, retry_backoff=True,
              time_limit=600, soft_time_limit=540, queue='newsletter')
-def send_newsletter_task(self, post_ids: List[int]) -> bool:
+def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
 ```
 
 Sends newsletter to all confirmed subscribers:

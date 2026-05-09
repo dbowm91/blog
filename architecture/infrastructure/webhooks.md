@@ -63,6 +63,8 @@ Delivers to single URL with:
 - 10 second timeout
 - No redirects allowed
 
+**Deprecated:** This function is deprecated. All webhook deliveries should go through the `deliver_webhook_task` Celery task which handles async processing with proper retry logic and SSRF protection.
+
 ### `create_webhook_event()`
 
 ```python
