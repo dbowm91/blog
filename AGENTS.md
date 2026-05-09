@@ -57,13 +57,16 @@ Important actual file locations (verify before assuming):
 
 ## High-Risk Files (Error Handling)
 
-These files previously used broad `except Exception` clauses. All have been replaced with specific exceptions:
-- `app/routes/public/meta.py`
-- `app/email.py`
-- `app/backup_integrity.py`
-- `app/webhooks.py`
-- `app/tasks.py`
-- `app/page_view_buffer.py`
+These files have been flagged for exception handling issues:
+
+| File | Issue | Status |
+|------|-------|--------|
+| `app/routes/public/meta.py` | Previously broad exception | FIXED |
+| `app/email.py` | SMTP exception too broad at line 94 | PENDING - G.2 |
+| `app/backup_integrity.py` | Previously broad exception | FIXED |
+| `app/webhooks.py` | Silent failure with `pass` at line 97-101 | PENDING - F.4 |
+| `app/tasks.py` | Broad `except Exception` at line 320 | PENDING - F.5 |
+| `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
 
@@ -78,9 +81,9 @@ These files previously used broad `except Exception` clauses. All have been repl
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`.
 
-## Deferred Items
+## Completed Implementation Waves (Reference)
 
-These items were previously deferred but are now COMPLETED:
+These items were previously deferred and are now COMPLETED:
 
 | Item | Status |
 |------|--------|
@@ -92,12 +95,37 @@ These items were previously deferred but are now COMPLETED:
 | AVIF support | COMPLETED - Wave D (stub) |
 | Brotli compression | COMPLETED - Wave E (commented config) |
 
-### Future Waves (F-I)
-New waves organized for execution (see `plans/plan.md`):
+## Implementation Plan
+
+Current implementation plan: `plans/plan.md`
+
+Upcoming waves:
 - **Wave F**: Bug Fixes (12 items - security and functional)
 - **Wave G**: Code Quality (5 items)
 - **Wave H**: Documentation (37 items)
 - **Wave I**: Enhancements (0 items currently)
+
+### Wave Execution Pattern
+When executing multi-wave implementation plans:
+1. **Create separate branches** for each parallel wave to avoid conflicts
+2. **Use subagents** with separate branches to parallelize work
+3. **Merge to main** after each wave completes
+4. **Update plan status** in plan.md after each wave
+
+### Branch Naming Convention
+```
+wave-f-bugfixes
+wave-g-code-quality
+wave-h-documentation
+wave-i-enhancements
+```
+
+### Subagent Usage
+- Launch subagents in parallel for independent wave items
+- Each subagent works on its own branch
+- Review completed work before merging
+- Do not let subagents overwrite each other's changes
+- Within a wave, items can be parallelized by module (e.g., F.1-F.6 in parallel, F.7-F.12 in parallel)
 
 ## Implemented Features Notes
 
@@ -105,7 +133,7 @@ New waves organized for execution (see `plans/plan.md`):
 - TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
 - `User.totp_secret` is now a property that decrypts on access
 - Backup codes are SHA-256 hashed and single-use
-- Routes: `/2fa/setup`, `/2fa/verify`, `/2fa/backup-codes`, `/2fa/disable`
+- Routes: `/admin/2fa/setup`, `/admin/2fa/verify`, `/admin/2fa/backup-codes`, `/admin/2fa/disable`
 
 ### Rate Limiting (Wave B)
 - `ADMIN_RATE_LIMITS` defined in `app/config.py`
@@ -128,10 +156,15 @@ New waves organized for execution (see `plans/plan.md`):
 
 ## Important Notes for Future Agents
 
+### Preview Route Security (F.1)
+The public preview route at `/preview/<int:post_id>` validates HMAC signatures but does NOT verify user relationship to post. Any valid HMAC token grants access to ANY post including drafts. This is a security issue being tracked in Wave F.
+
 ### Backup Implementations
 There are two separate backup implementations:
 - `app/services/backup.py:create_backup()` - Used by Celery task, supports encryption/compression, uses `blog_*.db` naming
 - `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `backup_*.db` naming
+
+**Important:** The APScheduler backup retention (`cleanup_old_backups()`) only cleans `blog_*.db` files, not `backup_*.db` files. This is a bug in Wave F (F.2).
 
 ### Slug Generation
 Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`).
@@ -241,7 +274,7 @@ Three feed endpoints available:
 Load specialized skills using the `skill` tool with the skill name.
 
 | Skill | Description | Triggers |
-|-------|-------------|---------|
+|-------|-------------|----------|
 | `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log |
 | `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
 | `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline (select→research→write→edit), subagent system, SQLite/WAL, Granian ASGI | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
@@ -253,39 +286,3 @@ Load specialized skills using the `skill` tool with the skill name.
 Skills are stored in `.skills/` which may be a symlink to an external location.
 If the symlink is broken (shows as "broken symbolic link"), skills are not available.
 To fix: `rm .skills && ln -s /actual/path/to/skills .skills`
-
-## Implementation Plan
-
-See `plans/plan.md` for future implementation waves organized for parallel execution:
-- **Wave A-E**: COMPLETED (2FA, Rate Limiting, Search, Frontend, Brotli)
-- **Wave F**: Bug Fixes (12 items - security and functional)
-- **Wave G**: Code Quality (5 items)
-- **Wave H**: Documentation (37 items)
-- **Wave I**: Enhancements (0 items currently)
-
-### Wave Execution Pattern
-When executing multi-wave implementation plans:
-1. **Create separate branches** for each parallel wave to avoid conflicts
-2. **Use subagents** with separate branches to parallelize work
-3. **Merge to main** after each wave completes
-4. **Update plan status** in plan.md after each wave
-
-### Branch Naming Convention
-```
-wave-a-totp-encryption
-wave-b-rate-limiting
-wave-c-postgres-search
-wave-d-frontend
-wave-e-brotli
-wave-f-bugfixes
-wave-g-code-quality
-wave-h-documentation
-wave-i-enhancements
-```
-
-### Subagent Usage
-- Launch subagents in parallel for independent wave items
-- Each subagent works on its own branch
-- Review completed work before merging
-- Do not let subagents overwrite each other's changes
-- Within a wave, items can be parallelized by module (e.g., F.1-F.6 in parallel, F.7-F.12 in parallel)
