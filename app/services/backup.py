@@ -164,7 +164,7 @@ def run_daily_backup(app: Any) -> None:
         return
 
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    backup_filename = f"backup_{timestamp}.db"
+    backup_filename = f"blog_{timestamp}.db"
     backup_path = os.path.join(backup_dir, backup_filename)
 
     # Use sqlite3.backup() for WAL mode consistency (captures WAL/SHM files)

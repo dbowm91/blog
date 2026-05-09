@@ -72,12 +72,13 @@ def register_filters(app: Flask) -> None:
             return g._post_image_cache[cache_key]
         return None
 
-    @app.template_filter("post_image_avif_url")
+    @app.template_filter("post_image_avif_url_stub")
     def post_image_avif_url_filter(post: Any) -> str | None:
         """Return AVIF variant URL if available, else None.
 
-        AVIF support requires pillow-avif-plugin and is planned for future implementation.
-        Currently returns None as AVIF encoding is not yet enabled.
+        DEPRECATED: This filter is a stub and will always return None until
+        AVIF encoding is properly implemented. It has been renamed to avoid
+        confusion with a functional implementation.
         """
         if not post or not post.image:
             return None
