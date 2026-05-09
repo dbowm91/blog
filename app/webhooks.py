@@ -97,8 +97,8 @@ def create_webhook_event(
     try:
         from app.tasks import deliver_webhook_task
         deliver_webhook_task.delay(event_id)
-    except (RequestException, ValueError, OSError):
-        pass
+    except (RequestException, ValueError, OSError) as e:
+        logger.error("Failed to queue webhook event %d for delivery: %s", event_id, e)
 
     return event_id
 

@@ -318,6 +318,6 @@ def run_backup_task(self: Any) -> bool:
 
         result = create_backup(db_path, backup_dir, compress=True, keep=7, encrypt=False)
         return result is not None
-    except Exception as e:
+    except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Backup task failed: %s", e)
         return False
