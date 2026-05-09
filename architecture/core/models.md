@@ -56,30 +56,50 @@ Comment
 
 ## Key Indexes
 
-```python
-# Posts
-ix_posts_published_created       # (published, created_at)
-ix_posts_published_at           # (published_at)
-ix_posts_published_updated       # (published, updated_at)
-ix_posts_published_slug          # (published, slug)
-ix_posts_newsletter_sent_at     # (newsletter_sent_at)
-ix_posts_scheduled_publish_at   # (scheduled_publish_at)
+### Posts
+| Name | Columns |
+|------|---------|
+| `ix_posts_published_created` | (published, created_at) |
+| `ix_posts_published_at` | (published_at) |
+| `ix_posts_published_updated` | (published, updated_at) |
+| `ix_posts_published_slug` | (published, slug) |
+| `ix_posts_newsletter_sent_at` | (newsletter_sent_at) |
+| `ix_posts_scheduled_publish_at` | (scheduled_publish_at) |
 
-# Tags
-ix_post_tags_tag_id             # (tag_id)
+### Tags
+| Name | Columns |
+|------|---------|
+| `ix_post_tags_tag_id` | (tag_id) |
 
-# Subscribers
-ix_subscribers_confirmed_unsubscribed  # (confirmed, unsubscribed_at)
+### Subscribers
+| Name | Columns |
+|------|---------|
+| `ix_subscribers_confirmed_unsubscribed` | (confirmed, unsubscribed_at) |
 
-# Comments
-ix_comments_post_approved        # (post_id, approved)
-ix_comments_created_at          # (created_at)
-ix_comments_parent_id           # (parent_id)
+### Comments
+| Name | Columns |
+|------|---------|
+| `ix_comments_post_approved` | (post_id, approved) |
+| `ix_comments_created_at` | (created_at) |
+| `ix_comments_parent_id` | (parent_id) |
 
-# Series
-ix_post_series_series_id        # (series_id)
-ix_post_series_post_id          # (post_id)
-```
+### PostSeries (Series-Post Mapping)
+| Name | Columns |
+|------|---------|
+| `ix_post_series_series_id` | (series_id) |
+| `ix_post_series_post_id` | (post_id) |
+
+### PostRevision
+| Name | Columns |
+|------|---------|
+| `ix_post_revisions_post_created` | (post_id, created_at) |
+| `ix_post_revisions_author_id` | (author_id) |
+
+### AdminAuditLog
+| Name | Columns |
+|------|---------|
+| `ix_admin_audit_logs_actor_timestamp` | (actor_id, timestamp) |
+| `ix_admin_audit_logs_action_timestamp` | (action, timestamp) |
 
 ## User Model Details
 
@@ -94,7 +114,15 @@ class User(UserMixin, db.Model):
     reset_token_expires_at = db.Column(UTCDateTime)
     failed_login_count = db.Column(db.Integer, default=0)
     locked_until = db.Column(UTCDateTime)  # Account lockout
-    totp_secret = db.Column(db.String(32))  # 2FA secret
+    totp_secret_encrypted = db.Column(db.String(256), nullable=True)  # Encrypted storage
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+
+    # TOTP secret is accessed via property that decrypts on access:
+    @property
+    def totp_secret(self) -> Optional[str]: ...  # Decrypts from totp_secret_encrypted
+    set_totp_secret(secret)                     # Encrypts for storage
+    get_totp_uri()                              # Generate QR code provisioning URI
+    backup_codes_hashed = db.Column(db.JSON)    # SHA-256 hashed backup codes
 
     # Relationships
     admin_sessions = db.relationship("AdminSession", back_populates="user")
@@ -169,6 +197,16 @@ class SiteSettings(db.Model):
     custom_css_enabled = db.Column(db.Boolean, default=False)
     custom_css = db.Column(db.Text, default="")
     logo_text = db.Column(db.String(100), default="")
+
+    @classmethod
+    def get_instance(cls) -> "SiteSettings":
+        """Return singleton instance (id=1), creating if needed."""
+        instance = db.session.get(cls, 1)
+        if instance is None:
+            instance = cls()
+            db.session.add(instance)
+            db.session.commit()
+        return instance
 ```
 
 ## See Also

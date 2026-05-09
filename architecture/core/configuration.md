@@ -62,7 +62,16 @@ confirmation_expiry_hours = 1
 | `ADMIN_USERNAME` | `ADMIN_USERNAME` | `admin` | Admin username |
 | `POSTS_PER_PAGE` | - | `10` | Posts per page (1-100) |
 | `SESSION_LIFETIME_HOURS` | - | `24` | Session timeout |
+| `SESSION_IP_BINDING` | - | `warn` | IP binding mode: `off`, `warn`, `enforce` |
 | `MAX_UPLOAD_SIZE` | - | `10485760` | Max upload size in bytes |
+
+### SESSION_IP_BINDING Modes
+
+| Mode | Behavior |
+|------|----------|
+| `off` | No IP binding check. Sessions work from any IP address. |
+| `warn` | Log a warning if IP address changes, but allow the request. |
+| `enforce` | Invalidate the session and redirect to login if IP address changes. |
 
 ### Email Settings
 

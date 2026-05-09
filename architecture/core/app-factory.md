@@ -15,7 +15,7 @@ app = Flask(__name__, instance_relative_config=True)
 app.config["SECRET_KEY"] = SECRET_KEY
 app.config["UPLOAD_FOLDER"] = ...
 app.config["SQLALCHEMY_DATABASE_URI"] = ...  # SQLite default
-app.config["SESSION_COOKIE_SECURE"] = True (in production)
+app.config["SESSION_COOKIE_SECURE"] = ENV == "production"  # True when ENV is production
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 ```
@@ -75,6 +75,7 @@ PRAGMA busy_timeout=5000
 Content-Security-Policy:
   default-src 'self';
   style-src 'self' 'nonce-{nonce}';
+  style-src-attr 'unsafe-inline';
   font-src 'self';
   img-src 'self' data:;
   script-src 'self' 'nonce-{nonce}';
@@ -82,6 +83,8 @@ Content-Security-Policy:
   frame-src 'none';
   frame-ancestors 'none'
 ```
+
+**Note:** `style-src-attr 'unsafe-inline'` is required for the theme system's inline CSS variables and dynamic styling.
 
 ## Configuration (`app/config.py`)
 
