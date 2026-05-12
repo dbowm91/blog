@@ -80,11 +80,21 @@ Creates `WebhookEvent` record and queues `deliver_webhook_task` Celery task.
 
 ## SSRF Protection
 
-The `is_safe_webhook_url()` utility validates:
-- No private IP ranges (10.x, 172.16.x, 192.168.x)
-- No link-local addresses
-- No loopback addresses
-- No IPv6 equivalents
+The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive validation:
+
+- **Scheme check**: Only `http://` and `https://` allowed
+- **URL format validation**: Rejects userinfo (username/password) in URL
+- **Loopback blocking**: 127.0.0.1, ::1, localhost, 0.0.0.0
+- **IP validation**: Resolves hostname and validates IPs:
+  - Loopback (127.0.0.0/8, ::1)
+  - Private (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+  - Link-local (169.254.0.0/16, fe80::/10)
+  - Reserved, multicast
+- **IPv4-mapped IPv6**: Checks for :::ffff: prefix
+- **Cloud metadata endpoints**:
+  - AWS: 169.254.169.254
+  - GCP: metadata.google.internal
+- **Redirect blocking**: Both `deliver_webhook()` and `deliver_webhook_task` set `allow_redirects=False`
 
 ## Event Types
 
