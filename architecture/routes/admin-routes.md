@@ -41,12 +41,38 @@ admin/
 - **Purpose**: End admin session
 
 ### 2FA Setup
-- **Route**: `GET /admin/2fa/setup`
+- **Route**: `GET /admin/2fa/setup` (POST for setup confirmation)
 - **Purpose**: Setup TOTP 2FA
 
 ### 2FA Verify
-- **Route**: `GET /admin/2fa/verify`
+- **Route**: `GET /admin/2fa/verify` (POST for verification)
 - **Purpose**: Verify 2FA code
+
+### Login 2FA
+- **Route**: `GET /admin/login-2fa` (POST for verification)
+- **Purpose**: TOTP verification during login flow
+
+### 2FA Backup Codes
+- **Route**: `GET /admin/2fa/backup-codes`
+- **Purpose**: Display backup codes
+
+### 2FA Disable
+- **Route**: `GET /admin/2fa/disable` (POST to confirm disable)
+- **Purpose**: Disable 2FA for account
+
+### Forgot Password
+- **Route**: `GET /admin/forgot-password`
+- **Route**: `POST /admin/forgot-password`
+- **Purpose**: Request password reset
+
+### Reset Password
+- **Route**: `GET /admin/reset/<token>`
+- **Route**: `POST /admin/reset/<token>`
+- **Purpose**: Reset password with token
+
+### Newsletter Reset
+- **Route**: `POST /admin/newsletter-reset/<int:post_id>`
+- **Purpose**: Reset newsletter status for a post
 
 ## Post Management (`posts/`)
 
@@ -56,11 +82,22 @@ admin/
 - **Purpose**: Create/edit posts
 - **Features**: Markdown editor, tag selection, image upload, series assignment
 
+### Post Delete (`manage.py`)
+- **Route**: `POST /admin/delete/<int:post_id>`
+- **Purpose**: Delete a post
+
+### Post Preview (`manage.py`)
+- **Route**: `GET /admin/preview/<int:post_id>`
+- **Route**: `GET /admin/preview/<int:post_id>?share=1`
+- **Purpose**: Preview post before publishing, with optional shareable URL
+
 ### Post List (`list.py`)
 - **Route**: `GET /admin/`
 - **Route**: `GET /admin/<int:page>`
+- **Route**: `POST /admin/bulk`
 - **Purpose**: List all posts with filtering
 - **Filters**: Published, drafts, scheduled
+- **Bulk Ops**: Publish, unpublish, delete, unschedule selected posts
 
 ### Post Revisions (`revisions.py`)
 - **Route**: `GET /admin/posts/<int:post_id>/revisions`
@@ -72,8 +109,10 @@ admin/
 ## Subscriber Management (`subscribers.py`)
 
 - **Route**: `GET /admin/subscribers`
-- **Route**: `POST /admin/subscribers/export`
-- **Purpose**: View and export subscribers
+- **Route**: `GET /admin/subscribers/export`
+- **Route**: `POST /admin/subscribers/bulk`
+- **Route**: `POST /admin/subscribers/delete/<int:sub_id>`
+- **Purpose**: View, export, and manage subscribers
 
 ## Tag Management (`tags.py`)
 
@@ -104,7 +143,7 @@ admin/
 
 - **Route**: `GET /admin/media`
 - **Route**: `POST /admin/media/upload`
-- **Route**: `DELETE /admin/media/<filename>`
+- **Route**: `POST /admin/media/delete/<filename>`
 - **Purpose**: Upload and manage images
 - **Features**: Responsive variant generation
 
@@ -128,17 +167,15 @@ admin/
 
 ## Newsletter (`newsletter.py`)
 
-- **Route**: `GET /admin/newsletter`
-- **Route**: `POST /admin/newsletter/preview`
-- **Route**: `POST /admin/newsletter/send`
+- **Route**: `GET /admin/newsletter/preview`
 - **Route**: `POST /admin/newsletter-test`
 - **Purpose**: Preview and send newsletters
 
 ## Settings (`settings.py`)
 
 - **Route**: `GET /admin/settings`
-- **Route**: `POST /admin/settings`
-- **Purpose**: Configure theme, syntax theme, custom CSS
+- **Route**: `POST /admin/settings/theme`
+- **Purpose**: View and update theme, syntax theme, custom CSS
 
 ## Audit Log (`audit.py`)
 

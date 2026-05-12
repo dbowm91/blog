@@ -7,9 +7,9 @@ Public routes serve the blog's public-facing pages.
 | File | Routes | Purpose |
 |------|--------|---------|
 | `browse.py` | `/`, `/page/<page>`, `/tag/<tag>`, `/tag/<tag>/<page>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
-| `posts.py` | `/post/<slug>`, `/preview/<int:post_id>` | Individual post pages |
+| `posts.py` | `/post/<slug>`, `/preview/<int:post_id>`, `/s/<code>`, `/api/track-share` | Individual post pages, short URLs, share tracking |
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
-| `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health` | Sitemap, robots, health check |
+| `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health`, `/metrics`, `/favicon.ico` | Sitemap, robots, health check, metrics |
 | `comments.py` | `/post/<slug>/comment` (POST) | Comment submission |
 
 ## Browse Routes (`browse.py`)
@@ -59,6 +59,14 @@ Public routes serve the blog's public-facing pages.
 - **Auth**: HMAC token-based (no login required)
 - **Args**: `token` (HMAC signature), `expires` (Unix timestamp)
 
+### Short URL Redirect
+- **Route**: `GET /s/<code>`
+- **Purpose**: Redirect base62-encoded post ID to canonical URL and track share event
+
+### Share Tracking API
+- **Route**: `POST /api/track-share`
+- **Purpose**: Track social share events
+
 ## Subscribe Routes (`subscribe.py`)
 
 ### Subscribe
@@ -86,8 +94,16 @@ Public routes serve the blog's public-facing pages.
 
 ### Health Check
 - **Route**: `GET /health`
-- **Purpose**: Health check endpoint
+- **Purpose**: Health check endpoint with optional `?detailed=1`
 - **Auth**: Optional secret via `HEALTH_CHECK_SECRET`
+
+### Metrics
+- **Route**: `GET /metrics`
+- **Purpose**: Prometheus-compatible metrics endpoint
+
+### Favicon
+- **Route**: `GET /favicon.ico`
+- **Purpose**: Redirects to SVG favicon
 
 ## Comment Routes (`comments.py`)
 
