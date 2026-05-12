@@ -1,60 +1,125 @@
 # Architecture Review Plan
 
-**Project:** Blog CMS
-**Created:** May 2026
-**Purpose:** Review architecture documents, verify claims in code, and identify improvements
+This document outlines the review plan for architecture documents in the `architecture/` directory (excluding `review_plan.md` itself).
 
----
+## Modules to Review
 
-## Overview
+| Module | Documents | Review Agent |
+|--------|-----------|--------------|
+| **Core** | `core/app-factory.md`, `core/configuration.md`, `core/models.md` | core-reviewer |
+| **Services** | `services/backup.md`, `services/serialization.md`, `services/tag.md`, `services/slug.md`, `services/overview.md` | services-reviewer |
+| **Routes** | `routes/api-routes.md`, `routes/admin-routes.md`, `routes/public-routes.md`, `routes/rss-feeds.md` | routes-reviewer |
+| **Testing** | `testing/test-suite.md` | testing-reviewer |
+| **Tasks** | `tasks/celery-tasks.md`, `tasks/scheduler.md`, `tasks/overview.md` | tasks-reviewer |
+| **Infrastructure** | `infrastructure/webhooks.md`, `infrastructure/search.md`, `infrastructure/email.md`, `infrastructure/storage.md`, `infrastructure/overview.md` | infrastructure-reviewer |
+| **Frontend** | `frontend/static-assets.md`, `frontend/templates.md`, `frontend/overview.md` | frontend-reviewer |
+| **Deployment** | `deployment/docker.md`, `deployment/security.md`, `deployment/cicd.md`, `deployment/overview.md` | deployment-reviewer |
 
-This plan organizes the review of architecture documents into discrete modules. Each module will be reviewed by a dedicated subagent that will:
-1. Read all documentation in the module
-2. Verify claims against actual implementation
-3. Identify bugs and improvement opportunities
-4. Write findings to `plans/review/<module>_review.md`
+## Review Workflow
 
----
+Each subagent will:
+1. Read all documents in their designated module
+2. Verify architectural claims against actual code implementation
+3. Identify bugs, inconsistencies, and improvement opportunities
+4. Write a detailed improvement plan to `plans/<module>_review.md`
 
-## Module Assignments
+## Subagent Tasks
 
-| Module | Documents to Review | Subagent Output |
-|--------|---------------------|-----------------|
-| `core` | `core/app-factory.md`, `core/configuration.md`, `core/models.md` | `plans/review/core_review.md` |
-| `routes` | `routes/api-routes.md`, `routes/admin-routes.md`, `routes/public-routes.md`, `routes/rss-feeds.md` | `plans/review/routes_review.md` |
-| `services` | `services/backup.md`, `services/serialization.md`, `services/slug.md`, `services/tag.md`, `services/overview.md` | `plans/review/services_review.md` |
-| `tasks` | `tasks/celery-tasks.md`, `tasks/scheduler.md`, `tasks/overview.md` | `plans/review/tasks_review.md` |
-| `infrastructure` | `infrastructure/search.md`, `infrastructure/email.md`, `infrastructure/storage.md`, `infrastructure/webhooks.md`, `infrastructure/overview.md` | `plans/review/infrastructure_review.md` |
-| `frontend` | `frontend/templates.md`, `frontend/static-assets.md`, `frontend/overview.md` | `plans/review/frontend_review.md` |
-| `deployment` | `deployment/docker.md`, `deployment/security.md`, `deployment/cicd.md`, `deployment/overview.md` | `plans/review/deployment_review.md` |
-| `testing` | `testing/test-suite.md` | `plans/review/testing_review.md` |
+### 1. Core Review (`core-reviewer`)
+**Documents:** `architecture/core/app-factory.md`, `architecture/core/configuration.md`, `architecture/core/models.md`
 
----
+**Review Focus:**
+- App factory pattern implementation
+- Configuration management (config.py)
+- Model definitions, relationships, and extensions
 
-## Review Methodology
+**Output:** `plans/core_review.md`
 
-For each module, subagents will:
+### 2. Services Review (`services-reviewer`)
+**Documents:** `architecture/services/backup.md`, `architecture/services/serialization.md`, `architecture/services/tag.md`, `architecture/services/slug.md`, `architecture/services/overview.md`
 
-1. **Document Review**: Read all `.md` files in the module's directory
-2. **Code Verification**: Cross-reference documentation claims against actual implementation
-3. **Bug Identification**: Look for:
-   - Documentation that contradicts actual code
-   - Missing error handling
-   - Security vulnerabilities
-   - Performance bottlenecks
-   - Race conditions
-4. **Improvement Plan**: Document specific, actionable improvements
+**Review Focus:**
+- Backup service (encryption, compression, scheduling)
+- Serialization/deserialization patterns
+- Tag service logic
+- Slug generation and collision handling
 
----
+**Output:** `plans/services_review.md`
+
+### 3. Routes Review (`routes-reviewer`)
+**Documents:** `architecture/routes/api-routes.md`, `architecture/routes/admin-routes.md`, `architecture/routes/public-routes.md`, `architecture/routes/rss-feeds.md`
+
+**Review Focus:**
+- API endpoint implementation and authentication
+- Admin dashboard and management routes
+- Public routes (blog, subscribe, preview)
+- RSS/Atom feed generation
+
+**Output:** `plans/routes_review.md`
+
+### 4. Testing Review (`testing-reviewer`)
+**Documents:** `architecture/testing/test-suite.md`
+
+**Review Focus:**
+- Test suite organization and fixtures
+- Test isolation and cleanup
+- Coverage and edge cases
+- E2E testing approach
+
+**Output:** `plans/testing_review.md`
+
+### 5. Tasks Review (`tasks-reviewer`)
+**Documents:** `architecture/tasks/celery-tasks.md`, `architecture/tasks/scheduler.md`, `architecture/tasks/overview.md`
+
+**Review Focus:**
+- Celery task definitions and queue routing
+- APScheduler job schedules and execution
+- Task error handling and retries
+
+**Output:** `plans/tasks_review.md`
+
+### 6. Infrastructure Review (`infrastructure-reviewer`)
+**Documents:** `architecture/infrastructure/webhooks.md`, `architecture/infrastructure/search.md`, `architecture/infrastructure/email.md`, `architecture/infrastructure/storage.md`, `architecture/infrastructure/overview.md`
+
+**Review Focus:**
+- Webhook delivery and retry logic
+- Search provider implementation (FTS5, SQLite)
+- Email sending and newsletter delivery
+- Storage and file handling
+
+**Output:** `plans/infrastructure_review.md`
+
+### 7. Frontend Review (`frontend-reviewer`)
+**Documents:** `architecture/frontend/static-assets.md`, `architecture/frontend/templates.md`, `architecture/frontend/overview.md`
+
+**Review Focus:**
+- Vite build configuration and code splitting
+- JavaScript/CSS asset management
+- Jinja2 template structure and filters
+- Theme customization support
+
+**Output:** `plans/frontend_review.md`
+
+### 8. Deployment Review (`deployment-reviewer`)
+**Documents:** `architecture/deployment/docker.md`, `architecture/deployment/security.md`, `architecture/deployment/cicd.md`, `architecture/deployment/overview.md`
+
+**Review Focus:**
+- Docker configuration and image size
+- Security measures (HMAC, rate limiting, 2FA)
+- CI/CD pipeline configuration
+- Nginx and reverse proxy setup
+
+**Output:** `plans/deployment_review.md`
 
 ## Execution
 
-Subagents will be launched in parallel for independent modules. Each subagent will:
-- Read architecture documents for their module
-- Locate and examine corresponding code files
-- Compare documentation against implementation
-- Write improvement plan to `plans/review/<module>_review.md`
+Run each subagent in parallel to review their designated module. Each subagent should:
+1. Read all architecture documents for their module
+2. Cross-reference with actual code in `app/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/<module>_review.md`
 
----
+## Sign-off
 
-*Last updated: May 2026*
+Once all subagent reviews are complete, aggregate findings into a master summary and update this document with links to each module's improvement plan.
