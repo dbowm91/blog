@@ -44,9 +44,11 @@ X-Frame-Options: DENY  # Both Flask and nginx set DENY
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 Content-Security-Policy: default-src 'self'; ...
 Cross-Origin-Opener-Policy: same-origin  # Both Flask and nginx set same-origin
-Referrer-Policy: strict-origin-when-cross-origin
+Referrer-Policy: strict-origin-when-cross-origin (Flask) / no-referrer-when-downgrade (nginx)  # Mismatch - verify alignment
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
+
+**Note:** There is a Referrer-Policy mismatch between Flask (`strict-origin-when-cross-origin`) and nginx (`no-referrer-when-downgrade`). Consider aligning these for consistent behavior.
 
 ## Encryption
 
