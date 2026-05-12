@@ -81,7 +81,11 @@ Sends password reset email to user.
 def run_backup_task(self) -> bool:
 ```
 
-Runs database backup asynchronously.
+Runs database backup asynchronously via `create_backup()`:
+- Uses `compress=True`
+- Uses `keep=7`
+- Uses `encrypt=False`
+- Creates `blog_YYYYMMDD_HHMMSS.db.gz` files (compressed, unencrypted)
 
 ## Retry Policy
 
