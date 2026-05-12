@@ -126,6 +126,15 @@ Slug collision limit is hardcoded to 100 tries before falling back to UUID suffi
 - `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
 - `run_daily_backup` runs at 02:00 (`hour=2, minute=0`), NOT midnight
 
+### APScheduler Multi-Worker Limitation
+APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously. This is documented in `architecture/tasks/scheduler.md` and `architecture/deployment/docker.md`.
+
+### Health Check Critical Checks
+The health check endpoint (`GET /health`) determines overall status using only critical checks:
+- `database`, `scheduler`, `search`, `disk_space`, `db_integrity`
+- Optional checks (`backup_freshness`, `email`) do not affect overall status
+- See `architecture/infrastructure/overview.md` for details
+
 ### Email Retry Count
 Newsletter retry count default is 5 (not 3 as some documentation may claim).
 
@@ -234,6 +243,7 @@ Load specialized skills using the `skill` tool with the skill name.
 | `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log |
 | `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
 | `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline (select→research→write→edit), subagent system, SQLite/WAL, Granian ASGI | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
+| `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference, architecture review plan |
 | `nara` | Nara chain CLI agent — free PoMI mining, wallet, transfer, quest, on-chain skills, ZK ID, agent registry | NARA, quest, mining, airdrop, earn/claim/collect NARA, wallet, balance, transfer, skills, zkid, agent, referral, PoMI, keypair, mnemonic, faucet, deposit, withdraw |
 | `osinit` | OSINIT Dashboard - FastAPI backend with 24 intelligence sources, React/TypeScript frontend with 3D globe | build, test, deploy, run, data source, panel, SSE, sweep, synthesis, authentication, rate limiting, cache, delta, VIX, SSRF, circuit breaker, routers, Granian |
 
