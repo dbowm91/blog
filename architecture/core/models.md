@@ -172,7 +172,7 @@ class Comment(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"))
     parent_id = db.Column(db.Integer, db.ForeignKey("comments.id"))  # For nested replies
     author_name = db.Column(db.String(100))
-    author_email = db.Column(db.String(256))
+    author_email = db.Column(db.String(256), nullable=False)  # Required field
     content = db.Column(db.Text)
     approved = db.Column(db.Boolean, default=False)  # Moderation required
 

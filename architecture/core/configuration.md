@@ -64,6 +64,23 @@ confirmation_expiry_hours = 1
 | `SESSION_LIFETIME_HOURS` | - | `24` | Session timeout |
 | `SESSION_IP_BINDING` | - | `warn` | IP binding mode: `off`, `warn`, `enforce` |
 | `MAX_UPLOAD_SIZE` | - | `10485760` | Max upload size in bytes |
+| `MAX_VIEWED_POSTS` | - | `100` | Number of recent posts to track for "You've read" feature |
+| `TAG_CACHE_TTL_SECONDS` | - | `60` | Cache TTL for tag counts |
+| `DASHBOARD_PER_PAGE` | - | `20` | Posts per page in admin dashboard |
+| `SUBSCRIBERS_PER_PAGE` | - | `50` | Subscribers per page in admin |
+| `MEDIA_PER_PAGE` | - | `50` | Media items per page |
+| `MEDIA_MAX_FILES` | - | `1000` | Maximum files in media library |
+| `EXPORT_BATCH_SIZE` | - | `500` | Batch size for subscriber exports |
+| `FTS_RESULT_LIMIT` | - | `100` | Maximum full-text search results |
+| `PREVIEW_TOKEN_EXPIRY_DAYS` | - | `7` | Days until preview token expires |
+| `HEALTH_CHECK_SECRET` | `HEALTH_CHECK_SECRET` | (empty) | Secret for health check endpoint |
+| `DATA_BACKUP_DIR` | - | `backups` | Directory for backup files |
+| `WEBHOOK_TIMEOUT` | - | `10` | Webhook delivery timeout (seconds) |
+| `WEBHOOK_ENCRYPTION_KEY` | `WEBHOOK_ENCRYPTION_KEY` | (empty) | Key for webhook secret encryption |
+| `COMPRESS_ALGORITHM` | - | `["zstd", "br", "gzip"]` | Supported compression algorithms |
+| `SMTP_TIMEOUT` | - | `30` | SMTP connection timeout (seconds) |
+| `SEARCH_PROVIDER` | - | `sqlite` | Search provider: `sqlite` or `postgresql` |
+| `SEARCH_CONFIG` | - | `{}` | Search provider configuration |
 
 ### SESSION_IP_BINDING Modes
 
