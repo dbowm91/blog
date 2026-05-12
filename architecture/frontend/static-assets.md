@@ -46,6 +46,18 @@ app/static/
 
 ## JavaScript
 
+### Module Initialization Pattern
+
+JavaScript modules must export a default initialization function named `initXxx` (e.g., `export default initDarkMode`):
+
+```javascript
+// Correct
+export default function initMyModule() { ... }
+
+// Incorrect - no default export
+export function setup() { ... }
+```
+
 ### Route-Based Code Splitting
 
 Code splitting is implemented in `main.js:30-83` using `import.meta.glob()`. Modules are loaded dynamically based on the current route:
@@ -63,6 +75,17 @@ function getModulesForPath(path) {
 ```
 
 This allows Vite to create optimized chunks that are only loaded when needed.
+
+### Lazy Image Loading
+
+CSS pattern for progressive image loading:
+- Default: `opacity: 0`
+- `.loaded` class: `opacity: 1` with transition
+- JavaScript adds `document.documentElement.classList.add('js')` first to enable渐进增强
+
+### Admin Body Class Detection
+
+Admin pages can be detected via `document.body.classList.contains('admin-body')`.
 
 ### JSX Support
 

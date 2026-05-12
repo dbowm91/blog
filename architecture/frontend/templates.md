@@ -80,14 +80,19 @@ Registered in `app/filters.py`:
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with request-level caching
 - `post_image_srcset` - Generate srcset for responsive images
+- `post_image_avif_url_stub` - Returns None until AVIF encoding is enabled
 
 ## Context Processors
 
 From `app/context_processors.py`:
-- `inject_config()` - Site config variables (site_name, site_tagline, etc.)
+- `inject_csrf()` - `csrf_token` and `csp_nonce` for forms
+- `inject_config()` - Site config variables:
+  - `site_title` (not site_name)
+  - `site_description` (not site_tagline)
+  - `author_name`, `author_role`, `author_avatar`
+  - `base_url`, `current_year`, `canonical_url`
 - `inject_theme()` - Theme settings and `custom_css` variable
 - `inject_footer_data()` - Footer links and data
-- `inject_csrf()` - `csrf_token` and `csp_nonce` for forms
 - `inject_show_footer_posts()` - `show_footer_posts` boolean (hides footer posts on search/tag pages)
 
 ## See Also
