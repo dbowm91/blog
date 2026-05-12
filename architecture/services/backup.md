@@ -30,7 +30,7 @@ def create_backup(
 | `backup_dir` | `str` | required | Backup directory |
 | `compress` | `bool` | `False` | Gzip compression |
 | `keep` | `int` | `7` | Retention count |
-| `encrypt` | `bool` | `False` | AES-256-GCM encryption |
+| `encrypt` | `bool` | `False` | AES-256-GCM encryption (uses PBKDF2 key derivation) |
 
 **Returns:** Path to backup file or `None` on failure
 
@@ -78,7 +78,7 @@ Decrypts an AES-256-GCM-encrypted backup file.
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `input_path` | `str` | required | Path to encrypted backup file |
-| `output_path` | `str` | `None` | Output path (defaults to input_path without `.gpg`) |
+| `output_path` | `str` | `None` | Output path (for `.gpg` files: removes `.gpg`; for others: appends `.decrypted`) |
 
 **Returns:** `True` on success, `False` on failure
 
