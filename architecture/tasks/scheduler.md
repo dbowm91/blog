@@ -28,10 +28,11 @@ Runs every 5 minutes (`minute="*/5"`):
 
 ### `publish_scheduled_posts`
 
-Runs every 5 minutes:
+Runs every 5 minutes (`minute="*/5"`):
 1. Finds posts where `scheduled_publish_at <= now` and `published = False`
 2. Sets `published = True` and `published_at = now`
-3. Syncs to FTS index
+3. Syncs to FTS index via `sync_fts_batch()`
+4. Invalidates tag cache via `invalidate_tag_cache()`
 
 ### `run_daily_backup`
 
@@ -41,9 +42,9 @@ Runs daily at 02:00 (`hour=2, minute=0`):
 
 **Naming Convention:** This scheduler job uses `blog_*.db` naming pattern (e.g., `blog_20260509_020000.db`). For encrypted/compressed backups, use the Celery task `run_backup_task` which also uses `blog_*.db` naming but supports compression and encryption via `create_backup()`.
 
-## Queue Routing
+## Celery Queue Routing
 
-Celery tasks use specific queues for different workloads:
+Celery tasks use specific queues for different workloads (for reference - APScheduler jobs run in-process, not via Celery):
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
@@ -52,6 +53,14 @@ Celery tasks use specific queues for different workloads:
 | `webhooks` | Webhook delivery | `app/tasks.py:192` |
 | `email` | Transactional email | `app/tasks.py:264,285` |
 | `backup` | Backup tasks | `app/tasks.py:306` |
+
+## Multi-Worker Deployment
+
+**Important:** APScheduler's FileLock only works on a single machine. In multi-container deployments:
+- Each container runs its own APScheduler
+- Without external coordination (Redis, etcd), jobs may run on all replicas
+- FileLock uses `timeout=0` (non-blocking) - silently skips if lock held
+- Lock file locations: `{instance_path}/{job_name}.lock` (e.g., `newsletter.lock`)
 
 ## Initialization
 
