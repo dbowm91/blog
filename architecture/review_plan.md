@@ -1,6 +1,21 @@
 # Architecture Review Plan
 
+**Status:** INCOMPLETE - Working through review findings
+
 This document outlines the review plan for architecture documents in the `architecture/` directory (excluding `review_plan.md` itself).
+
+## Review Status
+
+| Module | Review Plan | Status |
+|--------|-------------|--------|
+| **Core** | `plans/core_review.md` | Findings complete - implementing fixes |
+| **Services** | `plans/services_review.md` | Findings complete - implementing fixes |
+| **Routes** | `plans/routes_review.md` | Findings complete - implementing fixes |
+| **Testing** | `plans/testing_review.md` | Findings complete - implementing fixes |
+| **Tasks** | `plans/tasks_review.md` | Findings complete - implementing fixes |
+| **Infrastructure** | `plans/infrastructure_review.md` | Findings complete - implementing fixes |
+| **Frontend** | `plans/frontend_review.md` | Findings complete - implementing fixes |
+| **Deployment** | `plans/deployment_review.md` | Findings complete - implementing fixes |
 
 ## Modules to Review
 

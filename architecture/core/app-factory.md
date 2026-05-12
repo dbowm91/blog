@@ -15,7 +15,9 @@ app = Flask(__name__, instance_relative_config=True)
 app.config["SECRET_KEY"] = SECRET_KEY
 app.config["UPLOAD_FOLDER"] = ...
 app.config["SQLALCHEMY_DATABASE_URI"] = ...  # SQLite default
-app.config["SESSION_COOKIE_SECURE"] = ENV == "production"  # True when ENV is production
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+    "SESSION_COOKIE_SECURE", "true"
+).lower() in ("true", "1", "yes")  # Defaults to True, raises error if False in production
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 ```
@@ -55,9 +57,16 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 - Prometheus metrics collection
 
 ### 6. SQLite Pragmas
+
+SQLite pragmas are set via SQLAlchemy event listener (not static PRAGMA statements):
+
 ```python
-PRAGMA journal_mode=WAL
-PRAGMA busy_timeout=5000
+@event.listens_for(db.engine, "connect")
+def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.close()
 ```
 
 ### 7. Database Initialization
