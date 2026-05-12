@@ -10,9 +10,11 @@ Business logic layer for the blog application.
 | Serialization | `app/services/serialization.py` | JSON export/import |
 | Slug | `app/services/slug.py` | Unique slug generation |
 | Tag | `app/services/tag.py` | Tag CRUD and count management |
+| Tag Cache | `app/tag_cache.py` | Tag count caching with TTL |
 
 ## See Also
 - [Backup Service](services/backup.md) - Detailed backup documentation
 - [Serialization](services/serialization.md) - Data export/import
 - [Slug Service](services/slug.md) - Slug generation
 - [Tag Service](services/tag.md) - Tag management
+- [Tag Cache](services/tag.md) - Tag count caching
