@@ -7,12 +7,14 @@ Comprehensive testing infrastructure.
 ```
 tests/
 ├── benchmarks/          # Benchmark tests
-│   └── conftest.py      # Benchmark fixtures (session-scoped `app`, `db`)
+│   ├── conftest.py      # Benchmark fixtures (session-scoped `app`, `db`)
+│   └── test_benchmarks.py
 ├── conftest.py          # Pytest fixtures (session-scoped `app`, `ensure_buffer_disabled` autouse)
 ├── e2e/                 # End-to-end Playwright tests
-│   └── conftest.py      # E2E fixtures (Playwright setup, app server on port 5010)
+│   ├── conftest.py      # E2E fixtures (Playwright setup, app server on port 5010)
+│   └── test_e2e.py      # E2E tests with classes: TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ├── shared_fixtures.py   # Shared fixtures (`ensure_buffer_disabled` autouse)
-├── test_*.py            # Unit/integration tests (flat)
+├── test_*.py            # Unit/integration tests (flat structure, NOT in unit/ or integration/ subdirs)
 └── __init__.py
 ```
 
@@ -36,7 +38,10 @@ tests/
 | `admin_user` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `authenticated_client` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `sample_post`, `sample_tag`, `sample_subscriber` | `conftest.py` | function |
-| `ensure_buffer_disabled` | `conftest.py`, `benchmarks/conftest.py`, `shared_fixtures.py` | autouse |
+| `mock_render`, `mock_smtp`, `mock_email` | `conftest.py` | function |
+| `clean_analytics_cache` | `conftest.py`, `benchmarks/conftest.py` | function |
+| `cleanup_uploads` | `conftest.py` | session (autouse) |
+| `ensure_buffer_disabled` | `conftest.py`, `benchmarks/conftest.py`, `e2e/conftest.py`, `shared_fixtures.py` | autouse |
 | `browser_type_launch_args` | `e2e/conftest.py` | session |
 | `app_server` | `e2e/conftest.py` | session |
 
@@ -46,6 +51,10 @@ tests/
 - `client` - Test client
 - `db` - Database session
 - `admin_user` and `authenticated_client` - Logged-in admin user
+- `sample_post`, `sample_tag`, `sample_subscriber` - Sample data fixtures
+- `mock_render`, `mock_smtp`, `mock_email` - Mock fixtures for external services
+- `clean_analytics_cache` - Cleans analytics cache before tests
+- `cleanup_uploads` - Session-scoped cleanup of uploaded files
 
 ## Key Configuration
 
@@ -73,8 +82,8 @@ The E2E tests start the Flask server on port 5010.
 ### Commands
 
 ```bash
-# All tests
-pytest
+# All tests (requires environment variables)
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest
 
 # Specific type
 pytest tests/
@@ -82,8 +91,18 @@ pytest tests/benchmarks/
 pytest tests/e2e/
 
 # With coverage
-pytest --cov=app
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest --cov=app
 ```
+
+### Environment Variables
+
+Required for all tests:
+- `SECRET_KEY` - Flask session key (minimum 32 characters)
+- `ADMIN_PASSWORD` - Admin password for test user
+
+Optional:
+- `TESTING=True` - Enables test mode
+- `PAGE_VIEW_BUFFER_SIZE=0` - Disables page view buffer at environment level
 
 ## Page View Buffer
 
@@ -114,6 +133,22 @@ The E2E tests in `tests/e2e/conftest.py` define their own session-scoped `app` f
 - Creates an admin user
 - Starts the Flask server on port 5010
 - Has function-scoped buffer shutdown via `ensure_buffer_disabled`
+
+## SQLAlchemy 2.0 Query Patterns
+
+Modern SQLAlchemy 2.0 patterns are used throughout the tests:
+
+```python
+# Modern select pattern
+from sqlalchemy import select
+result = db.session.execute(select(Post).filter(Post.published == True))
+
+# Pagination with db.paginate
+posts = db.paginate(query, per_page=10)
+
+# Fetching related objects
+post = db.session.get(Post, post_id)
+```
 
 ## See Also
 - [CI/CD](../deployment/cicd.md) - CI test execution
