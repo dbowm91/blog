@@ -138,6 +138,112 @@ class User(UserMixin, db.Model):
 
 **Note**: The User model only has the `admin_sessions` relationship. Reverse lookups like `user.posts` or `user.audit_logs` do not exist. Post-User relationships are defined on the Post model (e.g., `Post.user_id`). AdminAuditLog-User relationship is defined on the AdminAuditLog model.
 
+## AdminSession Model Details
+
+```python
+class AdminSession(db.Model):
+    __tablename__ = "admin_sessions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    session_id = db.Column(db.String(64), unique=True, nullable=False)
+    ip_address = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.String(256), nullable=True)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    last_activity = db.Column(UTCDateTime, default=utc_now)
+
+    user = db.relationship("User", back_populates="admin_sessions")
+
+    # Index: ix_admin_sessions_user_id
+    __repr__()  # Returns <AdminSession user_id={self.user_id} ip={self.ip_address}>
+```
+
+Used for session tracking and IP binding verification.
+
+## Webhook Model Details
+
+```python
+class Webhook(db.Model):
+    __tablename__ = "webhooks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(512), nullable=False)
+    secret = db.Column(db.String(64), nullable=False)  # Encrypted storage
+    event_type = db.Column(db.String(32), nullable=False)  # post.published, subscriber.confirmed, etc.
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    # Index: ix_webhooks_event_type_enabled
+    __repr__()  # Returns <Webhook {name!r} event={event_type!r}>
+```
+
+## WebhookEvent Model Details
+
+```python
+class WebhookEvent(db.Model):
+    __tablename__ = "webhook_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    webhook_id = db.Column(db.Integer, db.ForeignKey("webhooks.id"), nullable=True)
+    event_type = db.Column(db.String(32), nullable=False)
+    payload = db.Column(db.JSON, nullable=False)
+    target_id = db.Column(db.Integer, nullable=True)
+    target_type = db.Column(db.String(32), nullable=True)  # "post", "subscriber", etc.
+    delivered = db.Column(db.Boolean, default=False, nullable=False)
+    delivery_attempts = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    webhook = db.relationship("Webhook", lazy="select")
+
+    # Indexes: ix_webhook_events_event_type_delivered, ix_webhook_events_webhook_id
+    __repr__()  # Returns <WebhookEvent event={event_type!r} delivered={delivered}>
+```
+
+## Series Model Details
+
+```python
+class Series(db.Model):
+    __tablename__ = "series"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    slug = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.String(500), default="")
+    image = db.Column(db.String(256))
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    posts = db.relationship("PostSeries", back_populates="series", order_by="PostSeries.order_index")
+
+    # Index: ix_series_slug
+    @staticmethod
+    def generate_slug(name: str) -> str  # Uses app.utils.generate_slug
+
+    __repr__()  # Returns <Series {name!r}>
+```
+
+## PostSeries Model Details
+
+```python
+class PostSeries(db.Model):
+    __tablename__ = "post_series"
+
+    id = db.Column(db.Integer, primary_key=True)
+    series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    order_index = db.Column(db.Integer, nullable=False)
+
+    series = db.relationship("Series", back_populates="posts")
+    post = db.relationship("Post")
+
+    # Indexes: ix_post_series_series_id, ix_post_series_post_id
+    # UniqueConstraint: (series_id, post_id) named uq_series_post
+
+    __repr__()  # Returns <PostSeries series={series_id} post={post_id}>
+```
+
+Junction table linking Series and Post with ordering support.
+
 ## Post Model Details
 
 ```python

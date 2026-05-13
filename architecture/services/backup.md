@@ -50,7 +50,10 @@ def run_daily_backup(app: Any) -> None
 
 Scheduler-friendly daily backup function used by APScheduler.
 - **Naming**: Uses `blog_*.db` pattern (same as Celery task)
+- **Own retention**: Manages `backup_*.db` files separately from `cleanup_old_backups()`
 - **No encryption/compression**: For encrypted/compressed backups, use Celery task `run_backup_task`
+
+**Note**: `cleanup_old_backups()` only handles `blog_*` files. The APScheduler `run_daily_backup()` manages its own `backup_*.db` retention internally.
 
 ## Dual Backup Implementations
 
@@ -59,12 +62,13 @@ This service provides two distinct backup implementations:
 | Aspect | `create_backup()` (Celery) | `run_daily_backup()` (APScheduler) |
 |--------|---------------------------|----------------------------------|
 | Trigger | Celery task `run_backup_task` | APScheduler job at 02:00 |
-| Naming | `blog_YYYYMMDD_HHMMSS.db` | `blog_YYYYMMDD_HHMMSS.db` |
+| Creates | `blog_YYYYMMDD_HHMMSS.db` | `blog_YYYYMMDD_HHMMSS.db` |
+| Manages retention | Via `cleanup_old_backups()` (handles `blog_*`) | Internal `backup_*.db` pattern |
 | Encryption | AES-256-GCM with PBKDF2 | None |
 | Compression | Optional gzip | None |
 | Use case | On-demand encrypted backups | Scheduled daily backups |
 
-The APScheduler backup uses `blog_*.db` naming (since F.2) and `cleanup_old_backups()` cleans `blog_*.db` files.
+**Naming Note**: Both create `blog_*.db` files. However, `run_daily_backup()` uses a separate `backup_*.db` pattern for its own retention management, and `cleanup_old_backups()` only handles `blog_*` files.
 
 ### `decrypt_backup_file()`
 
