@@ -29,7 +29,7 @@ When working on new implementation:
 
 ## Completed Waves
 
-All waves A-I have been completed. The project is in maintenance mode.
+All waves A-J have been completed. The project is in maintenance mode.
 
 ## Plan Verification
 

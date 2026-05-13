@@ -4,7 +4,7 @@
 Centralized service layer for shared logic between CLI, API, and Admin routes.
 
 ## Services
-- `backup.py` - Centralized backup service with `create_backup()` (used by Celery task) and `run_daily_backup()` (used by APScheduler - inline implementation, no encryption)
+- `backup.py` - Centralized backup service with `create_backup()` (used by Celery task, supports encryption/compression) and `run_daily_backup()` (used by APScheduler, creates `blog_*.db` files, manages retention internally via `backup_*.db` pattern)
 - `slug.py` - Slug generation (replaces `app/routes/admin/helpers/slug.py` and `app/models.py`)
 - `serialization.py` - Serialization for CLI export (replaces `app/cli.py` functions)
 - `tag.py` - Tag management service (no update_tag function exists)

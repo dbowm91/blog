@@ -31,8 +31,78 @@ This is the consolidated implementation plan for the Blog CMS project. It serves
 | G | Code Quality | 5 | COMPLETED |
 | H | Documentation | 37 | COMPLETED |
 | I | Enhancements | 0 | N/A |
+| J | Architecture Review Fixes | 39+ | COMPLETED |
 
-**Total: 61 items completed**
+**Total: 61+ items completed**
+
+---
+
+## Wave J: Architecture Review Fixes
+
+**Completed:** May 2026
+
+Fixed documentation issues identified during architecture review in May 2026. Subagents were used to fix Core, Services, Infrastructure, Routes, Tasks, Testing, Frontend, and Deployment documentation.
+
+### Core Documentation Fixes
+
+**Files:** `architecture/core/models.md`
+
+- Added missing model documentation: AdminSession, Series, PostSeries, Webhook, WebhookEvent
+- Verified totp_secret property documentation (encrypted column with property that decrypts on access)
+- SESSION_IP_BINDING modes documented ("warn" vs "enforce")
+
+### Services Documentation Fixes
+
+**Files:** `architecture/services/backup.md`
+
+- Clarified backup naming: both `create_backup()` and `run_daily_backup()` create `blog_*.db` files
+- `cleanup_old_backups()` only handles `blog_*` files
+- `run_daily_backup()` manages retention internally via `backup_*.db` pattern
+- Decryption output path clarified (`.decrypted` appended for non-.gpg files)
+
+### Routes Documentation Fixes
+
+**Files:** `architecture/routes/admin-routes.md`, `architecture/routes/public-routes.md`, `architecture/routes/api-routes.md`
+
+- 2FA routes corrected: `/admin/2fa/setup`, `/admin/2fa/verify` (not `/admin/2fa-setup`)
+- Series route added: `GET /series/<slug>`
+- Archive route added: `GET /archive`
+- Short URL route added: `GET /s/<code>`
+- Rate limits corrected: reads 20/min, writes 10/min
+
+### Tasks Documentation Fixes
+
+**Files:** `architecture/tasks/scheduler.md`
+
+- `send_daily_newsletter` runs synchronously (not via Celery)
+- FileLock details: `timeout=0` behavior, lock file locations
+- Newsletter retry logic documented (`NEWSLETTER_MAX_RETRY_ATTEMPTS`)
+- `publish_scheduled_posts` syncs FTS and invalidates tag cache
+
+### Testing Documentation Fixes
+
+**Files:** `architecture/testing/test-suite.md`
+
+- Directory structure corrected: flat `tests/` structure (no unit/integration subdirs)
+- E2E file corrected: `test_e2e.py` with classes
+- All fixtures documented
+- Buffer protection autouse pattern documented
+
+### Frontend Documentation Fixes
+
+**Files:** `architecture/frontend/static-assets.md`, `architecture/frontend/templates.md`
+
+- JS module initialization pattern documented (`export default function initXxx()`)
+- `post_image_avif_url_stub` filter documented
+- Context processors and cache invalidation functions documented
+
+### Deployment Documentation Fixes
+
+**Files:** `architecture/deployment/docker.md`, `architecture/deployment/security.md`, `architecture/deployment/cicd.md`
+
+- APScheduler multi-worker limitation documented
+- Referrer-Policy mismatch noted (Flask vs nginx)
+- Test running command documented
 
 ---
 
