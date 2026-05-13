@@ -49,12 +49,25 @@ tests/
 
 - `app` - Flask application (session-scoped)
 - `client` - Test client
-- `db` - Database session
+- `db` - Database session (function-scoped in main conftest, session-scoped in benchmarks)
 - `admin_user` and `authenticated_client` - Logged-in admin user
 - `sample_post`, `sample_tag`, `sample_subscriber` - Sample data fixtures
 - `mock_render`, `mock_smtp`, `mock_email` - Mock fixtures for external services
 - `clean_analytics_cache` - Cleans analytics cache before tests
 - `cleanup_uploads` - Session-scoped cleanup of uploaded files
+- `ensure_buffer_disabled` - Autouse fixture protecting tests from page view buffer interference
+
+### Benchmark-Only Fixtures
+
+- `clean_db` - Cleans up test data after each benchmark function, keeping user records
+- `create_posts_bulk(db, count=50)` - Helper to create multiple posts for benchmarking
+- `create_subscribers_bulk(db, count=100)` - Helper to create multiple subscribers for benchmarking
+
+### E2E-Only Fixtures
+
+- `app_url` - Base URL for the Flask application (`http://127.0.0.1:5010`)
+- `browser_type_launch_args` - Configured browser launch arguments (`--no-sandbox`, `--disable-setuid-sandbox`)
+- `app_server` - Session-scoped fixture that starts the Flask server on port 5010
 
 ## Key Configuration
 

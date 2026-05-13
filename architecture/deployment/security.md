@@ -44,7 +44,7 @@ X-Frame-Options: DENY  # Both Flask and nginx set DENY
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 Content-Security-Policy: default-src 'self'; ...
 Cross-Origin-Opener-Policy: same-origin  # Both Flask and nginx set same-origin
-Referrer-Policy: strict-origin-when-cross-origin (Flask) / no-referrer-when-downgrade (nginx)  # Mismatch - verify alignment
+Referrer-Policy: strict-origin-when-cross-origin (Flask) / no-referrer-when-downgrade (nginx)  # Mismatch noted - consider aligning for consistent behavior
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
 
@@ -54,8 +54,8 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 | Data | Method |
 |------|--------|
-| Backups | AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation |
-| Webhook secrets | AES-256-GCM via `app/webhook_encryption.py` |
+| Backups | AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations) |
+| Webhook secrets | AES-256-GCM via `app/backup_encryption.py` (same scheme) |
 
 ## Admin Audit Log
 

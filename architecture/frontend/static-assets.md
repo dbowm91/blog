@@ -48,13 +48,13 @@ app/static/
 
 ### Module Initialization Pattern
 
-JavaScript modules must export a default initialization function named `initXxx` (e.g., `export default initDarkMode`):
+JavaScript modules must export a default initialization function named `initXxx` (e.g., `export default initDarkMode`). The module loader in `main.js:85-96` calls `module.default()` if it exists:
 
 ```javascript
-// Correct
+// Correct - default export named initXxx
 export default function initMyModule() { ... }
 
-// Incorrect - no default export
+// Incorrect - named export without default
 export function setup() { ... }
 ```
 
@@ -81,7 +81,7 @@ This allows Vite to create optimized chunks that are only loaded when needed.
 CSS pattern for progressive image loading:
 - Default: `opacity: 0`
 - `.loaded` class: `opacity: 1` with transition
-- JavaScript adds `document.documentElement.classList.add('js')` first to enable渐进增强
+- JavaScript adds `document.documentElement.classList.add('js')` first to enable progressive enhancement
 
 ### Admin Body Class Detection
 
