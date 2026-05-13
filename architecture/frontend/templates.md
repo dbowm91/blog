@@ -95,6 +95,12 @@ From `app/context_processors.py`:
 - `inject_footer_data()` - Footer links and data
 - `inject_show_footer_posts()` - `show_footer_posts` boolean (hides footer posts on search/tag pages)
 
+## Cache Invalidation
+
+From `app/context_processors.py`:
+- `invalidate_settings_cache()` - Invalidates the SiteSettings cache (line 30-32)
+- `invalidate_footer_cache()` - Invalidates the footer data memoization cache (line 35-37)
+
 ## See Also
 - [Static Assets](frontend/static-assets.md) - JS/CSS
 - [App Factory](core/app-factory.md) - Filter registration
