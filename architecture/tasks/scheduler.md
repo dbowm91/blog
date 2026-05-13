@@ -14,11 +14,17 @@ In-process scheduled job scheduler.
 ### `send_daily_newsletter`
 
 Runs daily at `NEWSLETTER_SEND_TIME` (default: 08:00):
-1. Queries confirmed subscribers
-2. Gets posts published since last newsletter
-3. **Synchronously** calls `send_newsletter()` directly (not via Celery task)
+1. Acquires FileLock (`newsletter.lock`) with `timeout=0` - skips if lock held
+2. Queries confirmed subscribers
+3. Gets posts where:
+   - Published and has `published_at`
+   - `newsletter_sent_at` is NULL
+   - `newsletter_attempts < NEWSLETTER_MAX_RETRY_ATTEMPTS`
+4. **Synchronously** calls `send_newsletter()` directly (not via Celery task)
+5. On success: sets `newsletter_sent_at = now` and resets `newsletter_attempts = 0`
+6. On failure: increments `newsletter_attempts` for retry
 
-Note: This job runs synchronously within APScheduler, unlike other async operations that use Celery tasks.
+**Retry Logic:** Respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` configuration. Posts with `newsletter_attempts >= NEWSLETTER_MAX_RETRY_ATTEMPTS` are excluded from selection until reset.
 
 ### `cleanup_expired_subscribers`
 
