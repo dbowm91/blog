@@ -152,7 +152,7 @@ Actual filters (defined in `app/filters.py`):
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
 ### Celery Queue Names
-Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 129, 192, 264, 285, 306)
+Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 130, 182, 255, 276, 297)
 
 ### Actual Routes
 When documenting or referring to routes, verify against actual implementation:
