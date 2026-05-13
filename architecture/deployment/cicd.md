@@ -36,6 +36,16 @@ From `pytest.ini`:
 - Coverage HTML: `htmlcov/`
 - Minimum coverage: 80%
 
+### Running Tests Locally
+
+```bash
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=80
+```
+
+Required environment variables:
+- `ADMIN_PASSWORD` - Set to any value for admin tests
+- `SECRET_KEY` - Set to any value for session/CSRF tests
+
 ## See Also
 - [Docker](deployment/docker.md) - Docker setup
 - [Testing](../testing/test-suite.md) - Test infrastructure
