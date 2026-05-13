@@ -8,7 +8,13 @@
 
 ## Overview
 
-This file contains the current implementation plan for the Blog CMS project. All waves A-I have been completed. This file now serves as a reference for important implementation details.
+This is the consolidated implementation plan for the Blog CMS project. It serves as the single source of truth for:
+- Completed implementation waves (A-I)
+- Key implementation details verified against the codebase
+- Important patterns and conventions for future agents
+- Guidance for creating new implementation waves
+
+**Note:** This file was consolidated in May 2026. All prior plan files have been merged into this document.
 
 ---
 
@@ -30,100 +36,294 @@ This file contains the current implementation plan for the Blog CMS project. All
 
 ---
 
-## Verification Status
-
-All items in this document have been verified against the codebase (May 2026).
-
----
-
-## Current Focus
-
-The project is in **maintenance mode**. No active implementation waves are in progress.
-
-For future enhancement ideas, see the `plans/` directory or create a new wave proposal.
-
----
-
-## Key Implementation Details (Reference)
+## Key Implementation Details (Verified May 2026)
 
 ### 2FA Implementation (Wave A)
+
+**Location:** `app/routes/admin/auth.py`, `app/models.py`, `app/services/encryption.py`
+
+**TOTP Encryption:**
 - TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
-- `User.totp_secret` is now a property that decrypts on access
-- Backup codes are SHA-256 hashed and single-use
-- Routes: `/admin/2fa/setup`, `/admin/2fa/verify`, `/admin/2fa/backup-codes`, `/admin/2fa/disable`
+- `User.totp_secret` is a property that decrypts on access (lines 43-52 in `app/models.py`)
+- `KEY_SIZE = 32` (256 bits) for AES-256-GCM
 
-### Rate Limiting (Wave B)
-- `ADMIN_RATE_LIMITS` defined in `app/config.py`
-- `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
+**Backup Codes:**
+- Stored as SHA-256 hashed strings in `backup_codes_hashed`
+- Single-use: verified codes are removed from the list
+- 10 backup codes generated per setup
 
-### Search Abstraction (Wave C)
-- `SearchProvider` abstract class in `app/services/search/__init__.py`
-- `SQLiteSearchProvider` wraps existing FTS5 functionality
-- `PostgreSQLSearchProvider` is a stub for future implementation
-
-### Frontend (Wave D)
-- Vite configured for code splitting with `manualChunks`
-- `post_image_avif_url_stub` filter (returns None until AVIF encoding is properly implemented)
-
-### Brotli (Wave E)
-- Nginx configuration includes commented Brotli settings
-- Requires custom nginx image with `--with-http_brotli_module`
-
-### Backup Naming (Wave F - F.2)
-Both backup implementations now use `blog_*.db` naming:
-- `app/services/backup.py:create_backup()` - Used by Celery task, supports encryption/compression
-- `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression
-
-### Preview Route Security (Wave F - F.1)
-The public preview route at `/preview/<int:post_id>` requires both HMAC token validation AND admin session verification (`session.get('admin_user_id')`).
-
-### Shared Test Fixtures (Wave F - F.7)
-The `ensure_buffer_disabled` fixture is consolidated in `tests/shared_fixtures.py`.
-
-### Deprecations (Wave G)
-- `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead
+**Routes:**
+- `/admin/2fa/setup` - Initialize 2FA (line 263 in `auth.py`)
+- `/admin/2fa/verify` - Verify TOTP code (line 312)
+- `/admin/2fa/backup-codes` - View/generate backup codes (line 420)
+- `/admin/2fa/disable` - Disable 2FA (line 436)
 
 ---
 
-## Wave Execution Pattern (Reference)
+### Rate Limiting (Wave B)
 
-When executing multi-wave implementation plans:
-1. **Create separate branches** for each parallel wave to avoid conflicts
-2. **Use subagents** with separate branches to parallelize work
-3. **Merge to main** after each wave completes
-4. **Update plan status** in plan.md after each wave
+**Location:** `app/config.py`, `app/middleware/rate_limit.py`
 
-### Branch Naming Convention
+- `ADMIN_RATE_LIMITS` defined in `app/config.py` (lines 145-152)
+- `AdminRateLimiter` class in `app/middleware/rate_limit.py` (line 32)
+- Flask-Limiter integrated with `key_func=get_client_ip`
+
+---
+
+### Search Abstraction (Wave C)
+
+**Location:** `app/services/search/__init__.py`, `app/services/search/sqlite.py`, `app/services/search/postgresql.py`
+
+**Architecture:**
+- `SearchProvider` abstract class with `@abstractmethod` decorators
+- Methods: `search`, `index_post`, `remove_post`, `rebuild_index`, `get_snippets`
+
+**Implementations:**
+- `SQLiteSearchProvider` - wraps existing FTS5 functionality in `app/search.py`
+- `PostgreSQLSearchProvider` - stub for future implementation (requires schema changes)
+
+**Factory:**
+- `get_search_provider()` selects provider based on `SEARCH_PROVIDER` config
+
+---
+
+### Frontend (Wave D)
+
+**Location:** `vite.config.js`, `app/filters.py`
+
+**Vite Configuration:**
+- Code splitting with `manualChunks` (lines 14-19)
+- Chunks: 'vendor', 'admin', 'public'
+
+**AVIF Support:**
+- `post_image_avif_url_stub` filter in `app/filters.py` (lines 75-85)
+- Currently returns `None` - placeholder until AVIF encoding is implemented
+
+---
+
+### Brotli Compression (Wave E)
+
+**Location:** `nginx/nginx.conf`
+
+- Nginx configuration includes commented Brotli settings (lines 26-34)
+- Requires custom nginx image with `--with-http_brotli_module`
+
+---
+
+### Error Handling Fixes (Wave F)
+
+All high-risk files have been fixed with specific exception handling:
+
+| File | Issue Fixed | Verification |
+|------|-------------|--------------|
+| `app/routes/public/meta.py` | Uses `OperationalError, ProgrammingError` for DB checks; generic `except Exception` only for optional checks (redis, celery, backup_freshness) | Line 214, 232, 248 |
+| `app/email.py` | Catches specific SMTP exceptions: `SMTPAuthenticationError, SMTPConnectError, SMTPSenderRefused, SMTPServerDisconnected, SMTPException` plus `OSError` | Lines 94, 115-120 |
+| `app/backup_integrity.py` | Catches `sqlite3.Error, OSError, ValueError, TypeError` | Lines 77-80 |
+| `app/webhooks.py` | `deliver_webhook()` returns `(False, str(e))` on error; `create_webhook_event()` logs with `logger.error()` | Lines 83, 111 |
+| `app/tasks.py` | All tasks use specific exceptions: `ClientError, BotoCoreError`, `SQLAlchemyError, OSError, ImportError`, `requests.RequestException` | Multiple locations |
+| `app/page_view_buffer.py` | Uses `SQLAlchemyError, OSError` - specific types | Lines 126, 189 |
+
+---
+
+### Code Quality (Wave G)
+
+**Deprecation Notice:**
+- `deliver_webhook()` in `app/webhooks.py` is deprecated (lines 55-59)
+- Use `deliver_webhook_task` Celery task instead for all webhook deliveries
+
+---
+
+## Additional Implementation Details
+
+The following features were implemented but not originally documented in plan waves. They are verified and included here for completeness.
+
+### Comment Model
+
+**Location:** `app/models.py:573-596`
+
+**Pattern:** Uses `back_populates` for parent/child relationships:
+```python
+parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
+replies = db.relationship("Comment", back_populates="parent", lazy="select")
 ```
-wave-f-bugfixes
-wave-g-code-quality
-wave-h-documentation
-wave-i-enhancements
+
+### Feed Endpoints
+
+**Location:** `app/routes/rss.py`
+
+Three feed endpoints with caching and ETag support:
+- `/atom` - Atom 1.0 feed
+- `/rss` - RSS 2.0 feed  
+- `/json` - JSON Feed 1.1
+
+**Cache Pattern:**
+```python
+flask_cache.delete("rss_feed_posts")  # Invalidates on post changes
 ```
+
+### Webhook Event Triggering
+
+**Pattern:** Trigger webhooks at key state transitions:
+```python
+# Post publish/unpublish in app/routes/api/posts.py:294-295
+if "published" in data and was_published != post.published:
+    from app.webhooks import create_webhook_event
+    create_webhook_event(
+        event_type="post.published" if post.published else "post.unpublished",
+        payload={"post_id": post.id, "title": post.title, "slug": post.slug},
+        target_id=post.id,
+        target_type="post"
+    )
+
+# Subscriber confirmation in app/routes/public/subscribe.py:147-148
+sub.confirmed = True
+# ... after commit ...
+create_webhook_event(
+    event_type="subscriber.confirmed",
+    payload={"subscriber_id": sub.id, "email": sub.email},
+    target_id=sub.id,
+    target_type="subscriber"
+)
+```
+
+**Models:** `Webhook` and `WebhookEvent` in `app/models.py:484-520`
+
+### Snippet Batching (SQLite Parameter Limits)
+
+**Location:** `app/search.py:298`, `app/services/search/sqlite.py`
+
+```python
+_SQLITE_MAX_VARS = 500  # Maximum variables per query
+
+# Batch processing pattern:
+chunk_size = 500
+for i in range(0, len(post_ids), chunk_size):
+    chunk = post_ids[i:i + chunk_size]
+```
+
+### Health Check Critical Checks
+
+**Location:** `app/routes/public/meta.py:286-294`
+
+Only critical checks affect overall status:
+```python
+critical_checks = {
+    k: v for k, v in checks.items()
+    if k in ("database", "scheduler", "search", "disk_space", "db_integrity")
+}
+```
+
+Optional checks (`backup_freshness`, `email`) do not affect degraded status.
+
+### Page View Buffer System
+
+**Location:** `app/page_view_buffer.py`
+
+- `PageViewBuffer` class handles async page view recording
+- `init_page_view_buffer()` - starts buffer on app creation
+- `shutdown_page_view_buffer()` - flushes and shuts down
+- `record_page_view()` - records view to buffer
+- Buffer flushes when size reaches `PAGE_VIEW_BUFFER_SIZE`
+
+**Test Interference:** Disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`. Use `ensure_buffer_disabled` fixture from `tests/shared_fixtures.py`.
+
+### Admin Audit Log
+
+**Location:** `app/models.py:461-481`
+
+- `AdminAuditLog` model tracks admin actions
+- Uses `actor` relationship to User
+- Indexes on `action`, `target_type`, `target_id`, `created_at`
+
+### Post Revisions
+
+**Location:** `app/models.py:236-249`
+
+- `PostRevision` model tracks post history
+- Stores `title`, `content`, `slug`, `status` at revision time
+
+### User Model Security
+
+**Location:** `app/models.py:63-64`
+
+```python
+def __repr__(self):
+    return f"<User id={self.id}>"  # Returns ID only, NOT username - PII protection
+```
+
+### APScheduler Multi-Worker Limitation
+
+**Location:** `architecture/tasks/scheduler.md`, `architecture/deployment/docker.md`
+
+**Critical:** APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously.
+
+### Context Processors (Actual Function Names)
+
+**Location:** `app/context_processors.py`
+
+| Function | Injects |
+|----------|---------|
+| `inject_csrf()` | `csrf_token`, `csp_nonce` |
+| `inject_config()` | Site config variables |
+| `inject_theme()` | Theme settings, `custom_css` |
+| `inject_footer_data()` | Footer links and data |
+| `inject_show_footer_posts()` | `show_footer_posts` boolean |
+
+### Tag Cache
+
+**Location:** `app/services/tag.py`, `app/tag_cache.py`
+
+Invalidation pattern:
+```python
+flask_cache.delete_memoized(_get_tag_counts_cached)
+```
+
+### Custom Encryption Errors
+
+**Locations:**
+- `app/services/encryption.py:17` - `EncryptionError`
+- `app/webhook_encryption.py:17` - `WebhookEncryptionError`
+
+### Celery Backup Isolation
+
+```python
+@celery_task
+def run_backup_task(backup_dir, compress):
+    from app.services.backup import create_backup
+    return create_backup(db_path, backup_dir, compress=compress)
+```
+
+Run backups as Celery tasks to avoid blocking web requests.
 
 ---
 
 ## Important Notes for Future Agents
 
 ### Security
+
 - **Log ID, not Username**: When logging user actions, always use `user.id`. Never log raw User objects or usernames to prevent PII leakage.
 - **Credential Protection**: Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys.
 
 ### Configuration
+
 - Configuration priority: env vars > config.toml > defaults
 - Newsletter retry count default is 5
 
 ### APScheduler Job Schedules
+
 - `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
 - `run_daily_backup` runs at 02:00 (`hour=2, minute=0`), NOT midnight
 
 ### Slug Generation
+
 - Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`)
 
 ### Celery Queue Names
-- Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup`
 
-### Routes (Verify Before Using)
+- Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 130, 182, 255, 276, 297)
+
+### Actual Routes (Verify Before Using)
+
 When documenting or referring to routes, verify against actual implementation:
 - New post: `/admin/new` (NOT `/admin/posts/new`)
 - Edit post: `/admin/edit/<id>` (NOT `/admin/posts/<id>/edit`)
@@ -133,49 +333,35 @@ When documenting or referring to routes, verify against actual implementation:
 - API post publish: Use `PUT /api/posts/<id>` with `{"published": true}` body (NOT `POST /api/posts/<id>/publish`)
 
 ### Template Filters (Actual)
+
+Defined in `app/filters.py`:
 - `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
-### Context Processors (Actual Function Names)
-- `inject_csrf()` - Injects `csrf_token` and `csp_nonce`
-- `inject_config()` - Injects site config variables
-- `inject_theme()` - Injects theme settings and `custom_css`
-- `inject_footer_data()` - Injects footer links and data
-- `inject_show_footer_posts()` - Injects `show_footer_posts` boolean
-
 ---
 
-## High-Risk Files (Error Handling - Fixed)
+## Wave Execution Pattern
 
-These files previously had exception handling issues but are now fixed:
+When executing multi-wave implementation plans:
 
-| File | Issue | Status |
-|------|-------|--------|
-| `app/routes/public/meta.py` | Broad exception | FIXED |
-| `app/email.py` | SMTP exception too broad | FIXED - Wave G |
-| `app/backup_integrity.py` | Previously broad exception | FIXED |
-| `app/webhooks.py` | Silent failure with `pass` | FIXED - Wave F |
-| `app/tasks.py` | Broad `except Exception` | FIXED - Wave F |
-| `app/page_view_buffer.py` | Previously broad exception | FIXED |
+1. **Create separate branches** for each parallel wave to avoid conflicts
+2. **Use subagents** with separate branches to parallelize work
+3. **Merge to main** after each wave completes
+4. **Update plan status** in plan.md after each wave
 
----
+### Branch Naming Convention
 
-## Test Interference Notes
-
-### Page View Buffer
-- Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
-- In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
-- The `ensure_buffer_disabled` fixture is in `tests/shared_fixtures.py`
-
-### Test Database Session
-- `db.session.refresh()` fails if object isn't in current session
-- Fix: Re-query object from database instead of using `refresh()`
+```
+wave-j-enhancements
+wave-k-bugfixes
+```
 
 ---
 
 ## Creating New Implementation Waves
 
 To propose a new enhancement or bug fix:
+
 1. Create a branch: `wave-<letter>-<description>`
 2. Implement the changes following existing patterns
 3. Update this file with the new wave information
@@ -183,4 +369,15 @@ To propose a new enhancement or bug fix:
 
 ---
 
-*Last updated: May 2026 - All Waves A-I completed*
+## File Structure Reference
+
+```
+plans/
+├── plan.md              # This file - consolidated implementation plan
+└── AGENTS.override.md   # Module-specific agent guidance
+```
+
+---
+
+*Last updated: May 2026 - Consolidated from prior plan files*
+*All items verified against codebase May 2026*

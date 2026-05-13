@@ -44,8 +44,8 @@ Important actual file locations (verify before assuming):
 | API routes | `app/routes/api/` (PACKAGE with posts.py, subscribers.py, stats.py, auth.py) |
 | Validators | `app/validators.py` (NOT `app/core/validators.py`) |
 | Backup logic | `app/services/backup.py` (centralized service) |
-| Admin Audit Log model | `app/models.py:397-417` |
-| PostRevision model | `app/models.py:173` |
+| Admin Audit Log model | `app/models.py:461-481` |
+| PostRevision model | `app/models.py:236-249` |
 | User model `__repr__` | `app/models.py:63-64` |
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, slug, serialization, tag) |
