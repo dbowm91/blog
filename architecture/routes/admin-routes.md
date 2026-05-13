@@ -39,6 +39,7 @@ admin/
 ### Logout
 - **Route**: `POST /admin/logout`
 - **Purpose**: End admin session
+- **Auth**: CSRF protection required
 
 ### 2FA Setup
 - **Route**: `GET /admin/2fa/setup` (POST for setup confirmation)
