@@ -17,4 +17,4 @@ Business logic layer for the blog application.
 - [Serialization](services/serialization.md) - Data export/import
 - [Slug Service](services/slug.md) - Slug generation
 - [Tag Service](services/tag.md) - Tag management
-- [Tag Cache](services/tag.md) - Tag count caching
+- [Tag Cache](services/tag_cache.md) - Tag count caching
