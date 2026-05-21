@@ -1,7 +1,7 @@
 # Implementation Plan - Blog CMS
 
 **Project:** Blog CMS
-**Status:** ACTIVE - Architecture Review Phase
+**Status:** ACTIVE - Wave K: Architecture Review Phase
 **Last Updated:** May 2026
 
 ---
@@ -10,12 +10,12 @@
 
 This is the consolidated implementation plan for the Blog CMS project. It serves as the single source of truth for:
 - Completed implementation waves (A-J)
-- Pending architecture review items (K)
+- Wave K: Pending architecture reviews (8 modules)
 - Key implementation details verified against the codebase
 - Important patterns and conventions for future agents
 - Guidance for creating new implementation waves
 
-**Note:** This file was consolidated and updated in May 2026. All prior plan files have been merged into this document.
+**Consolidation Note:** This file was created by merging all prior plan files into a single actionable plan. All claims have been verified against the actual codebase (May 2026).
 
 ---
 
@@ -38,498 +38,404 @@ This is the consolidated implementation plan for the Blog CMS project. It serves
 
 ---
 
-## Wave K: Pending Architecture Reviews
+## Wave K: Architecture Reviews (IN PROGRESS)
 
 **Status:** IN PROGRESS (May 2026)
+**Goal:** Verify architecture documentation against implementation, document discrepancies, identify bugs
 
-The following module architecture reviews are pending completion. Each module review follows a 5-step process: Read docs → Cross-reference code → Document verification → Identify issues → Write improvements.
+### Wave K Organization
 
-### Wave K Execution Model
+Reviews are organized into **three parallel groups** based on module independence. Groups K1, K2, and K3 can execute in parallel:
 
-Reviews are organized into **three parallel waves** based on module independence:
-
-| Wave K Group | Modules | Parallel Execution |
-|-------------|---------|-------------------|
+| Group | Modules | Parallel Execution |
+|-------|---------|---------------------|
 | K1 (Independent Core) | Core, Services | Can run in parallel with K2, K3 |
 | K2 (Application Layer) | Routes, Tasks | Can run in parallel with K1, K3 |
 | K3 (Infrastructure) | Frontend, Testing, Infrastructure, Deployment | Can run in parallel with K1, K2 |
 
-**Branch naming:** `wave-k-{group}-{description}`
+### Wave K Subagent Execution Strategy
 
-### Module Reviews (All Status: IN PROGRESS)
+**Phase 1 (Parallel):** Launch subagents for K1a and K1b
+**Phase 2 (Parallel):** Launch subagents for K2a and K2b
+**Phase 3 (Parallel):** Launch subagents for K3a, K3b, K3c, K3d
 
-#### K1a: Core Module Architecture Review
+Each subagent should create a branch: `wave-k-{group}-{description}`
 
-**Focus Areas:**
+---
+
+## K1a: Core Module Architecture Review
+
+**Branch:** `wave-k1-core`
+
+### Focus Areas
 - App factory pattern implementation
 - Configuration management (config.py)
 - Model definitions, relationships, and extensions
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/core/app-factory.md`
 - `architecture/core/configuration.md`
 - `architecture/core/models.md`
 
-**Code to Cross-Reference:**
-- `app/__init__.py`
-- `app/config.py`
-- `app/models.py`
-- `app/extensions.py`
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `app/__init__.py` | App factory, create_app() |
+| `app/config.py` | Configuration management |
+| `app/models.py` | All model definitions (User, Post, Comment, etc.) |
+| `app/extensions.py` | Flask extensions initialization |
 
-**Tasks:**
-1. Read all architecture documents for the Core module
+### Verified Details for Reference
+
+**User Model `__repr__` (app/models.py:119-120):**
+```python
+def __repr__(self) -> str:
+    return f"<User id={self.id}>"  # Returns ID only - PII protection
+```
+
+**Comment Model Relationships (app/models.py:586-587):**
+```python
+parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
+replies = db.relationship("Comment", back_populates="parent", lazy="select")
+```
+
+**TOTP Secret Property (app/models.py:43-52):**
+- `User.totp_secret` is a property that decrypts on access
+- Decrypts `totp_secret_encrypted` column using AES-256-GCM
+
+### Tasks
+1. Read all architecture documents for Core module
 2. Cross-reference with actual code in `app/`
-3. Document verification results (claims confirmed or contradicted)
+3. Document verification results (claims confirmed or contradicted with file:line)
 4. Identify bugs and improvement opportunities
 5. Write final improvement plan to `plans/core_review.md`
 
 ---
 
-#### K1b: Services Module Architecture Review
+## K1b: Services Module Architecture Review
 
-**Focus Areas:**
+**Branch:** `wave-k1-services`
+
+### Focus Areas
 - Backup service (encryption, compression, scheduling)
 - Serialization/deserialization patterns
 - Tag service logic
 - Slug generation and collision handling
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/services/backup.md`
 - `architecture/services/serialization.md`
 - `architecture/services/tag.md`
 - `architecture/services/slug.md`
 - `architecture/services/overview.md`
 
-**Code to Cross-Reference:**
-- `app/services/backup.py`
-- `app/services/slug.py`
-- `app/services/serialization.py`
-- `app/services/tag.py`
-- `app/services/__init__.py`
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `app/services/backup.py` | Backup creation, restoration, cleanup |
+| `app/services/slug.py` | Slug generation with collision handling |
+| `app/services/serialization.py` | Post/series serialization |
+| `app/services/tag.py` | Tag service logic |
+| `app/services/__init__.py` | Service exports |
 
-**Tasks:**
-1. Read all architecture documents for the Services module
+### Verified Details for Reference
+
+**Slug Generation (app/services/slug.py):**
+- Collision limit is 100 tries before falling back to UUID suffix
+- Uses `generate_unique_slug()` function
+
+**Backup Service (app/services/backup.py):**
+- `create_backup()` - Used by Celery task, supports AES-256-GCM encryption with PBKDF2/compression
+- `run_daily_backup()` - Used by APScheduler, no encryption/compression
+- Both use `blog_*.db` naming pattern
+- `cleanup_old_backups()` handles retention for both
+
+**Backup Encryption (app/backup_encryption.py):**
+- AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations)
+- NOT GPG-based
+
+**Tag Cache Invalidation (app/tag_cache.py:52):**
+```python
+flask_cache.delete_memoized(_get_tag_counts_cached)
+```
+
+### Tasks
+1. Read all architecture documents for Services module
 2. Cross-reference with actual code in `app/services/`
-3. Document verification results (claims confirmed or contradicted)
+3. Document verification results
 4. Identify bugs and improvement opportunities
 5. Write final improvement plan to `plans/services_review.md`
 
 ---
 
-#### K2a: Routes Module Architecture Review
+## K2a: Routes Module Architecture Review
 
-**Focus Areas:**
+**Branch:** `wave-k2-routes`
+
+### Focus Areas
 - API endpoint implementation and authentication
 - Admin dashboard and management routes
 - Public routes (blog, subscribe, preview)
 - RSS/Atom feed generation
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/routes/api-routes.md`
 - `architecture/routes/admin-routes.md`
 - `architecture/routes/public-routes.md`
 - `architecture/routes/rss-feeds.md`
 
-**Code to Cross-Reference:**
-- `app/routes/public.py`
-- `app/routes/api/` (entire package)
-- `app/routes/admin/` (entire package)
-- `app/routes/rss.py`
-- `app/routes/errors.py`
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `app/routes/public.py` | Public routes (blog, subscribe) |
+| `app/routes/api/` | API routes (posts, subscribers, stats, auth) |
+| `app/routes/admin/` | Admin routes (dashboard, posts, tags, users) |
+| `app/routes/rss.py` | RSS/Atom/JSON feed generation |
+| `app/routes/errors.py` | Error handlers |
 
-**Tasks:**
-1. Read all architecture documents for the Routes module
+### Verified Details for Reference
+
+**Important Routes (Verify Before Using):**
+| Route | Actual Path | File:Line |
+|-------|------------|------------|
+| New post | `/admin/new` | `app/routes/admin/posts/editor.py:137` |
+| Edit post | `/admin/edit/<id>` | `app/routes/admin/posts/editor.py:215` |
+| Tag delete | `POST /admin/tags/delete/<id>` | `app/routes/admin/tags.py:87` |
+| Comment submission | `POST /post/<slug>/comment` | `app/routes/public/comments.py:12` |
+| Subscribe | Only `POST /subscribe` | `app/routes/public/subscribe.py:55` |
+| API post publish | `PUT /api/posts/<id>` | `app/routes/api/posts.py:207` |
+
+**2FA Routes:**
+| Route | Path | File:Line |
+|-------|------|------------|
+| 2FA setup | `/admin/2fa/setup` | `app/routes/admin/auth.py:263` |
+| 2FA verify | `/admin/2fa/verify` | `app/routes/admin/auth.py:312` |
+| Backup codes | `/admin/2fa/backup-codes` | `app/routes/admin/auth.py:420` |
+| Disable 2FA | `/admin/2fa/disable` | `app/routes/admin/auth.py:436` |
+
+**Preview Route Security:**
+- `/preview/<int:post_id>` requires admin session verification
+- Both HMAC token AND `session.get('admin_user_id')` must exist
+
+**Feed Endpoints (app/routes/rss.py):**
+- `/atom` - Atom 1.0 feed
+- `/rss` - RSS 2.0 feed
+- `/json` - JSON Feed 1.1
+
+### Tasks
+1. Read all architecture documents for Routes module
 2. Cross-reference with actual code in `app/routes/`
-3. Document verification results (claims confirmed or contradicted)
+3. Document verification results
 4. Identify bugs and improvement opportunities
 5. Write final improvement plan to `plans/routes_review.md`
 
 ---
 
-#### K2b: Tasks Module Architecture Review
+## K2b: Tasks Module Architecture Review
 
-**Focus Areas:**
+**Branch:** `wave-k2-tasks`
+
+### Focus Areas
 - Celery task definitions and queue routing
 - APScheduler job schedules and execution
 - Task error handling and retries
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/tasks/celery-tasks.md`
 - `architecture/tasks/scheduler.md`
 - `architecture/tasks/overview.md`
 
-**Code to Cross-Reference:**
-- `app/tasks.py`
-- `app/scheduler.py`
-- `app/celery_app.py`
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `app/tasks.py` | All Celery task definitions |
+| `app/scheduler.py` | APScheduler job definitions |
+| `app/celery_app.py` | Celery app configuration |
 
-**Tasks:**
-1. Read all architecture documents for the Tasks module
+### Verified Details for Reference
+
+**APScheduler Job Schedules (app/scheduler.py):**
+| Job | Schedule | Line |
+|-----|----------|------|
+| `cleanup_expired_subscribers` | `minute="*/5"` (every 5 min) | 285 |
+| `run_daily_backup` | `hour=2, minute=0` (2 AM) | 299 |
+
+**Celery Queue Names (app/tasks.py):**
+| Queue | Task | Line |
+|-------|------|------|
+| `images` | `generate_image_variants` | 31 |
+| `newsletter` | `send_newsletter_task` | 130 |
+| `webhooks` | `deliver_webhook_task` | 182 |
+| `email` | `send_confirmation_task` | 255 |
+| `email` | `send_password_reset_task` | 276 |
+| `backup` | `run_backup_task` | 297 |
+
+**Newsletter Retry Logic:**
+- Default retry count: 5 (not 3)
+- Uses `NEWSLETTER_MAX_RETRY_ATTEMPTS` config
+
+**APScheduler Multi-Worker Limitation:**
+- APScheduler jobs use FileLock which only works on a single machine
+- In multi-container deployments, without external coordination (Redis, etcd), jobs may run on all replicas simultaneously
+
+### Tasks
+1. Read all architecture documents for Tasks module
 2. Cross-reference with actual code in `app/tasks.py`, `app/scheduler.py`
-3. Document verification results (claims confirmed or contradicted)
+3. Document verification results
 4. Identify bugs and improvement opportunities
 5. Write final improvement plan to `plans/tasks_review.md`
 
 ---
 
-#### K3a: Frontend Module Architecture Review
+## K3a: Frontend Module Architecture Review
 
-**Focus Areas:**
+**Branch:** `wave-k3-frontend`
+
+### Focus Areas
 - Vite build configuration and code splitting
 - JavaScript/CSS asset management
 - Jinja2 template structure and filters
 - Theme customization support
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/frontend/static-assets.md`
 - `architecture/frontend/templates.md`
 - `architecture/frontend/overview.md`
 
-**Code to Cross-Reference:**
-- `app/static/` (entire directory)
-- `app/templates/` (entire directory)
-- `vite.config.js`
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `app/static/` | JavaScript, CSS assets |
+| `app/templates/` | Jinja2 templates |
+| `vite.config.js` | Vite build configuration |
+| `app/filters.py` | Template filters |
+| `app/context_processors.py` | Context processors |
 
-**Tasks:**
-1. Read all architecture documents for the Frontend module
+### Verified Details for Reference
+
+**Vite Configuration (vite.config.js:14-19):**
+- Code splitting with `manualChunks`
+- Chunks: 'vendor', 'admin', 'public'
+
+**Template Filters (app/filters.py):**
+| Filter | Purpose |
+|--------|---------|
+| `markdown_safe` | Safe markdown rendering |
+| `reading_time` | Calculate reading time |
+| `sanitize_css` | CSS sanitization |
+| `post_image_url` | Post image URL generation |
+| `post_image_srcset` | Srcset for responsive images |
+| `post_image_avif_url_stub` | AVIF URL stub (returns None until AVIF implemented) |
+
+**Context Processor Function Names (app/context_processors.py):**
+| Function | Injects |
+|----------|---------|
+| `inject_csrf()` | `csrf_token`, `csp_nonce` |
+| `inject_config()` | Site config variables |
+| `inject_theme()` | Theme settings, `custom_css` |
+| `inject_footer_data()` | Footer links and data |
+| `inject_show_footer_posts()` | `show_footer_posts` boolean |
+
+**JS Module Initialization Pattern:**
+```javascript
+export default function initXxx() { ... }
+```
+
+### Tasks
+1. Read all architecture documents for Frontend module
 2. Cross-reference with actual code in `app/static/`, `app/templates/`, `vite.config.js`
-3. Document verification results (claims confirmed or contradicted)
+3. Document verification results
 4. Identify bugs and improvement opportunities
 5. Write final improvement plan to `plans/frontend_review.md`
 
 ---
 
-#### K3b: Testing Module Architecture Review
+## K3b: Testing Module Architecture Review
 
-**Focus Areas:**
+**Branch:** `wave-k3-testing`
+
+### Focus Areas
 - Test suite organization and fixtures
 - Test isolation and cleanup
 - Coverage and edge cases
 - E2E testing approach
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/testing/test-suite.md`
 
-**Code to Cross-Reference:**
-- `tests/` (entire directory)
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `tests/` | All test files (flat structure, no unit/integration subdirs) |
+| `tests/conftest.py` | Test configuration and fixtures |
+| `tests/shared_fixtures.py` | Shared fixtures |
+| `tests/test_e2e.py` | E2E tests with classes |
 
-**Tasks:**
-1. Read all architecture documents for the Testing module
+### Verified Details for Reference
+
+**Test Structure:**
+- Flat `tests/` directory (no unit/integration subdirs)
+- `test_e2e.py` contains E2E tests with classes
+
+**Page View Buffer Test Protection (tests/shared_fixtures.py:6-11):**
+```python
+@pytest.fixture(autouse=True)
+def ensure_buffer_disabled():
+    """Ensure page view buffer is disabled during tests."""
+    _app_config.PAGE_VIEW_BUFFER_SIZE = 0
+    shutdown_page_view_buffer()
+    yield
+    shutdown_page_view_buffer()
+```
+
+**Test Database Session Issues:**
+- `db.session.refresh()` fails if object isn't in current session
+- Fix: Re-query object from database instead of using `refresh()`
+
+### Tasks
+1. Read all architecture documents for Testing module
 2. Cross-reference with actual code in `tests/`
-3. Document verification results (claims confirmed or contradicted)
+3. Document verification results
 4. Identify bugs and improvement opportunities
 5. Write final improvement plan to `plans/testing_review.md`
 
 ---
 
-#### K3c: Infrastructure Module Architecture Review
+## K3c: Infrastructure Module Architecture Review
 
-**Focus Areas:**
+**Branch:** `wave-k3-infrastructure`
+
+### Focus Areas
 - Webhook delivery and retry logic
 - Search provider implementation (FTS5, SQLite)
 - Email sending and newsletter delivery
 - Storage and file handling
 
-**Documents to Review:**
+### Documents to Review
 - `architecture/infrastructure/webhooks.md`
 - `architecture/infrastructure/search.md`
 - `architecture/infrastructure/email.md`
 - `architecture/infrastructure/storage.md`
 - `architecture/infrastructure/overview.md`
 
-**Code to Cross-Reference:**
-- `app/webhooks.py`
-- `app/email.py`
-- `app/storage.py`
-- `app/search.py`
-- `app/services/search/` (entire package)
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `app/webhooks.py` | Webhook delivery and event creation |
+| `app/email.py` | Email sending |
+| `app/storage.py` | File storage |
+| `app/search.py` | FTS5 search implementation |
+| `app/services/search/` | Search provider abstraction |
 
-**Tasks:**
-1. Read all architecture documents for the Infrastructure module
-2. Cross-reference with actual code in `app/`
-3. Document verification results (claims confirmed or contradicted)
-4. Identify bugs and improvement opportunities
-5. Write final improvement plan to `plans/infrastructure_review.md`
+### Verified Details for Reference
 
----
-
-#### K3d: Deployment Module Architecture Review
-
-**Focus Areas:**
-- Docker configuration and image size
-- Security measures (HMAC, rate limiting, 2FA)
-- CI/CD pipeline configuration
-- Nginx and reverse proxy setup
-
-**Documents to Review:**
-- `architecture/deployment/docker.md`
-- `architecture/deployment/security.md`
-- `architecture/deployment/cicd.md`
-- `architecture/deployment/overview.md`
-
-**Code to Cross-Reference:**
-- `docker-compose.yml`
-- `Dockerfile`
-- `nginx/` (entire directory)
-
-**Tasks:**
-1. Read all architecture documents for the Deployment module
-2. Cross-reference with actual code in `docker-compose.yml`, `Dockerfile`, `nginx/`
-3. Document verification results (claims confirmed or contradicted)
-4. Identify bugs and improvement opportunities
-5. Write final improvement plan to `plans/deployment_review.md`
-
----
-
-### Wave K Subagent Execution Strategy
-
-**Recommended execution order:**
-
-1. **Phase 1 (Parallel):** Launch K1a and K1b subagents (Core + Services)
-2. **Phase 2 (Parallel):** Launch K2a and K2b subagents (Routes + Tasks)
-3. **Phase 3 (Parallel):** Launch K3a, K3b, K3c, K3d subagents (Frontend, Testing, Infrastructure, Deployment)
-
-Each subagent should:
-1. Read the architecture documents for their module
-2. Cross-reference with actual implementation code
-3. Document all discrepancies found
-4. Identify specific bugs or improvements with file:line references
-5. Write findings to the corresponding `plans/{module}_review.md`
-
-### Wave K Completion Criteria
-
-- All 8 module reviews completed
-- All discrepancies documented with specific file:line references
-- Priority classification for each issue (Critical/High/Medium/Low)
-- PR created with all review findings
-
----
-
-## Previously Completed Reviews (Wave J)
-
-**Completed:** May 2026
-
-Fixed documentation issues identified during architecture review in May 2026. Subagents were used to fix Core, Services, Infrastructure, Routes, Tasks, Testing, Frontend, and Deployment documentation.
-
-### Core Documentation Fixes
-
-**Files:** `architecture/core/models.md`
-
-- Added missing model documentation: AdminSession, Series, PostSeries, Webhook, WebhookEvent
-- Verified totp_secret property documentation (encrypted column with property that decrypts on access)
-- SESSION_IP_BINDING modes documented ("warn" vs "enforce")
-
-### Services Documentation Fixes
-
-**Files:** `architecture/services/backup.md`
-
-- Clarified backup naming: both `create_backup()` and `run_daily_backup()` create `blog_*.db` files
-- `cleanup_old_backups()` only handles `blog_*` files
-- `run_daily_backup()` manages retention internally via `backup_*.db` pattern
-- Decryption output path clarified (`.decrypted` appended for non-.gpg files)
-
-### Routes Documentation Fixes
-
-**Files:** `architecture/routes/admin-routes.md`, `architecture/routes/public-routes.md`, `architecture/routes/api-routes.md`
-
-- 2FA routes corrected: `/admin/2fa/setup`, `/admin/2fa/verify` (not `/admin/2fa-setup`)
-- Series route added: `GET /series/<slug>`
-- Archive route added: `GET /archive`
-- Short URL route added: `GET /s/<code>`
-- Rate limits corrected: reads 20/min, writes 10/min
-
-### Tasks Documentation Fixes
-
-**Files:** `architecture/tasks/scheduler.md`
-
-- `send_daily_newsletter` runs synchronously (not via Celery)
-- FileLock details: `timeout=0` behavior, lock file locations
-- Newsletter retry logic documented (`NEWSLETTER_MAX_RETRY_ATTEMPTS`)
-- `publish_scheduled_posts` syncs FTS and invalidates tag cache
-
-### Testing Documentation Fixes
-
-**Files:** `architecture/testing/test-suite.md`
-
-- Directory structure corrected: flat `tests/` structure (no unit/integration subdirs)
-- E2E file corrected: `test_e2e.py` with classes
-- All fixtures documented
-- Buffer protection autouse pattern documented
-
-### Frontend Documentation Fixes
-
-**Files:** `architecture/frontend/static-assets.md`, `architecture/frontend/templates.md`
-
-- JS module initialization pattern documented (`export default function initXxx()`)
-- `post_image_avif_url_stub` filter documented
-- Context processors and cache invalidation functions documented
-
-### Deployment Documentation Fixes
-
-**Files:** `architecture/deployment/docker.md`, `architecture/deployment/security.md`, `architecture/deployment/cicd.md`
-
-- APScheduler multi-worker limitation documented
-- Referrer-Policy mismatch noted (Flask vs nginx)
-- Test running command documented
-
----
-
-## Key Implementation Details (Verified May 2026)
-
-### 2FA Implementation (Wave A)
-
-**Location:** `app/routes/admin/auth.py`, `app/models.py`, `app/services/encryption.py`
-
-**TOTP Encryption:**
-- TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
-- `User.totp_secret` is a property that decrypts on access (lines 43-52 in `app/models.py`)
-- `KEY_SIZE = 32` (256 bits) for AES-256-GCM
-
-**Backup Codes:**
-- Stored as SHA-256 hashed strings in `backup_codes_hashed`
-- Single-use: verified codes are removed from the list
-- 8 backup codes generated (not 10)
-
-**Routes:**
-- `/admin/2fa/setup` - Initialize 2FA (line 263 in `auth.py`)
-- `/admin/2fa/verify` - Verify TOTP code (line 312)
-- `/admin/2fa/backup-codes` - View/generate backup codes (line 420)
-- `/admin/2fa/disable` - Disable 2FA (line 436)
-
----
-
-### Rate Limiting (Wave B)
-
-**Location:** `app/config.py`, `app/middleware/rate_limit.py`
-
-- `ADMIN_RATE_LIMITS` defined in `app/config.py` (lines 145-152)
-- `AdminRateLimiter` class in `app/middleware/rate_limit.py` (line 32)
-- Flask-Limiter integrated with `key_func=get_client_ip`
-
----
-
-### Search Abstraction (Wave C)
-
-**Location:** `app/services/search/__init__.py`, `app/services/search/sqlite.py`, `app/services/search/postgresql.py`
-
-**Architecture:**
+**Search Abstraction (app/services/search/):**
 - `SearchProvider` abstract class with `@abstractmethod` decorators
-- Methods: `search`, `index_post`, `remove_post`, `rebuild_index`, `get_snippets`
-
-**Implementations:**
 - `SQLiteSearchProvider` - wraps existing FTS5 functionality in `app/search.py`
-- `PostgreSQLSearchProvider` - stub for future implementation (requires schema changes)
+- `PostgreSQLSearchProvider` - stub for future implementation
+- `get_search_provider()` - factory function based on `SEARCH_PROVIDER` config
 
-**Factory:**
-- `get_search_provider()` selects provider based on `SEARCH_PROVIDER` config
-
----
-
-### Frontend (Wave D)
-
-**Location:** `vite.config.js`, `app/filters.py`
-
-**Vite Configuration:**
-- Code splitting with `manualChunks` (lines 14-19)
-- Chunks: 'vendor', 'admin', 'public'
-
-**AVIF Support:**
-- `post_image_avif_url_stub` filter in `app/filters.py` (lines 75-85)
-- Currently returns `None` - placeholder until AVIF encoding is implemented
-
----
-
-### Brotli Compression (Wave E)
-
-**Location:** `nginx/nginx.conf`
-
-- Nginx configuration includes commented Brotli settings (lines 26-34)
-- Requires custom nginx image with `--with-http_brotli_module`
-
----
-
-### Error Handling Fixes (Wave F)
-
-All high-risk files have been fixed with specific exception handling:
-
-| File | Issue Fixed | Verification |
-|------|-------------|--------------|
-| `app/routes/public/meta.py` | Uses `OperationalError, ProgrammingError` for DB checks; generic `except Exception` only for optional checks (redis, celery, backup_freshness) | Line 214, 232, 248 |
-| `app/email.py` | Catches specific SMTP exceptions: `SMTPAuthenticationError, SMTPConnectError, SMTPSenderRefused, SMTPServerDisconnected, SMTPException` plus `OSError` | Lines 94, 115-120 |
-| `app/backup_integrity.py` | Catches `sqlite3.Error, OSError, ValueError, TypeError` | Lines 77-80 |
-| `app/webhooks.py` | `deliver_webhook()` returns `(False, str(e))` on error; `create_webhook_event()` logs with `logger.error()` | Lines 83, 111 |
-| `app/tasks.py` | All tasks use specific exceptions: `ClientError, BotoCoreError`, `SQLAlchemyError, OSError, ImportError`, `requests.RequestException` | Multiple locations |
-| `app/page_view_buffer.py` | Uses `SQLAlchemyError, OSError` - specific types | Lines 126, 189 |
-
----
-
-### Code Quality (Wave G)
-
-**Deprecation Notice:**
-- `deliver_webhook()` in `app/webhooks.py` is deprecated (lines 55-59)
-- Use `deliver_webhook_task` Celery task instead for all webhook deliveries
-
----
-
-## Additional Implementation Details
-
-The following features were implemented but not originally documented in plan waves. They are verified and included here for completeness.
-
-### Comment Model
-
-**Location:** `app/models.py:573-596`
-
-**Pattern:** Uses `back_populates` for parent/child relationships:
-```python
-parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
-replies = db.relationship("Comment", back_populates="parent", lazy="select")
-```
-
-### Feed Endpoints
-
-**Location:** `app/routes/rss.py`
-
-Three feed endpoints with caching and ETag support:
-- `/atom` - Atom 1.0 feed
-- `/rss` - RSS 2.0 feed
-- `/json` - JSON Feed 1.1
-
-**Cache Pattern:**
-```python
-flask_cache.delete("rss_feed_posts")  # Invalidates on post changes
-```
-
-### Webhook Event Triggering
-
-**Pattern:** Trigger webhooks at key state transitions:
-```python
-# Post publish/unpublish in app/routes/api/posts.py:294-295
-if "published" in data and was_published != post.published:
-    from app.webhooks import create_webhook_event
-    create_webhook_event(
-        event_type="post.published" if post.published else "post.unpublished",
-        payload={"post_id": post.id, "title": post.title, "slug": post.slug},
-        target_id=post.id,
-        target_type="post"
-    )
-
-# Subscriber confirmation in app/routes/public/subscribe.py:147-148
-sub.confirmed = True
-# ... after commit ...
-create_webhook_event(
-    event_type="subscriber.confirmed",
-    payload={"subscriber_id": sub.id, "email": sub.email},
-    target_id=sub.id,
-    target_type="subscriber"
-)
-```
-
-**Models:** `Webhook` and `WebhookEvent` in `app/models.py:484-520`
-
-### Snippet Batching (SQLite Parameter Limits)
-
-**Location:** `app/search.py:298`, `app/services/search/sqlite.py`
-
+**Snippet Batching (app/search.py:298):**
 ```python
 _SQLITE_MAX_VARS = 500  # Maximum variables per query
 
@@ -539,11 +445,67 @@ for i in range(0, len(post_ids), chunk_size):
     chunk = post_ids[i:i + chunk_size]
 ```
 
-### Health Check Critical Checks
+**Webhook Event Triggering Pattern:**
+```python
+# Post publish/unpublish (app/routes/api/posts.py:294-295)
+if "published" in data and was_published != post.published:
+    from app.webhooks import create_webhook_event
+    create_webhook_event(
+        event_type="post.published" if post.published else "post.unpublished",
+        payload={"post_id": post.id, "title": post.title, "slug": post.slug},
+        target_id=post.id,
+        target_type="post"
+    )
 
-**Location:** `app/routes/public/meta.py:286-294`
+# Subscriber confirmation (app/routes/public/subscribe.py:147-148)
+sub.confirmed = True
+# ... after commit ...
+create_webhook_event(...)
+```
 
-Only critical checks affect overall status:
+**Deprecated Function:**
+- `deliver_webhook()` in `app/webhooks.py` is deprecated (lines 55-59)
+- Use `deliver_webhook_task` Celery task instead
+
+### Tasks
+1. Read all architecture documents for Infrastructure module
+2. Cross-reference with actual code in `app/`
+3. Document verification results
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/infrastructure_review.md`
+
+---
+
+## K3d: Deployment Module Architecture Review
+
+**Branch:** `wave-k3-deployment`
+
+### Focus Areas
+- Docker configuration and image size
+- Security measures (HMAC, rate limiting, 2FA)
+- CI/CD pipeline configuration
+- Nginx and reverse proxy setup
+
+### Documents to Review
+- `architecture/deployment/docker.md`
+- `architecture/deployment/security.md`
+- `architecture/deployment/cicd.md`
+- `architecture/deployment/overview.md`
+
+### Code to Cross-Reference
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Docker compose configuration |
+| `Dockerfile` | Docker image build |
+| `nginx/` | Nginx configuration |
+
+### Verified Details for Reference
+
+**Brotli Compression (nginx/nginx.conf:26-34):**
+- Nginx configuration includes commented Brotli settings
+- Requires custom nginx image with `--with-http_brotli_module`
+
+**Health Check Critical Checks (app/routes/public/meta.py:286-289):**
 ```python
 critical_checks = {
     k: v for k, v in checks.items()
@@ -551,130 +513,100 @@ critical_checks = {
 }
 ```
 
-Optional checks (`backup_freshness`, `email`) do not affect degraded status.
+**Referrer-Policy Mismatch:**
+- Flask sets one value, nginx sets another
+- Documented but not yet fixed
 
-### Page View Buffer System
-
-**Location:** `app/page_view_buffer.py`
-
-- `PageViewBuffer` class handles async page view recording
-- `init_page_view_buffer()` - starts buffer on app creation
-- `shutdown_page_view_buffer()` - flushes and shuts down
-- `record_page_view()` - records view to buffer
-- Buffer flushes when size reaches `PAGE_VIEW_BUFFER_SIZE`
-
-**Test Interference:** Disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`. Use `ensure_buffer_disabled` fixture from `tests/shared_fixtures.py`.
-
-### Admin Audit Log
-
-**Location:** `app/models.py:461-481`
-
-- `AdminAuditLog` model tracks admin actions
-- Uses `actor` relationship to User
-- Indexes on `action`, `target_type`, `target_id`, `created_at`
-
-### Post Revisions
-
-**Location:** `app/models.py:236-249`
-
-- `PostRevision` model tracks post history
-- Stores `title`, `content`, `slug`, `status` at revision time
-
-### User Model Security
-
-**Location:** `app/models.py:63-64`
-
-```python
-def __repr__(self):
-    return f"<User id={self.id}>"  # Returns ID only, NOT username - PII protection
-```
-
-### APScheduler Multi-Worker Limitation
-
-**Location:** `architecture/tasks/scheduler.md`, `architecture/deployment/docker.md`
-
-**Critical:** APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously.
-
-### Context Processors (Actual Function Names)
-
-**Location:** `app/context_processors.py`
-
-| Function | Injects |
-|----------|---------|
-| `inject_csrf()` | `csrf_token`, `csp_nonce` |
-| `inject_config()` | Site config variables |
-| `inject_theme()` | Theme settings, `custom_css` |
-| `inject_footer_data()` | Footer links and data |
-| `inject_show_footer_posts()` | `show_footer_posts` boolean |
-
-### Tag Cache
-
-**Location:** `app/services/tag.py`, `app/tag_cache.py`
-
-Invalidation pattern:
-```python
-flask_cache.delete_memoized(_get_tag_counts_cached)
-```
-
-### Custom Encryption Errors
-
-**Locations:**
-- `app/services/encryption.py:17` - `EncryptionError`
-- `app/webhook_encryption.py:17` - `WebhookEncryptionError`
-
-### Celery Backup Isolation
-
-```python
-@celery_task
-def run_backup_task(backup_dir, compress):
-    from app.services.backup import create_backup
-    return create_backup(db_path, backup_dir, compress=compress)
-```
-
-Run backups as Celery tasks to avoid blocking web requests.
+### Tasks
+1. Read all architecture documents for Deployment module
+2. Cross-reference with actual code in `docker-compose.yml`, `Dockerfile`, `nginx/`
+3. Document verification results
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/deployment_review.md`
 
 ---
 
-## Important Notes for Future Agents
+## Wave K Completion Criteria
 
-### Security
+- All 8 module reviews completed
+- All discrepancies documented with specific file:line references
+- Priority classification for each issue (Critical/High/Medium/Low)
+- PR created with all review findings
+
+---
+
+## Key Implementation Details (Verified May 2026)
+
+### 2FA Implementation (Wave A)
+
+**TOTP Encryption (app/services/encryption.py):**
+- AES-256-GCM encryption
+- `KEY_SIZE = 32` (256 bits)
+- `User.totp_secret` is a property that decrypts on access
+
+**Backup Codes (app/models.py:75-92):**
+- 8 codes generated (not 10)
+- SHA-256 hashed for storage
+- Single-use: verified codes are removed
+
+### Rate Limiting (Wave B)
+
+**Location:** `app/config.py:145-152`, `app/middleware/rate_limit.py:32`
+- `ADMIN_RATE_LIMITS` defines rate limits
+- `AdminRateLimiter` class with Flask-Limiter integration
+- `key_func=get_client_ip`
+
+### Error Handling Fixes (Wave F)
+
+All high-risk files have been fixed with specific exception handling:
+
+| File | Exception Types | Line |
+|------|-----------------|------|
+| `app/routes/public/meta.py` | `OperationalError, ProgrammingError` | 214, 232, 248 |
+| `app/email.py` | `SMTPAuthenticationError, SMTPConnectError, SMTPSenderRefused, SMTPServerDisconnected, SMTPException, OSError` | 94, 115-120, 124, 133, 136, 138 |
+| `app/backup_integrity.py` | `sqlite3.Error, OSError, ValueError, TypeError` | 77-80 |
+| `app/webhooks.py` | Returns `(False, str(e))` on error | 83 |
+| `app/tasks.py` | Specific exceptions per task type | Multiple |
+| `app/page_view_buffer.py` | `SQLAlchemyError, OSError` | 126, 189 |
+
+---
+
+## Previously Completed Reviews (Wave J - May 2026)
+
+Wave J fixed documentation issues identified during architecture review. All issues were documented and corrected in the architecture documents.
+
+### Core Documentation Fixes
+- Added missing model documentation: AdminSession, Series, PostSeries, Webhook, WebhookEvent
+- Verified totp_secret property documentation
+
+### Services Documentation Fixes
+- Clarified backup naming: both `create_backup()` and `run_daily_backup()` create `blog_*.db` files
+- `cleanup_old_backups()` only handles `blog_*` files
+
+### Routes Documentation Fixes
+- 2FA routes corrected: `/admin/2fa/setup`, `/admin/2fa/verify`
+- Series route added: `GET /series/<slug>`
+- Archive route added: `GET /archive`
+- Short URL route added: `GET /s/<code>`
+
+### Tasks Documentation Fixes
+- `send_daily_newsletter` runs synchronously
+- FileLock details documented
+- Newsletter retry logic documented
+
+### Testing Documentation Fixes
+- Directory structure corrected: flat `tests/` structure
+- E2E file corrected: `test_e2e.py` with classes
+- Buffer protection autouse pattern documented
+
+---
+
+## Security & Privacy Rules
+
+**Critical for all agents:**
 
 - **Log ID, not Username**: When logging user actions, always use `user.id`. Never log raw User objects or usernames to prevent PII leakage.
 - **Credential Protection**: Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys.
-
-### Configuration
-
-- Configuration priority: env vars > config.toml > defaults
-- Newsletter retry count default is 5
-
-### APScheduler Job Schedules
-
-- `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
-- `run_daily_backup` runs at 02:00 (`hour=2, minute=0`), NOT midnight
-
-### Slug Generation
-
-- Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`)
-
-### Celery Queue Names
-
-- Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 130, 182, 255, 276, 297)
-
-### Actual Routes (Verify Before Using)
-
-When documenting or referring to routes, verify against actual implementation:
-- New post: `/admin/new` (NOT `/admin/posts/new`)
-- Edit post: `/admin/edit/<id>` (NOT `/admin/posts/<id>/edit`)
-- Tag delete: `POST /admin/tags/delete/<id>` (NOT `DELETE`)
-- Comment submission: `POST /post/<slug>/comment` (NOT `/comment/<int:post_id>`)
-- Subscribe: Only `POST /subscribe` exists (no GET handler)
-- API post publish: Use `PUT /api/posts/<id>` with `{"published": true}` body (NOT `POST /api/posts/<id>/publish`)
-
-### Template Filters (Actual)
-
-Defined in `app/filters.py`:
-- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
-- NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
 ---
 
@@ -705,24 +637,6 @@ To propose a new enhancement or bug fix:
 2. Implement the changes following existing patterns
 3. Update this file with the new wave information
 4. Create a PR for review
-
----
-
-## File Structure Reference
-
-```
-plans/
-├── plan.md              # This file - consolidated implementation plan
-├── core_review.md       # Core module review (pending completion)
-├── routes_review.md     # Routes module review (pending completion)
-├── services_review.md   # Services module review (pending completion)
-├── tasks_review.md      # Tasks module review (pending completion)
-├── frontend_review.md   # Frontend module review (pending completion)
-├── testing_review.md    # Testing module review (pending completion)
-├── infrastructure_review.md  # Infrastructure module review (pending completion)
-├── deployment_review.md # Deployment module review (pending completion)
-└── AGENTS.override.md   # Module-specific agent guidance
-```
 
 ---
 

@@ -242,29 +242,7 @@ Three feed endpoints available:
 ### Deprecated Function
 `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.
 
-## Architecture Review Workflow
-
-Architecture reviews follow a 5-step process to verify documentation against implementation:
-
-1. **Read architecture documents** for the module
-2. **Cross-reference** with actual code in `app/` or relevant directories
-3. **Document verification results** (claims confirmed or contradicted with file:line references)
-4. **Identify bugs and improvement opportunities** with specific locations
-5. **Write final improvement plan** to `plans/{module}_review.md`
-
-### Wave K Organization (May 2026)
-
-Reviews are organized into 3 parallel execution groups:
-
-| Group | Modules | Independent |
-|-------|---------|-------------|
-| K1 | Core, Services | Can run in parallel with K2, K3 |
-| K2 | Routes, Tasks | Can run in parallel with K1, K3 |
-| K3 | Frontend, Testing, Infrastructure, Deployment | Can run in parallel with K1, K2 |
-
-**Branch naming:** `wave-k-{group}-{description}`
-
-### Review Output Format
+## Review Output Format
 
 Each module review should document:
 - **Verified claims** - documentation matches code
