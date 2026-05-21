@@ -147,7 +147,7 @@ def run_daily_backup(app: Any) -> None:
     Designed to be called from scheduler or CLI.
 
     Note:
-        This uses `backup_*.db` naming pattern (not `blog_*.db`).
+        This uses `blog_*.db` naming pattern.
         Unlike `create_backup()`, this does NOT support encryption
         or compression. For encrypted/compressed backups, use the
         Celery task `run_backup_task` which calls `create_backup()`.
@@ -176,7 +176,7 @@ def run_daily_backup(app: Any) -> None:
     backup.close()
     app.logger.info("Created backup: %s", backup_filename)
 
-    backup_pattern = os.path.join(backup_dir, "backup_*.db")
+    backup_pattern = os.path.join(backup_dir, "blog_*.db")
     backups = sorted(
         glob_module.glob(backup_pattern),
         key=os.path.getmtime,
