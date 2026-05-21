@@ -38,7 +38,7 @@ export function initMobileMenu() {
                     nav.classList.remove('open');
                 }
             }
-});
+        });
     });
 }
 

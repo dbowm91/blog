@@ -3,11 +3,14 @@
 import hashlib
 import hmac
 import json
+import logging
 from typing import Optional, Dict, Any, Tuple, TYPE_CHECKING
 from requests.exceptions import RequestException
 
 if TYPE_CHECKING:
     from flask import Flask
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "WebhookDeliveryError",

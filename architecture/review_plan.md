@@ -1,22 +1,61 @@
 # Architecture Review Plan
 
 **Created:** May 2026
-**Status:** IN PROGRESS
+**Status:** ✅ COMPLETED - Wave L (All 8 modules reviewed and issues fixed)
 
-This document outlines the review plan for architecture documents in the `architecture/` directory (excluding `review_plan.md` itself).
+## Summary
+
+All 8 architecture modules have been reviewed against actual code implementation. Multiple discrepancies, bugs, and documentation issues were identified and fixed.
+
+| Module | Issues Found | Priority | Status |
+|--------|-------------|----------|--------|
+| Core | Webhook.secret plain text, Post.user_id false doc, missing indexes | High | ✅ Fixed |
+| Services | TAG_CACHE_TTL wrong default (60 vs 300), backup naming docs, slug signature | Medium | ✅ Fixed |
+| Routes | Preview route security (HMAC + session), API endpoints | Medium | ✅ Fixed |
+| Tasks | Scheduler SMTP disable logic (disabled all jobs, not just newsletter) | High | ✅ Fixed |
+| Infrastructure | Missing logger in webhooks.py | Critical | ✅ Fixed |
+| Frontend | mobile-menu.jsx syntax error, srcset undefined in search.html | Critical | ✅ Fixed |
+| Deployment | celery concurrency missing, pip-audit silenced, webhook encryption path | Medium | ✅ Fixed |
+| Testing | clean_analytics_cache import inconsistency (low impact - different cache layers) | Low | ✅ Verified |
+
+**Total: 1 critical bug fixed (webhooks missing logger, mobile-menu syntax), 2 high priority bugs fixed, 5 medium/low issues fixed**
+
+---
+
+## Issues Fixed
+
+### Critical Bugs Fixed
+1. **webhooks.py missing logger** - `app/webhooks.py:111` would have raised `NameError` at runtime
+2. **mobile-menu.jsx syntax error** - Extra `});` caused parse failure in `app/static/js/shared/mobile-menu.jsx:42`
+3. **srcset undefined in search.html** - Missing `{% set srcset = post|post_image_srcset %}` in `app/templates/search.html`
+4. **scheduler.py SMTP disable logic** - Entire scheduler was disabled when SMTP not configured, not just newsletter job
+
+### High Priority Fixes
+1. **docker-compose.yml celery concurrency** - Added `--concurrency=1` to prevent memory issues
+2. **.github/workflows/test.yml pip-audit** - Changed `pip-audit || true` to `pip-audit --fail-on=all`
+
+### Documentation Fixes
+1. **preview route security** - Corrected auth requirement (HMAC + session, not HMAC only)
+2. **TAG_CACHE_TTL default** - Corrected 60 seconds (was 300)
+3. **backup.md naming** - Corrected false docs about `backup_*.db` pattern
+4. **slug.md signature** - Corrected parameter names to match implementation
+5. **models.md Webhook.secret** - Corrected "Encrypted storage" to "Plain text storage"
+6. **models.md Post.user_id** - Removed false reverse lookup claim, added clarification
+7. **models.md indexes** - Added missing indexes (ix_pages_published_slug, ix_page_views_post_created, ix_share_events_post_created/platform)
+8. **security.md webhook encryption** - Corrected path from `app/backup_encryption.py` to `app/webhook_encryption.py`
 
 ## Modules to Review
 
 | Module | Documents | Review Agent | Output | Status |
 |--------|-----------|--------------|--------|--------|
-| **Core** | `core/app-factory.md`, `core/configuration.md`, `core/models.md` | core-reviewer | `plans/core_review.md` | 🔄 PENDING |
-| **Services** | `services/backup.md`, `services/serialization.md`, `services/tag.md`, `services/slug.md`, `services/tag_cache.md`, `services/overview.md` | services-reviewer | `plans/services_review.md` | 🔄 PENDING |
-| **Routes** | `routes/api-routes.md`, `routes/admin-routes.md`, `routes/public-routes.md`, `routes/rss-feeds.md` | routes-reviewer | `plans/routes_review.md` | 🔄 PENDING |
-| **Testing** | `testing/test-suite.md` | testing-reviewer | `plans/testing_review.md` | 🔄 PENDING |
-| **Tasks** | `tasks/celery-tasks.md`, `tasks/scheduler.md`, `tasks/overview.md` | tasks-reviewer | `plans/tasks_review.md` | 🔄 PENDING |
-| **Infrastructure** | `infrastructure/webhooks.md`, `infrastructure/search.md`, `infrastructure/email.md`, `infrastructure/storage.md`, `infrastructure/overview.md` | infrastructure-reviewer | `plans/infrastructure_review.md` | 🔄 PENDING |
-| **Frontend** | `frontend/static-assets.md`, `frontend/templates.md`, `frontend/overview.md` | frontend-reviewer | `plans/frontend_review.md` | 🔄 PENDING |
-| **Deployment** | `deployment/docker.md`, `deployment/security.md`, `deployment/cicd.md`, `deployment/overview.md` | deployment-reviewer | `plans/deployment_review.md` | 🔄 PENDING |
+| **Core** | `core/app-factory.md`, `core/configuration.md`, `core/models.md` | core-reviewer | `plans/core_review.md` | ✅ COMPLETED |
+| **Services** | `services/backup.md`, `services/serialization.md`, `services/tag.md`, `services/slug.md`, `services/tag_cache.md`, `services/overview.md` | services-reviewer | `plans/services_review.md` | ✅ COMPLETED |
+| **Routes** | `routes/api-routes.md`, `routes/admin-routes.md`, `routes/public-routes.md`, `routes/rss-feeds.md` | routes-reviewer | `plans/routes_review.md` | ✅ COMPLETED |
+| **Testing** | `testing/test-suite.md` | testing-reviewer | `plans/testing_review.md` | ✅ COMPLETED |
+| **Tasks** | `tasks/celery-tasks.md`, `tasks/scheduler.md`, `tasks/overview.md` | tasks-reviewer | `plans/tasks_review.md` | ✅ COMPLETED |
+| **Infrastructure** | `infrastructure/webhooks.md`, `infrastructure/search.md`, `infrastructure/email.md`, `infrastructure/storage.md`, `infrastructure/overview.md` | infrastructure-reviewer | `plans/infrastructure_review.md` | ✅ COMPLETED |
+| **Frontend** | `frontend/static-assets.md`, `frontend/templates.md`, `frontend/overview.md` | frontend-reviewer | `plans/frontend_review.md` | ✅ COMPLETED |
+| **Deployment** | `deployment/docker.md`, `deployment/security.md`, `deployment/cicd.md`, `deployment/overview.md` | deployment-reviewer | `plans/deployment_review.md` | ✅ COMPLETED |
 
 ## Subagent Instructions
 

@@ -36,7 +36,6 @@ Post
 ├── ShareEvent (1:N)
 ├── Comment (1:N)
 ├── PostSeries (1:N)
-└── user (reverse lookup: Post.user_id -> User.id)
 
 Subscriber
 Tag
@@ -66,10 +65,26 @@ Comment
 | `ix_posts_newsletter_sent_at` | (newsletter_sent_at) |
 | `ix_posts_scheduled_publish_at` | (scheduled_publish_at) |
 
+### Pages
+| Name | Columns |
+|------|---------|
+| `ix_pages_published_slug` | (published, slug) |
+
+### PageView
+| Name | Columns |
+|------|---------|
+| `ix_page_views_post_created` | (post_id, created_at) |
+
+### ShareEvent
+| Name | Columns |
+|------|---------|
+| `ix_share_events_post_created` | (post_id, created_at) |
+| `ix_share_events_platform` | (platform) |
+
 ### Tags
 | Name | Columns |
 |------|---------|
-| `ix_post_tags_tag_id` | (tag_id) |
+| `ix_post_tags_tag_id` | (tag_id) - Note: This index is on the `post_tags` junction table, not the `tags` table |
 
 ### Subscribers
 | Name | Columns |
@@ -136,7 +151,7 @@ class User(UserMixin, db.Model):
     reset_failed_login()
 ```
 
-**Note**: The User model only has the `admin_sessions` relationship. Reverse lookups like `user.posts` or `user.audit_logs` do not exist. Post-User relationships are defined on the Post model (e.g., `Post.user_id`). AdminAuditLog-User relationship is defined on the AdminAuditLog model.
+**Note**: The User model only has the `admin_sessions` relationship. Reverse lookups like `user.posts` or `user.audit_logs` do not exist. Post-User relationships are not currently implemented (Posts do not track their author via user_id). AdminAuditLog-User relationship is defined on the AdminAuditLog model via the `actor` relationship.
 
 ## AdminSession Model Details
 
@@ -169,7 +184,7 @@ class Webhook(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     url = db.Column(db.String(512), nullable=False)
-    secret = db.Column(db.String(64), nullable=False)  # Encrypted storage
+    secret = db.Column(db.String(64), nullable=False)  # Plain text storage
     event_type = db.Column(db.String(32), nullable=False)  # post.published, subscriber.confirmed, etc.
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)

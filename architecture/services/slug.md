@@ -12,13 +12,14 @@ Unique slug generation for posts, pages, tags, and series.
 ## Core Function
 
 ```python
-def generate_unique_slug(base_slug: str, model_class: type, exclude_id: Optional[int] = None) -> str:
+def generate_unique_slug(model: Type, title: str, exclude_id: Optional[int] = None, slug: Optional[str] = None) -> str:
 ```
 
 **Parameters:**
-- `base_slug`: The desired slug (e.g., "my-post-title")
-- `model_class`: SQLAlchemy model to check for collisions (Post, Page, Tag, Series)
+- `model`: SQLAlchemy model to check for collisions (Post, Page, Tag, Series)
+- `title`: The title to generate a slug from
 - `exclude_id`: Optional ID to exclude from collision check (for edit operations)
+- `slug`: Optional pre-defined slug to use (if None, generates from title)
 
 **Returns:** A unique slug, either the base slug or `{base_slug}-{n}` for collisions, or `{base_slug}-{uuid8}` after 100 attempts.
 

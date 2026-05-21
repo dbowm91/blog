@@ -35,7 +35,7 @@ services:
   celery:
     build: .
     restart: unless-stopped
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=1
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}

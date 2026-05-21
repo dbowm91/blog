@@ -266,20 +266,19 @@ def init_scheduler(app: Any) -> Optional["BackgroundScheduler"]:
 
     from app.config import NEWSLETTER_SEND_TIME, SMTP_HOST
 
-    if not SMTP_HOST:
-        app.logger.info("SMTP_HOST not configured; newsletter scheduler disabled")
-        return None
-
-    hour, minute = map(int, NEWSLETTER_SEND_TIME.split(":"))
-
     scheduler = BackgroundScheduler(daemon=True)
-    scheduler.add_job(
-        send_daily_newsletter,
-        CronTrigger(hour=hour, minute=minute),
-        args=[app],
-        id="daily_newsletter",
-        replace_existing=True,
-    )
+
+    if SMTP_HOST:
+        hour, minute = map(int, NEWSLETTER_SEND_TIME.split(":"))
+        scheduler.add_job(
+            send_daily_newsletter,
+            CronTrigger(hour=hour, minute=minute),
+            args=[app],
+            id="daily_newsletter",
+            replace_existing=True,
+        )
+    else:
+        app.logger.info("SMTP_HOST not configured; newsletter scheduler disabled")
     scheduler.add_job(
         cleanup_expired_subscribers,
         CronTrigger(minute="*/5"),

@@ -56,7 +56,7 @@ Public routes serve the blog's public-facing pages.
 ### Preview Post
 - **Route**: `GET /preview/<int:post_id>?token=<hmac>&expires=<timestamp>`
 - **Purpose**: Preview unpublished/scheduled posts via signed token
-- **Auth**: HMAC token-based (no login required)
+- **Auth**: HMAC token-based AND admin session required (`session.get('admin_user_id')`)
 - **Args**: `token` (HMAC signature), `expires` (Unix timestamp)
 
 ### Short URL Redirect
