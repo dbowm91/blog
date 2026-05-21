@@ -113,17 +113,14 @@ These files have been flagged for exception handling issues:
 ### Plan Item Verification
 When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Several items marked as "bugs" in reviews may already be fixed in the codebase. During Wave L verification (May 2026), multiple items were found to already be correct.
 
-### Webhook Secret Encryption (CRITICAL)
-`Webhook.secret` in `app/models.py:490` is stored in **plain text** (not encrypted). This is a HIGH priority fix. The User.totp_secret encryption pattern should be applied:
-1. Add `webhook_secret_encrypted` column (LargeBinary)
-2. Add property getter/setter using `app/services/encryption.py`
-3. Requires `WEBHOOK_ENCRYPTION_KEY` config (32-byte key)
+### Webhook Secret Encryption (CRITICAL) - FIXED
+`Webhook.secret` in `app/models.py` is now encrypted at rest using AES-256-GCM via `app/webhook_encryption.py`. The `Webhook` model uses a `webhook_secret_encrypted` column (LargeBinary) with a property getter/setter that handles encryption/decryption. Requires `WEBHOOK_ENCRYPTION_KEY` config (32 bytes or 64 hex characters).
 
-### Newsletter Stuck Posts
-Posts that hit `NEWSLETTER_MAX_RETRY_ATTEMPTS` (5) are silently excluded from the newsletter queue. Add logging in `app/scheduler.py` to provide visibility when posts are excluded.
+### Newsletter Stuck Posts - FIXED
+Posts that hit `NEWSLETTER_MAX_RETRY_ATTEMPTS` are now logged in `app/scheduler.py` when excluded from the newsletter queue. Warning log includes first 5 excluded post IDs and titles.
 
-### Webhook Partial Failure Handling
-In `app/tasks.py:247-248`, `event.delivered = delivered_count > 0` means if ANY webhook succeeds, the event is marked delivered even if others fail. Consider adding `partial_failure` status or ALL-must-succeed logic.
+### Webhook Partial Failure Handling - FIXED
+`WebhookEvent` now has a `delivery_status` field that tracks `'failed'`, `'partial_failure'`, or `'delivered'`. Partial failure is when some webhooks succeed but not all. See `app/tasks.py` for implementation.
 
 ### Preview Route Security
 The public preview route at `/preview/<int:post_id>` requires BOTH HMAC token AND admin session verification (`session.get('admin_user_id')`). HMAC token alone is insufficient.

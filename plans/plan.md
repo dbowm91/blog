@@ -350,11 +350,11 @@ The following items were verified to already be correct in the codebase:
 ## Verification Checklist
 
 After implementation, verify:
-- [ ] Webhook secrets encrypted at rest (L-1.1)
-- [ ] Newsletter excluded posts visible in logs (L-1.2)
-- [ ] Webhook partial failures handled correctly (L-1.3)
-- [ ] Benchmark tests use correct cache clear path (L-2.1)
-- [ ] Documentation fixes applied (L-2.2 - L-3.8)
+- [x] Webhook secrets encrypted at rest (L-1.1) - IMPLEMENTED
+- [x] Newsletter excluded posts visible in logs (L-1.2) - IMPLEMENTED
+- [x] Webhook partial failures handled correctly (L-1.3) - IMPLEMENTED
+- [x] Benchmark tests use correct cache clear path (L-2.1) - IMPLEMENTED
+- [x] Documentation fixes applied (L-2.2 - L-3.8) - IMPLEMENTED
 
 ---
 
