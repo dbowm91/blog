@@ -13,35 +13,7 @@ The main plan file is `plans/plan.md` which serves as the single source of truth
 - Important patterns and conventions for future agents
 - Guidance for creating new implementation waves
 
-## Wave K Execution (Architecture Reviews)
-
-Wave K is organized into 3 parallel groups that can execute in parallel:
-- **K1 (Core)**: Core, Services - independent core modules
-- **K2 (Application)**: Routes, Tasks - application layer
-- **K3 (Infrastructure)**: Frontend, Testing, Infrastructure, Deployment - infrastructure concerns
-
-### Subagent Execution Phases
-
-| Phase | Groups | Parallel Execution |
-|-------|--------|---------------------|
-| 1 | K1a, K1b | Core + Services |
-| 2 | K2a, K2b | Routes + Tasks |
-| 3 | K3a, K3b, K3c, K3d | Frontend, Testing, Infrastructure, Deployment |
-
-### Branch Naming Convention
-
-```
-wave-k1-core        # K1a: Core module review
-wave-k1-services    # K1b: Services module review
-wave-k2-routes      # K2a: Routes module review
-wave-k2-tasks       # K2b: Tasks module review
-wave-k3-frontend   # K3a: Frontend module review
-wave-k3-testing     # K3b: Testing module review
-wave-k3-infrastructure  # K3c: Infrastructure module review
-wave-k3-deployment # K3d: Deployment module review
-```
-
-## Architecture Review Process
+## Architecture Review Process (Reference)
 
 Each module review follows a 5-step process:
 
@@ -59,25 +31,45 @@ Each module review should document:
 - **Bugs identified** - actual bugs found (with priority: Critical/High/Medium/Low)
 - **Improvement recommendations** - proposed changes
 
+All review reports are saved in `architecture/plans/`:
+- `core_review.md`, `services_review.md`, `routes_review.md`, `tasks_review.md`
+- `frontend_review.md`, `testing_review.md`, `infrastructure_review.md`, `deployment_review.md`
+
 ## Completed Waves
 
 | Wave | Description | Items | Status |
 |------|-------------|-------|--------|
 | A-J | Implementation waves (2FA, Rate Limiting, Search, etc.) | 61+ | COMPLETED |
-| K | Architecture Review (8 modules) | Pending | IN PROGRESS |
+| K | Architecture Review (8 modules) | All 8 completed | COMPLETED (May 2026) |
+
+### Wave K Summary
+
+All 8 module reviews were completed (May 2026):
+- Core, Services, Routes, Tasks, Frontend, Testing, Infrastructure, Deployment
+- 1 critical bug fixed (backup retention)
+- 35+ documentation corrections made
+- 50+ routes verified against implementation
+
+Key fix from Wave K: Backup retention bug in `run_daily_backup()` - was creating `blog_*.db` files but cleanup looked for `backup_*.db`.
 
 ## For Future Agents
 
-When working on architecture reviews or new implementation:
+When working on new implementation or documentation:
 
 1. Reference `plans/plan.md` for completed wave details and implementation guidance
 2. Create a new branch for new work: `wave-<letter>-<description>`
 3. Update `plans/plan.md` when adding new implementation waves
-4. All module reviews write findings to `plans/{module}_review.md` files
+4. All module reviews are saved in `architecture/plans/` directory
 
 ## Plan Verification
 
-The `plans/plan.md` file was verified against the codebase in May 2026. All documented items are accurate and include file:line references previously missing from earlier plan versions.
+The `plans/plan.md` file was verified against the codebase in May 2026. All documented items are accurate and include file:line references.
+
+Key verification findings (May 2026):
+- All 8 Wave K architecture reviews completed
+- 1 critical bug fixed: backup retention in `run_daily_backup()`
+- 35+ documentation corrections made during Wave K
+- All encryption uses AES-256-GCM (NOT GPG)
 
 ---
 

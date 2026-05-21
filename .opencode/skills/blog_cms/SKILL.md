@@ -135,9 +135,11 @@ Tasks use specific queues for different workloads:
 
 ## Backup Implementations
 
-Two separate backup implementations:
-- `app/services/backup.py:create_backup()` - Celery task, `blog_*.db`, encryption/compression
-- `app/scheduler.py:run_daily_backup()` - APScheduler, `backup_*.db`, no encryption/compression
+Two separate backup implementations (both use `blog_*.db` naming):
+- `app/services/backup.py:create_backup()` - Celery task, supports AES-256-GCM encryption/compression
+- `app/scheduler.py:run_daily_backup()` - APScheduler, no encryption/compression
+
+`cleanup_old_backups()` correctly handles both since May 2026 fix.
 
 ## Slug Generation
 
