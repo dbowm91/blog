@@ -25,6 +25,7 @@ When an agent operates within a module, it should:
 | Documentation | `docs/AGENTS.override.md` | Documentation structure |
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
+| Architecture | `architecture/AGENTS.override.md` | Architecture review plans |
 | Plans | `plans/AGENTS.override.md` | Roadmap, execution waves, project planning |
 
 ## Structure Convention
@@ -85,7 +86,7 @@ These files have been flagged for exception handling issues:
 ### 2FA Implementation
 - TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
 - `User.totp_secret` is now a property that decrypts on access
-- Backup codes are SHA-256 hashed and single-use
+- Backup codes are SHA-256 hashed and single-use (8 codes generated, not 10)
 - Routes: `/admin/2fa/setup`, `/admin/2fa/verify`, `/admin/2fa/backup-codes`, `/admin/2fa/disable`
 
 ### Rate Limiting
@@ -114,13 +115,19 @@ The public preview route at `/preview/<int:post_id>` now requires admin session 
 
 ### Backup Implementations
 There are two separate backup implementations:
-- `app/services/backup.py:create_backup()` - Used by Celery task, supports encryption/compression, uses `blog_*.db` naming
+- `app/services/backup.py:create_backup()` - Used by Celery task, supports AES-256-GCM encryption with PBKDF2/compression, uses `blog_*.db` naming
 - `app/scheduler.py:run_daily_backup()` - Used by APScheduler, no encryption/compression, uses `blog_*.db` naming
 
 Both now use `blog_*.db` naming, so `cleanup_old_backups()` correctly cleans both.
 
+### Backup Encryption
+Backup encryption uses AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations) via `app/backup_encryption.py`, NOT GPG.
+
 ### Slug Generation
 Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`).
+
+### Backup Retention Bug Fixed (May 2026)
+`run_daily_backup()` in `app/services/backup.py` had a bug where it created `blog_*.db` files but retention cleanup looked for `backup_*.db`. Fixed by correcting the glob pattern. This bug meant daily backups were never being cleaned up.
 
 ### APScheduler Job Schedules
 - `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
@@ -132,7 +139,8 @@ APScheduler jobs use FileLock which only works on a single machine. In multi-con
 ### Health Check Critical Checks
 The health check endpoint (`GET /health`) determines overall status using only critical checks:
 - `database`, `scheduler`, `search`, `disk_space`, `db_integrity`
-- Optional checks (`backup_freshness`, `email`) do not affect overall status
+- Optional checks (`backup_freshness`, `email`, `redis`, `celery`) do not affect overall status
+- Redis and celery checks are included in detailed health output but don't affect degraded status
 - See `architecture/infrastructure/overview.md` for details
 
 ### Email Retry Count
