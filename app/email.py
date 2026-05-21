@@ -91,7 +91,7 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         if SMTP_USER:
             server.login(SMTP_USER, SMTP_PASSWORD)
         return server
-    except (smtplib.SMTPAuthenticationError, smtplib.SMTPConnectError, smtplib.SMTPSenderRefused, OSError):
+    except (smtplib.SMTPAuthenticationError, smtplib.SMTPConnectError, smtplib.SMTPSenderRefused, smtplib.SMTPException, OSError):
         logger.exception("Failed to connect to SMTP server")
         if server is not None:
             try:
@@ -130,7 +130,7 @@ def _send_email_with_retry(
                         last_error = "SMTP reconnection failed"
                         break
                     server = new_server
-                except (smtplib.SMTPAuthenticationError, smtplib.SMTPConnectError, smtplib.SMTPSenderRefused, OSError):
+                except (smtplib.SMTPAuthenticationError, smtplib.SMTPConnectError, smtplib.SMTPSenderRefused, smtplib.SMTPException, smtplib.SMTPServerDisconnected, OSError):
                     last_error = "SMTP reconnection failed"
                     break
         except smtplib.SMTPException as e:
