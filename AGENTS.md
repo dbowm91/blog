@@ -71,12 +71,6 @@ These files have been flagged for exception handling issues:
 
 ## Test Interference Notes
 
-### Benchmark Tests Cache Clear Import
-- `tests/benchmarks/conftest.py` uses different import path than main conftest for analytics cache clearing
-- Benchmarks: `from app.routes.admin.helpers.analytics import _clear_analytics_cache`
-- Main conftest: `from app.routes.admin import _analytics_cache`
-- These should be unified (see `plans/plan.md:L-2.3`)
-
 ### Page View Buffer Test Issues
 - The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
@@ -109,7 +103,6 @@ These files have been flagged for exception handling issues:
 ### Frontend
 - Vite configured for code splitting with `manualChunks`
 - `post_image_avif_url_stub` filter added (returns None until AVIF encoding is enabled)
-- `mobile-menu.jsx` has syntax error at lines 36-42 (missing `}` in Escape key handler) - fix pending in Wave L (see `plans/plan.md:L-1.1`)
 
 ### Brotli
 - Nginx configuration includes commented Brotli settings
@@ -118,10 +111,22 @@ These files have been flagged for exception handling issues:
 ## Important Notes for Future Agents
 
 ### Plan Item Verification
-When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Some items marked as "bugs" in reviews may already be fixed in the codebase.
+When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Several items marked as "bugs" in reviews may already be fixed in the codebase. During Wave L verification (May 2026), multiple items were found to already be correct.
+
+### Webhook Secret Encryption (CRITICAL)
+`Webhook.secret` in `app/models.py:490` is stored in **plain text** (not encrypted). This is a HIGH priority fix. The User.totp_secret encryption pattern should be applied:
+1. Add `webhook_secret_encrypted` column (LargeBinary)
+2. Add property getter/setter using `app/services/encryption.py`
+3. Requires `WEBHOOK_ENCRYPTION_KEY` config (32-byte key)
+
+### Newsletter Stuck Posts
+Posts that hit `NEWSLETTER_MAX_RETRY_ATTEMPTS` (5) are silently excluded from the newsletter queue. Add logging in `app/scheduler.py` to provide visibility when posts are excluded.
+
+### Webhook Partial Failure Handling
+In `app/tasks.py:247-248`, `event.delivered = delivered_count > 0` means if ANY webhook succeeds, the event is marked delivered even if others fail. Consider adding `partial_failure` status or ALL-must-succeed logic.
 
 ### Preview Route Security
-The public preview route at `/preview/<int:post_id>` now requires admin session verification. HMAC token validation alone no longer grants access - `session.get('admin_user_id')` must also exist.
+The public preview route at `/preview/<int:post_id>` requires BOTH HMAC token AND admin session verification (`session.get('admin_user_id')`). HMAC token alone is insufficient.
 
 ### Backup Implementations
 There are two separate backup implementations:
@@ -131,13 +136,10 @@ There are two separate backup implementations:
 Both now use `blog_*.db` naming, so `cleanup_old_backups()` correctly cleans both.
 
 ### Backup Encryption
-Backup encryption uses AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations) via `app/backup_encryption.py`, NOT GPG.
+Backup encryption uses AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations) via `app/backup_encryption.py`, NOT GPG. Webhook encryption uses `app/webhook_encryption.py` with a direct 32-byte key (not PBKDF2).
 
 ### Slug Generation
 Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`).
-
-### Backup Retention Bug Fixed (May 2026)
-`run_daily_backup()` in `app/services/backup.py` had a bug where it created `blog_*.db` files but retention cleanup looked for `backup_*.db`. Fixed by correcting the glob pattern. This bug meant daily backups were never being cleaned up.
 
 ### APScheduler Job Schedules
 - `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
@@ -256,7 +258,7 @@ Three feed endpoints available:
 `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.
 
 ### Webhook Secret Storage
-**Warning:** `Webhook.secret` is stored in **plain text** (not encrypted) in `app/models.py:490`. This is a known limitation. If encryption at rest is required, the User.totp_secret encryption pattern could be applied to Webhook model.
+**Warning:** `Webhook.secret` is stored in **plain text** (not encrypted) in `app/models.py:490`. See encryption pattern under "Important Notes for Future Agents".
 
 ## Review Output Format
 

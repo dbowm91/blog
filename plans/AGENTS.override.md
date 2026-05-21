@@ -13,53 +13,42 @@ The main plan file is `plans/plan.md` which serves as the single source of truth
 - Important patterns and conventions for future agents
 - Guidance for creating new implementation waves
 
-## Architecture Review Process (Reference)
+## Wave L Status (May 2026 Verified)
 
-Each module review follows a 5-step process:
+Wave L consolidates findings from Wave K architecture reviews. Verification against actual code revealed several items were already correct (no action needed), while some require implementation.
 
-1. **Read architecture documents** for the module
-2. **Cross-reference** with actual code in `app/` or relevant directories
-3. **Document verification results** (claims confirmed or contradicted with file:line references)
-4. **Identify bugs and improvement opportunities** with specific locations
-5. **Write final improvement plan** to `plans/{module}_review.md`
+### Verified - No Action Needed
 
-### Review Output Format
+The following items were verified to already be correct in the codebase:
+- mobile-menu.jsx syntax (NO ERROR - false positive from review)
+- Webhook logger already defined at module level
+- Preview route documentation already correct
+- search.html srcset properly defined
+- APScheduler SMTP handling already correct
+- Tag cache TTL documentation already says 60 seconds
+- Slug service signature matches documentation
+- Backup retention documentation already correct
+- Post user_id not claimed in documentation
+- image/image_alt_text already documented
+- Admin revisions route already correct
+- Celery concurrency flag already present
+- pip-audit already uses --fail-on=all
 
-Each module review should document:
-- **Verified claims** - documentation matches code
-- **Discrepancies** - documentation contradicts code (with specific file:line)
-- **Bugs identified** - actual bugs found (with priority: Critical/High/Medium/Low)
-- **Improvement recommendations** - proposed changes
+### Items Requiring Action
 
-All review reports are saved in `plans/` directory:
-- `core_review.md`, `services_review.md`, `routes_review.md`, `tasks_review.md`
-- `frontend_review.md`, `testing_review.md`, `infrastructure_review.md`, `deployment_review.md`
+**Phase 1 (Critical - Sequential):**
+- L-1.1: Webhook.secret not encrypted at rest (HIGH priority)
+- L-1.2: Newsletter stuck posts visibility (MEDIUM)
+- L-1.3: Webhook partial failure handling (MEDIUM)
 
-## Completed Waves
+**Phase 2 (High):**
+- L-2.1: Benchmark conftest cache clear centralization
+- L-2.2: Webhook encryption documentation path
+- L-2.3: Queue line numbers correction
+- L-2.4: Lock files documentation
 
-| Wave | Description | Items | Status |
-|------|-------------|-------|--------|
-| A-J | Implementation waves (2FA, Rate Limiting, Search, etc.) | 61+ | COMPLETED |
-| K | Architecture Review (8 modules) | All 8 | COMPLETED (May 2026) |
-| L | Wave K Findings Implementation | TBD | IN PROGRESS |
-
-### Wave L Summary
-
-Wave L consolidates findings from Wave K architecture reviews. Some items were already correct in the codebase (verified against code), so no action needed. Items requiring action:
-
-**Critical Bugs (Sequential):**
-- L-1.1: Fix mobile-menu.jsx syntax error (CRITICAL)
-- L-1.3: Fix preview route documentation
-- L-1.4: Encrypt Webhook.secret at rest
-- L-1.5: Newsletter stuck posts logging
-
-**Verified - No Action Needed:**
-- L-1.2: Webhook logger already defined
-- L-2.1: search.html srcset already defined
-- L-2.2: APScheduler SMTP handling already correct
-
-**Documentation & CI/CD Fixes:**
-- L-2.3 to L-2.4, L-3.1 to L-3.12, L-4.1 to L-4.6 (see plan.md)
+**Phase 3 (Documentation):**
+- L-3.1 to L-3.8: Various documentation fixes
 
 ## For Future Agents
 
@@ -68,8 +57,7 @@ When working on new implementation or documentation:
 1. Reference `plans/plan.md` for completed wave details and implementation guidance
 2. Create a new branch for new work: `wave-<letter>-<description>`
 3. Update `plans/plan.md` when adding new implementation waves
-4. All module reviews are saved in `plans/` directory
-5. **Always verify plan items against actual code** - some review findings may be incorrect or outdated
+4. **Always verify plan items against actual code** - some review findings may be incorrect or outdated
 
 ## Plan Verification
 
@@ -77,11 +65,10 @@ The `plans/plan.md` file was verified against the codebase in May 2026. Not all 
 
 Key verification findings (May 2026):
 - All 8 Wave K architecture reviews completed
-- 1 critical bug fixed during Wave K: backup retention in `run_daily_backup()`
-- 35+ documentation corrections made during Wave K
-- All encryption uses AES-256-GCM (NOT GPG)
-- Wave L verification found several items already correct (no action needed)
+- Multiple items verified as already correct (false positives from reviews)
+- 3 critical/high code bugs identified requiring fixes
+- 10+ documentation fixes identified
 
 ---
 
-*Last updated: May 2026*
+*Last updated: May 2026 - Wave L verified*
