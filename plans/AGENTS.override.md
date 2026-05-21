@@ -7,8 +7,8 @@ This module contains the consolidated implementation plan for the Blog CMS proje
 ## Current Plan File
 
 The main plan file is `plans/plan.md` which serves as the single source of truth for:
-- Completed implementation waves (A-J)
-- Wave K: Pending architecture reviews (8 modules)
+- Completed implementation waves (A-K)
+- Wave L: Architecture review findings implementation (IN PROGRESS)
 - Key implementation details verified against the codebase
 - Important patterns and conventions for future agents
 - Guidance for creating new implementation waves
@@ -31,7 +31,7 @@ Each module review should document:
 - **Bugs identified** - actual bugs found (with priority: Critical/High/Medium/Low)
 - **Improvement recommendations** - proposed changes
 
-All review reports are saved in `architecture/plans/`:
+All review reports are saved in `plans/` directory:
 - `core_review.md`, `services_review.md`, `routes_review.md`, `tasks_review.md`
 - `frontend_review.md`, `testing_review.md`, `infrastructure_review.md`, `deployment_review.md`
 
@@ -40,17 +40,26 @@ All review reports are saved in `architecture/plans/`:
 | Wave | Description | Items | Status |
 |------|-------------|-------|--------|
 | A-J | Implementation waves (2FA, Rate Limiting, Search, etc.) | 61+ | COMPLETED |
-| K | Architecture Review (8 modules) | All 8 completed | COMPLETED (May 2026) |
+| K | Architecture Review (8 modules) | All 8 | COMPLETED (May 2026) |
+| L | Wave K Findings Implementation | TBD | IN PROGRESS |
 
-### Wave K Summary
+### Wave L Summary
 
-All 8 module reviews were completed (May 2026):
-- Core, Services, Routes, Tasks, Frontend, Testing, Infrastructure, Deployment
-- 1 critical bug fixed (backup retention)
-- 35+ documentation corrections made
-- 50+ routes verified against implementation
+Wave L consolidates findings from Wave K architecture reviews. Some items were already correct in the codebase (verified against code), so no action needed. Items requiring action:
 
-Key fix from Wave K: Backup retention bug in `run_daily_backup()` - was creating `blog_*.db` files but cleanup looked for `backup_*.db`.
+**Critical Bugs (Sequential):**
+- L-1.1: Fix mobile-menu.jsx syntax error (CRITICAL)
+- L-1.3: Fix preview route documentation
+- L-1.4: Encrypt Webhook.secret at rest
+- L-1.5: Newsletter stuck posts logging
+
+**Verified - No Action Needed:**
+- L-1.2: Webhook logger already defined
+- L-2.1: search.html srcset already defined
+- L-2.2: APScheduler SMTP handling already correct
+
+**Documentation & CI/CD Fixes:**
+- L-2.3 to L-2.4, L-3.1 to L-3.12, L-4.1 to L-4.6 (see plan.md)
 
 ## For Future Agents
 
@@ -59,17 +68,19 @@ When working on new implementation or documentation:
 1. Reference `plans/plan.md` for completed wave details and implementation guidance
 2. Create a new branch for new work: `wave-<letter>-<description>`
 3. Update `plans/plan.md` when adding new implementation waves
-4. All module reviews are saved in `architecture/plans/` directory
+4. All module reviews are saved in `plans/` directory
+5. **Always verify plan items against actual code** - some review findings may be incorrect or outdated
 
 ## Plan Verification
 
-The `plans/plan.md` file was verified against the codebase in May 2026. All documented items are accurate and include file:line references.
+The `plans/plan.md` file was verified against the codebase in May 2026. Not all documented items require action - some were found to already be correct.
 
 Key verification findings (May 2026):
 - All 8 Wave K architecture reviews completed
-- 1 critical bug fixed: backup retention in `run_daily_backup()`
+- 1 critical bug fixed during Wave K: backup retention in `run_daily_backup()`
 - 35+ documentation corrections made during Wave K
 - All encryption uses AES-256-GCM (NOT GPG)
+- Wave L verification found several items already correct (no action needed)
 
 ---
 

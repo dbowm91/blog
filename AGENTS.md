@@ -71,6 +71,12 @@ These files have been flagged for exception handling issues:
 
 ## Test Interference Notes
 
+### Benchmark Tests Cache Clear Import
+- `tests/benchmarks/conftest.py` uses different import path than main conftest for analytics cache clearing
+- Benchmarks: `from app.routes.admin.helpers.analytics import _clear_analytics_cache`
+- Main conftest: `from app.routes.admin import _analytics_cache`
+- These should be unified (see `plans/plan.md:L-2.3`)
+
 ### Page View Buffer Test Issues
 - The page view buffer (`app/page_view_buffer.py`) can cause test interference when running full suite
 - Buffer is started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
@@ -103,13 +109,16 @@ These files have been flagged for exception handling issues:
 ### Frontend
 - Vite configured for code splitting with `manualChunks`
 - `post_image_avif_url_stub` filter added (returns None until AVIF encoding is enabled)
-- `mobile-menu.jsx` syntax bug fixed (extra `});` removed) - `initMobileMenu` would fail to parse
+- `mobile-menu.jsx` has syntax error at lines 36-42 (missing `}` in Escape key handler) - fix pending in Wave L (see `plans/plan.md:L-1.1`)
 
 ### Brotli
 - Nginx configuration includes commented Brotli settings
 - Requires custom nginx image with `--with-http_brotli_module`
 
 ## Important Notes for Future Agents
+
+### Plan Item Verification
+When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Some items marked as "bugs" in reviews may already be fixed in the codebase.
 
 ### Preview Route Security
 The public preview route at `/preview/<int:post_id>` now requires admin session verification. HMAC token validation alone no longer grants access - `session.get('admin_user_id')` must also exist.
@@ -135,7 +144,7 @@ Slug collision limit is hardcoded to 100 tries before falling back to UUID suffi
 - `run_daily_backup` runs at 02:00 (`hour=2, minute=0`), NOT midnight
 
 ### APScheduler SMTP Handling
-When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run. This was fixed in Wave L (previously all scheduler jobs were disabled).
+When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run.
 
 ### APScheduler Multi-Worker Limitation
 APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously. This is documented in `architecture/tasks/scheduler.md` and `architecture/deployment/docker.md`.
