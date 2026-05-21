@@ -2,11 +2,11 @@
 
 DevLog is a Flask-based blog CMS with SQLAlchemy ORM, full-text search, async task processing, and a Vue/Vite frontend.
 
+This document provides a **birds-eye view** of all system components. Each section links to detailed documentation for deeper review.
+
 ---
 
 ## Component Index
-
-Use this document as a high-level map. Each section links to detailed documentation.
 
 ### [Core Application](core/)
 | Component | File | Description |
@@ -29,8 +29,8 @@ Use this document as a high-level map. Each section links to detailed documentat
 | [Backup Service](services/backup.md) | `app/services/backup.py` | Database backup with compression/encryption |
 | [Serialization](services/serialization.md) | `app/services/serialization.py` | JSON export/import |
 | [Slug Service](services/slug.md) | `app/services/slug.py` | Unique slug generation with collision handling |
-| [Tag Service](services/tag.md) | `app/services/tag.py` | Tag CRUD and count management |
-| [Search Abstraction](services/search/) | `app/services/search/` | SearchProvider ABC with SQLite FTS5 implementation |
+| [Tag Service](services/tag.md) | `app/services/tag.md` | Tag CRUD and count management |
+| [Search Abstraction](services/overview.md) | `app/services/search/` | SearchProvider ABC with SQLite FTS5 implementation |
 
 ### [Task Processing](tasks/)
 | Component | File | Description |
