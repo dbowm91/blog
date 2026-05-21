@@ -103,6 +103,7 @@ These files have been flagged for exception handling issues:
 ### Frontend
 - Vite configured for code splitting with `manualChunks`
 - `post_image_avif_url_stub` filter added (returns None until AVIF encoding is enabled)
+- `mobile-menu.jsx` syntax bug fixed (extra `});` removed) - `initMobileMenu` would fail to parse
 
 ### Brotli
 - Nginx configuration includes commented Brotli settings
@@ -132,6 +133,9 @@ Slug collision limit is hardcoded to 100 tries before falling back to UUID suffi
 ### APScheduler Job Schedules
 - `cleanup_expired_subscribers` runs every 5 minutes (`minute="*/5"`), NOT hourly
 - `run_daily_backup` runs at 02:00 (`hour=2, minute=0`), NOT midnight
+
+### APScheduler SMTP Handling
+When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run. This was fixed in Wave L (previously all scheduler jobs were disabled).
 
 ### APScheduler Multi-Worker Limitation
 APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously. This is documented in `architecture/tasks/scheduler.md` and `architecture/deployment/docker.md`.
@@ -241,6 +245,9 @@ Three feed endpoints available:
 
 ### Deprecated Function
 `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.
+
+### Webhook Secret Storage
+**Warning:** `Webhook.secret` is stored in **plain text** (not encrypted) in `app/models.py:490`. This is a known limitation. If encryption at rest is required, the User.totp_secret encryption pattern could be applied to Webhook model.
 
 ## Review Output Format
 

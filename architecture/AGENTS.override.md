@@ -18,13 +18,21 @@ Architecture documentation for the blog CMS application.
 ## Wave J Completion (May 2026)
 Documentation fixes applied to all 8 modules via architecture review.
 
-## Wave K Status (May 2026)
-Wave K architecture reviews IN PROGRESS for all 8 modules:
+## Wave K Completion (May 2026)
+Architecture reviews completed for all 8 modules:
 - Core, Services (K1)
 - Routes, Tasks (K2)
 - Frontend, Testing, Infrastructure, Deployment (K3)
 
-Each module review follows: Read docs → Cross-reference code → Document verification → Identify issues → Write improvements.
+Each module review documented verified claims, discrepancies, bugs, and improvements in `plans/<module>_review.md`.
+
+## Wave L Completion (May 2026)
+Implementation of architecture review findings:
+- Critical bug fixes (webhooks logger, mobile-menu syntax, search.html srcset)
+- High priority fixes (celery concurrency, pip-audit silencing, scheduler SMTP handling)
+- Documentation corrections (TAG_CACHE_TTL, backup naming, slug signature, preview security, etc.)
+
+See `architecture/review_plan.md` for full summary of issues found and fixed.
 
 ## Architecture Review Skill
 See `.skills/architecture_review/skill.md` for detailed architecture review workflow.
