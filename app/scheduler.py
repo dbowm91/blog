@@ -84,6 +84,27 @@ def send_daily_newsletter(app: Any) -> None:
             from app.utils import utc_now
             from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
 
+            excluded_posts = (
+                db.session.execute(
+                    select(Post)
+                    .filter(
+                        Post.published,
+                        Post.published_at.isnot(None),
+                        Post.newsletter_sent_at.is_(None),
+                        Post.newsletter_attempts >= NEWSLETTER_MAX_RETRY_ATTEMPTS,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if excluded_posts:
+                app.logger.warning(
+                    "Newsletter: %d posts excluded after %d retry attempts: %s",
+                    len(excluded_posts),
+                    NEWSLETTER_MAX_RETRY_ATTEMPTS,
+                    [f"id={p.id}, title={p.title}" for p in excluded_posts[:5]]
+                )
+
             posts = (
                 db.session.execute(
                     select(Post)

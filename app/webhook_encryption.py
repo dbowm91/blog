@@ -22,9 +22,14 @@ class WebhookEncryptionError(Exception):
 def _get_encryption_key() -> bytes:
     """Get the encryption key from config or environment.
 
+    The key can be provided as:
+    - A hex-encoded string (64 characters) which will be decoded to 32 bytes
+    - A raw string that is exactly 32 bytes
+
     Raises:
-        WebhookEncryptionError: If no key is configured.
+        WebhookEncryptionError: If no key is configured or key is invalid.
     """
+    import binascii
     from app.config import WEBHOOK_ENCRYPTION_KEY
 
     key_source = WEBHOOK_ENCRYPTION_KEY or ""
@@ -36,9 +41,18 @@ def _get_encryption_key() -> bytes:
         )
 
     key = key_source.encode("utf-8")
+
+    if len(key) == 64:
+        try:
+            return binascii.unhexlify(key)
+        except (binascii.Error, ValueError) as e:
+            raise WebhookEncryptionError(
+                f"WEBHOOK_ENCRYPTION_KEY is not valid hex: {e}"
+            )
+
     if len(key) != KEY_SIZE:
         raise WebhookEncryptionError(
-            f"WEBHOOK_ENCRYPTION_KEY must be {KEY_SIZE} bytes"
+            f"WEBHOOK_ENCRYPTION_KEY must be {KEY_SIZE} bytes or 64 hex characters"
         )
     return key
 

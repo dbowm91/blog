@@ -187,7 +187,6 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
     from app.models import Webhook, WebhookEvent
     from app.config import WEBHOOK_TIMEOUT
     from app.utils import is_safe_webhook_url
-    from app.webhook_encryption import decrypt_webhook_secret, WebhookEncryptionError
 
     try:
         event = db.session.get(WebhookEvent, webhook_event_id)
@@ -205,8 +204,10 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
 
         payload = event.payload
         delivered_count = 0
+        total_count = 0
 
         for webhook in webhooks:
+            total_count += 1
             # SSRF Protection: validate URL before making request
             is_safe, reason = is_safe_webhook_url(webhook.url)
             if not is_safe:
@@ -214,14 +215,12 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
                 event.delivery_attempts += 1
                 continue
 
-            # Decrypt secret if encrypted (backward compatible with plaintext)
+            # Get the webhook secret (already decrypted via property)
             secret = webhook.secret
-            if secret and not secret.startswith("sha256="):
-                try:
-                    secret = decrypt_webhook_secret(secret)
-                except WebhookEncryptionError:
-                    logger.error("Failed to decrypt webhook secret for %s, delivery aborted", webhook.name)
-                    return False
+            if not secret:
+                logger.warning("No secret configured for webhook %s, skipping", webhook.name)
+                event.delivery_attempts += 1
+                continue
 
             # Prepare headers with HMAC signature
             headers = {
@@ -246,6 +245,14 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
 
         assert event is not None
         event.delivered = delivered_count > 0
+        if total_count == 0:
+            event.delivery_status = None
+        elif delivered_count == 0:
+            event.delivery_status = 'failed'
+        elif delivered_count < total_count:
+            event.delivery_status = 'partial_failure'
+        else:
+            event.delivery_status = 'delivered'
         db.session.commit()
         return bool(event.delivered)
     finally:

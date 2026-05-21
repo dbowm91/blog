@@ -487,7 +487,7 @@ class Webhook(db.Model):  # type: ignore[name-defined]
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     url = db.Column(db.String(512), nullable=False)
-    secret = db.Column(db.String(64), nullable=False)
+    webhook_secret_encrypted = db.Column(db.LargeBinary(256), nullable=True)
     event_type = db.Column(db.String(32), nullable=False)
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
@@ -495,6 +495,26 @@ class Webhook(db.Model):  # type: ignore[name-defined]
     __table_args__ = (
         db.Index("ix_webhooks_event_type_enabled", "event_type", "enabled"),
     )
+
+    @property
+    def secret(self) -> Optional[str]:
+        """Get decrypted webhook secret."""
+        if not self.webhook_secret_encrypted:
+            return None
+        from app.webhook_encryption import decrypt_webhook_secret
+        try:
+            return decrypt_webhook_secret(self.webhook_secret_encrypted.decode("utf-8"))
+        except Exception:
+            return None
+
+    @secret.setter
+    def secret(self, value: Optional[str]) -> None:
+        """Encrypt and store webhook secret."""
+        if not value:
+            self.webhook_secret_encrypted = None
+            return
+        from app.webhook_encryption import encrypt_webhook_secret
+        self.webhook_secret_encrypted = encrypt_webhook_secret(value).encode("utf-8")
 
     def __repr__(self) -> str:
         return f"<Webhook {self.name!r} event={self.event_type!r}>"
@@ -510,6 +530,7 @@ class WebhookEvent(db.Model):  # type: ignore[name-defined]
     target_id = db.Column(db.Integer, nullable=True)
     target_type = db.Column(db.String(32), nullable=True)
     delivered = db.Column(db.Boolean, default=False, nullable=False)
+    delivery_status = db.Column(db.String(32), nullable=True)
     delivery_attempts = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
