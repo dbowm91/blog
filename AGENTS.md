@@ -111,7 +111,7 @@ These files have been flagged for exception handling issues:
 ## Important Notes for Future Agents
 
 ### Plan Item Verification
-When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Several items marked as "bugs" in reviews may already be fixed in the codebase. During Wave L verification (May 2026), multiple items were found to already be correct.
+When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Wave L verification (May 2026) found multiple items marked as "bugs" were already correct in the codebase.
 
 ### Webhook Secret Encryption (CRITICAL) - FIXED
 `Webhook.secret` in `app/models.py` is now encrypted at rest using AES-256-GCM via `app/webhook_encryption.py`. The `Webhook` model uses a `webhook_secret_encrypted` column (LargeBinary) with a property getter/setter that handles encryption/decryption. Requires `WEBHOOK_ENCRYPTION_KEY` config (32 bytes or 64 hex characters).
@@ -172,7 +172,7 @@ Actual filters (defined in `app/filters.py`):
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
 ### Celery Queue Names
-Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py` lines 29, 130, 182, 255, 276, 297)
+Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py:31,130,182,262,283,304`)
 
 ### Actual Routes
 When documenting or referring to routes, verify against actual implementation:
@@ -255,7 +255,7 @@ Three feed endpoints available:
 `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.
 
 ### Webhook Secret Storage
-**Warning:** `Webhook.secret` is stored in **plain text** (not encrypted) in `app/models.py:490`. See encryption pattern under "Important Notes for Future Agents".
+`Webhook.secret` is encrypted at rest using AES-256-GCM via `app/webhook_encryption.py` (see `app/models.py:490-517`).
 
 ## Review Output Format
 

@@ -76,10 +76,8 @@ Query Parameters:
 - `confirmed` (bool): Filter by confirmed status
 
 ### Export Subscribers
-```
-POST /api/subscribers/export
-```
-Response: CSV file download
+**Note:** Subscriber export is only available in admin routes, not the public API.
+See `/admin/subscribers/export` in admin routes.
 
 ## Stats API (`stats.py`)
 
