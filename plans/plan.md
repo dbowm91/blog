@@ -1,7 +1,7 @@
 # Implementation Plan - Blog CMS
 
 **Project:** Blog CMS
-**Status:** ACTIVE - Maintenance mode
+**Status:** ACTIVE - Architecture Review Phase
 **Last Updated:** May 2026
 
 ---
@@ -9,12 +9,13 @@
 ## Overview
 
 This is the consolidated implementation plan for the Blog CMS project. It serves as the single source of truth for:
-- Completed implementation waves (A-I)
+- Completed implementation waves (A-J)
+- Pending architecture review items (K)
 - Key implementation details verified against the codebase
 - Important patterns and conventions for future agents
 - Guidance for creating new implementation waves
 
-**Note:** This file was consolidated in May 2026. All prior plan files have been merged into this document.
+**Note:** This file was consolidated and updated in May 2026. All prior plan files have been merged into this document.
 
 ---
 
@@ -37,7 +38,274 @@ This is the consolidated implementation plan for the Blog CMS project. It serves
 
 ---
 
-## Wave J: Architecture Review Fixes
+## Wave K: Pending Architecture Reviews
+
+**Status:** IN PROGRESS (May 2026)
+
+The following module architecture reviews are pending completion. Each module review follows a 5-step process: Read docs → Cross-reference code → Document verification → Identify issues → Write improvements.
+
+### Wave K Execution Model
+
+Reviews are organized into **three parallel waves** based on module independence:
+
+| Wave K Group | Modules | Parallel Execution |
+|-------------|---------|-------------------|
+| K1 (Independent Core) | Core, Services | Can run in parallel with K2, K3 |
+| K2 (Application Layer) | Routes, Tasks | Can run in parallel with K1, K3 |
+| K3 (Infrastructure) | Frontend, Testing, Infrastructure, Deployment | Can run in parallel with K1, K2 |
+
+**Branch naming:** `wave-k-{group}-{description}`
+
+### Module Reviews (All Status: IN PROGRESS)
+
+#### K1a: Core Module Architecture Review
+
+**Focus Areas:**
+- App factory pattern implementation
+- Configuration management (config.py)
+- Model definitions, relationships, and extensions
+
+**Documents to Review:**
+- `architecture/core/app-factory.md`
+- `architecture/core/configuration.md`
+- `architecture/core/models.md`
+
+**Code to Cross-Reference:**
+- `app/__init__.py`
+- `app/config.py`
+- `app/models.py`
+- `app/extensions.py`
+
+**Tasks:**
+1. Read all architecture documents for the Core module
+2. Cross-reference with actual code in `app/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/core_review.md`
+
+---
+
+#### K1b: Services Module Architecture Review
+
+**Focus Areas:**
+- Backup service (encryption, compression, scheduling)
+- Serialization/deserialization patterns
+- Tag service logic
+- Slug generation and collision handling
+
+**Documents to Review:**
+- `architecture/services/backup.md`
+- `architecture/services/serialization.md`
+- `architecture/services/tag.md`
+- `architecture/services/slug.md`
+- `architecture/services/overview.md`
+
+**Code to Cross-Reference:**
+- `app/services/backup.py`
+- `app/services/slug.py`
+- `app/services/serialization.py`
+- `app/services/tag.py`
+- `app/services/__init__.py`
+
+**Tasks:**
+1. Read all architecture documents for the Services module
+2. Cross-reference with actual code in `app/services/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/services_review.md`
+
+---
+
+#### K2a: Routes Module Architecture Review
+
+**Focus Areas:**
+- API endpoint implementation and authentication
+- Admin dashboard and management routes
+- Public routes (blog, subscribe, preview)
+- RSS/Atom feed generation
+
+**Documents to Review:**
+- `architecture/routes/api-routes.md`
+- `architecture/routes/admin-routes.md`
+- `architecture/routes/public-routes.md`
+- `architecture/routes/rss-feeds.md`
+
+**Code to Cross-Reference:**
+- `app/routes/public.py`
+- `app/routes/api/` (entire package)
+- `app/routes/admin/` (entire package)
+- `app/routes/rss.py`
+- `app/routes/errors.py`
+
+**Tasks:**
+1. Read all architecture documents for the Routes module
+2. Cross-reference with actual code in `app/routes/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/routes_review.md`
+
+---
+
+#### K2b: Tasks Module Architecture Review
+
+**Focus Areas:**
+- Celery task definitions and queue routing
+- APScheduler job schedules and execution
+- Task error handling and retries
+
+**Documents to Review:**
+- `architecture/tasks/celery-tasks.md`
+- `architecture/tasks/scheduler.md`
+- `architecture/tasks/overview.md`
+
+**Code to Cross-Reference:**
+- `app/tasks.py`
+- `app/scheduler.py`
+- `app/celery_app.py`
+
+**Tasks:**
+1. Read all architecture documents for the Tasks module
+2. Cross-reference with actual code in `app/tasks.py`, `app/scheduler.py`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/tasks_review.md`
+
+---
+
+#### K3a: Frontend Module Architecture Review
+
+**Focus Areas:**
+- Vite build configuration and code splitting
+- JavaScript/CSS asset management
+- Jinja2 template structure and filters
+- Theme customization support
+
+**Documents to Review:**
+- `architecture/frontend/static-assets.md`
+- `architecture/frontend/templates.md`
+- `architecture/frontend/overview.md`
+
+**Code to Cross-Reference:**
+- `app/static/` (entire directory)
+- `app/templates/` (entire directory)
+- `vite.config.js`
+
+**Tasks:**
+1. Read all architecture documents for the Frontend module
+2. Cross-reference with actual code in `app/static/`, `app/templates/`, `vite.config.js`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/frontend_review.md`
+
+---
+
+#### K3b: Testing Module Architecture Review
+
+**Focus Areas:**
+- Test suite organization and fixtures
+- Test isolation and cleanup
+- Coverage and edge cases
+- E2E testing approach
+
+**Documents to Review:**
+- `architecture/testing/test-suite.md`
+
+**Code to Cross-Reference:**
+- `tests/` (entire directory)
+
+**Tasks:**
+1. Read all architecture documents for the Testing module
+2. Cross-reference with actual code in `tests/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/testing_review.md`
+
+---
+
+#### K3c: Infrastructure Module Architecture Review
+
+**Focus Areas:**
+- Webhook delivery and retry logic
+- Search provider implementation (FTS5, SQLite)
+- Email sending and newsletter delivery
+- Storage and file handling
+
+**Documents to Review:**
+- `architecture/infrastructure/webhooks.md`
+- `architecture/infrastructure/search.md`
+- `architecture/infrastructure/email.md`
+- `architecture/infrastructure/storage.md`
+- `architecture/infrastructure/overview.md`
+
+**Code to Cross-Reference:**
+- `app/webhooks.py`
+- `app/email.py`
+- `app/storage.py`
+- `app/search.py`
+- `app/services/search/` (entire package)
+
+**Tasks:**
+1. Read all architecture documents for the Infrastructure module
+2. Cross-reference with actual code in `app/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/infrastructure_review.md`
+
+---
+
+#### K3d: Deployment Module Architecture Review
+
+**Focus Areas:**
+- Docker configuration and image size
+- Security measures (HMAC, rate limiting, 2FA)
+- CI/CD pipeline configuration
+- Nginx and reverse proxy setup
+
+**Documents to Review:**
+- `architecture/deployment/docker.md`
+- `architecture/deployment/security.md`
+- `architecture/deployment/cicd.md`
+- `architecture/deployment/overview.md`
+
+**Code to Cross-Reference:**
+- `docker-compose.yml`
+- `Dockerfile`
+- `nginx/` (entire directory)
+
+**Tasks:**
+1. Read all architecture documents for the Deployment module
+2. Cross-reference with actual code in `docker-compose.yml`, `Dockerfile`, `nginx/`
+3. Document verification results (claims confirmed or contradicted)
+4. Identify bugs and improvement opportunities
+5. Write final improvement plan to `plans/deployment_review.md`
+
+---
+
+### Wave K Subagent Execution Strategy
+
+**Recommended execution order:**
+
+1. **Phase 1 (Parallel):** Launch K1a and K1b subagents (Core + Services)
+2. **Phase 2 (Parallel):** Launch K2a and K2b subagents (Routes + Tasks)
+3. **Phase 3 (Parallel):** Launch K3a, K3b, K3c, K3d subagents (Frontend, Testing, Infrastructure, Deployment)
+
+Each subagent should:
+1. Read the architecture documents for their module
+2. Cross-reference with actual implementation code
+3. Document all discrepancies found
+4. Identify specific bugs or improvements with file:line references
+5. Write findings to the corresponding `plans/{module}_review.md`
+
+### Wave K Completion Criteria
+
+- All 8 module reviews completed
+- All discrepancies documented with specific file:line references
+- Priority classification for each issue (Critical/High/Medium/Low)
+- PR created with all review findings
+
+---
+
+## Previously Completed Reviews (Wave J)
 
 **Completed:** May 2026
 
@@ -120,7 +388,7 @@ Fixed documentation issues identified during architecture review in May 2026. Su
 **Backup Codes:**
 - Stored as SHA-256 hashed strings in `backup_codes_hashed`
 - Single-use: verified codes are removed from the list
-- 10 backup codes generated per setup
+- 8 backup codes generated (not 10)
 
 **Routes:**
 - `/admin/2fa/setup` - Initialize 2FA (line 263 in `auth.py`)
@@ -223,7 +491,7 @@ replies = db.relationship("Comment", back_populates="parent", lazy="select")
 
 Three feed endpoints with caching and ETag support:
 - `/atom` - Atom 1.0 feed
-- `/rss` - RSS 2.0 feed  
+- `/rss` - RSS 2.0 feed
 - `/json` - JSON Feed 1.1
 
 **Cache Pattern:**
@@ -422,8 +690,9 @@ When executing multi-wave implementation plans:
 ### Branch Naming Convention
 
 ```
-wave-j-enhancements
-wave-k-bugfixes
+wave-k1-core-services
+wave-k2-routes-tasks
+wave-k3-frontend-testing-infrastructure-deployment
 ```
 
 ---
@@ -444,10 +713,19 @@ To propose a new enhancement or bug fix:
 ```
 plans/
 ├── plan.md              # This file - consolidated implementation plan
+├── core_review.md       # Core module review (pending completion)
+├── routes_review.md     # Routes module review (pending completion)
+├── services_review.md   # Services module review (pending completion)
+├── tasks_review.md      # Tasks module review (pending completion)
+├── frontend_review.md   # Frontend module review (pending completion)
+├── testing_review.md    # Testing module review (pending completion)
+├── infrastructure_review.md  # Infrastructure module review (pending completion)
+├── deployment_review.md # Deployment module review (pending completion)
 └── AGENTS.override.md   # Module-specific agent guidance
 ```
 
 ---
 
 *Last updated: May 2026 - Consolidated from prior plan files*
-*All items verified against codebase May 2026*
+*All completed items verified against codebase May 2026*
+*Pending reviews: Wave K (8 modules)*
