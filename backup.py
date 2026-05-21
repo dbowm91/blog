@@ -2,7 +2,7 @@
 """SQLite backup utility for DevLog blog.
 
 Creates timestamped backups of the SQLite database using the .backup API.
-Supports compression, GPG encryption, and retention policy.
+Supports compression, AES-256-GCM encryption, and retention policy.
 
 Usage:
     python backup.py                    # Create backup
@@ -10,7 +10,7 @@ Usage:
     python backup.py --encrypt          # Create encrypted backup
     python backup.py --compress --encrypt  # Compressed and encrypted
     python backup.py --keep 5           # Keep only last 5 backups
-    python backup.py --decrypt backup.db.gpg  # Decrypt a backup file
+    python backup.py --decrypt backup.db.enc  # Decrypt a backup file
 """
 
 import argparse
@@ -32,10 +32,10 @@ def main():
         "--compress", action="store_true", help="Compress backup with gzip"
     )
     parser.add_argument(
-        "--encrypt", action="store_true", help="Encrypt backup with GPG (requires BACKUP_ENCRYPTION_KEY)"
+        "--encrypt", action="store_true", help="Encrypt backup with AES-256-GCM (requires BACKUP_ENCRYPTION_KEY)"
     )
     parser.add_argument(
-        "--decrypt", type=str, metavar="FILE", help="Decrypt a GPG-encrypted backup file"
+        "--decrypt", type=str, metavar="FILE", help="Decrypt an AES-256-GCM-encrypted backup file"
     )
     parser.add_argument(
         "--keep", type=int, default=7, help="Number of backups to retain (default: 7)"

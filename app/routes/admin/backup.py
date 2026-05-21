@@ -61,7 +61,7 @@ def create_backup() -> ResponseReturnValue:
     Requires: Admin authentication.
     Form params:
         compress (checkbox) - Enable gzip compression
-        encrypt (checkbox) - Enable GPG encryption (requires BACKUP_ENCRYPTION_KEY env var)
+        encrypt (checkbox) - Enable AES-256-GCM encryption (requires BACKUP_ENCRYPTION_KEY env var)
     """
     from app.services.backup import create_backup as _create_backup
 
@@ -111,7 +111,7 @@ def restore_backup(filename) -> ResponseReturnValue:
     Restore database from a backup.
 
     Methods: POST
-    POST: Restores database from backup file. Handles gzip decompression and GPG decryption.
+    POST: Restores database from backup file. Handles gzip decompression and AES-256-GCM decryption.
           Closes existing connections before overwriting.
     Requires: Admin authentication.
     Path params: filename - Name of backup file to restore.

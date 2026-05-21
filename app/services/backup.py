@@ -1,7 +1,7 @@
 """Unified backup service for CLI, scheduler, and cron jobs.
 
 Centralizes backup logic from root backup.py and app/scheduler.py.
-Supports compression, GPG encryption, and retention policy using sqlite3.backup() API.
+Supports compression, AES-256-GCM encryption, and retention policy using sqlite3.backup() API.
 """
 
 import glob as glob_module
@@ -30,7 +30,7 @@ def create_backup(db_path: str, backup_dir: str, compress: bool = False,
         backup_dir: Directory to store backups
         compress: Whether to compress the backup with gzip
         keep: Number of backups to retain (default: 7)
-        encrypt: Whether to encrypt the backup with GPG
+        encrypt: Whether to encrypt the backup with AES-256-GCM
 
     Returns:
         Path to the created backup file, or None on failure
@@ -91,7 +91,7 @@ def create_backup(db_path: str, backup_dir: str, compress: bool = False,
 
 
 def _encrypt_backup_file(filepath: str) -> bool:
-    """Encrypt a backup file using GPG.
+    """Encrypt a backup file using AES-256-GCM.
 
     Requires BACKUP_ENCRYPTION_KEY environment variable.
     """
@@ -104,7 +104,7 @@ def _encrypt_backup_file(filepath: str) -> bool:
 
 
 def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> bool:
-    """Decrypt a GPG-encrypted backup file.
+    """Decrypt an AES-256-GCM-encrypted backup file.
 
     Args:
         input_path: Path to the encrypted backup file
