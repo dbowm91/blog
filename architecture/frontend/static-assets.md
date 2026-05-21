@@ -31,11 +31,11 @@ app/static/
 │   │   └── utils.js
 │   ├── lib/            # Third-party libraries
 │   │   ├── marked-wrapper.js
-│   │   ├── marked.min.js
-│   │   └── prism.min.js
+│   │   └── marked.min.js
+│   ├── prism.min.js
+│   ├── prism-languages.js
 │   ├── image-preview.js
 │   ├── main.js         # Entry point with route-based code splitting
-│   ├── prism-languages.js
 │   └── upload.js
 ├── css/                # SCSS/CSS files
 ├── fonts/              # Web fonts (woff2)

@@ -41,6 +41,10 @@ from_address = "noreply@example.com"
 [newsletter]
 send_time = "08:00"
 confirmation_expiry_hours = 1
+
+[search]
+provider = "sqlite"  # or "postgresql"
+config = {}
 ```
 
 ## Configuration Priority

@@ -55,6 +55,13 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 | Backups | AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations) |
 | Webhook secrets | AES-256-GCM via `app/webhook_encryption.py` (direct key, not PBKDF2) |
 
+### Key Requirements
+
+| Key | Minimum Length | Generation |
+|-----|---------------|------------|
+| `BACKUP_ENCRYPTION_KEY` | 12 characters | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `WEBHOOK_ENCRYPTION_KEY` | 32 bytes / 64 hex chars | `python -c "import secrets; print(secrets.token_hex(32))"` |
+
 ## Admin Audit Log
 
 All admin actions logged to `AdminAuditLog`:

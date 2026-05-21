@@ -85,6 +85,45 @@ For coordinated multi-worker deployments, consider:
 | `REDIS_URL` | Redis connection |
 | `STORAGE_BACKEND` | `local` or `s3` |
 
+## Health Check Endpoint
+
+The `/health` endpoint provides JSON status for all components:
+
+| Aspect | Details |
+|--------|---------|
+| Authentication | None required (network-level access only) |
+| Rate Limiting | Limited at nginx level |
+| Status Response | Returns 200 even if optional services are degraded |
+
+### Critical Checks
+
+Only these checks affect the overall health status:
+
+- `database` - Database connectivity
+- `scheduler` - APScheduler status
+- `search` - Search provider status
+- `disk_space` - Available disk space
+- `db_integrity` - Database integrity
+
+Optional checks (do not affect overall status): `backup_freshness`, `email`, `redis`, `celery`
+
+## Encryption Key Requirements
+
+| Key | Minimum Length | Generation |
+|-----|---------------|------------|
+| `BACKUP_ENCRYPTION_KEY` | 12 characters | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `WEBHOOK_ENCRYPTION_KEY` | 32 bytes / 64 hex chars | `python -c "import secrets; print(secrets.token_hex(32))"` |
+
+## Resource Limits
+
+Memory limits configured in `docker-compose.yml` under `deploy.resources`:
+
+| Service | Limit | Reservation |
+|---------|-------|-------------|
+| `blog` | 512M | 256M |
+| `celery` | 256M | - |
+| `redis` | 128M | - |
+
 ## See Also
 - [CI/CD](deployment/cicd.md) - Docker in CI pipeline
 - [Security](deployment/security.md) - Security configuration

@@ -6,7 +6,6 @@ Jinja2 templates for the blog.
 
 ```
 app/templates/
-├── _breadcrumbs.html            # Admin breadcrumb partial
 ├── _error.html                  # Error page partial
 ├── _post_content.html           # Post content partial
 ├── _sidebar.html                # Admin sidebar partial
