@@ -112,10 +112,11 @@ Other queues used by the system:
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
-| `images` | Image processing | `app/tasks.py:29` |
-| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
-| `email` | Transactional email | `app/tasks.py:264,285` |
-| `backup` | Backup tasks | `app/tasks.py:306` |
+| `images` | Image processing | `app/tasks.py:31` |
+| `newsletter` | Newsletter delivery | `app/tasks.py:130` |
+| `webhooks` | Webhook delivery | `app/tasks.py:182` |
+| `email` | Transactional email | `app/tasks.py:262,283` |
+| `backup` | Backup tasks | `app/tasks.py:304` |
 
 ## See Also
 - [Celery Tasks](../tasks/celery-tasks.md) - Async delivery

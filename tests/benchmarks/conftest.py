@@ -92,12 +92,11 @@ def authenticated_client(app, admin_user, clean_db):
 @pytest.fixture(scope="function")
 def clean_analytics_cache():
     """Clear analytics cache before each benchmark."""
-    from app.routes.admin.helpers.analytics import _clear_analytics_cache
-    from app.routes.admin.helpers.dashboard import _clear_dashboard_cache
+    from app.routes.admin import _analytics_cache
 
-    _clear_analytics_cache()
-    _clear_dashboard_cache()
+    _analytics_cache.clear()
     yield
+    _analytics_cache.clear()
 
 
 def create_posts_bulk(db, count=50):

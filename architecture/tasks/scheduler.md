@@ -54,11 +54,11 @@ Celery tasks use specific queues for different workloads (for reference - APSche
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
-| `images` | Image processing | `app/tasks.py:29` |
-| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
-| `webhooks` | Webhook delivery | `app/tasks.py:192` |
-| `email` | Transactional email | `app/tasks.py:264,285` |
-| `backup` | Backup tasks | `app/tasks.py:306` |
+| `images` | Image processing | `app/tasks.py:31` |
+| `newsletter` | Newsletter delivery | `app/tasks.py:130` |
+| `webhooks` | Webhook delivery | `app/tasks.py:182` |
+| `email` | Transactional email | `app/tasks.py:262,283` |
+| `backup` | Backup tasks | `app/tasks.py:304` |
 
 ## Multi-Worker Deployment
 
@@ -66,7 +66,11 @@ Celery tasks use specific queues for different workloads (for reference - APSche
 - Each container runs its own APScheduler
 - Without external coordination (Redis, etcd), jobs may run on all replicas
 - FileLock uses `timeout=0` (non-blocking) - silently skips if lock held
-- Lock file locations: `{instance_path}/{job_name}.lock` (e.g., `newsletter.lock`)
+- Lock file locations: `{instance_path}/{job_name}.lock`
+  - `newsletter.lock` - Daily newsletter sending
+  - `cleanup.lock` - Expired subscriber cleanup
+  - `scheduled.lock` - Scheduled post publishing
+  - `backup.lock` - Daily backup
 
 ## Initialization
 
