@@ -45,7 +45,6 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 Content-Security-Policy: default-src 'self'; ...
 Cross-Origin-Opener-Policy: same-origin  # Both Flask and nginx set same-origin
 Referrer-Policy: strict-origin-when-cross-origin (Both Flask and nginx)
-Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
 
 ## Encryption
