@@ -17,6 +17,7 @@
 
 {% macro comment_form(slug, parent_id=None) %}
 <form method="POST" action="{{ url_for('public.add_comment', slug=slug) }}" class="comment-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="parent_id" value="{{ parent_id or '' }}">
     <div class="form-group">
         <label for="author_name">Name</label>

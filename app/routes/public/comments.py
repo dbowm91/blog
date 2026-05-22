@@ -7,9 +7,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
 from app.models import Post, Comment
 from app.routes.public import public
+from app.csrf import validate_csrf_token
+from app import limiter
 from flask.typing import ResponseReturnValue
 
 @public.route("/post/<slug>/comment", methods=["POST"])
+@limiter.limit("10 per minute")
 def add_comment(slug: str) -> ResponseReturnValue:
     """
     Submit a comment on a post.
@@ -17,6 +20,8 @@ def add_comment(slug: str) -> ResponseReturnValue:
     Methods: POST
     POST: Validates and saves comment (requires approval).
     """
+    validate_csrf_token()
+
     post = db.session.execute(
         select(Post).filter(Post.slug == slug, Post.published)
     ).scalar_one_or_none()
