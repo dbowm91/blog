@@ -89,7 +89,7 @@ Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
 
 `app/context_processors.py` provides:
 - `inject_csrf()` - Injects `csrf_token` and `csp_nonce`
-- `inject_config()` - Site config variables (site_name, site_tagline, etc.)
+- `inject_config()` - Site config variables (site_title, site_description, author_name, author_role, author_avatar, base_url, current_year, canonical_url)
 - `inject_theme()` - Theme settings and `custom_css` variable
 - `inject_footer_data()` - Footer links and data
 - `inject_show_footer_posts()` - Injects `show_footer_posts` boolean

@@ -13,7 +13,6 @@ app/static/
 │   ├── public/           # Public-facing JS modules (share, lightbox, toc, search, etc.)
 │   └── admin/            # Admin JS modules (editor, bulk, shortcuts)
 ├── css/
-│   ├── style.css         # Aggregates all CSS files
 │   ├── base.css          # CSS variables, reset, typography
 │   ├── layout.css        # Grid layout, navbar, sidebar, footer
 │   ├── forms.css         # Form elements, buttons, validation
@@ -21,7 +20,7 @@ app/static/
 │   ├── public.css        # Public-facing page styles
 │   ├── utilities.css     # Helper classes
 │   ├── prism.css         # Syntax highlighting theme (base)
-│   └── themes/           # Additional Prism themes (coy, dark, funky, okaidia, tomorrow)
+│   └── prism-*.css       # Additional Prism themes (coy, dark, funky, okaidia, tomorrow)
 ├── fonts/                # Self-hosted fonts (Inter, JetBrains Mono)
 ├── img/                  # Static images
 └── dist/                 # Vite build output
@@ -40,7 +39,7 @@ npm run dev
 npm run build
 ```
 
-Configuration: `vite.config.js` with Flask integration via `vite-plugin-flask`.
+Configuration: `vite.config.js`.
 
 ## Content Hashing
 
