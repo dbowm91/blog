@@ -50,3 +50,60 @@ Posts in a series are ordered by `PostSeries.order_index` (not by date or title)
 ```python
 posts = db.relationship("Post", secondary="post_series", back_populates="series", order_by="PostSeries.order_index")
 ```
+
+---
+
+## Webhook Model
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | Integer | Primary key |
+| name | String(100) | Webhook name |
+| url | String(512) | Target URL |
+| secret | String | AES-256-GCM encrypted secret (decrypted on access) |
+| event_type | String(32) | Event type filter |
+| enabled | Boolean | Whether webhook is active |
+| created_at | UTCDateTime | Creation timestamp |
+
+**Location:** `app/models.py:484-514`
+
+The `secret` property is decrypted on access via `app/webhook_encryption.py`. Storage uses AES-256-GCM encryption.
+
+```python
+webhook_secret_encrypted = db.Column(db.LargeBinary(256), nullable=True)
+
+@property
+def secret(self) -> Optional[str]:
+    """Get decrypted webhook secret."""
+    if not self.webhook_secret_encrypted:
+        return None
+    from app.webhook_encryption import decrypt_webhook_secret
+    try:
+        return decrypt_webhook_secret(self.webhook_secret_encrypted.decode("utf-8"))
+    except Exception:
+        return None
+```
+
+---
+
+## WebhookEvent Model
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | Integer | Primary key |
+| webhook_id | Integer | Foreign key to Webhook |
+| event_type | String(32) | Event type |
+| payload | JSON | Event payload |
+| target_id | Integer | Target entity ID |
+| target_type | String(32) | Target entity type |
+| delivered | Boolean | Whether delivery succeeded |
+| delivery_status | String(32) | Delivery status: `'delivered'`, `'partial_failure'`, `'failed'` |
+| delivery_attempts | Integer | Number of delivery attempts |
+| created_at | UTCDateTime | Creation timestamp |
+
+**Location:** `app/models.py:524-542`
+
+The `delivery_status` field tracks the outcome of webhook delivery attempts:
+- `'delivered'` - All webhooks succeeded
+- `'partial_failure'` - Some succeeded, some failed
+- `'failed'` - All failed
