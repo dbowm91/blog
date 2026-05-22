@@ -50,10 +50,12 @@ The UUID suffix uses the first 8 characters of a random UUID hex, resulting in s
 
 ## Usage
 
+The `generate_unique_slug()` function accepts any SQLAlchemy model with a `slug` attribute (not just Post, Page, Tag, or Series).
+
 ```python
 from app.services.slug import generate_unique_slug
 
-# Generate slug from title
+# Generate slug from title for Post model
 slug = generate_unique_slug(Post, "My Post Title")
 
 # Use custom slug
