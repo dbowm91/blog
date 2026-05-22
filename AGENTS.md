@@ -66,7 +66,7 @@ These files have been flagged for exception handling issues:
 | `app/email.py` | SMTP exception too broad | FIXED |
 | `app/backup_integrity.py` | Previously broad exception | FIXED |
 | `app/webhooks.py` | Silent failure with `pass` | FIXED |
-| `app/tasks.py` | Email task retry logic broken (see Wave N-1.1) | PENDING |
+| `app/tasks.py` | Email task retry logic broken (N-1.1) | IN PROGRESS |
 | `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
@@ -261,6 +261,11 @@ S3StorageBackend stores credentials at client creation time (not per-request). C
 ### S3 Credential Clearing Bug
 `_clear_credentials()` method in `S3StorageBackend` was removed because it broke client recreation. The method was called after client initialization in `storage.py:168-174`.
 
+### S3 Storage Configuration
+S3 settings are read from environment variables, NOT from config.toml or config files:
+- `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_PUBLIC_URL`
+- See `app/storage.py:41` for direct env var reading
+
 ### SMTP Exception Handling
 When catching SMTP exceptions, catch both specific subclasses and base classes:
 - `smtplib.SMTPException` (base class)
@@ -272,6 +277,9 @@ These may leak as unhandled exceptions if not explicitly caught.
 
 ### image-preview.js Not image-review.js
 The admin image preview module is named `image-preview.js`, NOT `image-review.js`. Code imports in `main.js:15,40,51` reference the wrong filename.
+
+### mobile-menu.jsx Import Issue
+`app/static/js/main.js:18,72` imports `./shared/mobile-menu.jsx` but the file is actually `.jsx`. This works by coincidence due to Vite's glob matching, but the import is inconsistent. See `plans/plan.md: N-1.2` for fix.
 
 ### Series.posts Ordering
 Series.posts relationship orders by `PostSeries.order_index` (not by date or title).
