@@ -109,7 +109,7 @@ Default is 5 (not 3)
 - `run_daily_backup`: `hour=2, minute=0` (NOT midnight)
 
 ### Celery Queue Names
-`images` (line 31), `newsletter` (line 130), `webhooks` (line 182), `email` (lines 262, 283), `backup` (line 304)
+`images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py`)
 
 ### Comment Model Relationships
 ```python

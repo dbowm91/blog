@@ -63,7 +63,7 @@ All JavaScript modules must export a default function for initialization. When a
 
 ## Mobile Menu Toggle
 
-The mobile hamburger menu button is **created dynamically in JavaScript** (`shared/mobile-menu.js`), not in HTML templates.
+The mobile hamburger menu button is **created dynamically in JavaScript** (`shared/mobile-menu.jsx`), not in HTML templates.
 
 ## Admin Page Detection in JS
 

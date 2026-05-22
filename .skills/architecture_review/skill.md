@@ -61,23 +61,20 @@ Each module review writes to `architecture/plans/<module>_review.md`:
 ## Status
 
 ### Wave N Completed (May 2026)
-Implementation of review findings from Wave N (May 2026):
+All Wave N implementation items verified and completed. Plan pruned to summary status.
 
 | Priority | Fix | Location |
 |----------|-----|----------|
-| High | `datetime.utcnow()` deprecation | `app/services/backup.py:166` → `datetime.now(timezone.utc)` |
 | High | Email task retry logic (N-1.1) | `app/tasks.py:264,285` - added `max_retries=3` and `self.retry(exc=e)` |
 | High | mobile-menu.jsx import (N-1.2) | `app/static/js/main.js:18,72` - corrected .js → .jsx |
-| Medium | Frontend AGENTS.override.md | Removed non-existent `style.css`, `themes/`, `vite-plugin-flask` |
-| Medium | Templates AGENTS.override.md | Fixed `inject_config` variable names |
-| Medium | Routes admin-routes.md | Removed non-existent `list.py`, added page routes |
-| Medium | Deployment cicd.md | lint-and-type only tests Python 3.12 |
-| Medium | Deployment security.md | Removed non-existent `Permissions-Policy` header |
+| Medium | 11 documentation fixes (N-2.1-N-2.11) | ADMIN_RATE_LIMITS, S3 env vars, Webhook encryption, delivery_status, Search config/indexing, routes docs, Docker v2, Permissions-Policy, Python version |
+| Low | 10 improvements (N-3.1-N-3.10) | email.md, serialization, slug, benchmark fixtures, FTS cleanup, stale line numbers, deprecation notice, backup naming, AGENTS.override.md |
 
 **Verification Notes:**
 - Email tasks now properly retry on failure with `max_retries=3` and `self.retry(exc=e)` with exponential backoff.
 - mobile-menu file is `mobile-menu.jsx` (JSX syntax), Vite glob matched it despite wrong extension in import.
 - Permissions-Policy header documented but never implemented in nginx or Flask.
+- All plan items verified complete. Plan file `plans/plan.md` pruned to summary.
 
 ### Wave M Completed (May 2026)
 All Wave M implementation plan items verified and completed:

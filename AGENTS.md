@@ -66,7 +66,7 @@ These files have been flagged for exception handling issues:
 | `app/email.py` | SMTP exception too broad | FIXED |
 | `app/backup_integrity.py` | Previously broad exception | FIXED |
 | `app/webhooks.py` | Silent failure with `pass` | FIXED |
-| `app/tasks.py` | Email task retry logic (N-1.1) | FIXED |
+| `app/tasks.py` | Email task retry logic | FIXED |
 | `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
@@ -277,9 +277,6 @@ These may leak as unhandled exceptions if not explicitly caught.
 
 ### image-preview.js Not image-review.js
 The admin image preview module is named `image-preview.js`, NOT `image-review.js`. Code imports in `main.js:15,40,51` reference the wrong filename.
-
-### mobile-menu.jsx Import Issue
-`app/static/js/main.js` was fixed to use `./shared/mobile-menu.jsx` instead of `./shared/mobile-menu.js`.
 
 ### Series.posts Ordering
 Series.posts relationship orders by `PostSeries.order_index` (not by date or title).
