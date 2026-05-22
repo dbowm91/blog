@@ -92,11 +92,12 @@ admin/
 - **Route**: `GET /admin/preview/<int:post_id>?share=1`
 - **Purpose**: Preview post before publishing, with optional shareable URL
 
-### Post List (`list.py`)
+### Post List (`__init__.py`)
 - **Route**: `GET /admin/`
 - **Route**: `GET /admin/<int:page>`
 - **Route**: `POST /admin/bulk`
 - **Purpose**: List all posts with filtering
+- **Location**: `app/routes/admin/posts/__init__.py:dashboard()`
 - **Filters**: Published, drafts, scheduled
 - **Bulk Ops**: Publish, unpublish, delete, unschedule selected posts
 
