@@ -26,8 +26,9 @@ GitHub Actions workflows for testing and deployment.
 
 ### 4. e2e-tests
 - **Tool**: Playwright
-- **Environment**: Docker-based
+- **Environment**: Docker-based with `--profile production`
 - **Browser**: Chromium
+- **Setup**: Uses `docker-compose wait redis` to ensure Redis is ready before running tests
 
 ## Test Configuration
 

@@ -83,7 +83,6 @@ For coordinated multi-worker deployments, consider:
 | `ADMIN_PASSWORD` | Admin password |
 | `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `blog.db`) |
 | `REDIS_URL` | Redis connection |
-| `STORAGE_BACKEND` | `local` or `s3` |
 
 ## Health Check Endpoint
 
@@ -91,8 +90,8 @@ The `/health` endpoint provides JSON status for all components:
 
 | Aspect | Details |
 |--------|---------|
-| Authentication | None required (network-level access only) |
-| Rate Limiting | Limited at nginx level |
+| Authentication | Optional HMAC authentication when `HEALTH_CHECK_SECRET` is configured |
+| Rate Limiting | 60 requests/minute via Flask-Limiter |
 | Status Response | Returns 200 even if optional services are degraded |
 
 ### Critical Checks
@@ -105,7 +104,19 @@ Only these checks affect the overall health status:
 - `disk_space` - Available disk space
 - `db_integrity` - Database integrity
 
-Optional checks (do not affect overall status): `backup_freshness`, `email`, `redis`, `celery`
+### Optional Checks
+
+These checks are included in detailed output but do not affect the overall health status:
+
+- `backup_freshness` - Backup recency (when backup directory exists)
+- `email` - SMTP connectivity
+- `redis` - Redis connectivity
+- `celery` - Celery worker availability
+
+### Authenticated Detailed Health Check
+
+When `HEALTH_CHECK_SECRET` is configured, detailed health information is available via query parameters:
+- `?secret=<value>&detailed=true` - Returns full component status
 
 ## Encryption Key Requirements
 
