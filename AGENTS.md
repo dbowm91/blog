@@ -278,10 +278,6 @@ Series.posts relationship orders by `PostSeries.order_index` (not by date or tit
 
 ## Known Issues (For Reference)
 
-### Wave M Fixed Bugs (Verified in main)
-- **M-1.1**: `main.js:15,40,51` - FIXED: Changed `image-review.js` to `image-preview.js`
-- **M-1.2**: `app/tasks.py` - FIXED: Removed `max_retries` from email tasks, catch `Exception` instead
-
 ### Previously Fixed Configuration Issues
 - **docker-compose.yml**: FIXED - Added `blog_logs` volume to Celery
 - **docker-compose.yml:14**: FIXED - Added comment explaining `SESSION_COOKIE_SECURE` string handling
