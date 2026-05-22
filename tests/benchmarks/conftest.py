@@ -68,7 +68,7 @@ def admin_user(clean_db):
     ).scalar_one_or_none()
     if existing:
         return existing
-    user = User(username="admin", is_admin=True)
+    user = User(username="admin", email="admin@example.com", is_admin=True)
     user.set_password("testpassword")
     clean_db.session.add(user)
     clean_db.session.commit()
