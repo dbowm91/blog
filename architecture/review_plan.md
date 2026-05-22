@@ -1,5 +1,31 @@
 # Architecture Review Plan
 
+## Status: INCOMPLETE
+
+**Last Review:** All 8 modules reviewed (Wave K, May 2026)
+**Current Phase:** Implementation of review findings (Wave N - in progress)
+
+## Wave N Implementation (May 2026)
+
+### Completed Fixes
+
+| Priority | Fix | Location |
+|----------|-----|----------|
+| High | `datetime.utcnow()` deprecation | `app/services/backup.py:166` → `datetime.now(timezone.utc)` |
+| High | Email task retry logic fix | `app/tasks.py:267,289` - removed misleading `retry_backoff=True` |
+| High | mobile-menu.jsx import fix | `app/static/js/main.js:18` - corrected .js → .jsx |
+| Medium | Frontend AGENTS.override.md fixes | Removed non-existent `style.css`, `themes/`, `vite-plugin-flask` |
+| Medium | Templates AGENTS.override.md fix | Fixed `inject_config` variable names |
+| Medium | Routes admin-routes.md fix | Removed non-existent `list.py`, added page routes |
+| Medium | Deployment cicd.md fix | lint-and-type only tests Python 3.12 |
+| Medium | Deployment security.md fix | Removed non-existent `Permissions-Policy` header |
+
+### Verification Notes
+
+- Email tasks silently fail by design (return False on exception). `retry_backoff=True` was misleading without `max_retries` and `self.retry()`.
+- mobile-menu file is `mobile-menu.jsx` (JSX syntax), Vite glob matched it despite wrong extension in import.
+- Permissions-Policy header documented but never implemented in nginx or Flask.
+
 ## Overview
 
 This plan organizes a comprehensive review of all architecture documentation modules using subagents. Each subagent will:

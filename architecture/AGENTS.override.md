@@ -42,5 +42,14 @@ Continued architecture review findings implementation:
 - **docker.md/cicd.md** - Fixed health check docs, e2e-tests docs
 - **services/search.md** - Created new SearchProvider documentation
 
+## Wave N Implementation (May 2026)
+Architecture review findings implementation:
+- Fixed `datetime.utcnow()` deprecation in `app/services/backup.py`
+- Fixed email task retry logic in `app/tasks.py`
+- Fixed mobile-menu.jsx import in `app/static/js/main.js`
+- Fixed frontend AGENTS.override.md documentation
+- Fixed routes admin-routes.md documentation
+- Fixed deployment cicd.md and security.md documentation
+
 ## Architecture Review Skill
 See `.skills/architecture_review/skill.md` for detailed architecture review workflow.
