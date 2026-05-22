@@ -33,12 +33,12 @@ The `post_image_avif_url_stub` filter currently returns `None`. To enable AVIF s
 
 ## Backup Filename Validation
 
-Database backups must match the pattern `blog_\d{8}_\d{6}\.db(\.gz)?` to prevent path traversal attacks.
+Database backups must match the pattern `blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?` to prevent path traversal attacks.
 
 The regex `BACKUP_FILENAME_RE` in `app/routes/admin/helpers/shared.py:14` validates all backup filenames:
 
 ```python
-BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
+BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$")
 ```
 
 This validation is applied at:

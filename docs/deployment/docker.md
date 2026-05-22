@@ -81,6 +81,34 @@ GET /health
 
 Returns JSON with status of database, scheduler, search, disk space, and db_integrity.
 
+### Authenticated Health Check
+
+For detailed health information, authenticate with `HEALTH_CHECK_SECRET`:
+
+```
+GET /health?secret=<value>&detailed=true
+```
+
+Requires `HEALTH_CHECK_SECRET` environment variable in docker-compose.yml.
+
+**Location:** `app/routes/public/meta.py:199-203`
+
+### Health Check Status
+
+| Check | Category | Affects Overall Status |
+|-------|----------|------------------------|
+| database | critical | Yes |
+| scheduler | critical | Yes |
+| search | critical | Yes |
+| disk_space | critical | Yes |
+| db_integrity | critical | Yes |
+| backup_freshness | optional | No |
+| email | optional | No |
+| redis | optional | No |
+| celery | optional | No |
+
+**Location:** `app/routes/public/meta.py:286-293`
+
 ## Graceful Shutdown
 
 The scheduler runs as a daemon thread and will not prevent process exit. See [Scheduler](../tasks/scheduler.md) for details.
