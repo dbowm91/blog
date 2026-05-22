@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Any
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -163,7 +163,7 @@ def run_daily_backup(app: Any) -> None:
         app.logger.warning("Database file not found at %s, skipping backup", db_path)
         return
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     backup_filename = f"blog_{timestamp}.db"
     backup_path = os.path.join(backup_dir, backup_filename)
 
