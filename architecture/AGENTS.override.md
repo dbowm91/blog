@@ -49,5 +49,21 @@ All Wave N implementation items completed and verified:
 - All documentation fixes completed (see `plans/plan.md` for details)
 - Plan file pruned - only important context for future agents remains
 
+## Architecture Review Plan Completion (May 2026)
+All 8 module architecture reviews processed and fixes implemented:
+
+| Module | Fixes Applied |
+|--------|---------------|
+| core | SESSION_COOKIE_SECURE default string, SQLite PRAGMA via event listener |
+| routes | No fixes needed (docs already accurate) |
+| services | backup.md: run_daily_backup() uses blog_*.db (not backup_*.db) |
+| tasks | No fixes needed (docs already accurate) |
+| frontend | AGENTS.override.md: Added post_image_avif_url_stub filter |
+| infrastructure | No fixes needed (docs already accurate) |
+| deployment | No fixes needed (docs already accurate) |
+| testing | No fixes needed (docs already accurate) |
+
+See `architecture/review_plan.md` for full details.
+
 ## Architecture Review Skill
 See `.skills/architecture_review/skill.md` for detailed architecture review workflow.

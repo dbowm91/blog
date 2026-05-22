@@ -1,8 +1,45 @@
 # Architecture Review Plan
 
-**Status:** INCOMPLETE - Implementing review findings
+**Status:** COMPLETED - All review findings processed
 
-This plan outlines a comprehensive review of the architecture documentation. Each module will be reviewed by a subagent that will verify claims against the code and produce an improvement plan.
+This plan outlines a comprehensive review of the architecture documentation. Each module was reviewed by a subagent that verified claims against the code and produced an improvement plan.
+
+## Modules Reviewed
+
+| Module | Status | Key Fixes Applied |
+|--------|--------|-------------------|
+| core | ✅ Complete | SESSION_COOKIE_SECURE default string, SQLite PRAGMA via event listener |
+| routes | ✅ Complete | No fixes needed (docs already accurate) |
+| services | ✅ Complete | backup.md: run_daily_backup() uses blog_*.db (not backup_*.db) |
+| tasks | ✅ Complete | No fixes needed (docs already accurate) |
+| frontend | ✅ Complete | AGENTS.override.md: Added post_image_avif_url_stub filter |
+| infrastructure | ✅ Complete | No fixes needed (docs already accurate) |
+| deployment | ✅ Complete | No fixes needed (docs already accurate) |
+| testing | ✅ Complete | No fixes needed (docs already accurate) |
+
+## Completed Fixes
+
+1. **Wave 1 (Core)**: Fixed SESSION_COOKIE_SECURE documentation to reflect "true" string default, not boolean True. Updated SQLite PRAGMA documentation to reflect SQLAlchemy event listener approach.
+2. **Wave 3 (Services)**: Fixed backup.md to correctly document that run_daily_backup() uses `blog_*.db` naming pattern (same as create_backup()), not `backup_*.db`.
+3. **Wave 5 (Frontend)**: Fixed app/templates/AGENTS.override.md to include `post_image_avif_url_stub` in the filter list (line range updated from 11-72 to 11-83).
+
+## Remaining Items (Low Priority)
+
+The following items from the review plans were deemed low priority or not actionable:
+- Some AGENTS.override.md inconsistencies (minor)
+- Some documentation structure improvements (deferred)
+- Potential code improvements flagged in reviews (would require separate tickets)
+
+## See Also
+
+- [plans/core_review.md](plans/core_review.md)
+- [plans/routes_review.md](plans/routes_review.md)
+- [plans/services_review.md](plans/services_review.md)
+- [plans/tasks_review.md](plans/tasks_review.md)
+- [plans/frontend_review.md](plans/frontend_review.md)
+- [plans/infrastructure_review.md](plans/infrastructure_review.md)
+- [plans/deployment_review.md](plans/deployment_review.md)
+- [plans/testing_review.md](plans/testing_review.md)
 
 ## Modules to Review
 
