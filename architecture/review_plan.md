@@ -74,3 +74,23 @@ Each subagent will write their findings to:
 - `plans/services_review.md`
 - `plans/tasks_review.md`
 - `plans/testing_review.md`
+
+## Wave O Completion (May 2026)
+
+Implementation of architecture review findings from previous review cycles:
+
+| Module | Fixes Applied |
+|--------|---------------|
+| **deployment** | docker.md: Added ADMIN_USERNAME and FLASK_ENV to env vars, documented Celery concurrency=1, clarified BACKUP_ENCRYPTION_KEY generation, added PYTHONPATH for backup service |
+| **frontend** | static-assets.md: Added critical.css to CSS file list; templates.md: Added comments clarifying editor.html and page_editor.html |
+| **infrastructure** | webhooks.md: Fixed queue routing line numbers; overview.md: Clarified email check via scheduler status; storage.md: Added _delete_existing_variants() to S3 variant flow |
+| **routes** | api-routes.md: Fixed public comments rate limit (20/min->10/min), added 'pages' field to response; public-routes.md: Removed duplicate comment section, fixed sitemap cache claim; rss-feeds.md: Documented authors field in JSON Feed |
+| **services** | tag_cache.md: Removed stale line numbers from invalidation calls; backup.md: Added line number for run_daily_backup() |
+| **tasks** | celery-tasks.md: Fixed line numbers for db.session.remove(), added error handling table documenting retry behavior |
+| **testing** | test-suite.md: Fixed E2E setup instructions (pytest-playwright), added api_client and clean_db fixtures |
+
+**Status:** INCOMPLETE - Additional waves may be needed for further improvements.
+
+## See Also
+- `plans/` - Individual module review files with detailed findings
+- `architecture/AGENTS.override.md` - Module-specific agent guidance
