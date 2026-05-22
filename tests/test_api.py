@@ -2,7 +2,6 @@
 
 import os
 import pytest
-from tests.shared_fixtures import *
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
@@ -10,65 +9,8 @@ os.environ["API_KEY"] = "test-api-key-12345"
 os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 
-from app import create_app
-from app.extensions import db as _db
 from app.models import User, Post, Tag, Subscriber, PageView, ShareEvent
 from app.utils import utc_now
-
-
-@pytest.fixture(scope="session")
-def app(tmp_path_factory):
-    """Create application for the test session."""
-    db_dir = tmp_path_factory.mktemp("blog_api_test")
-    db_path = db_dir / "test.db"
-
-    os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
-
-    app = create_app()
-    app.config.update(
-        {
-            "TESTING": True,
-            "CSRF_ENABLED": False,
-        }
-    )
-
-    yield app
-
-
-@pytest.fixture(scope="function")
-def db(app):
-    """Create database tables for each test."""
-    with app.app_context():
-        _db.session.remove()
-        _db.create_all()
-        from app.search import init_fts
-
-        init_fts()
-        yield _db
-        _db.session.remove()
-        _db.drop_all()
-        _db.session.remove()
-
-
-@pytest.fixture(scope="function")
-def client(app, db):
-    """Create test client."""
-    return app.test_client()
-
-
-@pytest.fixture(scope="function")
-def admin_user(db):
-    """Create an admin user."""
-    existing = db.session.execute(
-        _db.select(User).filter_by(username="admin")
-    ).scalar_one_or_none()
-    if existing:
-        return existing
-    user = User(username="admin", is_admin=True)
-    user.set_password("testpassword")
-    db.session.add(user)
-    db.session.commit()
-    return user
 
 
 @pytest.fixture(scope="function")
