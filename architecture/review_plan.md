@@ -1,64 +1,85 @@
 # Architecture Review Plan
 
-**Project:** Blog CMS
-**Date:** 2026-05-21
-**Status:** IN PROGRESS (INCOMPLETE - iterative improvement ongoing)
+## Overview
 
----
+This plan organizes a comprehensive review of all architecture documentation modules using subagents. Each subagent will:
+1. Review their designated module's documentation
+2. Verify claims against actual code implementation
+3. Identify discrepancies, bugs, and improvements
+4. Write an improvement plan to `plans/<module>_review.md`
 
-## Wave Completion Summary
+## Modules to Review
 
-All 9 module reviews completed in Waves K, L, and continuation. Wave M fixes applied but architecture review is an ongoing iterative process.
+| Module | Directory | Documents | Subagent Output |
+|--------|-----------|-----------|----------------|
+| Core | `architecture/core/` | app-factory.md, configuration.md, models.md | `plans/core_review.md` |
+| Services | `architecture/services/` | backup.md, overview.md, search.md, serialization.md, slug.md, tag_cache.md, tag.md | `plans/services_review.md` |
+| Routes | `architecture/routes/` | admin-routes.md, api-routes.md, public-routes.md, rss-feeds.md | `plans/routes_review.md` |
+| Tasks | `architecture/tasks/` | celery-tasks.md, overview.md, scheduler.md | `plans/tasks_review.md` |
+| Infrastructure | `architecture/infrastructure/` | email.md, overview.md, search.md, storage.md, webhooks.md | `plans/infrastructure_review.md` |
+| Frontend | `architecture/frontend/` | overview.md, static-assets.md, templates.md | `plans/frontend_review.md` |
+| Deployment | `architecture/deployment/` | cicd.md, docker.md, overview.md, security.md | `plans/deployment_review.md` |
+| Testing | `architecture/testing/` | test-suite.md | `plans/testing_review.md` |
 
-| Module | Review File | Status |
-|--------|-------------|--------|
-| Core | `plans/core_review.md` | COMPLETED |
-| Routes | `plans/routes_review.md` | COMPLETED |
-| Services | `plans/services_review.md` | COMPLETED |
-| Tasks | `plans/tasks_review.md` | COMPLETED |
-| Infrastructure | `plans/infrastructure_review.md` | COMPLETED |
-| Frontend | `plans/frontend_review.md` | COMPLETED |
-| Deployment | `plans/deployment_review.md` | COMPLETED |
-| Testing | `plans/testing_review.md` | COMPLETED |
-| Overview | `plans/overview_review.md` | COMPLETED |
+## Review Workflow
 
-## Key Findings Summary
+For each module, the subagent should:
+1. Read all documentation files in the module directory
+2. Cross-reference claims with actual code in `app/`
+3. Verify implementation details against documentation
+4. Identify any bugs, inconsistencies, or improvement opportunities
+5. Document findings in `plans/<module>_review.md`
 
-### Critical Bugs Fixed (Wave L)
-1. **webhooks.py missing logger** - NameError at runtime
-2. **mobile-menu.jsx syntax error** - Parse failure
-3. **search.html srcset undefined** - Missing variable
-4. **scheduler.py SMTP disable logic** - Entire scheduler disabled
+## Subagent Execution
 
-### Critical Documentation Errors
-1. **Webhook.secret encryption** - Documented as plain text, actually encrypted at rest
-2. **Search provider documentation** - Module referenced but no documentation existed
+Launch subagents in parallel for independent modules:
 
-### Infrastructure Bugs Fixed (Wave M)
-1. **email.py exception handling** - Added SMTPException and SMTPServerDisconnected to catches
-2. **storage.py S3 credential clearing** - Removed _clear_credentials() that broke client recreation
+### 1. Core Review (architecture/core/)
+- **app-factory.md** - Flask app creation, extensions, context processors
+- **configuration.md** - Config classes, environment variables
+- **models.md** - SQLAlchemy models, relationships
 
-### Documentation Fixes (Wave M)
-1. **webhooks.md** - Fixed Webhook model with secret encryption and delivery_status field
-2. **docker.md** - Clarified health check authentication, rate limiting, optional checks
-3. **cicd.md** - Added --profile production and docker wait redis
-4. **services/search.md** - Created new SearchProvider documentation
-5. **services/overview.md** - Added Search to services table
+### 2. Services Review (architecture/services/)
+- **backup.md** - Backup service, encryption
+- **search.md** - Search provider abstraction, FTS5
+- **serialization.md** - JSON serialization
+- **slug.md** - Slug generation
+- **tag_cache.md** - Tag caching
+- **tag.md** - Tag service
 
-## Progress Tracking
+### 3. Routes Review (architecture/routes/)
+- **admin-routes.md** - Admin dashboard routes
+- **api-routes.md** - REST API endpoints
+- **public-routes.md** - Public facing routes
+- **rss-feeds.md** - Atom/RSS/JSON feeds
 
-| Module | Status | Output |
-|--------|--------|--------|
-| Core | COMPLETED | plans/core_review.md |
-| Routes | COMPLETED | plans/routes_review.md |
-| Services | COMPLETED | plans/services_review.md |
-| Tasks | COMPLETED | plans/tasks_review.md |
-| Infrastructure | COMPLETED | plans/infrastructure_review.md |
-| Frontend | COMPLETED | plans/frontend_review.md |
-| Deployment | COMPLETED | plans/deployment_review.md |
-| Testing | COMPLETED | plans/testing_review.md |
-| Overview | COMPLETED | plans/overview_review.md |
+### 4. Tasks Review (architecture/tasks/)
+- **celery-tasks.md** - Celery task definitions
+- **scheduler.md** - APScheduler jobs
 
----
+### 5. Infrastructure Review (architecture/infrastructure/)
+- **email.md** - Email sending, SMTP handling
+- **search.md** - Search infrastructure
+- **storage.md** - S3 storage backend
+- **webhooks.md** - Webhook delivery, encryption
 
-*Last updated: 2026-05-22 - All module reviews COMPLETED, Wave M fixes applied*
+### 6. Frontend Review (architecture/frontend/)
+- **static-assets.md** - JS/CSS assets, Vite
+- **templates.md** - Jinja2 templates
+
+### 7. Deployment Review (architecture/deployment/)
+- **docker.md** - Docker configuration
+- **cicd.md** - CI/CD pipeline
+- **security.md** - Security configuration
+
+### 8. Testing Review (architecture/testing/)
+- **test-suite.md** - Test infrastructure
+
+## Output Format
+
+Each module's improvement plan should contain:
+- **Verified Claims** - Documentation claims confirmed in code
+- **Discrepancies** - Documentation vs implementation mismatches
+- **Bugs Found** - Actual bugs discovered
+- **Improvement Opportunities** - Suggested enhancements
+- **Priority** - High/Medium/Low classification
