@@ -15,9 +15,14 @@ Webhook delivery system with SSRF protection and HMAC signing.
 class Webhook(db.Model):
     name = db.Column(db.String(100))
     url = db.Column(db.String(512))
-    secret = db.Column(db.String(64))  # Encrypted
+    webhook_secret_encrypted = db.Column(db.LargeBinary(256))  # AES-256-GCM encrypted
     event_type = db.Column(db.String(32))  # post.published, post.created, etc.
     enabled = db.Column(db.Boolean, default=True)
+
+    @property
+    def secret(self) -> str:
+        """Decrypt and return the webhook secret."""
+        # Uses app.webhook_encryption.py for AES-256-GCM decryption
 
 class WebhookEvent(db.Model):
     webhook_id = db.Column(db.Integer, db.ForeignKey("webhooks.id"))
@@ -26,6 +31,7 @@ class WebhookEvent(db.Model):
     target_id = db.Column(db.Integer)  # Related object ID
     target_type = db.Column(db.String(32))  # "post", "subscriber", etc.
     delivered = db.Column(db.Boolean, default=False)
+    delivery_status = db.Column(db.String(32))  # 'failed', 'partial_failure', 'delivered'
     delivery_attempts = db.Column(db.Integer, default=0)
 ```
 
@@ -95,6 +101,16 @@ The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive
   - AWS: 169.254.169.254
   - GCP: metadata.google.internal
 - **Redirect blocking**: Both `deliver_webhook()` and `deliver_webhook_task` set `allow_redirects=False`
+
+## Delivery Status Tracking
+
+`WebhookEvent.delivery_status` tracks the outcome of webhook deliveries:
+
+| Status | Meaning |
+|--------|---------|
+| `'delivered'` | All webhooks in the event succeeded |
+| `'partial_failure'` | Some webhooks succeeded, some failed |
+| `'failed'` | All webhooks in the event failed |
 
 ## Event Types
 
