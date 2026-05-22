@@ -30,3 +30,19 @@ The `post_image_avif_url_stub` filter currently returns `None`. To enable AVIF s
 - Maximum upload size: 10MB (configurable via `max_upload_size`)
 - Maximum files per upload batch: 1000 (configurable via `media_max_files`)
 - Supported formats: JPEG, PNG, GIF, WebP
+
+## Backup Filename Validation
+
+Database backups must match the pattern `blog_\d{8}_\d{6}\.db(\.gz)?` to prevent path traversal attacks.
+
+The regex `BACKUP_FILENAME_RE` in `app/routes/admin/helpers/shared.py:14` validates all backup filenames:
+
+```python
+BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?$")
+```
+
+This validation is applied at:
+- `app/routes/admin/backup.py:95`
+- `app/routes/admin/backup.py:120`
+- `app/routes/admin/backup.py:182`
+- `app/routes/admin/backup.py:213`

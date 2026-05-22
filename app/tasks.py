@@ -173,6 +173,11 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
                 if post is not None:
                     post.newsletter_attempts = (post.newsletter_attempts or 0) + 1
             db.session.commit()
+            logger.warning(
+                "Newsletter task failed for %d posts (attempts incremented to %d)",
+                len(posts),
+                post.newsletter_attempts,
+            )
 
         return success
     finally:
