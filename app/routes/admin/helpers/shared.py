@@ -16,6 +16,18 @@ BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$")
 logger = logging.getLogger(__name__)
 
 
+def validate_backup_filename(filename: str) -> bool:
+    """Validate backup filename matches expected pattern.
+
+    Args:
+        filename: The filename to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    return bool(BACKUP_FILENAME_RE.match(filename))
+
+
 def _categorize_referrer(url: str | None) -> str:
     if not url:
         return "Direct"

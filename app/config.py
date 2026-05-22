@@ -40,6 +40,8 @@ __all__ = [
     "EXPORT_BATCH_SIZE",
     "FTS_RESULT_LIMIT",
     "PAGE_VIEW_BUFFER_SIZE",
+    "ANALYTICS_DAYS_MIN",
+    "ANALYTICS_DAYS_MAX",
     "TOKEN_ENUMERATION_DELAY",
     "LOGIN_FAILURE_DELAY",
     "PREVIEW_TOKEN_EXPIRY_DAYS",
@@ -121,6 +123,8 @@ MEDIA_MAX_FILES = int(_config["app"].get("media_max_files", 1000))
 MAX_UPLOAD_SIZE = int(_config["app"].get("max_upload_size", 10485760))
 EXPORT_BATCH_SIZE = int(_config["app"].get("export_batch_size", 500))
 FTS_RESULT_LIMIT = int(_config["app"].get("fts_result_limit", 100))
+ANALYTICS_DAYS_MIN = int(_config["app"].get("analytics_days_min", 7))
+ANALYTICS_DAYS_MAX = int(_config["app"].get("analytics_days_max", 365))
 PAGE_VIEW_BUFFER_SIZE = int(os.environ.get("PAGE_VIEW_BUFFER_SIZE", _config["app"].get("page_view_buffer_size", 0)))
 TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.1))
 PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))

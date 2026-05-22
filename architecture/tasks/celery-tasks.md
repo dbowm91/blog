@@ -28,6 +28,8 @@ Generates responsive image variants:
 
 **Storage Support:** Local and S3 backends
 
+**Non-Retry Behavior:** On failure, returns `False` without raising an exception. Variant generation is non-critical (falls back to original image), so failures are logged but do not trigger Celery retry. This prevents unnecessary retry attempts for non-essential image processing.
+
 ### `send_newsletter_task`
 
 ```python
@@ -92,6 +94,26 @@ Runs database backup asynchronously via `create_backup()`:
 - `max_retries=3` (2 for backup)
 - `retry_backoff=True` (exponential backoff)
 - Time limits for long-running tasks
+
+## Database Session Management
+
+All Celery tasks that interact with the database should use `db.session.remove()` in a `finally` block to clean up the scoped session after task completion. This pattern is used throughout `app/tasks.py`:
+
+```python
+try:
+    # Database operations
+    ...
+    db.session.commit()
+finally:
+    db.session.remove()
+```
+
+This ensures that:
+- The scoped session is properly closed after each task
+- Database connections are returned to the pool
+- No stale connections are left hanging
+
+Tasks using this pattern: `send_newsletter_task` (line ~178), `deliver_webhook_task` (line ~258), `send_confirmation_task` (line ~282), `send_password_reset_task` (line ~303), `run_backup_task` (line ~321).
 
 ## See Also
 - [APScheduler](tasks/scheduler.md) - In-process scheduled jobs

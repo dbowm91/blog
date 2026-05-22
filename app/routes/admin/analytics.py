@@ -4,6 +4,7 @@ from flask import render_template, request, Response
 
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers.analytics import _get_analytics_data
+from app.config import ANALYTICS_DAYS_MIN, ANALYTICS_DAYS_MAX
 
 
 @admin.route("/analytics")
@@ -20,7 +21,7 @@ def analytics() -> Response:
                       share_counts, referrer_summary, total_subscribers, confirmed_subscribers.
     """
     days = request.args.get("days", 30, type=int)
-    days = min(max(days, 7), 365)
+    days = min(max(days, ANALYTICS_DAYS_MIN), ANALYTICS_DAYS_MAX)
 
     data = _get_analytics_data(days)
 

@@ -16,7 +16,7 @@ from app.extensions import db
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _get_backup_dir
 from app.utils import safe_delete_file
-from app.routes.admin.helpers.shared import BACKUP_FILENAME_RE
+from app.routes.admin.helpers.shared import BACKUP_FILENAME_RE, validate_backup_filename
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -92,7 +92,7 @@ def download_backup(filename) -> ResponseReturnValue:
     Requires: Admin authentication.
     Path params: filename - Name of backup file (validated against regex).
     """
-    if not BACKUP_FILENAME_RE.match(filename):
+    if not validate_backup_filename(filename):
         abort(400)
     backup_dir = _get_backup_dir()
     filepath = os.path.join(backup_dir, filename)
@@ -117,7 +117,7 @@ def restore_backup(filename) -> ResponseReturnValue:
     Path params: filename - Name of backup file to restore.
     Warning: Requires app restart for full effect.
     """
-    if not BACKUP_FILENAME_RE.match(filename):
+    if not validate_backup_filename(filename):
         abort(400)
     backup_dir = _get_backup_dir()
     filepath = os.path.join(backup_dir, filename)
@@ -179,7 +179,7 @@ def delete_backup(filename) -> ResponseReturnValue:
     Requires: Admin authentication.
     Path params: filename - Name of backup file to delete.
     """
-    if not BACKUP_FILENAME_RE.match(filename):
+    if not validate_backup_filename(filename):
         abort(400)
     backup_dir = _get_backup_dir()
     filepath = os.path.join(backup_dir, filename)
@@ -210,7 +210,7 @@ def verify_backup(filename) -> ResponseReturnValue:
     from pathlib import Path
     from app.backup_integrity import verify_backup_integrity
 
-    if not BACKUP_FILENAME_RE.match(filename):
+    if not validate_backup_filename(filename):
         abort(400)
     backup_dir = _get_backup_dir()
     filepath = os.path.join(backup_dir, filename)
