@@ -41,12 +41,13 @@ app/templates/
 
 ## Template Filters
 
-Defined in `app/filters.py` (lines 11-72):
+Defined in `app/filters.py` (lines 11-83):
 - `markdown_safe` - Render markdown to HTML with nh3 sanitization
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with request-level caching
 - `post_image_srcset` - Generate srcset for responsive images
+- `post_image_avif_url_stub` - Returns None until AVIF encoding is enabled
 
 Note: Jinja2 built-in filters like `truncate`, `format`, `length` are also available.
 Note: `custom_css` is a context variable (from `inject_theme()`), not a filter.
