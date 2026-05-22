@@ -43,17 +43,19 @@ tests/
 ├── test_models.py       # Model unit tests
 ├── test_public.py       # Public routes tests
 ├── test_admin.py        # Admin routes tests
-├── test_api.py          # REST API tests (has its own app fixture with buffer protection)
-├── test_rss.py          # RSS/Atom feed tests
+├── test_api.py          # REST API tests (imports from shared_fixtures)
+├── test_coverage.py     # RSS/Atom feed tests (NOT test_rss.py)
 ├── test_search.py       # FTS5 search tests
 ├── test_utils.py        # Utility function tests
 ├── test_cli.py          # CLI command tests
-├── benchmarks/          # Benchmark tests (has buffer protection)
-└── e2e/                 # Playwright E2E tests (has buffer protection)
-    ├── test_home.py
-    ├── test_post.py
-    └── test_admin.py
+├── shared_fixtures.py   # Shared fixtures (ensure_buffer_disabled here)
+├── benchmarks/          # Benchmark tests
+│   └── conftest.py      # Benchmark fixtures
+└── e2e/                 # Playwright E2E tests
+    └── test_e2e.py      # Contains TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ```
+
+Note: E2E tests are ALL in `test_e2e.py` - NOT in separate test_home.py, test_post.py, test_admin.py files.
 
 ## Key Fixtures
 

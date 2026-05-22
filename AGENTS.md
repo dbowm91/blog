@@ -97,12 +97,12 @@ These files have been flagged for exception handling issues:
 ### Search Abstraction
 - `SearchProvider` abstract class in `app/services/search/__init__.py`
 - `SQLiteSearchProvider` wraps existing FTS5 functionality
-- `PostgreSQLSearchProvider` is a stub for future implementation
+- `PostgreSQLSearchProvider` is a stub for future implementation (falls back to SQLite silently)
 - `get_search_provider()` factory function selects provider by `SEARCH_PROVIDER` config
 
 ### Frontend
 - Vite configured for code splitting with `manualChunks`
-- `post_image_avif_url_stub` filter added (returns None until AVIF encoding is enabled)
+- `post_image_avif_url_stub` filter is DEPRECATED - returns None until AVIF encoding is enabled
 
 ### Brotli
 - Nginx configuration includes commented Brotli settings
@@ -286,6 +286,35 @@ Series.posts relationship orders by `PostSeries.order_index` (not by date or tit
 ### Previously Fixed Configuration Issues
 - **docker-compose.yml**: FIXED - Added `blog_logs` volume to Celery
 - **docker-compose.yml:14**: FIXED - Added comment explaining `SESSION_COOKIE_SECURE` string handling
+
+### Known Bugs (For Reference)
+
+#### mobile-menu.jsx Syntax Error
+`app/static/js/shared/mobile-menu.jsx:42` has an extra `});` that prevents JSX compilation. Must fix before Vite build works.
+
+#### marked-wrapper.js Non-Functional in Production
+`app/static/js/lib/marked-wrapper.js:6-18` uses `fetch()` to load `marked.min.js` at runtime which fails in Vite production builds. Must use proper ES module import.
+
+#### Comment Submission Missing CSRF Protection
+`app/routes/public/comments.py` POST route has no CSRF validation while other public routes do. Security gap that should be addressed.
+
+#### Public Preview Redundant Session Check
+`app/routes/public/posts.py:128` checks `session.get('admin_user_id')` after HMAC token validation at lines 117-126. HMAC should be sufficient for preview access.
+
+#### Slug Generation Race Condition
+`app/services/slug.py` has no database-level unique constraint. Concurrent requests could generate duplicate slugs. Consider adding unique index on slug columns.
+
+#### Webhook Task No-op Assertion
+`app/tasks.py:248` has `assert event is not None` which is always true at that point. Should be removed.
+
+#### PostgreSQL Search Provider Silent Fallback
+`app/services/search/postgresql.py` silently falls back to SQLite when configured. Should raise ConfigurationError instead.
+
+#### Backup Compression Error Cleanup Incomplete
+`app/services/backup.py:68-90` may leave orphaned temp files if compression fails after backup file creation.
+
+#### Duplicate BACKUP_RETENTION_COUNT
+Defined in both `app/services/backup.py:21` AND `app/scheduler.py:261`. Should import from backup.py in scheduler.
 
 ## Skills
 
