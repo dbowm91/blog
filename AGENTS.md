@@ -293,23 +293,26 @@ nginx `limit_req_zone=login` is configured at `rate=5r/m` and Flask `ADMIN_RATE_
 ### CSRF Token Rotation Is On Every Use
 `app/csrf.py` rotates tokens on every successful validation, not specifically on privilege changes. The claim in `architecture/deployment/security.md` about "token rotation on privilege changes" is not accurate - that feature is not implemented.
 
-### Comment Submission Missing Rate Limit
-**RESOLVED** - Comments now have rate limiting via `@limiter.limit("10 per minute")` and CSRF protection via `validate_csrf_token()`.
+### Comment Submission Rate Limiting
+Comments are rate limited at 10 per minute and require CSRF protection via `validate_csrf_token()`.
+- Route: `POST /post/<slug>/comment` in `app/routes/public/comments.py`
+- Rate limit: `@limiter.limit("10 per minute")`
+- CSRF: Hidden `csrf_token` field in form, validated before processing
 
-### Test Coverage Gaps
-**RESOLVED** - All gaps have been addressed:
-- **2FA/TOTP**: Tests exist in `tests/test_2fa.py`
-- **SearchProvider abstraction**: Tests exist in `tests/test_search.py`
-- **WebhookEvent.delivery_status**: Tests exist in `tests/test_webhooks.py` (TestWebhookEventDeliveryStatus class)
+### Test Coverage
+All test gaps have been addressed:
+- **2FA/TOTP**: `tests/test_2fa.py`
+- **SearchProvider abstraction**: `tests/test_search.py`
+- **WebhookEvent.delivery_status**: `tests/test_webhooks.py` (TestWebhookEventDeliveryStatus class)
 
-### Task Decorator Line Numbers Drift
-**RESOLVED** - Line numbers have been corrected in `architecture/tasks/scheduler.md`. Current actual line numbers:
-- generate_image_variants: 28
-- send_newsletter_task: 127
-- deliver_webhook_task: 184
-- send_confirmation_task: 263
-- send_password_reset_task: 284
-- run_backup_task: 305
+### Task Decorator Line Numbers
+Actual line numbers in `app/tasks.py`:
+- `generate_image_variants`: 28
+- `send_newsletter_task`: 127
+- `deliver_webhook_task`: 184
+- `send_confirmation_task`: 263
+- `send_password_reset_task`: 284
+- `run_backup_task`: 305
 
 ### E2E Test Structure
 All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`. NOT in separate test_home.py, test_post.py, test_admin.py files.
@@ -326,22 +329,16 @@ Benchmark tests in `tests/benchmarks/` don't use a `client` fixture - they creat
 ### Backup Service Missing PYTHONPATH
 **RESOLVED** - docker-compose.yml backup service now has `PYTHONPATH=/home/blog`.
 
-## New Implementation Notes (Wave A-F Completed)
-
-### PostgreSQL Search Provider Raises ConfigurationError
-When `SEARCH_PROVIDER=postgresql` is configured, `PostgreSQLSearchProvider` methods now raise `ConfigurationError` instead of silently falling back to SQLite.
+## Implementation Notes
 
 ### Variant Cleanup on Image Replacement
 When `upload_with_processing()` is called with an existing filename, old variants (400_, 800_, 1200_, .webp, .avif) are automatically cleaned up before creating new ones.
 
 ### Backup Compression Cleanup
-Compressed backups now use a `finally` block to ensure `.tmp` files are cleaned up even if `os.replace()` fails.
+Compressed backups use a `finally` block to ensure `.tmp` files are cleaned up even if `os.replace()` fails.
 
 ### Analytics Days Range Configurable
 `ANALYTICS_DAYS_MIN` (default 7) and `ANALYTICS_DAYS_MAX` (default 365) are now configurable via config.toml under `[app]`.
-
-### CSRF on Comments
-Comment submission now requires valid CSRF token (similar to subscribe route) and is rate limited at 10/minute.
 
 ## Skills
 
