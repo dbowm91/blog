@@ -49,19 +49,18 @@ All Wave N implementation items completed and verified:
 - All documentation fixes completed (see `plans/plan.md` for details)
 - Plan file pruned - only important context for future agents remains
 
-## Architecture Review Plan Completion (May 2026)
-All 8 module architecture reviews processed and fixes implemented:
+## Wave O Completion (May 2026)
+Implementation of review findings from `plans/<module>_review.md`:
 
 | Module | Fixes Applied |
 |--------|---------------|
-| core | SESSION_COOKIE_SECURE default string, SQLite PRAGMA via event listener |
-| routes | No fixes needed (docs already accurate) |
-| services | backup.md: run_daily_backup() uses blog_*.db (not backup_*.db) |
-| tasks | No fixes needed (docs already accurate) |
-| frontend | AGENTS.override.md: Added post_image_avif_url_stub filter |
-| infrastructure | No fixes needed (docs already accurate) |
-| deployment | No fixes needed (docs already accurate) |
-| testing | No fixes needed (docs already accurate) |
+| **deployment** | docker.md: ADMIN_USERNAME/FLASK_ENV env vars, Celery concurrency=1, BACKUP_ENCRYPTION_KEY clarification, PYTHONPATH for backup |
+| **frontend** | static-assets.md: Added critical.css; templates.md: Clarified editor.html/page_editor.html |
+| **infrastructure** | webhooks.md: Fixed queue routing line numbers; overview.md: Email check via scheduler status; storage.md: S3 variant cleanup |
+| **routes** | api-routes.md: Rate limit fix (10/min), 'pages' field; public-routes.md: Duplicate section removed, sitemap cache; rss-feeds.md: authors field |
+| **services** | tag_cache.md: Removed stale line numbers; backup.md: run_daily_backup() line number |
+| **tasks** | celery-tasks.md: Line numbers fixed, error handling table added |
+| **testing** | test-suite.md: pytest-playwright instructions, api_client fixture |
 
 See `architecture/review_plan.md` for full details.
 

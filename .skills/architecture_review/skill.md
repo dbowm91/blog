@@ -18,12 +18,21 @@ architecture, review, documentation, verify, cross-reference
 
 ## Status
 
-All architecture review waves completed. Plan items implemented and verified.
+Wave O completed (May 2026). Additional fixes documented in `plans/<module>_review.md` implemented across all modules.
+
+### Wave O Fixes Applied
+- **deployment**: Env vars (ADMIN_USERNAME, FLASK_ENV), Celery concurrency, BACKUP_ENCRYPTION_KEY clarification, PYTHONPATH
+- **frontend**: critical.css added, editor.html/page_editor.html clarified
+- **infrastructure**: Queue routing line numbers fixed, email check via scheduler, S3 variant cleanup
+- **routes**: Rate limit (10/min), pages field, duplicate section removed, sitemap cache, authors field
+- **services**: Stale line numbers removed, run_daily_backup() line number added
+- **tasks**: Line numbers fixed, error handling table added
+- **testing**: pytest-playwright instructions, api_client fixture added
 
 ### Plan Completion (May 2026)
 - Wave A-F: All 36 items implemented and verified
-- Deferred: B2 (per-webhook retry) - acknowledged in architecture docs
-- Plan pruned to summary status in `plans/plan.md`
+- Wave J-N: All review findings implemented
+- Wave O: Documentation fixes from module reviews implemented
 
 ### Critical Bugs Fixed
 1. `app/webhooks.py:111` - Missing logger (NameError at runtime)
@@ -37,3 +46,11 @@ All architecture review waves completed. Plan items implemented and verified.
 - All configuration values verified
 - All Celery queue names and line numbers correct
 - All APScheduler schedules correct
+
+### Architecture Review Notes
+When reviewing documentation:
+- Line numbers become stale quickly - prefer functional descriptions over specific line references
+- Queue routing table line numbers updated to actual: images:28, newsletter:127, webhooks:184, email:263,284, backup:305
+- Rate limit values should be verified against actual code (e.g., public comments is 10/min, not 20/min)
+- Error handling table documents actual retry behavior for Celery tasks
+- E2E tests use pytest-playwright, not @playwright/test
