@@ -66,7 +66,7 @@ These files have been flagged for exception handling issues:
 | `app/email.py` | SMTP exception too broad | FIXED |
 | `app/backup_integrity.py` | Previously broad exception | FIXED |
 | `app/webhooks.py` | Silent failure with `pass` | FIXED |
-| `app/tasks.py` | Email task retry logic broken (N-1.1) | IN PROGRESS |
+| `app/tasks.py` | Email task retry logic (N-1.1) | FIXED |
 | `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
@@ -273,13 +273,13 @@ When catching SMTP exceptions, catch both specific subclasses and base classes:
 These may leak as unhandled exceptions if not explicitly caught.
 
 ### Email Task Retry Logic
-`send_confirmation_task` and `send_password_reset_task` in `app/tasks.py` catch exceptions and return `False` without calling `self.retry()`. These tasks do NOT have `max_retries` set and will not retry on failure. See Wave N-1.1 in `plans/plan.md`.
+`send_confirmation_task` and `send_password_reset_task` in `app/tasks.py` now have `max_retries=3` and call `self.retry(exc=e)` on exception for automatic retry with exponential backoff.
 
 ### image-preview.js Not image-review.js
 The admin image preview module is named `image-preview.js`, NOT `image-review.js`. Code imports in `main.js:15,40,51` reference the wrong filename.
 
 ### mobile-menu.jsx Import Issue
-`app/static/js/main.js:18,72` imports `./shared/mobile-menu.jsx` but the file is actually `.jsx`. This works by coincidence due to Vite's glob matching, but the import is inconsistent. See `plans/plan.md: N-1.2` for fix.
+`app/static/js/main.js` was fixed to use `./shared/mobile-menu.jsx` instead of `./shared/mobile-menu.js`.
 
 ### Series.posts Ordering
 Series.posts relationship orders by `PostSeries.order_index` (not by date or title).
