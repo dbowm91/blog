@@ -66,7 +66,7 @@ def deliver_webhook(
 Delivers to single URL with:
 - SSRF validation via `is_safe_webhook_url()`
 - HMAC signature header
-- 10 second timeout
+- `WEBHOOK_TIMEOUT` second timeout (configurable via `webhook.timeout` in config)
 - No redirects allowed
 
 **Deprecated:** This function is deprecated. All webhook deliveries should go through the `deliver_webhook_task` Celery task which handles async processing with proper retry logic and SSRF protection.
@@ -122,7 +122,7 @@ The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive
 
 ## Queue Routing
 
-Webhook delivery uses the `webhooks` Celery queue (see `app/tasks.py:192`).
+Webhook delivery uses the `webhooks` Celery queue (see `app/tasks.py:184`).
 
 Other queues used by the system:
 

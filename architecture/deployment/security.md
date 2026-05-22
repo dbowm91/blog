@@ -58,7 +58,7 @@ Referrer-Policy: strict-origin-when-cross-origin (Both Flask and nginx)
 
 | Key | Minimum Length | Generation |
 |-----|---------------|------------|
-| `BACKUP_ENCRYPTION_KEY` | 12 characters | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `BACKUP_ENCRYPTION_KEY` | 12 characters | `python -c "import secrets; print(secrets.token_urlsafe(12))"` |
 | `WEBHOOK_ENCRYPTION_KEY` | 32 bytes / 64 hex chars | `python -c "import secrets; print(secrets.token_hex(32))"` |
 
 ## Admin Audit Log

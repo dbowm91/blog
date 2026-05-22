@@ -79,8 +79,10 @@ For coordinated multi-worker deployments, consider:
 
 | Variable | Description |
 |----------|-------------|
+| `FLASK_ENV` | `development` or `production` (affects Redis caching) |
 | `SECRET_KEY` | Flask secret key |
 | `ADMIN_PASSWORD` | Admin password |
+| `ADMIN_USERNAME` | Admin username (optional, defaults to `admin`) |
 | `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `blog.db`) |
 | `REDIS_URL` | Redis connection |
 | `SMTP_HOST` | SMTP server for newsletter/email (optional) |
@@ -90,6 +92,7 @@ For coordinated multi-worker deployments, consider:
 | `CELERY_BROKER_URL` | Celery broker URL (optional, defaults to REDIS_URL) |
 | `HEALTH_CHECK_SECRET` | Secret for detailed health check access |
 | `PROXY_COUNT` | Number of proxies for ProxyFix middleware (default: 1) |
+| `PYTHONPATH` | Python path for Celery/backup services (set to `/home/blog`) |
 
 ## Health Check Endpoint
 
@@ -129,7 +132,7 @@ When `HEALTH_CHECK_SECRET` is configured, detailed health information is availab
 
 | Key | Minimum Length | Generation |
 |-----|---------------|------------|
-| `BACKUP_ENCRYPTION_KEY` | 12 characters | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `BACKUP_ENCRYPTION_KEY` | 12 characters | `python -c "import secrets; print(secrets.token_urlsafe(12))"` |
 | `WEBHOOK_ENCRYPTION_KEY` | 32 bytes / 64 hex chars | `python -c "import secrets; print(secrets.token_hex(32))"` |
 
 ## Resource Limits
