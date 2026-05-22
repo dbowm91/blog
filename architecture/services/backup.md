@@ -5,7 +5,7 @@ Unified backup service for CLI, scheduler, and cron jobs.
 ## Features
 
 - **Compression**: Gzip compression support
-- **Encryption**: AES-256-GCM encryption with PBKDF2 key derivation (not GPG)
+- **Encryption**: AES-256-GCM encryption with PBKDF2 key derivation (600,000 iterations)
 - **Retention**: Configurable backup retention (default: 7)
 - **API**: Uses SQLite's native `backup()` API for consistency
 
@@ -30,7 +30,7 @@ def create_backup(
 | `backup_dir` | `str` | required | Backup directory |
 | `compress` | `bool` | `False` | Gzip compression |
 | `keep` | `int` | `7` | Retention count |
-| `encrypt` | `bool` | `False` | AES-256-GCM encryption (uses PBKDF2 key derivation) |
+| `encrypt` | `bool` | `False` | AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation |
 
 **Returns:** Path to backup file or `None` on failure
 
@@ -48,12 +48,12 @@ Removes old backups, keeping only the most recent `keep` backups.
 def run_daily_backup(app: Any) -> None
 ```
 
-Scheduler-friendly daily backup function used by APScheduler.
-- **Naming**: Uses `blog_*.db` pattern (same as Celery task)
-- **Retention**: Same `blog_*.db` pattern, managed by `cleanup_old_backups()`
-- **No encryption/compression**: For encrypted/compressed backups, use Celery task `run_backup_task`
+APScheduler-friendly daily backup function.
+- **Naming**: Uses `blog_*.db` pattern (same as `create_backup()`)
+- **No encryption/compression**: Plain SQLite backup
+- **Retention**: Same pattern, managed by `cleanup_old_backups()` which handles `blog_*.db` files
 
-**Note**: Both `run_daily_backup()` and `cleanup_old_backups()` use the `blog_*.db` pattern.
+**Note**: Both `run_daily_backup()` and `create_backup()` use `blog_*.db` naming. `cleanup_old_backups()` handles retention for both.
 
 ## Dual Backup Implementations
 
@@ -63,12 +63,10 @@ This service provides two distinct backup implementations:
 |--------|---------------------------|----------------------------------|
 | Trigger | Celery task `run_backup_task` | APScheduler job at 02:00 |
 | Creates | `blog_YYYYMMDD_HHMMSS.db` | `blog_YYYYMMDD_HHMMSS.db` |
-| Manages retention | Via `cleanup_old_backups()` (handles `blog_*`) | Via `cleanup_old_backups()` (handles `blog_*`) |
+| Manages retention | Via `cleanup_old_backups()` | Via `cleanup_old_backups()` |
 | Encryption | AES-256-GCM with PBKDF2 | None |
 | Compression | Optional gzip | None |
 | Use case | On-demand encrypted backups | Scheduled daily backups |
-
-**Naming Note**: Both create `blog_*.db` files. `cleanup_old_backups()` handles retention for both.
 
 ### `decrypt_backup_file()`
 
@@ -89,10 +87,12 @@ Decrypts an AES-256-GCM-encrypted backup file.
 ## Backup File Naming
 
 ```
-blog_YYYYMMDD_HHMMSS.db       # Plain
-blog_YYYYMMDD_HHMMSS.db.gz     # Compressed
-blog_YYYYMMDD_HHMMSS.db.gpg    # Encrypted
+blog_YYYYMMDD_HHMMSS.db       # Plain (both create_backup and run_daily_backup)
+blog_YYYYMMDD_HHMMSS.db.gz     # Compressed (create_backup with compress=True)
+blog_YYYYMMDD_HHMMSS.db.gpg    # Encrypted (create_backup with encrypt=True)
 ```
+
+**Note**: Both `create_backup()` and `run_daily_backup()` use `blog_*.db` naming. The extension varies based on compression/encryption.
 
 ## Retention Policy
 
