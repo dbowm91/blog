@@ -165,13 +165,7 @@ class S3StorageBackend(StorageBackend):
                         client_kwargs["endpoint_url"] = self.endpoint
 
                     self._client = boto3.client("s3", **client_kwargs)
-                    self._clear_credentials()
         return self._client
-
-    def _clear_credentials(self) -> None:
-        """Clear stored credentials after client initialization to minimize sensitive data lifetime."""
-        self.access_key = None
-        self.secret_key = None
 
     def save(self, filename: str, data: bytes) -> str:
         self.client.put_object(Bucket=self.bucket, Key=filename, Body=data)
