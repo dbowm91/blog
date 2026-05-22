@@ -25,8 +25,8 @@ When an agent operates within a module, it should:
 | Documentation | `docs/AGENTS.override.md` | Documentation structure |
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
-| Architecture | `architecture/AGENTS.override.md` | Architecture review plans |
-| Plans | `plans/AGENTS.override.md` | Roadmap, execution waves, project planning |
+| Architecture | `architecture/AGENTS.override.md` | Architecture documentation |
+| Plans | `plans/AGENTS.override.md` | Project planning and implementation guidance |
 
 ## Structure Convention
 
@@ -109,21 +109,6 @@ These files have been flagged for exception handling issues:
 - Requires custom nginx image with `--with-http_brotli_module`
 
 ## Important Notes for Future Agents
-
-### Plan Item Verification
-When implementing items from `plans/plan.md`, always verify against actual code first. Architecture review findings may contain errors or be outdated. Wave L verification (May 2026) found multiple items marked as "bugs" were already correct in the codebase.
-
-### Webhook Secret Encryption (CRITICAL) - FIXED
-`Webhook.secret` in `app/models.py` is now encrypted at rest using AES-256-GCM via `app/webhook_encryption.py`. The `Webhook` model uses a `webhook_secret_encrypted` column (LargeBinary) with a property getter/setter that handles encryption/decryption. Requires `WEBHOOK_ENCRYPTION_KEY` config (32 bytes or 64 hex characters).
-
-### Newsletter Stuck Posts - FIXED
-Posts that hit `NEWSLETTER_MAX_RETRY_ATTEMPTS` are now logged in `app/scheduler.py` when excluded from the newsletter queue. Warning log includes first 5 excluded post IDs and titles.
-
-### Webhook Partial Failure Handling - FIXED
-`WebhookEvent` now has a `delivery_status` field that tracks `'failed'`, `'partial_failure'`, or `'delivered'`. Partial failure is when some webhooks succeed but not all. See `app/tasks.py` for implementation.
-
-### Preview Route Security
-The public preview route at `/preview/<int:post_id>` requires BOTH HMAC token AND admin session verification (`session.get('admin_user_id')`). HMAC token alone is insufficient.
 
 ### Backup Implementations
 There are two separate backup implementations:
@@ -274,7 +259,7 @@ Use `get_search_provider()` factory function to get configured provider based on
 S3StorageBackend stores credentials at client creation time (not per-request). Credentials remain on the instance to allow client recreation if needed.
 
 ### S3 Credential Clearing Bug
-`_clear_credentials()` method in `S3StorageBackend` breaks client recreation. This method was called after client initialization in `storage.py:171-174` and has been REMOVED.
+`_clear_credentials()` method in `S3StorageBackend` was removed because it broke client recreation. The method was called after client initialization in `storage.py:168-174`.
 
 ### SMTP Exception Handling
 When catching SMTP exceptions, catch both specific subclasses and base classes:
@@ -291,32 +276,15 @@ The admin image preview module is named `image-preview.js`, NOT `image-review.js
 ### Series.posts Ordering
 Series.posts relationship orders by `PostSeries.order_index` (not by date or title).
 
-## Review Output Format
+## Known Issues (For Reference)
 
-Each module review should document:
-- **Verified claims** - documentation matches code
-- **Discrepancies** - documentation contradicts code (with specific file:line)
-- **Bugs identified** - actual bugs found (with priority: Critical/High/Medium/Low)
-- **Improvement recommendations** - proposed changes
+### Critical Bugs to Fix (Not Yet Fixed)
+- **M-1.1**: `main.js:15,40,51` imports `image-review.js` but file is `image-preview.js`
+- **M-1.2**: `app/tasks.py:274-278,295-299` email task retry logic broken
 
-## Implemented Review Fixes (Wave M - May 2026)
-
-### Code Fixes
-1. **email.py:94,133** - Improved SMTP exception handling to catch `SMTPException` and `SMTPServerDisconnected`
-2. **storage.py:168,171-174** - Removed `_clear_credentials()` that broke S3 client recreation
-
-### Documentation Fixes
-1. **webhooks.md** - Fixed Webhook model to show `webhook_secret_encrypted` (LargeBinary) and `@property secret` getter; added `delivery_status` field and values table
-2. **docker.md** - Clarified health check authentication, rate limiting, optional checks table, authenticated detailed endpoint
-3. **cicd.md** - Added `--profile production` and `docker wait redis` to e2e-tests description
-4. **services/overview.md** - Added Search to services table
-5. **services/search.md** - Created new documentation for SearchProvider abstraction
-
-### Wave M Critical Bugs (For Future Implementation)
-1. **main.js:15,40,51** - `image-review.js` import should be `image-preview.js` (BUG - confirmed)
-2. **tasks.py:274-278,295-299** - Email task retry logic broken (exceptions swallowed) (BUG - confirmed)
-3. **docker-compose.yml:14** - SESSION_COOKIE_SECURE passes string not boolean (BUG - confirmed)
-4. **docker-compose.yml** - Celery missing blog_logs volume mount (BUG - confirmed)
+### Configuration Issues
+- **docker-compose.yml:14**: `SESSION_COOKIE_SECURE` passes string "true" not boolean
+- **docker-compose.yml**: Celery missing `blog_logs` volume mount
 
 ## Skills
 
