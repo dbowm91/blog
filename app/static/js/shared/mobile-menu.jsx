@@ -39,7 +39,7 @@ export function initMobileMenu() {
                 }
             }
         });
-    });
+    }
 }
 
 export default initMobileMenu;
