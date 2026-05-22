@@ -6,30 +6,21 @@ This document provides a **birds-eye view** of all system components and serves 
 
 ---
 
-## Quick Reference
+## Discrete Modules
 
-| Layer | Component | Source | Deep Dive |
-|-------|-----------|--------|-----------|
-| **Core** | App Factory | `app/__init__.py` | [core/app-factory.md](core/app-factory.md) |
-| | Configuration | `app/config.py` | [core/configuration.md](core/configuration.md) |
-| | Models | `app/models.py` | [core/models.md](core/models.md) |
-| **Routes** | Public | `app/routes/public/` | [routes/public-routes.md](routes/public-routes.md) |
-| | Admin | `app/routes/admin/` | [routes/admin-routes.md](routes/admin-routes.md) |
-| | API | `app/routes/api/` | [routes/api-routes.md](routes/api-routes.md) |
-| | Feeds | `app/routes/rss.py` | [routes/rss-feeds.md](routes/rss-feeds.md) |
-| **Services** | Backup | `app/services/backup.py` | [services/backup.md](services/backup.md) |
-| | Search | `app/services/search/` | [services/overview.md](services/overview.md) |
-| | Slug | `app/services/slug.py` | [services/slug.md](services/slug.md) |
-| | Tag | `app/services/tag.py` | [services/tag.md](services/tag.md) |
-| | Serialization | `app/services/serialization.py` | [services/serialization.md](services/serialization.md) |
-| **Tasks** | Celery | `app/tasks.py` | [tasks/celery-tasks.md](tasks/celery-tasks.md) |
-| | APScheduler | `app/scheduler.py` | [tasks/scheduler.md](tasks/scheduler.md) |
-| **Infrastructure** | Search | `app/search.py` | [infrastructure/search.md](infrastructure/search.md) |
-| | Email | `app/email.py` | [infrastructure/email.md](infrastructure/email.md) |
-| | Storage | `app/storage.py` | [infrastructure/storage.md](infrastructure/storage.md) |
-| | Webhooks | `app/webhooks.py` | [infrastructure/webhooks.md](infrastructure/webhooks.md) |
-| **Frontend** | Static Assets | `app/static/` | [frontend/static-assets.md](frontend/static-assets.md) |
-| | Templates | `app/templates/` | [frontend/templates.md](frontend/templates.md) |
+The codebase is organized into these discrete modules, each with dedicated deep-dive documentation:
+
+| Module | Description | Deep Dive |
+|--------|-------------|-----------|
+| [Core Application](#1-core-application) | Flask app factory, configuration, extensions | [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md) |
+| [Data Models](#2-data-models) | SQLAlchemy ORM models (19 models) | [core/models.md](core/models.md) |
+| [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
+| [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md) |
+| [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
+| [Infrastructure](#6-infrastructure) | Search, email, storage, webhooks | [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
+| [Frontend](#7-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
+| [Security](#8-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
+| [Deployment](#9-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
 
 ---
 
@@ -40,22 +31,22 @@ This document provides a **birds-eye view** of all system components and serves 
 │                               Clients                                        │
 │                    (Browser, API Clients, RSS Readers)                        │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           Nginx (TLS Termination)                            │
 │                    Static Files, Load Balancing, Brotli                     │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        Granian ASGI Server (Rust)                            │
 │                     Flask App + APScheduler (in-process)                      │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-           ┌─────────────────────────┼─────────────────────────┐
-           │                         │                         │
-           ▼                         ▼                         ▼
+                                      │
+            ┌─────────────────────────┼─────────────────────────┐
+            │                         │                         │
+            ▼                         ▼                         ▼
 ┌─────────────────┐     ┌─────────────────────┐     ┌─────────────────┐
 │   Celery Worker │     │       Redis         │     │      Redis       │
 │   (Redis Queue) │◄────│  (Broker + Cache)  │────►│  (Rate Limits)   │
@@ -67,10 +58,10 @@ This document provides a **birds-eye view** of all system components and serves 
 │  • backup       │     │  • email           │     │                  │
 │                 │     │  • backup          │     │                  │
 └─────────────────┘     └─────────────────────┘     └─────────────────┘
-           │                         │
-           └─────────────────────────┼─────────────────────────┘
-                                     │
-                                     ▼
+            │                         │
+            └─────────────────────────┼─────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        SQLite (WAL) / PostgreSQL                             │
 │                                                                              │
@@ -85,6 +76,197 @@ This document provides a **birds-eye view** of all system components and serves 
 
 ---
 
+## 1. Core Application
+
+**Source:** `app/__init__.py`, `app/config.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`
+
+**Purpose:** Initialize Flask app, configure extensions, register blueprints, set up middleware.
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| App Factory | `app/__init__.py` | `create_app()` - Flask app factory |
+| Configuration | `app/config.py` | TOML loading, env overrides, validation |
+| Extensions | `app/extensions.py` | SQLAlchemy, LoginManager, Migrate |
+| Filters | `app/filters.py` | Jinja2 template filters |
+| Context Processors | `app/context_processors.py` | Template global variables |
+
+**Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
+
+---
+
+## 2. Data Models
+
+**Source:** `app/models.py` (19 models)
+
+**Purpose:** Database schema and relationships.
+
+| Model | Purpose |
+|-------|---------|
+| `User` | Admin users with TOTP 2FA, backup codes, account lockout |
+| `Post` | Blog posts with revisions, tags, series |
+| `Tag` | Post categorization |
+| `Subscriber` | Newsletter subscribers with confirmation tokens |
+| `Page` | Static pages |
+| `PageView` | Analytics page views |
+| `ShareEvent` | Social sharing tracking |
+| `AdminSession` | Admin login session tracking with IP binding |
+| `SiteSettings` | Singleton site configuration |
+| `Webhook` | Webhook endpoints with encrypted secrets |
+| `WebhookEvent` | Webhook delivery events with status tracking |
+| `Series` | Post series groupings |
+| `PostSeries` | Series-post junction with ordering |
+| `Comment` | Threaded comments with parent-child relationships |
+| `PostRevision` | Post edit history |
+| `AdminAuditLog` | Security audit trail |
+
+**Deep Dive:** [core/models.md](core/models.md)
+
+---
+
+## 3. Routes Layer
+
+**Source:** `app/routes/`
+
+**Purpose:** Handle HTTP requests and responses for public, admin, and API access.
+
+| Module | Source | Purpose |
+|--------|--------|---------|
+| Public Routes | `app/routes/public/` | Blog pages, posts, subscriptions |
+| Admin Routes | `app/routes/admin/` | Dashboard, CRUD operations |
+| API Routes | `app/routes/api/` | REST API for programmatic access |
+| RSS/Feeds | `app/routes/rss.py` | Atom, RSS, JSON feeds |
+| Error Handlers | `app/routes/errors.py` | 404, 500, 413 responses |
+
+**Deep Dive:** [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md)
+
+---
+
+## 4. Services Layer
+
+**Source:** `app/services/`
+
+**Purpose:** Business logic encapsulation, abstraction layer for reusable functionality.
+
+| Service | Source | Purpose |
+|---------|--------|---------|
+| Backup | `app/services/backup.py` | Database backup with compression/encryption |
+| Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secrets |
+| Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
+| Slug | `app/services/slug.py` | Slug generation with collision handling |
+| Tag | `app/services/tag.py` | Tag CRUD with caching |
+| Serialization | `app/services/serialization.py` | JSON export/import |
+
+**Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md)
+
+---
+
+## 5. Task Processing
+
+**Source:** `app/tasks.py`, `app/scheduler.py`, `app/celery_app.py`
+
+**Purpose:** Handle asynchronous and scheduled background work.
+
+| System | Source | Purpose |
+|--------|--------|---------|
+| Celery | `app/tasks.py` | Async task queue with Redis broker |
+| APScheduler | `app/scheduler.py` | In-process scheduled jobs |
+
+**Celery Queues:**
+| Queue | Tasks |
+|-------|-------|
+| `images` | Image variant generation |
+| `newsletter` | Newsletter delivery |
+| `webhooks` | Webhook delivery |
+| `email` | Transactional emails |
+| `backup` | Database backups |
+
+**APScheduler Jobs:**
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| `send_daily_newsletter` | Daily at configured time | Auto-send newsletter |
+| `cleanup_expired_subscribers` | Every 5 minutes | Remove unconfirmed expired |
+| `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
+| `run_daily_backup` | Daily at 02:00 | Daily database backup |
+
+**Deep Dive:** [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md)
+
+---
+
+## 6. Infrastructure
+
+**Source:** `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`
+
+**Purpose:** Supporting systems for core application operation.
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| Search | `app/search.py` | FTS5 full-text search |
+| Email | `app/email.py` | SMTP email delivery |
+| Storage | `app/storage.py` | Local/S3 storage abstraction |
+| Webhooks | `app/webhooks.py` | Event-driven webhook delivery |
+| Health Check | `app/routes/public/meta.py` | System health monitoring |
+
+**Deep Dive:** [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
+
+---
+
+## 7. Frontend
+
+**Source:** `app/templates/`, `app/static/`
+
+**Purpose:** User-facing JavaScript, CSS, and templates.
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| Static Assets | `app/static/` | JS modules (Vite-bundled), CSS, fonts, images |
+| Templates | `app/templates/` | Jinja2 templates (admin, public, email) |
+
+**Deep Dive:** [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md)
+
+---
+
+## 8. Security Architecture
+
+**Source:** `app/routes/admin/auth.py`, `app/services/encryption.py`, `app/middleware/rate_limit.py`
+
+**Purpose:** Authentication, authorization, and protection against attacks.
+
+| Feature | Implementation |
+|---------|---------------|
+| **Authentication** | Session-based with optional TOTP 2FA |
+| **2FA** | TOTP secrets encrypted with AES-256-GCM |
+| **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
+| **CSRF** | Sliding window tokens (5 valid) |
+| **API Auth** | X-API-Key header with HMAC timing-safe comparison |
+| **Account Lockout** | 5 failed attempts → 15-minute lockout |
+| **SSRF Protection** | URL validation against private IP ranges |
+| **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
+| **XSS** | `nh3` HTML sanitizer, CSP headers |
+| **Audit Logging** | `AdminAuditLog` for all admin actions |
+| **Rate Limiting** | Flask-Limiter with Redis/memory backend |
+| **Session Fixation** | `session.clear()` before `login_user()` |
+
+**Deep Dive:** [deployment/security.md](deployment/security.md)
+
+---
+
+## 9. Deployment
+
+**Source:** `Dockerfile`, `docker-compose.yml`, `nginx/`, `scripts/`
+
+**Purpose:** Container orchestration, web server configuration, CI/CD.
+
+| Component | Purpose |
+|-----------|---------|
+| Docker | Containerized deployment |
+| Docker Compose | Multi-container orchestration |
+| Nginx | TLS termination, static files, load balancing |
+| CI/CD | Automated testing and deployment |
+
+**Deep Dive:** [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md)
+
+---
+
 ## Directory Structure
 
 ```
@@ -92,7 +274,7 @@ blog/
 ├── app/                              # Main application package
 │   ├── __init__.py                   # create_app() - Flask app factory
 │   ├── config.py                     # Configuration loading from TOML + env
-│   ├── models.py                     # SQLAlchemy ORM models (17 models)
+│   ├── models.py                     # SQLAlchemy ORM models (19 models)
 │   ├── extensions.py                 # Flask extensions (db, login_manager, migrate)
 │   ├── utils.py                      # Utilities (slug, UTCDateTime, SSRF)
 │   ├── validators.py                # API input validation
@@ -220,190 +402,6 @@ blog/
 
 ---
 
-## Discrete Modules
-
-### 1. Core Application
-
-**Purpose:** Initialize Flask app, configure extensions, register blueprints, set up middleware.
-
-| Component | File | Purpose |
-|-----------|------|---------|
-| App Factory | `app/__init__.py` | `create_app()` - Flask app factory |
-| Configuration | `app/config.py` | TOML loading, env overrides, validation |
-| Models | `app/models.py` | 17 SQLAlchemy models |
-| Extensions | `app/extensions.py` | SQLAlchemy, LoginManager, Migrate |
-| Filters | `app/filters.py` | Jinja2 template filters |
-| Context Processors | `app/context_processors.py` | Template global variables |
-
-**Key Files:**
-- [core/app-factory.md](core/app-factory.md) - Full app initialization flow
-- [core/configuration.md](core/configuration.md) - Configuration system
-- [core/models.md](core/models.md) - Model relationships and details
-
----
-
-### 2. Routes Layer
-
-**Purpose:** Handle HTTP requests and responses for public, admin, and API access.
-
-| Module | Source | Purpose |
-|--------|--------|---------|
-| Public Routes | `app/routes/public/` | Blog pages, posts, subscriptions |
-| Admin Routes | `app/routes/admin/` | Dashboard, CRUD operations |
-| API Routes | `app/routes/api/` | REST API for programmatic access |
-| RSS/Feeds | `app/routes/rss.py` | Atom, RSS, JSON feeds |
-| Error Handlers | `app/routes/errors.py` | 404, 500, 413 responses |
-
-**Key Files:**
-- [routes/public-routes.md](routes/public-routes.md) - Public route details
-- [routes/admin-routes.md](routes/admin-routes.md) - Admin route details
-- [routes/api-routes.md](routes/api-routes.md) - API route details
-- [routes/rss-feeds.md](routes/rss-feeds.md) - Feed implementation details
-
----
-
-### 3. Services Layer
-
-**Purpose:** Business logic封装，abstraction层 for reusable functionality.
-
-| Service | Source | Purpose |
-|---------|--------|---------|
-| Backup | `app/services/backup.py` | Database backup with compression/encryption |
-| Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secrets |
-| Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
-| Slug | `app/services/slug.py` | Slug generation with collision handling |
-| Tag | `app/services/tag.py` | Tag CRUD with caching |
-| Tag Cache | `app/tag_cache.py` | Tag count caching with TTL |
-| Serialization | `app/services/serialization.py` | JSON export/import |
-
-**Key Files:**
-- [services/backup.md](services/backup.md) - Backup service details
-- [services/overview.md](services/overview.md) - Search architecture
-- [services/slug.md](services/slug.md) - Slug generation details
-- [services/tag.md](services/tag.md) - Tag service details
-- [services/serialization.md](services/serialization.md) - Serialization details
-
----
-
-### 4. Task Processing
-
-**Purpose:** Handle asynchronous and scheduled background work.
-
-| System | Source | Purpose |
-|--------|--------|---------|
-| Celery | `app/tasks.py` | Async task queue with Redis broker |
-| APScheduler | `app/scheduler.py` | In-process scheduled jobs |
-
-**Celery Queues:**
-| Queue | Tasks |
-|-------|-------|
-| `images` | Image variant generation |
-| `newsletter` | Newsletter delivery |
-| `webhooks` | Webhook delivery |
-| `email` | Transactional emails |
-| `backup` | Database backups |
-
-**APScheduler Jobs:**
-| Job | Schedule | Purpose |
-|-----|----------|---------|
-| `send_daily_newsletter` | Daily at configured time | Auto-send newsletter |
-| `cleanup_expired_subscribers` | Every 5 minutes | Remove unconfirmed expired |
-| `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
-| `run_daily_backup` | Daily at 02:00 | Daily database backup |
-
-**Key Files:**
-- [tasks/celery-tasks.md](tasks/celery-tasks.md) - Celery task details
-- [tasks/scheduler.md](tasks/scheduler.md) - APScheduler details
-
----
-
-### 5. Infrastructure
-
-**Purpose:** Supporting systems for core application operation.
-
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| Search | `app/search.py` | FTS5 full-text search |
-| Email | `app/email.py` | SMTP email delivery |
-| Storage | `app/storage.py` | Local/S3 storage abstraction |
-| Webhooks | `app/webhooks.py` | Event-driven webhook delivery |
-
-**Key Files:**
-- [infrastructure/search.md](infrastructure/search.md) - Search details
-- [infrastructure/email.md](infrastructure/email.md) - Email system details
-- [infrastructure/storage.md](infrastructure/storage.md) - Storage details
-- [infrastructure/webhooks.md](infrastructure/webhooks.md) - Webhook details
-
----
-
-### 6. Frontend
-
-**Purpose:** User-facing JavaScript, CSS, and templates.
-
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| Static Assets | `app/static/` | JS modules, CSS, fonts, images |
-| Templates | `app/templates/` | Jinja2 templates (admin, public, email) |
-
-**Key Files:**
-- [frontend/static-assets.md](frontend/static-assets.md) - Frontend asset details
-- [frontend/templates.md](frontend/templates.md) - Template details
-
----
-
-### 7. Data Models
-
-| Model | Purpose |
-|-------|---------|
-| `User` | Admin users with TOTP 2FA, backup codes, account lockout |
-| `Post` | Blog posts with revisions, tags, series |
-| `Tag` | Post categorization |
-| `Subscriber` | Newsletter subscribers with confirmation tokens |
-| `Page` | Static pages |
-| `PageView` | Analytics page views |
-| `ShareEvent` | Social sharing tracking |
-| `AdminSession` | Admin login session tracking with IP binding |
-| `SiteSettings` | Singleton site configuration |
-| `Webhook` | Webhook endpoints with encrypted secrets |
-| `WebhookEvent` | Webhook delivery events with status tracking |
-| `Series` | Post series groupings |
-| `PostSeries` | Series-post junction with ordering |
-| `Comment` | Threaded comments with parent-child relationships |
-| `PostRevision` | Post edit history |
-| `AdminAuditLog` | Security audit trail |
-
-**Model Relationships:**
-- `User` → `AdminSession` (1:N)
-- `Post` → `Tag` (N:N via `post_tags`)
-- `Post` → `PostRevision` (1:N)
-- `Post` → `Series` (N:N via `post_series`)
-- `Post` → `PageView`, `ShareEvent`, `Comment` (1:N)
-- `Comment` → `Comment` (self-referential via `parent_id`)
-
----
-
-### 8. Security Architecture
-
-| Feature | Implementation |
-|---------|---------------|
-| **Authentication** | Session-based with optional TOTP 2FA |
-| **2FA** | TOTP secrets encrypted with AES-256-GCM |
-| **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
-| **CSRF** | Sliding window tokens (5 valid) |
-| **API Auth** | X-API-Key header with HMAC timing-safe comparison |
-| **Account Lockout** | 5 failed attempts → 15-minute lockout |
-| **SSRF Protection** | URL validation against private IP ranges |
-| **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
-| **XSS** | `nh3` HTML sanitizer, CSP headers |
-| **Audit Logging** | `AdminAuditLog` for all admin actions |
-| **Rate Limiting** | Flask-Limiter with Redis/memory backend |
-| **Session Fixation** | `session.clear()` before `login_user()` |
-
-**Key Files:**
-- [deployment/security.md](deployment/security.md) - Security details
-
----
-
 ## Database Schema
 
 ```
@@ -430,10 +428,10 @@ blog/
 └─────────────────┘ └─────────┘ └──────┬──────┘ └───────────┘ └─────────────┘
                                        │ (self-referential)
                                        ▼
-                                 ┌─────────────┐
-                                 │   Comment   │
-                                 │  (parent_id)│
-                                 └─────────────┘
+                                  ┌─────────────┐
+                                  │   Comment   │
+                                  │  (parent_id)│
+                                  └─────────────┘
 
 ┌─────────────────┐     ┌─────────────────┐
 │   Subscriber     │     │     Series       │
@@ -492,4 +490,4 @@ For focused deep-dives into specific modules, see the review plans:
 | HTTP Client | requests |
 | Monitoring | Prometheus (optional) |
 
-(End of file - total 745 lines)
+(End of file - total 645 lines)
