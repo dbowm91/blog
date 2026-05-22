@@ -9,9 +9,8 @@ admin/
 ├── __init__.py          # Blueprint registration
 ├── auth.py              # Login, logout, 2FA
 ├── posts/               # Post management
-│   ├── __init__.py      # Route registration
+│   ├── __init__.py      # Route registration + dashboard/list
 │   ├── editor.py        # Post editor
-│   ├── list.py          # Post listing
 │   └── revisions.py     # Post revisions
 ├── subscribers.py       # Subscriber management
 ├── tags.py              # Tag CRUD
@@ -182,6 +181,16 @@ admin/
 
 - **Route**: `GET /admin/audit`
 - **Purpose**: View admin action audit trail
+
+## Static Page Management (`pages.py`)
+
+- **Route**: `GET /admin/pages`
+- **Route**: `GET /admin/pages/new`
+- **Route**: `POST /admin/pages/new`
+- **Route**: `GET /admin/pages/edit/<int:page_id>`
+- **Route**: `POST /admin/pages/edit/<int:page_id>`
+- **Route**: `POST /admin/pages/delete/<int:page_id>`
+- **Purpose**: Create and manage static pages
 
 ## Comment Moderation (`comments.py`)
 
