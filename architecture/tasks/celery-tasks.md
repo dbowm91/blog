@@ -28,7 +28,7 @@ Generates responsive image variants:
 
 **Storage Support:** Local and S3 backends
 
-**Non-Retry Behavior:** On failure, returns `False` without raising an exception. Variant generation is non-critical (falls back to original image), so failures are logged but do not trigger Celery retry. This prevents unnecessary retry attempts for non-essential image processing.
+**Non-Retry Behavior:** On failure, returns `False` without raising an exception or calling `self.retry()`. Variant generation is non-critical (falls back to original image), so failures are logged but do not trigger Celery retry. This prevents unnecessary retry attempts for non-essential image processing.
 
 ### `send_newsletter_task`
 
@@ -57,6 +57,8 @@ Delivers webhook events:
 - HMAC-SHA256 payload signing
 - Exponential backoff retry
 - Marks event delivered on success
+
+**Non-Retry Behavior:** Exceptions during webhook delivery are caught and logged (see `app/tasks.py:234-246`), but `self.retry()` is **never called**. Despite `max_retries=3` being configured, failed webhooks are silently skipped without triggering Celery's retry mechanism.
 
 ### `send_confirmation_task`
 
@@ -89,6 +91,21 @@ Runs database backup asynchronously via `create_backup()`:
 - Uses `encrypt=False`
 - Creates `blog_YYYYMMDD_HHMMSS.db.gz` files (compressed, unencrypted)
 
+**Non-Retry Behavior:** On failure, returns `False` without raising an exception or calling `self.retry()`. Backup failures are logged but do not trigger Celery retry, as the scheduler will attempt the next scheduled backup.
+
+## Error Handling
+
+| Task | Failure Behavior | Retry |
+|------|------------------|-------|
+| `generate_image_variants` | Returns `False` | No |
+| `send_newsletter_task` | Exception triggers `self.retry(exc=e)` | Yes |
+| `deliver_webhook_task` | Exceptions caught and logged, `self.retry()` **never called** | No |
+| `send_confirmation_task` | Exception triggers `self.retry(exc=e)` | Yes |
+| `send_password_reset_task` | Exception triggers `self.retry(exc=e)` | Yes |
+| `run_backup_task` | Returns `False` | No |
+
+**Note:** For `deliver_webhook_task`, despite having `max_retries=3`, the task never calls `self.retry()` so Celery's retry mechanism is never triggered. Failed webhooks are silently skipped after logging.
+
 ## Retry Policy
 
 - `max_retries=3` (2 for backup)
@@ -113,7 +130,7 @@ This ensures that:
 - Database connections are returned to the pool
 - No stale connections are left hanging
 
-Tasks using this pattern: `send_newsletter_task` (line ~178), `deliver_webhook_task` (line ~258), `send_confirmation_task` (line ~282), `send_password_reset_task` (line ~303), `run_backup_task` (line ~321).
+Tasks using this pattern: `send_newsletter_task` (line 127), `deliver_webhook_task` (line 260), `send_confirmation_task` (line 282), `send_password_reset_task` (line 303), `run_backup_task` (line 320).
 
 ## See Also
 - [APScheduler](tasks/scheduler.md) - In-process scheduled jobs

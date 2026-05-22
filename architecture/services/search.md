@@ -50,6 +50,7 @@ Current default implementation using SQLite FTS5.
 - **BM25 Ranking**: Results ordered by relevance score (lower = better)
 - **Snippet Highlighting**: Uses FTS5 `snippet()` function with `<mark>` tags
 - **Did You Mean**: Fuzzy matching via `difflib.get_close_matches` (cutoff=0.6)
+  - **Case Preservation**: When an exact case-insensitive match is found in the index, the function returns the original indexed term (preserving its original case), NOT the lowercased suggestion from `get_close_matches`. See `app/search.py:349-351`.
 - **Caching**: 5-minute TTL for FTS table checks
 
 ## Module-Level Functions (`app/search.py`)
