@@ -71,6 +71,10 @@ Current default implementation using SQLite FTS5.
 | `get_did_you_mean()` | `app/search.py:327` | Fuzzy suggestion for failed queries |
 | `highlight_query()` | `app/search.py:356` | Add `<mark>` tags around query terms |
 
+### Exception Handling
+
+All module-level functions in `app/search.py` catch `OperationalError`, `ProgrammingError`, and `DatabaseError` exceptions from SQLAlchemy. When these exceptions occur during search operations (e.g., FTS5 table not ready), functions return empty results or `False` rather than propagating the exception.
+
 ### Search Configuration
 
 ```python

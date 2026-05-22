@@ -58,6 +58,10 @@ For production deployments with Celery:
 - **email**: Transactional emails
 - **backup**: Database backups
 
+**Important**: The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:50`). This single-concurrency setting ensures:
+- Newsletter emails are sent in order without duplication
+- Webhook delivery is serialized
+
 Workers can be scaled independently:
 ```bash
 docker-compose up -d --scale celery=3
