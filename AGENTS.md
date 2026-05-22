@@ -281,40 +281,43 @@ The admin image preview module is named `image-preview.js`, NOT `image-review.js
 ### Series.posts Ordering
 Series.posts relationship orders by `PostSeries.order_index` (not by date or title).
 
-## Known Issues (For Reference)
+### Slug Generation Race Condition Mitigated
+The slug generation in `app/services/slug.py` has an application-level race condition, but database models have `unique=True` constraints on `Post.slug`, `Page.slug`, and `Tag.slug`. Concurrent requests that generate the same slug will result in one succeeding and one failing with `IntegrityError`. Consider adding retry logic on `IntegrityError` to handle this gracefully.
 
-### Previously Fixed Configuration Issues
-- **docker-compose.yml**: FIXED - Added `blog_logs` volume to Celery
-- **docker-compose.yml:14**: FIXED - Added comment explaining `SESSION_COOKIE_SECURE` string handling
+### Webhook Delivery Does Not Retry Per-Webhook
+`app/tasks.py:234-246` - When a webhook fails with `requests.RequestException`, the exception is caught but NOT re-raised. Celery's `max_retries=3` only triggers on propagated exceptions. The task increments `delivery_attempts` and continues to the next webhook. Failed webhooks are silently skipped without retry.
 
-### Known Bugs (For Reference)
+### nginx and Flask Rate Limits Are Aligned
+nginx `limit_req_zone=login` is configured at `rate=5r/m` and Flask `ADMIN_RATE_LIMITS["login"]` is `(5, 60)` - both equal 5/minute. The burst setting in nginx (5) doesn't change the effective rate.
 
-#### mobile-menu.jsx Syntax Error
-`app/static/js/shared/mobile-menu.jsx:42` has an extra `});` that prevents JSX compilation. Must fix before Vite build works.
+### CSRF Token Rotation Is On Every Use
+`app/csrf.py` rotates tokens on every successful validation, not specifically on privilege changes. The claim in `architecture/deployment/security.md` about "token rotation on privilege changes" is not accurate - that feature is not implemented.
 
-#### marked-wrapper.js Non-Functional in Production
-`app/static/js/lib/marked-wrapper.js:6-18` uses `fetch()` to load `marked.min.js` at runtime which fails in Vite production builds. Must use proper ES module import.
+### Comment Submission Missing Rate Limit
+`app/routes/public/comments.py` has no `@limiter.limit()` decorator. Comments are the only public write endpoint without rate limiting. API has 10/min, subscribe has 10/min, but comments have none.
 
-#### Comment Submission Missing CSRF Protection
-`app/routes/public/comments.py` POST route has no CSRF validation while other public routes do. Security gap that should be addressed.
+### Test Coverage Gaps
+- **2FA/TOTP**: No tests exist for 2FA functionality (setup, verify, login with TOTP, login with backup codes, disable)
+- **SearchProvider abstraction**: `test_search.py` only tests FTS directly, not the `get_search_provider()` factory or provider switching
+- **WebhookEvent.delivery_status**: No tests verify the `delivery_status` field updates correctly
 
-#### Public Preview Redundant Session Check
-`app/routes/public/posts.py:128` checks `session.get('admin_user_id')` after HMAC token validation at lines 117-126. HMAC should be sufficient for preview access.
+### Task Decorator Line Numbers Drift
+Line numbers in `architecture/tasks/celery-tasks.md` and `architecture/tasks/scheduler.md` are off by 2-3 lines from actual positions in `app/tasks.py`. When referencing task decorators, verify actual line numbers rather than relying on documentation.
 
-#### Slug Generation Race Condition
-`app/services/slug.py` has no database-level unique constraint. Concurrent requests could generate duplicate slugs. Consider adding unique index on slug columns.
+### E2E Test Structure
+All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`. NOT in separate test_home.py, test_post.py, test_admin.py files.
 
-#### Webhook Task No-op Assertion
-`app/tasks.py:248` has `assert event is not None` which is always true at that point. Should be removed.
+### Feed Tests Are in test_coverage.py
+RSS/Atom feed tests are in `tests/test_coverage.py`, NOT in a separate `test_rss.py` file.
 
-#### PostgreSQL Search Provider Silent Fallback
-`app/services/search/postgresql.py` silently falls back to SQLite when configured. Should raise ConfigurationError instead.
+### test_api.py Duplicates Fixtures
+`tests/test_api.py:19-50` defines its own `app` and `db` fixtures instead of importing from `tests.shared_fixtures`. This duplicates ~30 lines and may miss buffer protection.
 
-#### Backup Compression Error Cleanup Incomplete
-`app/services/backup.py:68-90` may leave orphaned temp files if compression fails after backup file creation.
+### Benchmark Tests Don't Use Fixture
+Benchmark tests in `tests/benchmarks/` don't use a `client` fixture - they create clients ad-hoc with `app.test_client()` within each test function.
 
-#### Duplicate BACKUP_RETENTION_COUNT
-Defined in both `app/services/backup.py:21` AND `app/scheduler.py:261`. Should import from backup.py in scheduler.
+### Backup Service Missing PYTHONPATH
+The backup service in `docker-compose.yml` (lines 92-103) does NOT have `PYTHONPATH=/home/blog` set, while the celery service does. This will cause import failures when backup.py tries to import from app.services.
 
 ## Skills
 
