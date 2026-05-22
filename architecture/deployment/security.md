@@ -24,7 +24,7 @@ Sliding expiration via `last_activity` in session.
 ## CSRF Protection
 
 - Sliding window of 5 valid tokens per session
-- Token rotation on privilege changes
+- Token rotation on every successful validation (not specifically on privilege changes)
 - Timing-safe comparison via `hmac.compare_digest`
 
 ## Input Sanitization

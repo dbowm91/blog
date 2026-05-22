@@ -9,10 +9,21 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - DATABASE_URL=${DATABASE_URL:-}
+      # SMTP configuration (also used by APScheduler for newsletter)
+      - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}  # String "true" is truthy in Flask
+      # Redis for Celery broker and Flask-Caching
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      # Flask-Caching (defaults to redis://localhost:6379/0, override if needed)
+      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-}
+      # Celery configuration (uses REDIS_URL if not set)
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-}
+      # Health check endpoint secret (optional, for detailed health info)
+      - HEALTH_CHECK_SECRET=${HEALTH_CHECK_SECRET:-}
+      # Number of proxies (for ProxyFix middleware, default: 1)
+      - PROXY_COUNT=${PROXY_COUNT:-1}
     volumes:
       - blog_data:/home/blog/instance
       - blog_logs:/home/blog/logs
@@ -99,6 +110,10 @@ services:
     entrypoint: ["python3", "backup.py"]
     environment:
       - BACKUP_DIR=/backups
+      # Required for backup.py to import app.services:
+      - PYTHONPATH=/home/blog
+      # BACKUP_ENCRYPTION_KEY for encrypted backups (loaded from config.toml in app)
+      # WEBHOOK_ENCRYPTION_KEY for webhook secrets (loaded from config.toml in app)
     profiles:
       - backup
 

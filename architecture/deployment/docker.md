@@ -83,6 +83,13 @@ For coordinated multi-worker deployments, consider:
 | `ADMIN_PASSWORD` | Admin password |
 | `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `blog.db`) |
 | `REDIS_URL` | Redis connection |
+| `SMTP_HOST` | SMTP server for newsletter/email (optional) |
+| `SMTP_USER` | SMTP username |
+| `SMTP_PASSWORD` | SMTP password |
+| `CACHE_REDIS_URL` | Redis URL for Flask-Caching (optional, defaults to REDIS_URL) |
+| `CELERY_BROKER_URL` | Celery broker URL (optional, defaults to REDIS_URL) |
+| `HEALTH_CHECK_SECRET` | Secret for detailed health check access |
+| `PROXY_COUNT` | Number of proxies for ProxyFix middleware (default: 1) |
 
 ## Health Check Endpoint
 

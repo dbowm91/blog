@@ -275,6 +275,50 @@ def storage_delete_file(filename: str) -> bool:
     return storage.delete(filename)
 
 
+def _delete_existing_variants(storage: StorageBackend, filename: str) -> None:
+    """Delete existing variants for a file before uploading new version.
+
+    Handles cleanup of: 400_, 800_, 1200_ prefixes, .webp, .avif suffixes.
+    """
+    if isinstance(storage, LocalStorageBackend):
+        upload_folder = storage.base_dir
+        name, ext = os.path.splitext(filename)
+        variant_patterns = [
+            filename,  # Original
+            f"400_{filename}",
+            f"800_{filename}",
+            f"1200_{filename}",
+            f"{name}.webp",
+            f"{name}.avif",
+        ]
+        for variant in variant_patterns:
+            variant_path = os.path.join(upload_folder, variant)
+            if os.path.isfile(variant_path):
+                try:
+                    os.remove(variant_path)
+                    logger.debug("Deleted variant: %s", variant)
+                except OSError as e:
+                    logger.warning("Failed to delete variant %s: %s", variant, e)
+    elif isinstance(storage, S3StorageBackend):
+        name, ext = os.path.splitext(filename)
+        prefixes_to_delete = [
+            filename,
+            f"400_{filename}",
+            f"800_{filename}",
+            f"1200_{filename}",
+            f"{name}.webp",
+            f"{name}.avif",
+        ]
+        for prefix in prefixes_to_delete:
+            try:
+                response = storage.client.list_objects_v2(Bucket=storage.bucket, Prefix=prefix)
+                for obj in response.get("Contents", []):
+                    storage.client.delete_object(Bucket=storage.bucket, Key=obj["Key"])
+                    logger.debug("Deleted S3 object: %s", obj["Key"])
+            except (ClientError, BotoCoreError) as e:
+                logger.warning("Failed to delete S3 variants with prefix %s: %s", prefix, e)
+
+
 def upload_with_processing(filename: str, file_content: bytes, generate_variants: bool = True) -> tuple[str, None] | tuple[None, str]:
     """Save an image file and optionally queue async variant generation.
 
@@ -291,6 +335,8 @@ def upload_with_processing(filename: str, file_content: bytes, generate_variants
         (filename, None) on success, (None, error_message) on failure
     """
     storage = get_storage()
+
+    _delete_existing_variants(storage, filename)
 
     if isinstance(storage, LocalStorageBackend):
         upload_folder = os.environ.get(
