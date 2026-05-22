@@ -156,6 +156,9 @@ Actual filters (defined in `app/filters.py`):
 - `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
+### Critical CSS
+The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:22` with `media="screen"` for immediate loading.
+
 ### Celery Queue Names
 Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py:31,130,182,262,283,304`)
 
@@ -299,11 +302,15 @@ Comments are rate limited at 10 per minute and require CSRF protection via `vali
 - Rate limit: `@limiter.limit("10 per minute")`
 - CSRF: Hidden `csrf_token` field in form, validated before processing
 
-### Test Coverage
-All test gaps have been addressed:
-- **2FA/TOTP**: `tests/test_2fa.py`
-- **SearchProvider abstraction**: `tests/test_search.py`
-- **WebhookEvent.delivery_status**: `tests/test_webhooks.py` (TestWebhookEventDeliveryStatus class)
+### Test Count
+Tests are organized across 36 test files covering models, routes, API, search, security, and more. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get current count.
+
+### E2E Test Setup
+E2E tests use `pytest-playwright`, NOT `@playwright/test`:
+```bash
+pip install pytest-playwright
+playwright install chromium
+```
 
 ### Task Decorator Line Numbers
 Actual line numbers in `app/tasks.py`:
@@ -315,16 +322,16 @@ Actual line numbers in `app/tasks.py`:
 - `run_backup_task`: 305
 
 ### E2E Test Structure
-All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`. NOT in separate test_home.py, test_post.py, test_admin.py files.
+All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`. NOT in separate test_home.py, test_post.py, test_admin.py files. Uses `pytest-playwright`, NOT `@playwright/test`.
 
 ### Feed Tests Are in test_coverage.py
 RSS/Atom feed tests are in `tests/test_coverage.py`, NOT in a separate `test_rss.py` file.
 
-### test_api.py Duplicates Fixtures
-**RESOLVED** - Fixtures now use conftest.py versions.
-
 ### Benchmark Tests Don't Use Fixture
 Benchmark tests in `tests/benchmarks/` don't use a `client` fixture - they create clients ad-hoc with `app.test_client()` within each test function.
+
+### Template Context Variables
+Use `site_title` and `site_description` as context variables (NOT `site_name` or `site_tagline`).
 
 ### Backup Service Missing PYTHONPATH
 **RESOLVED** - docker-compose.yml backup service now has `PYTHONPATH=/home/blog`.

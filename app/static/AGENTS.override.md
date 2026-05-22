@@ -13,6 +13,7 @@ app/static/
 │   ├── public/           # Public-facing JS modules (share, lightbox, toc, search, etc.)
 │   └── admin/            # Admin JS modules (editor, bulk, shortcuts)
 ├── css/
+│   ├── critical.css       # Above-the-fold CSS for fast initial paint
 │   ├── base.css          # CSS variables, reset, typography
 │   ├── layout.css        # Grid layout, navbar, sidebar, footer
 │   ├── forms.css         # Form elements, buttons, validation

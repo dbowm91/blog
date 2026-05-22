@@ -4,21 +4,17 @@
 
 This module contains the consolidated implementation plan in `plan.md`.
 
-## Current Status
-
-All plan items have been completed. The plan file has been pruned to show only completion status and any deferred items.
-
 ## Plan File
 
 The main plan file `plans/plan.md` contains:
-- Completion status (COMPLETED)
-- Completion summary by wave
-- Any deferred items that were intentionally not implemented
+- Wave-based organization (A-F) for documentation updates
+- Status tracking for each item
+- Files to modify per wave
+- Notes for future agents on verification steps
 
 ## Plan Maintenance
 
-If creating new plans:
-- Document items with File, Issue, Fix, and Verification steps
-- Organize into waves for parallel execution when possible
-- Mark dependencies between items
-- Update AGENTS.md with any new knowledge gained during implementation
+When implementing plan items:
+1. Mark items as ✅ DONE when completed
+2. Update status in plan header
+3. Document any issues or clarifications discovered during implementation

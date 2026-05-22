@@ -86,8 +86,8 @@ Minimum coverage: 80%
 
 E2E tests require Playwright:
 ```bash
-npm install -D @playwright/test
-npx playwright install chromium
+pip install pytest-playwright
+playwright install chromium
 ```
 
 The E2E tests start the Flask server on port 5010.

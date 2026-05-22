@@ -30,10 +30,9 @@ Both `ADMIN_PASSWORD` and `SECRET_KEY` are **required**—the app raises `Runtim
 
 Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config.
 
-## Test Counts
+## Test Count
 
-- 524 tests pass (514 unit + 10 E2E)
-- New tests added for: password reset flow, settings routes, pages routes, content hashing
+Tests are organized across ~36 test files covering models, routes, API, search, security, and more. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get current count.
 
 ## Test Structure
 
@@ -43,7 +42,7 @@ tests/
 ├── test_models.py       # Model unit tests
 ├── test_public.py       # Public routes tests
 ├── test_admin.py        # Admin routes tests
-├── test_api.py          # REST API tests (imports from shared_fixtures)
+├── test_api.py          # REST API tests
 ├── test_coverage.py     # RSS/Atom feed tests (NOT test_rss.py)
 ├── test_search.py       # FTS5 search tests
 ├── test_utils.py        # Utility function tests
@@ -65,12 +64,15 @@ Note: E2E tests are ALL in `test_e2e.py` - NOT in separate test_home.py, test_po
 - `admin_user` - Admin user fixture
 - `regular_user` - Regular user fixture
 - `post` - Sample post fixture
+- `sample_post`, `sample_tag`, `sample_subscriber` - From conftest.py
+- `clean_analytics_cache` - From shared_fixtures.py
+- `api_client` - From test_api.py
 
 ## Page View Buffer in Tests
 
 The page view buffer is disabled in all tests via the shared `ensure_buffer_disabled` autouse fixture defined in `tests/shared_fixtures.py`.
 
-All test conftest files (`tests/conftest.py`, `tests/e2e/conftest.py`, `tests/benchmarks/conftest.py`) and `tests/test_api.py` import this fixture via `from tests.shared_fixtures import *`.
+Only `tests/e2e/conftest.py` and `tests/benchmarks/conftest.py` import from shared_fixtures. The `tests/test_api.py` does NOT import from shared_fixtures.
 
 Do NOT re-enable the buffer in tests as it causes interference with other tests.
 

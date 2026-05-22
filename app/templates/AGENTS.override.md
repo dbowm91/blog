@@ -12,36 +12,61 @@ app/templates/
 ├── _error.html             # Error page partial
 ├── 404.html                # Not found page
 ├── 500.html                # Internal error page
+├── archive.html            # Full archive
+├── index.html              # Homepage
+├── post.html               # Post view with related posts
+├── page.html               # Static page view
+├── search.html             # Search results
+├── series.html             # Series view
+├── tag.html                # Tag archive
+├── 429.html                # Rate limit exceeded
+├── public_preview.html     # Preview for published posts
+├── macros.html             # Jinja macros
 ├── admin/                  # Admin templates
 │   ├── base.html           # Admin base with sidebar layout
+│   ├── login.html          # Admin login
+│   ├── login_base.html     # Login page base
+│   ├── login_2fa.html      # 2FA verification page
+│   ├── 2fa_setup.html      # 2FA setup page
+│   ├── 2fa_verify.html     # 2FA verification page
+│   ├── disable_2fa.html    # Disable 2FA page
+│   ├── backup_codes.html   # Backup codes display
 │   ├── dashboard.html      # Dashboard widgets
-│   ├── posts.html          # Post management
-│   ├── post_edit.html      # Post editor
+│   ├── posts.html          # Post management list
+│   ├── editor.html         # Post editor (NOT post_edit.html)
+│   ├── page_editor.html    # Page editor
+│   ├── revisions.html      # Post revision history
+│   ├── revision_diff.html  # Revision diff viewer
+│   ├── preview.html        # Post preview
 │   ├── subscribers.html    # Subscriber management
 │   ├── users.html          # User management
 │   ├── sessions.html       # Session management
 │   ├── media.html          # Media library
 │   ├── backup.html         # Backup/restore
-│   ├── settings.html       # Theme settings
-│   ├── pages.html          # Static pages
+│   ├── settings.html       # Theme/settings
+│   ├── pages.html          # Static pages management
 │   ├── series.html         # Series management
-│   └── newsletter.html     # Newsletter
-├── public/                 # Public page templates
-│   ├── index.html          # Homepage
-│   ├── post.html           # Post view with related posts
-│   ├── page.html           # Static page view
-│   ├── tag.html            # Tag archive
-│   ├── series.html          # Series view
-│   ├── archive.html        # Full archive
-│   ├── search.html          # Search results
-│   └── subscribe.html      # Subscription confirmation
+│   ├── series_editor.html  # Series editor
+│   ├── series_posts.html   # Series-post relationship editor
+│   ├── tags.html           # Tag management
+│   ├── comments.html       # Comment moderation
+│   ├── analytics.html      # Analytics dashboard
+│   ├── audit.html          # Audit log viewer
+│   ├── forgot-password.html # Password reset request
+│   ├── reset-password.html  # Password reset form
+│   ├── _breadcrumbs.html   # Breadcrumb partial
+├── public/                 # Public-facing includes
+│   └── comments.html       # Comment form partial
 └── email/                  # Email templates
-    └── newsletter.html     # Newsletter email
+    ├── base_email.html     # Email base template
+    ├── newsletter.html     # Newsletter email
+    ├── confirm.html        # Subscription confirmation
+    └── password_reset.html # Password reset email
 ```
 
 ## Template Filters
 
-Defined in `app/filters.py` (lines 11-83):
+Defined in `app/filters.py` (lines 11-85):
 - `markdown_safe` - Render markdown to HTML with nh3 sanitization
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
@@ -94,3 +119,9 @@ Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
 - `inject_theme()` - Theme settings and `custom_css` variable
 - `inject_footer_data()` - Footer links and data
 - `inject_show_footer_posts()` - Injects `show_footer_posts` boolean
+
+Note: `site_title` and `site_description` are the correct variable names (NOT `site_name` or `site_tagline`).
+
+## Critical CSS
+
+The `critical.css` file at `app/static/css/critical.css` is loaded in `base.html:22` for above-the-fold content styling.
