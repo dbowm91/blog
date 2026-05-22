@@ -56,8 +56,18 @@ Public routes serve the blog's public-facing pages.
 ### Preview Post
 - **Route**: `GET /preview/<int:post_id>?token=<hmac>&expires=<timestamp>`
 - **Purpose**: Preview unpublished/scheduled posts via signed token
-- **Auth**: HMAC token-based AND admin session required (`session.get('admin_user_id')`)
+- **Auth**: HMAC token-based (token and expires query parameters)
 - **Args**: `token` (HMAC signature), `expires` (Unix timestamp)
+
+## Comment Routes (`comments.py`)
+
+### Submit Comment
+- **Route**: `POST /post/<slug>/comment`
+- **Purpose**: Submit a comment on a post
+- **Fields**: author_name, author_email, content, parent_id (optional), csrf_token (hidden)
+- **Moderation**: Comments require approval
+- **Rate Limit**: 10 per minute
+- **CSRF**: Requires valid `csrf_token` in form data
 
 ### Short URL Redirect
 - **Route**: `GET /s/<code>`

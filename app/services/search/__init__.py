@@ -12,6 +12,14 @@ class ConfigurationError(Exception):
 class SearchProvider(ABC):
     """Abstract base class for search providers."""
 
+    def initialize(self) -> None:
+        """Initialize the search provider. Called during app startup.
+
+        Override in subclass to perform provider-specific initialization.
+        Default implementation does nothing.
+        """
+        pass
+
     @abstractmethod
     def search(self, query: str, limit: int = 20) -> list[tuple[int, float]]:
         """Search posts and return list of (post_id, rank) tuples.

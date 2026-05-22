@@ -16,6 +16,9 @@ get_search_provider()
 
 ```python
 class SearchProvider(ABC):
+    def initialize(self) -> None:
+        """Initialize the search provider. Called during app startup."""
+
     @abstractmethod
     def search(self, query: str, limit: int = 20) -> list[tuple[int, float]]:
         """Search posts and return list of (post_id, rank) tuples."""
@@ -53,11 +56,17 @@ Current default implementation using SQLite FTS5.
 
 | Function | Location | Description |
 |----------|----------|-------------|
-| `search()` | `app/search.py` | FTS5 search with bm25 ranking |
-| `sync_fts()` | `app/search.py` | Index/update a post |
-| `remove_fts()` | `app/search.py` | Remove post from index |
-| `rebuild_fts()` | `app/search.py` | Rebuild entire index |
-| `get_search_snippets()` | `app/search.py` | Get highlighted snippets |
+| `search()` | `app/search.py:201` | FTS5 search with bm25 ranking |
+| `sync_fts()` | `app/search.py:112` | Index/update a single post |
+| `sync_fts_batch()` | `app/search.py:136` | Batch index multiple posts |
+| `remove_fts()` | `app/search.py:177` | Remove post from index |
+| `rebuild_fts()` | `app/search.py:102` | Rebuild entire index |
+| `get_search_snippets()` | `app/search.py:282` | Get highlighted snippets |
+| `reset_fts_available()` | `app/search.py:36` | Reset FTS availability cache |
+| `get_did_you_mean()` | `app/search.py:327` | Fuzzy suggestion for failed queries |
+| `highlight_query()` | `app/search.py:356` | Add `<mark>` tags around query terms |
+| `get_indexed_terms()` | `app/search.py:224` | Get all indexed terms via fts5vocab |
+| `extract_snippet()` | `app/search.py:253` | Extract text snippet around match |
 
 ### Search Configuration
 

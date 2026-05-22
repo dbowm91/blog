@@ -26,8 +26,13 @@ Cache is invalidated when:
 2. The cache expires after `TAG_CACHE_TTL_SECONDS`
 
 Invalidation calls found in:
-- `app/routes/admin/posts.py` - post save/delete operations
-- `app/routes/admin/tags.py` - tag creation/deletion
+- `app/routes/admin/__init__.py:67,100`
+- `app/routes/admin/posts/editor.py:88,206`
+- `app/routes/admin/posts/revisions.py:98`
+- `app/routes/admin/posts/manage.py:83`
+- `app/routes/admin/tags.py:79,109,147`
+- `app/routes/admin/posts/__init__.py:155,176,195,213`
+- `app/scheduler.py:225,255`
 
 ## Implementation Details
 

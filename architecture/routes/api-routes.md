@@ -8,10 +8,19 @@ REST API for programmatic access to blog data.
 |------|----------|---------|---------|
 | `posts.py` | `/api/posts` | GET, POST | List/create posts |
 | `posts.py` | `/api/posts/<id>` | GET, PUT, DELETE | Single post operations (publish via PUT with `published` field) |
-| `subscribers.py` | `/api/subscribers` | GET | List subscribers |
+| `subscribers.py` | `/api/subscribers` | GET, POST | List subscribers, create new subscriber |
 | `subscribers.py` | `/api/subscribers/<int:subscriber_id>` | DELETE | Delete subscriber |
 | `stats.py` | `/api/stats` | GET | Dashboard statistics |
 | `auth.py` | `/api/auth` | POST | API key authentication |
+
+## Webhook Events
+
+Post publish/unpublish via `PUT /api/posts/<id>` with `{"published": true/false}` triggers:
+- `post.published` event when a post is published
+- `post.unpublished` event when a post is unpublished
+
+Subscriber confirmation (via `/confirm/<token>`) triggers:
+- `subscriber.confirmed` event when a subscriber confirms their email
 
 ## Posts API (`posts.py`)
 

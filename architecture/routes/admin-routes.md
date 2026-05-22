@@ -137,8 +137,13 @@ admin/
 ## Session Monitoring (`sessions.py`)
 
 - **Route**: `GET /admin/sessions`
-- **Purpose**: View active admin sessions
+- **Route**: `POST /admin/sessions/revoke/<int:sess_id>`
+- **Purpose**: View active admin sessions and revoke sessions
 - **Features**: IP binding, session termination
+
+### Markdown Preview
+- **Route**: `POST /admin/preview-markdown`
+- **Purpose**: Render markdown preview for live editing (AJAX endpoint)
 
 ## Media Management (`media.py`)
 
@@ -192,6 +197,16 @@ admin/
 - **Route**: `POST /admin/pages/edit/<int:page_id>`
 - **Route**: `POST /admin/pages/delete/<int:page_id>`
 - **Purpose**: Create and manage static pages
+
+## Series Management (`series.py`)
+
+- **Route**: `GET /admin/series`
+- **Route**: `GET /admin/series/new` (POST to create)
+- **Route**: `GET /admin/series/<int:series_id>/edit` (POST to update)
+- **Route**: `POST /admin/series/<int:series_id>/delete`
+- **Route**: `GET /admin/series/<int:series_id>/posts` (POST to add/remove posts)
+- **Route**: `POST /admin/series/<int:series_id>/reorder`
+- **Purpose**: Create and manage post series (ordered collections of posts)
 
 ## Comment Moderation (`comments.py`)
 

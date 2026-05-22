@@ -13,6 +13,11 @@ class SQLiteSearchProvider(SearchProvider):
         self._fts_check_time: float = 0
         self._FTS_CHECK_TTL = 300
 
+    def initialize(self) -> None:
+        """Initialize the SQLite FTS5 provider. Wraps init_fts()."""
+        from app.search import init_fts
+        init_fts()
+
     def search(self, query: str, limit: int = 20) -> list[tuple[int, float]]:
         """Search using FTS5 with bm25 ranking."""
         from app.search import search as fts_search
