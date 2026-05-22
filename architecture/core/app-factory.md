@@ -17,7 +17,7 @@ app.config["UPLOAD_FOLDER"] = ...
 app.config["SQLALCHEMY_DATABASE_URI"] = ...  # SQLite default
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
     "SESSION_COOKIE_SECURE", "true"
-).lower() in ("true", "1", "yes")  # Defaults to True, raises error if False in production
+).lower() in ("true", "1", "yes")  # Defaults to "true" string, raises error if explicitly False in production
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 ```
