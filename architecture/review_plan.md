@@ -2,13 +2,13 @@
 
 **Project:** Blog CMS
 **Date:** 2026-05-21
-**Status:** COMPLETED (May 2026)
+**Status:** IN PROGRESS (INCOMPLETE - iterative improvement ongoing)
 
 ---
 
 ## Wave Completion Summary
 
-All 9 module reviews completed in Waves K, L, and continuation:
+All 9 module reviews completed in Waves K, L, and continuation. Wave M fixes applied but architecture review is an ongoing iterative process.
 
 | Module | Review File | Status |
 |--------|-------------|--------|
@@ -34,9 +34,16 @@ All 9 module reviews completed in Waves K, L, and continuation:
 1. **Webhook.secret encryption** - Documented as plain text, actually encrypted at rest
 2. **Search provider documentation** - Module referenced but no documentation existed
 
-### Infrastructure Bugs Identified (Pending Fix)
-1. **email.py exception handling** - Medium priority SMTP exception handling gaps
-2. **storage.py S3 credential clearing** - Medium priority credential clearing breaks client recreation
+### Infrastructure Bugs Fixed (Wave M)
+1. **email.py exception handling** - Added SMTPException and SMTPServerDisconnected to catches
+2. **storage.py S3 credential clearing** - Removed _clear_credentials() that broke client recreation
+
+### Documentation Fixes (Wave M)
+1. **webhooks.md** - Fixed Webhook model with secret encryption and delivery_status field
+2. **docker.md** - Clarified health check authentication, rate limiting, optional checks
+3. **cicd.md** - Added --profile production and docker wait redis
+4. **services/search.md** - Created new SearchProvider documentation
+5. **services/overview.md** - Added Search to services table
 
 ## Progress Tracking
 
@@ -54,4 +61,4 @@ All 9 module reviews completed in Waves K, L, and continuation:
 
 ---
 
-*Last updated: 2026-05-21 - All module reviews COMPLETED*
+*Last updated: 2026-05-22 - All module reviews COMPLETED, Wave M fixes applied*
