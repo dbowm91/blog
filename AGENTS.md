@@ -294,15 +294,22 @@ nginx `limit_req_zone=login` is configured at `rate=5r/m` and Flask `ADMIN_RATE_
 `app/csrf.py` rotates tokens on every successful validation, not specifically on privilege changes. The claim in `architecture/deployment/security.md` about "token rotation on privilege changes" is not accurate - that feature is not implemented.
 
 ### Comment Submission Missing Rate Limit
-`app/routes/public/comments.py` has no `@limiter.limit()` decorator. Comments are the only public write endpoint without rate limiting. API has 10/min, subscribe has 10/min, but comments have none.
+**RESOLVED** - Comments now have rate limiting via `@limiter.limit("10 per minute")` and CSRF protection via `validate_csrf_token()`.
 
 ### Test Coverage Gaps
-- **2FA/TOTP**: No tests exist for 2FA functionality (setup, verify, login with TOTP, login with backup codes, disable)
-- **SearchProvider abstraction**: `test_search.py` only tests FTS directly, not the `get_search_provider()` factory or provider switching
-- **WebhookEvent.delivery_status**: No tests verify the `delivery_status` field updates correctly
+**RESOLVED** - All gaps have been addressed:
+- **2FA/TOTP**: Tests exist in `tests/test_2fa.py`
+- **SearchProvider abstraction**: Tests exist in `tests/test_search.py`
+- **WebhookEvent.delivery_status**: Tests exist in `tests/test_webhooks.py` (TestWebhookEventDeliveryStatus class)
 
 ### Task Decorator Line Numbers Drift
-Line numbers in `architecture/tasks/celery-tasks.md` and `architecture/tasks/scheduler.md` are off by 2-3 lines from actual positions in `app/tasks.py`. When referencing task decorators, verify actual line numbers rather than relying on documentation.
+**RESOLVED** - Line numbers have been corrected in `architecture/tasks/scheduler.md`. Current actual line numbers:
+- generate_image_variants: 28
+- send_newsletter_task: 127
+- deliver_webhook_task: 184
+- send_confirmation_task: 263
+- send_password_reset_task: 284
+- run_backup_task: 305
 
 ### E2E Test Structure
 All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`. NOT in separate test_home.py, test_post.py, test_admin.py files.
@@ -311,13 +318,30 @@ All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `
 RSS/Atom feed tests are in `tests/test_coverage.py`, NOT in a separate `test_rss.py` file.
 
 ### test_api.py Duplicates Fixtures
-`tests/test_api.py:19-50` defines its own `app` and `db` fixtures instead of importing from `tests.shared_fixtures`. This duplicates ~30 lines and may miss buffer protection.
+**RESOLVED** - Fixtures now use conftest.py versions.
 
 ### Benchmark Tests Don't Use Fixture
 Benchmark tests in `tests/benchmarks/` don't use a `client` fixture - they create clients ad-hoc with `app.test_client()` within each test function.
 
 ### Backup Service Missing PYTHONPATH
-The backup service in `docker-compose.yml` (lines 92-103) does NOT have `PYTHONPATH=/home/blog` set, while the celery service does. This will cause import failures when backup.py tries to import from app.services.
+**RESOLVED** - docker-compose.yml backup service now has `PYTHONPATH=/home/blog`.
+
+## New Implementation Notes (Wave A-F Completed)
+
+### PostgreSQL Search Provider Raises ConfigurationError
+When `SEARCH_PROVIDER=postgresql` is configured, `PostgreSQLSearchProvider` methods now raise `ConfigurationError` instead of silently falling back to SQLite.
+
+### Variant Cleanup on Image Replacement
+When `upload_with_processing()` is called with an existing filename, old variants (400_, 800_, 1200_, .webp, .avif) are automatically cleaned up before creating new ones.
+
+### Backup Compression Cleanup
+Compressed backups now use a `finally` block to ensure `.tmp` files are cleaned up even if `os.replace()` fails.
+
+### Analytics Days Range Configurable
+`ANALYTICS_DAYS_MIN` (default 7) and `ANALYTICS_DAYS_MAX` (default 365) are now configurable via config.toml under `[app]`.
+
+### CSRF on Comments
+Comment submission now requires valid CSRF token (similar to subscribe route) and is rate limited at 10/minute.
 
 ## Skills
 
