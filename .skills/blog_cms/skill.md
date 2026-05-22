@@ -3,43 +3,20 @@
 ## Description
 Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff
 
-Implementation Status: All waves A-N completed. Project in maintenance mode.
+Implementation Status: All waves completed. Project in maintenance mode.
 
-Waves A-N implemented features (2FA, Rate Limiting, Search, Frontend, Brotli, Bug Fixes, Code Quality, Documentation). Wave K completed architecture reviews of all 8 modules. Wave L implemented all architecture review findings (1 critical security fix, 2 medium fixes, 8 documentation corrections). Wave M completed full implementation of Wave M plan (4 critical bugs fixed, 36 documentation/improvement items completed). Wave N completed 26 items (2 code fixes, 11 documentation fixes, 10 improvements). Plan has been pruned to summary status.
+## Implementation Summary
 
-## Wave N Completion (May 2026)
+All implementation waves (A-F from plan.md) have been verified and completed:
+- **Wave A**: Critical bugs (mobile-menu.jsx, marked-wrapper.js, CSRF/rate limiting on comments, public preview session check)
+- **Wave B**: Security & data integrity (slug constraints, backup compression cleanup, PostgreSQL ConfigurationError)
+- **Wave C**: Architecture documentation updates (task line numbers, search functions, tag cache, routes docs)
+- **Wave D**: Deployment & configuration (env vars, PYTHONPATH, variant cleanup, rate limit alignment)
+- **Wave E**: Testing improvements (2FA tests, SearchProvider tests, webhook delivery_status tests, fixture unification)
+- **Wave F**: Code quality (db.session.remove() pattern, backup helper, analytics configurable range)
 
-All Wave N items verified and completed:
-- **N-1.1**: Fixed email task retry logic - added `max_retries=3` and `self.retry(exc=e)` to `send_confirmation_task` and `send_password_reset_task`
-- **N-1.2**: Fixed mobile-menu.jsx import in main.js
-- **N-2.1 through N-2.11**: 11 documentation fixes (ADMIN_RATE_LIMITS, S3 env vars, Webhook encryption, delivery_status, Search config/indexing, routes docs, Docker v2, Permissions-Policy, Python version)
-- **N-3.1 through N-3.10**: 10 improvements (email.md, serialization, slug, benchmark fixtures, FTS cleanup, stale line numbers, deprecation notice, backup naming, AGENTS.override.md)
-
-Plan file `plans/plan.md` updated to completed status.
-
-## Wave M Completion (May 2026)
-
-All Wave M items verified and completed:
-- 4 Critical bug fixes (M-1.1 through M-1.4)
-- 10 High-priority documentation fixes (M-2.1 through M-2.10)
-- 12 Medium-priority documentation fixes (M-3.1 through M-3.12)
-- 14 Low-priority improvements (M-4.1 through M-4.14)
-
-Plan file `plans/plan.md` pruned to summary status - detailed implementation steps removed.
-
-### Critical Bug Fixes
-- **M-1.1**: Fixed `image-review.js` import to `image-preview.js` in `main.js:15,40,51`
-- **M-1.2**: Initial email task fix - removed misleading `retry_backoff=True` without max_retries (fully fixed in N-1.1 with `max_retries=3` and `self.retry()`)
-
-### Configuration Fixes
-- **docker-compose.yml**: Added `blog_logs` volume to Celery service
-- **docker-compose.yml:14**: Added comment explaining `SESSION_COOKIE_SECURE` string handling
-
-### Documentation Updates (36 items)
-- API routes, webhook model, search provider, backup implementations
-- Health check configuration, APScheduler documentation
-- Configuration options, model field documentation
-- Various route/method corrections and clarifications
+### Deferred Item (Acknowledged)
+**B2: Per-Webhook Retry** - Not implemented due to complexity. Failed webhooks silently skipped. Documented in architecture.
 
 ## Triggers
 Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log
