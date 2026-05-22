@@ -261,7 +261,7 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
         db.session.remove()
 
 
-@shared_task(bind=True, queue='email')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='email')
 def send_confirmation_task(self: Any, subscriber_id: int) -> bool:
     """Send confirmation email to a subscriber asynchronously."""
     from app.extensions import db
@@ -277,12 +277,12 @@ def send_confirmation_task(self: Any, subscriber_id: int) -> bool:
         return True
     except Exception as e:
         logger.error(f"Confirmation email failed: {e}")
-        return False
+        raise self.retry(exc=e)
     finally:
         db.session.remove()
 
 
-@shared_task(bind=True, queue='email')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='email')
 def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
     """Send password reset email to a user asynchronously."""
     from app.extensions import db
@@ -298,7 +298,7 @@ def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
         return True
     except Exception as e:
         logger.error(f"Password reset email failed: {e}")
-        return False
+        raise self.retry(exc=e)
     finally:
         db.session.remove()
 
