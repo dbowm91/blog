@@ -55,9 +55,25 @@ def get_search_provider() -> SearchProvider:
 ## Configuration
 
 | Provider | SEARCH_PROVIDER value |
-|----------|----------------------|
+|----------|-----------------------|
 | SQLite FTS5 | `sqlite` (default) |
 | PostgreSQL | `postgresql` |
+
+## Internal Constants
+
+The search module contains hardcoded internal constants in `app/search.py`:
+
+- `_FTS_CHECK_TTL = 300` (line 30) - TTL for FTS availability cache
+- `_SQLITE_MAX_VARS = 500` (line 298) - Maximum SQLite variables for batch queries
+
+## Indexing
+
+Posts are indexed manually after save/update via direct function calls in routes:
+- `sync_fts()` is called in `app/routes/admin/posts/editor.py` after post create/update
+- `sync_fts_batch()` is called in `app/routes/admin/posts/__init__.py` for bulk operations
+- `remove_fts()` is called when posts are deleted
+
+Indexing is NOT automatic via signals - routes explicitly trigger re-indexing.
 
 ## Methods
 
