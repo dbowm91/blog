@@ -15,7 +15,7 @@ const moduleGlob = import.meta.glob([
     './image-preview.js',
     './upload.js',
     './shared/dark-mode.js',
-    './shared/mobile-menu.js',
+    './shared/mobile-menu.jsx',
     './shared/lazy-load.js',
     './shared/prefetch.js',
     './public/share.js',
