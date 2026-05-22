@@ -4,35 +4,28 @@
 
 This module contains the consolidated implementation plan for the Blog CMS project.
 
-## Current Plan File
+## Current Status
 
-The main plan file is `plans/plan.md` which tracks implementation items organized by waves:
-- Wave M: All items completed (critical bugs, documentation fixes)
-- Wave N: Current active wave with new items identified from architecture review
+All implementation items from Waves A through N have been completed. The `plan.md` file has been pruned to contain only important context for future agents.
 
-Detailed implementation steps are categorized as HIGH/MEDIUM/LOW priority with file references.
+## Plan File Structure
 
-## Plan Structure
+The main plan file is `plans/plan.md` which contains:
+- Complete status indicator
+- Important context for future agents (configuration, patterns, conventions)
 
-The `plan.md` file is structured as follows:
-1. Wave N items organized by priority (HIGH, MEDIUM, LOW)
-2. Each item includes: file location, issue description, impact, fix approach
-3. Parallelization analysis showing which items can be run concurrently
-4. Implementation details for complex fixes (like N-1.1 email retry)
-5. Important context section with verified code facts
+## Creating New Plan Items
 
-## Using the Plan
+When creating new plan items for future implementation:
+1. Create a new wave section (e.g., Wave O)
+2. Categorize by priority (HIGH/MEDIUM/LOW)
+3. Include file references and verification steps
+4. Mark as PENDING until verified complete
+5. Once all items in a wave are complete, prune completed items and update status
 
-When working on Wave N items:
-1. Check item status (PENDING or IN PROGRESS)
-2. Read implementation detail section for complex code changes
-3. Verify file locations before making changes
-4. Use parallelization grouping to work efficiently with sub-agents
+## Plan Maintenance
 
-## Wave Grouping
-
-**Wave N-A (Can run in parallel):** Documentation fixes (N-2.x items) and low priority improvements (N-3.x items)
-
-**Wave N-B (Must run sequentially):** Code fixes that require testing (N-1.1, N-1.2)
-
-Recommended approach: Complete Wave N-A first with parallel agents, then complete Wave N-B sequentially.
+- Prune completed items to keep plan.md focused on remaining work
+- Update status indicators when waves are completed
+- Keep important context that would help future agents
+- Document new patterns and conventions as they are discovered
