@@ -64,5 +64,16 @@ Implementation of review findings from `plans/<module>_review.md`:
 
 See `architecture/review_plan.md` for full details.
 
+## Wave A-F Documentation Completion (May 22, 2026)
+
+All remaining plan.md documentation items completed:
+- Services: SearchProvider vs app/search.py clarification, backup line numbers
+- Tasks: Error handling table, deliver_webhook_task non-retry, line number fixes
+- Routes: Comment rate limit 10/min, sitemap cache claim, API pages field, authors field
+- Frontend: Route-based code splitting, post_image_url filter, lazy-load.js fallback
+- Infrastructure: WEBHOOK_TIMEOUT configurable, variant cleanup, FLASK_ENV, PYTHONPATH
+
+See `plans/plan.md` for complete implementation summary.
+
 ## Architecture Review Skill
 See `.skills/architecture_review/skill.md` for detailed architecture review workflow.
