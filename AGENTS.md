@@ -273,11 +273,23 @@ Use `get_search_provider()` factory function to get configured provider based on
 ### S3 Client Initialization
 S3StorageBackend stores credentials at client creation time (not per-request). Credentials remain on the instance to allow client recreation if needed.
 
+### S3 Credential Clearing Bug
+`_clear_credentials()` method in `S3StorageBackend` breaks client recreation. This method was called after client initialization in `storage.py:171-174` and has been REMOVED.
+
 ### SMTP Exception Handling
 When catching SMTP exceptions, catch both specific subclasses and base classes:
 - `smtplib.SMTPException` (base class)
 - `smtplib.SMTPServerDisconnected`
 These may leak as unhandled exceptions if not explicitly caught.
+
+### Email Task Retry Logic
+`send_confirmation_task` and `send_password_reset_task` in `app/tasks.py` catch exceptions and return `False` without raising. With `max_retries=3`, tasks will NOT automatically retry because exceptions are swallowed. Either remove `max_retries` or implement proper `self.retry()`.
+
+### image-preview.js Not image-review.js
+The admin image preview module is named `image-preview.js`, NOT `image-review.js`. Code imports in `main.js:15,40,51` reference the wrong filename.
+
+### Series.posts Ordering
+Series.posts relationship orders by `PostSeries.order_index` (not by date or title).
 
 ## Review Output Format
 
@@ -299,6 +311,12 @@ Each module review should document:
 3. **cicd.md** - Added `--profile production` and `docker wait redis` to e2e-tests description
 4. **services/overview.md** - Added Search to services table
 5. **services/search.md** - Created new documentation for SearchProvider abstraction
+
+### Wave M Critical Bugs (For Future Implementation)
+1. **main.js:15,40,51** - `image-review.js` import should be `image-preview.js` (BUG - confirmed)
+2. **tasks.py:274-278,295-299** - Email task retry logic broken (exceptions swallowed) (BUG - confirmed)
+3. **docker-compose.yml:14** - SESSION_COOKIE_SECURE passes string not boolean (BUG - confirmed)
+4. **docker-compose.yml** - Celery missing blog_logs volume mount (BUG - confirmed)
 
 ## Skills
 

@@ -7,9 +7,25 @@ This module contains the consolidated implementation plan for the Blog CMS proje
 ## Current Plan File
 
 The main plan file is `plans/plan.md` which serves as the single source of truth for:
-- Completed implementation waves (A-L)
+- Completed implementation waves (A-M)
 - Implementation patterns verified against the codebase
 - Important conventions for future agents
+
+## Wave M Status - COMPLETED (May 2026)
+
+Wave M consolidated findings from 8 architecture review files (routes, infrastructure, services, frontend, plus overview, core, deployment, testing, tasks).
+
+### Critical Bugs Identified (For Implementation)
+- **M-1.1**: image-review.js should be image-preview.js (CRITICAL - breaks admin image preview)
+- **M-1.2**: Email task retry logic broken (exceptions swallowed, max_retries ineffective)
+- **M-1.3**: S3StorageBackend credential clearing breaks client recreation
+- **M-1.4**: SMTP context manager exception safety issue
+
+### High-Priority Improvements
+- **M-2.1** through **M-2.10**: Documentation fixes for API routes, webhooks, search, docker, etc.
+
+### Verification Complete
+All Phase 5 items verified as already correct in codebase.
 
 ## Wave L Status - COMPLETED (May 2026)
 
@@ -37,7 +53,8 @@ When working on new implementation or documentation:
 2. Create a new branch for new work: `wave-<letter>-<description>`
 3. Update `plans/plan.md` when adding new implementation waves
 4. **Always verify plan items against actual code** - architecture review findings may contain errors or outdated information
+5. **Use subagents for large review tasks** - batch review files (4-5 at a time) to avoid context window compaction
 
 ---
 
-*Last updated: May 2026 - Wave L COMPLETED*
+*Last updated: May 2026 - Wave M COMPLETED*
