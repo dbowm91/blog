@@ -4,6 +4,7 @@ import uuid
 from typing import Optional, Type, cast
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.utils import generate_slug
@@ -33,7 +34,8 @@ def generate_unique_slug(
         q = select(model).filter(model.slug == slug_str)
         if exclude_id is not None:
             q = q.filter(model.id != exclude_id)
-        if not db.session.execute(q).scalar_one_or_none():
+        existing = db.session.execute(q).scalar_one_or_none()
+        if not existing:
             break
         slug_str = f"{base_slug}-{counter}"
         counter += 1

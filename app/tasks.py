@@ -245,7 +245,6 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
             except requests.RequestException:
                 event.delivery_attempts += 1
 
-        assert event is not None
         event.delivered = delivered_count > 0
         if total_count == 0:
             event.delivery_status = None

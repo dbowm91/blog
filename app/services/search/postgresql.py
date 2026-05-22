@@ -13,7 +13,7 @@ The actual implementation would use:
 
 from typing import Optional
 
-from app.services.search import SearchProvider
+from app.services.search import SearchProvider, ConfigurationError
 
 
 class PostgreSQLSearchProvider(SearchProvider):
@@ -25,12 +25,13 @@ class PostgreSQLSearchProvider(SearchProvider):
     def search(self, query: str, limit: int = 20) -> list[tuple[int, float]]:
         """Search using PostgreSQL tsvector with ts_rank.
 
-        This is a stub that falls back to SQLite search.
+        This is a stub that raises ConfigurationError when configured.
         Full implementation requires PostgreSQL schema changes.
         """
-        from app.services.search.sqlite import SQLiteSearchProvider
-        provider = SQLiteSearchProvider()
-        return provider.search(query, limit)
+        raise ConfigurationError(
+            "PostgreSQL search provider is not yet implemented. "
+            "Please use SQLite (SEARCH_PROVIDER=sqlite) or implement PostgreSQL FTS."
+        )
 
     def index_post(self, post_id: int, title: str, body: str, summary: str, published: bool) -> bool:
         """Index a post using PostgreSQL tsvector.
@@ -39,15 +40,17 @@ class PostgreSQLSearchProvider(SearchProvider):
         1. Update posts.search_vector with setweight(to_tsvector(...), ...)
         2. Use triggers to keep search_vector in sync
         """
-        from app.services.search.sqlite import SQLiteSearchProvider
-        provider = SQLiteSearchProvider()
-        return provider.index_post(post_id, title, body, summary, published)
+        raise ConfigurationError(
+            "PostgreSQL search provider is not yet implemented. "
+            "Please use SQLite (SEARCH_PROVIDER=sqlite) or implement PostgreSQL FTS."
+        )
 
     def remove_post(self, post_id: int) -> bool:
         """Remove a post from PostgreSQL FTS index."""
-        from app.services.search.sqlite import SQLiteSearchProvider
-        provider = SQLiteSearchProvider()
-        return provider.remove_post(post_id)
+        raise ConfigurationError(
+            "PostgreSQL search provider is not yet implemented. "
+            "Please use SQLite (SEARCH_PROVIDER=sqlite) or implement PostgreSQL FTS."
+        )
 
     def rebuild_index(self) -> None:
         """Rebuild PostgreSQL tsvector index.
@@ -56,9 +59,10 @@ class PostgreSQLSearchProvider(SearchProvider):
         1. TRUNCATE search_vector column
         2. Re-populate with to_tsvector(...) for all published posts
         """
-        from app.services.search.sqlite import SQLiteSearchProvider
-        provider = SQLiteSearchProvider()
-        return provider.rebuild_index()
+        raise ConfigurationError(
+            "PostgreSQL search provider is not yet implemented. "
+            "Please use SQLite (SEARCH_PROVIDER=sqlite) or implement PostgreSQL FTS."
+        )
 
     def get_snippets(self, post_ids: list[int], query: str) -> dict[int, str]:
         """Get search snippets using PostgreSQL ts_headline.
@@ -66,6 +70,7 @@ class PostgreSQLSearchProvider(SearchProvider):
         Full implementation would use:
         ts_headline(body, plainto_tsquery(query), ...)
         """
-        from app.services.search.sqlite import SQLiteSearchProvider
-        provider = SQLiteSearchProvider()
-        return provider.get_snippets(post_ids, query)
+        raise ConfigurationError(
+            "PostgreSQL search provider is not yet implemented. "
+            "Please use SQLite (SEARCH_PROVIDER=sqlite) or implement PostgreSQL FTS."
+        )

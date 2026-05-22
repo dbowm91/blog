@@ -73,9 +73,10 @@ def create_backup(db_path: str, backup_dir: str, compress: bool = False,
                         shutil.copyfileobj(f_in, f_out)
                 os.replace(tmp_path, backup_path)
             except OSError:
+                raise
+            finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
-                raise
 
         logger.info("Backup created: %s", backup_path)
 

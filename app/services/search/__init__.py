@@ -4,6 +4,11 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 
+class ConfigurationError(Exception):
+    """Raised when search provider is misconfigured."""
+    pass
+
+
 class SearchProvider(ABC):
     """Abstract base class for search providers."""
 
