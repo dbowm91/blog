@@ -61,13 +61,13 @@ Each module review writes to `architecture/plans/<module>_review.md`:
 ## Status
 
 ### Wave N Completed (May 2026)
-Implementation of review findings from Wave M (May 2026):
+Implementation of review findings from Wave N (May 2026):
 
 | Priority | Fix | Location |
 |----------|-----|----------|
 | High | `datetime.utcnow()` deprecation | `app/services/backup.py:166` → `datetime.now(timezone.utc)` |
-| High | Email task retry logic | `app/tasks.py:267,289` - removed misleading `retry_backoff=True` |
-| High | mobile-menu.jsx import | `app/static/js/main.js:18` - corrected .js → .jsx |
+| High | Email task retry logic (N-1.1) | `app/tasks.py:264,285` - added `max_retries=3` and `self.retry(exc=e)` |
+| High | mobile-menu.jsx import (N-1.2) | `app/static/js/main.js:18,72` - corrected .js → .jsx |
 | Medium | Frontend AGENTS.override.md | Removed non-existent `style.css`, `themes/`, `vite-plugin-flask` |
 | Medium | Templates AGENTS.override.md | Fixed `inject_config` variable names |
 | Medium | Routes admin-routes.md | Removed non-existent `list.py`, added page routes |
@@ -75,7 +75,7 @@ Implementation of review findings from Wave M (May 2026):
 | Medium | Deployment security.md | Removed non-existent `Permissions-Policy` header |
 
 **Verification Notes:**
-- Email tasks silently fail by design (return False on exception). `retry_backoff=True` was misleading without `max_retries` and `self.retry()`.
+- Email tasks now properly retry on failure with `max_retries=3` and `self.retry(exc=e)` with exponential backoff.
 - mobile-menu file is `mobile-menu.jsx` (JSX syntax), Vite glob matched it despite wrong extension in import.
 - Permissions-Policy header documented but never implemented in nginx or Flask.
 
