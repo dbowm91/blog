@@ -258,12 +258,9 @@ def publish_scheduled_posts(app: Any) -> None:
         lock.release()
 
 
-BACKUP_RETENTION_COUNT = 7
-
-
 def run_daily_backup(app: Any) -> None:
     """Run daily database backup with retention cleanup."""
-    from app.services.backup import run_daily_backup as _run_backup
+    from app.services.backup import run_daily_backup as _run_backup, BACKUP_RETENTION_COUNT
 
     lock_path = os.path.join(app.instance_path, "backup.lock")
     lock = FileLock(lock_path, timeout=0)
