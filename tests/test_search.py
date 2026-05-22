@@ -85,6 +85,48 @@ def sample_post(db, admin_user):
     return post
 
 
+class TestGetSearchProvider:
+    """Tests for get_search_provider() factory function."""
+
+    def test_get_search_provider_sqlite(self, app):
+        """Test get_search_provider returns SQLiteSearchProvider by default."""
+        from app.services.search import get_search_provider
+        from app.services.search.sqlite import SQLiteSearchProvider
+
+        with app.app_context():
+            provider = get_search_provider()
+            assert isinstance(provider, SQLiteSearchProvider)
+
+    def test_get_search_provider_postgresql_stub(self, app):
+        """Test get_search_provider raises ConfigurationError for PostgreSQL."""
+        from app.services.search import get_search_provider, ConfigurationError
+
+        app.config["SEARCH_PROVIDER"] = "postgresql"
+
+        with app.app_context():
+            with pytest.raises(ConfigurationError) as exc_info:
+                provider = get_search_provider()
+            assert "not yet implemented" in str(exc_info.value)
+
+    def test_search_provider_has_initialize(self, app):
+        """Test SearchProvider base class has initialize() method."""
+        from app.services.search import SearchProvider
+
+        assert hasattr(SearchProvider, 'initialize')
+
+    def test_sqlite_search_provider_initialize(self, app):
+        """Test SQLiteSearchProvider.initialize() calls init_fts()."""
+        from app.services.search.sqlite import SQLiteSearchProvider
+
+        with app.app_context():
+            provider = SQLiteSearchProvider()
+            provider.initialize()
+            result = _db.session.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
+            ).fetchone()
+            assert result is not None
+
+
 class TestInitFTS:
     def test_init_fts_creates_table(self, db):
         """Verify FTS table is created."""

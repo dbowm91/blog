@@ -284,3 +284,135 @@ class TestInitWebhooks:
         from app.webhooks import init_webhooks
 
         init_webhooks(app)
+
+
+class TestWebhookEventDeliveryStatus:
+    """Tests for WebhookEvent.delivery_status field."""
+
+    def test_delivery_status_delivered(self, db, admin_user):
+        """Test delivery_status='delivered' when all webhooks succeed."""
+        from app.webhooks import create_webhook_event
+        from app.models import Webhook, WebhookEvent
+        from unittest.mock import patch, MagicMock
+
+        webhook = Webhook(
+            name="Success Webhook",
+            url="https://example.com/webhook",
+            secret="test-secret",
+            event_type="test_event",
+            enabled=True
+        )
+        db.session.add(webhook)
+        db.session.commit()
+
+        event_id = create_webhook_event(
+            event_type="test_event",
+            payload={"data": "test"},
+            target_id=1,
+            target_type="post"
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
+            with patch("requests.post", return_value=mock_response):
+                from app.tasks import deliver_webhook_task
+                result = deliver_webhook_task(event_id)
+
+        event = db.session.get(WebhookEvent, event_id)
+        assert event.delivery_status == 'delivered'
+        assert event.delivered is True
+
+    def test_delivery_status_failed(self, db, admin_user):
+        """Test delivery_status='failed' when all webhooks fail."""
+        from app.webhooks import create_webhook_event
+        from app.models import Webhook, WebhookEvent
+        from unittest.mock import patch
+
+        webhook = Webhook(
+            name="Fail Webhook",
+            url="https://example.com/webhook",
+            secret="test-secret",
+            event_type="fail_event",
+            enabled=True
+        )
+        db.session.add(webhook)
+        db.session.commit()
+
+        event_id = create_webhook_event(
+            event_type="fail_event",
+            payload={"data": "test"},
+            target_id=1,
+            target_type="post"
+        )
+
+        with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = Exception("Connection refused")
+                from app.tasks import deliver_webhook_task
+                result = deliver_webhook_task(event_id)
+
+        event = db.session.get(WebhookEvent, event_id)
+        assert event.delivery_status == 'failed'
+        assert event.delivered is False
+
+    def test_delivery_status_partial_failure(self, db, admin_user):
+        """Test delivery_status='partial_failure' when some webhooks fail."""
+        from app.webhooks import create_webhook_event
+        from app.models import Webhook, WebhookEvent
+        from unittest.mock import patch, MagicMock
+
+        webhook1 = Webhook(
+            name="Success Webhook",
+            url="https://example.com/webhook1",
+            secret="test-secret",
+            event_type="partial_event",
+            enabled=True
+        )
+        webhook2 = Webhook(
+            name="Fail Webhook",
+            url="https://example.com/webhook2",
+            secret="test-secret",
+            event_type="partial_event",
+            enabled=True
+        )
+        db.session.add_all([webhook1, webhook2])
+        db.session.commit()
+
+        event_id = create_webhook_event(
+            event_type="partial_event",
+            payload={"data": "test"},
+            target_id=1,
+            target_type="post"
+        )
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+
+        with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = [success_response, Exception("Connection refused")]
+                from app.tasks import deliver_webhook_task
+                result = deliver_webhook_task(event_id)
+
+        event = db.session.get(WebhookEvent, event_id)
+        assert event.delivery_status == 'partial_failure'
+
+    def test_delivery_status_none_when_no_webhooks(self, db):
+        """Test delivery_status=None when no webhooks configured."""
+        from app.webhooks import create_webhook_event
+        from app.models import WebhookEvent
+
+        event_id = create_webhook_event(
+            event_type="no_webhook_event",
+            payload={"data": "test"},
+            target_id=1,
+            target_type="post"
+        )
+
+        from app.tasks import deliver_webhook_task
+        result = deliver_webhook_task(event_id)
+
+        event = db.session.get(WebhookEvent, event_id)
+        assert event.delivery_status is None
