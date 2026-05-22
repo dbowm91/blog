@@ -1,7 +1,7 @@
 # Implementation Plan - Blog CMS (Consolidated)
 
 **Project:** Blog CMS
-**Status:** WAVE M - Implementation Phase
+**Status:** WAVE M - COMPLETED
 **Last Updated:** May 2026
 
 ---
@@ -18,10 +18,10 @@ This file contains the consolidated implementation plan for the Blog CMS project
 
 | ID | Description | Impact | Status |
 |----|-------------|--------|--------|
-| M-1.1 | `image-review.js` import should be `image-preview.js` | Admin image preview broken | MUST FIX |
-| M-1.2 | Email task retry logic broken | Exceptions swallowed, no auto-retry | MUST FIX |
-| M-2.8 | docker-compose.yml SESSION_COOKIE_SECURE string vs boolean | Config issue | MUST FIX |
-| M-2.9 | Celery missing blog_logs volume mount | Logs not persisted | MUST FIX |
+| M-1.1 | `image-review.js` import should be `image-preview.js` | Admin image preview broken | FIXED |
+| M-1.2 | Email task retry logic broken | Exceptions swallowed, no auto-retry | FIXED |
+| M-2.8 | docker-compose.yml SESSION_COOKIE_SECURE string vs boolean | Config issue | FIXED |
+| M-2.9 | Celery missing blog_logs volume mount | Logs not persisted | FIXED |
 
 ---
 

@@ -278,13 +278,13 @@ Series.posts relationship orders by `PostSeries.order_index` (not by date or tit
 
 ## Known Issues (For Reference)
 
-### Critical Bugs to Fix (Not Yet Fixed)
-- **M-1.1**: `main.js:15,40,51` imports `image-review.js` but file is `image-preview.js`
-- **M-1.2**: `app/tasks.py:274-278,295-299` email task retry logic broken
+### Wave M Fixed Bugs (Verified in main)
+- **M-1.1**: `main.js:15,40,51` - FIXED: Changed `image-review.js` to `image-preview.js`
+- **M-1.2**: `app/tasks.py` - FIXED: Removed `max_retries` from email tasks, catch `Exception` instead
 
-### Configuration Issues
-- **docker-compose.yml:14**: `SESSION_COOKIE_SECURE` passes string "true" not boolean
-- **docker-compose.yml**: Celery missing `blog_logs` volume mount
+### Previously Fixed Configuration Issues
+- **docker-compose.yml**: FIXED - Added `blog_logs` volume to Celery
+- **docker-compose.yml:14**: FIXED - Added comment explaining `SESSION_COOKIE_SECURE` string handling
 
 ## Skills
 
