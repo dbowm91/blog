@@ -66,7 +66,7 @@ These files have been flagged for exception handling issues:
 | `app/email.py` | SMTP exception too broad | FIXED |
 | `app/backup_integrity.py` | Previously broad exception | FIXED |
 | `app/webhooks.py` | Silent failure with `pass` | FIXED |
-| `app/tasks.py` | Broad `except Exception` | FIXED |
+| `app/tasks.py` | Email task retry logic broken (see Wave N-1.1) | PENDING |
 | `app/page_view_buffer.py` | Previously broad exception | FIXED |
 
 ## Test Interference Notes
@@ -268,7 +268,7 @@ When catching SMTP exceptions, catch both specific subclasses and base classes:
 These may leak as unhandled exceptions if not explicitly caught.
 
 ### Email Task Retry Logic
-`send_confirmation_task` and `send_password_reset_task` in `app/tasks.py` catch exceptions and return `False` without raising. With `max_retries=3`, tasks will NOT automatically retry because exceptions are swallowed. Either remove `max_retries` or implement proper `self.retry()`.
+`send_confirmation_task` and `send_password_reset_task` in `app/tasks.py` catch exceptions and return `False` without calling `self.retry()`. These tasks do NOT have `max_retries` set and will not retry on failure. See Wave N-1.1 in `plans/plan.md`.
 
 ### image-preview.js Not image-review.js
 The admin image preview module is named `image-preview.js`, NOT `image-review.js`. Code imports in `main.js:15,40,51` reference the wrong filename.

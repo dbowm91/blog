@@ -6,9 +6,8 @@ This module contains the consolidated implementation plan for the Blog CMS proje
 
 ## Current Plan File
 
-The main plan file is `plans/plan.md` which has been pruned to a summary status. It now contains:
-- Status summary of all completed waves (A through M)
-- Key implementation patterns verified against the codebase
-- Important conventions for future agents
+The main plan file is `plans/plan.md` which tracks implementation items organized by waves:
+- Wave M: All items completed (critical bugs, documentation fixes)
+- Wave N: Current active wave with new items identified from architecture review
 
-Detailed implementation steps have been removed since all items are completed.
+Detailed implementation steps are categorized as HIGH/MEDIUM/LOW priority with file references.
