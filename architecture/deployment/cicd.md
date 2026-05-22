@@ -12,7 +12,7 @@ GitHub Actions workflows for testing and deployment.
 
 ### 1. lint-and-type
 - **Tool**: `ruff` (linting), `mypy` (type checking)
-- **Python**: 3.12, 3.13
+- **Python**: 3.12
 
 ### 2. test
 - **Tool**: `pytest` with coverage
