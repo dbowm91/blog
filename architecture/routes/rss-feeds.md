@@ -64,6 +64,7 @@ Atom feed format:
   "title": "DevLog",
   "home_page_url": "http://example.com",
   "feed_url": "http://example.com/json",
+  "authors": [{"name": "Author Name"}],
   "items": [
     {
       "id": "http://example.com/post/post-slug",

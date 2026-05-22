@@ -96,7 +96,6 @@ Public routes serve the blog's public-facing pages.
 ### Sitemap
 - **Route**: `GET /sitemap.xml`
 - **Purpose**: XML sitemap for search engines
-- **Cache**: 5 minutes
 
 ### Robots.txt
 - **Route**: `GET /robots.txt`
@@ -114,14 +113,6 @@ Public routes serve the blog's public-facing pages.
 ### Favicon
 - **Route**: `GET /favicon.ico`
 - **Purpose**: Redirects to SVG favicon
-
-## Comment Routes (`comments.py`)
-
-### Submit Comment
-- **Route**: `POST /post/<slug>/comment`
-- **Purpose**: Submit a comment on a post
-- **Fields**: author_name, author_email, content, parent_id (optional)
-- **Moderation**: Comments require approval
 
 ## See Also
 - [RSS/Feeds](routes/rss-feeds.md) - RSS, Atom, JSON feeds

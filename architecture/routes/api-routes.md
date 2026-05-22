@@ -38,6 +38,7 @@ Response:
 {
   "posts": [...],
   "total": 100,
+  "pages": 10,
   "page": 1,
   "per_page": 10
 }
@@ -136,7 +137,7 @@ API endpoints have the following rate limits:
 | Authenticated reads | 20/min | GET /api/posts, GET /api/subscribers, GET /api/stats |
 | Authenticated writes | 10/min | POST, PUT, DELETE operations |
 | Public subscribe | 10/min | POST /subscribe |
-| Public comments | 20/min | POST /post/<slug>/comment |
+| Public comments | 10/min | POST /post/<slug>/comment |
 | API key check | 1000/hour | Per API key |
 
 Rate limit headers are returned on all responses:
