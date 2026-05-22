@@ -39,7 +39,17 @@ Tests are organized across ~36 test files covering models, routes, API, search, 
 ```
 tests/
 ├── conftest.py              # Pytest fixtures and configuration
-├── test_*.py                # Unit tests (models, public, admin, api, search, utils, cli, etc.)
+├── test_models.py          # User, Post, Tag, Subscriber models (test_ at line 6)
+├── test_2fa.py              # TOTP setup/verify, 2FA login (test_ at line 10)
+├── test_search.py          # FTS5 search, snippets (test_ at line 51)
+├── test_webhooks.py        # Webhook signing, delivery (test_ at line 14)
+├── test_tasks.py            # Celery tasks: newsletter, webhooks, email (test_ at line 8)
+├── test_scheduler.py       # APScheduler jobs, health checks (test_ at line 8)
+├── test_newsletter.py       # Newsletter scheduling, attempts (test_ at line 9)
+├── test_comments_admin.py   # Comment moderation (test_ at line 6)
+├── test_coverage.py         # 404/500 handlers, feeds, bulk ops, search (test_ at line 9)
+├── test_cli.py              # CLI commands (test_ at line 24)
+├── test_*.py                # Other unit tests (admin, api, public, etc.)
 ├── shared_fixtures.py       # Shared fixtures (ensure_buffer_disabled here)
 ├── benchmarks/              # Benchmark tests
 │   └── conftest.py          # Benchmark fixtures (clean_db fixture here)
@@ -59,7 +69,7 @@ Note: There are ~36 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .
 - `post` - Sample post fixture
 - `sample_post`, `sample_tag`, `sample_subscriber` - From conftest.py
 - `clean_analytics_cache` - From shared_fixtures.py
-- `clean_db` - From benchmarks/conftest.py
+- `clean_db` - From benchmarks/conftest.py:52
 - `api_client` - From test_api.py
 
 ## Page View Buffer in Tests
