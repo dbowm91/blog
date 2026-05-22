@@ -7,6 +7,7 @@ on:
 jobs:
   lint-and-type:
     runs-on: ubuntu-latest
+    # Lint only runs on 3.12 for CI efficiency - linting rules don't vary by Python version
     steps:
       - uses: actions/checkout@v4
 
@@ -116,8 +117,8 @@ jobs:
 
       - name: Start services
         run: |
-          docker-compose up -d --profile production
-          docker-compose wait redis
+          docker compose up -d --profile production
+          docker compose wait redis
 
       - name: Wait for blog to be healthy
         run: |
