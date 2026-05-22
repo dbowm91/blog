@@ -12,7 +12,7 @@ const moduleGlob = import.meta.glob([
     './admin/shortcuts.js',
     './admin/bulk.js',
     './admin/editor.js',
-    './image-review.js',
+    './image-preview.js',
     './upload.js',
     './shared/dark-mode.js',
     './shared/mobile-menu.js',
@@ -37,7 +37,7 @@ const ROUTE_MODULES = {
         './admin/shortcuts.js',
         './admin/bulk.js',
         './admin/editor.js',
-        './image-review.js',
+        './image-preview.js',
     ],
     '/admin/media': [
         './shared/utils.js',
@@ -48,7 +48,7 @@ const ROUTE_MODULES = {
         './admin/shortcuts.js',
         './admin/bulk.js',
         './upload.js',
-        './image-review.js',
+        './image-preview.js',
     ],
     '/admin/': [
         './shared/utils.js',
