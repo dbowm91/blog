@@ -251,12 +251,14 @@ Three feed endpoints available:
 - `'partial_failure'` - Some succeeded, some failed
 - `'failed'` - All failed
 
-### Search Provider Abstraction
+### Search Provider Architecture
 `SearchProvider` abstract class in `app/services/search/__init__.py` with implementations:
 - `SQLiteSearchProvider` - Current default using FTS5
 - `PostgreSQLSearchProvider` - Stub for future PostgreSQL support
 
 Use `get_search_provider()` factory function to get configured provider based on `SEARCH_PROVIDER` config.
+
+**Important**: `app/search.py` module-level functions are SEPARATE from the `SearchProvider` abstraction. The functions in `app/search.py` (search, sync_fts, rebuild_fts, etc.) are standalone FTS5 implementations. `SQLiteSearchProvider` in `app/services/search/sqlite.py` is a wrapper class with its own implementation. They are NOT a wrapping relationship.
 
 ### S3 Client Initialization
 S3StorageBackend stores credentials at client creation time (not per-request). Credentials remain on the instance to allow client recreation if needed.
@@ -332,20 +334,6 @@ Benchmark tests in `tests/benchmarks/` don't use a `client` fixture - they creat
 
 ### Template Context Variables
 Use `site_title` and `site_description` as context variables (NOT `site_name` or `site_tagline`).
-
-### Backup Service Missing PYTHONPATH
-**RESOLVED** - docker-compose.yml backup service now has `PYTHONPATH=/home/blog`.
-
-## Implementation Notes
-
-### Variant Cleanup on Image Replacement
-When `upload_with_processing()` is called with an existing filename, old variants (400_, 800_, 1200_, .webp, .avif) are automatically cleaned up before creating new ones.
-
-### Backup Compression Cleanup
-Compressed backups use a `finally` block to ensure `.tmp` files are cleaned up even if `os.replace()` fails.
-
-### Analytics Days Range Configurable
-`ANALYTICS_DAYS_MIN` (default 7) and `ANALYTICS_DAYS_MAX` (default 365) are now configurable via config.toml under `[app]`.
 
 ## Skills
 

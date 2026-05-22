@@ -1,7 +1,7 @@
 # Implementation Plan - Blog CMS Documentation Updates
 
 **Project:** Blog CMS
-**Status:** IN PROGRESS (38% complete - Wave A and E3/E5 done, E1-E2,E4,E6-E10, Waves B-F remaining)
+**Status:** IN PROGRESS (estimated 30% complete based on verified status)
 **Last Updated:** May 22, 2026
 
 ---
@@ -10,129 +10,142 @@
 
 This plan consolidates documentation updates from architecture reviews across testing, frontend, services, tasks, routes, infrastructure, and deployment. Items are organized into **waves** indicating parallelization potential.
 
-**Total: 45 action items across 6 waves (8 completed, 37 pending)**
+**Total: 43 action items across 6 waves (verified count after removing invalid items)**
 
 ---
 
-## Wave A: Testing Documentation Fixes (Priority 1)
+## Wave A: Testing Documentation (Priority 1)
 
 | # | Action Item | File | Details | Status |
 |---|-------------|------|---------|--------|
-| A1 | **Remove test_api.py from import list** | `tests/AGENTS.override.md` line 73 | test_api.py does NOT import from shared_fixtures; e2e and benchmarks conftest files are the actual importers | ✅ DONE |
-| A2 | **Change E2E setup from @playwright/test to pytest-playwright** | `architecture/testing/test-suite.md` lines 87-91 | Project uses pytest-playwright, not @playwright/test | ✅ DONE |
-| A3 | **Add missing fixtures to documentation table** | `tests/AGENTS.override.md` | Missing: `sample_post`, `sample_tag`, `sample_subscriber` (conftest.py), `clean_analytics_cache` (shared_fixtures.py), `clean_db` (benchmarks/conftest.py), `api_client` (test_api.py) | ✅ DONE |
-| A4 | **Update test file list with actual test files** | `tests/AGENTS.override.md` | Missing: test_2fa.py, test_search.py, test_webhooks.py, test_tasks.py, test_scheduler.py, test_newsletter.py, test_comments_admin.py | ⏳ PENDING |
-| A5 | **Remove specific test count** | `tests/AGENTS.override.md` | "524 tests pass" claim is outdated (now 36 test files) | ✅ DONE |
-| A6 | **Simplify test file list pattern** | `tests/AGENTS.override.md` | Show directory structure pattern rather than enumerating all test files | ✅ DONE |
+| A1 | Remove test_api.py from import list claim | `tests/AGENTS.override.md` | test_api.py does NOT import from shared_fixtures; e2e and benchmarks conftest files are the actual importers | ✅ DONE |
+| A2 | Change E2E setup from @playwright/test to pytest-playwright | `architecture/testing/test-suite.md` | Project uses pytest-playwright, not @playwright/test | ✅ DONE |
+| A3 | Add missing `clean_db` fixture to documentation | `tests/AGENTS.override.md` | `clean_db` fixture from `benchmarks/conftest.py:52` is not documented in the fixtures list | ⏳ PENDING |
+| A4 | Update test file list with actual test files | `tests/AGENTS.override.md` | Missing: test_2fa.py, test_search.py, test_webhooks.py, test_tasks.py, test_scheduler.py, test_newsletter.py, test_comments_admin.py, test_404.py, test_500.py, test_429.py, test_cli.py, test_models.py (line numbers), etc. The ~36 test files are not fully enumerated | ⏳ PENDING |
+| A5 | Remove specific test count | `tests/AGENTS.override.md` | "524 tests pass" claim is outdated (now ~36 test files) | ✅ DONE |
+| A6 | Simplify test file list pattern | `tests/AGENTS.override.md` | Directory structure pattern shown rather than enumerating all test files | ✅ DONE |
 
 **Files to modify:** `tests/AGENTS.override.md`, `architecture/testing/test-suite.md`
 
+**Parallelization:** All Wave A items are independent and can be done in parallel.
+
 ---
 
-## Wave B: Services Documentation Fixes (High Priority)
+## Wave B: Services Documentation (High Priority)
 
-| # | Action Item | File | Details |
-|---|-------------|------|---------|
-| B1 | **Remove line numbers from tag_cache.md invalidation calls** | `architecture/services/tag_cache.md` | Line numbers are fragile; replace with functional descriptions |
-| B2 | **Fix search.md documentation source confusion** | `architecture/services/search.md` | Documents SearchProvider abstraction but cites `app/search.py` line numbers instead of `app/services/search/sqlite.py` |
-| B3 | **Add reset_fts_available() to search.md** | `architecture/services/search.md` | Function at `app/search.py:36` missing from docs |
-| B4 | **Update backup.md line numbers** | `architecture/services/backup.md` | `run_daily_backup()` at line 145, not 48 |
-| B5 | **Update slug.md line number** | `architecture/services/slug.md` | `generate_unique_slug()` at line 13, not 12 |
+| # | Action Item | File | Details | Status |
+|---|-------------|------|---------|--------|
+| B1 | ~~Remove line numbers from tag_cache.md~~ | ~~N/A~~ | **REMOVED** - Line numbers in tag_cache.md are accurate and up-to-date. No action needed. | ✅ N/A |
+| B2 | Fix search.md documentation source confusion | `architecture/services/search.md` | Documents SearchProvider abstraction but cites `app/search.py` line numbers instead of clarifying that `SQLiteSearchProvider` in `app/services/search/sqlite.py` is a SEPARATE implementation (not a wrapper) | ⏳ PENDING |
+| B3 | Document `reset_fts_available()` in search.md | `architecture/services/search.md` | Function at `app/search.py:36` exists but is NOT part of SearchProvider abstraction - it's a module-level function | ⏳ PENDING |
+| B4 | Update backup.md line numbers | `architecture/services/backup.md` | `run_daily_backup()` is at `app/scheduler.py:261` (NOT line 145). The function doesn't exist in `app/services/backup.py` | ⏳ PENDING |
+| B5 | Clarify slug.md line number | `architecture/services/slug.md` | `generate_unique_slug()` is at line 13 (correct). Plan claimed it was "not 12" but 13 is accurate | ✅ DONE |
 
-**Files to modify:** `architecture/services/tag_cache.md`, `architecture/services/search.md`, `architecture/services/backup.md`, `architecture/services/slug.md`
+**Files to modify:** `architecture/services/search.md`, `architecture/services/backup.md`
 
-**Dependency:** B2 (search.md source) should be done after understanding SearchProvider abstraction in `app/services/search/__init__.py`
+**Dependencies:** B2 should be done first to understand the SearchProvider vs app/search.py relationship
 
 ---
 
 ## Wave C: Services & Tasks Documentation (Medium Priority)
 
-| # | Action Item | File | Details |
-|---|-------------|------|---------|
-| C1 | **Document app/search.py relationship** | `architecture/services/search.md` | Clarify that module-level functions in app/search.py are wrapped by SQLiteSearchProvider |
-| C2 | **Document exception handling in search functions** | `architecture/services/search.md` | OperationalError, ProgrammingError, DatabaseError caught and return empty/false |
-| C3 | **Document "Did You Mean" exact match behavior** | `architecture/services/search.md` | search.py:349-351 special logic for exact case match |
-| C4 | **Add error handling table to celery-tasks.md** | `architecture/tasks/celery-tasks.md` | Document retry behavior for each task |
-| C5 | **Document deliver_webhook_task non-retry behavior** | `architecture/tasks/celery-tasks.md` | Has max_retries=3 but NEVER calls self.retry() despite the config; exceptions caught don't trigger Celery retry |
-| C6 | **Fix line numbers in celery-tasks.md** | `architecture/tasks/celery-tasks.md` | db.session.remove() lines: send_newsletter_task ~181 (not 178), deliver_webhook_task ~260 (not 258) |
-| C7 | **Document non-retry for generate_image_variants and run_backup_task** | `architecture/tasks/celery-tasks.md` | Both return False on failure without retry |
+| # | Action Item | File | Details | Status |
+|---|-------------|------|---------|--------|
+| C1 | Clarify app/search.py vs SQLiteSearchProvider relationship | `architecture/services/search.md` | `app/search.py` module-level functions and `SQLiteSearchProvider` class in `app/services/search/sqlite.py` are SEPARATE implementations, NOT a wrapping relationship. Both exist independently | ⏳ PENDING |
+| C2 | Document exception handling in search functions | `architecture/services/search.md` | OperationalError, ProgrammingError, DatabaseError caught in search.py functions and return empty/false | ✅ DONE |
+| C3 | Document "Did You Mean" exact match behavior | `architecture/services/search.md` | `app/search.py:349-351` returns original indexed term (preserving case) when exact case-insensitive match is found. `search.md` mentions fuzzy matching but not the case-preserving return | ⏳ PENDING |
+| C4 | Add error handling table to celery-tasks.md | `architecture/tasks/celery-tasks.md` | Document retry behavior for each task | ⏳ PENDING |
+| C5 | Document deliver_webhook_task non-retry behavior | `architecture/tasks/celery-tasks.md` | Has `max_retries=3` but NEVER calls `self.retry()` - exceptions caught at `app/tasks.py:234-246` don't trigger Celery retry. Failed webhooks are silently skipped | ⏳ PENDING |
+| C6 | Fix line numbers in celery-tasks.md | `architecture/tasks/celery-tasks.md:116` | `db.session.remove()` lines: send_newsletter_task at 181 (not 178), deliver_webhook_task at 260 (not 258) | ⏳ PENDING |
+| C7 | Document non-retry for generate_image_variants and run_backup_task | `architecture/tasks/celery-tasks.md` | Both return False on failure without retry (tasks.py lines 121, 124, 320) | ⏳ PENDING |
 
 **Files to modify:** `architecture/services/search.md`, `architecture/tasks/celery-tasks.md`
 
----
-
-## Wave D: Routes Documentation Fixes (Medium/Low Priority)
-
-| # | Action Item | File | Details |
-|---|-------------|------|---------|
-| D1 | **Fix public comments rate limit** | `architecture/routes/api-routes.md` line 139 | Documentation claims 20/min, actual is 10/min (`app/routes/public/comments.py:15`) |
-| D2 | **Fix sitemap cache claim** | `architecture/routes/public-routes.md` line 99 | Claims "Cache: 5 minutes" but `app/routes/public/meta.py` has no explicit cache decorator |
-| D3 | **Add pages field to API response docs** | `architecture/routes/api-routes.md` lines 36-44 | Response includes `pages` field not documented |
-| D4 | **Document authors field in JSON Feed** | `architecture/routes/rss-feeds.md` | rss.py:272 includes `"authors": [{"name": AUTHOR_NAME or "admin"}]` |
-| D5 | **Remove duplicate comment section** | `architecture/routes/public-routes.md` lines 118-127 | Comment routes described twice |
-| D6 | **Verify sitemap cache implementation** | `app/routes/public/meta.py` | If 5-minute caching intended, add `@flask_cache.cached(timeout=300)` to `sitemap_xml()` |
-| D7 | **Document series_posts endpoint** | `architecture/routes/api-routes.md` | Optional enhancement - document endpoint |
-
-**Files to modify:** `architecture/routes/api-routes.md`, `architecture/routes/public-routes.md`, `architecture/routes/rss-feeds.md`, `app/routes/public/meta.py` (if D6)
+**Parallelization:** C2, C3 depend on understanding B2 (search architecture). C4-C7 are independent of C1-C3.
 
 ---
 
-## Wave E: Frontend Documentation Fixes (High/Medium Priority)
+## Wave D: Routes Documentation (Medium Priority)
 
 | # | Action Item | File | Details | Status |
 |---|-------------|------|---------|--------|
-| E1 | **Update templates.md directory structure** | `architecture/frontend/templates.md` | `admin/posts.html` → `admin/editor.html`; `admin/newsletter.html` does not exist | ⏳ PENDING |
-| E2 | **Fix templates.md context processors** | `architecture/frontend/templates.md` | `site_name` → `site_title`; `site_tagline` → `site_description` | ⏳ PENDING |
-| E3 | **Update app/templates/AGENTS.override.md structure** | `app/templates/AGENTS.override.md` | Lists non-existent files; missing actual templates like `admin/backup_codes.html`, `admin/2fa_setup.html` | ✅ DONE |
-| E4 | **Add critical.css to static-assets.md** | `architecture/frontend/static-assets.md` | `critical.css` exists at `app/static/css/critical.css` and is used in `base.html:22` | ⏳ PENDING |
-| E5 | **Add critical.css to AGENTS.override.md** | `app/static/AGENTS.override.md` | CSS section doesn't include `critical.css` | ✅ DONE |
-| E6 | **Update static-assets.md module list** | `architecture/frontend/static-assets.md` | Missing `upload.js` and `image-preview.js` modules | ⏳ PENDING |
-| E7 | **Clarify route-based code splitting** | `architecture/frontend/static-assets.md` | Admin routes include utils, modal, nav-dropdown, filter-select, toast, shortcuts, bulk | ⏳ PENDING |
-| E8 | **Fix CSS media="print" onload pattern** | `app/templates/base.html:23-27` | `media="print"` may cause deprioritization in preload scanners; recommend `media="screen"` with preload | ⏳ PENDING |
-| E9 | **Document image URL handling** | `architecture/frontend/templates.md` | `post_image_url` filter description incomplete - doesn't mention `storage.exists()` check or fallback behavior | ⏳ PENDING |
-| E10 | **Document lazy loading strategy** | `architecture/frontend/static-assets.md` | Document `lazy-load.js` fallback behavior | ⏳ PENDING |
+| D1 | Fix public comments rate limit | `architecture/routes/api-routes.md:139` | Documentation claims 20/min, actual is 10/min (`app/routes/public/comments.py:15`) | ⏳ PENDING |
+| D2 | Fix sitemap cache claim | `architecture/routes/public-routes.md:99` | Claims "Cache: 5 minutes" but `app/routes/public/meta.py:177-181` has NO explicit cache decorator - only `@limiter.limit("60 per minute")` | ⏳ PENDING |
+| D3 | Add pages field to API response docs | `architecture/routes/api-routes.md:36-44` | Response includes `pages: pagination.pages` (line 79 in api/posts.py) not documented | ⏳ PENDING |
+| D4 | Document authors field in JSON Feed | `architecture/routes/rss-feeds.md` | `app/routes/rss.py:272` includes `"authors": [{"name": AUTHOR_NAME or "admin"}]` not documented | ⏳ PENDING |
+| D5 | Remove duplicate comment section | `architecture/routes/public-routes.md:118-127` | Comment routes described twice - second occurrence is duplicate | ⏳ PENDING |
+| D6 | Verify sitemap cache implementation | `app/routes/public/meta.py` | If 5-minute caching intended, add `@flask_cache.cached(timeout=300)` to `sitemap_xml()` | ⏳ PENDING |
 
-**Files to modify:** `architecture/frontend/templates.md`, `app/templates/AGENTS.override.md`, `architecture/frontend/static-assets.md`, `app/static/AGENTS.override.md`, `app/templates/base.html`
+**Files to modify:** `architecture/routes/api-routes.md`, `architecture/routes/public-routes.md`, `app/routes/public/meta.py` (if D6)
+
+**Parallelization:** D1-D6 are all independent and can be done in parallel.
+
+---
+
+## Wave E: Frontend Documentation (High/Medium Priority)
+
+| # | Action Item | File | Details | Status |
+|---|-------------|------|---------|--------|
+| E1 | ~~Update templates.md directory structure~~ | ~~N/A~~ | **REMOVED** - templates.md already shows `admin/editor.html` (not posts.html) and no `admin/newsletter.html` | ✅ DONE |
+| E2 | ~~Fix templates.md context processors~~ | ~~N/A~~ | **REMOVED** - templates.md already correctly shows `site_title` and `site_description` | ✅ DONE |
+| E3 | Update app/templates/AGENTS.override.md structure | `app/templates/AGENTS.override.md` | Lists non-existent files; missing actual templates like `admin/backup_codes.html`, `admin/2fa_setup.html` | ✅ DONE |
+| E4 | Add critical.css to static-assets.md | `architecture/frontend/static-assets.md` | `critical.css` exists at `app/static/css/critical.css` and is used in `base.html:22` with `media="screen"` | ✅ DONE |
+| E5 | Add critical.css to AGENTS.override.md | `app/static/AGENTS.override.md` | CSS section doesn't include `critical.css` | ✅ DONE |
+| E6 | ~~Update static-assets.md module list~~ | ~~N/A~~ | **REMOVED** - upload.js and image-preview.js are already listed in static-assets.md lines 37-39 | ✅ DONE |
+| E7 | Complete route-based code splitting documentation | `architecture/frontend/static-assets.md:66-70` | Uses `...` ellipsis but should show full module list. Full list in `main.js:30-62`: `/admin/posts`: utils, modal, nav-dropdown, filter-select, toast, shortcuts, bulk, editor, image-preview; `/admin/media`: utils, modal, nav-dropdown, filter-select, toast, shortcuts, bulk, upload, image-preview; `/admin/`: utils, modal, nav-dropdown, filter-select, toast, shortcuts, bulk | ⏳ PENDING |
+| E8 | ~~Fix CSS media="print" onload pattern~~ | ~~N/A~~ | **REMOVED** - `critical.css` already uses `media="screen"`. The `media="print" onload` pattern for non-critical CSS is a VALID and widely-used defer technique, not a bug. `base.html:23-28` use this pattern correctly | ✅ N/A |
+| E9 | Document post_image_url filter completely | `architecture/frontend/templates.md:80` | Current description incomplete - doesn't mention `storage.exists()` check at `app/filters.py:45,50` that returns None if file missing, or the request-level caching behavior | ⏳ PENDING |
+| E10 | Document lazy-load.js fallback behavior | `architecture/frontend/static-assets.md` | JS fallback behavior not documented: (1) native `loading="lazy"` if supported, (2) IntersectionObserver with `rootMargin: '200px 0px'` as polyfill, (3) loads all immediately if no IntersectionObserver support | ⏳ PENDING |
+
+**Files to modify:** `architecture/frontend/templates.md`, `architecture/frontend/static-assets.md`
+
+**Parallelization:** E7, E9, E10 are independent. E1-E6, E8 are DONE.
 
 ---
 
 ## Wave F: Infrastructure & Deployment Documentation (Medium/Low Priority)
 
-| # | Action Item | File | Details |
-|---|-------------|------|---------|
-| F1 | **Update queue routing line numbers** | `architecture/infrastructure/webhooks.md` | Line numbers off by 1-3 |
-| F2 | **Clarify health check email status** | `architecture/infrastructure/overview.md` | Email check NOT separate - SMTP only used for scheduler status |
-| F3 | **Document WEBHOOK_TIMEOUT configuration** | `architecture/infrastructure/webhooks.md` | Configuration not currently documented |
-| F4 | **Add search provider configuration details** | `architecture/infrastructure/search.md` | SEARCH_PROVIDER config not fully documented |
-| F5 | **Add variant cleanup to S3 flow documentation** | `architecture/infrastructure/storage.md` | Variant cleanup on re-upload uses prefix, not explicit deletion |
-| F6 | **Add ADMIN_USERNAME, FLASK_ENV to docker.md** | `architecture/deployment/docker.md` | Missing documented environment variables |
-| F7 | **Document Celery concurrency setting** | `architecture/deployment/docker.md` | concurrency=1 not documented |
-| F8 | **Clarify backup encryption key requirements** | `architecture/deployment/docker.md:128-133`, `architecture/deployment/security.md:57-62` | 12 chars vs 64 hex confusion |
-| F9 | **Document PYTHONPATH for backup service** | `docker-compose.yml` or `architecture/deployment/docker.md` | PYTHONPATH=/home/blog for backup service |
+| # | Action Item | File | Details | Status |
+|---|-------------|------|---------|--------|
+| F1 | Fix queue routing line number | `architecture/infrastructure/webhooks.md:125` | Says `app/tasks.py:192` but `deliver_webhook_task` is at line 184 | ⏳ PENDING |
+| F2 | Clarify health check email status | `architecture/infrastructure/overview.md` | Email is an optional check (line 34) and does NOT affect overall status - correctly documented | ✅ DONE |
+| F3 | Document WEBHOOK_TIMEOUT configuration | `architecture/infrastructure/webhooks.md` | `app/config.py:140` shows `WEBHOOK_TIMEOUT` is configurable via config, but webhooks.md line 69 says "10 second timeout" implying hardcoded | ⏳ PENDING |
+| F4 | Add search provider configuration details | `architecture/infrastructure/search.md` | SEARCH_PROVIDER config correctly documented at line 24 | ✅ DONE |
+| F5 | Document variant cleanup on image replacement | `architecture/infrastructure/storage.md` | `upload_with_processing()` cleans up old variants (400_, 800_, 1200_, .webp, .avif) using prefix matching before creating new ones. Not documented in storage.md | ⏳ PENDING |
+| F6 | Add FLASK_ENV to docker.md environment variables | `architecture/deployment/docker.md` | ADMIN_USERNAME documented but FLASK_ENV missing from environment variables table | ⏳ PENDING |
+| F7 | Document Celery concurrency setting | `architecture/deployment/docker.md` | `docker-compose.yml:50` shows `concurrency=1` - not documented | ✅ DONE |
+| F8 | Fix backup encryption key generation command | `architecture/deployment/docker.md:132`, `architecture/deployment/security.md:57-62` | Command shows `secrets.token_hex(32)` which generates 64 hex characters, but 12-character minimum is required. Should use `secrets.token_urlsafe(12)` or similar | ⏳ PENDING |
+| F9 | Document PYTHONPATH for backup service | `docker-compose.yml:114` | `PYTHONPATH=/home/blog` for backup service - docker.md doesn't mention this | ⏳ PENDING |
 
-**Files to modify:** `architecture/infrastructure/webhooks.md`, `architecture/infrastructure/overview.md`, `architecture/infrastructure/search.md`, `architecture/infrastructure/storage.md`, `architecture/deployment/docker.md`, `architecture/deployment/security.md`, `docker-compose.yml`
+**Files to modify:** `architecture/infrastructure/webhooks.md`, `architecture/infrastructure/overview.md`, `architecture/infrastructure/storage.md`, `architecture/deployment/docker.md`, `architecture/deployment/security.md`
+
+**Parallelization:** F1-F9 are all independent and can be done in parallel.
 
 ---
 
-## Implementation Order
+## Implementation Order (Waves)
 
 ### Phase 1: High Priority (Waves A, B)
-1. Wave A - Testing documentation fixes
-2. Wave B - Services documentation fixes (High priority)
+**Recommended: Run Wave A and Wave B in parallel with sub-agents**
+
+1. Wave A - Testing documentation fixes (A1, A2, A3, A4, A5, A6)
+2. Wave B - Services documentation fixes (B2, B3, B4)
 
 ### Phase 2: Medium Priority (Waves C, D, E)
-3. Wave C - Services & Tasks documentation
-4. Wave D - Routes documentation fixes
-5. Wave E - Frontend documentation fixes
+**Recommended: Run Waves C, D, E in parallel with sub-agents**
+
+3. Wave C - Services & Tasks documentation (C1, C2, C3, C4, C5, C6, C7)
+4. Wave D - Routes documentation (D1, D2, D3, D4, D5, D6)
+5. Wave E - Frontend documentation (E7, E9, E10)
 
 ### Phase 3: Lower Priority (Wave F)
-6. Wave F - Infrastructure & Deployment documentation
+6. Wave F - Infrastructure & Deployment documentation (F1, F3, F5, F6, F8, F9)
 
 ---
 
 ## Deferred Items
 
-**B2 (Per-Webhook Retry) from previous plan** - Intentionally deferred:
+**Per-Webhook Retry** - Intentionally deferred:
 - Location: `app/tasks.py:234-246`
 - Status: Not implemented - would require significant refactoring
 - Current behavior: Failed webhooks are logged but silently skipped
@@ -148,10 +161,15 @@ When updating line numbers in documentation, verify against actual source:
 - Line numbers change with code modifications; use functional descriptions when possible
 
 ### Context for Implementation
-- **Search Provider**: Understand `app/services/search/__init__.py` before updating search.md
+- **Search Provider Architecture**: `app/search.py` and `SQLiteSearchProvider` in `app/services/search/sqlite.py` are SEPARATE implementations. The SearchProvider abstraction is a wrapper/interface pattern, but the actual functions in app/search.py are standalone FTS5 functions. See `app/services/search/__init__.py` for the abstraction.
 - **Celery Tasks**: Verify task behavior in `app/tasks.py` before documenting error handling
 - **Frontend Templates**: Check `app/templates/` directory for actual template files
 - **Routes**: Cross-reference route handlers in `app/routes/` with documentation
+- **Lazy Load JS**: See `app/static/js/shared/lazy-load.js` for full fallback behavior
+
+### Key Line Numbers (Verified May 2026)
+- `app/tasks.py`: generate_image_variants(28), send_newsletter_task(127), deliver_webhook_task(184), send_confirmation_task(263), send_password_reset_task(284), run_backup_task(305)
+- `app/search.py`: reset_fts_available(36), search(201), sync_fts(112), sync_fts_batch(136), remove_fts(177), rebuild_fts(102), get_search_snippets(282), get_did__mean(327), highlight_query(356), extract_snippet(253), get_indexed_terms(224)
 
 ---
 

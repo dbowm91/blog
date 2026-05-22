@@ -38,23 +38,16 @@ Tests are organized across ~36 test files covering models, routes, API, search, 
 
 ```
 tests/
-├── conftest.py          # Pytest fixtures and configuration
-├── test_models.py       # Model unit tests
-├── test_public.py       # Public routes tests
-├── test_admin.py        # Admin routes tests
-├── test_api.py          # REST API tests
-├── test_coverage.py     # RSS/Atom feed tests (NOT test_rss.py)
-├── test_search.py       # FTS5 search tests
-├── test_utils.py        # Utility function tests
-├── test_cli.py          # CLI command tests
-├── shared_fixtures.py   # Shared fixtures (ensure_buffer_disabled here)
-├── benchmarks/          # Benchmark tests
-│   └── conftest.py      # Benchmark fixtures
-└── e2e/                 # Playwright E2E tests
-    └── test_e2e.py      # Contains TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
+├── conftest.py              # Pytest fixtures and configuration
+├── test_*.py                # Unit tests (models, public, admin, api, search, utils, cli, etc.)
+├── shared_fixtures.py       # Shared fixtures (ensure_buffer_disabled here)
+├── benchmarks/              # Benchmark tests
+│   └── conftest.py          # Benchmark fixtures (clean_db fixture here)
+└── e2e/                     # Playwright E2E tests
+    └── test_e2e.py          # Contains TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ```
 
-Note: E2E tests are ALL in `test_e2e.py` - NOT in separate test_home.py, test_post.py, test_admin.py files.
+Note: There are ~36 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get exact count.
 
 ## Key Fixtures
 
@@ -66,6 +59,7 @@ Note: E2E tests are ALL in `test_e2e.py` - NOT in separate test_home.py, test_po
 - `post` - Sample post fixture
 - `sample_post`, `sample_tag`, `sample_subscriber` - From conftest.py
 - `clean_analytics_cache` - From shared_fixtures.py
+- `clean_db` - From benchmarks/conftest.py
 - `api_client` - From test_api.py
 
 ## Page View Buffer in Tests
