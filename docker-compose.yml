@@ -35,6 +35,7 @@ services:
   celery:
     build: .
     restart: unless-stopped
+    # Single concurrency to prevent duplicate newsletter sends and webhook deliveries
     command: celery -A app.celery_app worker --loglevel=info --concurrency=1
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
