@@ -1,11 +1,8 @@
 """Celery tasks for heavy operations."""
 
-import hashlib
-import hmac
-import json
 import logging
 import os
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, Any, TYPE_CHECKING
 
 from celery import shared_task
 from sqlalchemy import select
@@ -279,7 +276,7 @@ def send_confirmation_task(self: Any, subscriber_id: int) -> bool:
         send_confirmation(subscriber)
         return True
     except Exception as e:
-        current_app.logger.error(f"Confirmation email failed: {e}")
+        logger.error(f"Confirmation email failed: {e}")
         return False
     finally:
         db.session.remove()
@@ -300,7 +297,7 @@ def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
         send_password_reset(user, token)
         return True
     except Exception as e:
-        current_app.logger.error(f"Password reset email failed: {e}")
+        logger.error(f"Password reset email failed: {e}")
         return False
     finally:
         db.session.remove()
