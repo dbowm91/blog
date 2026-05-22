@@ -8,15 +8,15 @@ Implementation Status: All waves completed. Project in maintenance mode.
 ## Implementation Summary
 
 All implementation waves (A-F from plan.md) have been verified and completed:
-- **Wave A**: Critical bugs (mobile-menu.jsx, marked-wrapper.js, CSRF/rate limiting on comments, public preview session check)
-- **Wave B**: Security & data integrity (slug constraints, backup compression cleanup, PostgreSQL ConfigurationError)
-- **Wave C**: Architecture documentation updates (task line numbers, search functions, tag cache, routes docs)
-- **Wave D**: Deployment & configuration (env vars, PYTHONPATH, variant cleanup, rate limit alignment)
-- **Wave E**: Testing improvements (2FA tests, SearchProvider tests, webhook delivery_status tests, fixture unification)
-- **Wave F**: Code quality (db.session.remove() pattern, backup helper, analytics configurable range)
+- **Wave A**: Testing documentation (clean_db fixture, test file list with line numbers)
+- **Wave B**: Services documentation (search.md source clarification, reset_fts_available(), backup.md line numbers)
+- **Wave C**: Tasks documentation (error handling table, deliver_webhook_task non-retry, line numbers fixed)
+- **Wave D**: Routes documentation (comment rate limit 10/min, sitemap cache, API pages field, JSON feed authors)
+- **Wave E**: Frontend documentation (route-based code splitting, post_image_url filter, lazy-load.js fallback)
+- **Wave F**: Infrastructure documentation (WEBHOOK_TIMEOUT, variant cleanup, FLASK_ENV, PYTHONPATH, BACKUP_ENCRYPTION_KEY)
 
 ### Deferred Item (Acknowledged)
-**B2: Per-Webhook Retry** - Not implemented due to complexity. Failed webhooks silently skipped. Documented in architecture.
+**Per-Webhook Retry** - Not implemented due to complexity. Failed webhooks silently skipped. Documented in `architecture/tasks/celery-tasks.md` and `architecture/infrastructure/webhooks.md`.
 
 ## Triggers
 Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log

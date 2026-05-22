@@ -29,10 +29,16 @@ Wave O completed (May 2026). Additional fixes documented in `plans/<module>_revi
 - **tasks**: Line numbers fixed, error handling table added
 - **testing**: pytest-playwright instructions, api_client fixture added
 
-### Plan Completion (May 2026)
-- Wave A-F: All 36 items implemented and verified
-- Wave J-N: All review findings implemented
-- Wave O: Documentation fixes from module reviews implemented
+### Plan Completion (May 22, 2026)
+All 43 plan.md items completed across Waves A-F:
+- Wave A (testing): clean_db fixture, test file list with line numbers
+- Wave B (services): search.md source clarification, reset_fts_available(), backup.md line numbers
+- Wave C (tasks): error handling table, deliver_webhook_task non-retry, line numbers fixed, generate_image_variants/run_backup_task non-retry documented
+- Wave D (routes): comment rate limit 10/min, sitemap cache claim, API pages field, JSON feed authors field, duplicate comment section removed
+- Wave E (frontend): route-based code splitting expanded, post_image_url filter documented, lazy-load.js fallback documented
+- Wave F (infrastructure): queue routing line number fixed, WEBHOOK_TIMEOUT configurable, variant cleanup documented, FLASK_ENV added, BACKUP_ENCRYPTION_KEY generation fixed, PYTHONPATH documented
+
+See `plans/plan.md` for full implementation summary.
 
 ### Critical Bugs Fixed
 1. `app/webhooks.py:111` - Missing logger (NameError at runtime)
