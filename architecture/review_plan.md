@@ -1,111 +1,87 @@
 # Architecture Review Plan
 
-## Status: INCOMPLETE
-
-**Last Review:** All 8 modules reviewed (Wave K, May 2026)
-**Current Phase:** Implementation of review findings (Wave N - in progress)
-
-## Wave N Implementation (May 2026)
-
-### Completed Fixes
-
-| Priority | Fix | Location |
-|----------|-----|----------|
-| High | `datetime.utcnow()` deprecation | `app/services/backup.py:166` → `datetime.now(timezone.utc)` |
-| High | Email task retry logic fix | `app/tasks.py:267,289` - removed misleading `retry_backoff=True` |
-| High | mobile-menu.jsx import fix | `app/static/js/main.js:18` - corrected .js → .jsx |
-| Medium | Frontend AGENTS.override.md fixes | Removed non-existent `style.css`, `themes/`, `vite-plugin-flask` |
-| Medium | Templates AGENTS.override.md fix | Fixed `inject_config` variable names |
-| Medium | Routes admin-routes.md fix | Removed non-existent `list.py`, added page routes |
-| Medium | Deployment cicd.md fix | lint-and-type only tests Python 3.12 |
-| Medium | Deployment security.md fix | Removed non-existent `Permissions-Policy` header |
-
-### Verification Notes
-
-- Email tasks silently fail by design (return False on exception). `retry_backoff=True` was misleading without `max_retries` and `self.retry()`.
-- mobile-menu file is `mobile-menu.jsx` (JSX syntax), Vite glob matched it despite wrong extension in import.
-- Permissions-Policy header documented but never implemented in nginx or Flask.
-
-## Overview
-
-This plan organizes a comprehensive review of all architecture documentation modules using subagents. Each subagent will:
-1. Review their designated module's documentation
-2. Verify claims against actual code implementation
-3. Identify discrepancies, bugs, and improvements
-4. Write an improvement plan to `plans/<module>_review.md`
+This plan outlines a comprehensive review of the architecture documentation. Each module will be reviewed by a subagent that will verify claims against the code and produce an improvement plan.
 
 ## Modules to Review
 
-| Module | Directory | Documents | Subagent Output |
-|--------|-----------|-----------|----------------|
-| Core | `architecture/core/` | app-factory.md, configuration.md, models.md | `plans/core_review.md` |
-| Services | `architecture/services/` | backup.md, overview.md, search.md, serialization.md, slug.md, tag_cache.md, tag.md | `plans/services_review.md` |
-| Routes | `architecture/routes/` | admin-routes.md, api-routes.md, public-routes.md, rss-feeds.md | `plans/routes_review.md` |
-| Tasks | `architecture/tasks/` | celery-tasks.md, overview.md, scheduler.md | `plans/tasks_review.md` |
-| Infrastructure | `architecture/infrastructure/` | email.md, overview.md, search.md, storage.md, webhooks.md | `plans/infrastructure_review.md` |
-| Frontend | `architecture/frontend/` | overview.md, static-assets.md, templates.md | `plans/frontend_review.md` |
-| Deployment | `architecture/deployment/` | cicd.md, docker.md, overview.md, security.md | `plans/deployment_review.md` |
-| Testing | `architecture/testing/` | test-suite.md | `plans/testing_review.md` |
+| Module | Documents | Subagent Output |
+|--------|-----------|-----------------|
+| core | app-factory.md, configuration.md, models.md | plans/core_review.md |
+| routes | admin-routes.md, api-routes.md, public-routes.md, rss-feeds.md | plans/routes_review.md |
+| services | backup.md, search.md, serialization.md, slug.md, tag.md, tag_cache.md, overview.md | plans/services_review.md |
+| tasks | celery-tasks.md, scheduler.md, overview.md | plans/tasks_review.md |
+| frontend | static-assets.md, templates.md, overview.md | plans/frontend_review.md |
+| infrastructure | overview.md, webhooks.md, search.md, email.md, storage.md | plans/infrastructure_review.md |
+| deployment | overview.md, security.md, cicd.md, docker.md | plans/deployment_review.md |
+| testing | test-suite.md | plans/testing_review.md |
 
-## Review Workflow
+## Review Process
 
-For each module, the subagent should:
-1. Read all documentation files in the module directory
-2. Cross-reference claims with actual code in `app/`
-3. Verify implementation details against documentation
-4. Identify any bugs, inconsistencies, or improvement opportunities
-5. Document findings in `plans/<module>_review.md`
+For each module, the subagent will:
+1. Read all documents in the module directory
+2. Verify claims against actual implementation in `app/`
+3. Identify discrepancies, outdated information, or missing coverage
+4. Interrogate code for potential improvements and bugs
+5. Write improvement plan to the designated file in `plans/`
 
-## Subagent Execution
+## Execution Order
 
-Launch subagents in parallel for independent modules:
+Subagents will be launched in parallel where possible:
 
-### 1. Core Review (architecture/core/)
-- **app-factory.md** - Flask app creation, extensions, context processors
-- **configuration.md** - Config classes, environment variables
-- **models.md** - SQLAlchemy models, relationships
+1. **Core Review** - Review `architecture/core/` documents
+2. **Routes Review** - Review `architecture/routes/` documents
+3. **Services Review** - Review `architecture/services/` documents
+4. **Tasks Review** - Review `architecture/tasks/` documents
+5. **Frontend Review** - Review `architecture/frontend/` documents
+6. **Infrastructure Review** - Review `architecture/infrastructure/` documents
+7. **Deployment Review** - Review `architecture/deployment/` documents
+8. **Testing Review** - Review `architecture/testing/` documents
 
-### 2. Services Review (architecture/services/)
-- **backup.md** - Backup service, encryption
-- **search.md** - Search provider abstraction, FTS5
-- **serialization.md** - JSON serialization
-- **slug.md** - Slug generation
-- **tag_cache.md** - Tag caching
-- **tag.md** - Tag service
+## Review Tasks
 
-### 3. Routes Review (architecture/routes/)
-- **admin-routes.md** - Admin dashboard routes
-- **api-routes.md** - REST API endpoints
-- **public-routes.md** - Public facing routes
-- **rss-feeds.md** - Atom/RSS/JSON feeds
+### Task 1: Core Module Review
+- Directory: `architecture/core/`
+- Output: `plans/core_review.md`
+- Focus: app-factory.md, configuration.md, models.md
 
-### 4. Tasks Review (architecture/tasks/)
-- **celery-tasks.md** - Celery task definitions
-- **scheduler.md** - APScheduler jobs
+### Task 2: Routes Module Review
+- Directory: `architecture/routes/`
+- Output: `plans/routes_review.md`
+- Focus: admin-routes.md, api-routes.md, public-routes.md, rss-feeds.md
 
-### 5. Infrastructure Review (architecture/infrastructure/)
-- **email.md** - Email sending, SMTP handling
-- **search.md** - Search infrastructure
-- **storage.md** - S3 storage backend
-- **webhooks.md** - Webhook delivery, encryption
+### Task 3: Services Module Review
+- Directory: `architecture/services/`
+- Output: `plans/services_review.md`
+- Focus: backup.md, search.md, serialization.md, slug.md, tag.md, tag_cache.md
 
-### 6. Frontend Review (architecture/frontend/)
-- **static-assets.md** - JS/CSS assets, Vite
-- **templates.md** - Jinja2 templates
+### Task 4: Tasks Module Review
+- Directory: `architecture/tasks/`
+- Output: `plans/tasks_review.md`
+- Focus: celery-tasks.md, scheduler.md, overview.md
 
-### 7. Deployment Review (architecture/deployment/)
-- **docker.md** - Docker configuration
-- **cicd.md** - CI/CD pipeline
-- **security.md** - Security configuration
+### Task 5: Frontend Module Review
+- Directory: `architecture/frontend/`
+- Output: `plans/frontend_review.md`
+- Focus: static-assets.md, templates.md, overview.md
 
-### 8. Testing Review (architecture/testing/)
-- **test-suite.md** - Test infrastructure
+### Task 6: Infrastructure Module Review
+- Directory: `architecture/infrastructure/`
+- Output: `plans/infrastructure_review.md`
+- Focus: webhooks.md, search.md, email.md, storage.md
 
-## Output Format
+### Task 7: Deployment Module Review
+- Directory: `architecture/deployment/`
+- Output: `plans/deployment_review.md`
+- Focus: security.md, cicd.md, docker.md
 
-Each module's improvement plan should contain:
-- **Verified Claims** - Documentation claims confirmed in code
-- **Discrepancies** - Documentation vs implementation mismatches
-- **Bugs Found** - Actual bugs discovered
-- **Improvement Opportunities** - Suggested enhancements
-- **Priority** - High/Medium/Low classification
+### Task 8: Testing Module Review
+- Directory: `architecture/testing/`
+- Output: `plans/testing_review.md`
+- Focus: test-suite.md
+
+## Launch Commands
+
+Each subagent will be launched with the architecture_review skill and detailed instructions to:
+1. Review the designated module documents
+2. Cross-reference with actual code in `app/`
+3. Document findings in the appropriate `plans/` file
