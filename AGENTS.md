@@ -257,6 +257,28 @@ Three feed endpoints available:
 ### Webhook Secret Storage
 `Webhook.secret` is encrypted at rest using AES-256-GCM via `app/webhook_encryption.py` (see `app/models.py:490-517`).
 
+### WebhookEvent Delivery Status
+`WebhookEvent` has a `delivery_status` field tracking delivery outcomes:
+- `'delivered'` - All webhooks succeeded
+- `'partial_failure'` - Some succeeded, some failed
+- `'failed'` - All failed
+
+### Search Provider Abstraction
+`SearchProvider` abstract class in `app/services/search/__init__.py` with implementations:
+- `SQLiteSearchProvider` - Current default using FTS5
+- `PostgreSQLSearchProvider` - Stub for future PostgreSQL support
+
+Use `get_search_provider()` factory function to get configured provider based on `SEARCH_PROVIDER` config.
+
+### S3 Client Initialization
+S3StorageBackend stores credentials at client creation time (not per-request). Credentials remain on the instance to allow client recreation if needed.
+
+### SMTP Exception Handling
+When catching SMTP exceptions, catch both specific subclasses and base classes:
+- `smtplib.SMTPException` (base class)
+- `smtplib.SMTPServerDisconnected`
+These may leak as unhandled exceptions if not explicitly caught.
+
 ## Review Output Format
 
 Each module review should document:
@@ -264,6 +286,19 @@ Each module review should document:
 - **Discrepancies** - documentation contradicts code (with specific file:line)
 - **Bugs identified** - actual bugs found (with priority: Critical/High/Medium/Low)
 - **Improvement recommendations** - proposed changes
+
+## Implemented Review Fixes (Wave M - May 2026)
+
+### Code Fixes
+1. **email.py:94,133** - Improved SMTP exception handling to catch `SMTPException` and `SMTPServerDisconnected`
+2. **storage.py:168,171-174** - Removed `_clear_credentials()` that broke S3 client recreation
+
+### Documentation Fixes
+1. **webhooks.md** - Fixed Webhook model to show `webhook_secret_encrypted` (LargeBinary) and `@property secret` getter; added `delivery_status` field and values table
+2. **docker.md** - Clarified health check authentication, rate limiting, optional checks table, authenticated detailed endpoint
+3. **cicd.md** - Added `--profile production` and `docker wait redis` to e2e-tests description
+4. **services/overview.md** - Added Search to services table
+5. **services/search.md** - Created new documentation for SearchProvider abstraction
 
 ## Skills
 

@@ -34,5 +34,13 @@ Implementation of architecture review findings:
 
 See `architecture/review_plan.md` for full summary of issues found and fixed.
 
+## Wave M Completion (May 2026)
+Continued architecture review findings implementation:
+- **email.py** - Added SMTPException and SMTPServerDisconnected to exception handling
+- **storage.py** - Removed _clear_credentials() that broke S3 client recreation
+- **webhooks.md** - Fixed Webhook model with secret encryption and delivery_status field
+- **docker.md/cicd.md** - Fixed health check docs, e2e-tests docs
+- **services/search.md** - Created new SearchProvider documentation
+
 ## Architecture Review Skill
 See `.skills/architecture_review/skill.md` for detailed architecture review workflow.
