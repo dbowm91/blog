@@ -1,7 +1,5 @@
 import os
-import shutil
 import pytest
-from tests.shared_fixtures import *
 from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -171,27 +169,6 @@ def mock_smtp():
 def mock_email(mock_render, mock_smtp):
     """Combined mock for email rendering and SMTP sending."""
     yield
-
-
-@pytest.fixture(scope="function")
-def clean_analytics_cache():
-    """Clear analytics cache before each test to prevent cross-test pollution."""
-    from app.routes.admin import _analytics_cache
-
-    _analytics_cache.clear()
-    yield
-    _analytics_cache.clear()
-
-
-@pytest.fixture(autouse=True)
-def ensure_buffer_disabled():
-    """Ensure page view buffer is disabled during tests."""
-    from app.page_view_buffer import shutdown_page_view_buffer
-    import app.config as _app_config
-    _app_config.PAGE_VIEW_BUFFER_SIZE = 0
-    shutdown_page_view_buffer()
-    yield
-    shutdown_page_view_buffer()
 
 
 @pytest.fixture(scope="session", autouse=True)

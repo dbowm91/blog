@@ -1,8 +1,8 @@
 # Email Infrastructure
 
-## Email Wrapper Task Pattern
+## Email Task Pattern
 
-The following Celery tasks wrap synchronous email functions and catch exceptions to prevent task retry storms:
+Email tasks directly call synchronous email functions and catch exceptions to prevent task retry storms:
 
 ### `send_confirmation_task`
 
