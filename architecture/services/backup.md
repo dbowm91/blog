@@ -42,32 +42,6 @@ def cleanup_old_backups(backup_dir: str, keep: int) -> None
 
 Removes old backups, keeping only the most recent `keep` backups.
 
-### `run_daily_backup()`
-
-```python
-def run_daily_backup(app: Any) -> None
-```
-
-APScheduler-friendly daily backup function.
-- **Naming**: Uses `blog_*.db` pattern (same as `create_backup()`)
-- **No encryption/compression**: Plain SQLite backup
-- **Retention**: Same pattern, managed by `cleanup_old_backups()` which handles `blog_*.db` files
-
-**Note**: Both `run_daily_backup()` and `create_backup()` use `blog_*.db` naming. `cleanup_old_backups()` handles retention for both.
-
-## Dual Backup Implementations
-
-This service provides two distinct backup implementations:
-
-| Aspect | `create_backup()` (Celery) | `run_daily_backup()` (APScheduler) |
-|--------|---------------------------|----------------------------------|
-| Trigger | Celery task `run_backup_task` | APScheduler job at 02:00 |
-| Creates | `blog_YYYYMMDD_HHMMSS.db` | `blog_YYYYMMDD_HHMMSS.db` |
-| Manages retention | Via `cleanup_old_backups()` | Via `cleanup_old_backups()` |
-| Encryption | AES-256-GCM with PBKDF2 | None |
-| Compression | Optional gzip | None |
-| Use case | On-demand encrypted backups | Scheduled daily backups |
-
 ### `decrypt_backup_file()`
 
 ```python
@@ -87,12 +61,10 @@ Decrypts an AES-256-GCM-encrypted backup file.
 ## Backup File Naming
 
 ```
-blog_YYYYMMDD_HHMMSS.db       # Plain (both create_backup and run_daily_backup)
+blog_YYYYMMDD_HHMMSS.db       # Plain
 blog_YYYYMMDD_HHMMSS.db.gz     # Compressed (create_backup with compress=True)
 blog_YYYYMMDD_HHMMSS.db.gpg    # Encrypted (create_backup with encrypt=True)
 ```
-
-**Note**: Both `create_backup()` and `run_daily_backup()` use `blog_*.db` naming. The extension varies based on compression/encryption.
 
 ## Retention Policy
 
@@ -118,5 +90,5 @@ backup_path = create_backup("/path/to/blog.db", "/backups", compress=True)
 ```
 
 ## See Also
-- [APScheduler](../tasks/scheduler.md) - Scheduled backups
+- [APScheduler](../tasks/scheduler.md) - Scheduled backups (`run_daily_backup()` at `app/scheduler.py:261`)
 - [Celery Tasks](../tasks/celery-tasks.md) - Async task queue

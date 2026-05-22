@@ -52,21 +52,23 @@ Current default implementation using SQLite FTS5.
 - **Did You Mean**: Fuzzy matching via `difflib.get_close_matches` (cutoff=0.6)
 - **Caching**: 5-minute TTL for FTS table checks
 
-### Key Functions
+## Module-Level Functions (`app/search.py`)
+
+**Important**: The SearchProvider abstraction in `app/services/search/__init__.py` is **separate from** the module-level functions in `app/search.py`. The `SQLiteSearchProvider` class **wraps these functions** - it does NOT reimplement them. The abstraction provides a consistent interface, but the actual FTS5 operations are performed by these standalone functions.
 
 | Function | Location | Description |
 |----------|----------|-------------|
-| `search()` | `app/search.py:201` | FTS5 search with bm25 ranking |
+| `reset_fts_available()` | `app/search.py:36` | Reset FTS availability cache (for testing and cache invalidation) |
+| `rebuild_fts()` | `app/search.py:102` | Rebuild entire index |
 | `sync_fts()` | `app/search.py:112` | Index/update a single post |
 | `sync_fts_batch()` | `app/search.py:136` | Batch index multiple posts |
 | `remove_fts()` | `app/search.py:177` | Remove post from index |
-| `rebuild_fts()` | `app/search.py:102` | Rebuild entire index |
-| `get_search_snippets()` | `app/search.py:282` | Get highlighted snippets |
-| `reset_fts_available()` | `app/search.py:36` | Reset FTS availability cache |
-| `get_did_you_mean()` | `app/search.py:327` | Fuzzy suggestion for failed queries |
-| `highlight_query()` | `app/search.py:356` | Add `<mark>` tags around query terms |
+| `search()` | `app/search.py:201` | FTS5 search with bm25 ranking |
 | `get_indexed_terms()` | `app/search.py:224` | Get all indexed terms via fts5vocab |
 | `extract_snippet()` | `app/search.py:253` | Extract text snippet around match |
+| `get_search_snippets()` | `app/search.py:282` | Get highlighted snippets |
+| `get_did_you_mean()` | `app/search.py:327` | Fuzzy suggestion for failed queries |
+| `highlight_query()` | `app/search.py:356` | Add `<mark>` tags around query terms |
 
 ### Search Configuration
 
