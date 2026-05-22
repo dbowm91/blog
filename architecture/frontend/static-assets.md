@@ -64,9 +64,37 @@ Code splitting is implemented in `main.js:30-83` using `import.meta.glob()`. Mod
 
 ```javascript
 const ROUTE_MODULES = {
-    '/admin/posts': ['./shared/utils.js', './shared/modal.js', ...],
-    '/admin/media': ['./shared/utils.js', './shared/modal.js', ...],
-    '/admin/': ['./shared/utils.js', './shared/modal.js', ...],
+    '/admin/posts': [
+        './shared/utils.js',
+        './shared/modal.js',
+        './shared/nav-dropdown.js',
+        './shared/filter-select.js',
+        './shared/toast.js',
+        './admin/shortcuts.js',
+        './admin/bulk.js',
+        './admin/editor.js',
+        './image-preview.js',
+    ],
+    '/admin/media': [
+        './shared/utils.js',
+        './shared/modal.js',
+        './shared/nav-dropdown.js',
+        './shared/filter-select.js',
+        './shared/toast.js',
+        './admin/shortcuts.js',
+        './admin/bulk.js',
+        './upload.js',
+        './image-preview.js',
+    ],
+    '/admin/': [
+        './shared/utils.js',
+        './shared/modal.js',
+        './shared/nav-dropdown.js',
+        './shared/filter-select.js',
+        './shared/toast.js',
+        './admin/shortcuts.js',
+        './admin/bulk.js',
+    ],
 };
 
 function getModulesForPath(path) {
@@ -82,6 +110,14 @@ CSS pattern for progressive image loading:
 - Default: `opacity: 0`
 - `.loaded` class: `opacity: 1` with transition
 - JavaScript adds `document.documentElement.classList.add('js')` first to enable progressive enhancement
+
+#### JavaScript Fallback Behavior
+
+The `lazy-load.js` module implements a three-tier fallback strategy:
+
+1. **Native lazy loading**: If `'loading' in HTMLImageElement.prototype`, use native `loading="lazy"` attribute
+2. **IntersectionObserver polyfill**: If native not supported but IntersectionObserver exists, observe images with `rootMargin: '200px 0px'` and swap `dataset.src` into `src` when intersecting
+3. **Immediate load fallback**: If no IntersectionObserver support, load all `loading="lazy"` images immediately by copying `dataset.src` to `src`
 
 ### Admin Body Class Detection
 

@@ -77,7 +77,7 @@ Registered in `app/filters.py`:
 - `markdown_safe` - Render markdown to HTML with nh3 sanitization
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
-- `post_image_url` - Get post image URL with request-level caching
+- `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`
 - `post_image_srcset` - Generate srcset for responsive images
 - `post_image_avif_url_stub` - Returns None until AVIF encoding is enabled
 
