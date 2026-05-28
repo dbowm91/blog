@@ -12,18 +12,7 @@ Consolidated plan from architecture reviews of all 8 modules. Reviews conducted 
 
 Wave 1 (8 parallel sub-waves) and Wave 2 (verification) completed May 28, 2026. 15 documentation files updated, all verified against source code.
 
----
-
-## Deferred Items
-
-### Per-Webhook Retry
-
-**Status:** Not implemented - would require significant refactoring
-
-- **Location:** `app/tasks.py:234-246`
-- **Current behavior:** Failed webhooks are logged but silently skipped
-- **Documentation:** Acknowledged in `architecture/tasks/celery-tasks.md` and `architecture/infrastructure/webhooks.md`
-- **Reason deferred:** `deliver_webhook_task` catches `requests.RequestException` without calling `self.retry()`, so Celery's `max_retries=3` never triggers. Per-webhook retry would require significant refactoring to track individual webhook state.
+Per-webhook retry implemented May 28, 2026. All items completed.
 
 ---
 
@@ -79,24 +68,13 @@ All items below were completed in Wave 1 (May 28, 2026). Verification passed (10
 - Added Vite asset helper and chunk split docs
 - Added lazy image progressive enhancement
 
----
-
-## Notes for Future Agents
-
-### Search Provider Architecture (Corrected)
-`app/search.py` module-level functions ARE wrapped by `SQLiteSearchProvider` in `app/services/search/sqlite.py`. The provider delegates to the module-level functions through the `SearchProvider` interface. The original plan's claim that they are "separate implementations" was incorrect.
-
-### Verified FALSE Claims (Do NOT Include)
-- ~~GPG encryption in backup.md~~ — Already correctly says AES-256-GCM
-- ~~Bare `except Exception` in `run_backup_task`~~ — Actually catches `(SQLAlchemyError, OSError, ImportError)`
-- ~~Referrer-Policy mismatch~~ — Both use `strict-origin-when-cross-origin`
-- ~~`POST /api/auth` route~~ — Only `require_api_key` decorator exists
-- ~~`POST /api/subscribers/export` route~~ — Only admin export exists
-- ~~`NEWSLETTER_MAX_RETRY_ATTEMPTS` missing~~ — Exists at `app/config.py:116`
-- ~~FTS sync missing in `publish_scheduled_posts`~~ — Both `sync_fts_batch` and `invalidate_tag_cache` are present
-- ~~Celery production docs missing~~ — Already documented
-- ~~Redis image tag discrepancy~~ — Both use `redis:7-alpine`
+### Per-Webhook Retry ✅
+- Added `deliver_single_webhook_task` for individual webhook delivery with retry
+- Modified `deliver_webhook_task` to dispatch to `deliver_single_webhook_task`
+- Each webhook gets independent retry logic with exponential backoff
+- Failed webhooks are retried up to 3 times before marking as failed
+- Updated delivery_status field based on individual webhook outcomes
 
 ---
 
-*Last updated: May 28, 2026 — All waves completed and verified*
+*Last updated: May 28, 2026 — All items completed*
