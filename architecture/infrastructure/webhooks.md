@@ -121,7 +121,7 @@ The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive
 | `post.created` | New post created |
 | `subscriber.confirmed` | New subscriber confirms |
 
-## Queue Routing
+## Queue Reference
 
 Webhook delivery uses the `webhooks` Celery queue (see `app/tasks.py:184`).
 
