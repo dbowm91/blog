@@ -94,6 +94,11 @@ These files have been flagged for exception handling issues:
 - `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
 - Flask-Limiter already integrated with `key_func=get_client_ip`
 
+### Session IP Binding
+- `SESSION_IP_BINDING` config in `app/config.py:89` (default: `"warn"`)
+- `"warn"`: logs warning on IP change during session
+- `"enforce"`: invalidates session and requires re-login (implemented in `app/routes/admin/__init__.py:32`)
+
 ### Search Abstraction
 - `SearchProvider` abstract class in `app/services/search/__init__.py`
 - `SQLiteSearchProvider` wraps existing FTS5 functionality
@@ -102,7 +107,7 @@ These files have been flagged for exception handling issues:
 
 ### Frontend
 - Vite configured for code splitting with `manualChunks`
-- `post_image_avif_url_stub` filter is DEPRECATED - returns None until AVIF encoding is enabled
+- `post_image_avif_url_stub` filter is DEPRECATED - always returns None (no conditional AVIF check)
 
 ### Brotli
 - Nginx configuration includes commented Brotli settings
@@ -313,6 +318,7 @@ E2E tests use `pytest-playwright`, NOT `@playwright/test`:
 pip install pytest-playwright
 playwright install chromium
 ```
+Note: `pytest-playwright` is not in committed requirements files — must be installed separately.
 
 ### Task Decorator Line Numbers
 Actual line numbers in `app/tasks.py`:
