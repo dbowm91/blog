@@ -17,8 +17,8 @@ The blog uses SQLAlchemy ORM with the following models:
 | `AdminSession` | Session tracking | user_id, session_id, ip_address |
 | `SiteSettings` | Theme/settings | theme_preset, custom_css, logo_text |
 | `AdminAuditLog` | Audit trail | actor_id, action, target_id |
-| `Webhook` | Webhook endpoints | name, url, secret, event_type |
-| `WebhookEvent` | Webhook deliveries | event_type, payload, delivered |
+| `Webhook` | Webhook endpoints | name, url, webhook_secret_encrypted, event_type |
+| `WebhookEvent` | Webhook deliveries | event_type, payload, delivered, delivery_status |
 | `Series` | Post series | name, slug, description |
 | `PostSeries` | Series-post mapping | series_id, post_id, order_index |
 | `Comment` | Post comments | post_id, parent_id, author_name, content |

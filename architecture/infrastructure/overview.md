@@ -72,6 +72,33 @@ S3 environment variables:
 
 S3 methods return `False` or empty lists on failure. `LocalStorageBackend` methods raise on filesystem errors.
 
+## SSRF Protection (`app/webhooks.py`)
+
+Webhook delivery includes Server-Side Request Forgery (SSRF) protection to prevent requests to internal/private networks.
+
+### Protection Mechanism
+
+- **URL Validation**: Before sending webhook requests, URLs are validated against private IP ranges
+- **Blocked Ranges**: `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1/128`, `fc00::/7`
+- **DNS Rebinding Protection**: Resolves hostname and checks resolved IP before sending
+- **Redirect Prevention**: `allow_redirects=False` prevents redirect-based SSRF bypass
+
+### Implementation
+
+```python
+def is_safe_url(url: str) -> bool:
+    """Validate URL is not targeting private/internal networks."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    ip = socket.gethostbyname(hostname)
+    return not ipaddress.ip_address(ip).is_private
+```
+
+### Related Documentation
+
+- Detailed implementation: `architecture/infrastructure/webhooks.md`
+- Input sanitization: `architecture/deployment/security.md`
+
 ## See Also
 - [Search](infrastructure/search.md) - Full-text search
 - [Email](infrastructure/email.md) - Email system
