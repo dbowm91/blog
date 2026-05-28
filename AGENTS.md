@@ -26,7 +26,6 @@ When an agent operates within a module, it should:
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
 | Architecture | `architecture/AGENTS.override.md` | Architecture documentation |
-| Plans | `plans/AGENTS.override.md` | Project planning and implementation guidance |
 
 ## Structure Convention
 
@@ -175,6 +174,8 @@ When documenting or referring to routes, verify against actual implementation:
 - Comment submission: `POST /post/<slug>/comment` (NOT `/comment/<int:post_id>`)
 - Subscribe: Only `POST /subscribe` exists (no GET handler)
 - API post publish: Use `PUT /api/posts/<id>` with `{"published": true}` body (NOT `POST /api/posts/<id>/publish`)
+- `POST /api/auth` does NOT exist — `app/routes/api/auth.py` contains only `require_api_key` decorator
+- `POST /api/subscribers/export` does NOT exist — only admin export at `GET /admin/subscribers/export`
 
 ### User Model `__repr__`
 Returns `<User id={self.id}>` for PII/security reasons, not username.
@@ -248,7 +249,7 @@ Three feed endpoints available:
 `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.
 
 ### Webhook Secret Storage
-`Webhook.secret` is encrypted at rest using AES-256-GCM via `app/webhook_encryption.py` (see `app/models.py:490-517`).
+`Webhook.secret` is a property that decrypts `webhook_secret_encrypted` (LargeBinary column) using AES-256-GCM via `app/webhook_encryption.py` (see `app/models.py:490-517`). Do not document `secret` as a plain-text column.
 
 ### WebhookEvent Delivery Status
 `WebhookEvent` has a `delivery_status` field tracking delivery outcomes:
@@ -299,6 +300,15 @@ The slug generation in `app/services/slug.py` has an application-level race cond
 
 ### nginx and Flask Rate Limits Are Aligned
 nginx `limit_req_zone=login` is configured at `rate=5r/m` and Flask `ADMIN_RATE_LIMITS["login"]` is `(5, 60)` - both equal 5/minute. The burst setting in nginx (5) doesn't change the effective rate.
+
+### nginx Security Headers
+Present in `nginx/conf.d/blog.conf:25-32`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Content-Security-Policy`, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy`. Missing: `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`.
+
+### Three Encryption Modules
+Distinct encryption modules with different key derivation strategies:
+- `app/backup_encryption.py` — PBKDF2-HMAC-SHA256 (600K iterations) for backup files
+- `app/webhook_encryption.py` — Direct 32-byte key (no PBKDF2) for webhook secrets
+- `app/services/encryption.py` — Direct AES-256-GCM using SECRET_KEY for TOTP secrets
 
 ### CSRF Token Rotation Is On Every Use
 `app/csrf.py` rotates tokens on every successful validation, not specifically on privilege changes. The claim in `architecture/deployment/security.md` about "token rotation on privilege changes" is not accurate - that feature is not implemented.

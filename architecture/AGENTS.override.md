@@ -4,7 +4,6 @@
 Architecture documentation for the blog CMS application.
 
 ## Key Files
-- `architecture/review_plan.md` - Architecture review plan and status
 - `architecture/overview.md` - High-level architecture overview
 - `architecture/core/` - App factory, configuration, models
 - `architecture/routes/` - API, admin, public routes, RSS feeds

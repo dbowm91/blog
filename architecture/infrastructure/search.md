@@ -4,12 +4,12 @@ Full-text search using SQLite FTS5 with LIKE fallback.
 
 ## Search Provider Abstraction (`app/services/search/`)
 
-The search functionality is wrapped by a provider abstraction layer:
+The search functionality is abstracted by a provider pattern:
 
 | Class | File | Purpose |
 |-------|------|---------|
 | `SearchProvider` | `__init__.py` | Abstract base class defining the interface |
-| `SQLiteSearchProvider` | `sqlite.py` | Wraps `app/search.py` FTS5 implementation |
+| `SQLiteSearchProvider` | `sqlite.py` | FTS5 implementation through the provider interface (separate from standalone `app/search.py` functions) |
 | `PostgreSQLSearchProvider` | `postgresql.py` | Stub for future PostgreSQL implementation |
 
 ### Factory Function

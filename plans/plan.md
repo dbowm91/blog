@@ -1,4 +1,4 @@
-# Implementation Plan - Blog CMS Architecture Documentation & Code Fixes
+# Implementation Plan - Blog CMS Architecture Documentation Fixes
 
 **Project:** Blog CMS
 **Status:** IN PROGRESS
@@ -8,9 +8,9 @@
 
 ## Overview
 
-Consolidated plan from architecture reviews of all 8 modules (core, routes, services, tasks, infrastructure, frontend, deployment, testing). Reviews conducted May 9, 2026. Previous documentation waves (A-F, 43 items) completed May 22, 2026.
+Consolidated plan from architecture reviews of all 8 modules. Reviews conducted May 9, 2026. Previous documentation waves (A-F, 43 items) completed May 22, 2026. Plan updated May 28, 2026 with codebase verification.
 
-This plan organizes items into parallelizable waves. Each wave can run subagents concurrently.
+This plan organizes items into **parallelizable waves**. Each wave can run subagents concurrently. All items are documentation-only — no code changes required (except one fixed inaccuracy in search.md, addressed separately).
 
 ---
 
@@ -27,189 +27,189 @@ This plan organizes items into parallelizable waves. Each wave can run subagents
 
 ---
 
-## Wave 1: Core + Routes (Parallel) — High Priority Documentation Fixes
+## Wave 1: All Documentation Fixes (Parallel) — Run All Subagents Concurrently
 
-These waves fix inaccurate claims in documentation and add missing route/model documentation. Run subagents in parallel.
+**Strategy:** Launch all subagents in parallel since documentation edits target different files with no dependencies between them. Each subagent works on its own module's documentation files.
 
 ### Wave 1A: Core Module Fixes
 
-**Target files:** `architecture/core/app-factory.md`, `architecture/core/configuration.md`, `architecture/core/models.md`
+**Target files:** `architecture/core/models.md`
+
+**Subagent instructions:** Read each target file, read the actual source code, fix inaccuracies, add missing documentation. Verify all claims before writing.
 
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| C-3 | HIGH | `models.md` documents `totp_secret` as a column | Fix: `totp_secret_encrypted` is the column; `totp_secret` is a property that decrypts on access via AES-256-GCM |
-| C-5 | HIGH | `configuration.md` does not document ~17 settings | Add to architecture docs: MAX_VIEWED_POSTS, TAG_CACHE_TTL_SECONDS, DASHBOARD_PER_PAGE, SUBSCRIBERS_PER_PAGE, MEDIA_PER_PAGE, MEDIA_MAX_FILES, EXPORT_BATCH_SIZE, FTS_RESULT_LIMIT, PREVIEW_TOKEN_EXPIRY_DAYS, HEALTH_CHECK_SECRET, DATA_BACKUP_DIR, WEBHOOK_TIMEOUT, WEBHOOK_ENCRYPTION_KEY, COMPRESS_ALGORITHM, SMTP_TIMEOUT, SEARCH_PROVIDER, SEARCH_CONFIG (all exist in `app/config.py`) |
-| C-6 | HIGH | `configuration.md` SESSION_IP_BINDING values not explained | Document: `"warn"` (default, logs warning on IP change) vs `"enforce"` (invalidates session, implemented in `app/routes/admin/__init__.py:32`) |
-| C-1 | MEDIUM | `app-factory.md` SESSION_COOKIE_SECURE documented as `True (in production)` | Fix: defaults to `"true"` string, configurable via env var |
-| C-2 | MEDIUM | `app-factory.md` SQLite Pragmas shown as static commands | Fix: pragmas set via SQLAlchemy `connect` event listener |
-| C-7 | MEDIUM | `models.md` Comment `author_email` documented as nullable | Fix: actual is `nullable=False` (required) |
-| C-4 | MEDIUM | `models.md` missing backup codes documentation | Add: `backup_codes_hashed` column, `generate_backup_codes()` (8 codes), `verify_backup_code()` |
+| C-3 | HIGH | `models.md` overview table line 9 documents `totp_secret` as column | Fix: change `totp_secret` to `totp_secret_encrypted` in overview table. The `totp_secret` is a `@property` that decrypts on access (see `app/models.py:33,43-52`) |
+| C-4 | MEDIUM | `models.md` User Model Details missing backup code methods | Add `generate_backup_codes()` and `verify_backup_code()` methods to User model methods list (actual code at `app/models.py:74-94`). Column `backup_codes_hashed` already documented |
 
-**Missing models to document in `models.md`:**
-- AdminSession, Series, PostSeries, Webhook, WebhookEvent, PostRevision (missing `author_id`)
+**Newly discovered issues (from verification):**
 
-**Missing services to document:**
-- Encryption service (`app/services/encryption.py`)
-- Backup service details
-- Slug service (100 try limit, UUID fallback, `exclude_id` parameter)
+| ID | Priority | Issue | Action |
+|----|----------|-------|--------|
+| C-8 | HIGH | `models.md` Webhook section shows `secret` as plain-text column | Fix: actual column is `webhook_secret_encrypted` (LargeBinary), with `secret` as `@property` that decrypts via AES-256-GCM. See `app/models.py:490-517`. Document similar to TOTP pattern |
+| C-9 | MEDIUM | `models.md` WebhookEvent section missing `delivery_status` field | Add: `delivery_status = db.Column(db.String(32), nullable=True)` with values `'delivered'`, `'partial_failure'`, `'failed'`. See `app/models.py:533` |
 
-**Missing features to document:**
-- 2FA implementation (TOTP encrypted at rest, backup codes)
-- Rate limiting (ADMIN_RATE_LIMITS in `app/config.py`)
-- Account lockout
+**Note:** C-1, C-2, C-5, C-6, C-7 from original plan are **already correct** in documentation — no changes needed.
+
+---
 
 ### Wave 1B: Routes Module Fixes
 
 **Target files:** `architecture/routes/admin-routes.md`, `architecture/routes/public-routes.md`, `architecture/routes/api-routes.md`
 
+**Subagent instructions:** For each route correction, read the actual handler file to verify the HTTP method, path, and parameters before editing. Route handler files are in `app/routes/admin/`, `app/routes/public/`, and `app/routes/api/`.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| R-1 | HIGH | Preview route documented as `GET /post/<slug>/preview/<token>` | Fix: actual is `GET /preview/<int:post_id>?token=<token>&expires=<timestamp>` (HMAC-based) |
-| R-2 | HIGH | Logout documented as `GET /admin/logout` | Fix: actual is `POST /admin/logout` with CSRF validation |
-| R-9 | HIGH | API publish documented as `POST /api/posts/<id>/publish` | Fix: does not exist; publish via `PUT /api/posts/<id>` with `{"published": true}` |
-| R-10 | HIGH | Rate limits documented as 500/min reads, 100/min writes | Fix: actual route-level limits are `DEFAULT_LIMIT = "20 per minute"` (reads), `WRITE_LIMIT = "10 per minute"` (writes) in `app/routes/api/posts.py:18-19` |
-| R-4 | MEDIUM | Subscriber export documented as `POST` | Fix: actual is `GET /admin/subscribers/export` |
-| R-5 | MEDIUM | Tag create documented as `POST /admin/tags` | Fix: actual is `POST /admin/tags/create`; also missing rename route `POST /admin/tags/rename/<int:tag_id>` |
-| R-6 | MEDIUM | Media delete documented as `DELETE /admin/media/<filename>` | Fix: actual is `POST /admin/media/delete/<filename>` |
-| R-7 | MEDIUM | Newsletter routes documented as `GET/POST /admin/newsletter` | Fix: actual is `POST /admin/newsletter-test` + `GET /admin/newsletter/preview` |
-| R-8 | MEDIUM | Settings documented as `GET/POST /admin/settings` | Fix: actual is `GET /admin/settings` + `POST /admin/settings/theme` |
-| R-3 | LOW | Post list documented as `GET /admin/posts` | Fix: actual is `GET /admin/` (dashboard) |
+| R-1 | HIGH | Preview route path wrong | Fix: actual is `GET /preview/<int:post_id>?token=<token>&expires=<timestamp>` (HMAC-based). Handler: `app/routes/public/posts.py:94-140` |
+| R-2 | HIGH | Logout method wrong | Fix: actual is `POST /admin/logout` with CSRF validation. Handler: `app/routes/admin/auth.py:99` |
+| R-9 | HIGH | API publish route doesn't exist | Fix: no `POST /api/posts/<id>/publish`. Publish via `PUT /api/posts/<id>` with `{"published": true}` body. Handler: `app/routes/api/posts.py:207` |
+| R-10 | HIGH | Rate limits wrong | Fix: actual limits are `DEFAULT_LIMIT = "20 per minute"` (reads), `WRITE_LIMIT = "10 per minute"` (writes). Constants at `app/routes/api/posts.py:18-19` |
+| R-4 | MEDIUM | Subscriber export method wrong | Fix: actual is `GET /admin/subscribers/export`. Handler: `app/routes/admin/subscribers.py:83` |
+| R-5 | MEDIUM | Tag create path wrong + missing rename | Fix: actual is `POST /admin/tags/create` (line 115) + `POST /admin/tags/rename/<int:tag_id>` (line 40). Handler: `app/routes/admin/tags.py` |
+| R-6 | MEDIUM | Media delete method and path wrong | Fix: actual is `POST /admin/media/delete/<filename>`. Handler: `app/routes/admin/media.py:160` |
+| R-7 | MEDIUM | Newsletter routes wrong | Fix: actual is `POST /admin/newsletter-test` + `GET /admin/newsletter/preview`. Handlers: `app/routes/admin/newsletter.py:24,70` |
+| R-8 | MEDIUM | Settings routes wrong | Fix: actual is `GET /admin/settings` + `POST /admin/settings/theme`. Handlers: `app/routes/admin/settings.py:14,41` |
+| R-3 | LOW | Post list path wrong | Fix: actual is `GET /admin/` (dashboard). Handler: `app/routes/admin/posts/__init__.py:51` |
 
-**Missing routes to add (21 routes):**
+**Missing routes to add to documentation (19 confirmed):**
 
-| ID | Route | Location |
-|----|-------|----------|
-| M-1 | `GET /series/<slug>` | browse.py |
-| M-2 | `GET /archive` (cursor-based pagination) | browse.py |
-| M-3 | `GET /s/<code>` (short URL redirect + share tracking) | posts.py |
-| M-4 | `POST /api/track-share` | posts.py |
-| M-5 | `POST /admin/bulk` (bulk post operations) | posts/__init__.py |
-| M-6 | `POST /admin/delete/<int:post_id>` | posts/manage.py |
-| M-7 | `GET /admin/preview/<int:post_id>` + shareable preview | posts/manage.py |
-| M-8 | `POST /admin/posts/<int:post_id>/revisions/<int:revision_id>/restore` | revisions.py |
-| M-9 | `POST /admin/users/<int:user_id>/make-owner` | users.py |
-| M-10 | `POST /admin/users/password/<int:user_id>` | users.py |
-| M-11 | `POST /admin/subscribers/bulk` | subscribers.py |
-| M-12 | `POST /admin/subscribers/delete/<int:sub_id>` | subscribers.py |
-| M-13 | `POST /admin/sessions/revoke/<int:sess_id>` | sessions.py |
-| M-14 | `POST /admin/newsletter-reset/<int:post_id>` | auth.py |
-| M-15 | `GET/POST /admin/forgot-password` + `GET/POST /admin/reset/<token>` | auth.py |
-| M-16 | 2FA routes: `/admin/login-2fa`, `/admin/2fa/backup-codes`, `/admin/2fa/disable` | auth.py |
-| M-17 | `GET /metrics` (Prometheus) | meta.py |
-| M-18 | `GET /favicon.ico` | meta.py |
-| M-19 | `GET /api/stats` | api/stats.py |
-| M-20 | `POST /api/auth` | api/auth.py |
-| M-21 | `POST /api/subscribers/export` | api/subscribers.py |
+| ID | Route | Handler Location |
+|----|-------|-----------------|
+| M-1 | `GET /series/<slug>` | `app/routes/public/browse.py:314` |
+| M-2 | `GET /archive` (cursor-based pagination) | `app/routes/public/browse.py:121` |
+| M-3 | `GET /s/<code>` (short URL redirect + share tracking) | `app/routes/public/posts.py:142` |
+| M-4 | `POST /api/track-share` | `app/routes/public/posts.py:165` |
+| M-5 | `POST /admin/bulk` (bulk post operations) | `app/routes/admin/posts/__init__.py:118` |
+| M-6 | `POST /admin/delete/<int:post_id>` | `app/routes/admin/posts/manage.py:72` |
+| M-7 | `GET /admin/preview/<int:post_id>` + shareable preview | `app/routes/admin/posts/manage.py:97` |
+| M-8 | `POST /admin/posts/<int:post_id>/revisions/<int:revision_id>/restore` | `app/routes/admin/posts/revisions.py:75` |
+| M-9 | `POST /admin/users/<int:user_id>/make-owner` | `app/routes/admin/users.py:192` |
+| M-10 | `POST /admin/users/password/<int:user_id>` | `app/routes/admin/users.py:242` |
+| M-11 | `POST /admin/subscribers/bulk` | `app/routes/admin/subscribers.py:121` |
+| M-12 | `POST /admin/subscribers/delete/<int:sub_id>` | `app/routes/admin/subscribers.py:56` |
+| M-13 | `POST /admin/sessions/revoke/<int:sess_id>` | `app/routes/admin/sessions.py:43` |
+| M-14 | `POST /admin/newsletter-reset/<int:post_id>` | `app/routes/admin/auth.py:125` |
+| M-15 | `GET/POST /admin/forgot-password` + `GET/POST /admin/reset/<token>` | `app/routes/admin/auth.py:155,198` |
+| M-16 | 2FA routes: `/admin/login-2fa`, `/admin/2fa/setup`, `/admin/2fa/verify`, `/admin/2fa/backup-codes`, `/admin/2fa/disable` | `app/routes/admin/auth.py:263,312,349,420,436` |
+| M-17 | `GET /metrics` (Prometheus) | `app/routes/public/meta.py:315` |
+| M-18 | `GET /favicon.ico` | `app/routes/public/meta.py:183` |
+| M-19 | `GET /api/stats` | `app/routes/api/stats.py:17` |
 
-**Note:** Route documentation must be cross-referenced against actual handlers in `app/routes/` before writing. Always verify HTTP methods and parameters.
+**Removed from plan (verified non-existent):**
+- ~~M-20: `POST /api/auth`~~ — `app/routes/api/auth.py` contains only `require_api_key` decorator, no route
+- ~~M-21: `POST /api/subscribers/export`~~ — No export endpoint in API; only admin export at `GET /admin/subscribers/export`
 
 ---
 
-## Wave 2: Services + Tasks (Parallel) — Documentation & Code Fixes
-
-### Wave 2A: Services Module Fixes
+### Wave 1C: Services Module Fixes
 
 **Target files:** `architecture/services/backup.md`, `architecture/services/serialization.md`, new `architecture/services/tag_cache.md`
 
+**Subagent instructions:** Read actual source files before documenting. For tag cache, create new file `architecture/services/tag_cache.md`.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| S-2 | HIGH | Naming conventions not clearly distinguished | Document: both `create_backup()` and `run_daily_backup()` use `blog_*.db` naming (verify against actual code before documenting) |
-| -- | HIGH | Tag Cache Module undocumented | Create `architecture/services/tag_cache.md` documenting `app/tag_cache.py`: `_get_tag_counts()`, `invalidate_tag_cache()`, TTL config, invalidation triggers |
-| -- | MEDIUM | Encryption Module undocumented | Document `app/backup_encryption.py`: PBKDF2 key derivation, encrypted file format (salt + nonce + ciphertext + tag) |
-| -- | MEDIUM | Slug Service incomplete | Document: 100 try limit, UUID format (`uuid.uuid4().hex[:8]`), `exclude_id` parameter |
-| S-3 | MEDIUM | Decryption output path default incorrect | Fix: for non-`.gpg` files, appends `.decrypted` instead of removing extension |
-| S-4 | LOW | Serialization import handling incomplete | Document: no `deserialize_*` functions exist; import handled via CLI only |
-| -- | LOW | FileLock in `run_daily_backup` | Document: lock file location (`{instance_path}/backup.lock`), timeout=0 behavior |
+| -- | HIGH | Tag Cache Module undocumented | Create `architecture/services/tag_cache.md` documenting `app/tag_cache.py`: `_get_tag_counts()`, `invalidate_tag_cache()`, TTL config via `TAG_CACHE_TTL_SECONDS`, invalidation triggers. Functions: `_build_tag_counts_query()` (line 16), `_get_tag_counts_cached()` (line 30), `_get_tag_counts()` (line 37), `_get_tag_counts_uncached()` (line 44), `invalidate_tag_cache()` (line 50) |
+| -- | MEDIUM | Encryption Module undocumented | Document `app/backup_encryption.py`: PBKDF2-HMAC-SHA256 key derivation (600,000 iterations), 16-byte salt, 32-byte key, 12-byte nonce, AES-256-GCM cipher, min password 12 chars, file format: salt(16) + nonce(12) + ciphertext + tag(16). Also document `app/services/encryption.py` (direct AES-256-GCM, no PBKDF2, uses SECRET_KEY) and `app/webhook_encryption.py` (AES-256-GCM, direct 32-byte key from WEBHOOK_ENCRYPTION_KEY) |
+| -- | MEDIUM | Slug Service incomplete | Document: 100 try limit, UUID format (`uuid.uuid4().hex[:8]`), `exclude_id` parameter for collision avoidance. Source: `app/services/slug.py` |
+| S-3 | MEDIUM | Decryption output path behavior | Document: for non-`.gpg` files, appends `.decrypted` instead of removing extension. This is the actual behavior at `app/services/backup.py:107-127` |
+| S-4 | LOW | Serialization import handling | Document: no `deserialize_*` functions exist; import handled inline in CLI `import-data` command (`app/cli.py:140`). Serialization functions: `serialize_post`, `serialize_subscriber`, `serialize_page`, `serialize_tag`, `export_data_to_dict` |
 
-### Wave 2B: Tasks Module Fixes
+**Note:** S-2 (naming conventions) already correct in docs — both use `blog_*.db` naming consistently.
+
+---
+
+### Wave 1D: Tasks Module Fixes
 
 **Target files:** `architecture/tasks/celery-tasks.md`, `architecture/tasks/scheduler.md`
 
+**Subagent instructions:** Read actual task implementations before documenting. Key file: `app/tasks.py` for Celery tasks, `app/scheduler.py` for APScheduler jobs.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| T-4 | HIGH | `send_daily_newsletter` claimed to trigger Celery task | Fix: `app/scheduler.py` calls `send_newsletter()` synchronously, NOT via Celery. Celery `send_newsletter_task` is for manual/ad-hoc sends only |
-| T-3 | MEDIUM | APScheduler "Queue Routing" section is misleading | Fix: APScheduler jobs are in-process, not Celery queues. Remove/rename section |
-| T-2 | MEDIUM | `run_backup_task` parameters not documented | Add: `compress=True, keep=7, encrypt=False`, creates `blog_*.db` files |
-| -- | MEDIUM | Missing backup implementation comparison | Add table: APScheduler (`backup_*.db`, no encryption) vs Celery (`blog_*.db`, AES-256-GCM encryption) |
-| -- | MEDIUM | Missing FileLock documentation | Document: lock file paths, `timeout=0` behavior as intentional design |
-| TM-1 | LOW | Missing `NEWSLETTER_MAX_RETRY_ATTEMPTS` config | Document in scheduler.md |
-| TM-2 | LOW | Missing FTS sync + tag cache invalidation in `publish_scheduled_posts` | Document side effects |
+| T-4 | HIGH | `send_daily_newsletter` behavior wrong | Fix: `app/scheduler.py:70-162` calls `send_newsletter()` synchronously from `app.email`, NOT via Celery. Celery `send_newsletter_task` is for manual/ad-hoc sends only. Update scheduler.md to clarify this distinction |
+| T-3 | MEDIUM | APScheduler "Queue Routing" section misleading | Fix: APScheduler jobs are in-process direct function calls, not Celery queues. Remove or rename any section suggesting queue routing. See `app/scheduler.py` module docstring for multi-worker limitation docs |
+| T-2 | MEDIUM | `run_backup_task` parameters not documented | Add: hardcoded params `compress=True, keep=7, encrypt=False` passed to `create_backup()`. Task takes no arguments beyond `self`. Creates `blog_*.db` files. See `app/tasks.py:305-321` |
+| -- | MEDIUM | Missing backup implementation comparison | Add table comparing APScheduler backup (`app/scheduler.py:run_daily_backup`, calls `app.services.backup.run_daily_backup`, uses FileLock with `backup.lock`) vs Celery backup (`app/tasks.py:run_backup_task`, calls `app.services.backup.create_backup`, AES-256-GCM encryption). Both use `blog_*.db` naming |
+| -- | MEDIUM | Missing FileLock documentation | Document FileLock usage in scheduler: `newsletter.lock`, `cleanup.lock`, `scheduled.lock`, `backup.lock`. `timeout=0` means non-blocking (fail immediately if locked). See `app/scheduler.py` |
 
-**Verified FALSE (do NOT include):**
-- ~~Bare `except Exception` in `run_backup_task`~~ — Actually catches `(SQLAlchemyError, OSError, ImportError)` at line 319
-- ~~GPG in backup.md~~ — Documentation already correctly says AES-256-GCM
+**Note:** TM-1 (missing NEWSLETTER_MAX_RETRY_ATTEMPTS) and TM-2 (missing FTS sync in publish_scheduled_posts) from original plan are **incorrect claims** — both features already exist. Removed from plan.
 
 ---
 
-## Wave 3: Deployment + Infrastructure + Testing (Parallel) — Mixed Priority
-
-### Wave 3A: Deployment Fixes
+### Wave 1E: Deployment Fixes
 
 **Target files:** `architecture/deployment/docker.md`, `architecture/deployment/security.md`, `architecture/deployment/cicd.md`
 
+**Subagent instructions:** Read actual Docker and nginx configs before documenting. Key files: `Dockerfile`, `docker-compose.yml`, `nginx/nginx.conf`, `nginx/conf.d/blog.conf`.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| DEP-5 | CRITICAL | No Celery production documentation | Add: task registration, worker scaling, queue configuration, monitoring |
-| DEP-2 | SECURITY | nginx runs as root in Docker | Document as known limitation; recommend non-root nginx image |
-| DEP-1 | HIGH | backup.py working directory confusion | Document: `working_dir: /home/blog` + volume mount relationship |
-| -- | HIGH | Missing nginx security headers | Document: `X-XSS-Protection`, `X-Download-Options`, `X-Permitted-Cross-Domain-Policies` |
-| -- | MEDIUM | CI/CD workflow details incomplete | Document all jobs in `.github/workflows/test.yml`: lint-and-type, test, security-audit, e2e-tests |
-| -- | MEDIUM | Missing rate limiting zones | Document nginx zones: `login` (5r/m), `admin` (20r/m) |
-| -- | MEDIUM | Missing SSL certificate documentation | Add setup/renewal docs for Let's Encrypt |
-| -- | LOW | Brotli configuration status | Document: commented out in nginx.conf, requires custom nginx image |
-| DEP-6 | LOW | Redis image tag discrepancy | Fix: document `redis:7-alpine` (not `redis:alpine`) |
+| DEP-1 | HIGH | backup.py working directory | Document: backup service uses `working_dir: /home/blog` in docker-compose.yml (line 109) with volume mount `blog_data:/home/blog/instance:ro`. The relative path `instance/blog.db` resolves from working_dir. See `backup.py:24` |
+| -- | HIGH | Missing nginx security headers | Document present headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Content-Security-Policy`, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy`. Document MISSING: `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`. Source: `nginx/conf.d/blog.conf:25-32` |
+| -- | MEDIUM | Missing rate limiting zones | Document nginx zones: `login` at `rate=5r/m burst=5 nodelay`, `admin` at `rate=20r/m burst=10 nodelay`. Source: `nginx/nginx.conf:48-49` |
+| -- | MEDIUM | Missing SSL certificate documentation | Add: Let's Encrypt paths referenced in nginx config (`/etc/letsencrypt/live/blog.example.com/`) but no setup/renewal docs exist. Document gap |
+| -- | LOW | Brotli configuration status | Document: Brotli settings present but commented out in `nginx/nginx.conf:26-34`. Requires custom nginx image with `--with-http_brotli_module` |
+| DEP-2 | LOW | nginx master process root | Document: nginx master process runs as root (standard nginx:alpine behavior), worker processes run as `nginx` user per `nginx.conf:1`. App container runs as `blog` user |
 
-### Wave 3B: Infrastructure Fixes
+**Note:** DEP-5 (Celery production docs) already exist in docker.md lines 52-68. DEP-6 (Redis image tag) no discrepancy — both use `redis:7-alpine`. Removed from plan.
+
+---
+
+### Wave 1F: Infrastructure Fixes
 
 **Target files:** `architecture/infrastructure/search.md`, `architecture/infrastructure/webhooks.md`, `architecture/infrastructure/overview.md`
 
+**Subagent instructions:** Read actual implementation files. Key files: `app/services/search/`, `app/search.py`, `app/utils.py:312-414`, `app/webhook_encryption.py`.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| INF-1 | HIGH | Search abstraction layer undocumented | Document entire `app/services/search/` provider abstraction: SearchProvider ABC, SQLiteSearchProvider, PostgreSQLSearchProvider stub, `get_search_provider()` factory |
-| INF-2 | MEDIUM | SSRF protection not documented in webhooks overview | Add: scheme checking, URL format validation, userinfo blocking, loopback hostname blocking, IP resolution and validation, IPv4-mapped IPv6 checking, AWS/GCP metadata endpoint blocking, global routability check |
-| INF-3 | MEDIUM | Health check critical checks not documented | Add health check section to `overview.md` |
-| -- | MEDIUM | `remove_fts` function undocumented | Document `app/search.py:177-190` |
-| -- | MEDIUM | `sync_fts_batch` signature mismatch | Fix: actual signature takes `items: list[tuple]` |
-| INF-4 | LOW | Webhook Secret Encryption undocumented | Document `app/webhook_encryption.py` |
-| -- | LOW | S3 Storage Backend error handling undocumented | Document: methods return `False` or empty lists on failure |
-| -- | LOW | Storage Singleton Pattern undocumented | Document `get_storage()` returns module-level singleton |
+| INF-1 | HIGH | Search abstraction description wrong | Fix: `architecture/infrastructure/search.md:12` says `SQLiteSearchProvider` "Wraps `app/search.py` FTS5 implementation." This is INCORRECT. The two are SEPARATE implementations. `app/search.py` has standalone FTS5 functions. `SQLiteSearchProvider` in `app/services/search/sqlite.py` has its own implementation. They are NOT a wrapping relationship. Update description to say `SQLiteSearchProvider` provides its own FTS5 implementation through the `SearchProvider` interface |
+| INF-2 | MEDIUM | SSRF protection not documented in webhooks | Add: `is_safe_webhook_url()` in `app/utils.py:312-414` performs: scheme validation (http/https only), userinfo blocking, hostname resolution via `socket.getaddrinfo`, loopback/private/link-local/reserved/multicast IP blocking, AWS/GCP metadata endpoint blocking, IPv4-mapped IPv6 checking, `ip.is_global` verification. Called from `app/tasks.py:213-218` and `app/webhooks.py:64-68`. Also: `allow_redirects=False` in task prevents redirect-based SSRF |
+| INF-3 | MEDIUM | Health check critical checks | Already documented in `overview.md`. Verify: critical checks are `database`, `scheduler`, `search`, `disk_space`, `db_integrity`. Optional checks (`backup_freshness`, `email`, `redis`, `celery`) don't affect overall status. Source: `app/routes/public/meta.py:286-294` |
+| -- | LOW | S3 Storage Backend | Document: `app/storage.py` has `StorageBackend(ABC)`, `LocalStorageBackend`, `S3StorageBackend`. S3 config from env vars (`S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_PUBLIC_URL`). Lazy client init with `threading.Lock`. `get_storage()` returns module-level singleton. Error handling: methods return `False` or empty lists on failure |
 
-### Wave 3C: Testing Fixes
+---
+
+### Wave 1G: Testing Fixes
 
 **Target files:** `architecture/testing/test-suite.md`
 
+**Subagent instructions:** Read actual test directory structure and fixture files before documenting.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| -- | HIGH | Non-existent directories documented | Fix: `tests/unit/` and `tests/integration/` do NOT exist; tests are in flat structure at `tests/` root |
-| -- | HIGH | E2E file structure wrong | Fix: single file `tests/e2e/test_e2e.py` with 4 classes, NOT separate files |
-| -- | HIGH | Missing fixtures documentation | Add: `sample_post`, `sample_tag`, `sample_subscriber`, `mock_render`, `mock_smtp`, `mock_email`, `clean_analytics_cache`, `cleanup_uploads` |
-| -- | MEDIUM | Missing E2E configuration section | Document: `pytest-playwright` requirement (note: not in committed requirements files, must be installed separately), `playwright install chromium`, `app_server` fixture on port 5010 |
-| -- | MEDIUM | Missing SQLAlchemy 2.0 query patterns | Document modern patterns: `select(Model).filter()`, `db.paginate()` |
-| -- | MEDIUM | Test database session issues undocumented | Document: `db.session.refresh()` fails if object not in session; re-query instead |
-| -- | LOW | Missing command reference | Add: `.venv/bin/python3 -m pytest` with `ADMIN_PASSWORD=test SECRET_KEY=test` prefix |
+| -- | HIGH | Non-existent directories documented | Fix: `tests/unit/` and `tests/integration/` do NOT exist. Tests are in flat structure at `tests/` root. Note: `tests/test_integration.py` exists as a single file, not a directory |
+| -- | HIGH | E2E file structure wrong | Fix: single file `tests/e2e/test_e2e.py` with 4 classes (`TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`), NOT separate files |
+| -- | HIGH | Missing fixtures documentation | Add: `sample_post`, `sample_tag`, `sample_subscriber`, `mock_render`, `mock_smtp`, `mock_email`, `clean_analytics_cache`, `cleanup_uploads`, `ensure_buffer_disabled`. Sources: `tests/conftest.py`, `tests/shared_fixtures.py` |
+| -- | MEDIUM | Missing E2E configuration section | Document: `pytest-playwright` requirement (not in committed requirements — must be installed separately via `pip install pytest-playwright && playwright install chromium`). E2E conftest uses `page` fixture (pytest-playwright convention). CI runs on port 5010 |
+| -- | MEDIUM | Missing test patterns | Document: SQLAlchemy 2.0 patterns (`select(Model).filter()`, `db.paginate()`). `db.session.refresh()` fails if object not in session — re-query instead |
+| -- | LOW | Missing command reference | Add: `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/` with `--ignore=tests/e2e` to exclude E2E. `--collect-only` for test count |
 
 ---
 
-## Wave 4: Frontend (After Wave 1-3) — Documentation Fixes
+### Wave 1H: Frontend Fixes
 
 **Target files:** `architecture/frontend/templates.md`, `architecture/frontend/static-assets.md`, `architecture/frontend/overview.md`
 
+**Subagent instructions:** Read actual template and JS files before documenting.
+
 | ID | Priority | Issue | Action |
 |----|----------|-------|--------|
-| -- | HIGH | Missing `post_image_avif_url_stub` filter | Add to filter list in `templates.md` (filter at `app/filters.py:75-83`, registered as `post_image_avif_url_stub`, DEPRECATED — always returns `None`) |
-| -- | HIGH | Incorrect context processor variable names | Fix: `site_name` → `site_title`, `site_tagline` → `site_description` in `templates.md` |
-| -- | MEDIUM | CSS architecture undocumented | Add: file aggregation, dark mode as default with `data-theme`, `critical.css` for above-the-fold, font self-hosting (Inter, JetBrains Mono) |
-| -- | MEDIUM | JavaScript module system undocumented | Add: `export default initXxx` requirement, `import.meta.glob()` for dynamic loading, mobile menu creation, admin body class detection |
-| -- | MEDIUM | Vite asset helper undocumented | Document `vite_asset()` helper in `app/vite.py`, content hashing, manifest file |
-| -- | MEDIUM | Lazy image progressive enhancement undocumented | Document CSS pattern (`opacity: 0` default + `.loaded` class) |
-| -- | LOW | Prism.js syntax highlighting themes | Document: 6 themes available, selection via `SiteSettings.syntax_theme` |
-| -- | LOW | Vite chunk split inconsistency | Document actual chunks or update `vite.config.js` manualChunks |
+| -- | HIGH | Missing `post_image_avif_url_stub` filter | Add to filter list in `templates.md`. Filter at `app/filters.py:75-85`, registered as `post_image_avif_url_stub`, DEPRECATED — always returns `None`. No templates currently use it |
+| -- | HIGH | Incorrect context processor variable names | Fix: `site_name` → `site_title`, `site_tagline` → `site_description` in `templates.md`. Source: `app/context_processors.py:151-161`. Templates use `{{ site_title }}` and `{{ site_description }}` |
+| -- | MEDIUM | CSS architecture undocumented | Add: file aggregation via Vite, dark mode as default with `data-theme` attribute toggle + `localStorage` persistence + `prefers-color-scheme` media query, `critical.css` for above-the-fold CSS (loaded in `base.html:22` with `media="screen"`), font self-hosting (Inter, JetBrains Mono). 6 Prism.js themes available via `SiteSettings.syntax_theme` |
+| -- | MEDIUM | JavaScript module system undocumented | Add: ES modules with Vite, `export default initXxx` convention, `import.meta.glob()` for dynamic loading (`main.js:6`), route-based code splitting via `ROUTE_MODULES` map (`main.js:30`), `mobile-menu.jsx` as JSX (Vite esbuild handles it) |
+| -- | MEDIUM | Vite asset helper undocumented | Document `vite_asset()` in `app/vite.py:47`, content hashing, manifest file, CDN_URL prefix support. Registered as Jinja2 global. Used in `base.html` for all CSS/JS/font references |
+| -- | MEDIUM | Lazy image progressive enhancement undocumented | Document CSS pattern: `app/static/js/shared/lazy-load.js` checks native `loading` support first (line 3), falls back to `IntersectionObserver` polyfill (line 8), ultimate fallback loads all lazy images immediately (line 10). Uses `data-src` attribute |
+| -- | LOW | Vite chunk split | Document actual chunks: vendor (vue/lodash), admin, public splits via `manualChunks` in `vite.config.js` |
 
 ---
 
-## Wave 5: Verification & Cleanup
+## Wave 2: Verification & Cleanup
 
-After all waves complete:
+After Wave 1 completes:
 
 1. **Verify all documentation changes** — spot-check that fixes match actual code
 2. **Run any available documentation linting** — check for broken links, formatting
@@ -226,7 +226,7 @@ When updating line numbers in documentation, verify against actual source:
 - Line numbers change with code modifications; use functional descriptions when possible
 
 ### Context for Implementation
-- **Search Provider Architecture**: `app/search.py` and `SQLiteSearchProvider` in `app/services/search/sqlite.py` are SEPARATE implementations. The SearchProvider abstraction is a wrapper/interface pattern, but the actual functions in app/search.py are standalone FTS5 functions. See `app/services/search/__init__.py` for the abstraction.
+- **Search Provider Architecture**: `app/search.py` module-level functions are SEPARATE from the `SearchProvider` abstraction. `SQLiteSearchProvider` in `app/services/search/sqlite.py` is NOT a wrapper — it has its own implementation. See `app/services/search/__init__.py` for the abstraction.
 - **Celery Tasks**: Verify task behavior in `app/tasks.py` before documenting error handling
 - **Frontend Templates**: Check `app/templates/` directory for actual template files
 - **Routes**: Cross-reference route handlers in `app/routes/` with documentation
@@ -248,12 +248,31 @@ The APScheduler `send_daily_newsletter` function calls `send_newsletter()` synch
 ### Backup Exception Handling
 `run_backup_task` in `app/tasks.py:305-321` catches `(SQLAlchemyError, OSError, ImportError)` — NOT a bare `except Exception`.
 
+### Backup Implementations
+Two separate backup implementations exist:
+- `app/services/backup.py:create_backup()` — Used by Celery task, supports AES-256-GCM encryption with PBKDF2/compression, uses `blog_*.db` naming
+- `app/scheduler.py:run_daily_backup()` — Used by APScheduler, no encryption/compression, uses `blog_*.db` naming, wrapped with FileLock
+
+Both use `blog_*.db` naming, so `cleanup_old_backups()` correctly cleans both.
+
+### Backup Encryption Distinction
+Three separate encryption modules:
+- `app/backup_encryption.py` — PBKDF2-HMAC-SHA256 key derivation (600K iterations) for backup files
+- `app/webhook_encryption.py` — Direct 32-byte key (no PBKDF2) for webhook secrets
+- `app/services/encryption.py` — Direct AES-256-GCM using SECRET_KEY for TOTP secrets
+
 ### Verified FALSE Claims (Do NOT Include)
 These claims from review files were verified against the codebase and found to be inaccurate:
 - ~~GPG encryption in backup.md~~ — Both architecture docs and code docstring already correctly say AES-256-GCM
 - ~~Bare `except Exception` in `run_backup_task`~~ — Actually catches `(SQLAlchemyError, OSError, ImportError)` at line 319
 - ~~Referrer-Policy mismatch between Flask and nginx~~ — Both use `strict-origin-when-cross-origin`
+- ~~`POST /api/auth` route~~ — `app/routes/api/auth.py` contains only `require_api_key` decorator, no route
+- ~~`POST /api/subscribers/export` route~~ — No export endpoint in API; only admin export
+- ~~`NEWSLETTER_MAX_RETRY_ATTEMPTS` missing~~ — Exists at `app/config.py:116`
+- ~~FTS sync missing in `publish_scheduled_posts`~~ — Both `sync_fts_batch` and `invalidate_tag_cache` are present
+- ~~Celery production docs missing~~ — Already documented in `architecture/deployment/docker.md` lines 52-68
+- ~~Redis image tag discrepancy~~ — Both docker-compose.yml and docker.md use `redis:7-alpine`
 
 ---
 
-*Last updated: May 28, 2026 - Consolidated from 8 architecture review files*
+*Last updated: May 28, 2026 — Consolidated and verified against codebase*
