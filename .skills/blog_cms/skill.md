@@ -16,7 +16,7 @@ All implementation waves (A-F from plan.md) have been verified and completed:
 - **Wave F**: Infrastructure documentation (WEBHOOK_TIMEOUT, variant cleanup, FLASK_ENV, PYTHONPATH, BACKUP_ENCRYPTION_KEY)
 
 ### Deferred Item (Acknowledged)
-**Per-Webhook Retry** - Not implemented due to complexity. Failed webhooks silently skipped. Documented in `architecture/tasks/celery-tasks.md` and `architecture/infrastructure/webhooks.md`.
+**Per-Webhook Retry** - Implemented May 28, 2026. `deliver_webhook_task` now dispatches to `deliver_single_webhook_task` for per-webhook retry with exponential backoff (up to 3 retries).
 
 ## Triggers
 Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log

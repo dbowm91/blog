@@ -297,8 +297,8 @@ Series.posts relationship orders by `PostSeries.order_index` (not by date or tit
 ### Slug Generation Race Condition Mitigated
 The slug generation in `app/services/slug.py` has an application-level race condition, but database models have `unique=True` constraints on `Post.slug`, `Page.slug`, and `Tag.slug`. Concurrent requests that generate the same slug will result in one succeeding and one failing with `IntegrityError`. Consider adding retry logic on `IntegrityError` to handle this gracefully.
 
-### Webhook Delivery Does Not Retry Per-Webhook
-`app/tasks.py:234-246` - When a webhook fails with `requests.RequestException`, the exception is caught but NOT re-raised. Celery's `max_retries=3` only triggers on propagated exceptions. The task increments `delivery_attempts` and continues to the next webhook. Failed webhooks are silently skipped without retry.
+### Webhook Delivery Per-Webhook Retry (Implemented)
+`deliver_webhook_task` dispatches individual webhook deliveries to `deliver_single_webhook_task` for per-webhook retry support. Each webhook gets its own Celery task invocation with independent retry logic (up to 3 retries with exponential backoff). Failed webhooks are no longer silently skipped.
 
 ### nginx and Flask Rate Limits Are Aligned
 nginx `limit_req_zone=login` is configured at `rate=5r/m` and Flask `ADMIN_RATE_LIMITS["login"]` is `(5, 60)` - both equal 5/minute. The burst setting in nginx (5) doesn't change the effective rate.
