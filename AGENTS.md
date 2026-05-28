@@ -26,6 +26,7 @@ When an agent operates within a module, it should:
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
 | Architecture | `architecture/AGENTS.override.md` | Architecture documentation |
+| Plans | `plans/AGENTS.override.md` | Implementation plans and deferred items |
 
 ## Structure Convention
 
@@ -49,6 +50,7 @@ Important actual file locations (verify before assuming):
 | User model `__repr__` | `app/models.py:63-64` |
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, slug, serialization, tag) |
+| Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
 
 ## Security & Privacy Rules
 
@@ -264,7 +266,7 @@ Three feed endpoints available:
 
 Use `get_search_provider()` factory function to get configured provider based on `SEARCH_PROVIDER` config.
 
-**Important**: `app/search.py` module-level functions are SEPARATE from the `SearchProvider` abstraction. The functions in `app/search.py` (search, sync_fts, rebuild_fts, etc.) are standalone FTS5 implementations. `SQLiteSearchProvider` in `app/services/search/sqlite.py` is a wrapper class with its own implementation. They are NOT a wrapping relationship.
+**Important**: `SQLiteSearchProvider` wraps the `app/search.py` module-level functions through the `SearchProvider` interface. Each method delegates to the corresponding FTS5 function (`init_fts`, `search`, `sync_fts`, `remove_fts`, `rebuild_fts`, `get_search_snippets`). The `app/search.py` functions are standalone FTS5 implementations that `SQLiteSearchProvider` calls into.
 
 ### S3 Client Initialization
 S3StorageBackend stores credentials at client creation time (not per-request). Credentials remain on the instance to allow client recreation if needed.

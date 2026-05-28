@@ -9,7 +9,7 @@ architecture, review, documentation, verify, cross-reference
 ## Module Directories
 - `architecture/core/` - app-factory.md, configuration.md, models.md
 - `architecture/routes/` - public-routes.md, admin-routes.md, api-routes.md, rss-feeds.md
-- `architecture/services/` - overview.md, backup.md, serialization.md, slug.md, tag.md
+- `architecture/services/` - overview.md, backup.md, serialization.md, slug.md, tag.md, tag_cache.md
 - `architecture/tasks/` - overview.md, scheduler.md, celery-tasks.md
 - `architecture/infrastructure/` - overview.md, search.md, email.md, storage.md, webhooks.md
 - `architecture/frontend/` - overview.md, static-assets.md, templates.md
@@ -18,7 +18,18 @@ architecture, review, documentation, verify, cross-reference
 
 ## Status
 
-Wave O completed (May 2026). Additional fixes documented in `plans/<module>_review.md` implemented across all modules.
+Wave O completed (May 2026). Waves A-F completed (May 22, 2026). Wave 1 (consolidated plan) completed (May 28, 2026). All architecture documentation fixes verified.
+
+### Wave 1 Completion (May 28, 2026)
+15 documentation files updated across 8 modules:
+- **Core**: Fixed totp_secret_encrypted, backup code methods, webhook_secret_encrypted, delivery_status
+- **Routes**: Removed false POST /api/auth, documented require_api_key decorator
+- **Services**: Created tag_cache.md, documented encryption modules (3), slug service, decryption path, serialization import
+- **Tasks**: Clarified scheduler vs Celery newsletter, FileLock docs, backup comparison table
+- **Deployment**: Backup service working dir, nginx security headers (8 present, 2 missing), rate limiting zones, SSL gap, process model
+- **Infrastructure**: Fixed search provider description (wraps app/search.py), SSRF protection docs, S3 storage backend
+- **Testing**: Fixtures documentation, E2E config, command reference
+- **Frontend**: AVIF filter (deprecated), CSS architecture, dark mode, Vite asset helper, lazy image progressive enhancement
 
 ### Wave O Fixes Applied
 - **deployment**: Env vars (ADMIN_USERNAME, FLASK_ENV), Celery concurrency, BACKUP_ENCRYPTION_KEY clarification, PYTHONPATH
