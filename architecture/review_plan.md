@@ -1,96 +1,237 @@
 # Architecture Review Plan
 
-## Overview
+## Purpose
 
-This plan outlines a comprehensive review of the architecture documentation. Each module will be reviewed by a subagent that will:
-1. Verify claims in the documentation against the actual code
-2. Identify any inconsistencies, outdated information, or missing details
-3. Propose improvements and identify potential bugs or security issues
-4. Write their findings to `plans/<module>_review.md`
+This plan defines a systematic approach to reviewing all architecture documentation against the actual codebase. Each module is reviewed by a dedicated subagent that verifies claims, identifies discrepancies, interrogates the code for improvements and bugs, and writes a structured improvement plan to `plans/<module>_review.md`.
 
-## Modules to Review
+**This plan does not prescribe direct code changes.** Each subagent produces a review document; implementation is a separate concern.
 
-| Module | Documents | Assigned Agent |
-|--------|-----------|----------------|
-| **core** | app-factory.md, models.md, configuration.md | explore |
-| **deployment** | docker.md, security.md, cicd.md, overview.md | explore |
-| **frontend** | static-assets.md, templates.md, overview.md | explore |
-| **infrastructure** | storage.md, webhooks.md, search.md, email.md, overview.md | explore |
-| **routes** | public-routes.md, api-routes.md, admin-routes.md, rss-feeds.md | explore |
-| **services** | tag.md, tag_cache.md, search.md, backup.md, serialization.md, slug.md, overview.md | explore |
-| **tasks** | celery-tasks.md, scheduler.md, overview.md | explore |
-| **testing** | test-suite.md | explore |
+---
 
-## Review Instructions for Each Subagent
+## Modules
 
-For each module, the subagent must:
+| # | Module | Directory | Documents | Output |
+|---|--------|-----------|-----------|--------|
+| 1 | **core** | `architecture/core/` | `app-factory.md`, `configuration.md`, `models.md` | `plans/core_review.md` |
+| 2 | **routes** | `architecture/routes/` | `admin-routes.md`, `api-routes.md`, `public-routes.md`, `rss-feeds.md` | `plans/routes_review.md` |
+| 3 | **services** | `architecture/services/` | `overview.md`, `backup.md`, `search.md`, `serialization.md`, `slug.md`, `tag.md`, `tag_cache.md` | `plans/services_review.md` |
+| 4 | **tasks** | `architecture/tasks/` | `celery-tasks.md`, `scheduler.md`, `overview.md` | `plans/tasks_review.md` |
+| 5 | **infrastructure** | `architecture/infrastructure/` | `overview.md`, `email.md`, `search.md`, `storage.md`, `webhooks.md` | `plans/infrastructure_review.md` |
+| 6 | **frontend** | `architecture/frontend/` | `overview.md`, `static-assets.md`, `templates.md` | `plans/frontend_review.md` |
+| 7 | **deployment** | `architecture/deployment/` | `docker.md`, `security.md`, `cicd.md`, `overview.md` | `plans/deployment_review.md` |
+| 8 | **testing** | `architecture/testing/` | `test-suite.md` | `plans/testing_review.md` |
 
-1. **Read all documents** in the module's directory under `architecture/`
-2. **Cross-reference with actual code** - Find the corresponding implementation files and verify:
-   - Route paths match
-   - Function signatures are correct
-   - Configuration values are accurate
-   - Timing/scheduling details are correct
-   - Security measures are implemented as documented
-3. **Check AGENTS.override.md** for any module-specific guidance
-4. **Identify issues**:
-   - Outdated documentation
-   - Missing documentation for new features
-   - Incorrect claims about behavior
-   - Potential bugs or security vulnerabilities
-   - Code improvements opportunities
-5. **Write improvement plan** to `plans/<module>_review.md` with:
-   - Summary of findings
-   - List of verified claims
-   - List of discrepancies/issues found
-   - Recommended improvements
-   - Potential bugs or security concerns
+---
 
-## Module Directories
+## Review Instructions
 
-- `architecture/core/` - Core application factory, models, configuration
-- `architecture/deployment/` - Docker, security, CI/CD deployment docs
-- `architecture/frontend/` - Static assets, templates
-- `architecture/infrastructure/` - Storage, webhooks, search, email
-- `architecture/routes/` - Public, API, admin routes, RSS feeds
-- `architecture/services/` - Tag, backup, search, serialization, slug services
-- `architecture/tasks/` - Celery tasks, scheduler
-- `architecture/testing/` - Test suite documentation
+Each subagent must execute the following workflow for its assigned module:
 
-## Execution Order
+### Phase 1: Read Documentation
 
-1. Launch subagents for all modules concurrently (max 4 at a time)
-2. Wait for completion and launch remaining modules
-3. Compile summary from all `plans/<module>_review.md` files
+1. Read every `.md` file in the module's `architecture/<module>/` directory
+2. Read `architecture/AGENTS.override.md` for module-specific guidance
+3. Note all concrete claims: route paths, function signatures, line numbers, configuration values, timing/scheduling details, security behaviors, model fields, queue names, file paths, and behavioral descriptions
+
+### Phase 2: Cross-Reference with Code
+
+For each claim, locate and verify against actual source code:
+
+| Claim Type | Verification Method |
+|------------|---------------------|
+| Route paths | Read the route handler file in `app/routes/` |
+| Function signatures | Read the function definition |
+| Configuration values | Read `app/config.py` or `app/__init__.py` |
+| Line numbers | Read the referenced file at the stated line |
+| Model fields/relationships | Read `app/models.py` |
+| Task names/queues | Read `app/tasks.py` and `app/scheduler.py` |
+| Security behaviors | Read the implementation (auth, CSRF, rate limiting, etc.) |
+| File paths | Verify the file exists at the stated location |
+| Behavioral descriptions | Trace the code path end-to-end |
+
+If a claim references a line number that has shifted, note the current line number and whether the claim's substance is still correct.
+
+### Phase 3: Interrogate Code
+
+Beyond verification, actively look for:
+
+- **Bugs**: Logic errors, race conditions, unhandled edge cases
+- **Security issues**: Missing validation, overly broad exception handling, credential leakage
+- **Missing error handling**: Bare `except Exception`, silent `pass` on failures
+- **Inconsistencies**: Mismatches between documentation, AGENTS.md, and actual code
+- **Dead code**: Functions or imports that are no longer used
+- **Stale documentation**: Claims about features that have been removed or renamed
+
+### Phase 4: Write Improvement Plan
+
+Write findings to `plans/<module>_review.md` using this structure:
+
+```markdown
+# <Module> Module Architecture Review
+
+**Review Date:** <date>
+**Reviewer:** <module>_reviewer
+
+## Verified Accurate Claims
+
+| Claim | Source | Evidence |
+|-------|--------|----------|
+| ... | file:line | ... |
+
+## Inaccurate/Outdated Claims
+
+### <Issue Title>
+**Location:** <doc file + line>
+**Claim:** <what the doc says>
+**Reality:** <what the code actually does>
+**Correction:** <what the doc should say>
+
+## Missing Documentation
+
+### <Feature/Component>
+**Location:** <source file>
+**Missing:** <what is not documented>
+**Impact:** <why it matters>
+
+## Potential Issues
+
+### <Issue Title>
+**Severity:** High/Medium/Low
+**Location:** <file:line>
+**Issue:** <description>
+**Recommendation:** <suggested action>
+
+## Recommended Improvements
+
+### Priority 1: <Category>
+1. <specific improvement>
+
+### Priority 2: <Category>
+1. <specific improvement>
+
+## Summary
+
+| Category | Count |
+|----------|-------|
+| Verified Accurate Claims | N |
+| Inaccurate/Outdated Claims | N |
+| Missing Documentation | N |
+| Potential Issues | N |
+```
+
+---
+
+## Execution
+
+### Wave 1: Modules 1-4 (parallel)
+
+Launch 4 subagents concurrently, one for each module:
+
+| Subagent | Module | Output File |
+|----------|--------|-------------|
+| `core_reviewer` | core | `plans/core_review.md` |
+| `routes_reviewer` | routes | `plans/routes_review.md` |
+| `services_reviewer` | services | `plans/services_review.md` |
+| `tasks_reviewer` | tasks | `plans/tasks_review.md` |
+
+### Wave 2: Modules 5-8 (parallel)
+
+Launch 4 subagents concurrently after Wave 1 completes:
+
+| Subagent | Module | Output File |
+|----------|--------|-------------|
+| `infrastructure_reviewer` | infrastructure | `plans/infrastructure_review.md` |
+| `frontend_reviewer` | frontend | `plans/frontend_review.md` |
+| `deployment_reviewer` | deployment | `plans/deployment_review.md` |
+| `testing_reviewer` | testing | `plans/testing_review.md` |
+
+### Wave 3: Stale Item Pruning
+
+After all module reviews are complete, launch a pruning agent that:
+
+1. Reads all `plans/<module>_review.md` files
+2. Cross-references findings against current `architecture/` documents
+3. Identifies stale items in the review plans:
+   - Claims that were already fixed in prior waves (check git log for commits referencing the issue)
+   - Items that are no longer relevant due to code changes
+   - Duplicate findings across modules
+4. Writes a pruning summary to `plans/pruning_summary.md` listing:
+   - Items confirmed still relevant
+   - Items confirmed fixed (with commit references)
+   - Items that are stale/no longer applicable
+
+### Wave 4: Final Compilation
+
+After Wave 3, update `architecture/review_plan.md` with:
+
+1. Wave completion status
+2. Links to all `plans/<module>_review.md` files
+3. Summary statistics from all reviews
+4. Outstanding items that still need attention
+
+---
+
+## Subagent Prompt Template
+
+Each subagent receives this prompt (with module-specific values substituted):
+
+```
+You are a code architecture reviewer. Your task is to review the <MODULE> module
+of the blog CMS architecture documentation.
+
+## Your Assignment
+
+1. Read all documents in architecture/<MODULE>/
+2. Read architecture/AGENTS.override.md for module-specific guidance
+3. Cross-reference every concrete claim against the actual source code
+4. Interrogate the code for bugs, security issues, and improvements
+5. Write your findings to plans/<MODULE>_review.md
+
+## Review Scope
+
+Documents to review:
+<list of .md files in the module directory>
+
+Source code to cross-reference:
+<list of relevant source files>
+
+## Output
+
+Write a structured review to plans/<MODULE>_review.md following the template
+in architecture/review_plan.md. Do NOT make code changes - only document findings.
+
+## Important Notes
+
+- Work only within /Users/davidbowman/projects/blog/
+- Verify line numbers by reading files directly
+- Note both accurate and inaccurate claims
+- Flag potential bugs and security concerns
+- Prioritize findings by severity
+```
+
+---
 
 ## Output Files
 
-Each subagent will write their findings to:
-- `plans/core_review.md`
-- `plans/deployment_review.md`
-- `plans/frontend_review.md`
-- `plans/infrastructure_review.md`
-- `plans/routes_review.md`
-- `plans/services_review.md`
-- `plans/tasks_review.md`
-- `plans/testing_review.md`
+| File | Content |
+|------|---------|
+| `plans/core_review.md` | Core module review findings |
+| `plans/routes_review.md` | Routes module review findings |
+| `plans/services_review.md` | Services module review findings |
+| `plans/tasks_review.md` | Tasks module review findings |
+| `plans/infrastructure_review.md` | Infrastructure module review findings |
+| `plans/frontend_review.md` | Frontend module review findings |
+| `plans/deployment_review.md` | Deployment module review findings |
+| `plans/testing_review.md` | Testing module review findings |
+| `plans/pruning_summary.md` | Stale item pruning results |
 
-## Wave O Completion (May 2026)
+---
 
-Implementation of architecture review findings from previous review cycles:
+## Previous Review History
 
-| Module | Fixes Applied |
-|--------|---------------|
-| **deployment** | docker.md: Added ADMIN_USERNAME and FLASK_ENV to env vars, documented Celery concurrency=1, clarified BACKUP_ENCRYPTION_KEY generation, added PYTHONPATH for backup service |
-| **frontend** | static-assets.md: Added critical.css to CSS file list; templates.md: Added comments clarifying editor.html and page_editor.html |
-| **infrastructure** | webhooks.md: Fixed queue routing line numbers; overview.md: Clarified email check via scheduler status; storage.md: Added _delete_existing_variants() to S3 variant flow |
-| **routes** | api-routes.md: Fixed public comments rate limit (20/min->10/min), added 'pages' field to response; public-routes.md: Removed duplicate comment section, fixed sitemap cache claim; rss-feeds.md: Documented authors field in JSON Feed |
-| **services** | tag_cache.md: Removed stale line numbers from invalidation calls; backup.md: Added line number for run_daily_backup() |
-| **tasks** | celery-tasks.md: Fixed line numbers for db.session.remove(), added error handling table documenting retry behavior |
-| **testing** | test-suite.md: Fixed E2E setup instructions (pytest-playwright), added api_client and clean_db fixtures |
+| Wave | Date | Modules | Key Fixes |
+|------|------|---------|-----------|
+| Wave O | May 2026 | All | Line number fixes, documentation corrections across all modules |
+| Wave A-F | May 22, 2026 | All | 43 action items completed (search, backup, routes, frontend, infrastructure docs) |
 
-**Status:** INCOMPLETE - Additional waves may be needed for further improvements.
-
-## See Also
-- `plans/` - Individual module review files with detailed findings
-- `architecture/AGENTS.override.md` - Module-specific agent guidance
+This review cycle starts fresh, re-verifying all claims against current code.
