@@ -38,7 +38,7 @@ Generates responsive image variants:
 def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
 ```
 
-Sends newsletter to all confirmed subscribers:
+Sends newsletter to all confirmed subscribers (manual/ad-hoc sends from admin dashboard — the daily scheduled newsletter uses `send_daily_newsletter` in `app/scheduler.py` instead):
 1. Fetches posts by IDs
 2. Counts confirmed subscribers
 3. Renders newsletter HTML/text
@@ -130,7 +130,7 @@ This ensures that:
 - Database connections are returned to the pool
 - No stale connections are left hanging
 
-Tasks using this pattern: `send_newsletter_task` (line 127), `deliver_webhook_task` (line 260), `send_confirmation_task` (line 282), `send_password_reset_task` (line 303), `run_backup_task` (line 320).
+Tasks using this pattern: `send_newsletter_task` (line 127), `deliver_webhook_task` (line 259), `send_confirmation_task` (line 280), `send_password_reset_task` (line 301), `run_backup_task` (line 320).
 
 ## See Also
 - [APScheduler](tasks/scheduler.md) - In-process scheduled jobs

@@ -32,6 +32,10 @@ Multi-stage build:
 
 Resource limits (memory, CPU) are configured in `docker-compose.yml` under each service's `deploy.resources` section, not in the Dockerfile itself.
 
+## Backup Service
+
+The `backup` service in `docker-compose.yml:103-118` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:24`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
+
 ## Nginx Configuration
 
 Located in `nginx/` subdirectory:

@@ -96,7 +96,8 @@ The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive
   - Private (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
   - Link-local (169.254.0.0/16, fe80::/10)
   - Reserved, multicast
-- **IPv4-mapped IPv6**: Checks for :::ffff: prefix
+  - Non-global (`ip.is_global` check)
+- **IPv4-mapped IPv6**: Checks for `::ffff:` prefix and blocks mapped private/loopback IPs
 - **Cloud metadata endpoints**:
   - AWS: 169.254.169.254
   - GCP: metadata.google.internal

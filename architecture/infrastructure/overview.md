@@ -32,14 +32,47 @@ Health endpoint with optional `?detailed=1` parameter.
 |-------|-------------------|
 | `backup_freshness` | Most recent backup < 24 hours old |
 | `email` | SMTP connectivity (if configured) |
+| `redis` | Redis connectivity |
+| `celery` | Celery worker availability |
 
 ### Status Logic
 
 - `ok`: All critical checks pass (status in "ok", "running", "disabled")
 - `degraded`: Any critical check fails
 
+## Storage (`app/storage.py`)
+
+Storage abstraction layer for media files with local and S3 backends.
+
+### Architecture
+
+| Class | File | Purpose |
+|-------|------|---------|
+| `StorageBackend` | `app/storage.py` | Abstract base class defining the interface |
+| `LocalStorageBackend` | `app/storage.py` | Local filesystem storage |
+| `S3StorageBackend` | `app/storage.py` | S3-compatible storage via boto3 |
+
+### Configuration
+
+Configured via `STORAGE_BACKEND` env var: `"local"` (default) or `"s3"`.
+
+S3 environment variables:
+- `S3_BUCKET` (required)
+- `S3_REGION` (default: `us-east-1`)
+- `S3_ENDPOINT` (optional, for S3-compatible services)
+- `S3_ACCESS_KEY` (required)
+- `S3_SECRET_KEY` (required)
+- `S3_PUBLIC_URL` (optional, for custom CDN URLs)
+
+### Singleton Pattern
+
+`get_storage()` returns a module-level singleton. Lazy client initialization for S3 uses `threading.Lock`.
+
+### Error Handling
+
+S3 methods return `False` or empty lists on failure. `LocalStorageBackend` methods raise on filesystem errors.
+
 ## See Also
 - [Search](infrastructure/search.md) - Full-text search
 - [Email](infrastructure/email.md) - Email system
-- [Storage](infrastructure/storage.md) - File storage
 - [Webhooks](infrastructure/webhooks.md) - Webhook delivery

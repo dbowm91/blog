@@ -79,7 +79,7 @@ Registered in `app/filters.py`:
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`
 - `post_image_srcset` - Generate srcset for responsive images
-- `post_image_avif_url_stub` - Returns None until AVIF encoding is enabled
+- `post_image_avif_url_stub` - DEPRECATED — always returns `None`. No templates currently use it.
 
 ## Context Processors
 

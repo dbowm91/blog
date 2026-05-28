@@ -26,6 +26,8 @@ Runs daily at `NEWSLETTER_SEND_TIME` (default: 08:00):
 
 **Retry Logic:** Respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` configuration. Posts with `newsletter_attempts >= NEWSLETTER_MAX_RETRY_ATTEMPTS` are excluded from selection until reset.
 
+**Celery vs. Scheduler:** This job sends newsletters synchronously via `app.email.send_newsletter()`. The Celery `send_newsletter_task` (`app/tasks.py:127`) is separate and used only for manual/ad-hoc sends from the admin dashboard — it is never invoked by the scheduler.
+
 ### `cleanup_expired_subscribers`
 
 Runs every 5 minutes (`minute="*/5"`):
@@ -48,9 +50,9 @@ Runs daily at 02:00 (`hour=2, minute=0`):
 
 **Naming Convention:** This scheduler job uses `blog_*.db` naming pattern (e.g., `blog_20260509_020000.db`). For encrypted/compressed backups, use the Celery task `run_backup_task` which also uses `blog_*.db` naming but supports compression and encryption via `create_backup()`.
 
-## Celery Queue Routing
+## Celery Queue Reference
 
-Celery tasks use specific queues for different workloads (for reference - APScheduler jobs run in-process, not via Celery):
+Celery tasks use specific queues for different workloads (for reference — APScheduler jobs are in-process direct function calls, not routed through Celery queues):
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
@@ -66,11 +68,19 @@ Celery tasks use specific queues for different workloads (for reference - APSche
 - Each container runs its own APScheduler
 - Without external coordination (Redis, etcd), jobs may run on all replicas
 - FileLock uses `timeout=0` (non-blocking) - silently skips if lock held
-- Lock file locations: `{instance_path}/{job_name}.lock`
-  - `newsletter.lock` - Daily newsletter sending
-  - `cleanup.lock` - Expired subscriber cleanup
-  - `scheduled.lock` - Scheduled post publishing
-  - `backup.lock` - Daily backup
+
+### FileLock Usage
+
+Each scheduler job acquires a `FileLock` with `timeout=0` before executing. `timeout=0` means non-blocking: if the lock is already held (e.g., by another process on the same machine), the job immediately skips execution with a warning log. This prevents duplicate concurrent runs on a single machine.
+
+| Job Function | Lock File | Purpose |
+|-------------|-----------|---------|
+| `send_daily_newsletter` | `newsletter.lock` | Prevents duplicate newsletter sends |
+| `cleanup_expired_subscribers` | `cleanup.lock` | Prevents duplicate subscriber cleanup |
+| `publish_scheduled_posts` | `scheduled.lock` | Prevents duplicate scheduled post publishing |
+| `run_daily_backup` | `backup.lock` | Prevents duplicate backup creation |
+
+Lock files are created at `{instance_path}/{job_name}.lock`. All four jobs follow the same pattern: acquire lock → do work in `try` block → release lock in `finally`.
 
 ## Initialization
 
@@ -78,6 +88,24 @@ Celery tasks use specific queues for different workloads (for reference - APSche
 def init_scheduler(app: Flask) -> None:
     # Called during app factory
 ```
+
+## Backup Implementation Comparison
+
+There are two separate backup implementations with different capabilities:
+
+| Aspect | APScheduler Backup | Celery Backup |
+|--------|-------------------|---------------|
+| Entry point | `app/scheduler.py:run_daily_backup` → `app.services.backup.run_daily_backup` | `app/tasks.py:run_backup_task` → `app.services.backup.create_backup` |
+| Schedule | Daily at 02:00 (`hour=2, minute=0`) | Manual trigger only (admin/API) |
+| Lock | `backup.lock` with `timeout=0` | None (Celery queue isolation) |
+| Compression | No | Yes (`compress=True`) |
+| Encryption | No | No (`encrypt=False`) |
+| Retention | 7 backups (`BACKUP_RETENTION_COUNT`) | 7 backups (`keep=7`) |
+| Output format | `blog_YYYYMMDD_HHMMSS.db` | `blog_YYYYMMDD_HHMMSS.db.gz` |
+| Encryption support | No | Yes (when `encrypt=True`, uses AES-256-GCM) |
+| Backup method | `sqlite3.backup()` API | `sqlite3.backup()` API via `create_backup()` |
+
+Both implementations use the `blog_*.db` naming pattern and share the same retention count of 7. The key difference is that the APScheduler backup is a simple scheduled copy, while the Celery backup supports compression and encryption for production use.
 
 ## See Also
 - [Celery Tasks](tasks/celery-tasks.md) - Async task queue

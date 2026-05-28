@@ -54,9 +54,40 @@ Decrypts an AES-256-GCM-encrypted backup file.
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `input_path` | `str` | required | Path to encrypted backup file |
-| `output_path` | `str` | `None` | Output path (for `.gpg` files: removes `.gpg`; for others: appends `.decrypted`) |
+| `output_path` | `str` | `None` | Output path. **Default behavior**: for `.gpg` files removes `.gpg` extension; for non-`.gpg` files appends `.decrypted` suffix (e.g., `backup.db.enc` → `backup.db.enc.decrypted`) |
 
 **Returns:** `True` on success, `False` on failure
+
+## Encryption Modules
+
+Three separate encryption modules exist with different key derivation strategies:
+
+### `app/backup_encryption.py` — Backup Encryption
+
+- **Key derivation**: PBKDF2-HMAC-SHA256, 600,000 iterations (NIST SP 800-132)
+- **Salt**: 16-byte random salt per encryption
+- **Key size**: 32 bytes (AES-256)
+- **Nonce**: 12 bytes (AES-GCM recommended)
+- **Cipher**: AES-256-GCM (authenticated encryption)
+- **Min password**: 12 characters (`BACKUP_ENCRYPTION_KEY` env var)
+- **File format**: `salt(16) + nonce(12) + ciphertext + tag(16)`
+- **Functions**: `encrypt_backup()`, `decrypt_backup()`, `encrypt_backup_file()`, `decrypt_backup_file()`, `is_encryption_available()`
+
+### `app/services/encryption.py` — TOTP Secret Encryption
+
+- **Key derivation**: None (direct key from `SECRET_KEY` config)
+- **Key handling**: Encodes `SECRET_KEY` as UTF-8, pads/truncates to 32 bytes
+- **Cipher**: AES-256-GCM via `AESGCM` (cryptography library)
+- **Output**: Base64-encoded `nonce(12) + ciphertext + tag`
+- **Used for**: Encrypting TOTP secrets at rest
+
+### `app/webhook_encryption.py` — Webhook Secret Encryption
+
+- **Key derivation**: None (direct 32-byte key from `WEBHOOK_ENCRYPTION_KEY`)
+- **Key format**: Accepts 32-byte raw string or 64-character hex string
+- **Cipher**: AES-256-GCM via `AESGCM` (cryptography library)
+- **Output**: Base64-encoded `nonce(12) + ciphertext + tag`
+- **Used for**: Encrypting webhook secrets at rest
 
 ## Backup File Naming
 

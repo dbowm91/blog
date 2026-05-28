@@ -152,9 +152,38 @@ optimizeDeps: {
 ## CSS
 
 Stylesheets in `app/static/css/`:
-- Base styles
-- Component styles
-- Theme-specific styles
+- `base.css` — Base styles
+- `layout.css` — Page layout
+- `public.css` — Public site styles
+- `forms.css` — Form styles
+- `utilities.css` — Utility classes
+- `critical.css` — Above-the-fold CSS for fast initial paint
+- `admin.css` — Admin dashboard styles
+- Prism.js themes: `prism.css`, `prism-dark.css`, `prism-coy.css`, `prism-funky.css`, `prism-okaidia.css`, `prism-tomorrow.css`
+
+### Dark Mode
+
+Dark mode is the default (no `data-theme` attribute = dark). Light mode is applied via `data-theme="light"` on `<html>`. The `dark-mode.js` module:
+- Checks `localStorage.getItem('theme')` for persisted preference
+- Falls back to `prefers-color-scheme: dark` media query
+- Toggles by setting/removing `data-theme="light"` attribute
+- Persists choice to `localStorage`
+- Listens for OS theme changes when no stored preference exists
+
+### Critical CSS
+
+`critical.css` provides above-the-fold styles for fast initial paint. Loaded in `base.html:22` with `media="screen"` for immediate rendering. Other stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
+
+### Font Self-Hosting
+
+Fonts are self-hosted in `app/static/fonts/` as woff2 files:
+- Inter (weights 300–700) for body text (`--font-sans`)
+- JetBrains Mono (weights 400, 500) for code blocks (`--font-mono`)
+- Preloaded in `base.html:37-38` with `crossorigin` attribute
+
+### Syntax Highlighting Themes
+
+Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically in `base.html:28` using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js:97-112` only when code blocks are present.
 
 ## Vite Configuration
 
@@ -164,6 +193,22 @@ Located at `vite.config.js`:
 - Code splitting via `manualChunks` (vendor, admin, public)
 - JSX support via esbuildOptions for `.jsx` files
 - Dev server on port 3000 with proxy to Flask on port 5000
+
+### Vite Asset Helper
+
+`vite_asset()` in `app/vite.py:47` resolves content-hashed asset URLs. Registered as a Jinja2 global via `init_vite()` (`app/vite.py:80-82`). Used in `base.html` for all CSS, JS, and font references.
+
+In production:
+- JS files: looks up hashed filename from `.vite/manifest.json`
+- CSS/other: appends MD5 content hash as query string
+- If `CDN_URL` is configured, prepends it to the asset path
+
+### Chunk Split
+
+Actual chunks via `manualChunks` in `vite.config.js:15-19`:
+- `vendor` — Prism.js libraries (`prism.min.js`, `prism-languages.js`)
+- `admin` — Admin editor (`admin/editor.js`)
+- `public` — Public search (`public/search.js`)
 
 ## See Also
 - [Templates](frontend/templates.md) - Jinja2 templates

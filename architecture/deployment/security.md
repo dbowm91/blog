@@ -38,14 +38,43 @@ Sliding expiration via `last_activity` in session.
 
 ## Security Headers
 
-```python
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY  # Both Flask and nginx set DENY
-Strict-Transport-Security: max-age=31536000; includeSubDomains
-Content-Security-Policy: default-src 'self'; ...
-Cross-Origin-Opener-Policy: same-origin  # Both Flask and nginx set same-origin
-Referrer-Policy: strict-origin-when-cross-origin (Both Flask and nginx)
-```
+Both Flask and nginx set these headers. nginx headers are defined in `nginx/conf.d/blog.conf:25-32`:
+
+| Header | Value |
+|--------|-------|
+| `X-Frame-Options` | `DENY` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-XSS-Protection` | `1; mode=block` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Content-Security-Policy` | `default-src 'self'; ...` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+
+**Not set**: `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`.
+
+## Nginx Rate Limiting
+
+Rate limiting zones defined in `nginx/nginx.conf:48-49`:
+
+| Zone | Rate | Burst | Scope | Applied To |
+|------|------|-------|-------|------------|
+| `login` | 5 req/min | 5 nodelay | Per IP | `/admin/login` |
+| `admin` | 20 req/min | 10 nodelay | Per IP | `/admin/` |
+
+Rate limit violations return HTTP 429. Flask-Limiter provides application-level rate limiting in addition to nginx's reverse-proxy layer.
+
+## SSL/TLS Certificates
+
+nginx references Let's Encrypt certificate paths in `nginx/conf.d/blog.conf:18-19`:
+- Certificate: `/etc/letsencrypt/live/blog.example.com/fullchain.pem`
+- Key: `/etc/letsencrypt/live/blog.example.com/privkey.pem`
+
+**Note**: No automated certificate setup or renewal documentation exists. Certificates must be provisioned externally (e.g., certbot, traefik, or manual mounting).
+
+## Nginx Process Model
+
+The nginx container runs the master process as `root` (default `nginx:alpine` behavior). Worker processes run as the `nginx` user per `nginx.conf:1`. The app and celery containers run as the `blog` user (non-root).
 
 ## Encryption
 

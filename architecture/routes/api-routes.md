@@ -11,7 +11,7 @@ REST API for programmatic access to blog data.
 | `subscribers.py` | `/api/subscribers` | GET, POST | List subscribers, create new subscriber |
 | `subscribers.py` | `/api/subscribers/<int:subscriber_id>` | DELETE | Delete subscriber |
 | `stats.py` | `/api/stats` | GET | Dashboard statistics |
-| `auth.py` | `/api/auth` | POST | API key authentication |
+
 
 ## Webhook Events
 
@@ -109,24 +109,13 @@ Response:
 
 ## Authentication (`auth.py`)
 
-### API Key Auth
-```
-POST /api/auth
-```
-Body:
-```json
-{
-  "api_key": "your-api-key"
-}
-```
+The `auth.py` module provides a `require_api_key` decorator (not a route). Protected API routes use `@require_api_key` to validate the `X-API-Key` header against the `API_KEY` environment variable via HMAC comparison.
 
-Response:
-```json
-{
-  "valid": true,
-  "message": "API key is valid"
-}
-```
+| Aspect | Details |
+|--------|---------|
+| Header | `X-API-Key: <api-key>` |
+| Env var | `API_KEY` (must be set, otherwise returns 503) |
+| Failure | 401 `{"error": "Invalid or missing API key"}` |
 
 ## Rate Limits
 

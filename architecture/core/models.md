@@ -6,7 +6,7 @@ The blog uses SQLAlchemy ORM with the following models:
 
 | Model | Purpose | Key Fields |
 |-------|---------|------------|
-| `User` | Admin users | username, password_hash, totp_secret |
+| `User` | Admin users | username, password_hash, totp_secret_encrypted |
 | `Post` | Blog posts | title, slug, body, published, published_at |
 | `PostRevision` | Post edit history | title, slug, body, summary |
 | `Tag` | Blog tags | name, slug |
@@ -149,6 +149,8 @@ class User(UserMixin, db.Model):
     is_locked()
     record_failed_login(max_attempts, lockout_minutes)
     reset_failed_login()
+    generate_backup_codes()  # Returns 8 plain-text codes, stores SHA-256 hashes
+    verify_backup_code(code)  # Single-use verification, removes hash on success
 ```
 
 **Note**: The User model only has the `admin_sessions` relationship. Reverse lookups like `user.posts` or `user.audit_logs` do not exist. Post-User relationships are not currently implemented (Posts do not track their author via user_id). AdminAuditLog-User relationship is defined on the AdminAuditLog model via the `actor` relationship.
@@ -184,10 +186,16 @@ class Webhook(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     url = db.Column(db.String(512), nullable=False)
-    secret = db.Column(db.String(64), nullable=False)  # Plain text storage
+    webhook_secret_encrypted = db.Column(db.LargeBinary(256), nullable=True)  # AES-256-GCM encrypted
     event_type = db.Column(db.String(32), nullable=False)  # post.published, subscriber.confirmed, etc.
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
+
+    # Webhook secret is accessed via property that decrypts on access (similar to TOTP pattern):
+    @property
+    def secret(self) -> Optional[str]: ...  # Decrypts from webhook_secret_encrypted via AES-256-GCM
+    @secret.setter
+    def secret(self, value) -> None ...     # Encrypts for storage
 
     # Index: ix_webhooks_event_type_enabled
     __repr__()  # Returns <Webhook {name!r} event={event_type!r}>
@@ -206,6 +214,7 @@ class WebhookEvent(db.Model):
     target_id = db.Column(db.Integer, nullable=True)
     target_type = db.Column(db.String(32), nullable=True)  # "post", "subscriber", etc.
     delivered = db.Column(db.Boolean, default=False, nullable=False)
+    delivery_status = db.Column(db.String(32), nullable=True)  # 'delivered', 'partial_failure', 'failed'
     delivery_attempts = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
 

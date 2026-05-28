@@ -51,11 +51,15 @@ tests/
 - `client` - Test client
 - `db` - Database session (function-scoped in main conftest, session-scoped in benchmarks)
 - `admin_user` and `authenticated_client` - Logged-in admin user
-- `sample_post`, `sample_tag`, `sample_subscriber` - Sample data fixtures
-- `mock_render`, `mock_smtp`, `mock_email` - Mock fixtures for external services
-- `clean_analytics_cache` - Cleans analytics cache before tests
-- `cleanup_uploads` - Session-scoped cleanup of uploaded files
-- `ensure_buffer_disabled` - Autouse fixture protecting tests from page view buffer interference
+- `sample_post` - Creates a published `Post` with title "Test Post", slug "test-post", and sample body/summary
+- `sample_tag` - Creates a `Tag` with name "Python" and slug "python"
+- `sample_subscriber` - Creates a confirmed `Subscriber` with email "test@example.com"
+- `mock_render` - Patches `app.email.render_template` to return `"<html>Mock</html>"`
+- `mock_smtp` - Patches `app.email._connect_smtp` with a `MagicMock` server (has `sendmail`, `quit`)
+- `mock_email` - Combined fixture composing `mock_render` and `mock_smtp`
+- `clean_analytics_cache` - Clears `app.routes.admin._analytics_cache` before and after tests
+- `cleanup_uploads` - Session-scoped autouse; removes files from `app/static/uploads/` after session ends
+- `ensure_buffer_disabled` - Autouse fixture (from `shared_fixtures.py`) that sets `PAGE_VIEW_BUFFER_SIZE=0` and calls `shutdown_page_view_buffer()` before/after each test
 
 ### Benchmark-Only Fixtures
 
@@ -68,6 +72,7 @@ tests/
 - `app_url` - Base URL for the Flask application (`http://127.0.0.1:5010`)
 - `browser_type_launch_args` - Configured browser launch arguments (`--no-sandbox`, `--disable-setuid-sandbox`)
 - `app_server` - Session-scoped fixture that starts the Flask server on port 5010
+- `page` - Provided by `pytest-playwright` (not defined in project conftest); standard Playwright page fixture for browser interaction
 
 ## Key Configuration
 
@@ -84,19 +89,25 @@ Minimum coverage: 80%
 
 ### Setup
 
-E2E tests require Playwright:
+E2E tests require `pytest-playwright`, which is **not** in committed requirements files — must be installed separately:
 ```bash
 pip install pytest-playwright
 playwright install chromium
 ```
 
-The E2E tests start the Flask server on port 5010.
+The E2E conftest uses the `page` fixture from `pytest-playwright` (not defined in project code). CI runs E2E tests on port 5010.
 
 ### Commands
 
 ```bash
 # All tests (requires environment variables)
 ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest
+
+# Exclude E2E tests
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest --ignore=tests/e2e
+
+# List test count without running
+ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest --collect-only
 
 # Specific type
 pytest tests/

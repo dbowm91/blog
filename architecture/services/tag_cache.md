@@ -12,12 +12,13 @@ Provides efficient tag count queries with caching to avoid repeated database hit
 
 ## Functions
 
-| Function | Description |
-|----------|-------------|
-| `_get_tag_counts_cached()` | Cached tag counts query using `flask_cache.memoize` |
-| `_get_tag_counts()` | Get tag counts with caching (respects request context) |
-| `_get_tag_counts_uncached()` | Direct database query (for non-request contexts) |
-| `invalidate_tag_cache()` | Clear the memoized cache |
+| Function | Line | Description |
+|----------|------|-------------|
+| `_build_tag_counts_query()` | 16 | Build the raw tag counts query joining `post_tags` with `Post` for published posts |
+| `_get_tag_counts_cached()` | 30 | Cached tag counts query using `flask_cache.memoize` |
+| `_get_tag_counts()` | 37 | Main entry point; uses cached version in request context, uncached otherwise |
+| `_get_tag_counts_uncached()` | 44 | Direct database query (for non-request contexts) |
+| `invalidate_tag_cache()` | 50 | Clear the memoized cache via `delete_memoized` |
 
 ## Cache Invalidation
 
