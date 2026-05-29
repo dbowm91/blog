@@ -12,6 +12,8 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI:-}
+      # Set to "production" to enable Redis caching (default: development)
+      - FLASK_ENV=${FLASK_ENV:-production}
       # SMTP configuration (also used by APScheduler for newsletter)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_USER=${SMTP_USER:-}

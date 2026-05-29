@@ -74,5 +74,5 @@ Required environment variables:
 - `SECRET_KEY` - Set to any value for session/CSRF tests
 
 ## See Also
-- [Docker](deployment/docker.md) - Docker setup
+- [Docker](docker.md) - Docker setup
 - [Testing](../testing/test-suite.md) - Test infrastructure
