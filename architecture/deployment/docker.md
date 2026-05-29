@@ -163,7 +163,7 @@ Operational scripts in `scripts/` for development and deployment tasks:
 | Script | Language | Purpose |
 |--------|----------|---------|
 | `build_assets.py` | Python | Basic CSS/JS minification (removes whitespace and comments). Creates `.orig` backups of modified files. |
-| `dev.sh` | Bash | Local development setup: checks Python ≥ 3.14, creates venv, installs deps, runs migrations, prints env var instructions. |
+| `dev.sh` | Bash | Local development setup: checks Python ≥ 3.12, creates venv, installs deps, runs migrations, prints env var instructions. |
 | `update-assets.sh` | Bash | Downloads latest CDN assets (marked.js, Prism.js) into `app/static/js/lib/`. |
 | `sync_backups.sh` | Bash | Syncs local backups to off-site storage via rclone or native AWS S3 CLI. Supports `--dry-run`, `--verify`, and `--cleanup` flags. |
 
@@ -173,7 +173,7 @@ Minifies CSS and JS files in `app/static/css/` and `app/static/js/`. Use `--dry-
 
 ### `dev.sh`
 
-Full local development bootstrap. Verifies Python ≥ 3.14, creates virtualenv, installs requirements, runs `flask db upgrade`, and prints startup instructions including required environment variables (`SECRET_KEY`, `ADMIN_PASSWORD`).
+Full local development bootstrap. Verifies Python ≥ 3.12, creates virtualenv, installs requirements, runs `flask db upgrade`, and prints startup instructions including required environment variables (`SECRET_KEY`, `ADMIN_PASSWORD`).
 
 ### `update-assets.sh`
 
