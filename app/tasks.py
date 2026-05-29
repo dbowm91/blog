@@ -222,9 +222,6 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
         for webhook in webhooks:
             deliver_single_webhook_task.delay(webhook_event_id, webhook.id)
 
-        # Mark event as delivered (individual webhooks will update delivery_status)
-        event.delivered = True
-        db.session.commit()
         return True
     finally:
         db.session.remove()
@@ -255,6 +252,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
         if not is_safe:
             logger.warning("SSRF protection blocked webhook URL: %s - %s", webhook.url, reason)
             event.delivery_attempts += 1
+            event.failed_deliveries += 1
             db.session.commit()
             return False
 
@@ -263,6 +261,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
         if not secret:
             logger.warning("No secret configured for webhook %s, skipping", webhook.name)
             event.delivery_attempts += 1
+            event.failed_deliveries += 1
             db.session.commit()
             return False
 
@@ -285,7 +284,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
             event.delivery_attempts += 1
 
             if response.status_code < 400:
-                # Success - update delivery status
+                event.successful_deliveries += 1
                 _update_delivery_status(event, db)
                 return True
             else:
@@ -298,10 +297,12 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
             raise self.retry(exc=e)
     except MaxRetriesExceededError:
         logger.error("Webhook delivery to %s failed after max retries", webhook.name)
+        event.failed_deliveries += 1
         _update_delivery_status(event, db)
         return False
     except Exception as e:
         logger.error("Unexpected error delivering webhook to %s: %s", webhook.name, e)
+        event.failed_deliveries += 1
         _update_delivery_status(event, db)
         return False
     finally:
@@ -309,8 +310,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
 
 
 def _update_delivery_status(event: Any, db: Any) -> None:
-    """Update the delivery_status field based on current delivery attempts."""
-    # Query all webhooks for this event type
+    """Update the delivery_status field based on per-webhook delivery results."""
     from app.models import Webhook
 
     webhooks = (
@@ -322,10 +322,21 @@ def _update_delivery_status(event: Any, db: Any) -> None:
     total_count = len(webhooks)
     if total_count == 0:
         event.delivery_status = None
-    elif event.delivery_attempts >= total_count:
-        # All attempts made - determine final status
-        # This is a simplified check - in production, you'd track per-webhook success
-        event.delivery_status = "delivered" if event.delivered else "failed"
+        return
+
+    completed_count = event.successful_deliveries + event.failed_deliveries
+    if completed_count < total_count:
+        return
+
+    if event.successful_deliveries == total_count:
+        event.delivery_status = "delivered"
+        event.delivered = True
+    elif event.failed_deliveries == total_count:
+        event.delivery_status = "failed"
+        event.delivered = False
+    else:
+        event.delivery_status = "partial_failure"
+        event.delivered = True
 
     db.session.commit()
 

@@ -531,6 +531,8 @@ class WebhookEvent(db.Model):  # type: ignore[name-defined]
     delivered = db.Column(db.Boolean, default=False, nullable=False)
     delivery_status = db.Column(db.String(32), nullable=True)
     delivery_attempts = db.Column(db.Integer, default=0, nullable=False)
+    successful_deliveries = db.Column(db.Integer, default=0, nullable=False)
+    failed_deliveries = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
     webhook = db.relationship("Webhook", lazy="select")
