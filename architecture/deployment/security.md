@@ -100,6 +100,6 @@ All admin actions logged to `AdminAuditLog`:
 - Timestamp
 
 ## See Also
-- [App Factory](core/app-factory.md) - Security middleware
-- [Models](core/models.md) - User model
+- [App Factory](../core/app-factory.md) - Security middleware
+- [Models](../core/models.md) - User model
 - [Webhooks](../infrastructure/webhooks.md) - Webhook SSRF protection

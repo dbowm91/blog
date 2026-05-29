@@ -82,5 +82,5 @@ Atom feed format:
 All feeds are cached for 5 minutes.
 
 ## See Also
-- [Public Routes](routes/public-routes.md) - Public blog routes
-- [API Routes](routes/api-routes.md) - REST API
+- [Public Routes](public-routes.md) - Public blog routes
+- [API Routes](api-routes.md) - REST API
