@@ -2,6 +2,9 @@ services:
   blog:
     build: .
     restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: "DevLog Blog"
+      org.opencontainers.image.description: "Flask blog CMS with admin dashboard, newsletter scheduling, and FTS5 search"
     expose:
       - "5000"
     environment:
@@ -48,6 +51,9 @@ services:
   celery:
     build: .
     restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: "DevLog Celery Worker"
+      org.opencontainers.image.description: "Async task worker for newsletters, backups, and scheduled jobs"
     # Single concurrency to prevent duplicate newsletter sends and webhook deliveries
     command: celery -A app.celery_app worker --loglevel=info --concurrency=1
     environment:
@@ -105,6 +111,9 @@ services:
   backup:
     build: .
     restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: "DevLog Backup"
+      org.opencontainers.image.description: "Database and file backup service"
     volumes:
       - blog_data:/home/blog/instance:ro
       - ./backups:/backups
