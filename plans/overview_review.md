@@ -6,17 +6,17 @@
 
 ## Review Scope
 
-Reviewed `architecture/overview.md` against 6 of 8 listed module reviews (only 6 exist):
+Reviewed `architecture/overview.md` against all 8 module reviews:
 - `plans/core_review.md` -- EXISTS
 - `plans/routes_review.md` -- EXISTS
 - `plans/services_review.md` -- EXISTS
 - `plans/tasks_review.md` -- EXISTS
 - `plans/infrastructure_review.md` -- EXISTS
 - `plans/testing_review.md` -- EXISTS
-- `plans/frontend_review.md` -- **DOES NOT EXIST**
-- `plans/deployment_review.md` -- **DOES NOT EXIST**
+- `plans/frontend_review.md` -- NOW EXISTS
+- `plans/deployment_review.md` -- NOW EXISTS
 
-Focus: cross-cutting references, module interdependencies, terminology consistency, completeness.
+Focus: cross-cutting references, module interdependencies, terminology consistency, completeness; verification of previously unverifiable claims.
 
 ---
 
@@ -55,6 +55,24 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 | SQLite WAL mode | `core_review.md` line 13 | Correct |
 | `get_storage()` singleton pattern | `infrastructure_review.md` line 41 | Correct |
 | Directory structure matches actual layout (minor exceptions) | Cross-checked | Mostly correct |
+| Template directory structure verified | `frontend_review.md` lines 11-16 | Correct; all templates present |
+| Template inheritance chain verified | `frontend_review.md` lines 17-21 | Correct; base.html, admin/base.html, admin/login_base.html, email/base_email.html |
+| All filters in app/filters.py verified | `frontend_review.md` lines 23-29 | Correct; markdown_safe, reading_time, sanitize_css, post_image_url, post_image_srcset, post_image_avif_url_stub |
+| Context processors verified | `frontend_review.md` lines 31-36 | Correct; inject_csrf, inject_config, inject_theme, inject_footer_data, inject_show_footer_posts |
+| Cache invalidation functions verified | `frontend_review.md` lines 38-40 | Correct; invalidate_settings_cache, invalidate_footer_cache |
+| CSS files all present | `frontend_review.md` lines 42-44 | Correct; base.css, layout.css, public.css, forms.css, utilities.css, critical.css, admin.css, 6 Prism themes |
+| JavaScript files all present | `frontend_review.md` lines 46-51 | Correct; admin, public, shared, lib files all verified |
+| Vite chunk splitting verified | `frontend_review.md` lines 53-56 | Correct; vendor, admin, public chunks defined |
+| Dark mode implementation verified | `frontend_review.md` lines 62-66 | Correct; localStorage, prefers-color-scheme, data-theme attribute |
+| Critical CSS loading verified | `frontend_review.md` line 68 | Correct; base.html:24 with media="screen" |
+| Docker Compose production profile verified | `deployment_review.md` lines 27-30 | Correct; blog, celery, redis, nginx |
+| CI/CD workflow 6 jobs verified | `deployment_review.md` lines 32-38 | Correct; lint-and-type, test, security-audit, frontend-build, docker-build, e2e-tests |
+| Weekly schedule cron `0 8 * * 1` | `deployment_review.md` lines 40-41 | Correct; Monday 08:00 UTC |
+| Dockerfile multi-stage, Python 3.12-slim, non-root user | `deployment_review.md` lines 43-46 | Correct |
+| Granian CMD with 4 workers, 60s timeout verified | `deployment_review.md` lines 47, 78-79 | Correct |
+| nginx rate limiting, security headers, Brotli commented out | `deployment_review.md` lines 48-55 | Correct |
+| Resource limits verified (blog 512M, celery 256M, redis 128M) | `deployment_review.md` lines 62-65 | Correct |
+| All documented env vars present | `deployment_review.md` lines 67-70 | Correct |
 
 ---
 
@@ -93,6 +111,22 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 9. **`overview.md` -- `app/middleware/rate_limit.py` listed in directory but not in module table**
    - The directory structure shows `app/middleware/rate_limit.py` but the Core Application module table doesn't mention middleware at all. Rate limiting is mentioned under Security Architecture but `app/middleware/rate_limit.py` is not listed as a source file there.
 
+10. **`overview.md` -- Frontend module table shows correct source files but Vite manifest requirement undocumented** (NEW from `frontend_review.md`)
+    - The frontend section shows `app/templates/`, `app/static/` as source, which is correct.
+    - However, `frontend_review.md` identified that `npm run build` (Vite build) must run before production deployment, and the manifest.json must be present. This build requirement is not documented in the overview.
+
+11. **`overview.md` -- Login template asset loading not flagged as inconsistent** (NEW from `frontend_review.md`)
+    - Overview doesn't mention that `admin/login_base.html` uses `url_for('static', ...)` directly instead of `vite_asset()`, unlike `admin/base.html`. This could cause cache/CDN issues on login pages.
+
+12. **`overview.md` -- Prism theme loading inconsistency** (NEW from `frontend_review.md`)
+    - `base.html:30` uses `vite_asset('css/' + syntax_theme + '.css')` but `main.js:102` loads Prism CSS via direct path `/static/css/...`. If CDN_URL is configured, JS path won't include it. Not flagged in overview.
+
+13. **`overview.md` -- Docker profile requirements not explicitly documented** (NEW from `deployment_review.md`)
+    - Overview mentions Docker/Nginx/CI/CD but does not explicitly state that all services require explicit `--profile` flag. `deployment_review.md` notes explicit profile requirement but this is not prominent in overview.
+
+14. **`overview.md` -- Python version mismatch not documented** (NEW from `deployment_review.md`)
+    - `dev.sh` requires Python >= 3.14 but `Dockerfile` uses python:3.12-slim. This dev/prod version mismatch could cause compatibility issues. Not flagged in overview.
+
 ---
 
 ### Missing Documentation
@@ -112,14 +146,38 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 5. **Silent FTS initialization failure (noted in `core_review.md`)**
    - `__init__.py` lines 430-433 catch `OperationalError` during FTS init silently. This is not documented in the overview.
 
-6. **`frontend_review.md` and `deployment_review.md` do not exist**
-   - The overview references deep-dive docs for frontend (`frontend/overview.md`, `frontend/templates.md`, `frontend/static-assets.md`) and deployment (`deployment/overview.md`, `deployment/docker.md`) that have not been reviewed. Completeness of module coverage cannot be verified for these two modules.
-
-7. **Webhook SSRF DNS time-of-check limitation (noted in `infrastructure_review.md`)**
+6. **Webhook SSRF DNS time-of-check limitation (noted in `infrastructure_review.md`)**
    - `is_safe_webhook_url()` resolves DNS once before the request. If DNS changes between validation and request, a previously safe URL could become unsafe. No lock or resolved IP reservation. This is a subtle but real SSRF gap.
 
-8. **`test-suite.md` E2E password inconsistency (from `testing_review.md`)**
+7. **`test-suite.md` E2E password inconsistency (from `testing_review.md`)**
    - The overview mentions Playwright E2E tests under test structure but does not note the password inconsistency bug (`"testpassword"` vs `"test-password"` across fixtures). This is a latent test reliability issue.
+
+8. **Vite manifest requirement for production** (NEW from `frontend_review.md`)
+   - The overview doesn't mention that `npm run build` (Vite build) must be run before production deployment, and manifest.json must be present. If Vite build hasn't run, JS assets return hashed paths that don't exist.
+
+9. **Login template asset loading inconsistency** (NEW from `frontend_review.md`)
+   - `admin()` and `login_base.html` uses `url_for('static', ...)` directly instead of `vite_asset()`, creating inconsistency with admin/base.html and potentially breaking CDN prefix support.
+
+10. **marked.min.js outside Vite build system** (NEW from `frontend_review.md`)
+    - `marked.min.js` is loaded via `url_for('static', ...)` directly, not through Vite. This means it's not content-hashed and won't benefit from Vite's optimization. Not documented.
+
+11. **`_post_image_cache` implementation detail** (NEW from `frontend_review.md`)
+    - Uses post_id keys for post_image_url but also stores srcset cache with key `_post_srcset_cache_{post.id}`. This nested cache structure is undocumented but could cause maintenance issues if not understood.
+
+12. **APScheduler multi-container limitation detection** (NEW from `deployment_review.md`)
+    - `deployment_review.md` notes the APScheduler FileLock limitation but adds that there is no documentation on how to detect if multiple APScheduler instances are running, and no alerting mechanism for duplicate job execution. This gap was previously unnoted.
+
+13. **Backup encryption key loading gap** (NEW from `deployment_review.md`)
+    - `deployment_review.md` documents that BACKUP_ENCRYPTION_KEY can come from config.toml via app.config but this is not documented. Silent fallback to unencrypted backup if key loading fails not documented.
+
+14. **Celery worker scaling not warned** (NEW from `deployment_review.md`)
+    - Scaling celery from 1 to 3 containers with `--scale` would have 3x parallelism (since --concurrency=1 is per-container), not 1x. This is not documented anywhere in overview.
+
+15. **Health check start_period not documented** (NEW from `deployment_review.md`)
+    - Container won't be marked healthy for 10 seconds after startup (docker-compose.yml:43 start_period). Overview's health check description doesn't mention this.
+
+16. **E2E test Docker build dependency** (NEW from `deployment_review.md`)
+    - The e2e-tests job in CI depends on docker-build but NOT on frontend-build. If frontend build fails, e2e tests may still run with stale assets. Not documented in overview.
 
 ---
 
@@ -135,7 +193,7 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
    - `_storage is None` check has no lock. Double-checked locking pattern recommended.
 
 4. **E2E test isolation bug (testing_review.md:93 -- HIGH latent)**
-   - `e2e/conftest.py` does not define its own `app` fixture. Running `pytest tests/e2e/` alone fails because it relies on the import chain. The overview's directory structure correctly shows `tests/e2e/` but doesn't flag this isolation concern.
+   - `e2e/conftest.py` does not define its own `app` fixture. Running `pytest tests/e2e/` alone fails because it relies on the import chain. The overview's directory structure correctly shows `tests/e2e/` but doesn't flag isolation concern.
 
 5. **Admin password inconsistency across test fixtures (testing_review.md:99 -- HIGH)**
    - `tests/conftest.py` uses `"testpassword"` (no hyphen); `tests/e2e/conftest.py` uses `"test-password"` (with hyphen). Tests may fail inconsistently depending on which fixture set is used.
@@ -149,6 +207,30 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 8. **S3 `list_files()` and `exists()` swallow all exceptions (infrastructure_review.md:119-126,142-144 -- MEDIUM)**
    - Cannot distinguish "file not found" from S3 errors. Silent failure mode could mask permission or connectivity issues.
 
+9. **Prism CSS loaded via JS bypasses vite_asset (frontend_review.md:113 -- MEDIUM)** (NEW)
+   - If CDN_URL is configured, Prism CSS loaded by main.js:102 via direct path `/static/css/...` won't include CDN prefix. Inconsistency between vite-based CSS loading for admin and JS-based loading for public.
+
+10. **Login pages missing CDN prefix support (frontend_review.md:111 -- MEDIUM)** (NEW)
+    - `admin/login_base.html` uses `url_for('static', ...)` directly while `admin/base.html` uses `vite_asset()`. Login pages won't benefit from content-hashed URLs or CDN prefix.
+
+11. **No error handling for missing Vite manifest (frontend_review.md:117 -- LOW)** (NEW)
+    - `vite.py:26-30` silently returns empty dict if manifest doesn't exist. In production, if Vite build hasn't run, JS assets will return hashed paths that don't exist.
+
+12. **CSS hash caching process-level (frontend_review.md:119 -- LOW)** (NEW)
+    - `_css_hash_cache` dict in vite.py is process-level caching that won't update if files change without process restart. Not documented.
+
+13. **E2E test race condition in CI (deployment_review.md:163-168 -- MEDIUM)** (NEW)
+    - `docker compose wait redis` only waits for redis to be ready. Blog service may not be healthy yet when tests start. Works but fragile.
+
+14. **APScheduler FileLock not enforced against scaling (deployment_review.md:170-175 -- HIGH)** (NEW)
+    - No mechanism prevents user from running `docker-compose up -d --scale celery=3`. APScheduler jobs would run on all 3 replicas simultaneously. No warning in docker-compose.yml.
+
+15. **Backup encryption silently disabled (deployment_review.md:177-183 -- HIGH)** (NEW)
+    - If BACKUP_ENCRYPTION_KEY environment variable is set but cannot be loaded, backup.py silently falls back to unencrypted. No error raised. Encryption may be disabled without indication to operator.
+
+16. **Python version mismatch dev vs prod (deployment_review.md:185-189 -- MEDIUM)** (NEW)
+    - dev.sh requires Python >= 3.14 but Dockerfile uses python:3.12-slim. Could cause compatibility issues if code uses 3.14 features.
+
 ---
 
 ### Cross-Cutting References Analysis
@@ -157,6 +239,7 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 - "SSRF Protection" appears in overview Security (line 278) and is implemented in `app/utils.py`. The overview's infrastructure table source doesn't list `utils.py`.
 - "HMAC timing-safe comparison" for API auth (overview line 276) matches `routes_review.md` finding on `require_api_key` decorator.
 - "Sliding window tokens (5 valid)" for CSRF (overview line 275) is not directly verifiable from review files but CSRF implementation is in `app/csrf.py` which is not listed as a source.
+- "Critical CSS" mentioned in overview (line 24) and verified correct by `frontend_review.md:68` - loads at base.html:24 with `media="screen"`.
 
 **Module interdependencies correctly shown:**
 - Overview diagram correctly shows Granian -> app -> Redis (broker/cache) -> Celery Worker and SQLite
@@ -164,9 +247,18 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 - `app/services/search/` (Services) wraps `app/search.py` (Infrastructure). Correct layering.
 - `app/tasks.py` (Task Processing) imports from `app/webhooks.py`, `app/email.py`, `app/storage.py` (all Infrastructure). Correct.
 
+**New cross-cutting findings from frontend/deployment reviews:**
+- Vite build system (frontend) feeds into nginx static file serving (deployment)
+- Docker Compose production profile must include nginx (deployment) which serves Vite-built assets (frontend)
+- CI/CD pipeline has frontend-build job (deployment) that feeds into docker-build which tests Playwright E2E tests (testing)
+- APScheduler in Docker (deployment) runs tasks that use services from multiple layers
+- SSL/TLS termination at nginx (deployment) wraps all routes (routes) including API auth (security)
+
 **Gaps in module interdependency documentation:**
 - APScheduler -> `app/email.send_newsletter()` -> `app/tasks.send_newsletter_task` (three-way relationship noted in `tasks_review.md:76`) is not shown anywhere in overview.
 - The `app/services/search/` abstraction layer over `app/search.py` creates confusion in the Infrastructure vs Services boundary.
+- Frontend templates use filters (from `app/filters.py`) which may call `storage.exists()` (infrastructure), creating an indirect dependency not shown.
+- Newsletter workflow spans: scheduler (tasks) -> email module (infrastructure) -> Celery task (tasks) -> backup service (services) -> storage (infrastructure). This circular-ish flow not documented.
 
 ---
 
@@ -192,24 +284,49 @@ Focus: cross-cutting references, module interdependencies, terminology consisten
 
 10. **Note E2E test password inconsistency** as a known test setup issue in the Testing section.
 
+11. **Document Vite build requirement** -- add note that `npm run build` must be run before production deployment and manifest.json must be present. (NEW from `frontend_review.md`)
+
+12. **Standardize login template asset loading** -- use `vite_asset()` consistently in `admin/login_base.html` for CDN support. (NEW from `frontend_review.md`)
+
+13. **Add multi-container APScheduler scaling warning** to Docker architecture section. Note that scaling celery beyond 1 container without external job coordination will cause duplicate job execution. (NEW from `deployment_review.md`)
+
+14. **Document backup encryption key validation behavior** -- clarify that BACKUP_ENCRYPTION_KEY from either environment or config.toml may silently fall back to unencrypted if key loading fails. (NEW from `deployment_review.md`)
+
+15. **Align Python version requirements** -- either update dev.sh to accept Python 3.12 (matching production), or update Dockerfile to use python:3.14-slim. (NEW from `deployment_review.md`)
+
+16. **Document health check start_period** -- note that containers won't be marked healthy for 10 seconds after startup. (NEW from `deployment_review.md`)
+
+17. **Clarify explicit profile requirement** -- make prominent that `docker compose --profile production up` is required for all commands, not just up. (NEW from `deployment_review.md`)
+
+18. **Document E2E test dependency chain** -- clarify that e2e-tests job depends on docker-build but NOT frontend-build, so frontend failures won't block e2e tests. (NEW from `deployment_review.md`)
+
 ---
 
 ## Action Items
 
 | # | Priority | Description | Affects |
-|---|----------|-------------|---------|
-| 1 | high | APScheduler multi-container race condition: document that FileLock only works on single machine; add warning to overview architecture diagram | overview.md + docs/infrastructure |
+|---|----------|-------------|--------|
+| 1 | high | APScheduler multi-container race condition: document that FileLock only works on single machine; add warning to overview architecture diagram | overview.md |
 | 2 | high | `_update_delivery_status` bug: overview claims "'delivered' when all webhooks succeed" but code sets delivered at dispatch time. Update overview to reflect actual behavior | overview.md |
 | 3 | high | E2E test isolation bug: `e2e/conftest.py` has no own `app` fixture; flag in overview's test structure notes | overview.md + tests/e2e/conftest.py |
 | 4 | high | Admin password inconsistency: `testpassword` vs `test-password` across conftest files; fix or document | tests/conftest.py + tests/e2e/conftest.py |
-| 5 | high | Missing `frontend_review.md` and `deployment_review.md`: these modules are referenced in overview's module table but no review exists | docs |
-| 6 | med | `get_storage()` singleton not thread-safe: add double-checked locking or document as known limitation | source (app/storage.py) |
-| 7 | med | `SESSION_IP_BINDING` not confirmed implemented: either document the implementation or remove "IP binding" from AdminSession description | overview.md + source |
-| 8 | med | Infrastructure/Services boundary for search: list `app/services/search/` in Infrastructure source column or clarify service wrapping infrastructure | overview.md |
-| 9 | med | Add `app/csrf.py` to Security Architecture source files | overview.md |
-| 10 | med | Add `app/utils.py` to Infrastructure source files (contains SSRF protection) | overview.md |
-| 11 | med | Add `app/middleware/rate_limit.py` to module documentation | overview.md |
-| 12 | med | Add `app/tag_cache.py` to module table (tag count caching with Flask-Caching) | overview.md |
-| 13 | low | Webhook SSRF DNS time-of-check gap: add to overview's SSRF protection description | overview.md |
-| 14 | low | S3 silent error handling: document that `exists()` and `list_files()` return false/empty on any error | docs/infrastructure/storage.md |
-| 15 | low | Newsletter three-way path (scheduler -> email.py -> Celery task) not shown in overview; add architecture note | overview.md |
+| 5 | high | APScheduler scaling warning missing: scaling celery beyond 1 container without external coordination causes duplicate jobs. Add warning to overview Docker section | overview.md + docker-compose.yml |
+| 6 | high | Backup encryption silently disabled: if BACKUP_ENCRYPTION_KEY set but cannot be loaded, backup proceeds unencrypted. Add key validation or documentation | source (backup.py) + docs |
+| 7 | high | Python version mismatch: dev.sh requires 3.14+, Dockerfile uses 3.12-slim. Align versions | dev.sh + Dockerfile |
+| 8 | med | `get_storage()` singleton not thread-safe: add double-checked locking or document as known limitation | source (app/storage.py) |
+| 9 | med | `SESSION_IP_BINDING` not confirmed implemented: either document the implementation or remove "IP binding" from AdminSession description | overview.md + source |
+| 10 | med | Infrastructure/Services boundary for search: list `app/services/search/` in Infrastructure source column or clarify service wrapping infrastructure | overview.md |
+| 11 | med | Add `app/csrf.py` to Security Architecture source files | overview.md |
+| 12 | med | Add `app/utils.py` to Infrastructure source files (contains SSRF protection) | overview.md |
+| 13 | med | Add `app/middleware/rate_limit.py` to module documentation | overview.md |
+| 14 | med | Add `app/tag_cache.py` to module table (tag count caching with Flask-Caching) | overview.md |
+| 15 | med | Vite build requirement undocumented: production deployment requires `npm run build` and manifest.json presence. Add to overview | overview.md |
+| 16 | med | Login template asset loading inconsistent: login_base.html uses url_for instead of vite_asset, missing CDN support | source (admin/login_base.html) |
+| 17 | med | Prism CSS loaded via JS bypasses vite_asset: main.js:102 path doesn't include CDN prefix if configured | source (main.js) + vite_asset |
+| 18 | med | E2E test CI race condition: docker compose wait only waits for redis, not blog health. Add health wait for blog | ci.yml + docker-compose.yml |
+| 19 | low | Webhook SSRF DNS time-of-check gap: add to overview's SSRF protection description | overview.md |
+| 20 | low | S3 silent error handling: document that `exists()` and `list_files()` return false/empty on any error | docs/infrastructure/storage.md |
+| 21 | low | Newsletter three-way path (scheduler -> email.py -> Celery task) not shown in overview; add architecture note | overview.md |
+| 22 | low | Marked.min.js outside Vite build: not content-hashed, won't benefit from Vite optimization. Document or fix | source + docs |
+| 23 | low | Health check start_period undocumented: containers not healthy for 10s after startup. Document | docs/deployment/docker.md |
+| 24 | low | Align E2E test to frontend build dependency: e2e-tests should depend on frontend-build or document stale asset risk | ci.yml |
