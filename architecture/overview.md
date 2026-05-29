@@ -417,8 +417,6 @@ blog/
 │   ├── tasks/                     # Task processing docs
 │   ├── infrastructure/           # Infrastructure docs
 │   ├── frontend/                  # Frontend docs
-│   ├── deployment/               # Deployment docs
-│   ├── plans/                     # Review plans
 │   └── testing/                  # Testing docs
 │
 ├── scripts/                        # DevOps scripts
@@ -483,20 +481,9 @@ blog/
 
 ---
 
-## Review Plans
+## Implementation Plan
 
-For focused deep-dives into specific modules, see the review plans:
-
-| Module | Review Document |
-|--------|-----------------|
-| Core | [plans/core_review.md](plans/core_review.md) |
-| Services | [plans/services_review.md](plans/services_review.md) |
-| Routes | [plans/routes_review.md](plans/routes_review.md) |
-| Tasks | [plans/tasks_review.md](plans/tasks_review.md) |
-| Infrastructure | [plans/infrastructure_review.md](plans/infrastructure_review.md) |
-| Frontend | [plans/frontend_review.md](plans/frontend_review.md) |
-| Deployment | [plans/deployment_review.md](plans/deployment_review.md) |
-| Testing | [plans/testing_review.md](plans/testing_review.md) |
+For the consolidated implementation plan covering all documentation fixes and code changes, see [plans/plan.md](../plans/plan.md).
 
 ---
 

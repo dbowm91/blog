@@ -65,8 +65,6 @@ Note: There are ~36 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .
 - `client` - Flask test client
 - `db` - Database fixture
 - `admin_user` - Admin user fixture
-- `regular_user` - Regular user fixture
-- `post` - Sample post fixture
 - `sample_post`, `sample_tag`, `sample_subscriber` - From conftest.py
 - `clean_analytics_cache` - From shared_fixtures.py
 - `clean_db` - From benchmarks/conftest.py:52

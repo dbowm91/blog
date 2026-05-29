@@ -13,7 +13,7 @@ Previous documentation waves (A-F, 43 items) and Wave 1 implementation were comp
 ## Plan Structure
 
 The plan is organized into 5 waves:
-- **Wave 1**: Critical documentation fixes (50 items, parallelizable)
+- **Wave 1**: Critical documentation fixes (50 items, parallelizable across 5 sub-agents)
 - **Wave 2**: Code-level fixes (4 items, parallelizable after Wave 1)
 - **Wave 3**: Documentation improvements (17 items, can run parallel with Wave 2)
 - **Wave 4**: Project polish for public release (19 items, sequential)
@@ -21,7 +21,7 @@ The plan is organized into 5 waves:
 
 ## Plan File
 
-The main plan file `plans/plan.md` serves as the single source of truth for all implementation items.
+The main plan file `plans/plan.md` serves as the single source of truth for all implementation items. All original review files (architecture_prune.md, core_review.md, deployment_review.md, frontend_review.md, improvements.md, infrastructure_review.md, overview_review.md, routes_review.md, services_review.md, tasks_review.md, testing_review.md) have been consolidated into this single file.
 
 ## Plan Maintenance
 
@@ -42,18 +42,3 @@ When implementing plan items:
 | Infrastructure | `app/services/search/`, `app/search.py`, `app/utils.py`, `app/webhook_encryption.py`, `app/storage.py` |
 | Testing | `tests/conftest.py`, `tests/shared_fixtures.py`, `tests/e2e/test_e2e.py` |
 | Frontend | `app/filters.py`, `app/context_processors.py`, `app/vite.py`, `app/static/js/`, `app/templates/` |
-
-## Review Files
-
-The following review files contain detailed findings from the architecture review:
-- `plans/architecture_prune.md` - Documentation health assessment
-- `plans/core_review.md` - Core module findings
-- `plans/deployment_review.md` - Deployment module findings
-- `plans/frontend_review.md` - Frontend module findings
-- `plans/improvements.md` - Public release readiness plan
-- `plans/infrastructure_review.md` - Infrastructure module findings
-- `plans/overview_review.md` - Overview module findings
-- `plans/routes_review.md` - Routes module findings
-- `plans/services_review.md` - Services module findings
-- `plans/tasks_review.md` - Tasks module findings
-- `plans/testing_review.md` - Testing module findings

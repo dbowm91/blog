@@ -29,8 +29,9 @@ The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:50`). Thi
 
 **Important**: `app/search.py` module-level functions are SEPARATE from the `SearchProvider` abstraction. The functions in `app/search.py` (search, sync_fts, rebuild_fts, etc.) are standalone FTS5 implementations. `SQLiteSearchProvider` in `app/services/search/sqlite.py` is a wrapper class with its own implementation. They are NOT a wrapping relationship.
 
-### Webhook Delivery Does Not Retry Per-Webhook
-`app/tasks.py:234-246` - When a webhook fails with `requests.RequestException`, the exception is caught but NOT re-raised. Celery's `max_retries=3` only triggers on propagated exceptions. Failed webhooks are silently skipped without retry.
+### Webhook Delivery Architecture
+
+`deliver_webhook_task` (app/tasks.py:194) dispatches TO `deliver_single_webhook_task` (app/tasks.py:233). The parent iterates over webhook events and dispatches; the subtask handles per-webhook SSRF protection, HMAC signing, retry logic, and delivery status updates. Retries happen at the `deliver_single_webhook_task` level, not the parent.
 
 ### Exception Handling in Search
 All module-level functions in `app/search.py` catch `OperationalError`, `ProgrammingError`, and `DatabaseError` exceptions from SQLAlchemy. When these exceptions occur during search operations, functions return empty results or `False` rather than propagating.

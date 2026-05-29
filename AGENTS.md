@@ -51,7 +51,7 @@ When an agent operates within a module, it should:
 | Frontend | `app/static/AGENTS.override.md` | JS/CSS assets, Vite build |
 | Templates | `app/templates/AGENTS.override.md` | Jinja2 templates, filters |
 | Tests | `tests/AGENTS.override.md` | Testing patterns, fixtures |
-| OpenCode Config | `.opencode/AGENTS.override.md` | Agent tool configuration |
+| OpenCode Config | `.opencode/AGENTS.override.md` | Agent tool configuration (may not exist) |
 | Documentation | `docs/AGENTS.override.md` | Documentation structure |
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
@@ -140,6 +140,18 @@ Webhook delivery uses a two-level dispatch pattern:
 ### Missing Script
 
 `scripts/validate_openapi.py` is referenced in CI but does not exist. Either create it or remove the CI job.
+
+### Model Count
+
+There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
+
+### Template Bug
+
+`app/templates/base.html:24` contains a hardcoded duplicate Atom feed link outside `{% block feed_links %}`. Every page gets two identical feed links. Line 19 (inside the block) is the correct one; line 24 should be removed.
+
+## Implementation Plan
+
+The consolidated implementation plan is at `plans/plan.md`. It contains 96 items across 5 waves, optimized for parallel sub-agent execution. Review it before starting any documentation or code fix work.
 
 ## Historical Implementation Caveats
 
