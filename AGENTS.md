@@ -189,6 +189,18 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 `app/__init__.py:430-433` catches `OperationalError` during FTS init silently. User is never informed if search won't work.
 
+### E2E Test CI Race Condition
+
+`docker compose wait redis` only waits for redis to be ready. Blog service may not be healthy yet when tests start. The wait loop in ci.yml works but is fragile.
+
+### LOGIN_FAILURE_DELAY Can Be Zero
+
+`app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. If `LOGIN_FAILURE_DELAY` is 0, there's no delay between failed attempts making brute force easier.
+
+### Comment Rate Limit IP Header Bypass
+
+`app/routes/api/comments.py:78-79` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed.
+
 ## Implementation Plan
 
 The consolidated implementation plan is at `plans/plan.md`. It contains NEW items identified in architecture reviews (May 29, 2026) that were not addressed in the previous plan. The previous 96-item plan was marked complete May 29, 2026.
