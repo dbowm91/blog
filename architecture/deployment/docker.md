@@ -219,6 +219,55 @@ The backup service mounts:
 
 The `BACKUP_ENCRYPTION_KEY` environment variable (referenced in `docker-compose.yml:117`) is expected to be set in the host environment or `.env` file. The backup script does not mount `config.toml` into the container — the backup service only needs `app/services/backup.py` and the database, not the full app configuration.
 
+## Production Checklist
+
+Before deploying to production, verify all items:
+
+### Secrets & Credentials
+- [ ] `SECRET_KEY` set to a random 64-character hex string (`python3 -c 'import secrets; print(secrets.token_hex(32))'`)
+- [ ] `ADMIN_PASSWORD` set to a strong password (12+ chars, mixed case, numbers, symbols)
+- [ ] `BACKUP_ENCRYPTION_KEY` set if using encrypted backups (12+ characters)
+- [ ] `WEBHOOK_ENCRYPTION_KEY` set if using encrypted webhooks (64-char hex string)
+- [ ] `HEALTH_CHECK_SECRET` set for authenticated health check endpoint
+- [ ] All secrets stored in `.env` file or environment, **not** in `config.toml` or source code
+
+### Application Configuration
+- [ ] `config.toml [server] debug = false`
+- [ ] `config.toml [site] base_url` set to `https://` URL
+- [ ] `SESSION_COOKIE_SECURE = true` (enforced automatically in production)
+- [ ] `PROXY_COUNT` set correctly for reverse proxy setup (default: 1)
+- [ ] `FLASK_ENV=production` set to enable Redis caching
+
+### SMTP / Newsletter
+- [ ] `SMTP_USER` and `SMTP_PASSWORD` configured for newsletter delivery
+- [ ] `config.toml [email] smtp_host` set (e.g., `smtp.gmail.com`)
+- [ ] `config.toml [email] from_address` set to valid sender address
+- [ ] Test email delivery before enabling newsletter scheduler
+
+### Database & Backups
+- [ ] Database initialized (`flask db upgrade`)
+- [ ] `instance/blog.db` not in web-accessible directory
+- [ ] Backup service tested (`docker-compose --profile backup up`)
+- [ ] Off-site backup sync configured (see `scripts/sync_backups.sh`)
+
+### Networking & TLS
+- [ ] HTTPS enforced at reverse proxy (HTTP-to-HTTPS redirect)
+- [ ] HSTS header configured at reverse proxy
+- [ ] Static files served by nginx/Caddy (not proxied to Flask)
+- [ ] `client_max_body_size` set in nginx for file uploads
+
+### Security
+- [ ] Rate limiting configured for `/admin/login` (5 req/min)
+- [ ] `CSRF_ENABLED` not disabled in production
+- [ ] Admin dashboard not exposed on public interfaces without authentication
+- [ ] Redis not exposed to untrusted networks
+
+### Monitoring
+- [ ] Health check endpoint accessible (`/health`)
+- [ ] `HEALTH_CHECK_SECRET` set for detailed health status
+- [ ] Log monitoring configured for error tracking
+- [ ] Disk space monitoring for database and backups
+
 ## See Also
 - [CI/CD](deployment/cicd.md) - Docker in CI pipeline
 - [Security](deployment/security.md) - Security configuration
