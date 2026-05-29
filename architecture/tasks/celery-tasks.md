@@ -60,6 +60,29 @@ Delivers webhook events:
 
 **Non-Retry Behavior:** Exceptions during webhook delivery are caught and logged (see `app/tasks.py:234-246`), but `self.retry()` is **never called**. Despite `max_retries=3` being configured, failed webhooks are silently skipped without triggering Celery's retry mechanism.
 
+### `deliver_single_webhook_task`
+
+```python
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='webhooks')
+def deliver_single_webhook_task(self, webhook_event_id: int, webhook_id: int) -> bool:
+```
+
+Delivers a webhook event to a single endpoint with per-webhook retry. Called by `deliver_webhook_task` which dispatches individual deliveries for each registered webhook (line 223).
+
+Features:
+- **SSRF Protection**: URL validation via `is_safe_webhook_url()` before request
+- **HMAC Signing**: `X-Webhook-Signature` header via `sign_webhook_payload()`
+- **Retry Logic**: Calls `self.retry(exc=e)` on HTTP errors and request exceptions
+- **Delivery Status**: Updates `WebhookEvent.delivery_status` via `_update_delivery_status()`
+
+**Non-Retry Behavior:** On `MaxRetriesExceededError`, delivery is marked as failed via `_update_delivery_status()` without further retries (line 299-301).
+
+**Dispatch Pattern:**
+```
+deliver_webhook_task (event-level)
+  └── deliver_single_webhook_task (per-webhook, called for each enabled webhook)
+```
+
 ### `send_confirmation_task`
 
 ```python

@@ -11,6 +11,15 @@ REST API for programmatic access to blog data.
 | `subscribers.py` | `/api/subscribers` | GET, POST | List subscribers, create new subscriber |
 | `subscribers.py` | `/api/subscribers/<int:subscriber_id>` | DELETE | Delete subscriber |
 | `stats.py` | `/api/stats` | GET | Dashboard statistics |
+| `pages.py` | `/api/pages` | GET, POST | List/create static pages |
+| `pages.py` | `/api/pages/<int:page_id>` | GET, PUT, DELETE | Single page operations |
+| `series.py` | `/api/series` | GET, POST | List/create post series |
+| `series.py` | `/api/series/<int:series_id>` | GET, PUT, DELETE | Single series operations |
+| `series.py` | `/api/series/<int:series_id>/posts` | POST | Add post to series |
+| `series.py` | `/api/series/<int:series_id>/posts/<int:post_id>` | DELETE | Remove post from series |
+| `series.py` | `/api/series/<int:series_id>/reorder` | POST | Reorder posts within series |
+| `tags.py` | `/api/tags` | GET, POST | List/create tags |
+| `tags.py` | `/api/tags/<int:tag_id>` | GET, PUT, DELETE | Single tag operations |
 
 
 ## Webhook Events
@@ -106,6 +115,176 @@ Response:
   "new_subscribers_this_month": 10
 }
 ```
+
+## Pages API (`pages.py`)
+
+### List Pages
+```
+GET /api/pages
+```
+Query Parameters:
+- `published` (bool): Filter by published status
+
+Requires scope: `pages:read`
+
+### Get Page
+```
+GET /api/pages/<int:page_id>
+```
+Requires scope: `pages:read`
+
+### Create Page
+```
+POST /api/pages
+```
+Body:
+```json
+{
+  "title": "Page Title",
+  "body": "Page content",
+  "slug": "page-slug",
+  "published": false
+}
+```
+Requires scope: `pages:write`
+
+### Update Page
+```
+PUT /api/pages/<int:page_id>
+```
+Body (all optional): `title`, `slug`, `body`, `published`
+Requires scope: `pages:write`
+
+### Delete Page
+```
+DELETE /api/pages/<int:page_id>
+```
+Requires scope: `pages:write`
+
+## Series API (`series.py`)
+
+### List Series
+```
+GET /api/series
+```
+Query Parameters:
+- `include_posts` (bool): Include post list
+
+Requires scope: `series:read`
+
+### Get Series
+```
+GET /api/series/<int:series_id>
+```
+Query Parameters:
+- `include_posts` (bool): Include post list
+
+Requires scope: `series:read`
+
+### Create Series
+```
+POST /api/series
+```
+Body:
+```json
+{
+  "name": "Series Name",
+  "description": "Description",
+  "slug": "series-slug"
+}
+```
+Requires scope: `series:write`
+
+### Update Series
+```
+PUT /api/series/<int:series_id>
+```
+Body (all optional): `name`, `description`, `slug`
+Requires scope: `series:write`
+
+### Delete Series
+```
+DELETE /api/series/<int:series_id>
+```
+Requires scope: `series:write`
+
+### Add Post to Series
+```
+POST /api/series/<int:series_id>/posts
+```
+Body:
+```json
+{
+  "post_id": 1,
+  "order_index": 0
+}
+```
+Requires scope: `series:write`
+
+### Remove Post from Series
+```
+DELETE /api/series/<int:series_id>/posts/<int:post_id>
+```
+Requires scope: `series:write`
+
+### Reorder Series Posts
+```
+POST /api/series/<int:series_id>/reorder
+```
+Body:
+```json
+{
+  "order": [{"post_id": 1, "order_index": 0}, {"post_id": 2, "order_index": 1}]
+}
+```
+Requires scope: `series:write`
+
+## Tags API (`tags.py`)
+
+### List Tags
+```
+GET /api/tags
+```
+Query Parameters:
+- `include_count` (bool): Include post count
+
+Requires scope: `tags:read`
+
+### Get Tag
+```
+GET /api/tags/<int:tag_id>
+```
+Requires scope: `tags:read`
+
+### Create Tag
+```
+POST /api/tags
+```
+Body:
+```json
+{
+  "name": "tag-name"
+}
+```
+Requires scope: `tags:write`
+
+### Update Tag
+```
+PUT /api/tags/<int:tag_id>
+```
+Body:
+```json
+{
+  "name": "new-tag-name"
+}
+```
+Requires scope: `tags:write`
+
+### Delete Tag
+```
+DELETE /api/tags/<int:tag_id>
+```
+Requires scope: `tags:write`
 
 ## Authentication (`auth.py`)
 

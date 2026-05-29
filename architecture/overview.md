@@ -13,7 +13,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Module | Description | Deep Dive |
 |--------|-------------|-----------|
 | [Core Application](#1-core-application) | Flask app factory, configuration, extensions | [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md) |
-| [Data Models](#2-data-models) | SQLAlchemy ORM models (20 models) | [core/models.md](core/models.md) |
+| [Data Models](#2-data-models) | SQLAlchemy ORM models (17 models) | [core/models.md](core/models.md) |
 | [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
 | [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md) |
 | [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
@@ -89,6 +89,8 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Extensions | `app/extensions.py` | SQLAlchemy, LoginManager, Migrate |
 | Filters | `app/filters.py` | Jinja2 template filters |
 | Context Processors | `app/context_processors.py` | Template global variables |
+| CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, etc.) |
+| Validators | `app/validators.py` | API input validation |
 
 **Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
 
@@ -96,7 +98,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ## 2. Data Models
 
-**Source:** `app/models.py` (20 models)
+**Source:** `app/models.py` (17 models)
 
 **Purpose:** Database schema and relationships.
 
@@ -308,7 +310,7 @@ blog/
 ├── app/                              # Main application package
 │   ├── __init__.py                   # create_app() - Flask app factory
 │   ├── config.py                     # Configuration loading from TOML + env
-│   ├── models.py                     # SQLAlchemy ORM models (19 models)
+│   ├── models.py                     # SQLAlchemy ORM models (17 models)
 │   ├── extensions.py                 # Flask extensions (db, login_manager, migrate)
 │   ├── utils.py                      # Utilities (slug, UTCDateTime, SSRF)
 │   ├── validators.py                # API input validation
@@ -331,6 +333,7 @@ blog/
 │   ├── transaction.py              # Transaction helpers
 │   ├── csv_utils.py                 # CSV export utilities
 │   ├── base62.py                    # Post ID encoding
+│   ├── cli.py                       # CLI commands (flask cli)
 │   │
 │   ├── routes/                      # Route blueprints
 │   │   ├── __init__.py
@@ -386,7 +389,6 @@ blog/
 │   │   ├── serialization.py       # JSON export/import
 │   │   ├── slug.py                # Slug generation
 │   │   ├── tag.py                 # Tag CRUD
-│   │   ├── tag_cache.py           # Tag count caching with TTL
 │   │   └── search/                # Search abstraction
 │   │       ├── __init__.py       # SearchProvider ABC
 │   │       ├── sqlite.py         # FTS5 implementation

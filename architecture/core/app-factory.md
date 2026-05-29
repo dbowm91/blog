@@ -138,4 +138,6 @@ Provides template variables for all templates:
 ## See Also
 - [Models](core/models.md) - Database models
 - [Configuration](core/configuration.md) - Detailed configuration
-- [Routes Overview](../routes/overview.md) - All route blueprints
+- [Routes: API](../routes/api-routes.md) - REST API endpoints
+- [Routes: Admin](../routes/admin-routes.md) - Admin dashboard routes
+- [Routes: Public](../routes/public-routes.md) - Public blog routes

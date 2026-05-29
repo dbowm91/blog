@@ -7,6 +7,7 @@ Business logic layer for the blog application.
 | Service | File | Purpose |
 |---------|------|---------|
 | Backup | `app/services/backup.py` | Database backup with compression/encryption |
+| Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secret encryption |
 | Serialization | `app/services/serialization.py` | JSON export/import |
 | Slug | `app/services/slug.py` | Unique slug generation |
 | Tag | `app/services/tag.py` | Tag CRUD and count management |

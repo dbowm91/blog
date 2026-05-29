@@ -54,7 +54,7 @@ Decrypts an AES-256-GCM-encrypted backup file.
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `input_path` | `str` | required | Path to encrypted backup file |
-| `output_path` | `str` | `None` | Output path. **Default behavior**: for `.gpg` files removes `.gpg` extension; for non-`.gpg` files appends `.decrypted` suffix (e.g., `backup.db.enc` → `backup.db.enc.decrypted`) |
+| `output_path` | `str` | `None` | Output path. **Default behavior**: for `.gpg` files (AES-256-GCM encrypted) removes `.gpg` extension; for non-`.gpg` files appends `.decrypted` suffix (e.g., `backup.db.enc` → `backup.db.enc.decrypted`) |
 
 **Returns:** `True` on success, `False` on failure
 
@@ -94,8 +94,10 @@ Three separate encryption modules exist with different key derivation strategies
 ```
 blog_YYYYMMDD_HHMMSS.db       # Plain
 blog_YYYYMMDD_HHMMSS.db.gz     # Compressed (create_backup with compress=True)
-blog_YYYYMMDD_HHMMSS.db.gpg    # Encrypted (create_backup with encrypt=True)
+blog_YYYYMMDD_HHMMSS.db.gpg    # Encrypted with AES-256-GCM (create_backup with encrypt=True)
 ```
+
+**Note:** The `.gpg` extension is historical. Backup encryption uses AES-256-GCM via `app/backup_encryption.py`, not GPG/PGP.
 
 ## Retention Policy
 

@@ -16,7 +16,7 @@ class Webhook(db.Model):
     name = db.Column(db.String(100))
     url = db.Column(db.String(512))
     webhook_secret_encrypted = db.Column(db.LargeBinary(256))  # AES-256-GCM encrypted
-    event_type = db.Column(db.String(32))  # post.published, post.created, etc.
+    event_type = db.Column(db.String(32))  # post.published, post.unpublished, etc.
     enabled = db.Column(db.Boolean, default=True)
 
     @property
@@ -118,7 +118,7 @@ The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive
 | Event | Trigger |
 |-------|---------|
 | `post.published` | Post goes live |
-| `post.created` | New post created |
+| `post.unpublished` | Post goes from published to draft |
 | `subscriber.confirmed` | New subscriber confirms |
 
 ## Queue Reference

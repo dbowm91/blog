@@ -22,6 +22,7 @@ The blog uses SQLAlchemy ORM with the following models:
 | `Series` | Post series | name, slug, description |
 | `PostSeries` | Series-post mapping | series_id, post_id, order_index |
 | `Comment` | Post comments | post_id, parent_id, author_name, content |
+| `ApiToken` | API authentication tokens | name, token_hash, scopes, expires_at, revoked_at |
 
 ## Relationships
 
