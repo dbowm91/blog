@@ -14,7 +14,7 @@ Supporting systems for the blog application.
 
 ## Health Check (`GET /health`)
 
-Health endpoint with optional `?detailed=1` parameter.
+Health endpoint with optional `?detailed=true` and `?secret=<HEALTH_CHECK_SECRET>` parameters.
 
 ### Critical Checks (determine overall status)
 
@@ -23,7 +23,7 @@ Health endpoint with optional `?detailed=1` parameter.
 | `database` | SQLite connectivity |
 | `scheduler` | APScheduler running |
 | `search` | FTS5 availability |
-| `disk_space` | Available space > 100MB |
+| `disk_space` | Free disk space >= 10% |
 | `db_integrity` | Database passes integrity check |
 
 ### Optional Checks (do not affect overall status)
@@ -86,12 +86,16 @@ Webhook delivery includes Server-Side Request Forgery (SSRF) protection to preve
 ### Implementation
 
 ```python
-def is_safe_url(url: str) -> bool:
+def is_safe_webhook_url(url: str) -> tuple[bool, str]:
     """Validate URL is not targeting private/internal networks."""
     parsed = urlparse(url)
     hostname = parsed.hostname
-    ip = socket.gethostbyname(hostname)
-    return not ipaddress.ip_address(ip).is_private
+    addr_infos = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    for addr_info in addr_infos:
+        ip = ipaddress.ip_address(addr_info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or not ip.is_global:
+            return False, f"Blocked IP: {ip}"
+    return True, "URL is safe"
 ```
 
 ### Related Documentation

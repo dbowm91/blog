@@ -35,6 +35,31 @@ class WebhookEvent(db.Model):
     delivery_attempts = db.Column(db.Integer, default=0)
 ```
 
+## Webhook Encryption (`app/webhook_encryption.py`)
+
+AES-256-GCM encryption for webhook secrets at rest. Secrets are encrypted before storage and decrypted on demand via the `Webhook.secret` property.
+
+### Configuration
+
+Requires `WEBHOOK_ENCRYPTION_KEY` environment variable. Accepts either:
+- A 64-character hex-encoded string (decoded to 32 bytes)
+- A raw 32-byte string
+
+### Functions
+
+| Function | Purpose |
+|----------|---------|
+| `encrypt_webhook_secret(plaintext: str) -> str` | Encrypt secret, returns base64-encoded nonce + ciphertext + tag |
+| `decrypt_webhook_secret(encrypted: str) -> str` | Decrypt base64-encoded encrypted secret |
+
+### Encryption Details
+
+- **Algorithm**: AES-256-GCM (authenticated encryption)
+- **Nonce**: 12 bytes, generated via `os.urandom()`
+- **Key size**: 32 bytes
+- **Output**: Base64-encoded concatenation of nonce + ciphertext + authentication tag
+- **Error handling**: Raises `WebhookEncryptionError` on failure
+
 ## Core Functions
 
 ### `sign_webhook_payload()`
@@ -84,23 +109,50 @@ def create_webhook_event(
 
 Creates `WebhookEvent` record and queues `deliver_webhook_task` Celery task.
 
+## Delivery Architecture
+
+Webhook delivery uses a two-level dispatch pattern:
+
+1. **`deliver_webhook_task`** (`app/tasks.py:194`): Receives a `webhook_event_id`, queries all enabled webhooks matching the event type, and dispatches individual `deliver_single_webhook_task` invocations — one per webhook. This enables per-webhook retry without blocking other webhooks.
+
+2. **`deliver_single_webhook_task`** (`app/tasks.py:233`): Handles delivery to a single webhook endpoint with independent retry logic (up to 3 retries with exponential backoff). Responsibilities:
+   - SSRF validation via `is_safe_webhook_url()`
+   - HMAC-SHA256 signature generation and header injection
+   - HTTP POST with `allow_redirects=False`
+   - Retry on HTTP errors (>=400) or request exceptions
+   - Delivery status tracking via `_update_delivery_status()`
+
+```
+create_webhook_event()
+  └─► deliver_webhook_task (per event)
+        ├─► deliver_single_webhook_task (webhook A)
+        ├─► deliver_single_webhook_task (webhook B)
+        └─► deliver_single_webhook_task (webhook C)
+```
+
+The deprecated `deliver_webhook()` synchronous function is retained for backward compatibility but should not be used for new code.
+
 ## SSRF Protection
 
-The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive validation:
+The `is_safe_webhook_url()` utility in `app/utils.py:383-485` performs extensive validation:
 
 - **Scheme check**: Only `http://` and `https://` allowed
-- **URL format validation**: Rejects userinfo (username/password) in URL
-- **Loopback blocking**: 127.0.0.1, ::1, localhost, 0.0.0.0
-- **IP validation**: Resolves hostname and validates IPs:
-  - Loopback (127.0.0.0/8, ::1)
-  - Private (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-  - Link-local (169.254.0.0/16, fe80::/10)
-  - Reserved, multicast
-  - Non-global (`ip.is_global` check)
-- **IPv4-mapped IPv6**: Checks for `::ffff:` prefix and blocks mapped private/loopback IPs
-- **Cloud metadata endpoints**:
-  - AWS: 169.254.169.254
-  - GCP: metadata.google.internal
+- **Hostname required**: Rejects URLs without a hostname
+- **Userinfo blocking**: Rejects URLs containing username/password (e.g., `http://user:pass@host`)
+- **Loopback hostname blocking**: Blocks `127.0.0.1`, `::1`, `localhost`, `0.0.0.0`
+- **DNS resolution**: Resolves hostname to all address families (IPv4 + IPv6) via `socket.getaddrinfo`
+- **Per-IP validation** (each resolved IP must pass all checks):
+  - **Loopback**: `ip.is_loopback` (127.0.0.0/8, ::1)
+  - **Private**: `ip.is_private` (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+  - **Link-local**: `ip.is_link_local` (169.254.0.0/16, fe80::/10)
+  - **Reserved**: `ip.is_reserved`
+  - **Multicast**: `ip.is_multicast`
+  - **IPv4-mapped IPv6**: Checks `::ffff:` prefix and blocks mapped private/loopback IPs
+  - **Cloud metadata endpoints**:
+    - AWS: `169.254.169.254` (hardcoded check)
+    - GCP: `metadata.google.internal` (hardcoded check)
+  - **Global routability**: `ip.is_global` check — must be publicly routable
+- **Return value**: `tuple[bool, str]` — `(True, "URL is safe")` or `(False, "<reason>")`
 - **Redirect blocking**: Both `deliver_webhook()` and `deliver_webhook_task` set `allow_redirects=False`
 
 ## Delivery Status Tracking
@@ -123,17 +175,17 @@ The `is_safe_webhook_url()` utility in `app/utils.py:312-414` performs extensive
 
 ## Queue Reference
 
-Webhook delivery uses the `webhooks` Celery queue (see `app/tasks.py:184`).
+Webhook delivery uses the `webhooks` Celery queue (see `app/tasks.py:194`).
 
 Other queues used by the system:
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
-| `images` | Image processing | `app/tasks.py:31` |
-| `newsletter` | Newsletter delivery | `app/tasks.py:130` |
-| `webhooks` | Webhook delivery | `app/tasks.py:182` |
-| `email` | Transactional email | `app/tasks.py:262,283` |
-| `backup` | Backup tasks | `app/tasks.py:304` |
+| `images` | Image processing | `app/tasks.py:30` |
+| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
+| `webhooks` | Webhook delivery | `app/tasks.py:194` |
+| `email` | Transactional email | `app/tasks.py:333,354` |
+| `backup` | Backup tasks | `app/tasks.py:375` |
 
 ## See Also
 - [Celery Tasks](../tasks/celery-tasks.md) - Async delivery

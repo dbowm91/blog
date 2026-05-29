@@ -82,18 +82,17 @@ admin/
 - **Purpose**: Create/edit posts
 - **Features**: Markdown editor, tag selection, image upload, series assignment
 
-### Post Delete (`manage.py`)
+### Post Delete (`posts/manage.py`)
 - **Route**: `POST /admin/delete/<int:post_id>`
 - **Purpose**: Delete a post
 
-### Post Preview (`manage.py`)
+### Post Preview (`posts/manage.py`)
 - **Route**: `GET /admin/preview/<int:post_id>`
 - **Route**: `GET /admin/preview/<int:post_id>?share=1`
 - **Purpose**: Preview post before publishing, with optional shareable URL
 
 ### Post List (`__init__.py`)
 - **Route**: `GET /admin/`
-- **Route**: `GET /admin/<int:page>`
 - **Route**: `POST /admin/bulk`
 - **Purpose**: List all posts with filtering
 - **Location**: `app/routes/admin/posts/__init__.py:dashboard()`
@@ -157,10 +156,10 @@ admin/
 
 - **Route**: `GET /admin/backup`
 - **Route**: `POST /admin/backup/create`
-- **Route**: `POST /admin/backup/restore/`
-- **Route**: `GET /admin/backup/download/`
-- **Route**: `POST /admin/backup/delete/`
-- **Route**: `GET /admin/backup/verify/`
+- **Route**: `POST /admin/backup/restore/<filename>`
+- **Route**: `GET /admin/backup/download/<filename>`
+- **Route**: `POST /admin/backup/delete/<filename>`
+- **Route**: `GET /admin/backup/verify/<filename>`
 - **Route**: `GET /admin/backup/verify-all`
 - **Purpose**: Database backup/restore
 - **Features**: Compression, encryption (AES-256-GCM), integrity verification
