@@ -50,6 +50,9 @@ services:
     profiles:
       - production
 
+  # WARNING: APScheduler runs on all replicas. Scaling celery beyond 1 container
+  # without external job coordination (Redis, etcd) will cause duplicate job execution.
+  # See app/scheduler.py lines 3-8 for details.
   celery:
     build: .
     restart: unless-stopped

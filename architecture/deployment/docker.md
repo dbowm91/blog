@@ -83,6 +83,31 @@ For coordinated multi-worker deployments, consider:
 2. Adding Redis-based distributed locking
 3. Running APScheduler only on a single designated container
 
+## APScheduler Multi-Container Limitations
+
+APScheduler uses `filelock.FileLock` with `timeout=0` (see `app/scheduler.py:76`). This lock mechanism only works on a single machine and does not provide cross-machine coordination.
+
+**Problem:** When running multiple container replicas:
+- Each container runs its own APScheduler instance
+- FileLock cannot coordinate across container boundaries
+- Scheduled jobs (newsletter, backups, post publishing) execute on all replicas simultaneously
+- This causes duplicate newsletter sends, duplicate backups, and duplicate post publishes
+
+**Impact:**
+| Job | Consequence |
+|-----|-------------|
+| `send_daily_newsletter` | Duplicate emails to subscribers |
+| `run_daily_backup` | Multiple concurrent backup processes |
+| `publish_scheduled_posts` | Duplicate published posts |
+| `cleanup_expired_subscribers` | No data corruption, but wasted cycles |
+
+**Mitigation Options:**
+1. **Run APScheduler on single container only** - Use container labels/constraints to ensure only one replica runs scheduler jobs
+2. **Use Celery Beat** - Replace APScheduler with Celery Beat for distributed job scheduling
+3. **External distributed lock** - Implement Redis or etcd-based locking (future enhancement)
+
+The `celery` service in `docker-compose.yml` runs with `--concurrency=1` and does not run APScheduler. APScheduler runs within the `blog` service (via `app/__init__.py` initialization).
+
 ## Environment Variables
 
 | Variable | Description |
