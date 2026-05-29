@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from flask import render_template, redirect, url_for, request, flash, Response, abort
 from flask.typing import ResponseReturnValue
-from typing import Union
 
 from app.extensions import db
 from app.models import Subscriber
@@ -151,9 +150,7 @@ def subscribers_bulk() -> ResponseReturnValue:
 
         if action == "delete":
             subs = (
-                db.session.execute(
-                    select(Subscriber).filter(Subscriber.id.in_(valid_ids))
-                )
+                db.session.execute(select(Subscriber).filter(Subscriber.id.in_(valid_ids)))
                 .scalars()
                 .all()
             )
@@ -181,15 +178,11 @@ def subscribers_bulk() -> ResponseReturnValue:
             return Response(
                 generate_subscribers_csv(export_subs),
                 mimetype="text/csv",
-                headers={
-                    "Content-Disposition": "attachment; filename=subscribers_selected.csv"
-                },
+                headers={"Content-Disposition": "attachment; filename=subscribers_selected.csv"},
             )
         elif action == "resend":
             subs = (
-                db.session.execute(
-                    select(Subscriber).filter(Subscriber.id.in_(valid_ids))
-                )
+                db.session.execute(select(Subscriber).filter(Subscriber.id.in_(valid_ids)))
                 .scalars()
                 .all()
             )

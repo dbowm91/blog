@@ -5,22 +5,23 @@ Revises: c3d4e5f6a7b8
 Create Date: 2026-04-01 12:01:00.000000
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'd4e5f6a7b8c9'
-down_revision = 'c3d4e5f6a7b8'
+revision = "d4e5f6a7b8c9"
+down_revision = "c3d4e5f6a7b8"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('posts', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('scheduled_publish_at', sa.DateTime(), nullable=True))
+    with op.batch_alter_table("posts", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("scheduled_publish_at", sa.DateTime(), nullable=True))
 
 
 def downgrade():
-    with op.batch_alter_table('posts', schema=None) as batch_op:
-        batch_op.drop_column('scheduled_publish_at')
+    with op.batch_alter_table("posts", schema=None) as batch_op:
+        batch_op.drop_column("scheduled_publish_at")

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from flask import render_template, redirect, url_for, request, flash, abort, session, Response
+from flask import render_template, redirect, url_for, request, flash, abort, session
 from flask.typing import ResponseReturnValue
-from typing import Union
 from flask_login import current_user
 
 from app.extensions import db
@@ -33,9 +32,7 @@ def users_list() -> ResponseReturnValue:
         per_page=per_page,
         error_out=False,
     )
-    return render_template(
-        "admin/users.html", users=pagination.items, pagination=pagination
-    )
+    return render_template("admin/users.html", users=pagination.items, pagination=pagination)
 
 
 @admin.route("/users/create", methods=["POST"])
@@ -65,9 +62,7 @@ def create_user() -> ResponseReturnValue:
         )
         return redirect(url_for("admin.users_list"))
 
-    existing = db.session.execute(
-        select(User).filter_by(username=username)
-    ).scalar_one_or_none()
+    existing = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
     if existing:
         flash(f"User '{username}' already exists.", "error")
         return redirect(url_for("admin.users_list"))
@@ -81,9 +76,7 @@ def create_user() -> ResponseReturnValue:
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info(
-        "User created: id=%d username=%s is_admin=%s", user.id, username, is_admin
-    )
+    logger.info("User created: id=%d username=%s is_admin=%s", user.id, username, is_admin)
     flash(f"User '{username}' created.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -115,9 +108,7 @@ def delete_user(user_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash("Cannot delete the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info(
-        "User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin
-    )
+    logger.info("User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin)
     flash(f"User '{username}' deleted.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -170,9 +161,7 @@ def demote_user(user_id: int) -> ResponseReturnValue:
     if user.id == current_user.id:
         flash("Cannot demote your own account.", "error")
         return redirect(url_for("admin.users_list"))
-    admin_count = db.session.execute(
-        select(func.count(User.id)).filter(User.is_admin)
-    ).scalar()
+    admin_count = db.session.execute(select(func.count(User.id)).filter(User.is_admin)).scalar()
     if (admin_count or 0) <= 1:
         flash("Cannot demote the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
@@ -213,18 +202,16 @@ def make_owner(user_id: int) -> ResponseReturnValue:
     if not password or not current_user.check_password(password):
         flash("Invalid password. Ownership transfer requires your password.", "error")
         return redirect(url_for("admin.users_list"))
-    admin_count = db.session.execute(
-        select(func.count(User.id)).filter(User.is_admin)
-    ).scalar()
+    admin_count = db.session.execute(select(func.count(User.id)).filter(User.is_admin)).scalar()
     if (admin_count or 0) <= 1:
         flash("Cannot transfer ownership while you are the only admin.", "error")
         return redirect(url_for("admin.users_list"))
     user.is_admin = True
     db.session.flush()
 
-    all_admins = db.session.execute(
-        select(User).filter(User.is_admin, User.id != user_id)
-    ).scalars().all()
+    all_admins = (
+        db.session.execute(select(User).filter(User.is_admin, User.id != user_id)).scalars().all()
+    )
     for admin_user in all_admins:
         admin_user.is_admin = False
     try:

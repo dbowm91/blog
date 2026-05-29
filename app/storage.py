@@ -31,10 +31,13 @@ except ImportError:
         from botocore.exceptions import ClientError
         from botocore.exceptions import BotoCoreError
     else:
+
         class ClientError(Exception):
             pass
+
         class BotoCoreError(Exception):
             pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -319,7 +322,9 @@ def _delete_existing_variants(storage: StorageBackend, filename: str) -> None:
                 logger.warning("Failed to delete S3 variants with prefix %s: %s", prefix, e)
 
 
-def upload_with_processing(filename: str, file_content: bytes, generate_variants: bool = True) -> tuple[str, None] | tuple[None, str]:
+def upload_with_processing(
+    filename: str, file_content: bytes, generate_variants: bool = True
+) -> tuple[str, None] | tuple[None, str]:
     """Save an image file and optionally queue async variant generation.
 
     For local storage: saves directly to upload folder.
@@ -355,6 +360,7 @@ def upload_with_processing(filename: str, file_content: bytes, generate_variants
 
     if generate_variants:
         from app.tasks import generate_image_variants
+
         generate_image_variants.delay(filename)
 
     return filename, None
@@ -364,5 +370,6 @@ def _generate_responsive_variants_local(filepath: str) -> None:
     """Deprecated: Variant generation is now handled by Celery task generate_image_variants."""
     from app.tasks import generate_image_variants
     import os
+
     filename = os.path.basename(filepath)
     generate_image_variants.delay(filename)

@@ -44,12 +44,11 @@ def _check_fts_enabled() -> bool:
     """Check if FTS5 table exists with caching."""
     global _fts_enabled, _fts_check_time
     import time
+
     now = time.monotonic()
     if _fts_enabled is None or (now - _fts_check_time) > _FTS_CHECK_TTL:
         check = db.session.execute(
-            text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
-            )
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
         ).fetchone()
         _fts_enabled = bool(check)
         _fts_check_time = now
@@ -124,9 +123,7 @@ def sync_fts(post_id: int, title: str, body: str, summary: str, published: bool)
                 {"id": post_id, "title": title, "body": body, "summary": summary},
             )
         else:
-            db.session.execute(
-                text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
-            )
+            db.session.execute(text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id})
         return True
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS sync failed for post %s: %s", post_id, e)
@@ -181,9 +178,7 @@ def remove_fts(post_id: int) -> bool:
     rollback the transaction to maintain FTS/DB consistency.
     """
     try:
-        db.session.execute(
-            text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id}
-        )
+        db.session.execute(text("DELETE FROM posts_fts WHERE rowid = :id"), {"id": post_id})
         return True
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.warning("FTS remove failed for post %s: %s", post_id, e)
@@ -237,9 +232,7 @@ def get_indexed_terms_fallback() -> list[str]:
     try:
         if not _check_fts_enabled():
             return []
-        result = db.session.execute(
-            text("SELECT title FROM posts WHERE published = 1")
-        ).fetchall()
+        result = db.session.execute(text("SELECT title FROM posts WHERE published = 1")).fetchall()
         terms = []
         for row in result:
             if row[0]:
@@ -316,7 +309,7 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
 
     try:
         for i in range(0, len(post_ids), _SQLITE_MAX_VARS):
-            batch = post_ids[i:i + _SQLITE_MAX_VARS]
+            batch = post_ids[i : i + _SQLITE_MAX_VARS]
             for row in _fetch_snippets(batch):
                 snippets[row[0]] = row[1]
     except (OperationalError, ProgrammingError, DatabaseError) as e:

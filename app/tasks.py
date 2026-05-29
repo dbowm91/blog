@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='images')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="images")
 def generate_image_variants(self: Any, filename: str) -> bool:
     """Generate responsive image variants for an image file.
 
@@ -126,7 +126,14 @@ def generate_image_variants(self: Any, filename: str) -> bool:
         return False
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, time_limit=600, soft_time_limit=540, queue='newsletter')
+@shared_task(
+    bind=True,
+    max_retries=3,
+    retry_backoff=True,
+    time_limit=600,
+    soft_time_limit=540,
+    queue="newsletter",
+)
 def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
     """Send newsletter for specified posts (async)."""
     from app.email import send_newsletter
@@ -161,6 +168,7 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
 
         if success:
             from app.utils import utc_now
+
             now = utc_now()
             for post in posts:
                 if post is not None:
@@ -183,10 +191,10 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
         db.session.remove()
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='webhooks')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="webhooks")
 def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
     """Deliver a webhook event to registered endpoints with SSRF protection and HMAC signing.
-    
+
     This task dispatches individual webhook deliveries to deliver_single_webhook_task
     for per-webhook retry support. Each webhook gets its own Celery task invocation
     with independent retry logic.
@@ -199,9 +207,11 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
         if not event or event.delivered:
             return False
 
-        webhooks = db.session.execute(
-            select(Webhook).filter_by(enabled=True, event_type=event.event_type)
-        ).scalars().all()
+        webhooks = (
+            db.session.execute(select(Webhook).filter_by(enabled=True, event_type=event.event_type))
+            .scalars()
+            .all()
+        )
 
         if not webhooks:
             event.delivered = True
@@ -220,10 +230,10 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
         db.session.remove()
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='webhooks')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="webhooks")
 def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: int) -> bool:
     """Deliver a webhook event to a single endpoint with per-webhook retry.
-    
+
     This task handles delivery to a single webhook with independent retry logic.
     Failed deliveries will be retried up to 3 times with exponential backoff.
     """
@@ -236,7 +246,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
     try:
         event = db.session.get(WebhookEvent, webhook_event_id)
         webhook = db.session.get(Webhook, webhook_id)
-        
+
         if not event or not webhook:
             return False
 
@@ -273,7 +283,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
                 allow_redirects=False,  # Prevent redirect-based SSRF
             )
             event.delivery_attempts += 1
-            
+
             if response.status_code < 400:
                 # Success - update delivery status
                 _update_delivery_status(event, db)
@@ -302,23 +312,25 @@ def _update_delivery_status(event: Any, db: Any) -> None:
     """Update the delivery_status field based on current delivery attempts."""
     # Query all webhooks for this event type
     from app.models import Webhook
-    
-    webhooks = db.session.execute(
-        select(Webhook).filter_by(enabled=True, event_type=event.event_type)
-    ).scalars().all()
-    
+
+    webhooks = (
+        db.session.execute(select(Webhook).filter_by(enabled=True, event_type=event.event_type))
+        .scalars()
+        .all()
+    )
+
     total_count = len(webhooks)
     if total_count == 0:
         event.delivery_status = None
     elif event.delivery_attempts >= total_count:
         # All attempts made - determine final status
         # This is a simplified check - in production, you'd track per-webhook success
-        event.delivery_status = 'delivered' if event.delivered else 'failed'
-    
+        event.delivery_status = "delivered" if event.delivered else "failed"
+
     db.session.commit()
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='email')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="email")
 def send_confirmation_task(self: Any, subscriber_id: int) -> bool:
     """Send confirmation email to a subscriber asynchronously."""
     from app.extensions import db
@@ -339,7 +351,7 @@ def send_confirmation_task(self: Any, subscriber_id: int) -> bool:
         db.session.remove()
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='email')
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="email")
 def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
     """Send password reset email to a user asynchronously."""
     from app.extensions import db
@@ -360,7 +372,7 @@ def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
         db.session.remove()
 
 
-@shared_task(bind=True, max_retries=2, retry_backoff=True, queue='backup')
+@shared_task(bind=True, max_retries=2, retry_backoff=True, queue="backup")
 def run_backup_task(self: Any) -> bool:
     """Run database backup asynchronously to avoid blocking web requests."""
     from app.services.backup import create_backup

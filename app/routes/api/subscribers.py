@@ -22,16 +22,10 @@ def _subscriber_to_dict(subscriber: Subscriber) -> dict:
         "id": subscriber.id,
         "email": subscriber.email,
         "confirmed": subscriber.confirmed,
-        "created_at": (
-            subscriber.created_at.isoformat() if subscriber.created_at else None
-        ),
-        "expires_at": (
-            subscriber.expires_at.isoformat() if subscriber.expires_at else None
-        ),
+        "created_at": (subscriber.created_at.isoformat() if subscriber.created_at else None),
+        "expires_at": (subscriber.expires_at.isoformat() if subscriber.expires_at else None),
         "unsubscribed_at": (
-            subscriber.unsubscribed_at.isoformat()
-            if subscriber.unsubscribed_at
-            else None
+            subscriber.unsubscribed_at.isoformat() if subscriber.unsubscribed_at else None
         ),
     }
 
@@ -97,9 +91,7 @@ def create_subscriber() -> any:
     if err:
         return jsonify({"error": err}), 400
 
-    existing = db.session.execute(
-        select(Subscriber).filter_by(email=email)
-    ).scalar_one_or_none()
+    existing = db.session.execute(select(Subscriber).filter_by(email=email)).scalar_one_or_none()
 
     if existing:
         return jsonify(_subscriber_to_dict(existing))
@@ -108,8 +100,7 @@ def create_subscriber() -> any:
 
     subscriber = Subscriber(
         email=email,
-        expires_at=utc_now()
-        + __import__("datetime").timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
+        expires_at=utc_now() + __import__("datetime").timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
     )
     db.session.add(subscriber)
     try:

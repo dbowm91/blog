@@ -1,5 +1,5 @@
 """Post-related routes - view, preview, share tracking."""
- 
+
 import logging
 from flask import current_app
 
@@ -11,12 +11,11 @@ from flask import (
     jsonify,
     abort,
     session,
-    Response,
 )
 from flask.typing import ResponseReturnValue
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, QueryableAttribute
-from typing import cast, Union, Any
+from typing import cast, Any
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -34,6 +33,7 @@ def _safe_redirect_url() -> str:
     referrer = request.referrer
     if referrer:
         from urllib.parse import urlparse
+
         parsed = urlparse(referrer)
         if parsed.netloc == "" or parsed.netloc == request.host:
             return referrer
@@ -47,12 +47,18 @@ def register_post_routes(public: Any) -> None:
     @limiter.limit("60 per minute")
     def post(slug: str) -> ResponseReturnValue:
         """Single post page with related posts and share tracking."""
-        post_obj = db.session.execute(
-            select(Post).options(
-                joinedload(cast(QueryableAttribute, Post.tags)),
-                joinedload(Post.series_entries).joinedload(PostSeries.series)
-            ).filter_by(slug=slug, published=True)
-        ).unique().scalar_one_or_none()
+        post_obj = (
+            db.session.execute(
+                select(Post)
+                .options(
+                    joinedload(cast(QueryableAttribute, Post.tags)),
+                    joinedload(Post.series_entries).joinedload(PostSeries.series),
+                )
+                .filter_by(slug=slug, published=True)
+            )
+            .unique()
+            .scalar_one_or_none()
+        )
         if not post_obj:
             abort(404)
 
@@ -61,13 +67,13 @@ def register_post_routes(public: Any) -> None:
             referrer = None
             if request.referrer:
                 from urllib.parse import urlparse, urlunparse
+
                 parsed = urlparse(request.referrer)
-                sanitized = urlunparse(
-                    (parsed.scheme, parsed.netloc, parsed.path, "", "", "")
-                )
+                sanitized = urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
                 referrer = sanitized[:512] if sanitized else None
 
             from app.page_view_buffer import record_page_view
+
             record_page_view(post_obj.id, referrer)
 
             if post_obj.id in viewed:
@@ -78,6 +84,7 @@ def register_post_routes(public: Any) -> None:
             session["viewed_posts"] = viewed
 
         from app.routes.public import _get_related_posts
+
         related = _get_related_posts(post_obj)
         short_code = post_obj.short_code()
         share_url = f"{BASE_URL}/s/{short_code}"
@@ -125,9 +132,15 @@ def register_post_routes(public: Any) -> None:
         if not hmac.compare_digest(token, expected_b64):
             abort(403)
 
-        post_obj = db.session.execute(
-            select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
-        ).unique().scalar_one_or_none()
+        post_obj = (
+            db.session.execute(
+                select(Post)
+                .options(joinedload(cast(QueryableAttribute, Post.tags)))
+                .filter(Post.id == post_id)
+            )
+            .unique()
+            .scalar_one_or_none()
+        )
         if not post_obj:
             abort(404)
 

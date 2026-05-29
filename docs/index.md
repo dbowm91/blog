@@ -20,7 +20,7 @@ DevLog is a personal blog platform built with Flask, featuring an admin dashboar
 ## Quick Start
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/dbowm91/blog.git
 cd blog
 python -m venv .venv
 source .venv/bin/activate

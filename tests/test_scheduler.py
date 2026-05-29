@@ -1,6 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock, Mock
-from datetime import datetime, timezone
+from unittest.mock import patch, MagicMock
 from app.utils import utc_now
 from filelock import Timeout as FileLockTimeout
 
@@ -8,6 +6,7 @@ from filelock import Timeout as FileLockTimeout
 def test_get_scheduler_status_not_running():
     """Test get_scheduler_status when scheduler not running."""
     from app.scheduler import get_scheduler_status
+
     with patch("app.scheduler._scheduler_running") as mock_event:
         mock_event.is_set.return_value = False
         assert get_scheduler_status() is False
@@ -16,6 +15,7 @@ def test_get_scheduler_status_not_running():
 def test_get_scheduler_status_running():
     """Test get_scheduler_status when scheduler is running."""
     from app.scheduler import get_scheduler_status
+
     with patch("app.scheduler._scheduler_running") as mock_event:
         mock_event.is_set.return_value = True
         assert get_scheduler_status() is True
@@ -24,16 +24,20 @@ def test_get_scheduler_status_running():
 def test_get_scheduler_next_run_no_scheduler():
     """Test get_scheduler_next_run with no scheduler."""
     from app.scheduler import get_scheduler_next_run
+
     with patch("app.scheduler._scheduler", None):
         assert get_scheduler_next_run() is None
 
 
 def test_get_scheduler_health():
     """Test get_scheduler_health returns correct info."""
-    from app.scheduler import get_scheduler_health, get_scheduler_next_run
-    with patch("app.scheduler._scheduler_running") as mock_running, \
-         patch("app.scheduler._last_newsletter_send") as mock_last, \
-         patch("app.scheduler.get_scheduler_next_run") as mock_next:
+    from app.scheduler import get_scheduler_health
+
+    with (
+        patch("app.scheduler._scheduler_running") as mock_running,
+        patch("app.scheduler._last_newsletter_send") as mock_last,
+        patch("app.scheduler.get_scheduler_next_run") as mock_next,
+    ):
         mock_running.is_set.return_value = True
         mock_last.return_value = utc_now()
         mock_next.return_value = utc_now()
@@ -47,8 +51,8 @@ def test_send_daily_newsletter_no_posts(db):
     """Test send_daily_newsletter with no posts to send."""
     from app.scheduler import send_daily_newsletter
     from app.models import Post
-    from filelock import Timeout as FileLockTimeout
     from unittest.mock import patch as mock_patch
+
     app = MagicMock()
     with mock_patch("app.scheduler.FileLock") as mock_lock:
         # Create a valid FileLockTimeout instance
@@ -66,11 +70,10 @@ def test_cleanup_expired_subscribers(db):
     """Test cleanup_expired_subscribers removes expired unconfirmed subs."""
     from app.scheduler import cleanup_expired_subscribers
     from app.models import Subscriber
+
     # Create expired subscriber
     sub = Subscriber(
-        email="expired@example.com",
-        confirmed=False,
-        expires_at=utc_now().replace(year=2020)
+        email="expired@example.com", confirmed=False, expires_at=utc_now().replace(year=2020)
     )
     db.session.add(sub)
     db.session.commit()
@@ -89,6 +92,7 @@ def test_publish_scheduled_posts(db, sample_post):
     """Test publish_scheduled_posts publishes due posts."""
     from app.scheduler import publish_scheduled_posts
     from app.models import Post
+
     # Set post to be scheduled in the past
     sample_post.published = False
     sample_post.scheduled_publish_at = utc_now().replace(year=2020)
@@ -106,7 +110,7 @@ def test_publish_scheduled_posts(db, sample_post):
 def test_init_scheduler_no_smtp():
     """Test init_scheduler returns None if SMTP_HOST not set."""
     from app.scheduler import init_scheduler
-    from app.config import SMTP_HOST
+
     with patch("app.config.SMTP_HOST", None):
         app = MagicMock()
         app.instance_path = "/tmp"
@@ -117,12 +121,15 @@ def test_init_scheduler_no_smtp():
 def test_init_scheduler_with_smtp():
     """Test init_scheduler initializes when SMTP_HOST is set."""
     from app.scheduler import init_scheduler
+
     # Patch the BackgroundScheduler where it's imported in scheduler module
     with patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler:
         mock_scheduler = MagicMock()
         MockScheduler.return_value = mock_scheduler
-        with patch("app.config.SMTP_HOST", "smtp.example.com"), \
-             patch("app.config.NEWSLETTER_SEND_TIME", "09:00"):
+        with (
+            patch("app.config.SMTP_HOST", "smtp.example.com"),
+            patch("app.config.NEWSLETTER_SEND_TIME", "09:00"),
+        ):
             app = MagicMock()
             app.instance_path = "/tmp"
             result = init_scheduler(app)
@@ -138,14 +145,10 @@ def test_cleanup_expired_subscribers_with_subscribers(db):
     from datetime import timedelta
 
     expired = Subscriber(
-        email="expired@example.com",
-        confirmed=False,
-        expires_at=utc_now() - timedelta(days=30)
+        email="expired@example.com", confirmed=False, expires_at=utc_now() - timedelta(days=30)
     )
     valid = Subscriber(
-        email="valid@example.com",
-        confirmed=True,
-        expires_at=utc_now() + timedelta(days=30)
+        email="valid@example.com", confirmed=True, expires_at=utc_now() + timedelta(days=30)
     )
     db.session.add(expired)
     db.session.add(valid)
@@ -189,6 +192,7 @@ def test_publish_scheduled_posts_ignores_future_posts(db, sample_post):
 def test_get_scheduler_next_run_with_scheduler():
     """Test get_scheduler_next_run returns time when scheduler exists."""
     from app.scheduler import get_scheduler_next_run
+
     mock_scheduler = MagicMock()
     mock_job = MagicMock()
     mock_job.next_run_time = utc_now()
@@ -201,7 +205,6 @@ def test_get_scheduler_next_run_with_scheduler():
 def test_scheduler_sends_newsletter_to_subscribers(db, sample_post, sample_subscriber):
     """Test send_daily_newsletter sends to confirmed subscribers."""
     from app.scheduler import send_daily_newsletter
-    from app.models import Post
 
     sample_post.newsletter_sent_at = None
     sample_post.published = True

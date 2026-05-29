@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from flask import render_template, request, redirect, url_for, flash, abort, Response
-from typing import Union, Any, cast
+from flask import render_template, request, redirect, url_for, flash, abort
+from typing import Any, cast
 
 from app.extensions import db
 from app.models import Comment
@@ -30,9 +30,11 @@ def comments_list() -> Any:
     spam_filter = request.args.get("spam", "all")
     page = request.args.get("page", 1, type=int)
 
-    query = select(Comment).options(
-        joinedload(cast(QueryableAttribute, Comment.post))
-    ).order_by(Comment.created_at.desc())
+    query = (
+        select(Comment)
+        .options(joinedload(cast(QueryableAttribute, Comment.post)))
+        .order_by(Comment.created_at.desc())
+    )
 
     if approved_filter == "yes":
         query = query.filter(Comment.approved.is_(True))

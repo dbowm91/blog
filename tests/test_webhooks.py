@@ -5,8 +5,6 @@ import hmac
 import json
 from unittest.mock import patch, MagicMock
 
-import pytest
-
 
 class TestSignWebhookPayload:
     """Tests for sign_webhook_payload function."""
@@ -25,9 +23,7 @@ class TestSignWebhookPayload:
 
         expected_payload = json.dumps(payload, sort_keys=True).encode("utf-8")
         expected_sig = hmac.new(
-            secret.encode("utf-8"),
-            expected_payload,
-            hashlib.sha256
+            secret.encode("utf-8"), expected_payload, hashlib.sha256
         ).hexdigest()
 
         assert signature == expected_sig
@@ -90,15 +86,15 @@ class TestDeliverWebhook:
         mock_response = MagicMock()
         mock_response.status_code = 200
 
-        with patch("app.utils.is_safe_webhook_url") as mock_ssrf, \
-             patch("requests.post") as mock_post:
+        with (
+            patch("app.utils.is_safe_webhook_url") as mock_ssrf,
+            patch("requests.post") as mock_post,
+        ):
             mock_ssrf.return_value = (True, "")
             mock_post.return_value = mock_response
 
             success, message = deliver_webhook(
-                "https://example.com/webhook",
-                {"event": "test"},
-                "secret"
+                "https://example.com/webhook", {"event": "test"}, "secret"
             )
 
             assert success is True
@@ -112,9 +108,7 @@ class TestDeliverWebhook:
             mock_ssrf.return_value = (False, "Private IP range blocked")
 
             success, message = deliver_webhook(
-                "http://10.0.0.1/webhook",
-                {"event": "test"},
-                "secret"
+                "http://10.0.0.1/webhook", {"event": "test"}, "secret"
             )
 
             assert success is False
@@ -128,9 +122,7 @@ class TestDeliverWebhook:
             mock_ssrf.return_value = (False, "Localhost addresses not allowed")
 
             success, message = deliver_webhook(
-                "http://localhost/webhook",
-                {"event": "test"},
-                "secret"
+                "http://localhost/webhook", {"event": "test"}, "secret"
             )
 
             assert success is False
@@ -143,15 +135,15 @@ class TestDeliverWebhook:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch("app.utils.is_safe_webhook_url") as mock_ssrf, \
-             patch("requests.post") as mock_post:
+        with (
+            patch("app.utils.is_safe_webhook_url") as mock_ssrf,
+            patch("requests.post") as mock_post,
+        ):
             mock_ssrf.return_value = (True, "")
             mock_post.return_value = mock_response
 
             success, message = deliver_webhook(
-                "https://example.com/webhook",
-                {"event": "test"},
-                "secret"
+                "https://example.com/webhook", {"event": "test"}, "secret"
             )
 
             assert success is False
@@ -162,15 +154,15 @@ class TestDeliverWebhook:
         from app.webhooks import deliver_webhook
         from requests.exceptions import RequestException
 
-        with patch("app.utils.is_safe_webhook_url") as mock_ssrf, \
-             patch("requests.post") as mock_post:
+        with (
+            patch("app.utils.is_safe_webhook_url") as mock_ssrf,
+            patch("requests.post") as mock_post,
+        ):
             mock_ssrf.return_value = (True, "")
             mock_post.side_effect = RequestException("Connection refused")
 
             success, message = deliver_webhook(
-                "https://example.com/webhook",
-                {"event": "test"},
-                "secret"
+                "https://example.com/webhook", {"event": "test"}, "secret"
             )
 
             assert success is False
@@ -183,16 +175,14 @@ class TestDeliverWebhook:
         mock_response = MagicMock()
         mock_response.status_code = 200
 
-        with patch("app.utils.is_safe_webhook_url") as mock_ssrf, \
-             patch("requests.post") as mock_post:
+        with (
+            patch("app.utils.is_safe_webhook_url") as mock_ssrf,
+            patch("requests.post") as mock_post,
+        ):
             mock_ssrf.return_value = (True, "")
             mock_post.return_value = mock_response
 
-            deliver_webhook(
-                "https://example.com/webhook",
-                {"event": "test"},
-                "secret"
-            )
+            deliver_webhook("https://example.com/webhook", {"event": "test"}, "secret")
 
             call_kwargs = mock_post.call_args[1]
             assert "headers" in call_kwargs
@@ -208,10 +198,7 @@ class TestCreateWebhookEvent:
         from app.models import WebhookEvent
 
         event_id = create_webhook_event(
-            event_type="test_event",
-            payload={"key": "value"},
-            target_id=1,
-            target_type="post"
+            event_type="test_event", payload={"key": "value"}, target_id=1, target_type="post"
         )
 
         assert event_id is not None
@@ -231,10 +218,7 @@ class TestCreateWebhookEvent:
         from app.webhooks import create_webhook_event
         from app.models import WebhookEvent
 
-        event_id = create_webhook_event(
-            event_type="minimal_event",
-            payload={}
-        )
+        event_id = create_webhook_event(event_type="minimal_event", payload={})
 
         event = db.session.execute(
             db.select(WebhookEvent).filter_by(id=event_id)
@@ -255,17 +239,13 @@ class TestCreateWebhookEvent:
             url="https://example.com/webhook",
             secret="test-secret",
             event_type="test_event",
-            enabled=True
+            enabled=True,
         )
         db.session.add(webhook)
         db.session.commit()
-        webhook_id = webhook.id
 
         event_id = create_webhook_event(
-            event_type="test_event",
-            payload={"data": "test"},
-            target_id=1,
-            target_type="post"
+            event_type="test_event", payload={"data": "test"}, target_id=1, target_type="post"
         )
 
         event = db.session.execute(
@@ -300,16 +280,13 @@ class TestWebhookEventDeliveryStatus:
             url="https://example.com/webhook",
             secret="test-secret",
             event_type="test_event",
-            enabled=True
+            enabled=True,
         )
         db.session.add(webhook)
         db.session.commit()
 
         event_id = create_webhook_event(
-            event_type="test_event",
-            payload={"data": "test"},
-            target_id=1,
-            target_type="post"
+            event_type="test_event", payload={"data": "test"}, target_id=1, target_type="post"
         )
 
         mock_response = MagicMock()
@@ -318,10 +295,11 @@ class TestWebhookEventDeliveryStatus:
         with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
             with patch("requests.post", return_value=mock_response):
                 from app.tasks import deliver_webhook_task
-                result = deliver_webhook_task(event_id)
+
+                deliver_webhook_task(event_id)
 
         event = db.session.get(WebhookEvent, event_id)
-        assert event.delivery_status == 'delivered'
+        assert event.delivery_status == "delivered"
         assert event.delivered is True
 
     def test_delivery_status_failed(self, db, admin_user):
@@ -335,26 +313,24 @@ class TestWebhookEventDeliveryStatus:
             url="https://example.com/webhook",
             secret="test-secret",
             event_type="fail_event",
-            enabled=True
+            enabled=True,
         )
         db.session.add(webhook)
         db.session.commit()
 
         event_id = create_webhook_event(
-            event_type="fail_event",
-            payload={"data": "test"},
-            target_id=1,
-            target_type="post"
+            event_type="fail_event", payload={"data": "test"}, target_id=1, target_type="post"
         )
 
         with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
             with patch("requests.post") as mock_post:
                 mock_post.side_effect = Exception("Connection refused")
                 from app.tasks import deliver_webhook_task
-                result = deliver_webhook_task(event_id)
+
+                deliver_webhook_task(event_id)
 
         event = db.session.get(WebhookEvent, event_id)
-        assert event.delivery_status == 'failed'
+        assert event.delivery_status == "failed"
         assert event.delivered is False
 
     def test_delivery_status_partial_failure(self, db, admin_user):
@@ -368,23 +344,20 @@ class TestWebhookEventDeliveryStatus:
             url="https://example.com/webhook1",
             secret="test-secret",
             event_type="partial_event",
-            enabled=True
+            enabled=True,
         )
         webhook2 = Webhook(
             name="Fail Webhook",
             url="https://example.com/webhook2",
             secret="test-secret",
             event_type="partial_event",
-            enabled=True
+            enabled=True,
         )
         db.session.add_all([webhook1, webhook2])
         db.session.commit()
 
         event_id = create_webhook_event(
-            event_type="partial_event",
-            payload={"data": "test"},
-            target_id=1,
-            target_type="post"
+            event_type="partial_event", payload={"data": "test"}, target_id=1, target_type="post"
         )
 
         success_response = MagicMock()
@@ -394,10 +367,11 @@ class TestWebhookEventDeliveryStatus:
             with patch("requests.post") as mock_post:
                 mock_post.side_effect = [success_response, Exception("Connection refused")]
                 from app.tasks import deliver_webhook_task
-                result = deliver_webhook_task(event_id)
+
+                deliver_webhook_task(event_id)
 
         event = db.session.get(WebhookEvent, event_id)
-        assert event.delivery_status == 'partial_failure'
+        assert event.delivery_status == "partial_failure"
 
     def test_delivery_status_none_when_no_webhooks(self, db):
         """Test delivery_status=None when no webhooks configured."""
@@ -405,14 +379,12 @@ class TestWebhookEventDeliveryStatus:
         from app.models import WebhookEvent
 
         event_id = create_webhook_event(
-            event_type="no_webhook_event",
-            payload={"data": "test"},
-            target_id=1,
-            target_type="post"
+            event_type="no_webhook_event", payload={"data": "test"}, target_id=1, target_type="post"
         )
 
         from app.tasks import deliver_webhook_task
-        result = deliver_webhook_task(event_id)
+
+        deliver_webhook_task(event_id)
 
         event = db.session.get(WebhookEvent, event_id)
         assert event.delivery_status is None

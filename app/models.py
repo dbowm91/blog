@@ -46,6 +46,7 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
         if not self.totp_secret_encrypted:
             return None
         from app.services.encryption import decrypt
+
         try:
             return decrypt(self.totp_secret_encrypted)
         except Exception:
@@ -57,6 +58,7 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
             self.totp_secret_encrypted = None
             return
         from app.services.encryption import encrypt
+
         self.totp_secret_encrypted = encrypt(secret)
 
     def get_totp_uri(self) -> Optional[str]:
@@ -65,6 +67,7 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
         if not secret:
             return None
         import pyotp
+
         return pyotp.totp.TOTP(secret).provisioning_uri(
             name=self.username, issuer_name="DevLog Blog"
         )
@@ -74,17 +77,20 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
     def generate_backup_codes(self) -> list[str]:
         """Generate 8 backup codes, return plain codes (one-time display)."""
         import secrets
+
         codes = []
         for _ in range(8):
             code = f"{secrets.token_hex(4).upper()[:4]}-{secrets.token_hex(4).upper()[4:8]}"
             codes.append(code)
         import hashlib
+
         self.backup_codes_hashed = [hashlib.sha256(c.encode()).hexdigest() for c in codes]
         return codes
 
     def verify_backup_code(self, code: str) -> bool:
         """Verify a backup code (single-use)."""
         import hashlib
+
         if not self.backup_codes_hashed:
             return False
         hashed = hashlib.sha256(code.encode()).hexdigest()
@@ -132,13 +138,12 @@ class Tag(db.Model):  # type: ignore[name-defined]
     name = db.Column(db.String(50), unique=True, nullable=False)
     slug = db.Column(db.String(50), unique=True, nullable=False)
 
-    posts = db.relationship(
-        "Post", secondary=post_tags, back_populates="tags", lazy="select"
-    )
+    posts = db.relationship("Post", secondary=post_tags, back_populates="tags", lazy="select")
 
     @staticmethod
     def generate_slug(name: str) -> str:
         from app.utils import generate_slug as util_generate_slug
+
         return util_generate_slug(name)
 
     def __repr__(self) -> str:
@@ -165,6 +170,7 @@ class Page(db.Model):  # type: ignore[name-defined]
     @staticmethod
     def generate_slug(title: str) -> str:
         from app.utils import generate_slug as util_generate_slug
+
         return util_generate_slug(title)
 
     def __repr__(self) -> str:
@@ -193,9 +199,7 @@ class Post(db.Model):  # type: ignore[name-defined]
     newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
     newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
-    tags = db.relationship(
-        "Tag", secondary=post_tags, back_populates="posts"
-    )
+    tags = db.relationship("Tag", secondary=post_tags, back_populates="posts")
     page_views = db.relationship(
         "PageView", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
@@ -224,6 +228,7 @@ class Post(db.Model):  # type: ignore[name-defined]
     @staticmethod
     def generate_slug(title: str) -> str:
         from app.utils import generate_slug as util_generate_slug
+
         return util_generate_slug(title)
 
     def short_code(self) -> str:
@@ -262,9 +267,7 @@ class Subscriber(db.Model):  # type: ignore[name-defined]
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(256), unique=True, nullable=False)
-    token = db.Column(
-        db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex
-    )
+    token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex)
     confirmed = db.Column(db.Boolean, default=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
     expires_at = db.Column(
@@ -275,9 +278,7 @@ class Subscriber(db.Model):  # type: ignore[name-defined]
     unsubscribed_at = db.Column(UTCDateTime, nullable=True)
 
     __table_args__ = (
-        db.Index(
-            "ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"
-        ),
+        db.Index("ix_subscribers_confirmed_unsubscribed", "confirmed", "unsubscribed_at"),
     )
 
     def __repr__(self) -> str:
@@ -294,9 +295,7 @@ class PageView(db.Model):  # type: ignore[name-defined]
 
     post = db.relationship("Post", back_populates="page_views")
 
-    __table_args__ = (
-        db.Index("ix_page_views_post_created", "post_id", "created_at"),
-    )
+    __table_args__ = (db.Index("ix_page_views_post_created", "post_id", "created_at"),)
 
     def __repr__(self) -> str:
         return f"<PageView post_id={self.post_id}>"
@@ -492,9 +491,7 @@ class Webhook(db.Model):  # type: ignore[name-defined]
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
-    __table_args__ = (
-        db.Index("ix_webhooks_event_type_enabled", "event_type", "enabled"),
-    )
+    __table_args__ = (db.Index("ix_webhooks_event_type_enabled", "event_type", "enabled"),)
 
     @property
     def secret(self) -> Optional[str]:
@@ -502,6 +499,7 @@ class Webhook(db.Model):  # type: ignore[name-defined]
         if not self.webhook_secret_encrypted:
             return None
         from app.webhook_encryption import decrypt_webhook_secret
+
         try:
             return decrypt_webhook_secret(self.webhook_secret_encrypted.decode("utf-8"))
         except Exception:
@@ -514,6 +512,7 @@ class Webhook(db.Model):  # type: ignore[name-defined]
             self.webhook_secret_encrypted = None
             return
         from app.webhook_encryption import encrypt_webhook_secret
+
         self.webhook_secret_encrypted = encrypt_webhook_secret(value).encode("utf-8")
 
     def __repr__(self) -> str:
@@ -555,15 +554,16 @@ class Series(db.Model):  # type: ignore[name-defined]
     image = db.Column(db.String(256))
     created_at = db.Column(UTCDateTime, default=utc_now)
 
-    posts = db.relationship("PostSeries", back_populates="series", order_by="PostSeries.order_index")
-
-    __table_args__ = (
-        db.Index("ix_series_slug", "slug"),
+    posts = db.relationship(
+        "PostSeries", back_populates="series", order_by="PostSeries.order_index"
     )
+
+    __table_args__ = (db.Index("ix_series_slug", "slug"),)
 
     @staticmethod
     def generate_slug(name: str) -> str:
         from app.utils import generate_slug as util_generate_slug
+
         return util_generate_slug(name)
 
     def __repr__(self) -> str:

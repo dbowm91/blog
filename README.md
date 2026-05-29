@@ -1,17 +1,57 @@
 # DevLog
 
-A personal blog platform built with Flask, featuring an admin dashboard, newsletter, RSS/JSON feeds, and analytics.
+A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytics, and admin-managed content.
+
+[![CI](https://github.com/dbowm91/blog/actions/workflows/ci.yml/badge.svg)](https://github.com/dbowm91/blog/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## Tutorial: Getting Started
+## What is DevLog?
+
+**DevLog** is a self-hosted blog platform designed for developers and technical writers who want full control over their content, subscribers, and data.
+
+### Who is it for?
+
+- Developers who want a simple, fast blog they can deploy on their own server
+- Technical writers who need Markdown editing, code highlighting, and newsletter support
+- Anyone who prefers owning their data over using a hosted platform
+
+### What it is not
+
+- Not a full CMS like WordPress — it focuses on blog posts, pages, and newsletters
+- Not a SaaS — you run it on your own infrastructure
+- Not a static site generator — it runs as a dynamic Flask application
+
+### Core Features
+
+- **Markdown Posts** — Write with a live preview editor, auto-save drafts, schedule publishing
+- **Admin Dashboard** — Manage posts, pages, tags, subscribers, media, and analytics
+- **Newsletter** — Send newsletters to confirmed subscribers with retry logic
+- **Feeds** — RSS 2.0, Atom 1.0, and JSON Feed 1.1 endpoints
+- **Tags & Series** — Organize posts with tags and multi-part series
+- **Full-Text Search** — FTS5-powered search with snippets
+- **REST API** — Manage posts, pages, tags, subscribers, and series via API
+- **2FA** — TOTP-based two-factor authentication for admin accounts
+- **Backups** — Encrypted (AES-256-GCM) and compressed backups with restore
+- **Theming** — CSS custom properties with theme presets (GitHub Dark/Light, Solarized, Monokai)
+- **Analytics** — Page views, referrers, and share tracking
+- **Media Library** — Upload and manage images with S3 or local storage
+- **Static Pages** — Create standalone pages at custom slugs
+- **Comments** — Moderated comments with spam filtering
+- **Security** — CSRF protection, rate limiting, security headers, session IP binding
+
+---
+
+## Quick Start
 
 Get from zero to a running blog in 5 minutes.
 
 ### 1. Clone and Install
 
 ```bash
-git clone <repo-url> /opt/blog
+git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 ./setup.sh
 ```
@@ -128,7 +168,7 @@ Click **Preview** to see how your post will look with theme styling.
 
 ### Accessing Feeds
 
-- **RSS Feed:** `/rss.xml`
+- **RSS Feed:** `/rss`
 - **JSON Feed:** `/json`
 - Add `?limit=N` to limit number of items
 
@@ -168,13 +208,17 @@ See `docs/openapi.yaml` for full API documentation.
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/posts` | GET | List posts (supports `?q=`, `?page=`, `?per_page=`) |
-| `/api/posts/<slug>` | GET | Get single post |
+| `/api/posts` | GET | List posts (supports `?q=`, `?page=`, `?per_page=`, `?published=`) |
+| `/api/posts/<id>` | GET | Get single post by ID |
 | `/api/posts` | POST | Create post (requires API key) |
-| `/api/posts/<slug>` | PUT | Update post |
-| `/api/posts/<slug>` | DELETE | Delete post |
+| `/api/posts/<id>` | PUT | Update post |
+| `/api/posts/<id>` | DELETE | Delete post |
 | `/api/subscribers` | GET | List subscribers |
 | `/api/subscribers` | POST | Add subscriber |
+| `/api/tags` | GET | List tags |
+| `/api/pages` | GET | List pages |
+| `/api/series` | GET | List series |
+| `/api/stats` | GET | Get site statistics |
 
 ### Database Models
 
@@ -184,6 +228,20 @@ Key tables: `posts`, `users`, `tags`, `subscribers`, `page_views`, `share_events
 
 - Development server: `0.0.0.0:5000`
 - Granian (production): `127.0.0.1:5000`
+
+---
+
+## Project Status
+
+DevLog is production-ready and actively maintained. The core feature set is stable and well-tested.
+
+## Non-Goals
+
+- Multi-tenant SaaS hosting
+- Plugin/extension system
+- Built-in WYSIWYG editor (Markdown-only)
+- Real-time collaboration
+- Native mobile apps
 
 ---
 

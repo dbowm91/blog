@@ -4,7 +4,6 @@ import binascii
 import base64
 import os
 import logging
-from typing import Optional
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -16,6 +15,7 @@ KEY_SIZE = 32
 
 class EncryptionError(Exception):
     """Raised when encryption or decryption fails."""
+
     pass
 
 
@@ -30,14 +30,11 @@ def get_encryption_key() -> bytes:
     key_source = SECRET_KEY or ""
 
     if not key_source:
-        raise EncryptionError(
-            "SECRET_KEY not configured. "
-            "Set SECRET_KEY environment variable."
-        )
+        raise EncryptionError("SECRET_KEY not configured. Set SECRET_KEY environment variable.")
 
     key = key_source.encode("utf-8")
     if len(key) < KEY_SIZE:
-        key = key.ljust(KEY_SIZE, b'\x00')[:KEY_SIZE]
+        key = key.ljust(KEY_SIZE, b"\x00")[:KEY_SIZE]
     return key[:KEY_SIZE]
 
 

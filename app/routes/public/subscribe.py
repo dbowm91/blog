@@ -1,5 +1,5 @@
 """Subscription routes - subscribe, confirm, unsubscribe."""
- 
+
 import logging
 import uuid
 import time
@@ -9,10 +9,8 @@ from flask import (
     redirect,
     request,
     flash,
-    Response,
 )
 from flask.typing import ResponseReturnValue
-from typing import Union
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -40,7 +38,9 @@ def _reset_subscriber_token(subscriber: Subscriber) -> None:
     subscriber.expires_at = utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS)
 
 
-def _send_or_flash_confirmation(subscriber: Subscriber, skip_conflict: bool = False) -> ResponseReturnValue:
+def _send_or_flash_confirmation(
+    subscriber: Subscriber, skip_conflict: bool = False
+) -> ResponseReturnValue:
     """Send confirmation and flash appropriate message. Returns redirect target."""
     if _try_send_confirmation(subscriber):
         flash("Check your inbox to confirm your subscription.", "success")
@@ -119,9 +119,7 @@ def register_subscribe_routes(public):
     def confirm(token: str) -> ResponseReturnValue:
         """Confirm newsletter subscription via token."""
         time.sleep(TOKEN_ENUMERATION_DELAY)
-        sub = db.session.execute(
-            select(Subscriber).filter_by(token=token)
-        ).scalar_one_or_none()
+        sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
         if not sub:
             logger.warning(
                 "Confirm enumeration attempt with invalid token from %s",
@@ -145,11 +143,12 @@ def register_subscribe_routes(public):
         db.session.commit()
         try:
             from app.webhooks import create_webhook_event
+
             create_webhook_event(
                 event_type="subscriber.confirmed",
                 payload={"subscriber_id": sub.id, "email": sub.email},
                 target_id=sub.id,
-                target_type="subscriber"
+                target_type="subscriber",
             )
         except Exception:
             pass
@@ -161,9 +160,7 @@ def register_subscribe_routes(public):
     def unsubscribe(token: str) -> ResponseReturnValue:
         """Unsubscribe from the newsletter via token."""
         time.sleep(TOKEN_ENUMERATION_DELAY)
-        sub = db.session.execute(
-            select(Subscriber).filter_by(token=token)
-        ).scalar_one_or_none()
+        sub = db.session.execute(select(Subscriber).filter_by(token=token)).scalar_one_or_none()
         if not sub:
             logger.warning(
                 "Unsubscribe enumeration attempt with invalid token from %s",

@@ -11,8 +11,6 @@ The actual implementation would use:
 - <-> operator for phrase search
 """
 
-from typing import Optional
-
 from app.services.search import SearchProvider, ConfigurationError
 
 
@@ -33,7 +31,9 @@ class PostgreSQLSearchProvider(SearchProvider):
             "Please use SQLite (SEARCH_PROVIDER=sqlite) or implement PostgreSQL FTS."
         )
 
-    def index_post(self, post_id: int, title: str, body: str, summary: str, published: bool) -> bool:
+    def index_post(
+        self, post_id: int, title: str, body: str, summary: str, published: bool
+    ) -> bool:
         """Index a post using PostgreSQL tsvector.
 
         Full implementation would:

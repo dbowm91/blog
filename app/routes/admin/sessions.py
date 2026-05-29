@@ -1,5 +1,5 @@
 from __future__ import annotations
-from flask import render_template, redirect, url_for, flash, session, abort, Response
+from flask import render_template, redirect, url_for, flash, session, abort
 from flask.typing import ResponseReturnValue
 
 from app.extensions import db
@@ -8,7 +8,7 @@ from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, QueryableAttribute
-from typing import cast, Union
+from typing import cast
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 

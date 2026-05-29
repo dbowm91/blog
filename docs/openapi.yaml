@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Blog CMS REST API
+  title: DevLog REST API
   description: |
-    REST API for Post and Subscriber Management.
+    REST API for Post, Page, Tag, Series, and Subscriber Management.
 
     ## Authentication
     All endpoints (except `/api/track-share`) require API key authentication.

@@ -6,7 +6,7 @@ Thank you for your interest in contributing!
 
 ```bash
 # Clone and setup
-git clone <repo-url>
+git clone https://github.com/dbowm91/blog.git
 cd blog
 
 # Create virtual environment
@@ -49,10 +49,9 @@ ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python -m pytest tests/ -n auto
 
 ## Pull Request Guidelines
 
-1. **Branch naming**: Use `waveN-description` format (e.g., `wave5-fix-n-plus-one`)
+1. **Branch naming**: Use descriptive names (e.g., `fix/login-rate-limit`, `docs/docker-quickstart`, `feature/rss-cache`)
 2. **Commits**: Clear, descriptive messages explaining the "why"
 3. **Tests**: Include tests for new functionality; don't decrease coverage
-4. **Updates**: Update `plans/plan.md` if changes affect planned items
 
 ## Security Requirements
 
@@ -95,4 +94,11 @@ flask db upgrade
 | `app/services/` | Business logic |
 | `app/utils.py` | Utilities, sanitization |
 | `tests/` | Test suite |
-| `plans/plan.md` | Development roadmap |
+
+## GitHub Templates
+
+Before opening an issue or PR, check existing issues. Use the provided templates:
+
+- **Bug Reports**: Include reproduction steps, expected vs actual behavior, and environment info
+- **Feature Requests**: Describe the use case and proposed behavior
+- **Pull Requests**: Reference related issues, describe changes, and confirm tests pass

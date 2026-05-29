@@ -14,7 +14,6 @@ from flask import (
     jsonify,
     abort,
     current_app,
-    Response,
 )
 from typing import Any, cast
 from flask_login import current_user
@@ -45,6 +44,8 @@ def _save_revision(post: Post, author_id: int | None) -> None:
         author_id=author_id,
     )
     db.session.add(revision)
+
+
 from app.context_processors import invalidate_footer_cache  # noqa: E402
 from app.utils import utc_now, safe_delete_file  # noqa: E402
 from app.tag_cache import invalidate_tag_cache  # noqa: E402
@@ -76,7 +77,7 @@ def _create_post_object(
         published_at=now if published else None,
         scheduled_publish_at=scheduled_publish_at,
     )
-    setattr(post, 'tags', _get_or_create_tags(tag_names))
+    setattr(post, "tags", _get_or_create_tags(tag_names))
     return post
 
 
@@ -142,9 +143,7 @@ def register_editor_routes(admin):
             title = request.form.get("title", "").strip()[:200]
             body = request.form.get("body", "").strip()
             summary = request.form.get("summary", "").strip()[:500]
-            tag_names = [
-                t.strip() for t in request.form.get("tags", "").split(",") if t.strip()
-            ]
+            tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
             published = "published" in request.form
             scheduled_str = request.form.get("scheduled_publish_at", "").strip()
             scheduled_publish_at = None
@@ -152,9 +151,7 @@ def register_editor_routes(admin):
                 try:
                     scheduled_publish_at = datetime.fromisoformat(scheduled_str)
                     if scheduled_publish_at.tzinfo is None:
-                        scheduled_publish_at = scheduled_publish_at.replace(
-                            tzinfo=timezone.utc
-                        )
+                        scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
                 except (ValueError, TypeError):
                     flash("Invalid schedule date format.", "error")
                     return render_template("admin/editor.html", post=None, tag_names=tag_names)
@@ -171,6 +168,7 @@ def register_editor_routes(admin):
 
             if image:
                 from app.routes.admin.media import _invalidate_media_cache
+
                 _invalidate_media_cache()
 
             now = utc_now()
@@ -224,9 +222,7 @@ def register_editor_routes(admin):
             title = request.form.get("title", "").strip()[:200]
             body = request.form.get("body", "").strip()
             summary = request.form.get("summary", "").strip()[:500]
-            tag_names = [
-                t.strip() for t in request.form.get("tags", "").split(",") if t.strip()
-            ]
+            tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
             published = "published" in request.form
             scheduled_str = request.form.get("scheduled_publish_at", "").strip()
             scheduled_publish_at = None
@@ -234,9 +230,7 @@ def register_editor_routes(admin):
                 try:
                     scheduled_publish_at = datetime.fromisoformat(scheduled_str)
                     if scheduled_publish_at.tzinfo is None:
-                        scheduled_publish_at = scheduled_publish_at.replace(
-                            tzinfo=timezone.utc
-                        )
+                        scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
                 except (ValueError, TypeError):
                     flash("Invalid schedule date format.", "error")
                     return render_template("admin/editor.html", post=post, tag_names=tag_names)
@@ -277,6 +271,7 @@ def register_editor_routes(admin):
             old_image = None
             if image:
                 from app.routes.admin.media import _invalidate_media_cache
+
                 _invalidate_media_cache()
                 old_image = post.image
                 post.image = image
@@ -295,9 +290,7 @@ def register_editor_routes(admin):
             except IntegrityError:
                 db.session.rollback()
                 if image:
-                    safe_delete_file(
-                        os.path.join(current_app.config["UPLOAD_FOLDER"], image)
-                    )
+                    safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
                 post = db.session.get(Post, post_id)
                 if not post:
                     flash("Post not found.", "error")
@@ -316,9 +309,7 @@ def register_editor_routes(admin):
                 _apply_cache_and_fts_updates(post, True)
                 db.session.commit()
             if old_image:
-                safe_delete_file(
-                    os.path.join(current_app.config["UPLOAD_FOLDER"], old_image)
-                )
+                safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
             flash("Post updated.", "success")
             return redirect(url_for("admin.dashboard"))
 
@@ -339,7 +330,5 @@ def register_editor_routes(admin):
         from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 
         html = md.markdown(data["text"], extensions=["fenced_code", "tables"])
-        clean = nh3.clean(
-            html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
-        )
+        clean = nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
         return jsonify({"html": clean})

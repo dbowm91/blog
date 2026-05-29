@@ -64,32 +64,29 @@ def _get_cached_settings() -> dict[str, Any]:
                 "theme_presets": THEME_PRESETS,
             }
 
-        preset = THEME_PRESETS.get(
-            settings.theme_preset, THEME_PRESETS["github-dark"]
-        )
+        preset = THEME_PRESETS.get(settings.theme_preset, THEME_PRESETS["github-dark"])
         return {
-                "theme_preset": settings.theme_preset,
-                "theme_vars": preset,
-                "syntax_theme": settings.syntax_theme,
-                "custom_css_enabled": settings.custom_css_enabled,
-                "custom_css": settings.custom_css if settings.custom_css_enabled else "",
-                "logo_text": settings.logo_text,
-                "theme_presets": THEME_PRESETS,
-            }
+            "theme_preset": settings.theme_preset,
+            "theme_vars": preset,
+            "syntax_theme": settings.syntax_theme,
+            "custom_css_enabled": settings.custom_css_enabled,
+            "custom_css": settings.custom_css if settings.custom_css_enabled else "",
+            "logo_text": settings.logo_text,
+            "theme_presets": THEME_PRESETS,
+        }
     except OperationalError:
         logger.exception("Database error loading theme settings, using fallback")
         from app.models import THEME_PRESETS
 
         return {
-                "theme_preset": "github-dark",
-                "theme_vars": THEME_PRESETS["github-dark"],
-                "syntax_theme": "prism",
-                "custom_css_enabled": False,
-                "custom_css": "",
-                "logo_text": "",
-                "theme_presets": THEME_PRESETS,
-            }
-
+            "theme_preset": "github-dark",
+            "theme_vars": THEME_PRESETS["github-dark"],
+            "syntax_theme": "prism",
+            "custom_css_enabled": False,
+            "custom_css": "",
+            "logo_text": "",
+            "theme_presets": THEME_PRESETS,
+        }
 
 
 @flask_cache.memoize(timeout=45)
@@ -99,30 +96,24 @@ def _get_footer_data() -> dict[str, Any]:
 
     recent_posts = (
         db.session.execute(
-            select(Post)
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc())
-            .limit(3)
+            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(3)
         )
         .scalars()
         .all()
     )
     recent_posts_sidebar = (
         db.session.execute(
-            select(Post)
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc())
-            .limit(5)
+            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(5)
         )
         .scalars()
         .all()
     )
-    footer_tags = (
-        db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-    )
+    footer_tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
 
     tag_counts = _get_tag_counts()
-    footer_tag_counts = {tag_id: tag_counts.get(tag_id, 0) for tag_id in [t.id for t in footer_tags]}
+    footer_tag_counts = {
+        tag_id: tag_counts.get(tag_id, 0) for tag_id in [t.id for t in footer_tags]
+    }
 
     return {
         "recent_posts_footer": list(recent_posts),
@@ -167,11 +158,7 @@ def register_context_processors(app: Any) -> None:
     @app.context_processor
     def inject_footer_data() -> dict[str, Any]:
         path = request.path if request else ""
-        if (
-            path.startswith("/admin")
-            or path.startswith("/api")
-            or path.startswith("/rss")
-        ):
+        if path.startswith("/admin") or path.startswith("/api") or path.startswith("/rss"):
             return {
                 "recent_posts_footer": [],
                 "recent_posts_sidebar": [],
@@ -193,8 +180,4 @@ def register_context_processors(app: Any) -> None:
     @app.context_processor
     def inject_show_footer_posts() -> dict[str, bool]:
         path = request.path if request else ""
-        return {
-            "show_footer_posts": not (
-                path.startswith("/search") or path.startswith("/tag/")
-            )
-        }
+        return {"show_footer_posts": not (path.startswith("/search") or path.startswith("/tag/"))}

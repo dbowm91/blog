@@ -19,12 +19,14 @@ def _build_tag_counts_query() -> list[Row[Any]]:
     Returns:
         List of Row objects with tag_id and cnt columns.
     """
-    return list(db.session.execute(
-        select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt"))
-        .join(Post, Post.id == post_tags.c.post_id)
-        .filter(Post.published)
-        .group_by(post_tags.c.tag_id)
-    ).all())
+    return list(
+        db.session.execute(
+            select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("cnt"))
+            .join(Post, Post.id == post_tags.c.post_id)
+            .filter(Post.published)
+            .group_by(post_tags.c.tag_id)
+        ).all()
+    )
 
 
 @flask_cache.memoize(timeout=TAG_CACHE_TTL_SECONDS)

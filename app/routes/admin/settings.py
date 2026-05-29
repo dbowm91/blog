@@ -1,7 +1,6 @@
 from __future__ import annotations
-from flask import render_template, redirect, url_for, request, flash, Response
+from flask import render_template, redirect, url_for, request, flash
 from flask.typing import ResponseReturnValue
-from typing import Union
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -61,7 +60,14 @@ def settings_theme() -> ResponseReturnValue:
         flash("Invalid theme preset selected.", "error")
         return redirect(url_for("admin.settings"))
 
-    valid_syntax_themes = ["prism", "prism-coy", "prism-dark", "prism-funky", "prism-okaidia", "prism-tomorrow"]
+    valid_syntax_themes = [
+        "prism",
+        "prism-coy",
+        "prism-dark",
+        "prism-funky",
+        "prism-okaidia",
+        "prism-tomorrow",
+    ]
     syntax_theme = request.form.get("syntax_theme", "prism")
     if syntax_theme not in valid_syntax_themes:
         flash("Invalid syntax theme selected.", "error")

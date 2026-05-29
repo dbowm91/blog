@@ -55,10 +55,12 @@ def list_pages() -> Any:
 
     pages = db.session.execute(query).scalars().all()
 
-    return jsonify({
-        "pages": [_page_to_dict(p) for p in pages],
-        "total": len(pages),
-    })
+    return jsonify(
+        {
+            "pages": [_page_to_dict(p) for p in pages],
+            "total": len(pages),
+        }
+    )
 
 
 @api.route("/pages/<int:page_id>", methods=["GET"])

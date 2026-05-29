@@ -1,4 +1,3 @@
-import pytest
 from app.validators import (
     validate_string,
     validate_email,
@@ -8,8 +7,7 @@ from app.validators import (
     validate_tags,
     require_json_content_type,
 )
-from flask import Flask, jsonify, request
-from unittest.mock import patch, MagicMock
+from flask import Flask, jsonify
 
 
 def test_validate_string_valid():

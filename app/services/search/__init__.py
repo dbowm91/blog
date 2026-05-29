@@ -6,6 +6,7 @@ from typing import Optional
 
 class ConfigurationError(Exception):
     """Raised when search provider is misconfigured."""
+
     pass
 
 
@@ -34,7 +35,9 @@ class SearchProvider(ABC):
         pass
 
     @abstractmethod
-    def index_post(self, post_id: int, title: str, body: str, summary: str, published: bool) -> bool:
+    def index_post(
+        self, post_id: int, title: str, body: str, summary: str, published: bool
+    ) -> bool:
         """Index or remove a post from the search index.
 
         Args:
@@ -90,7 +93,9 @@ def get_search_provider() -> SearchProvider:
 
     if SEARCH_PROVIDER == "postgresql":
         from app.services.search.postgresql import PostgreSQLSearchProvider
+
         return PostgreSQLSearchProvider()
 
     from app.services.search.sqlite import SQLiteSearchProvider
+
     return SQLiteSearchProvider()

@@ -6,9 +6,9 @@ import time as _time
 import logging
 from datetime import datetime, timezone
 
-from flask import render_template, redirect, url_for, request, flash, abort, current_app, Response
+from flask import render_template, redirect, url_for, request, flash, abort, current_app
 from flask.typing import ResponseReturnValue
-from typing import Union, Any
+from typing import Any
 from sqlalchemy import select
 
 from app.extensions import db
@@ -52,7 +52,11 @@ def _get_cached_media_list(
             _MEDIA_CACHE["timestamp"] = now
 
         if search:
-            files = [(f["mtime"], f["name"], f["size"]) for f in all_files if search.lower() in str(f["name"]).lower()]
+            files = [
+                (f["mtime"], f["name"], f["size"])
+                for f in all_files
+                if search.lower() in str(f["name"]).lower()
+            ]
             return files
         return [
             {"name": str(f["name"]), "size": int(f["size"]), "mtime": f["mtime"]} for f in all_files
@@ -61,13 +65,16 @@ def _get_cached_media_list(
 
 def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
     from app.storage import get_storage
+
     storage = get_storage()
     all_files = []
     for name in storage.list_files():
         from app.storage import get_storage
+
         storage = get_storage()
         if storage.exists(name):
             import os as _os
+
             path = storage.path(name)
             try:
                 stat = _os.stat(path)
@@ -172,6 +179,7 @@ def delete_media(filename: str) -> ResponseReturnValue:
     if not filename:
         abort(400)
     from app.storage import get_storage
+
     storage = get_storage()
     if not storage.exists(filename):
         abort(404)
@@ -197,18 +205,16 @@ def cleanup_orphaned_images(app) -> tuple[int, int]:
     missing_db_entries = []
     posts_with_missing_images = []
 
-    posts = db.session.execute(
-        select(Post.image).where(Post.image.isnot(None))
-    ).scalars().all()
+    posts = db.session.execute(select(Post.image).where(Post.image.isnot(None))).scalars().all()
 
     for img in posts:
         if img:
             db_images.add(img)
             if not storage.exists(img):
                 missing_db_entries.append(img)
-                missing_posts = db.session.execute(
-                    select(Post).filter_by(image=img)
-                ).scalars().all()
+                missing_posts = (
+                    db.session.execute(select(Post).filter_by(image=img)).scalars().all()
+                )
                 for post in missing_posts:
                     posts_with_missing_images.append(post)
 

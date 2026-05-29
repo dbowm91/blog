@@ -14,80 +14,77 @@ from flask import Flask
 class TestSlugGenerationProperties:
     """Property-based tests for slug generation invariants."""
 
-    @pytest.mark.parametrize("input_val,expected", [
-        # Empty and whitespace
-        ("", "untitled"),
-        ("   ", "untitled"),
-        ("\t", "untitled"),
-        ("\n", "untitled"),
-        (None, "untitled"),
-
-        # Simple cases
-        ("Hello World", "hello-world"),
-        ("hello", "hello"),
-        ("HELLO", "hello"),
-
-        # Unicode normalization (accents -> ascii)
-        ("Café Résumé", "cafe-resume"),
-        ("Niño", "nino"),
-        ("Mötley", "motley"),
-        ("Über", "uber"),
-        ("Ångström", "angstrom"),
-        # Non-Latin unicode falls back to untitled when fully stripped to empty
-        ("日本語", "untitled"),
-        ("Καλημέρα", "untitled"),
-        ("Привет", "untitled"),
-
-        # Special characters (removed)
-        ("Hello! World?", "hello-world"),
-        ("Test@#$%^&*()", "test"),
-        ("hello.world", "helloworld"),
-        ("foo|bar|baz", "foobarbaz"),
-        ("a[b]c", "abc"),
-        ("x/y/z", "xyz"),
-
-        # Spaces and underscores
-        ("hello   world", "hello-world"),
-        ("hello_world", "hello-world"),
-        ("___test___", "test"),
-
-        # Leading/trailing dashes
-        ("--hello--", "hello"),
-        ("...hello...", "hello"),
-        ("---", "untitled"),
-
-        # Numbers
-        ("Test123", "test123"),
-        ("123 Test", "123-test"),
-        ("Python 3.10", "python-310"),
-
-        # Mixed content
-        ("  Hello   WORLD  ", "hello-world"),
-        ("Test@123!456", "test123456"),
-
-        # Repeated hyphens
-        ("a--b--c", "a-b-c"),
-        ("a---b", "a-b"),
-
-        # Single characters
-        ("a", "a"),
-        ("A", "a"),
-        ("1", "1"),
-        ("-", "untitled"),
-    ])
+    @pytest.mark.parametrize(
+        "input_val,expected",
+        [
+            # Empty and whitespace
+            ("", "untitled"),
+            ("   ", "untitled"),
+            ("\t", "untitled"),
+            ("\n", "untitled"),
+            (None, "untitled"),
+            # Simple cases
+            ("Hello World", "hello-world"),
+            ("hello", "hello"),
+            ("HELLO", "hello"),
+            # Unicode normalization (accents -> ascii)
+            ("Café Résumé", "cafe-resume"),
+            ("Niño", "nino"),
+            ("Mötley", "motley"),
+            ("Über", "uber"),
+            ("Ångström", "angstrom"),
+            # Non-Latin unicode falls back to untitled when fully stripped to empty
+            ("日本語", "untitled"),
+            ("Καλημέρα", "untitled"),
+            ("Привет", "untitled"),
+            # Special characters (removed)
+            ("Hello! World?", "hello-world"),
+            ("Test@#$%^&*()", "test"),
+            ("hello.world", "helloworld"),
+            ("foo|bar|baz", "foobarbaz"),
+            ("a[b]c", "abc"),
+            ("x/y/z", "xyz"),
+            # Spaces and underscores
+            ("hello   world", "hello-world"),
+            ("hello_world", "hello-world"),
+            ("___test___", "test"),
+            # Leading/trailing dashes
+            ("--hello--", "hello"),
+            ("...hello...", "hello"),
+            ("---", "untitled"),
+            # Numbers
+            ("Test123", "test123"),
+            ("123 Test", "123-test"),
+            ("Python 3.10", "python-310"),
+            # Mixed content
+            ("  Hello   WORLD  ", "hello-world"),
+            ("Test@123!456", "test123456"),
+            # Repeated hyphens
+            ("a--b--c", "a-b-c"),
+            ("a---b", "a-b"),
+            # Single characters
+            ("a", "a"),
+            ("A", "a"),
+            ("1", "1"),
+            ("-", "untitled"),
+        ],
+    )
     def test_slug_generation_deterministic(self, input_val, expected):
         """Slug generation is deterministic and produces expected output."""
         result = generate_slug(input_val)
         assert result == expected
 
-    @pytest.mark.parametrize("length,char", [
-        (1, "a"),
-        (10, "a"),
-        (50, "a"),
-        (100, "a"),
-        (200, "a"),
-        (500, "a"),
-    ])
+    @pytest.mark.parametrize(
+        "length,char",
+        [
+            (1, "a"),
+            (10, "a"),
+            (50, "a"),
+            (100, "a"),
+            (200, "a"),
+            (500, "a"),
+        ],
+    )
     def test_slug_handles_long_strings(self, length, char):
         """Slug generation handles very long input strings."""
         long_input = char * length
@@ -115,8 +112,12 @@ class TestSlugGenerationProperties:
         ]
         for input_val in edge_cases:
             result = generate_slug(input_val)
-            assert not result.startswith("-"), f"Got leading hyphen for input: {input_val!r}, result: {result}"
-            assert not result.endswith("-"), f"Got trailing hyphen for input: {input_val!r}, result: {result}"
+            assert not result.startswith("-"), (
+                f"Got leading hyphen for input: {input_val!r}, result: {result}"
+            )
+            assert not result.endswith("-"), (
+                f"Got trailing hyphen for input: {input_val!r}, result: {result}"
+            )
 
     def test_slug_is_lowercase(self):
         """Slug generation always produces lowercase output."""
@@ -129,7 +130,9 @@ class TestSlugGenerationProperties:
         ]
         for input_val in test_cases:
             result = generate_slug(input_val)
-            assert result == result.lower(), f"Slug not lowercase for input: {input_val!r}, result: {result}"
+            assert result == result.lower(), (
+                f"Slug not lowercase for input: {input_val!r}, result: {result}"
+            )
 
     def test_slug_no_special_chars(self):
         """Slug generation removes all non-alphanumeric characters except hyphens."""
@@ -147,7 +150,9 @@ class TestSlugGenerationProperties:
         ]
         for input_val in test_cases:
             result = generate_slug(input_val)
-            assert "--" not in result, f"Got consecutive hyphens for input: {input_val!r}, result: {result}"
+            assert "--" not in result, (
+                f"Got consecutive hyphens for input: {input_val!r}, result: {result}"
+            )
 
     def test_slug_rejects_empty_after_stripping(self):
         """Slug generation returns 'untitled' when input produces empty string after processing."""
@@ -160,54 +165,56 @@ class TestSlugGenerationProperties:
 class TestEmailValidationProperties:
     """Property-based tests for email validation invariants."""
 
-    @pytest.mark.parametrize("email,expected", [
-        # Valid emails
-        ("user@example.com", True),
-        ("user.name@example.com", True),
-        ("user@subdomain.example.com", True),
-        ("user@example.co.uk", True),
-        ("user123@example.com", True),
-        ("user+tag@example.com", True),
-        ("user-name@example.com", True),
-        ("a@b.co", True),
-        ("test@test.io", True),
-
-        # Invalid - missing parts
-        ("", False),
-        ("notanemail", False),
-        ("no@", False),
-        ("@example.com", False),
-        ("user@", False),
-        ("user@.com", False),
-        ("user@example", False),
-        ("user @example.com", False),
-        ("user@ example.com", False),
-
-        # Invalid - special characters
-        ("user\n@example.com", False),
-        ("user\t@example.com", False),
-        ("user\x00@example.com", False),
-
-        # Invalid - domain issues (regex doesn't catch double dots or leading dot)
-        ("user@ex@ample.com", False),
-        ("user@example..com", True),  # Regex bug: allows consecutive dots
-        ("user@.example.com", True),  # Regex bug: allows leading dot in domain
-        ("user@localhost", False),  # No TLD
-
-        # Edge cases
-        ("a@b", False),  # Single char TLD
-    ])
+    @pytest.mark.parametrize(
+        "email,expected",
+        [
+            # Valid emails
+            ("user@example.com", True),
+            ("user.name@example.com", True),
+            ("user@subdomain.example.com", True),
+            ("user@example.co.uk", True),
+            ("user123@example.com", True),
+            ("user+tag@example.com", True),
+            ("user-name@example.com", True),
+            ("a@b.co", True),
+            ("test@test.io", True),
+            # Invalid - missing parts
+            ("", False),
+            ("notanemail", False),
+            ("no@", False),
+            ("@example.com", False),
+            ("user@", False),
+            ("user@.com", False),
+            ("user@example", False),
+            ("user @example.com", False),
+            ("user@ example.com", False),
+            # Invalid - special characters
+            ("user\n@example.com", False),
+            ("user\t@example.com", False),
+            ("user\x00@example.com", False),
+            # Invalid - domain issues (regex doesn't catch double dots or leading dot)
+            ("user@ex@ample.com", False),
+            ("user@example..com", True),  # Regex bug: allows consecutive dots
+            ("user@.example.com", True),  # Regex bug: allows leading dot in domain
+            ("user@localhost", False),  # No TLD
+            # Edge cases
+            ("a@b", False),  # Single char TLD
+        ],
+    )
     def test_email_validation_deterministic(self, email, expected):
         """Email validation is deterministic with correct results."""
         result = is_valid_email(email)
         assert result == expected
 
-    @pytest.mark.parametrize("length,char", [
-        (1, "a"),
-        (50, "a"),
-        (100, "a"),
-        (200, "a"),
-    ])
+    @pytest.mark.parametrize(
+        "length,char",
+        [
+            (1, "a"),
+            (50, "a"),
+            (100, "a"),
+            (200, "a"),
+        ],
+    )
     def test_email_handles_long_local_part(self, length, char):
         """Email validation handles long local parts."""
         email = f"{char * length}@example.com"
@@ -215,11 +222,14 @@ class TestEmailValidationProperties:
         result = is_valid_email(email)
         assert isinstance(result, bool)
 
-    @pytest.mark.parametrize("local,domain", [
-        ("a", "co.io"),  # Single char local, minimal valid domain (2 char TLD)
-        ("test", "example.com"),
-        ("user.name", "sub.domain.example.com"),
-    ])
+    @pytest.mark.parametrize(
+        "local,domain",
+        [
+            ("a", "co.io"),  # Single char local, minimal valid domain (2 char TLD)
+            ("test", "example.com"),
+            ("user.name", "sub.domain.example.com"),
+        ],
+    )
     def test_email_validation_true_with_valid_parts(self, local, domain):
         """Email validation returns True for properly formatted local@domain."""
         email = f"{local}@{domain}"
@@ -243,9 +253,16 @@ class TestEmailValidationProperties:
         assert is_valid_email("nodomain.com") is False
         assert is_valid_email("useratexample") is False
 
-    @pytest.mark.parametrize("invalid_char", [
-        " ", "\t", "\n", "\r", "\x00",
-    ])
+    @pytest.mark.parametrize(
+        "invalid_char",
+        [
+            " ",
+            "\t",
+            "\n",
+            "\r",
+            "\x00",
+        ],
+    )
     def test_email_rejects_whitespace_in_address(self, invalid_char):
         """Email validation rejects whitespace in email address."""
         email = f"user{invalid_char}@example.com"
@@ -255,43 +272,42 @@ class TestEmailValidationProperties:
 class TestPasswordComplexityProperties:
     """Property-based tests for password complexity invariants."""
 
-    @pytest.mark.parametrize("password,expected", [
-        # Valid passwords (at least 3 of 4 categories AND at least 8 chars)
-        ("Password123!", True),
-        ("Password1!", True),
-        ("Pass123abc!", True),
-        ("abc123DEF!", True),
-        ("ABC123def", True),
-        ("abcDEF!", False),  # 7 chars - too short, needs minimum 8
-        ("Password1", True),  # 3 categories, 9 chars
-        ("Pass1234", True),
-        ("Test!234", True),
-        ("passWORD123!", True),
-
-        # Invalid - too short (below 8 chars)
-        ("Pass1!", False),  # 6 chars
-        ("Abc1!", False),   # 5 chars
-        ("", False),
-        ("1234567", False),  # 7 chars
-        ("abcdefg", False),  # 7 chars
-
-        # Invalid - missing categories
-        ("password", False),  # Only lowercase
-        ("PASSWORD", False),  # Only uppercase
-        ("12345678", False),  # Only digits
-        ("!@#$%^&*", False),  # Only special
-
-        # Invalid - exactly 8 but only 2 categories
-        ("Password", False),  # Lower + Upper only
-        ("password123", False),  # Lower + Digit only
-        ("PASSWORD123", False),  # Upper + Digit only
-
-        # Edge cases
-        ("aB1!234", False),  # Only 7 chars - too short
-        ("aaaaaaaa", False),  # Same char repeated, only 1 category
-        ("12345678", False),  # All digits - only 1 category
-        ("!@#$%^&*", False),  # All special - only 1 category
-    ])
+    @pytest.mark.parametrize(
+        "password,expected",
+        [
+            # Valid passwords (at least 3 of 4 categories AND at least 8 chars)
+            ("Password123!", True),
+            ("Password1!", True),
+            ("Pass123abc!", True),
+            ("abc123DEF!", True),
+            ("ABC123def", True),
+            ("abcDEF!", False),  # 7 chars - too short, needs minimum 8
+            ("Password1", True),  # 3 categories, 9 chars
+            ("Pass1234", True),
+            ("Test!234", True),
+            ("passWORD123!", True),
+            # Invalid - too short (below 8 chars)
+            ("Pass1!", False),  # 6 chars
+            ("Abc1!", False),  # 5 chars
+            ("", False),
+            ("1234567", False),  # 7 chars
+            ("abcdefg", False),  # 7 chars
+            # Invalid - missing categories
+            ("password", False),  # Only lowercase
+            ("PASSWORD", False),  # Only uppercase
+            ("12345678", False),  # Only digits
+            ("!@#$%^&*", False),  # Only special
+            # Invalid - exactly 8 but only 2 categories
+            ("Password", False),  # Lower + Upper only
+            ("password123", False),  # Lower + Digit only
+            ("PASSWORD123", False),  # Upper + Digit only
+            # Edge cases
+            ("aB1!234", False),  # Only 7 chars - too short
+            ("aaaaaaaa", False),  # Same char repeated, only 1 category
+            ("12345678", False),  # All digits - only 1 category
+            ("!@#$%^&*", False),  # All special - only 1 category
+        ],
+    )
     def test_password_complexity_deterministic(self, password, expected):
         """Password complexity check is deterministic and correct."""
         result = _check_password_complexity(password)
@@ -339,12 +355,15 @@ class TestPasswordComplexityProperties:
         # Lowercase + uppercase + digit (3 categories) - should pass
         assert _check_password_complexity("abcdABCD1") is True
 
-    @pytest.mark.parametrize("category_count,expected", [
-        (1, False),  # Only one category
-        (2, False),  # Two categories
-        (3, True),   # Three categories
-        (4, True),   # All four categories
-    ])
+    @pytest.mark.parametrize(
+        "category_count,expected",
+        [
+            (1, False),  # Only one category
+            (2, False),  # Two categories
+            (3, True),  # Three categories
+            (4, True),  # All four categories
+        ],
+    )
     def test_password_category_count(self, category_count, expected):
         """Password complexity correctly handles different category counts."""
         passwords = {

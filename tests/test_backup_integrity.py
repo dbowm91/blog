@@ -2,9 +2,7 @@
 
 import gzip
 import hashlib
-import os
 import sqlite3
-import tempfile
 import zlib
 from pathlib import Path
 

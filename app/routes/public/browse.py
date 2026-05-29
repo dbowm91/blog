@@ -8,13 +8,12 @@ from flask import (
     request,
     redirect,
     abort,
-    Response,
     g,
 )
 from flask.typing import ResponseReturnValue
 from sqlalchemy import func, or_, select, case
 from sqlalchemy.orm import joinedload, defer, QueryableAttribute
-from typing import cast, Union
+from typing import cast
 
 from app.extensions import db
 from app.models import Post, Tag, Series, PostSeries, post_tags
@@ -24,7 +23,12 @@ from app.config import (
     FTS_RESULT_LIMIT,
 )
 from app.tag_cache import _get_tag_counts
-from app.search import search as _fts_search, get_search_snippets, get_did_you_mean, get_indexed_terms
+from app.search import (
+    search as _fts_search,
+    get_search_snippets,
+    get_did_you_mean,
+    get_indexed_terms,
+)
 from app import limiter, cache as flask_cache
 
 logger = logging.getLogger(__name__)
@@ -35,9 +39,7 @@ HARD_RELATED_POST_LIMIT = 20
 def _get_cached_tags_and_counts():
     """Get tags and tag counts with request-level caching via Flask g."""
     if not hasattr(g, "_cached_tags"):
-        g._cached_tags = (
-            db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
-        )
+        g._cached_tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
     if not hasattr(g, "_cached_tag_counts"):
         g._cached_tag_counts = _get_tag_counts()
     return g._cached_tags, g._cached_tag_counts
@@ -148,13 +150,21 @@ def register_browse_routes(public):
             year_start = datetime(year_filter, 1, 1)
             year_end = datetime(year_filter + 1, 1, 1)
             if direction == "prev" and cursor_dt:
-                posts_query = posts_query.filter(Post.created_at > cursor_dt, Post.created_at < year_end)
+                posts_query = posts_query.filter(
+                    Post.created_at > cursor_dt, Post.created_at < year_end
+                )
             elif direction == "prev":
-                posts_query = posts_query.filter(Post.created_at >= year_start, Post.created_at < year_end)
+                posts_query = posts_query.filter(
+                    Post.created_at >= year_start, Post.created_at < year_end
+                )
             elif cursor_dt:
-                posts_query = posts_query.filter(Post.created_at < cursor_dt, Post.created_at >= year_start)
+                posts_query = posts_query.filter(
+                    Post.created_at < cursor_dt, Post.created_at >= year_start
+                )
             else:
-                posts_query = posts_query.filter(Post.created_at >= year_start, Post.created_at < year_end)
+                posts_query = posts_query.filter(
+                    Post.created_at >= year_start, Post.created_at < year_end
+                )
         elif cursor_dt:
             posts_query = posts_query.filter(
                 Post.created_at < cursor_dt if direction == "next" else Post.created_at > cursor_dt
@@ -183,7 +193,9 @@ def register_browse_routes(public):
 
         tags, tag_counts = _get_cached_tags_and_counts()
 
-        has_next = len(posts) == ARCHIVE_PER_PAGE and (not year_filter or (year_filter and posts and posts[-1].created_at.year >= year_filter))
+        has_next = len(posts) == ARCHIVE_PER_PAGE and (
+            not year_filter or (year_filter and posts and posts[-1].created_at.year >= year_filter)
+        )
         has_prev = cursor is not None and direction == "next"
         next_cursor = posts[-1].created_at.isoformat() if posts and has_next else None
         prev_cursor = posts[0].created_at.isoformat() if posts and has_prev else None
@@ -315,9 +327,7 @@ def register_browse_routes(public):
     @limiter.limit("60 per minute")
     def series_view(slug) -> ResponseReturnValue:
         """View a series and all its posts in order."""
-        series = db.session.execute(
-            select(Series).filter_by(slug=slug)
-        ).scalar_one_or_none()
+        series = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one_or_none()
         if not series:
             abort(404)
 

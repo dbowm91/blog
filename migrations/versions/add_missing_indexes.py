@@ -5,8 +5,8 @@ Revises: 82ce77695033
 Create Date: 2026-05-04
 
 """
+
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy import inspect
 
 revision = "add_missing_indexes"

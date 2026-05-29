@@ -87,7 +87,6 @@ def test_send_newsletter_generic_smtp_error(app, db, mock_render):
 def test_send_newsletter_mixed_success_failure(app, db, mock_render):
     """Test send_newsletter with mixed success and failure across multiple subscribers."""
     import smtplib
-    from itertools import cycle
 
     post = Post(
         title="Test Post",
@@ -105,9 +104,12 @@ def test_send_newsletter_mixed_success_failure(app, db, mock_render):
     mock_server = MagicMock()
     # sub1 succeeds, sub2 fails with retries then gives up, sub3 succeeds
     from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
+
     mock_server.sendmail.side_effect = [
         None,  # sub1 succeeds
-        *([smtplib.SMTPException("fail")] * NEWSLETTER_MAX_RETRY_ATTEMPTS),  # sub2 fails all retries
+        *(
+            [smtplib.SMTPException("fail")] * NEWSLETTER_MAX_RETRY_ATTEMPTS
+        ),  # sub2 fails all retries
         None,  # sub3 succeeds
     ]
     with patch("app.email._connect_smtp", return_value=mock_server):
@@ -147,9 +149,7 @@ def test_send_confirmation_email_failure(app, db):
     db.session.add(sub)
     db.session.commit()
 
-    with patch(
-        "app.email.smtplib.SMTP", side_effect=ConnectionError("connection refused")
-    ):
+    with patch("app.email.smtplib.SMTP", side_effect=ConnectionError("connection refused")):
         with pytest.raises(ConnectionError):
             _send_email(
                 to="fail@example.com",

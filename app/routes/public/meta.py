@@ -26,6 +26,7 @@ from app import limiter
 
 try:
     from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -51,9 +52,7 @@ def _generate_sitemap():
   </url>\n"""
     # Static pages
     for pg in (
-        db.session.execute(
-            select(Page).filter_by(published=True).order_by(Page.updated_at.desc())
-        )
+        db.session.execute(select(Page).filter_by(published=True).order_by(Page.updated_at.desc()))
         .scalars()
         .yield_per(100)
     ):
@@ -66,9 +65,7 @@ def _generate_sitemap():
   </url>\n"""
     # Posts
     for post in (
-        db.session.execute(
-            select(Post).filter_by(published=True).order_by(Post.updated_at.desc())
-        )
+        db.session.execute(select(Post).filter_by(published=True).order_by(Post.updated_at.desc()))
         .scalars()
         .yield_per(100)
     ):
@@ -197,9 +194,7 @@ Sitemap: {BASE_URL}/sitemap.xml
         detailed = request.args.get("detailed", "").lower() == "true"
         secret = request.args.get("secret", "")
         is_detailed = (
-            detailed
-            and HEALTH_CHECK_SECRET
-            and hmac.compare_digest(secret, HEALTH_CHECK_SECRET)
+            detailed and HEALTH_CHECK_SECRET and hmac.compare_digest(secret, HEALTH_CHECK_SECRET)
         )
 
         checks = {}
@@ -244,14 +239,19 @@ Sitemap: {BASE_URL}/sitemap.xml
         # Database integrity check
         try:
             integrity_result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
-            checks["db_integrity"] = "ok" if integrity_result and integrity_result[0] == "ok" else "error"
+            checks["db_integrity"] = (
+                "ok" if integrity_result and integrity_result[0] == "ok" else "error"
+            )
         except (OperationalError, ProgrammingError):
             checks["db_integrity"] = "error"
 
         # Redis health check
         try:
             import redis
-            redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+
+            redis_client = redis.Redis.from_url(
+                REDIS_URL, socket_connect_timeout=2, socket_timeout=2
+            )
             redis_client.ping()
             checks["redis"] = "ok"
         except Exception:
@@ -260,6 +260,7 @@ Sitemap: {BASE_URL}/sitemap.xml
         # Celery health check
         try:
             from app.celery_app import celery_app
+
             inspector = celery_app.control.inspect(timeout=3)
             if inspector.ping():
                 checks["celery"] = "ok"
@@ -272,7 +273,9 @@ Sitemap: {BASE_URL}/sitemap.xml
         try:
             backup_dir = Path(current_app.instance_path) / DATA_BACKUP_DIR
             if backup_dir.exists():
-                backups = sorted(backup_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                backups = sorted(
+                    backup_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True
+                )
                 if backups:
                     age_hours = (time.time() - backups[0].stat().st_mtime) / 3600
                     checks["backup_freshness"] = "ok" if age_hours < 24 else "stale"
@@ -284,12 +287,17 @@ Sitemap: {BASE_URL}/sitemap.xml
             checks["backup_freshness"] = "error"
 
         critical_checks = {
-            k: v for k, v in checks.items()
+            k: v
+            for k, v in checks.items()
             if k in ("database", "scheduler", "search", "disk_space", "db_integrity")
         }
         overall = (
             "ok"
-            if all(v in ("ok", "running", "disabled") for v in critical_checks.values() if v is not None)
+            if all(
+                v in ("ok", "running", "disabled")
+                for v in critical_checks.values()
+                if v is not None
+            )
             else "degraded"
         )
 

@@ -48,7 +48,11 @@ def get_scheduler_next_run() -> Optional[datetime]:
         if not jobs:
             return None
         next_job = min(jobs, key=lambda j: j.next_run_time)
-        return datetime.fromisoformat(next_job.next_run_time.isoformat()) if next_job.next_run_time else None
+        return (
+            datetime.fromisoformat(next_job.next_run_time.isoformat())
+            if next_job.next_run_time
+            else None
+        )
     except (AttributeError, KeyError, ValueError):
         return None
 
@@ -86,8 +90,7 @@ def send_daily_newsletter(app: Any) -> None:
 
             excluded_posts = (
                 db.session.execute(
-                    select(Post)
-                    .filter(
+                    select(Post).filter(
                         Post.published,
                         Post.published_at.isnot(None),
                         Post.newsletter_sent_at.is_(None),
@@ -102,7 +105,7 @@ def send_daily_newsletter(app: Any) -> None:
                     "Newsletter: %d posts excluded after %d retry attempts: %s",
                     len(excluded_posts),
                     NEWSLETTER_MAX_RETRY_ATTEMPTS,
-                    [f"id={p.id}, title={p.title}" for p in excluded_posts[:5]]
+                    [f"id={p.id}, title={p.title}" for p in excluded_posts[:5]],
                 )
 
             posts = (
@@ -194,14 +197,10 @@ def cleanup_expired_subscribers(app: Any) -> None:
                 return
 
             db.session.execute(
-                delete(Subscriber).where(
-                    Subscriber.id.in_([sub.id for sub in expired])
-                )
+                delete(Subscriber).where(Subscriber.id.in_([sub.id for sub in expired]))
             )
             db.session.commit()
-            app.logger.info(
-                "Cleaned up %d expired unconfirmed subscribers", len(expired)
-            )
+            app.logger.info("Cleaned up %d expired unconfirmed subscribers", len(expired))
     finally:
         lock.release()
 
@@ -248,7 +247,9 @@ def publish_scheduled_posts(app: Any) -> None:
                 fts_items.append((post.id, post.title, post.body, post.summary, True))
             if not sync_fts_batch(fts_items):
                 db.session.rollback()
-                app.logger.warning("FTS sync failed during scheduled publish; rolling back %d posts", len(posts))
+                app.logger.warning(
+                    "FTS sync failed during scheduled publish; rolling back %d posts", len(posts)
+                )
                 return
 
             db.session.commit()
@@ -260,7 +261,7 @@ def publish_scheduled_posts(app: Any) -> None:
 
 def run_daily_backup(app: Any) -> None:
     """Run daily database backup with retention cleanup."""
-    from app.services.backup import run_daily_backup as _run_backup, BACKUP_RETENTION_COUNT
+    from app.services.backup import run_daily_backup as _run_backup
 
     lock_path = os.path.join(app.instance_path, "backup.lock")
     lock = FileLock(lock_path, timeout=0)

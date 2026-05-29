@@ -7,10 +7,8 @@ from flask import (
     request,
     flash,
     abort,
-    Response,
 )
 from flask.typing import ResponseReturnValue
-from typing import Union
 
 from app.extensions import db
 from app.models import Series, Post, PostSeries
@@ -45,32 +43,30 @@ def series_new() -> ResponseReturnValue:
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
-        
+
         if not name:
             flash("Series name is required.", "error")
             return render_template("admin/series_editor.html", series=None)
-        
+
         # Generate slug from name
         slug = request.form.get("slug", "").strip()
         if not slug:
             slug = generate_slug(name)
         else:
             slug = generate_slug(slug)
-        
+
         # Check for slug uniqueness
-        existing = db.session.execute(
-            select(Series).filter_by(slug=slug)
-        ).scalar_one_or_none()
+        existing = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one_or_none()
         if existing:
             flash(f"A series with slug '{slug}' already exists.", "error")
             return render_template("admin/series_editor.html", series=None)
-        
+
         series = Series(
             name=name,
             slug=slug,
             description=description,
         )
-        
+
         try:
             db.session.add(series)
             db.session.commit()
@@ -80,7 +76,7 @@ def series_new() -> ResponseReturnValue:
             db.session.rollback()
             flash(f"Error creating series: {str(e)}", "error")
             return render_template("admin/series_editor.html", series=None)
-    
+
     return render_template("admin/series_editor.html", series=None)
 
 
@@ -91,21 +87,21 @@ def series_edit(series_id: int) -> ResponseReturnValue:
     series = db.session.get(Series, series_id)
     if not series:
         abort(404)
-    
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
         slug = request.form.get("slug", "").strip()
-        
+
         if not name:
             flash("Series name is required.", "error")
             return render_template("admin/series_editor.html", series=series)
-        
+
         if not slug:
             slug = generate_slug(name)
         else:
             slug = generate_slug(slug)
-        
+
         # Check for slug uniqueness (excluding current series)
         existing = db.session.execute(
             select(Series).filter(Series.slug == slug, Series.id != series_id)
@@ -113,11 +109,11 @@ def series_edit(series_id: int) -> ResponseReturnValue:
         if existing:
             flash(f"A series with slug '{slug}' already exists.", "error")
             return render_template("admin/series_editor.html", series=series)
-        
+
         series.name = name
         series.slug = slug
         series.description = description
-        
+
         try:
             db.session.commit()
             flash(f"Series '{name}' updated successfully.", "success")
@@ -125,7 +121,7 @@ def series_edit(series_id: int) -> ResponseReturnValue:
         except (IntegrityError, OperationalError) as e:
             db.session.rollback()
             flash(f"Error updating series: {str(e)}", "error")
-    
+
     return render_template("admin/series_editor.html", series=series)
 
 
@@ -136,21 +132,19 @@ def series_delete(series_id: int) -> ResponseReturnValue:
     series = db.session.get(Series, series_id)
     if not series:
         abort(404)
-    
+
     name = series.name
-    
+
     try:
         # Delete post associations first
-        db.session.execute(
-            PostSeries.__table__.delete().where(PostSeries.series_id == series_id)
-        )
+        db.session.execute(PostSeries.__table__.delete().where(PostSeries.series_id == series_id))
         db.session.delete(series)
         db.session.commit()
         flash(f"Series '{name}' deleted successfully.", "success")
     except (IntegrityError, OperationalError) as e:
         db.session.rollback()
         flash(f"Error deleting series: {str(e)}", "error")
-    
+
     return redirect(url_for("admin.series_list"))
 
 
@@ -161,10 +155,10 @@ def series_posts(series_id: int) -> ResponseReturnValue:
     series = db.session.get(Series, series_id)
     if not series:
         abort(404)
-    
+
     if request.method == "POST":
         action = request.form.get("action", "")
-        
+
         if action == "add":
             post_id = request.form.get("post_id", type=int)
             if post_id:
@@ -172,15 +166,18 @@ def series_posts(series_id: int) -> ResponseReturnValue:
                 existing = db.session.execute(
                     select(PostSeries).filter_by(series_id=series_id, post_id=post_id)
                 ).scalar_one_or_none()
-                
+
                 if existing:
                     flash("Post is already in this series.", "warning")
                 else:
                     # Get next order_index
-                    max_order = db.session.execute(
-                        select(func.max(PostSeries.order_index)).filter_by(series_id=series_id)
-                    ).scalar() or 0
-                    
+                    max_order = (
+                        db.session.execute(
+                            select(func.max(PostSeries.order_index)).filter_by(series_id=series_id)
+                        ).scalar()
+                        or 0
+                    )
+
                     post_series = PostSeries(
                         series_id=series_id,
                         post_id=post_id,
@@ -193,7 +190,7 @@ def series_posts(series_id: int) -> ResponseReturnValue:
                     except (IntegrityError, OperationalError) as e:
                         db.session.rollback()
                         flash(f"Error adding post to series: {str(e)}", "error")
-        
+
         elif action == "remove":
             post_series_id = request.form.get("post_series_id", type=int)
             if post_series_id:
@@ -202,7 +199,7 @@ def series_posts(series_id: int) -> ResponseReturnValue:
                     db.session.delete(ps)
                     db.session.commit()
                     flash("Post removed from series.", "success")
-        
+
         elif action == "reorder":
             # Update order_index for multiple posts
             post_order = request.form.getlist("post_order[]")
@@ -216,9 +213,9 @@ def series_posts(series_id: int) -> ResponseReturnValue:
             except (IntegrityError, OperationalError) as e:
                 db.session.rollback()
                 flash(f"Error updating order: {str(e)}", "error")
-        
+
         return redirect(url_for("admin.series_posts", series_id=series_id))
-    
+
     # GET request - show posts in series and available posts
     series_posts = (
         db.session.execute(
@@ -231,23 +228,17 @@ def series_posts(series_id: int) -> ResponseReturnValue:
         .unique()
         .all()
     )
-    
+
     # Get posts not in this series (published only)
-    subq = (
-        select(PostSeries.post_id)
-        .filter_by(series_id=series_id)
-        .scalar_subquery()
-    )
+    subq = select(PostSeries.post_id).filter_by(series_id=series_id).scalar_subquery()
     available_posts = (
         db.session.execute(
-            select(Post)
-            .filter(Post.published, ~Post.id.in_(subq))
-            .order_by(Post.created_at.desc())
+            select(Post).filter(Post.published, ~Post.id.in_(subq)).order_by(Post.created_at.desc())
         )
         .scalars()
         .all()
     )
-    
+
     return render_template(
         "admin/series_posts.html",
         series=series,
@@ -261,15 +252,15 @@ def series_posts(series_id: int) -> ResponseReturnValue:
 def series_reorder(series_id: int) -> ResponseReturnValue:
     """Update the order of posts in a series via AJAX."""
     from flask import jsonify
-    
+
     series = db.session.get(Series, series_id)
     if not series:
         return jsonify({"error": "Series not found"}), 404
-    
+
     data = request.get_json()
     if not data or "order" not in data:
         return jsonify({"error": "Invalid request"}), 400
-    
+
     try:
         for item in data["order"]:
             ps_id = item.get("id")
@@ -277,7 +268,7 @@ def series_reorder(series_id: int) -> ResponseReturnValue:
             ps = db.session.get(PostSeries, ps_id)
             if ps and ps.series_id == series_id:
                 ps.order_index = order
-        
+
         db.session.commit()
         return jsonify({"success": True})
     except (IntegrityError, OperationalError) as e:

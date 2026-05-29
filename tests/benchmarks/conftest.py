@@ -1,4 +1,5 @@
 """Shared fixtures for benchmark tests."""
+
 import os
 import pytest
 from tests.shared_fixtures import *
@@ -10,7 +11,7 @@ os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 from app import create_app
 from app.extensions import db as _db
-from app.models import User, Post, Tag, Subscriber
+from app.models import User, Post, Subscriber
 from app.utils import utc_now
 from app.search import init_fts, sync_fts
 
@@ -89,9 +90,6 @@ def authenticated_client(app, admin_user, clean_db):
         yield client
 
 
-
-
-
 def create_posts_bulk(db, count=50):
     """Helper to create multiple posts for benchmarking."""
     timestamp = utc_now().timestamp()
@@ -117,11 +115,7 @@ def create_posts_bulk(db, count=50):
         db.session.add(post)
     db.session.commit()
 
-    posts = db.session.execute(
-        db.select(Post).filter(
-            Post.slug.in_(slugs)
-        )
-    ).scalars().all()
+    posts = db.session.execute(db.select(Post).filter(Post.slug.in_(slugs))).scalars().all()
 
     for post in posts:
         sync_fts(post.id, post.title, post.body, post.summary, post.published)

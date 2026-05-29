@@ -9,6 +9,7 @@ Specialized handling for project documentation.
 - `README.md` - Project overview
 - `openapi.yaml` - API documentation (Swagger/OpenAPI spec)
 - `AGENTS.md` - This file (agent guidelines)
+- `internals/agent-maintainer-notes.md` - Historical implementation caveats, deprecated features, route corrections
 
 ## OpenAPI/Swagger UI
 

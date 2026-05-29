@@ -66,9 +66,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
         ValueError: If password is too short or salt is invalid
     """
     if len(password) < 12:
-        raise ValueError(
-            "BACKUP_ENCRYPTION_KEY must be at least 12 characters for encryption"
-        )
+        raise ValueError("BACKUP_ENCRYPTION_KEY must be at least 12 characters for encryption")
     if len(salt) != SALT_SIZE:
         raise ValueError(f"Salt must be exactly {SALT_SIZE} bytes")
 
@@ -104,14 +102,12 @@ def encrypt_backup(data: bytes, filename: str = "backup.db") -> bytes:
     """
     if not BACKUP_ENCRYPTION_KEY:
         raise ValueError(
-            "BACKUP_ENCRYPTION_KEY environment variable is not set. "
-            "Cannot encrypt backup."
+            "BACKUP_ENCRYPTION_KEY environment variable is not set. Cannot encrypt backup."
         )
 
     if not CRYPTOGRAPHY_AVAILABLE:
         raise RuntimeError(
-            "cryptography library is not available. "
-            "Install with: pip install cryptography"
+            "cryptography library is not available. Install with: pip install cryptography"
         )
 
     try:
@@ -149,14 +145,12 @@ def decrypt_backup(data: bytes) -> bytes:
     """
     if not BACKUP_ENCRYPTION_KEY:
         raise ValueError(
-            "BACKUP_ENCRYPTION_KEY environment variable is not set. "
-            "Cannot decrypt backup."
+            "BACKUP_ENCRYPTION_KEY environment variable is not set. Cannot decrypt backup."
         )
 
     if not CRYPTOGRAPHY_AVAILABLE:
         raise RuntimeError(
-            "cryptography library is not available. "
-            "Install with: pip install cryptography"
+            "cryptography library is not available. Install with: pip install cryptography"
         )
 
     try:
@@ -166,17 +160,15 @@ def decrypt_backup(data: bytes) -> bytes:
 
         # Extract components
         salt = data[:SALT_SIZE]
-        nonce = data[SALT_SIZE:SALT_SIZE + NONCE_SIZE]
+        nonce = data[SALT_SIZE : SALT_SIZE + NONCE_SIZE]
         tag = data[-16:]
-        ciphertext = data[SALT_SIZE + NONCE_SIZE:-16]
+        ciphertext = data[SALT_SIZE + NONCE_SIZE : -16]
 
         # Derive key using PBKDF2-HMAC-SHA256
         key = _derive_key(BACKUP_ENCRYPTION_KEY, salt)
 
         # Decrypt using AES-256-GCM
-        cipher = Cipher(
-            algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend()
-        )
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend())
         decryptor = cipher.decryptor()
         plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 

@@ -1,6 +1,6 @@
 """Tags API endpoints."""
 
-from typing import Any, cast
+from typing import Any
 
 from flask import jsonify, request
 from sqlalchemy import select
@@ -50,10 +50,12 @@ def list_tags() -> Any:
     query = select(Tag).order_by(Tag.name)
     tags = db.session.execute(query).scalars().all()
 
-    return jsonify({
-        "tags": [_tag_to_dict(t, include_post_count=include_count) for t in tags],
-        "total": len(tags),
-    })
+    return jsonify(
+        {
+            "tags": [_tag_to_dict(t, include_post_count=include_count) for t in tags],
+            "total": len(tags),
+        }
+    )
 
 
 @api.route("/tags/<int:tag_id>", methods=["GET"])
@@ -106,9 +108,7 @@ def create_tag() -> Any:
 
     slug = generate_slug(name)
 
-    existing = db.session.execute(
-        select(Tag).filter_by(slug=slug)
-    ).scalar_one_or_none()
+    existing = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
     if existing:
         return jsonify(_tag_to_dict(existing))
 
@@ -119,9 +119,7 @@ def create_tag() -> Any:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        existing = db.session.execute(
-            select(Tag).filter_by(slug=slug)
-        ).scalar_one_or_none()
+        existing = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one_or_none()
         if existing:
             return jsonify(_tag_to_dict(existing))
         return jsonify({"error": "Failed to create tag"}), 500

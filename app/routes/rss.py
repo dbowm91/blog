@@ -24,10 +24,7 @@ def _strip_markdown(text: str) -> str:
 
 def _generate_etag(posts: list[Any], feed_type: str = "rss") -> str:
     """Generate ETag from post IDs and timestamps."""
-    content = ",".join(
-        f"{p.id}:{int((p.updated_at or p.created_at).timestamp())}"
-        for p in posts
-    )
+    content = ",".join(f"{p.id}:{int((p.updated_at or p.created_at).timestamp())}" for p in posts)
     return hashlib.md5(content.encode()).hexdigest() + f"_{feed_type}"
 
 
@@ -43,7 +40,10 @@ def _get_feed_posts(limit: int = 20) -> tuple[list[Post], str]:
             .filter_by(published=True)
             .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
             .limit(limit)
-        ).scalars().unique().all()
+        )
+        .scalars()
+        .unique()
+        .all()
     )
     etag = _generate_etag(list(posts))
     return list(posts), etag
@@ -56,11 +56,13 @@ def _get_cached_feed_posts(limit: int = 20) -> list[Post]:
         return posts
     return _get_cached_atom_posts(limit)
 
+
 @flask_cache.cached(timeout=300, key_prefix="atom_feed_posts")
 def _get_cached_atom_posts(limit: int = 20) -> list[Post]:
     """Cached version for Atom feed."""
     posts, _ = _get_feed_posts(limit)
     return posts
+
 
 @flask_cache.cached(timeout=300, key_prefix="rss_feed_posts")
 def _get_cached_rss_posts(limit: int = 20) -> list[Post]:
@@ -68,17 +70,20 @@ def _get_cached_rss_posts(limit: int = 20) -> list[Post]:
     posts, _ = _get_feed_posts(limit)
     return posts
 
+
 @flask_cache.cached(timeout=300, key_prefix="json_feed_posts")
 def _get_cached_json_posts(limit: int = 20) -> list[Post]:
     """Cached version for JSON feed."""
     posts, _ = _get_feed_posts(limit)
     return posts
 
+
 def _get_rss_feed_posts(limit: int = 20) -> list[Post]:
     """Get posts for RSS feed with caching."""
     if current_app.testing:
         return _get_feed_posts()[0]
     return _get_cached_rss_posts(limit)
+
 
 def _get_json_feed_posts(limit: int = 20) -> list[Post]:
     """Get posts for JSON feed with caching."""
@@ -105,9 +110,7 @@ def _get_tag_posts(tag_slug: str, limit: int = 20) -> tuple[list[Post], str]:
 
     Returns (posts, etag) tuple.
     """
-    tag_obj = db.session.execute(
-        select(Tag).filter_by(slug=tag_slug)
-    ).scalar_one_or_none()
+    tag_obj = db.session.execute(select(Tag).filter_by(slug=tag_slug)).scalar_one_or_none()
     if not tag_obj:
         abort(404)
 
@@ -119,7 +122,10 @@ def _get_tag_posts(tag_slug: str, limit: int = 20) -> tuple[list[Post], str]:
             .filter(Post.tags.any(Tag.id == tag_obj.id))
             .order_by(Post.published_at.desc().nullslast(), Post.created_at.desc())
             .limit(limit)
-        ).scalars().unique().all()
+        )
+        .scalars()
+        .unique()
+        .all()
     )
     etag = _generate_etag(list(posts), f"tag_{tag_slug}")
     return list(posts), etag
@@ -130,9 +136,7 @@ def _get_series_posts(series_slug: str, limit: int = 20) -> tuple[list[Post], st
 
     Returns (posts, etag) tuple.
     """
-    series_obj = db.session.execute(
-        select(Series).filter_by(slug=series_slug)
-    ).scalar_one_or_none()
+    series_obj = db.session.execute(select(Series).filter_by(slug=series_slug)).scalar_one_or_none()
     if not series_obj:
         abort(404)
 
@@ -194,10 +198,10 @@ def tag_atom_feed(slug: str) -> Any:
         return Response(status=304)
 
     tag_obj = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one()
-    feed_updated = utc_now().isoformat() + "Z"
+    utc_now().isoformat() + "Z"
     if posts:
         latest = max(post.updated_at or post.created_at for post in posts)
-        feed_updated = latest.isoformat() + "Z"
+        latest.isoformat() + "Z"
 
     entries = []
     for post in posts:
@@ -214,8 +218,7 @@ def tag_atom_feed(slug: str) -> Any:
         )
 
         categories = "".join(
-            f'    <category term="{xml_escape(tag.name)}"/>\n'
-            for tag in cast(list[Any], post.tags)
+            f'    <category term="{xml_escape(tag.name)}"/>\n' for tag in cast(list[Any], post.tags)
         )
 
         entries.append(f"""    <entry>
@@ -258,8 +261,7 @@ def tag_rss_feed(slug: str) -> Any:
     for post in posts:
         item = _render_post_item(post)
         categories = "".join(
-            f"        <category>{xml_escape(tag)}</category>\n"
-            for tag in item["tags"]
+            f"        <category>{xml_escape(tag)}</category>\n" for tag in item["tags"]
         )
         items.append(f"""  <item>
     <title>{xml_escape(item["title"])}</title>
@@ -301,25 +303,28 @@ def tag_json_feed(slug: str) -> Any:
         return Response(status=304)
 
     tag_obj = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one()
-    feed_updated = utc_now().isoformat() + "Z"
+    utc_now().isoformat() + "Z"
     if posts:
         latest = max(post.updated_at or post.created_at for post in posts)
-        feed_updated = latest.isoformat() + "Z"
+        latest.isoformat() + "Z"
 
     items = []
     for post in posts:
         item = _render_post_item(post)
-        items.append({
-            "id": item["slug"],
-            "title": item["title"],
-            "url": item["link"],
-            "date_published": item["published"],
-            "date_modified": item["updated"],
-            "content_html": item["content_html"],
-            "tags": item["tags"],
-        })
+        items.append(
+            {
+                "id": item["slug"],
+                "title": item["title"],
+                "url": item["link"],
+                "date_published": item["published"],
+                "date_modified": item["updated"],
+                "content_html": item["content_html"],
+                "tags": item["tags"],
+            }
+        )
 
     import json
+
     tag_feed_url = f"{BASE_URL}/tag/{slug}/json"
     feed = {
         "version": "https://jsonfeed.org/version/1.1",
@@ -332,10 +337,7 @@ def tag_json_feed(slug: str) -> Any:
         "items": items,
     }
 
-    response = Response(
-        json.dumps(feed, ensure_ascii=False),
-        mimetype="application/feed+json"
-    )
+    response = Response(json.dumps(feed, ensure_ascii=False), mimetype="application/feed+json")
     return _add_cache_headers(response, etag)
 
 
@@ -349,10 +351,10 @@ def series_atom_feed(slug: str) -> Any:
         return Response(status=304)
 
     series_obj = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one()
-    feed_updated = utc_now().isoformat() + "Z"
+    utc_now().isoformat() + "Z"
     if posts:
         latest = max(post.updated_at or post.created_at for post in posts)
-        feed_updated = latest.isoformat() + "Z"
+        latest.isoformat() + "Z"
 
     entries = []
     for post in posts:
@@ -369,8 +371,7 @@ def series_atom_feed(slug: str) -> Any:
         )
 
         categories = "".join(
-            f'    <category term="{xml_escape(tag.name)}"/>\n'
-            for tag in cast(list[Any], post.tags)
+            f'    <category term="{xml_escape(tag.name)}"/>\n' for tag in cast(list[Any], post.tags)
         )
 
         entries.append(f"""    <entry>
@@ -413,8 +414,7 @@ def series_rss_feed(slug: str) -> Any:
     for post in posts:
         item = _render_post_item(post)
         categories = "".join(
-            f"        <category>{xml_escape(tag)}</category>\n"
-            for tag in item["tags"]
+            f"        <category>{xml_escape(tag)}</category>\n" for tag in item["tags"]
         )
         items.append(f"""  <item>
     <title>{xml_escape(item["title"])}</title>
@@ -456,25 +456,28 @@ def series_json_feed(slug: str) -> Any:
         return Response(status=304)
 
     series_obj = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one()
-    feed_updated = utc_now().isoformat() + "Z"
+    utc_now().isoformat() + "Z"
     if posts:
         latest = max(post.updated_at or post.created_at for post in posts)
-        feed_updated = latest.isoformat() + "Z"
+        latest.isoformat() + "Z"
 
     items = []
     for post in posts:
         item = _render_post_item(post)
-        items.append({
-            "id": item["slug"],
-            "title": item["title"],
-            "url": item["link"],
-            "date_published": item["published"],
-            "date_modified": item["updated"],
-            "content_html": item["content_html"],
-            "tags": item["tags"],
-        })
+        items.append(
+            {
+                "id": item["slug"],
+                "title": item["title"],
+                "url": item["link"],
+                "date_published": item["published"],
+                "date_modified": item["updated"],
+                "content_html": item["content_html"],
+                "tags": item["tags"],
+            }
+        )
 
     import json
+
     series_feed_url = f"{BASE_URL}/series/{slug}/json"
     feed = {
         "version": "https://jsonfeed.org/version/1.1",
@@ -487,10 +490,7 @@ def series_json_feed(slug: str) -> Any:
         "items": items,
     }
 
-    response = Response(
-        json.dumps(feed, ensure_ascii=False),
-        mimetype="application/feed+json"
-    )
+    response = Response(json.dumps(feed, ensure_ascii=False), mimetype="application/feed+json")
     return _add_cache_headers(response, etag)
 
 
@@ -525,8 +525,7 @@ def atom_feed() -> Any:
         )
 
         categories = "".join(
-            f'    <category term="{xml_escape(tag.name)}"/>\n'
-            for tag in cast(list[Any], post.tags)
+            f'    <category term="{xml_escape(tag.name)}"/>\n' for tag in cast(list[Any], post.tags)
         )
 
         entries.append(f"""    <entry>
@@ -597,8 +596,7 @@ def rss_feed() -> Any:
     for post in posts:
         item = _render_post_item(post)
         categories = "".join(
-            f"        <category>{xml_escape(tag)}</category>\n"
-            for tag in item["tags"]
+            f"        <category>{xml_escape(tag)}</category>\n" for tag in item["tags"]
         )
         items.append(f"""  <item>
     <title>{xml_escape(item["title"])}</title>
@@ -639,25 +637,28 @@ def json_feed() -> Any:
     if if_none_match and if_none_match.strip('"') == etag:
         return Response(status=304)
 
-    feed_updated = utc_now().isoformat() + "Z"
+    utc_now().isoformat() + "Z"
     if posts:
         latest = max(post.updated_at or post.created_at for post in posts)
-        feed_updated = latest.isoformat() + "Z"
+        latest.isoformat() + "Z"
 
     items = []
     for post in posts:
         item = _render_post_item(post)
-        items.append({
-            "id": item["slug"],
-            "title": item["title"],
-            "url": item["link"],
-            "date_published": item["published"],
-            "date_modified": item["updated"],
-            "content_html": item["content_html"],
-            "tags": item["tags"],
-        })
+        items.append(
+            {
+                "id": item["slug"],
+                "title": item["title"],
+                "url": item["link"],
+                "date_published": item["published"],
+                "date_modified": item["updated"],
+                "content_html": item["content_html"],
+                "tags": item["tags"],
+            }
+        )
 
     import json
+
     feed = {
         "version": "https://jsonfeed.org/version/1.1",
         "title": APP_TITLE,
@@ -669,8 +670,5 @@ def json_feed() -> Any:
         "items": items,
     }
 
-    response = Response(
-        json.dumps(feed, ensure_ascii=False),
-        mimetype="application/feed+json"
-    )
+    response = Response(json.dumps(feed, ensure_ascii=False), mimetype="application/feed+json")
     return _add_cache_headers(response, etag)

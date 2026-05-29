@@ -1,4 +1,3 @@
-import pytest
 from sqlalchemy import select, func
 from app.utils import utc_now
 
@@ -94,17 +93,13 @@ def test_favicon(client):
 
 def test_subscribe_valid_email(client, db):
     """Test subscribing with a valid email."""
-    response = client.post(
-        "/subscribe", data={"email": "test@example.com"}, follow_redirects=True
-    )
+    response = client.post("/subscribe", data={"email": "test@example.com"}, follow_redirects=True)
     assert response.status_code == 200
 
 
 def test_subscribe_invalid_email(client, db):
     """Test subscribing with an invalid email."""
-    response = client.post(
-        "/subscribe", data={"email": "invalid"}, follow_redirects=True
-    )
+    response = client.post("/subscribe", data={"email": "invalid"}, follow_redirects=True)
     assert b"valid email" in response.data
 
 
@@ -115,9 +110,7 @@ def test_subscribe_duplicate(client, db):
     sub = Subscriber(email="test@example.com", confirmed=True)
     db.session.add(sub)
     db.session.commit()
-    response = client.post(
-        "/subscribe", data={"email": "test@example.com"}, follow_redirects=True
-    )
+    response = client.post("/subscribe", data={"email": "test@example.com"}, follow_redirects=True)
     assert response.status_code == 200
     assert b"already subscribed" in response.data
 
@@ -296,9 +289,7 @@ def test_max_viewed_posts_cap(client, db, admin_user):
         client.get(f"/post/{post.slug}")
 
     # Should have created views for all posts
-    total_views = db.session.execute(
-        select(func.count()).select_from(PageView)
-    ).scalar_one()
+    total_views = db.session.execute(select(func.count()).select_from(PageView)).scalar_one()
     assert total_views == MAX_VIEWED_POSTS + 3
 
     # Check session has at most MAX_VIEWED_POSTS entries
@@ -364,15 +355,13 @@ def test_track_share_accepts_valid_platforms(client, db, sample_post):
 
 def test_referrer_sanitized(client, db, sample_post):
     """Test referrer query params are stripped before storing."""
-    response = client.get(
+    client.get(
         f"/post/{sample_post.slug}",
         headers={"Referer": "http://example.com/page?secret=token&foo=bar"},
     )
     from app.models import PageView
 
-    pv = db.session.execute(
-        select(PageView).filter_by(post_id=sample_post.id)
-    ).scalar_one_or_none()
+    pv = db.session.execute(select(PageView).filter_by(post_id=sample_post.id)).scalar_one_or_none()
     assert pv.referrer == "http://example.com/page"
     assert "secret" not in (pv.referrer or "")
     assert "token" not in (pv.referrer or "")

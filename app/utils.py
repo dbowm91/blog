@@ -146,6 +146,7 @@ def unified_error_handler(
     Returns:
         Decorated function with error handling.
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -154,7 +155,9 @@ def unified_error_handler(
             except Exception as exc:
                 handle_error(context, operation, detail, exc, reraise=reraise, default=default)
                 return default
+
         return cast(F, wrapper)
+
     return decorator
 
 
@@ -233,22 +236,86 @@ def xml_escape(s: str) -> str:
 
 
 ALLOWED_CSS_PROPERTIES = {
-    "color", "background", "background-color", "background-image", "background-repeat",
-    "background-size", "background-position", "background-attachment",
-    "border", "border-color", "border-width", "border-style", "border-radius",
-    "border-top", "border-right", "border-bottom", "border-left",
-    "border-top-width", "border-right-width", "border-bottom-width", "border-left-width",
-    "border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
-    "border-top-style", "border-right-style", "border-bottom-style", "border-left-style",
-    "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
-    "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
-    "width", "height", "min-width", "max-width", "min-height", "max-height",
-    "font", "font-family", "font-size", "font-style", "font-weight", "font-variant",
-    "line-height", "text-align", "text-decoration", "text-indent", "text-transform",
-    "letter-spacing", "word-spacing", "white-space", "overflow", "overflow-x", "overflow-y",
-    "display", "visibility", "opacity", "position", "top", "right", "bottom", "left",
-    "float", "clear", "z-index", "box-sizing", "transform", "transform-origin",
-    "cursor", "outline", "list-style", "vertical-align",
+    "color",
+    "background",
+    "background-color",
+    "background-image",
+    "background-repeat",
+    "background-size",
+    "background-position",
+    "background-attachment",
+    "border",
+    "border-color",
+    "border-width",
+    "border-style",
+    "border-radius",
+    "border-top",
+    "border-right",
+    "border-bottom",
+    "border-left",
+    "border-top-width",
+    "border-right-width",
+    "border-bottom-width",
+    "border-left-width",
+    "border-top-color",
+    "border-right-color",
+    "border-bottom-color",
+    "border-left-color",
+    "border-top-style",
+    "border-right-style",
+    "border-bottom-style",
+    "border-left-style",
+    "margin",
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
+    "padding",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "width",
+    "height",
+    "min-width",
+    "max-width",
+    "min-height",
+    "max-height",
+    "font",
+    "font-family",
+    "font-size",
+    "font-style",
+    "font-weight",
+    "font-variant",
+    "line-height",
+    "text-align",
+    "text-decoration",
+    "text-indent",
+    "text-transform",
+    "letter-spacing",
+    "word-spacing",
+    "white-space",
+    "overflow",
+    "overflow-x",
+    "overflow-y",
+    "display",
+    "visibility",
+    "opacity",
+    "position",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "float",
+    "clear",
+    "z-index",
+    "box-sizing",
+    "transform",
+    "transform-origin",
+    "cursor",
+    "outline",
+    "list-style",
+    "vertical-align",
 }
 
 DANGEROUS_CSS_TOKENS = {"url", "expression", "-moz-element"}
@@ -295,7 +362,10 @@ def sanitize_css(css_text: str) -> str:
                 safe_declarations = []
 
                 for decl in declarations:
-                    if isinstance(decl, Declaration) and decl.name.lower() in ALLOWED_CSS_PROPERTIES:
+                    if (
+                        isinstance(decl, Declaration)
+                        and decl.name.lower() in ALLOWED_CSS_PROPERTIES
+                    ):
                         if not _contains_dangerous_token(decl.value):
                             safe_declarations.append(decl)
 
@@ -308,6 +378,7 @@ def sanitize_css(css_text: str) -> str:
 
     except (ImportError, AttributeError, ValueError):
         return ""
+
 
 def is_safe_webhook_url(url: str) -> tuple[bool, str]:
     """Check if a URL is safe for webhook delivery (SSRF protection).

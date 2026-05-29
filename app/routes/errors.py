@@ -22,10 +22,7 @@ def _get_recent_posts(limit: int = 5) -> list[Post]:
     try:
         result = (
             db.session.execute(
-                select(Post)
-                .filter_by(published=True)
-                .order_by(Post.created_at.desc())
-                .limit(limit)
+                select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(limit)
             )
             .scalars()
             .all()

@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 BACKUP_RETENTION_COUNT = 7
 
 
-def create_backup(db_path: str, backup_dir: str, compress: bool = False,
-                  keep: int = 7, encrypt: bool = False) -> Optional[str]:
+def create_backup(
+    db_path: str, backup_dir: str, compress: bool = False, keep: int = 7, encrypt: bool = False
+) -> Optional[str]:
     """Create a backup of the SQLite database.
 
     Args:
@@ -98,6 +99,7 @@ def _encrypt_backup_file(filepath: str) -> bool:
     """
     try:
         from app.backup_encryption import encrypt_backup_file
+
         return encrypt_backup_file(filepath, filepath)
     except (OSError, ValueError, SQLAlchemyError) as e:
         logger.error("Encryption error for %s: %s", filepath, e)
@@ -116,6 +118,7 @@ def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> b
     """
     try:
         from app.backup_encryption import decrypt_backup_file as _decrypt
+
         if output_path is None:
             if input_path.endswith(".gpg"):
                 output_path = input_path[:-4]
@@ -131,7 +134,9 @@ def cleanup_old_backups(backup_dir: str, keep: int) -> None:
     """Remove old backups, keeping only the most recent ones."""
     backup_files = []
     for f in os.listdir(backup_dir):
-        if f.startswith("blog_") and (f.endswith(".db") or f.endswith(".db.gz") or f.endswith(".db.gpg")):
+        if f.startswith("blog_") and (
+            f.endswith(".db") or f.endswith(".db.gz") or f.endswith(".db.gpg")
+        ):
             full_path = os.path.join(backup_dir, f)
             backup_files.append((os.path.getmtime(full_path), full_path))
 
@@ -178,11 +183,7 @@ def run_daily_backup(app: Any) -> None:
     app.logger.info("Created backup: %s", backup_filename)
 
     backup_pattern = os.path.join(backup_dir, "blog_*.db")
-    backups = sorted(
-        glob_module.glob(backup_pattern),
-        key=os.path.getmtime,
-        reverse=True
-    )
+    backups = sorted(glob_module.glob(backup_pattern), key=os.path.getmtime, reverse=True)
 
     retention = BACKUP_RETENTION_COUNT
     for old_backup in backups[retention:]:

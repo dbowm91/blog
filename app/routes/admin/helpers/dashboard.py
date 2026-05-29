@@ -3,8 +3,6 @@
 from datetime import timedelta
 
 from sqlalchemy import func, select, text
-from sqlalchemy import Row as SARow
-from sqlalchemy import Result as SAResult
 from typing import Any
 
 from app import cache as flask_cache
@@ -38,11 +36,13 @@ def _get_daily_views(days: int = 30) -> list[dict[str, Any]]:
     current = start_date
     while current <= now:
         date_str = current.strftime("%Y-%m-%d")
-        result.append({
-            "date": date_str,
-            "day": current.strftime("%b %d"),
-            "count": views_by_date.get(date_str, 0),
-        })
+        result.append(
+            {
+                "date": date_str,
+                "day": current.strftime("%b %d"),
+                "count": views_by_date.get(date_str, 0),
+            }
+        )
         current += timedelta(days=1)
 
     return result
@@ -51,15 +51,17 @@ def _get_daily_views(days: int = 30) -> list[dict[str, Any]]:
 def _get_top_posts_by_shares(limit: int = 5) -> list[Any]:
     """Get top posts by share count."""
     thirty_days_ago = utc_now() - timedelta(days=30)
-    return list(db.session.execute(
-        select(Post, func.count(ShareEvent.id).label("share_count"))
-        .join(ShareEvent)
-        .filter(Post.published)
-        .filter(ShareEvent.created_at >= thirty_days_ago)
-        .group_by(Post.id)
-        .order_by(func.count(ShareEvent.id).desc())
-        .limit(limit)
-    ).all())
+    return list(
+        db.session.execute(
+            select(Post, func.count(ShareEvent.id).label("share_count"))
+            .join(ShareEvent)
+            .filter(Post.published)
+            .filter(ShareEvent.created_at >= thirty_days_ago)
+            .group_by(Post.id)
+            .order_by(func.count(ShareEvent.id).desc())
+            .limit(limit)
+        ).all()
+    )
 
 
 @flask_cache.memoize(timeout=120)
@@ -80,7 +82,11 @@ def _get_dashboard_metrics_cached() -> dict[str, Any]:
                 (SELECT COUNT(*) FROM subscribers WHERE created_at >= :month_start) as new_this_month,
                 (SELECT COUNT(*) FROM page_views WHERE created_at >= :sixty_days_ago AND created_at < :thirty_days_ago) as views_last_period
         """),
-        {"month_start": month_start, "sixty_days_ago": sixty_days_ago, "thirty_days_ago": thirty_days_ago}
+        {
+            "month_start": month_start,
+            "sixty_days_ago": sixty_days_ago,
+            "thirty_days_ago": thirty_days_ago,
+        },
     ).fetchone()
 
     assert counts is not None
@@ -92,13 +98,16 @@ def _get_dashboard_metrics_cached() -> dict[str, Any]:
     views_last_period = counts[5] or 0
 
     # Get scheduled posts count (scheduled but not yet published)
-    scheduled_count = db.session.execute(
-        select(func.count(Post.id)).filter(
-            Post.scheduled_publish_at.isnot(None),
-            Post.scheduled_publish_at <= now,
-            Post.published.is_(False)
-        )
-    ).scalar() or 0
+    scheduled_count = (
+        db.session.execute(
+            select(func.count(Post.id)).filter(
+                Post.scheduled_publish_at.isnot(None),
+                Post.scheduled_publish_at <= now,
+                Post.published.is_(False),
+            )
+        ).scalar()
+        or 0
+    )
 
     trending = db.session.execute(
         select(Post, func.count(PageView.id).label("view_count"))

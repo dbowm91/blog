@@ -57,9 +57,7 @@ def db(app):
 @pytest.fixture(scope="function")
 def admin_user(db):
     """Create an admin user."""
-    existing = db.session.execute(
-        db.select(User).filter_by(username="admin")
-    ).scalar_one_or_none()
+    existing = db.session.execute(db.select(User).filter_by(username="admin")).scalar_one_or_none()
     if existing:
         return existing
     user = User(username="admin", is_admin=True)
@@ -105,14 +103,14 @@ class TestGetSearchProvider:
 
         with app.app_context():
             with pytest.raises(ConfigurationError) as exc_info:
-                provider = get_search_provider()
+                get_search_provider()
             assert "not yet implemented" in str(exc_info.value)
 
     def test_search_provider_has_initialize(self, app):
         """Test SearchProvider base class has initialize() method."""
         from app.services.search import SearchProvider
 
-        assert hasattr(SearchProvider, 'initialize')
+        assert hasattr(SearchProvider, "initialize")
 
     def test_sqlite_search_provider_initialize(self, app):
         """Test SQLiteSearchProvider.initialize() calls init_fts()."""
@@ -131,9 +129,7 @@ class TestInitFTS:
     def test_init_fts_creates_table(self, db):
         """Verify FTS table is created."""
         result = db.session.execute(
-            text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
-            )
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
         ).fetchone()
         assert result is not None
         assert result[0] == "posts_fts"
@@ -143,9 +139,7 @@ class TestInitFTS:
         init_fts()
         init_fts()
         result = db.session.execute(
-            text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
-            )
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
         ).fetchone()
         assert result is not None
 

@@ -36,7 +36,7 @@ blog/
 │   ├── webhooks.py        # Webhook delivery
 │   ├── storage.py         # Storage abstraction (local/S3)
 │   ├── search.py          # FTS5 full-text search
-│   ├── backup_encryption.py  # GPG encryption for backups
+│   ├── backup_encryption.py  # AES-256-GCM encryption for backups
 │   ├── backup_integrity.py   # Backup verification
 │   ├── webhook_encryption.py # AES-256-GCM for webhook secrets
 │   ├── page_view_buffer.py  # High-traffic page view batching

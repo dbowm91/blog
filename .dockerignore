@@ -25,6 +25,15 @@ tests
 .coverage
 htmlcov
 .pytest_cache
+.mypy_cache
+.ruff_cache
+node_modules
+backups
+app/static/uploads
+.skills
+.opencode
+review_plan.md
+mkdocs.yml
 .DS_Store
 *.swp
 *.swo

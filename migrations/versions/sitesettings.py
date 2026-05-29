@@ -19,10 +19,11 @@ depends_on = None
 def upgrade():
     # Check if table already exists (might exist from manual creation)
     from sqlalchemy import inspect, text
+
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()
-    
+
     if "site_settings" not in tables:
         op.create_table(
             "site_settings",

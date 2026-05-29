@@ -5,6 +5,7 @@ Revises: add_comment_model
 Create Date: 2026-05-01
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 

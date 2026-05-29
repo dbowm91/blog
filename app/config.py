@@ -72,9 +72,7 @@ def _env(key: str, default: Any = None) -> Any:
 
 def load_config() -> dict[str, Any]:
     """Load configuration from TOML file."""
-    config_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "config.toml"
-    )
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")
     try:
         with open(config_path, "rb") as f:
             return tomllib.load(f)
@@ -117,9 +115,7 @@ SMTP_PASSWORD = _env("SMTP_PASSWORD", _config["email"].get("smtp_password", ""))
 FROM_ADDRESS = _config["email"]["from_address"]
 
 NEWSLETTER_SEND_TIME = _config["newsletter"]["send_time"]
-CONFIRMATION_EXPIRY_HOURS = int(
-    _config["newsletter"].get("confirmation_expiry_hours", 1)
-)
+CONFIRMATION_EXPIRY_HOURS = int(_config["newsletter"].get("confirmation_expiry_hours", 1))
 NEWSLETTER_MAX_RETRY_ATTEMPTS = int(_config["newsletter"].get("max_retry_attempts", 5))
 TAG_CACHE_TTL_SECONDS = int(_config["app"].get("tag_cache_ttl_seconds", 60))
 
@@ -132,7 +128,9 @@ EXPORT_BATCH_SIZE = int(_config["app"].get("export_batch_size", 500))
 FTS_RESULT_LIMIT = int(_config["app"].get("fts_result_limit", 100))
 ANALYTICS_DAYS_MIN = int(_config["app"].get("analytics_days_min", 7))
 ANALYTICS_DAYS_MAX = int(_config["app"].get("analytics_days_max", 365))
-PAGE_VIEW_BUFFER_SIZE = int(os.environ.get("PAGE_VIEW_BUFFER_SIZE", _config["app"].get("page_view_buffer_size", 0)))
+PAGE_VIEW_BUFFER_SIZE = int(
+    os.environ.get("PAGE_VIEW_BUFFER_SIZE", _config["app"].get("page_view_buffer_size", 0))
+)
 TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.1))
 PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
 
@@ -144,10 +142,12 @@ COMMENT_NOTIFY_PENDING = bool(_config.get("comments", {}).get("notify_pending", 
 COMMENT_SPAM_WORDS = _config.get("comments", {}).get("spam_words", "")
 
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
-LOGIN_FAILURE_DELAY = float(_env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05)))
+LOGIN_FAILURE_DELAY = float(
+    _env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05))
+)
 RATE_LIMIT_STORAGE_URI = _env(
     "RATE_LIMIT_STORAGE_URI",
-    "redis://localhost:6379/1" if os.environ.get("FLASK_ENV") == "production" else "memory://"
+    "redis://localhost:6379/1" if os.environ.get("FLASK_ENV") == "production" else "memory://",
 )
 
 REDIS_URL = _env("REDIS_URL", "redis://localhost:6379/0")
@@ -246,9 +246,7 @@ def _validate_config(config: dict) -> None:
             if timeout < 1:
                 raise ValueError
         except (ValueError, TypeError):
-            errors.append(
-                f"Invalid smtp_timeout: {smtp_timeout}. Must be a positive integer"
-            )
+            errors.append(f"Invalid smtp_timeout: {smtp_timeout}. Must be a positive integer")
 
     base_url = config.get("site", {}).get("base_url", "")
     if base_url:

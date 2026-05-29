@@ -1,7 +1,5 @@
 """End-to-end browser tests for the blog CMS."""
 
-import pytest
-
 
 class TestAdminLogin:
     """Test admin login and logout flows."""

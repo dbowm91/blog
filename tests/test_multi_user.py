@@ -1,6 +1,4 @@
-import pytest
 from app.models import User, AdminSession
-from app.extensions import db
 
 
 def test_two_users_can_login_simultaneously(app, db):
@@ -16,14 +14,10 @@ def test_two_users_can_login_simultaneously(app, db):
     client1 = app.test_client()
     client2 = app.test_client()
 
-    r1 = client1.post(
-        "/admin/login", data={"username": "admin1", "password": "Password123!"}
-    )
+    r1 = client1.post("/admin/login", data={"username": "admin1", "password": "Password123!"})
     assert r1.status_code == 302
 
-    r2 = client2.post(
-        "/admin/login", data={"username": "admin2", "password": "Password123!"}
-    )
+    r2 = client2.post("/admin/login", data={"username": "admin2", "password": "Password123!"})
     assert r2.status_code == 302
 
     r1_dash = client1.get("/admin/")
@@ -42,9 +36,7 @@ def test_session_timeout_on_inactivity(app, db):
         db.session.commit()
 
     client = app.test_client()
-    client.post(
-        "/admin/login", data={"username": "timeout_test", "password": "Password123!"}
-    )
+    client.post("/admin/login", data={"username": "timeout_test", "password": "Password123!"})
 
     from app.config import SESSION_LIFETIME_HOURS
     import time
@@ -68,15 +60,11 @@ def test_admin_session_created_on_login(app, db):
         user_id = user.id
 
     client = app.test_client()
-    client.post(
-        "/admin/login", data={"username": "session_test", "password": "Password123!"}
-    )
+    client.post("/admin/login", data={"username": "session_test", "password": "Password123!"})
 
     with app.app_context():
         sessions = (
-            db.session.execute(db.select(AdminSession).filter_by(user_id=user_id))
-            .scalars()
-            .all()
+            db.session.execute(db.select(AdminSession).filter_by(user_id=user_id)).scalars().all()
         )
         assert len(sessions) >= 1
 
@@ -91,9 +79,7 @@ def test_admin_session_deleted_on_logout(app, db):
         user_id = user.id
 
     client = app.test_client()
-    client.post(
-        "/admin/login", data={"username": "logout_test", "password": "Password123!"}
-    )
+    client.post("/admin/login", data={"username": "logout_test", "password": "Password123!"})
 
     with app.app_context():
         session_before = db.session.execute(
@@ -135,9 +121,7 @@ def test_cannot_revoke_own_session(app, db):
         user_id = user.id
 
     client = app.test_client()
-    client.post(
-        "/admin/login", data={"username": "revoke_self", "password": "Password123!"}
-    )
+    client.post("/admin/login", data={"username": "revoke_self", "password": "Password123!"})
 
     response = client.get("/admin/sessions")
     assert response.status_code == 200
@@ -162,18 +146,13 @@ def test_revoke_other_users_session(app, db):
         user2.set_password("Password123!")
         db.session.add_all([user1, user2])
         db.session.commit()
-        user1_id = user1.id
         user2_id = user2.id
 
     client1 = app.test_client()
     client2 = app.test_client()
 
-    client1.post(
-        "/admin/login", data={"username": "revoker", "password": "Password123!"}
-    )
-    client2.post(
-        "/admin/login", data={"username": "revoked", "password": "Password123!"}
-    )
+    client1.post("/admin/login", data={"username": "revoker", "password": "Password123!"})
+    client2.post("/admin/login", data={"username": "revoked", "password": "Password123!"})
 
     with app.app_context():
         db.session.remove()
@@ -201,18 +180,12 @@ def test_session_isolation_between_users(app, db):
         user2.set_password("Password123!")
         db.session.add_all([user1, user2])
         db.session.commit()
-        user1_id = user1.id
-        user2_id = user2.id
 
     client1 = app.test_client()
     client2 = app.test_client()
 
-    client1.post(
-        "/admin/login", data={"username": "isolated1", "password": "Password123!"}
-    )
-    client2.post(
-        "/admin/login", data={"username": "isolated2", "password": "Password123!"}
-    )
+    client1.post("/admin/login", data={"username": "isolated1", "password": "Password123!"})
+    client2.post("/admin/login", data={"username": "isolated2", "password": "Password123!"})
 
     with app.app_context():
         db.session.remove()
@@ -236,17 +209,13 @@ def test_logout_one_user_does_not_affect_other(app, db):
     client2 = app.test_client()
 
     # Initialize sessions to ensure independent cookie jars
-    with client1.session_transaction() as sess:
+    with client1.session_transaction():
         pass
-    with client2.session_transaction() as sess:
+    with client2.session_transaction():
         pass
 
-    client1.post(
-        "/admin/login", data={"username": "logout1", "password": "Password123!"}
-    )
-    client2.post(
-        "/admin/login", data={"username": "logout2", "password": "Password123!"}
-    )
+    client1.post("/admin/login", data={"username": "logout1", "password": "Password123!"})
+    client2.post("/admin/login", data={"username": "logout2", "password": "Password123!"})
 
     client1.post("/admin/logout")
 

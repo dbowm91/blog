@@ -1,15 +1,11 @@
-import pytest
 from unittest.mock import patch, MagicMock
 import os
 import tempfile
 
 from app.storage import (
     LocalStorageBackend,
-    S3StorageBackend,
     get_storage,
     storage_delete_file,
-    upload_with_processing,
-    get_storage_backend,
 )
 
 
@@ -108,11 +104,14 @@ def test_upload_with_processing_local():
     """Test upload_with_processing for local storage."""
     with tempfile.TemporaryDirectory() as tmpdir:
         import app.storage as storage_module
+
         original_storage = storage_module._storage
         storage_module._storage = None
         with patch.dict(os.environ, {"UPLOAD_FOLDER": tmpdir}):
             storage_module._storage = None
-            result, error = storage_module.upload_with_processing("test.txt", b"hello", generate_variants=False)
+            result, error = storage_module.upload_with_processing(
+                "test.txt", b"hello", generate_variants=False
+            )
             assert result == "test.txt"
             assert error is None
             assert os.path.exists(os.path.join(tmpdir, "test.txt"))

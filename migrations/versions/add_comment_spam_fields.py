@@ -4,6 +4,7 @@ Revision ID: add_comment_spam_fields
 Revises: add_webhook_event_delivery_status
 Create Date: 2026-05-29
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -14,20 +15,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "comments",
-        sa.Column("is_spam", sa.Boolean, nullable=False, server_default="0")
-    )
-    op.add_column(
-        "comments",
-        sa.Column("spam_score", sa.Float, nullable=True)
-    )
-    op.create_index(
-        "ix_comments_is_spam",
-        "comments",
-        ["is_spam"],
-        unique=False
-    )
+    op.add_column("comments", sa.Column("is_spam", sa.Boolean, nullable=False, server_default="0"))
+    op.add_column("comments", sa.Column("spam_score", sa.Float, nullable=True))
+    op.create_index("ix_comments_is_spam", "comments", ["is_spam"], unique=False)
 
 
 def downgrade() -> None:

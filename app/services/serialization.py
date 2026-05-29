@@ -19,9 +19,7 @@ def serialize_post(post: Post) -> dict:
         "published": post.published,
         "published_at": post.published_at.isoformat() if post.published_at else None,
         "scheduled_publish_at": (
-            post.scheduled_publish_at.isoformat()
-            if post.scheduled_publish_at
-            else None
+            post.scheduled_publish_at.isoformat() if post.scheduled_publish_at else None
         ),
         "tags": [tag.name for tag in cast(list[Tag], post.tags)],
     }
@@ -37,16 +35,10 @@ def serialize_subscriber(subscriber: Subscriber, include_email: bool = False) ->
     result: dict[str, Any] = {
         "id": subscriber.id,
         "confirmed": subscriber.confirmed,
-        "created_at": (
-            subscriber.created_at.isoformat() if subscriber.created_at else None
-        ),
-        "expires_at": (
-            subscriber.expires_at.isoformat() if subscriber.expires_at else None
-        ),
+        "created_at": (subscriber.created_at.isoformat() if subscriber.created_at else None),
+        "expires_at": (subscriber.expires_at.isoformat() if subscriber.expires_at else None),
         "unsubscribed_at": (
-            subscriber.unsubscribed_at.isoformat()
-            if subscriber.unsubscribed_at
-            else None
+            subscriber.unsubscribed_at.isoformat() if subscriber.unsubscribed_at else None
         ),
     }
     if include_email:
@@ -74,7 +66,13 @@ def serialize_tag(tag: Tag) -> dict:
     }
 
 
-def export_data_to_dict(posts: Sequence[Post], subscribers: Sequence[Subscriber], tags: Sequence[Tag], pages: Sequence[Page], version: int = 1) -> dict:
+def export_data_to_dict(
+    posts: Sequence[Post],
+    subscribers: Sequence[Subscriber],
+    tags: Sequence[Tag],
+    pages: Sequence[Page],
+    version: int = 1,
+) -> dict:
     """Export all data to a dictionary structure for JSON serialization."""
     return {
         "version": version,

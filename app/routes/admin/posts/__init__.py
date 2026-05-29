@@ -58,9 +58,7 @@ def dashboard() -> ResponseReturnValue:
 
     base_q = _get_posts_query(status, q)
 
-    pagination = db.paginate(
-        base_q, page=page, per_page=DASHBOARD_PER_PAGE, error_out=False
-    )
+    pagination = db.paginate(base_q, page=page, per_page=DASHBOARD_PER_PAGE, error_out=False)
     posts = pagination.items
 
     post_ids = [p.id for p in posts]
@@ -135,8 +133,13 @@ def bulk_operations() -> ResponseReturnValue:
 
     posts = (
         db.session.execute(
-            select(Post).filter(Post.id.in_(valid_ids)).options(joinedload(cast(QueryableAttribute, Post.tags)))
-        ).scalars().unique().all()
+            select(Post)
+            .filter(Post.id.in_(valid_ids))
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
+        )
+        .scalars()
+        .unique()
+        .all()
     )
     if not posts:
         flash("No posts found.", "error")

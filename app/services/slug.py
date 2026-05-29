@@ -1,10 +1,9 @@
 """Slug generation service for generating unique slugs."""
 
 import uuid
-from typing import Optional, Type, cast
+from typing import Optional, Type
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.utils import generate_slug

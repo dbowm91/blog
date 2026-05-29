@@ -12,9 +12,7 @@ def register_filters(app: Flask) -> None:
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text: str) -> str:
         html = markdown.markdown(text, extensions=["fenced_code", "tables", "footnotes"])
-        return nh3.clean(
-            html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES
-        )
+        return nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
 
     @app.template_filter("reading_time")
     def reading_time_filter(text: str) -> str:
@@ -41,11 +39,13 @@ def register_filters(app: Flask) -> None:
             if post_id in g._post_image_cache:
                 return g._post_image_cache[post_id]
             from app.storage import get_storage
+
             storage = get_storage()
             result: str | None = post.image if storage.exists(post.image) else None
             g._post_image_cache[post_id] = result
             return result
         from app.storage import get_storage
+
         storage = get_storage()
         return post.image if storage.exists(post.image) else None
 
@@ -61,13 +61,16 @@ def register_filters(app: Flask) -> None:
                 return g._post_image_cache[cache_key]
             from app.storage import get_storage
             from app.config import BASE_URL, CDN_URL
+
             storage = get_storage()
             base_url = CDN_URL if CDN_URL else BASE_URL
             srcset_parts = []
             for width in (400, 800, 1200):
                 variant_name = f"{width}_{post.image}"
                 if storage.exists(variant_name):
-                    srcset_parts.append(f"{base_url.rstrip('/')}/static/uploads/{variant_name} {width}w")
+                    srcset_parts.append(
+                        f"{base_url.rstrip('/')}/static/uploads/{variant_name} {width}w"
+                    )
             g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
             return g._post_image_cache[cache_key]
         return None

@@ -1,8 +1,5 @@
 """Tests for transaction module."""
 
-from unittest.mock import patch, MagicMock
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-
 import pytest
 
 

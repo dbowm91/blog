@@ -1,6 +1,4 @@
-import pytest
-from app.models import Series, Post, PostSeries
-from app.utils import utc_now
+from app.models import Series, PostSeries
 
 
 def test_series_list_authenticated(authenticated_client, db):
@@ -92,9 +90,7 @@ def test_series_delete(authenticated_client, db):
     )
     assert response.status_code == 200
     assert b"deleted successfully" in response.data.lower()
-    deleted = db.session.execute(
-        db.select(Series).filter_by(id=series.id)
-    ).scalar_one_or_none()
+    deleted = db.session.execute(db.select(Series).filter_by(id=series.id)).scalar_one_or_none()
     assert deleted is None
 
 
@@ -141,9 +137,7 @@ def test_series_posts_remove_post(authenticated_client, db, sample_post):
     )
     assert response.status_code == 200
     assert b"removed from series" in response.data.lower()
-    deleted = db.session.execute(
-        db.select(PostSeries).filter_by(id=ps.id)
-    ).scalar_one_or_none()
+    deleted = db.session.execute(db.select(PostSeries).filter_by(id=ps.id)).scalar_one_or_none()
     assert deleted is None
 
 

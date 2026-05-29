@@ -54,9 +54,7 @@ def login() -> Any:
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        user = db.session.execute(
-            select(User).filter_by(username=username)
-        ).scalar_one_or_none()
+        user = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
         if user and user.is_locked():
             flash("Account is locked due to too many failed attempts. Try again later.", "error")
             return redirect(url_for("admin.login"))
@@ -171,9 +169,7 @@ def forgot_password() -> Any:
             flash("Please enter your username or email address.", "error")
             return redirect(url_for("admin.forgot_password"))
 
-        user = db.session.execute(
-            select(User).filter_by(username=identifier)
-        ).scalar_one_or_none()
+        user = db.session.execute(select(User).filter_by(username=identifier)).scalar_one_or_none()
 
         if user and user.is_admin:
             token = secrets.token_hex(32)
@@ -205,9 +201,7 @@ def reset_password(token: str) -> Any:
     POST: Updates password and invalidates all admin sessions for the user.
     """
     hashed_token = _hash_token(token)
-    user = db.session.execute(
-        select(User).filter_by(reset_token=hashed_token)
-    ).scalar_one_or_none()
+    user = db.session.execute(select(User).filter_by(reset_token=hashed_token)).scalar_one_or_none()
 
     if not user or not user.reset_token_expires_at:
         flash("Invalid or expired reset token.", "error")
@@ -248,7 +242,7 @@ def reset_password(token: str) -> Any:
         # Clear session after password reset to force re-authentication
         # This ensures any old sessions are invalidated
         session.clear()
-        
+
         logger.info(
             "Password reset completed: user_id=%d username=%s",
             user.id,

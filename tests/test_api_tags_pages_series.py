@@ -1,7 +1,6 @@
 """Tests for Tags, Pages, and Series API endpoints."""
 
 import os
-import pytest
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
@@ -23,6 +22,7 @@ class TestTagsAPI:
     def test_list_tags(self, client, db, admin_user):
         """Test listing tags with data."""
         from app.models import Tag
+
         tag = Tag(name="Python", slug="python")
         db.session.add(tag)
         db.session.commit()
@@ -37,6 +37,7 @@ class TestTagsAPI:
     def test_get_tag(self, client, db, admin_user):
         """Test getting a single tag."""
         from app.models import Tag
+
         tag = Tag(name="Python", slug="python")
         db.session.add(tag)
         db.session.commit()
@@ -66,6 +67,7 @@ class TestTagsAPI:
     def test_create_duplicate_tag_returns_existing(self, client, db, admin_user):
         """Test creating a duplicate tag returns existing."""
         from app.models import Tag
+
         existing = Tag(name="Existing", slug="existing")
         db.session.add(existing)
         db.session.commit()
@@ -82,6 +84,7 @@ class TestTagsAPI:
     def test_update_tag(self, client, db, admin_user):
         """Test updating a tag."""
         from app.models import Tag
+
         tag = Tag(name="Original", slug="original")
         db.session.add(tag)
         db.session.commit()
@@ -99,6 +102,7 @@ class TestTagsAPI:
     def test_delete_tag(self, client, db, admin_user):
         """Test deleting a tag."""
         from app.models import Tag
+
         tag = Tag(name="ToDelete", slug="todelete")
         db.session.add(tag)
         db.session.commit()
@@ -128,6 +132,7 @@ class TestPagesAPI:
     def test_list_pages(self, client, db, admin_user):
         """Test listing pages with data."""
         from app.models import Page
+
         page = Page(title="Test Page", slug="test-page", body="Content", published=True)
         db.session.add(page)
         db.session.commit()
@@ -141,6 +146,7 @@ class TestPagesAPI:
     def test_get_page(self, client, db, admin_user):
         """Test getting a single page."""
         from app.models import Page
+
         page = Page(title="Test Page", slug="test-page", body="Content", published=True)
         db.session.add(page)
         db.session.commit()
@@ -175,6 +181,7 @@ class TestPagesAPI:
     def test_update_page(self, client, db, admin_user):
         """Test updating a page."""
         from app.models import Page
+
         page = Page(title="Original", slug="original", body="Content")
         db.session.add(page)
         db.session.commit()
@@ -191,6 +198,7 @@ class TestPagesAPI:
     def test_delete_page(self, client, db, admin_user):
         """Test deleting a page."""
         from app.models import Page
+
         page = Page(title="ToDelete", slug="to-delete", body="Content")
         db.session.add(page)
         db.session.commit()
@@ -220,6 +228,7 @@ class TestSeriesAPI:
     def test_list_series(self, client, db, admin_user):
         """Test listing series with data."""
         from app.models import Series
+
         series = Series(name="Test Series", slug="test-series", description="A test series")
         db.session.add(series)
         db.session.commit()
@@ -233,11 +242,14 @@ class TestSeriesAPI:
     def test_get_series(self, client, db, admin_user):
         """Test getting a single series."""
         from app.models import Series
+
         series = Series(name="Test Series", slug="test-series")
         db.session.add(series)
         db.session.commit()
 
-        response = client.get(f"/api/series/{series.id}", headers={"X-API-Key": "test-api-key-12345"})
+        response = client.get(
+            f"/api/series/{series.id}", headers={"X-API-Key": "test-api-key-12345"}
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert data["name"] == "Test Series"
@@ -265,6 +277,7 @@ class TestSeriesAPI:
     def test_update_series(self, client, db, admin_user):
         """Test updating a series."""
         from app.models import Series
+
         series = Series(name="Original", slug="original", description="Original desc")
         db.session.add(series)
         db.session.commit()
@@ -281,6 +294,7 @@ class TestSeriesAPI:
     def test_delete_series(self, client, db, admin_user):
         """Test deleting a series."""
         from app.models import Series
+
         series = Series(name="ToDelete", slug="to-delete")
         db.session.add(series)
         db.session.commit()
@@ -298,6 +312,7 @@ class TestSeriesAPI:
     def test_add_post_to_series(self, client, db, admin_user):
         """Test adding a post to a series."""
         from app.models import Series, Post
+
         series = Series(name="Test Series", slug="test-series")
         post = Post(title="Test Post", slug="test-post", body="Content", published=True)
         db.session.add(series)
@@ -314,6 +329,7 @@ class TestSeriesAPI:
     def test_remove_post_from_series(self, client, db, admin_user):
         """Test removing a post from a series."""
         from app.models import Series, Post, PostSeries
+
         series = Series(name="Test Series", slug="test-series")
         post = Post(title="Test Post", slug="test-post", body="Content", published=True)
         db.session.add(series)

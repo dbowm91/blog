@@ -1,4 +1,3 @@
-import pytest
 from app.utils import (
     utc_now,
     is_valid_email,
@@ -10,10 +9,9 @@ from app.utils import (
     ErrorLogContext,
     log_storage_error,
     log_security_event,
-    log_scheduler_error,
     handle_error,
 )
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import os
 import tempfile
 
@@ -94,6 +92,7 @@ def test_is_safe_webhook_url_valid():
     """Test safe webhook URLs."""
     import socket
     from unittest.mock import patch
+
     # Mock getaddrinfo to return a public IP
     with patch("socket.getaddrinfo") as mock_getaddrinfo:
         # Return public IP 8.8.8.8

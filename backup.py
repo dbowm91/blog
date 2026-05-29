@@ -16,7 +16,6 @@ Usage:
 import argparse
 import os
 import sys
-from pathlib import Path
 
 
 def get_db_path():
@@ -28,11 +27,11 @@ def main():
     from app.services.backup import create_backup, decrypt_backup_file
 
     parser = argparse.ArgumentParser(description="Create SQLite backup for DevLog")
+    parser.add_argument("--compress", action="store_true", help="Compress backup with gzip")
     parser.add_argument(
-        "--compress", action="store_true", help="Compress backup with gzip"
-    )
-    parser.add_argument(
-        "--encrypt", action="store_true", help="Encrypt backup with AES-256-GCM (requires BACKUP_ENCRYPTION_KEY)"
+        "--encrypt",
+        action="store_true",
+        help="Encrypt backup with AES-256-GCM (requires BACKUP_ENCRYPTION_KEY)",
     )
     parser.add_argument(
         "--decrypt", type=str, metavar="FILE", help="Decrypt an AES-256-GCM-encrypted backup file"
@@ -40,9 +39,7 @@ def main():
     parser.add_argument(
         "--keep", type=int, default=7, help="Number of backups to retain (default: 7)"
     )
-    parser.add_argument(
-        "--db", type=str, help="Path to database file (default: instance/blog.db)"
-    )
+    parser.add_argument("--db", type=str, help="Path to database file (default: instance/blog.db)")
     parser.add_argument(
         "--dir", type=str, default="backups", help="Backup directory (default: backups)"
     )

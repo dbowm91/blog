@@ -25,7 +25,7 @@ Comprehensive guide for deploying DevLog in production.
 
 ## 1. Prerequisites
 
-- Python 3.14+
+- Python 3.12 or later (tested with 3.12 and 3.13)
 - pip
 - SQLite 3.35+ (for `PRAGMA journal_mode=WAL` and FTS5 support)
 - A reverse proxy (nginx, Caddy recommended)
@@ -37,7 +37,7 @@ Comprehensive guide for deploying DevLog in production.
 
 ```bash
 # Clone and enter the project
-git clone <repo-url> /opt/blog
+git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 
 # Create a virtual environment
@@ -48,7 +48,6 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Create config.toml (edit as needed)
-cp config.toml config.toml
 
 # Set required environment variables
 export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
@@ -112,8 +111,7 @@ Environment variables override `config.toml` settings. **Required** variables mu
 
 | Variable | Description |
 |---|---|
-| `BACKUP_ENCRYPTION_KEY` | GPG symmetric encryption passphrase (min 8 chars) |
-| `BACKUP_GPG_CIPHER` | Cipher algorithm (default: `AES256`) |
+| `BACKUP_ENCRYPTION_KEY` | AES-256-GCM encryption passphrase (min 12 chars) |
 
 ### Example Production Environment File
 
@@ -247,26 +245,43 @@ Granian handles graceful shutdown automatically—waiting for in-flight requests
 
 ```bash
 # Clone the repository
-git clone <repo-url> /opt/blog
+git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 
 # Create .env file
-cat > .env << EOF
-SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
-ADMIN_PASSWORD=your-strong-password-here
-ADMIN_USERNAME=admin
-EOF
+cp .env.example .env
+# Edit .env with your values (see Environment Variables below)
 
-# Start the container
-docker-compose up -d
+# Start with production profile
+docker compose --profile production up -d --build
 
 # View logs
-docker-compose logs -f
+docker compose --profile production logs -f
 ```
 
 The blog will be available at `http://localhost:5000`. Admin at `http://localhost:5000/admin/login`.
 
+### Compose Profiles
+
+| Profile | Services | Use Case |
+|---|---|---|
+| `production` | blog, celery, redis, nginx | Full production stack |
+| `backup` | backup | Standalone backup runner |
+
+```bash
+# Production stack (blog + celery + redis + nginx)
+docker compose --profile production up -d --build
+
+# Backup service
+docker compose --profile backup run --rm backup
+
+# Both
+docker compose --profile production --profile backup up -d
+```
+
 ### Environment Variables in Docker
+
+Copy `.env.example` and fill in your values:
 
 | Variable | Required | Description |
 |---|---|---|
@@ -275,6 +290,7 @@ The blog will be available at `http://localhost:5000`. Admin at `http://localhos
 | `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
 | `SMTP_USER` | No | SMTP username |
 | `SMTP_PASSWORD` | No | SMTP password |
+| `API_KEY` | No | REST API authentication key |
 | `STORAGE_BACKEND` | No | `local` or `s3` |
 | `S3_*` | No | S3 configuration |
 
@@ -297,10 +313,10 @@ These persist across container restarts and upgrades.
 git pull
 
 # Rebuild and restart
-docker-compose up -d --build
+docker compose --profile production up -d --build
 
 # View logs
-docker-compose logs -f
+docker compose --profile production logs -f
 ```
 
 ### Health Check
@@ -315,20 +331,12 @@ docker inspect --format='{{.State.Health.Status}}' blog
 curl -f http://localhost:5000/health
 ```
 
-### Resource Limits
+### Production Scaling Caveats
 
-Add limits to `docker-compose.yml` if needed:
-
-```yaml
-services:
-  blog:
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-```
+1. **SQLite is single-writer**: Only one process can write at a time. Do not scale the blog service horizontally without migrating to PostgreSQL first.
+2. **APScheduler uses file locking**: The in-process scheduler (`fcntl` lock) only coordinates workers on a single machine. In multi-container deployments, each container runs its own scheduler. Use Celery Beat or an external cron if you need single-scheduled-execution across replicas.
+3. **Async jobs need Redis/Celery**: The `celery` service handles newsletter delivery, webhook delivery, image variant generation, and backups. Without Redis, these jobs block the web process.
+4. **Reverse proxy TLS is your responsibility**: The Docker stack does not terminate TLS. Put nginx or Caddy in front with valid certificates. The included nginx config expects TLS to be handled externally (e.g., via cloud load balancer or a sidecar).
 
 ### Production Docker Considerations
 
@@ -358,16 +366,11 @@ This prevents direct external access—only the reverse proxy can reach it.
 
 ### Environment File
 
-Create `.env` from environment variables:
+Create `.env` from `.env.example`:
 
 ```bash
-cat > .env << 'EOF'
-SECRET_KEY=your-secret-key
-ADMIN_PASSWORD=your-password
-ADMIN_USERNAME=admin
-SMTP_USER=
-SMTP_PASSWORD=
-EOF
+cp .env.example .env
+# Edit with your values
 ```
 
 Never commit `.env` to version control.
@@ -382,7 +385,7 @@ Never commit `.env` to version control.
 2. Click **Create Backup**
 3. Optionally enable:
    - **Compression** — gzip reduces file size
-   - **Encryption** — GPG symmetric encryption (requires `BACKUP_ENCRYPTION_KEY`)
+   - **Encryption** — AES-256-GCM encryption (requires `BACKUP_ENCRYPTION_KEY`)
 4. Backups appear in the list below
 
 **Restore:**
@@ -519,7 +522,7 @@ sudo systemctl start blog
 **From encrypted backup:**
 ```bash
 # Decrypt first
-python backup.py --decrypt backup.db.gpg
+python -c "from app.backup_encryption import decrypt_backup; open('backup.db', 'wb').write(decrypt_backup(open('backup.db.gpg', 'rb').read()))"
 
 # Then restore
 flask backup --restore backup.db
@@ -892,7 +895,7 @@ The newsletter scheduler runs in-process via APScheduler—no external cron need
 | APScheduler | Newsletter scheduling |
 | granian | ASGI server |
 
-For Python 3.14 compatibility, see `requirements.txt`.
+For Python version requirements, see `pyproject.toml`.
 
 ---
 
@@ -910,3 +913,29 @@ Vite is used for frontend asset bundling with content hashing for cache busting.
 - **Check manifest**: Verify `app/static/dist/.vite/manifest.json` exists after build
 - **Troubleshooting**: If assets return 404, ensure `vite_asset()` is used in templates instead of `url_for('static', ...)`
 - **Content hashing**: Hashed filenames (e.g., `main-BVtPp-ke.js`) allow aggressive caching (`Cache-Control: max-age=31536000, immutable`)
+
+---
+
+## 17. GitHub Repository Settings
+
+These settings must be configured via the GitHub web UI (not files):
+
+### Repository Topics
+Add topics in **Settings > General > Topics**: `flask`, `blog`, `cms`, `sqlite`, `newsletter`, `python`
+
+### Security
+- Enable **Security advisories** (Settings > Security)
+- Add `SECURITY.md` for vulnerability reporting (if not already present)
+
+### Branch Protection Rules
+For the `main` branch, configure in **Settings > Branches > Branch protection rules**:
+- Require pull request reviews before merging
+- Require status checks to pass (CI workflows)
+- Require branches to be up to date before merging
+- Optionally require signed commits
+
+### About Section
+Set in **Settings > General > About**:
+- Description: "Flask-based blog CMS with newsletter, FTS5 search, and 2FA"
+- Website: Your deployment URL
+- Topics: `flask`, `blog`, `cms`, `python`

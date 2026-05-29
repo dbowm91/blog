@@ -1,4 +1,3 @@
-import pytest
 from app.models import User, Post, Tag, Subscriber
 from app.utils import generate_slug
 
@@ -89,7 +88,7 @@ def test_subscriber_confirmation(db):
 
 def test_post_short_code(db, admin_user):
     """Test post short_code generation and decoding."""
-    from app.base62 import encode, decode
+    from app.base62 import decode
 
     post = Post(
         title="Test Post",

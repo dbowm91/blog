@@ -1,4 +1,5 @@
 """Performance benchmark tests for catching regressions."""
+
 import time
 from unittest.mock import patch, MagicMock
 from sqlalchemy import event
@@ -35,7 +36,7 @@ class TestSearchPerformance:
 
         start = time.perf_counter()
         for _ in range(10):
-            results = search("Flask Python")
+            search("Flask Python")
         elapsed = (time.perf_counter() - start) / 10
 
         assert elapsed < 0.15, f"FTS multi-term search took {elapsed:.4f}s, expected < 0.15s"
@@ -62,7 +63,7 @@ class TestSearchPerformance:
 
         start = time.perf_counter()
         for _ in range(5):
-            results = search("Flask (Python)")
+            search("Flask (Python)")
         elapsed = (time.perf_counter() - start) / 5
 
         assert elapsed < 0.2, f"FTS special char search took {elapsed:.4f}s, expected < 0.2s"
@@ -85,14 +86,18 @@ class TestLIKEFallbackPerformance:
             escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             search_term = f"%{escaped}%"
 
-            results = clean_db.session.execute(
-                clean_db.select(Post.id).filter(
-                    Post.published == True,
-                    (Post.title.ilike(search_term, escape="\\")) |
-                    (Post.body.ilike(search_term, escape="\\")) |
-                    (Post.summary.ilike(search_term, escape="\\"))
+            results = (
+                clean_db.session.execute(
+                    clean_db.select(Post.id).filter(
+                        Post.published,
+                        (Post.title.ilike(search_term, escape="\\"))
+                        | (Post.body.ilike(search_term, escape="\\"))
+                        | (Post.summary.ilike(search_term, escape="\\")),
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         elapsed = (time.perf_counter() - start) / 10
 
         assert len(results) > 0
@@ -102,7 +107,9 @@ class TestLIKEFallbackPerformance:
 class TestDashboardPerformance:
     """Benchmark dashboard page load time."""
 
-    def test_dashboard_load_empty(self, app, clean_db, admin_user, clean_analytics_cache, authenticated_client):
+    def test_dashboard_load_empty(
+        self, app, clean_db, admin_user, clean_analytics_cache, authenticated_client
+    ):
         """Benchmark dashboard with no posts."""
         start = time.perf_counter()
         response = authenticated_client.get("/admin/")
@@ -111,7 +118,9 @@ class TestDashboardPerformance:
         assert response.status_code == 200
         assert elapsed < 1.0, f"Empty dashboard took {elapsed:.4f}s, expected < 1.0s"
 
-    def test_dashboard_load_with_posts(self, app, clean_db, admin_user, clean_analytics_cache, authenticated_client):
+    def test_dashboard_load_with_posts(
+        self, app, clean_db, admin_user, clean_analytics_cache, authenticated_client
+    ):
         """Benchmark dashboard with 50 posts."""
         from tests.benchmarks.conftest import create_posts_bulk
 
@@ -124,7 +133,9 @@ class TestDashboardPerformance:
         assert response.status_code == 200
         assert elapsed < 2.0, f"Dashboard with 50 posts took {elapsed:.4f}s, expected < 2.0s"
 
-    def test_dashboard_load_with_search(self, app, clean_db, admin_user, clean_analytics_cache, authenticated_client):
+    def test_dashboard_load_with_search(
+        self, app, clean_db, admin_user, clean_analytics_cache, authenticated_client
+    ):
         """Benchmark dashboard with search filter."""
         from tests.benchmarks.conftest import create_posts_bulk
 
@@ -173,11 +184,13 @@ class TestDatabaseQueryCounts:
         create_posts_bulk(clean_db, count=20)
 
         with query_counter:
-            results = search("Flask")
+            search("Flask")
 
         assert query_counter.count <= 3, f"Search used {query_counter.count} queries, expected <= 3"
 
-    def test_dashboard_query_count(self, app, clean_db, admin_user, clean_analytics_cache, query_counter, authenticated_client):
+    def test_dashboard_query_count(
+        self, app, clean_db, admin_user, clean_analytics_cache, query_counter, authenticated_client
+    ):
         """Verify dashboard uses reasonable query count."""
         from tests.benchmarks.conftest import create_posts_bulk
 
@@ -187,7 +200,9 @@ class TestDatabaseQueryCounts:
             response = authenticated_client.get("/admin/")
 
         assert response.status_code == 200
-        assert query_counter.count <= 20, f"Dashboard used {query_counter.count} queries, expected <= 20"
+        assert query_counter.count <= 20, (
+            f"Dashboard used {query_counter.count} queries, expected <= 20"
+        )
 
     def test_public_homepage_query_count(self, app, clean_db, admin_user, query_counter):
         """Verify public homepage uses minimal queries."""
@@ -200,7 +215,9 @@ class TestDatabaseQueryCounts:
                 response = client.get("/")
 
             assert response.status_code == 200
-            assert query_counter.count <= 10, f"Homepage used {query_counter.count} queries, expected <= 10"
+            assert query_counter.count <= 10, (
+                f"Homepage used {query_counter.count} queries, expected <= 10"
+            )
 
 
 class TestNewsletterPerformance:
@@ -230,7 +247,9 @@ class TestNewsletterPerformance:
                     elapsed = time.perf_counter() - start
 
                     assert result is True
-                    assert elapsed < 5.0, f"Newsletter send for 1 subscriber took {elapsed:.4f}s, expected < 5.0s"
+                    assert elapsed < 5.0, (
+                        f"Newsletter send for 1 subscriber took {elapsed:.4f}s, expected < 5.0s"
+                    )
 
     def test_newsletter_batch_timing(self, app, clean_db):
         """Benchmark newsletter batch send timing."""
@@ -258,7 +277,9 @@ class TestNewsletterPerformance:
 
                     assert result is True
                     per_subscriber = elapsed / len(subscribers)
-                    assert per_subscriber < 0.5, f"Per-subscriber time {per_subscriber:.4f}s, expected < 0.5s"
+                    assert per_subscriber < 0.5, (
+                        f"Per-subscriber time {per_subscriber:.4f}s, expected < 0.5s"
+                    )
 
 
 class TestFTSIndexingPerformance:
@@ -275,13 +296,7 @@ class TestFTSIndexingPerformance:
 
         start = time.perf_counter()
         for i in range(10):
-            sync_fts(
-                post_id,
-                f"Updated Post Title {i}",
-                post_body,
-                post_summary,
-                True
-            )
+            sync_fts(post_id, f"Updated Post Title {i}", post_body, post_summary, True)
             clean_db.session.commit()
         elapsed = time.perf_counter() - start
 
@@ -324,7 +339,7 @@ class TestTagCachingPerformance:
 
         start = time.perf_counter()
         for _ in range(100):
-            counts = _get_tag_counts()
+            _get_tag_counts()
         elapsed = time.perf_counter() - start
 
         per_call = elapsed / 100

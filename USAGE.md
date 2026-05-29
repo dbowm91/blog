@@ -295,7 +295,7 @@ The blog provides RSS and JSON feeds for subscribers and feed readers.
 
 ### RSS Feed
 
-**URL:** `/rss.xml`
+**URL:** `/rss`
 
 RSS 2.0 compliant feed with:
 - Post title, link, description (summary or body excerpt)
@@ -354,7 +354,7 @@ JSON Feed 1.1 compliant feed with:
 Add feed links to your `<head>` for automatic feed reader detection:
 
 ```html
-<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss">
 <link rel="alternate" type="application/json" title="JSON Feed" href="/json">
 ```
 
@@ -492,7 +492,7 @@ The dashboard at `/admin/` shows:
 export BACKUP_ENCRYPTION_KEY="your-secure-passphrase"
 ```
 
-Encrypted backups use GPG symmetric encryption (AES256).
+Encrypted backups use AES-256-GCM encryption with PBKDF2 key derivation.
 
 ### Database Integrity Check
 

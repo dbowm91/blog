@@ -1,8 +1,7 @@
 import pytest
 from click.testing import CliRunner
 from app import create_app
-from app.models import User, Post, Tag, Subscriber, Page
-from app.utils import utc_now
+from app.models import User, Post, Tag, Subscriber
 import json
 import tempfile
 import os
@@ -38,24 +37,18 @@ def test_cleanup_orphaned_images_command(runner, cli_app, db):
 def test_create_admin_command_success(runner, cli_app, db):
     """Test create-admin CLI command."""
     result = runner.invoke(
-        cli_app.cli, ["create-admin"],
-        input="testadmin\nPassword123!\nPassword123!\n"
+        cli_app.cli, ["create-admin"], input="testadmin\nPassword123!\nPassword123!\n"
     )
     assert result.exit_code == 0
     assert "Admin user 'testadmin' created" in result.output
-    user = db.session.execute(
-        db.select(User).filter_by(username="testadmin")
-    ).scalar_one_or_none()
+    user = db.session.execute(db.select(User).filter_by(username="testadmin")).scalar_one_or_none()
     assert user is not None
     assert user.is_admin is True
 
 
 def test_create_admin_command_weak_password(runner, cli_app, db):
     """Test create-admin rejects weak passwords."""
-    result = runner.invoke(
-        cli_app.cli, ["create-admin"],
-        input="testadmin\nweak\nweak\n"
-    )
+    result = runner.invoke(cli_app.cli, ["create-admin"], input="testadmin\nweak\nweak\n")
     assert result.exit_code == 0
     assert "Password must be at least" in result.output
 
@@ -113,7 +106,7 @@ def test_import_data_command(runner, cli_app, db):
         "tags": [{"name": "imported-tag", "slug": "imported-tag"}],
         "posts": [],
         "subscribers": [],
-        "pages": []
+        "pages": [],
     }
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
         json.dump(sample_data, f)
@@ -122,9 +115,7 @@ def test_import_data_command(runner, cli_app, db):
         result = runner.invoke(cli_app.cli, ["import-data", tmp_path])
         assert result.exit_code == 0
         assert "Imported" in result.output
-        tag = db.session.execute(
-            db.select(Tag).filter_by(slug="imported-tag")
-        ).scalar_one_or_none()
+        tag = db.session.execute(db.select(Tag).filter_by(slug="imported-tag")).scalar_one_or_none()
         assert tag is not None
     finally:
         os.unlink(tmp_path)
@@ -132,7 +123,9 @@ def test_import_data_command(runner, cli_app, db):
 
 def test_seed_command(runner, cli_app, db):
     """Test seed CLI command."""
-    result = runner.invoke(cli_app.cli, ["seed", "--posts", "2", "--subscribers", "3", "--published"])
+    result = runner.invoke(
+        cli_app.cli, ["seed", "--posts", "2", "--subscribers", "3", "--published"]
+    )
     assert result.exit_code == 0
     assert "Seed complete" in result.output
     posts = db.session.execute(db.select(Post)).scalars().all()

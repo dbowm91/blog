@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
-from flask import request, redirect, url_for, flash, abort, Response, g, has_request_context
+from flask import request, redirect, url_for, flash, abort, has_request_context
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -25,7 +24,11 @@ from flask.typing import ResponseReturnValue
 def get_client_ip() -> str:
     """Get client IP for rate limiting."""
     if has_request_context():
-        return request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+        return (
+            request.headers.get("X-Forwarded-For", request.remote_addr or "unknown")
+            .split(",")[0]
+            .strip()
+        )
     return "unknown"
 
 
@@ -139,6 +142,7 @@ def add_comment(slug: str) -> ResponseReturnValue:
     # Dispatch email notification for pending comments (non-spam)
     if COMMENT_NOTIFY_PENDING and not is_spam:
         from app.tasks import notify_pending_comment_task
+
         notify_pending_comment_task.delay(comment.id)
 
     flash("Comment submitted and awaiting approval.", "success")

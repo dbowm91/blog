@@ -57,9 +57,7 @@ def _get_or_create_tags(names: list[str]) -> list[Tag]:
         return []
 
     slugs = [Tag.generate_slug(name) for name in valid_names]
-    existing = (
-        db.session.execute(select(Tag).filter(Tag.slug.in_(slugs))).scalars().all()
-    )
+    existing = db.session.execute(select(Tag).filter(Tag.slug.in_(slugs))).scalars().all()
     existing_by_slug = {tag.slug: tag for tag in existing}
 
     tags = []

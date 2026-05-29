@@ -1,14 +1,12 @@
 import pytest
 from app.page_view_buffer import (
-    PageViewBuffer,
     init_page_view_buffer,
     record_page_view,
     shutdown_page_view_buffer,
     get_buffer,
 )
 from app.models import PageView
-from unittest.mock import patch, MagicMock
-import os
+from unittest.mock import patch
 
 
 @pytest.fixture(autouse=True)
@@ -44,9 +42,7 @@ def test_record_page_view_unbuffered(db):
         shutdown_page_view_buffer()
         record_page_view(1, "http://example.com")
         # Check PageView was created directly
-        pv = db.session.execute(
-            db.select(PageView).filter_by(post_id=1)
-        ).scalar_one_or_none()
+        pv = db.session.execute(db.select(PageView).filter_by(post_id=1)).scalar_one_or_none()
         assert pv is not None
         assert pv.referrer == "http://example.com"
 
@@ -60,17 +56,13 @@ def test_record_page_view_buffered(db):
         record_page_view(1, "http://example.com")
         # View should be in buffer, not yet in DB
         assert buffer.pending == 1
-        pv = db.session.execute(
-            db.select(PageView).filter_by(post_id=1)
-        ).scalar_one_or_none()
+        pv = db.session.execute(db.select(PageView).filter_by(post_id=1)).scalar_one_or_none()
         assert pv is None
         # Flush buffer
         flushed = buffer.flush()
         assert flushed == 1
         # Now should be in DB
-        pv = db.session.execute(
-            db.select(PageView).filter_by(post_id=1)
-        ).scalar_one_or_none()
+        pv = db.session.execute(db.select(PageView).filter_by(post_id=1)).scalar_one_or_none()
         assert pv is not None
         shutdown_page_view_buffer()
 
@@ -81,13 +73,15 @@ def test_page_view_buffer_flush_on_size(db):
         buffer = init_page_view_buffer(db, PageView)
         # Record 3 views (should trigger flush)
         for i in range(3):
-            buffer.record(i+1)
+            buffer.record(i + 1)
         # Buffer should be empty after flush
         assert buffer.pending == 0
         # Check all 3 views in DB
-        pvs = db.session.execute(
-            db.select(PageView).filter(PageView.post_id.in_([1,2,3]))
-        ).scalars().all()
+        pvs = (
+            db.session.execute(db.select(PageView).filter(PageView.post_id.in_([1, 2, 3])))
+            .scalars()
+            .all()
+        )
         assert len(pvs) == 3
         shutdown_page_view_buffer()
 
@@ -100,9 +94,11 @@ def test_shutdown_page_view_buffer(db):
         buffer.record(2)
         shutdown_page_view_buffer()
         # Views should be flushed on shutdown
-        pvs = db.session.execute(
-            db.select(PageView).filter(PageView.post_id.in_([1,2]))
-        ).scalars().all()
+        pvs = (
+            db.session.execute(db.select(PageView).filter(PageView.post_id.in_([1, 2])))
+            .scalars()
+            .all()
+        )
         assert len(pvs) == 2
         assert get_buffer() is None
 
@@ -122,6 +118,7 @@ def test_page_view_buffer_concurrent_access(db):
     with patch("app.page_view_buffer.PAGE_VIEW_BUFFER_SIZE", 100):
         buffer = init_page_view_buffer(db, PageView)
         import threading
+
         results = []
 
         def record_views(start, count):
@@ -148,9 +145,11 @@ def test_page_view_buffer_graceful_shutdown(db):
         initial_pending = buffer.pending
         assert initial_pending == 20
         shutdown_page_view_buffer()
-        pvs = db.session.execute(
-            db.select(PageView).filter(PageView.post_id.in_(range(1, 21)))
-        ).scalars().all()
+        pvs = (
+            db.session.execute(db.select(PageView).filter(PageView.post_id.in_(range(1, 21))))
+            .scalars()
+            .all()
+        )
         assert len(pvs) == 20
 
 
@@ -159,9 +158,8 @@ def test_record_page_view_no_buffer(app, db):
     with patch("app.page_view_buffer.PAGE_VIEW_BUFFER_SIZE", 0):
         shutdown_page_view_buffer()
         from app.page_view_buffer import record_page_view
+
         record_page_view(99, "http://test.com")
-        pv = db.session.execute(
-            db.select(PageView).filter_by(post_id=99)
-        ).scalar_one_or_none()
+        pv = db.session.execute(db.select(PageView).filter_by(post_id=99)).scalar_one_or_none()
         assert pv is not None
         assert pv.referrer == "http://test.com"

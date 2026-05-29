@@ -116,7 +116,11 @@ class PageViewBuffer:
                 self.db.session.execute(
                     self.PageView.__table__.insert(),
                     [
-                        {"post_id": post_id, "referrer": referrer, "created_at": datetime.now(timezone.utc)}
+                        {
+                            "post_id": post_id,
+                            "referrer": referrer,
+                            "created_at": datetime.now(timezone.utc),
+                        }
                         for post_id, referrer in views
                     ],
                 )
@@ -181,6 +185,7 @@ def record_page_view(post_id: int, referrer: Optional[str] = None) -> None:
         from app.extensions import db
         from app.models import PageView
         from sqlalchemy.exc import SQLAlchemyError
+
         try:
             pv = PageView(post_id=post_id, referrer=referrer)
             db.session.add(pv)

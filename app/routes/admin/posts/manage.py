@@ -11,9 +11,8 @@ from flask import (
     jsonify,
     abort,
     current_app,
-    Response,
 )
-from typing import Union, Any
+from typing import Any
 
 from app.extensions import db
 from app.models import Post, PostRevision
@@ -104,12 +103,15 @@ def register_manage_routes(admin: Any) -> None:
 
         if request.args.get("share") == "1":
             from time import time
+
             expiry_timestamp = int(time()) + (PREVIEW_TOKEN_EXPIRY_DAYS * 86400)
             preview_url = _build_preview_url(post_id, expiry_timestamp)
-            return jsonify({
-                "preview_url": preview_url,
-                "expires_at": expiry_timestamp,
-            })
+            return jsonify(
+                {
+                    "preview_url": preview_url,
+                    "expires_at": expiry_timestamp,
+                }
+            )
 
         short_code = post.short_code()
         share_url = f"{BASE_URL}/s/{short_code}"

@@ -41,8 +41,9 @@ from app.csrf import validate_csrf_token
 sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
 sqlite3.register_converter("datetime", lambda s: datetime.fromisoformat(s.decode()))
 
+
 def get_client_ip() -> str:
-    forwarded_for = req.headers.get('X-Forwarded-For')
+    forwarded_for = req.headers.get("X-Forwarded-For")
     if forwarded_for:
         return forwarded_for
     return req.remote_addr or "unknown"
@@ -59,16 +60,15 @@ PROMETHEUS_REQUEST_LATENCY = None
 PROMETHEUS_REQUEST_COUNT = None
 try:
     from prometheus_client import Counter, Histogram
+
     PROMETHEUS_REQUEST_LATENCY = Histogram(
         "blog_request_latency_seconds",
         "Request latency in seconds",
         ["method", "endpoint", "status"],
-        buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+        buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
     )
     PROMETHEUS_REQUEST_COUNT = Counter(
-        "blog_requests_total",
-        "Total request count",
-        ["method", "endpoint", "status"]
+        "blog_requests_total", "Total request count", ["method", "endpoint", "status"]
     )
 except ImportError:
     pass
@@ -167,9 +167,7 @@ def create_app() -> Flask:
 
     app = Flask(__name__, instance_relative_config=True)
     app.config["SECRET_KEY"] = SECRET_KEY
-    app.config["UPLOAD_FOLDER"] = os.path.join(
-        os.path.dirname(__file__), "static", "uploads"
-    )
+    app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "static", "uploads")
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     if "SQLALCHEMY_DATABASE_URI" in os.environ:
@@ -196,8 +194,7 @@ def create_app() -> Flask:
             )
         if not app.config.get("SESSION_COOKIE_SECURE", True):
             raise RuntimeError(
-                "SESSION_COOKIE_SECURE must be True in production. "
-                "This is a security requirement."
+                "SESSION_COOKIE_SECURE must be True in production. This is a security requirement."
             )
 
     db.init_app(app)
@@ -243,6 +240,7 @@ def create_app() -> Flask:
     def ratelimit_handler(e: Any) -> tuple[Any, int]:
         if req.is_json:
             from flask import jsonify  # noqa: E402
+
             return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
         return render_template("429.html", error=str(e.description)), 429
 
@@ -272,14 +270,15 @@ def create_app() -> Flask:
     app.register_blueprint(api)
 
     from flask_swagger_ui import get_swaggerui_blueprint  # noqa: E402
-    SWAGGER_URL = '/api/docs'
-    API_URL = '/openapi.yaml'
+
+    SWAGGER_URL = "/api/docs"
+    API_URL = "/openapi.yaml"
     swaggerui_blueprint = get_swaggerui_blueprint(SWAGGER_URL, API_URL)
     app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
-    @app.route('/openapi.yaml')
+    @app.route("/openapi.yaml")
     def openapi_spec():
-        return send_from_directory(app.root_path, '../docs/openapi.yaml')
+        return send_from_directory(app.root_path, "../docs/openapi.yaml")
 
     from app.filters import register_filters  # noqa: E402
 
@@ -319,16 +318,12 @@ def create_app() -> Flask:
 
                         try:
                             db.session.execute(
-                                delete(AdminSession).where(
-                                    AdminSession.session_id == sid
-                                )
+                                delete(AdminSession).where(AdminSession.session_id == sid)
                             )
                             db.session.commit()
                         except (IntegrityError, OperationalError):
                             db.session.rollback()
-                            logger.warning(
-                                "Failed to delete expired admin session: %s", sid
-                            )
+                            logger.warning("Failed to delete expired admin session: %s", sid)
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))
@@ -346,13 +341,9 @@ def create_app() -> Flask:
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = (
-            "camera=(), microphone=(), geolocation=()"
-        )
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if not current_app.debug:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             f"default-src 'self'; "
             f"style-src 'self' 'nonce-{nonce}'; "
@@ -451,8 +442,7 @@ def create_app() -> Flask:
                 row = result.scalar()
                 if row != "ok":
                     logger.warning(
-                        "Database integrity check failed: %s. "
-                        "Consider restoring from backup.",
+                        "Database integrity check failed: %s. Consider restoring from backup.",
                         row,
                     )
                 else:
@@ -468,6 +458,7 @@ def create_app() -> Flask:
 
     from app.page_view_buffer import init_page_view_buffer  # noqa: E402
     from app.models import PageView  # noqa: E402
+
     init_page_view_buffer(db, PageView)
 
     from app.cli import register_cli_commands  # noqa: E402
@@ -475,6 +466,7 @@ def create_app() -> Flask:
     register_cli_commands(app)
 
     from app.vite import init_vite  # noqa: E402
+
     init_vite(app)
 
     @app.shell_context_processor

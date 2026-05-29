@@ -42,9 +42,7 @@ def validate_csrf_token() -> None:
     Checks if the submitted token is in the valid set. If valid, removes it
     from the set (preventing replay) and generates a new token (rotation).
     """
-    if current_app.config.get("TESTING") and not current_app.config.get(
-        "CSRF_ENABLED", True
-    ):
+    if current_app.config.get("TESTING") and not current_app.config.get("CSRF_ENABLED", True):
         return
 
     token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")

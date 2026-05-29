@@ -110,7 +110,8 @@ def verify_backup_set(backup_dir: Path, expected_count: Optional[int] = None) ->
         [
             f
             for f in backup_dir.iterdir()
-            if f.is_file() and (f.name.startswith("blog_") and (f.suffix == ".db" or f.suffixes == [".db", ".gz"]))
+            if f.is_file()
+            and (f.name.startswith("blog_") and (f.suffix == ".db" or f.suffixes == [".db", ".gz"]))
         ],
         key=lambda x: x.stat().st_mtime,
         reverse=True,

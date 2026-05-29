@@ -25,15 +25,18 @@ def analytics() -> Response:
 
     data = _get_analytics_data(days)
 
-    return cast(Response, render_template(
-        "admin/analytics.html",
-        days=days,
-        daily_views=data["daily_views"],
-        total_views=data["total_views"],
-        top_posts=data["top_posts"],
-        share_platforms=data["share_platforms"],
-        share_counts=data["share_counts_analytics"],
-        referrer_summary=data["referrer_summary"],
-        total_subscribers=data["total_subscribers"],
-        confirmed_subscribers=data["confirmed_subscribers"],
-    ))
+    return cast(
+        Response,
+        render_template(
+            "admin/analytics.html",
+            days=days,
+            daily_views=data["daily_views"],
+            total_views=data["total_views"],
+            top_posts=data["top_posts"],
+            share_platforms=data["share_platforms"],
+            share_counts=data["share_counts_analytics"],
+            referrer_summary=data["referrer_summary"],
+            total_subscribers=data["total_subscribers"],
+            confirmed_subscribers=data["confirmed_subscribers"],
+        ),
+    )

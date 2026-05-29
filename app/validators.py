@@ -23,6 +23,7 @@ def validate_email(value: str, max_length: int = 256) -> tuple:
     if len(value) > max_length:
         return "", f"email exceeds {max_length} chars"
     from app.utils import is_valid_email
+
     if not is_valid_email(value):
         return "", "Invalid email format"
     return value, None
@@ -182,9 +183,7 @@ def require_json_content_type(f: Callable) -> Callable:
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not request.is_json:
-            return jsonify({
-                "error": "Content-Type must be application/json"
-            }), 415
+            return jsonify({"error": "Content-Type must be application/json"}), 415
         return f(*args, **kwargs)
 
     return decorated_function

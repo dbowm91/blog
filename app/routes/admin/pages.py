@@ -1,7 +1,6 @@
 from __future__ import annotations
-from flask import render_template, redirect, url_for, request, flash, abort, Response
+from flask import render_template, redirect, url_for, request, flash, abort
 from flask.typing import ResponseReturnValue
-from typing import Union
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -58,9 +57,7 @@ def new_page() -> ResponseReturnValue:
 
     if slug:
         slug = generate_slug(slug)
-        existing = db.session.execute(
-            select(Page).filter_by(slug=slug)
-        ).scalar_one_or_none()
+        existing = db.session.execute(select(Page).filter_by(slug=slug)).scalar_one_or_none()
         if existing:
             errors["slug"] = "A page with this slug already exists."
     else:
@@ -76,7 +73,7 @@ def new_page() -> ResponseReturnValue:
         published=published,
     )
     db.session.add(page)
-    
+
     max_attempts = 100
     for attempt in range(max_attempts):
         try:

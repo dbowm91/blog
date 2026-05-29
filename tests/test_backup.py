@@ -1,8 +1,6 @@
 import os
-import gzip
 import pytest
-from unittest.mock import patch
-from app.models import User, Post
+from app.models import Post
 from app.utils import utc_now
 
 
@@ -14,25 +12,17 @@ def test_backup_creation_uncompressed(app, db, authenticated_client):
 
     backup_dir = os.path.join(app.instance_path, "backups")
     assert os.path.isdir(backup_dir)
-    files = [
-        f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")
-    ]
+    files = [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     assert len(files) >= 1
 
 
 def test_backup_creation_compressed(app, db, authenticated_client):
     """Test creating a compressed backup."""
-    response = authenticated_client.post(
-        "/admin/backup/create", data={"compress": "on"}
-    )
+    response = authenticated_client.post("/admin/backup/create", data={"compress": "on"})
     assert response.status_code == 302
 
     backup_dir = os.path.join(app.instance_path, "backups")
-    files = [
-        f
-        for f in os.listdir(backup_dir)
-        if f.startswith("blog_") and f.endswith(".db.gz")
-    ]
+    files = [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     assert len(files) >= 1
 
 
@@ -49,11 +39,7 @@ def test_backup_download_uncompressed(app, db, authenticated_client):
 
     backup_dir = os.path.join(app.instance_path, "backups")
     files = sorted(
-        [
-            f
-            for f in os.listdir(backup_dir)
-            if f.startswith("blog_") and f.endswith(".db")
-        ]
+        [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     )
     if not files:
         pytest.skip("No uncompressed backup created in time")
@@ -69,11 +55,7 @@ def test_backup_download_compressed(app, db, authenticated_client):
 
     backup_dir = os.path.join(app.instance_path, "backups")
     files = sorted(
-        [
-            f
-            for f in os.listdir(backup_dir)
-            if f.startswith("blog_") and f.endswith(".db.gz")
-        ]
+        [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     )
     if not files:
         pytest.skip("No compressed backup created in time")
@@ -126,11 +108,7 @@ def test_backup_restore(app, db, authenticated_client, admin_user):
 
     backup_dir = os.path.join(app.instance_path, "backups")
     files = sorted(
-        [
-            f
-            for f in os.listdir(backup_dir)
-            if f.startswith("blog_") and f.endswith(".db")
-        ]
+        [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     )
     if not files:
         pytest.skip("No backup created")
@@ -163,11 +141,7 @@ def test_backup_restore_compressed(app, db, authenticated_client, admin_user):
 
     backup_dir = os.path.join(app.instance_path, "backups")
     files = sorted(
-        [
-            f
-            for f in os.listdir(backup_dir)
-            if f.startswith("blog_") and f.endswith(".db.gz")
-        ]
+        [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     )
     if not files:
         pytest.skip("No compressed backup created")
@@ -228,7 +202,7 @@ def test_backup_delete_nonexistent(app, db, authenticated_client):
 
 def test_backup_retention_policy(app, db):
     """Test that old backups are cleaned up when retention limit is exceeded."""
-    from app.services.backup import create_backup, cleanup_old_backups
+    from app.services.backup import create_backup
 
     backup_dir = os.path.join(app.instance_path, "backups")
     os.makedirs(backup_dir, exist_ok=True)
@@ -239,7 +213,5 @@ def test_backup_retention_policy(app, db):
     for _ in range(5):
         create_backup(db_path, backup_dir, compress=False, keep=keep)
 
-    files = [
-        f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")
-    ]
+    files = [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     assert len(files) <= keep

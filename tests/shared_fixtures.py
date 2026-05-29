@@ -1,4 +1,5 @@
 """Shared test fixtures."""
+
 import pytest
 from app.page_view_buffer import shutdown_page_view_buffer
 import app.config as _app_config

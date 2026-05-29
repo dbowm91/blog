@@ -12,10 +12,16 @@ export default defineConfig({
         main: resolve(__dirname, 'app/static/js/main.js'),
       },
       output: {
-        manualChunks: {
-          'vendor': ['prism.min.js', 'prism-languages.js'],
-          'admin': resolve(__dirname, 'app/static/js/admin/editor.js'),
-          'public': resolve(__dirname, 'app/static/js/public/search.js'),
+        manualChunks(id) {
+          if (id.includes('prism.min.js') || id.includes('prism-languages.js')) {
+            return 'vendor';
+          }
+          if (id.includes('/admin/editor.js')) {
+            return 'admin';
+          }
+          if (id.includes('/public/search.js')) {
+            return 'public';
+          }
         },
       },
     },
@@ -35,7 +41,6 @@ export default defineConfig({
         '.svg': 'text',
       },
       target: ['chrome100', 'edge100', 'firefox100', 'safari15'],
-      include: [],
     },
   },
 });

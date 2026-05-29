@@ -1,7 +1,7 @@
 {
-  "name": "blog-cms",
+  "name": "devlog",
   "version": "1.0.0",
-  "description": "Blog CMS - Flask backend with vanilla JS frontend",
+  "description": "DevLog - A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytics, and admin-managed content.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

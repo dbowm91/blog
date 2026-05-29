@@ -26,9 +26,11 @@ def audit_log() -> Union[Response, str, tuple[Union[Response, str], int]]:
     page = request.args.get("page", 1, type=int)
     action_filter = request.args.get("action", "").strip()
 
-    query = select(AdminAuditLog).options(
-        joinedload(cast(QueryableAttribute, AdminAuditLog.actor))
-    ).order_by(AdminAuditLog.timestamp.desc())
+    query = (
+        select(AdminAuditLog)
+        .options(joinedload(cast(QueryableAttribute, AdminAuditLog.actor)))
+        .order_by(AdminAuditLog.timestamp.desc())
+    )
 
     if action_filter:
         query = query.filter(AdminAuditLog.action == action_filter)
@@ -36,9 +38,11 @@ def audit_log() -> Union[Response, str, tuple[Union[Response, str], int]]:
     pagination = db.paginate(query, page=page, per_page=50, error_out=False)
     entries = pagination.items
 
-    actions = db.session.execute(
-        select(AdminAuditLog.action).distinct().order_by(AdminAuditLog.action)
-    ).scalars().all()
+    actions = (
+        db.session.execute(select(AdminAuditLog.action).distinct().order_by(AdminAuditLog.action))
+        .scalars()
+        .all()
+    )
 
     return render_template(
         "admin/audit.html",

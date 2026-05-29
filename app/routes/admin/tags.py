@@ -1,7 +1,6 @@
 from __future__ import annotations
-from flask import render_template, redirect, url_for, request, flash, abort, Response
+from flask import render_template, redirect, url_for, request, flash, abort
 from flask.typing import ResponseReturnValue
-from typing import Union
 
 from app.extensions import db
 from app.models import Tag
@@ -32,9 +31,7 @@ def tags_list() -> ResponseReturnValue:
     ).all()
     tags = [row[0] for row in rows]
     tag_post_counts = {row[0].id: row[1] for row in rows}
-    return render_template(
-        "admin/tags.html", tags=tags, tag_post_counts=tag_post_counts
-    )
+    return render_template("admin/tags.html", tags=tags, tag_post_counts=tag_post_counts)
 
 
 @admin.route("/tags/rename/<int:tag_id>", methods=["POST"])
@@ -77,9 +74,7 @@ def rename_tag(tag_id) -> ResponseReturnValue:
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.tags_list"))
     invalidate_tag_cache()
-    logger.info(
-        "Tag renamed: id=%d old_name=%s new_name=%s", tag_id, old_name, new_name
-    )
+    logger.info("Tag renamed: id=%d old_name=%s new_name=%s", tag_id, old_name, new_name)
     flash(f"Tag renamed to '{new_name}'.", "success")
     return redirect(url_for("admin.tags_list"))
 

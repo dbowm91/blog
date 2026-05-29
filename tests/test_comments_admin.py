@@ -1,6 +1,4 @@
-import pytest
-from app.models import Comment, Post
-from app.utils import utc_now
+from app.models import Comment
 
 
 def test_comments_list_authenticated(authenticated_client, db, sample_post):
@@ -11,7 +9,7 @@ def test_comments_list_authenticated(authenticated_client, db, sample_post):
         author_name="Test Author",
         author_email="test@example.com",
         content="Test comment",
-        approved=False
+        approved=False,
     )
     db.session.add(comment)
     db.session.commit()
@@ -28,14 +26,14 @@ def test_comments_list_filter_approved(authenticated_client, db, sample_post):
         author_name="Author1",
         author_email="a1@example.com",
         content="Approved comment",
-        approved=True
+        approved=True,
     )
     comment2 = Comment(
         post_id=sample_post.id,
         author_name="Author2",
         author_email="a2@example.com",
         content="Unapproved comment",
-        approved=False
+        approved=False,
     )
     db.session.add_all([comment1, comment2])
     db.session.commit()
@@ -53,14 +51,14 @@ def test_comments_list_filter_unapproved(authenticated_client, db, sample_post):
         author_name="Author1",
         author_email="a1@example.com",
         content="Approved comment",
-        approved=True
+        approved=True,
     )
     comment2 = Comment(
         post_id=sample_post.id,
         author_name="Author2",
         author_email="a2@example.com",
         content="Unapproved comment",
-        approved=False
+        approved=False,
     )
     db.session.add_all([comment1, comment2])
     db.session.commit()
@@ -78,13 +76,12 @@ def test_approve_comment(authenticated_client, db, sample_post):
         author_name="Test Author",
         author_email="test@example.com",
         content="Test comment",
-        approved=False
+        approved=False,
     )
     db.session.add(comment)
     db.session.commit()
     response = authenticated_client.post(
-        f"/admin/comments/{comment.id}/approve",
-        follow_redirects=True
+        f"/admin/comments/{comment.id}/approve", follow_redirects=True
     )
     assert response.status_code == 200
     assert b"Comment approved" in response.data
@@ -95,10 +92,7 @@ def test_approve_comment(authenticated_client, db, sample_post):
 
 def test_approve_comment_not_found(authenticated_client):
     """Test approving non-existent comment returns 404."""
-    response = authenticated_client.post(
-        "/admin/comments/999/approve",
-        follow_redirects=True
-    )
+    response = authenticated_client.post("/admin/comments/999/approve", follow_redirects=True)
     assert response.status_code == 404
 
 
@@ -109,28 +103,22 @@ def test_delete_comment(authenticated_client, db, sample_post):
         author_name="Test Author",
         author_email="test@example.com",
         content="Test comment",
-        approved=False
+        approved=False,
     )
     db.session.add(comment)
     db.session.commit()
     response = authenticated_client.post(
-        f"/admin/comments/{comment.id}/delete",
-        follow_redirects=True
+        f"/admin/comments/{comment.id}/delete", follow_redirects=True
     )
     assert response.status_code == 200
     assert b"Comment deleted" in response.data
-    deleted = db.session.execute(
-        db.select(Comment).filter_by(id=comment.id)
-    ).scalar_one_or_none()
+    deleted = db.session.execute(db.select(Comment).filter_by(id=comment.id)).scalar_one_or_none()
     assert deleted is None
 
 
 def test_delete_comment_not_found(authenticated_client):
     """Test deleting non-existent comment returns 404."""
-    response = authenticated_client.post(
-        "/admin/comments/999/delete",
-        follow_redirects=True
-    )
+    response = authenticated_client.post("/admin/comments/999/delete", follow_redirects=True)
     assert response.status_code == 404
 
 
@@ -176,8 +164,7 @@ def test_approve_spam_comment(authenticated_client, db, sample_post):
     db.session.add(comment)
     db.session.commit()
     response = authenticated_client.post(
-        f"/admin/comments/{comment.id}/approve",
-        follow_redirects=True
+        f"/admin/comments/{comment.id}/approve", follow_redirects=True
     )
     assert response.status_code == 200
     db.session.expire(comment)

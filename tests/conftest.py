@@ -1,5 +1,4 @@
 import os
-import shutil
 import pytest
 from tests.shared_fixtures import *
 from unittest.mock import patch, MagicMock
@@ -18,7 +17,9 @@ from app.utils import utc_now
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -38,13 +39,16 @@ def app(tmp_path_factory):
     )
     # Disable page view buffer in tests
     import app.config as _app_config
+
     _app_config.PAGE_VIEW_BUFFER_SIZE = 0
     # Stop any running buffer
     from app.page_view_buffer import shutdown_page_view_buffer
+
     shutdown_page_view_buffer()
 
     # Configure Celery to run tasks eagerly (synchronously) in tests
     from celery import current_app as celery_app
+
     celery_app.conf.update(
         task_always_eager=True,
         task_eager_propagates=True,
@@ -56,6 +60,7 @@ def app(tmp_path_factory):
 @dataclass
 class FakeSubscriber:
     """Test fixture for newsletter testing without real subscribers."""
+
     email: str
     token: str = "test"
     confirmed: bool = True
@@ -88,9 +93,7 @@ def client(app, db):
 @pytest.fixture(scope="function")
 def admin_user(db):
     """Create an admin user."""
-    existing = db.session.execute(
-        db.select(User).filter_by(username="admin")
-    ).scalar_one_or_none()
+    existing = db.session.execute(db.select(User).filter_by(username="admin")).scalar_one_or_none()
     if existing:
         return existing
     user = User(username="admin", email="admin@example.com", is_admin=True)
@@ -142,6 +145,7 @@ def sample_tag(db):
 def sample_subscriber(db):
     """Create a sample confirmed subscriber."""
     from app.models import Subscriber
+
     sub = Subscriber(email="test@example.com", confirmed=True)
     db.session.add(sub)
     db.session.commit()
@@ -159,7 +163,6 @@ def mock_render():
 @pytest.fixture(scope="function")
 def mock_smtp():
     """Mock SMTP connection and sendmail for email tests."""
-    import smtplib
     mock_server = MagicMock()
     mock_server.sendmail = MagicMock()
     mock_server.quit = MagicMock()
@@ -187,7 +190,7 @@ def clean_analytics_cache():
 def cleanup_uploads():
     """Clean up uploads directory after all tests in session."""
     yield
-    upload_folder = os.path.join(os.path.dirname(__file__), '..', 'app', 'static', 'uploads')
+    upload_folder = os.path.join(os.path.dirname(__file__), "..", "app", "static", "uploads")
     if os.path.exists(upload_folder):
         for item in os.listdir(upload_folder):
             item_path = os.path.join(upload_folder, item)

@@ -25,17 +25,14 @@ WEBHOOK_TIMEOUT = 10
 
 class WebhookDeliveryError(Exception):
     """Raised when webhook delivery fails."""
+
     pass
 
 
 def sign_webhook_payload(payload: Dict[str, Any], secret: str) -> str:
     """Generate HMAC-SHA256 signature for webhook payload."""
     payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
-    signature = hmac.new(
-        secret.encode("utf-8"),
-        payload_bytes,
-        hashlib.sha256
-    ).hexdigest()
+    signature = hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
     return f"sha256={signature}"
 
 
@@ -55,10 +52,11 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> T
         A tuple of (success: bool, message: str)
     """
     import warnings
+
     warnings.warn(
         "deliver_webhook() is deprecated. Use deliver_webhook_task instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     import requests
     from app.utils import is_safe_webhook_url
@@ -109,6 +107,7 @@ def create_webhook_event(
 
     try:
         from app.tasks import deliver_webhook_task
+
         deliver_webhook_task.delay(event_id)
     except (RequestException, ValueError, OSError) as e:
         logger.error("Failed to queue webhook event %d for delivery: %s", event_id, e)

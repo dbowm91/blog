@@ -148,6 +148,7 @@
             if (isOpen) searchForm.querySelector('input').focus();
         });
     </script>
+    <script src="{{ url_for('static', filename='js/lib/marked.min.js') }}" nonce="{{ csp_nonce }}"></script>
     <script defer src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>

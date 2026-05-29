@@ -55,9 +55,7 @@ def client(app, db):
 @pytest.fixture(scope="function")
 def admin_user(db):
     """Create an admin user."""
-    existing = db.session.execute(
-        db.select(User).filter_by(username="admin")
-    ).scalar_one_or_none()
+    existing = db.session.execute(db.select(User).filter_by(username="admin")).scalar_one_or_none()
     if existing:
         return existing
     user = User(username="admin", is_admin=True)

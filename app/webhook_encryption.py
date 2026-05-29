@@ -4,7 +4,6 @@ import binascii
 import base64
 import os
 import logging
-from typing import Optional
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -16,6 +15,7 @@ KEY_SIZE = 32
 
 class WebhookEncryptionError(Exception):
     """Raised when encryption or decryption fails."""
+
     pass
 
 
@@ -46,9 +46,7 @@ def _get_encryption_key() -> bytes:
         try:
             return binascii.unhexlify(key)
         except (binascii.Error, ValueError) as e:
-            raise WebhookEncryptionError(
-                f"WEBHOOK_ENCRYPTION_KEY is not valid hex: {e}"
-            )
+            raise WebhookEncryptionError(f"WEBHOOK_ENCRYPTION_KEY is not valid hex: {e}")
 
     if len(key) != KEY_SIZE:
         raise WebhookEncryptionError(

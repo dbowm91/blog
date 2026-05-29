@@ -33,14 +33,10 @@ def _post_to_dict(post: Post) -> dict:
         "published": post.published,
         "published_at": post.published_at.isoformat() if post.published_at else None,
         "scheduled_publish_at": (
-            post.scheduled_publish_at.isoformat()
-            if post.scheduled_publish_at
-            else None
+            post.scheduled_publish_at.isoformat() if post.scheduled_publish_at else None
         ),
         "newsletter_sent_at": (
-            post.newsletter_sent_at.isoformat()
-            if post.newsletter_sent_at
-            else None
+            post.newsletter_sent_at.isoformat() if post.newsletter_sent_at else None
         ),
         "newsletter_attempts": post.newsletter_attempts,
         "tags": [tag.name for tag in cast(list[Tag], post.tags)],
@@ -65,7 +61,11 @@ def list_posts() -> Any:
     per_page = min(request.args.get("per_page", 20, type=int), 100)
     published_filter = request.args.get("published")
 
-    query = select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).order_by(Post.created_at.desc())
+    query = (
+        select(Post)
+        .options(joinedload(cast(QueryableAttribute, Post.tags)))
+        .order_by(Post.created_at.desc())
+    )
 
     if published_filter is not None:
         published_val = published_filter.lower() in ("true", "1", "yes")
@@ -93,9 +93,15 @@ def get_post(post_id: int) -> Any:
     Returns:
         JSON with post data or 404 error
     """
-    post = db.session.execute(
-        select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
-    ).unique().scalar_one_or_none()
+    post = (
+        db.session.execute(
+            select(Post)
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
+            .filter(Post.id == post_id)
+        )
+        .unique()
+        .scalar_one_or_none()
+    )
     if not post:
         return jsonify({"error": "Post not found"}), 404
 
@@ -181,7 +187,7 @@ def create_post() -> Any:
     if tags:
         from app.routes.admin.helpers.tags import _get_or_create_tags
 
-        setattr(post, 'tags', _get_or_create_tags(tags))
+        setattr(post, "tags", _get_or_create_tags(tags))
 
     db.session.add(post)
     db.session.flush()
@@ -222,9 +228,15 @@ def update_post(post_id: int) -> Any:
     Returns:
         JSON with updated post data or 404 error
     """
-    post = db.session.execute(
-        select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
-    ).unique().scalar_one_or_none()
+    post = (
+        db.session.execute(
+            select(Post)
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
+            .filter(Post.id == post_id)
+        )
+        .unique()
+        .scalar_one_or_none()
+    )
     if not post:
         return jsonify({"error": "Post not found"}), 404
 
@@ -272,7 +284,7 @@ def update_post(post_id: int) -> Any:
     if "tags" in data:
         from app.routes.admin.helpers.tags import _get_or_create_tags
 
-        setattr(post, 'tags', _get_or_create_tags(data["tags"]))
+        setattr(post, "tags", _get_or_create_tags(data["tags"]))
 
     from app.search import sync_fts
 
@@ -292,11 +304,12 @@ def update_post(post_id: int) -> Any:
     if "published" in data and was_published != post.published:
         try:
             from app.webhooks import create_webhook_event
+
             create_webhook_event(
                 event_type="post.published" if post.published else "post.unpublished",
                 payload={"post_id": post.id, "title": post.title, "slug": post.slug},
                 target_id=post.id,
-                target_type="post"
+                target_type="post",
             )
         except Exception:
             pass
@@ -313,9 +326,15 @@ def delete_post(post_id: int) -> Any:
     Returns:
         JSON with success message or 404 error
     """
-    post = db.session.execute(
-        select(Post).options(joinedload(cast(QueryableAttribute, Post.tags))).filter(Post.id == post_id)
-    ).unique().scalar_one_or_none()
+    post = (
+        db.session.execute(
+            select(Post)
+            .options(joinedload(cast(QueryableAttribute, Post.tags)))
+            .filter(Post.id == post_id)
+        )
+        .unique()
+        .scalar_one_or_none()
+    )
     if not post:
         return jsonify({"error": "Post not found"}), 404
 

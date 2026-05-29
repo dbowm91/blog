@@ -6,17 +6,14 @@ import gzip
 import tempfile
 from datetime import datetime, timezone
 
-from flask import (
-    render_template, redirect, url_for, request, flash, send_file, abort, current_app, Response
-)
+from flask import render_template, redirect, url_for, request, flash, send_file, abort, current_app
 from flask.typing import ResponseReturnValue
-from typing import Union
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _get_backup_dir
 from app.utils import safe_delete_file
-from app.routes.admin.helpers.shared import BACKUP_FILENAME_RE, validate_backup_filename
+from app.routes.admin.helpers.shared import validate_backup_filename
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -139,6 +136,7 @@ def restore_backup(filename) -> ResponseReturnValue:
     if is_encrypted:
         try:
             from app.backup_encryption import decrypt_backup_file
+
             with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
                 tmp_path = tmp.name
             success = decrypt_backup_file(real_path, tmp_path)

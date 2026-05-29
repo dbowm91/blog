@@ -28,14 +28,10 @@ def _get_analytics_data(days: int) -> dict[str, Any]:
     )
 
     daily_views = db.session.execute(
-        select(daily_views_cte.c.date, daily_views_cte.c.views).order_by(
-            daily_views_cte.c.date
-        )
+        select(daily_views_cte.c.date, daily_views_cte.c.views).order_by(daily_views_cte.c.date)
     ).all()
 
-    total_views = (
-        db.session.execute(select(func.sum(daily_views_cte.c.views))).scalar_one() or 0
-    )
+    total_views = db.session.execute(select(func.sum(daily_views_cte.c.views))).scalar_one() or 0
 
     top_posts_cte = (
         select(
@@ -90,9 +86,7 @@ def _get_analytics_data(days: int) -> dict[str, Any]:
     confirmed_subscribers = subscriber_stats[1] or 0
 
     share_platforms = db.session.execute(
-        select(ShareEvent.platform, func.count(ShareEvent.id)).group_by(
-            ShareEvent.platform
-        )
+        select(ShareEvent.platform, func.count(ShareEvent.id)).group_by(ShareEvent.platform)
     ).all()
 
     return {

@@ -3,7 +3,6 @@ import threading
 from asgiref.wsgi import WsgiToAsgi
 from app import create_app
 from app.config import SERVER_HOST, SERVER_PORT, DEBUG
-from app.scheduler import get_scheduler_status
 
 app = create_app()
 asgi_app = WsgiToAsgi(app)
@@ -16,6 +15,7 @@ def _get_scheduler():
     global _scheduler
     if _scheduler is None:
         from app.scheduler import init_scheduler
+
         _scheduler = init_scheduler(app)
     return _scheduler
 
@@ -23,6 +23,7 @@ def _get_scheduler():
 def _shutdown_handler(signum, frame):
     """Handle SIGTERM for graceful shutdown."""
     import logging
+
     logger = logging.getLogger(__name__)
 
     if _shutdown_event.is_set():
@@ -39,9 +40,11 @@ def _shutdown_handler(signum, frame):
         logger.info("Scheduler stopped")
 
     from app.page_view_buffer import shutdown_page_view_buffer
+
     shutdown_page_view_buffer()
 
     from app.extensions import db
+
     logger.info("Closing database connections")
     db.engine.dispose()
     logger.info("Database connections closed")

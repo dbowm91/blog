@@ -161,6 +161,7 @@
     </script>
     <script defer src="{{ vite_asset('js/prism.min.js') }}"></script>
     <script defer src="{{ vite_asset('js/prism-languages.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/lib/marked.min.js') }}" nonce="{{ csp_nonce }}"></script>
     <script defer src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>

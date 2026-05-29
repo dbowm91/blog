@@ -21,9 +21,7 @@ from app.config import (
 logger = logging.getLogger(__name__)
 
 
-def _send_email(
-    to: str, subject: str, html_body: str, text_body: Optional[str] = None
-) -> None:
+def _send_email(to: str, subject: str, html_body: str, text_body: Optional[str] = None) -> None:
     msg = MIMEMultipart("alternative")
     msg["From"] = FROM_ADDRESS
     msg["To"] = to
@@ -57,9 +55,7 @@ def send_confirmation(subscriber: Any) -> None:
         f"Click this link to confirm: {BASE_URL}/confirm/{subscriber.token}\n\n"
         f"If you didn't request this, you can unsubscribe: {unsub_url}"
     )
-    _send_email(
-        subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text
-    )
+    _send_email(subscriber.email, f"Confirm your subscription to {APP_TITLE}", html, text)
 
 
 def send_password_reset(user: Any, token: str) -> None:
@@ -91,7 +87,13 @@ def _connect_smtp() -> Optional[smtplib.SMTP]:
         if SMTP_USER:
             server.login(SMTP_USER, SMTP_PASSWORD)
         return server
-    except (smtplib.SMTPAuthenticationError, smtplib.SMTPConnectError, smtplib.SMTPSenderRefused, smtplib.SMTPException, OSError):
+    except (
+        smtplib.SMTPAuthenticationError,
+        smtplib.SMTPConnectError,
+        smtplib.SMTPSenderRefused,
+        smtplib.SMTPException,
+        OSError,
+    ):
         logger.exception("Failed to connect to SMTP server")
         if server is not None:
             try:
@@ -130,7 +132,14 @@ def _send_email_with_retry(
                         last_error = "SMTP reconnection failed"
                         break
                     server = new_server
-                except (smtplib.SMTPAuthenticationError, smtplib.SMTPConnectError, smtplib.SMTPSenderRefused, smtplib.SMTPException, smtplib.SMTPServerDisconnected, OSError):
+                except (
+                    smtplib.SMTPAuthenticationError,
+                    smtplib.SMTPConnectError,
+                    smtplib.SMTPSenderRefused,
+                    smtplib.SMTPException,
+                    smtplib.SMTPServerDisconnected,
+                    OSError,
+                ):
                     last_error = "SMTP reconnection failed"
                     break
         except smtplib.SMTPException as e:
@@ -140,7 +149,9 @@ def _send_email_with_retry(
     return False, last_error, server
 
 
-def send_newsletter(posts: list[Any], subscribers: Any, total_subscribers: Optional[int] = None) -> bool:
+def send_newsletter(
+    posts: list[Any], subscribers: Any, total_subscribers: Optional[int] = None
+) -> bool:
     """Send newsletter to all subscribers.
 
     Args:
@@ -171,9 +182,7 @@ def send_newsletter(posts: list[Any], subscribers: Any, total_subscribers: Optio
     )
     pre_rendered_text = (
         f"Latest from {APP_TITLE}\n\n"
-        + "\n\n".join(
-            f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}" for p in posts
-        )
+        + "\n\n".join(f"{p.title}\n{BASE_URL}/post/{p.slug}\n{p.summary}" for p in posts)
         + f"\n\nUnsubscribe: {unsub_placeholder}"
     )
 
@@ -193,20 +202,23 @@ def send_newsletter(posts: list[Any], subscribers: Any, total_subscribers: Optio
             msg.attach(MIMEText(html, "html"))
 
             success, error, server = _send_email_with_retry(
-                server, FROM_ADDRESS, sub.email, msg.as_string(),
-                max_retries=NEWSLETTER_MAX_RETRY_ATTEMPTS
+                server,
+                FROM_ADDRESS,
+                sub.email,
+                msg.as_string(),
+                max_retries=NEWSLETTER_MAX_RETRY_ATTEMPTS,
             )
             if not success:
                 logger.warning(
                     "Failed to send newsletter to %s after %d attempts: %s",
-                    sub.email, NEWSLETTER_MAX_RETRY_ATTEMPTS, error
+                    sub.email,
+                    NEWSLETTER_MAX_RETRY_ATTEMPTS,
+                    error,
                 )
                 all_sent = False
 
             if total_subscribers and i % 50 == 0:
-                logger.info(
-                    "Newsletter progress: %d/%d sent", i, total_subscribers
-                )
+                logger.info("Newsletter progress: %d/%d sent", i, total_subscribers)
     finally:
         if server:
             try:

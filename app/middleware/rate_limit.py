@@ -7,7 +7,7 @@ Provides configurable rate limits per endpoint type.
 from typing import Callable, Optional
 from functools import wraps
 
-from flask import g, request, has_request_context
+from flask import has_request_context
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -16,7 +16,8 @@ def get_admin_id() -> Optional[str]:
     """Get current admin ID for rate limiting."""
     if has_request_context():
         from flask_login import current_user
-        if current_user.is_authenticated and hasattr(current_user, 'id'):
+
+        if current_user.is_authenticated and hasattr(current_user, "id"):
             return f"admin:{current_user.id}"
     return None
 
@@ -39,12 +40,14 @@ class AdminRateLimiter:
     def limiter(self) -> Limiter:
         if self._limiter is None:
             from app import limiter as app_limiter
+
             return app_limiter
         return self._limiter
 
     def get_limit(self, limit_type: str) -> Optional[tuple[int, int]]:
         """Get limit config for type."""
         from app.config import ADMIN_RATE_LIMITS
+
         return ADMIN_RATE_LIMITS.get(limit_type)
 
     def format_limit(self, limit_type: str) -> Optional[str]:
@@ -65,8 +68,10 @@ class AdminRateLimiter:
             @wraps(f)
             def wrapped(*args, **kwargs):
                 return f(*args, **kwargs)
+
             wrapped.__rate_limit = limit_str
             return wrapped
+
         return decorator
 
 

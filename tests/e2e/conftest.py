@@ -1,7 +1,6 @@
 import os
 import pytest
 from tests.shared_fixtures import *
-from pathlib import Path
 import time
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
@@ -32,12 +31,15 @@ def app_server(app, app_url, tmp_path_factory):
     os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 
     from app.extensions import db
+
     with app.app_context():
         db.create_all()
         from app.search import init_fts
+
         init_fts()
 
         from app.models import User
+
         admin = User(username="admin", is_admin=True)
         admin.set_password("test-password")
         db.session.add(admin)
@@ -46,7 +48,10 @@ def app_server(app, app_url, tmp_path_factory):
     app.config["SERVER_NAME"] = "127.0.0.1:5010"
 
     from threading import Thread
-    thread = Thread(target=lambda: app.run(port=5010, threaded=True, use_reloader=False), daemon=True)
+
+    thread = Thread(
+        target=lambda: app.run(port=5010, threaded=True, use_reloader=False), daemon=True
+    )
     thread.start()
     time.sleep(1)
 

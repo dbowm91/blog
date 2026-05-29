@@ -57,17 +57,15 @@ def list_series() -> Any:
     """
     include_posts = request.args.get("include_posts", "").lower() in ("true", "1", "yes")
 
-    query = (
-        select(Series)
-        .options(joinedload(Series.posts))
-        .order_by(Series.created_at.desc())
-    )
+    query = select(Series).options(joinedload(Series.posts)).order_by(Series.created_at.desc())
     all_series = db.session.execute(query).scalars().unique().all()
 
-    return jsonify({
-        "series": [_series_to_dict(s, include_posts=include_posts) for s in all_series],
-        "total": len(all_series),
-    })
+    return jsonify(
+        {
+            "series": [_series_to_dict(s, include_posts=include_posts) for s in all_series],
+            "total": len(all_series),
+        }
+    )
 
 
 @api.route("/series/<int:series_id>", methods=["GET"])
@@ -83,11 +81,7 @@ def get_series(series_id: int) -> Any:
     Returns:
         JSON with series data or 404 error
     """
-    query = (
-        select(Series)
-        .options(joinedload(Series.posts))
-        .filter(Series.id == series_id)
-    )
+    query = select(Series).options(joinedload(Series.posts)).filter(Series.id == series_id)
     series = db.session.execute(query).scalars().unique().scalar_one_or_none()
     if not series:
         return jsonify({"error": "Series not found"}), 404
@@ -137,9 +131,7 @@ def create_series() -> Any:
     else:
         slug = generate_slug(name)
 
-    existing = db.session.execute(
-        select(Series).filter_by(slug=slug)
-    ).scalar_one_or_none()
+    existing = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one_or_none()
     if existing:
         return jsonify({"error": "A series with this slug already exists"}), 409
 
@@ -239,9 +231,7 @@ def delete_series(series_id: int) -> Any:
     name = series.name
 
     try:
-        db.session.execute(
-            PostSeries.__table__.delete().where(PostSeries.series_id == series_id)
-        )
+        db.session.execute(PostSeries.__table__.delete().where(PostSeries.series_id == series_id))
         db.session.delete(series)
         db.session.commit()
     except IntegrityError:
@@ -300,9 +290,12 @@ def add_post_to_series(series_id: int) -> Any:
         if err:
             return jsonify({"error": err}), 400
     else:
-        max_order = db.session.execute(
-            select(func.max(PostSeries.order_index)).filter_by(series_id=series_id)
-        ).scalar() or 0
+        max_order = (
+            db.session.execute(
+                select(func.max(PostSeries.order_index)).filter_by(series_id=series_id)
+            ).scalar()
+            or 0
+        )
         order_index = max_order + 1
 
     post_series = PostSeries(
@@ -386,7 +379,9 @@ def reorder_series_posts(series_id: int) -> Any:
 
     for item in validated_order:
         if not isinstance(item, dict):
-            return jsonify({"error": "order items must be objects with post_id and order_index"}), 400
+            return jsonify(
+                {"error": "order items must be objects with post_id and order_index"}
+            ), 400
         if "post_id" not in item or "order_index" not in item:
             return jsonify({"error": "each order item must have post_id and order_index"}), 400
 

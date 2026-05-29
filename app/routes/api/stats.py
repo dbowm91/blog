@@ -37,7 +37,7 @@ def get_stats() -> any:
                 (SELECT COUNT(*) FROM page_views WHERE created_at >= :thirty_days_ago) as views_this_month,
                 (SELECT COUNT(*) FROM subscribers WHERE created_at >= :month_start) as new_subscribers_this_month
         """),
-        {"thirty_days_ago": thirty_days_ago, "month_start": month_start}
+        {"thirty_days_ago": thirty_days_ago, "month_start": month_start},
     ).fetchone()
 
     if counts is None:

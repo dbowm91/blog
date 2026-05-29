@@ -6,9 +6,8 @@ from flask import (
     url_for,
     flash,
     abort,
-    Response,
 )
-from typing import cast, Union, Any
+from typing import cast, Any
 from flask_login import current_user
 
 from app.extensions import db

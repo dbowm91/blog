@@ -1,7 +1,6 @@
 from __future__ import annotations
 from flask import redirect, url_for, request, flash, Response, render_template
 from flask.typing import ResponseReturnValue
-from typing import Union
 import smtplib
 
 from app.extensions import db
@@ -16,6 +15,7 @@ from sqlalchemy import select
 
 class FakeSubscriber:
     """Minimal subscriber-like object for test newsletter sending."""
+
     def __init__(self, email: str):
         self.email = email
         self.token = "test"
@@ -35,10 +35,7 @@ def newsletter_test() -> ResponseReturnValue:
     """
     posts: list[Post] = list(
         db.session.execute(
-            select(Post)
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc())
-            .limit(3)
+            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(3)
         )
         .scalars()
         .all()
@@ -50,9 +47,7 @@ def newsletter_test() -> ResponseReturnValue:
     test_email = request.form.get("test_email", "").strip()
     if not test_email:
         test_email = (
-            FROM_ADDRESS.split("<")[-1].rstrip(">")
-            if "<" in FROM_ADDRESS
-            else FROM_ADDRESS
+            FROM_ADDRESS.split("<")[-1].rstrip(">") if "<" in FROM_ADDRESS else FROM_ADDRESS
         )
     if not is_valid_email(test_email):
         flash("Invalid email address.", "error")
@@ -71,26 +66,23 @@ def newsletter_test() -> ResponseReturnValue:
 @admin_required
 def newsletter_preview() -> ResponseReturnValue:
     """Preview the newsletter email with recent posts.
-    
+
     Methods: GET
     Returns: HTML preview of the newsletter email.
     Requires: Admin authentication.
     """
     posts = (
         db.session.execute(
-            select(Post)
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc())
-            .limit(3)
+            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(3)
         )
         .scalars()
         .all()
     )
-    
+
     if not posts:
         flash("No published posts to preview.", "warning")
         return redirect(url_for("admin.dashboard"))
-    
+
     # Render the newsletter email template
     html = render_template(
         "email/newsletter.html",
@@ -99,5 +91,5 @@ def newsletter_preview() -> ResponseReturnValue:
         base_url=BASE_URL,
         unsubscribe_url="#preview-mode",
     )
-    
+
     return Response(html, mimetype="text/html")

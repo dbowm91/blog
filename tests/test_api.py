@@ -9,7 +9,7 @@ os.environ["API_KEY"] = "test-api-key-12345"
 os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 
-from app.models import User, Post, Tag, Subscriber, PageView, ShareEvent
+from app.models import Post, Tag, Subscriber, PageView, ShareEvent
 from app.utils import utc_now
 
 

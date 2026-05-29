@@ -8,7 +8,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - DATABASE_URL=${DATABASE_URL:-}
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI:-}
       # SMTP configuration (also used by APScheduler for newsletter)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_USER=${SMTP_USER:-}
@@ -22,6 +22,8 @@ services:
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-}
       # Health check endpoint secret (optional, for detailed health info)
       - HEALTH_CHECK_SECRET=${HEALTH_CHECK_SECRET:-}
+      # API key for REST API authentication
+      - API_KEY=${API_KEY:-}
       # Number of proxies (for ProxyFix middleware, default: 1)
       - PROXY_COUNT=${PROXY_COUNT:-1}
     volumes:

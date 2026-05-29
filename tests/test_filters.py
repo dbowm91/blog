@@ -1,4 +1,3 @@
-import pytest
 from flask import Flask
 from app.filters import register_filters
 from app.storage import LocalStorageBackend
@@ -10,7 +9,7 @@ def test_markdown_safe_filter():
     """Test markdown_safe_filter."""
     app = Flask(__name__)
     register_filters(app)
-    with app.test_client() as client:
+    with app.test_client():
         # Test with markdown text
         with app.app_context():
             result = app.jinja_env.filters["markdown_safe"]("# Hello\n\nThis is **bold**.")

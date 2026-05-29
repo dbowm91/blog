@@ -75,9 +75,7 @@ def register_cli_commands(app: Any) -> None:
     @click.argument("username")
     def promote_admin_command(username: str) -> None:
         """Promote an existing user to admin (non-interactive)."""
-        user = db.session.execute(
-            select(User).filter_by(username=username)
-        ).scalar_one_or_none()
+        user = db.session.execute(select(User).filter_by(username=username)).scalar_one_or_none()
         if not user:
             click.echo(f"User '{username}' not found.")
             return
@@ -103,25 +101,17 @@ def register_cli_commands(app: Any) -> None:
     @click.argument("output_file")
     def export_data_command(output_file: str) -> None:
         """Export all posts and subscribers as JSON."""
-        from app.services.serialization import (
-            export_data_to_dict
+        from app.services.serialization import export_data_to_dict
+
+        posts = db.session.execute(select(Post).order_by(Post.created_at)).scalars().all()
+
+        subscribers = (
+            db.session.execute(select(Subscriber).order_by(Subscriber.created_at)).scalars().all()
         )
 
-        posts = db.session.execute(
-            select(Post).order_by(Post.created_at)
-        ).scalars().all()
+        tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
 
-        subscribers = db.session.execute(
-            select(Subscriber).order_by(Subscriber.created_at)
-        ).scalars().all()
-
-        tags = db.session.execute(
-            select(Tag).order_by(Tag.name)
-        ).scalars().all()
-
-        pages = db.session.execute(
-            select(Page).order_by(Page.created_at)
-        ).scalars().all()
+        pages = db.session.execute(select(Page).order_by(Page.created_at)).scalars().all()
 
         data = export_data_to_dict(posts, subscribers, tags, pages)
 
@@ -135,8 +125,11 @@ def register_cli_commands(app: Any) -> None:
 
     @app.cli.command("import-data")
     @click.argument("input_file")
-    @click.option("--skip-confirmed/--include-confirmed", default=True,
-                  help="Skip already-confirmed subscribers (default: skip)")
+    @click.option(
+        "--skip-confirmed/--include-confirmed",
+        default=True,
+        help="Skip already-confirmed subscribers (default: skip)",
+    )
     def import_data_command(input_file: str, skip_confirmed: bool) -> None:
         """Import posts, subscribers, tags, and pages from JSON."""
         with open(input_file, encoding="utf-8") as f:
@@ -163,9 +156,7 @@ def register_cli_commands(app: Any) -> None:
         if imported_tags > 0:
             commit_with_rollback()
 
-        tag_cache = {
-            t.slug: t for t in db.session.execute(select(Tag)).scalars().all()
-        }
+        tag_cache = {t.slug: t for t in db.session.execute(select(Tag)).scalars().all()}
 
         for post_data in data.get("posts", []):
             existing = db.session.execute(
@@ -205,7 +196,13 @@ def register_cli_commands(app: Any) -> None:
                     select(Post).filter_by(slug=post_data["slug"])
                 ).scalar_one_or_none()
                 if existing and post_data.get("tags"):
-                    sync_fts(existing.id, existing.title, existing.body, existing.summary, existing.published)
+                    sync_fts(
+                        existing.id,
+                        existing.title,
+                        existing.body,
+                        existing.summary,
+                        existing.published,
+                    )
 
         for subscriber_data in data.get("subscribers", []):
             if skip_confirmed and subscriber_data.get("confirmed"):
@@ -223,13 +220,9 @@ def register_cli_commands(app: Any) -> None:
                 confirmed=subscriber_data.get("confirmed", False),
             )
             if subscriber_data.get("created_at"):
-                subscriber.created_at = datetime.fromisoformat(
-                    subscriber_data["created_at"]
-                )
+                subscriber.created_at = datetime.fromisoformat(subscriber_data["created_at"])
             if subscriber_data.get("expires_at"):
-                subscriber.expires_at = datetime.fromisoformat(
-                    subscriber_data["expires_at"]
-                )
+                subscriber.expires_at = datetime.fromisoformat(subscriber_data["expires_at"])
             if subscriber_data.get("unsubscribed_at"):
                 subscriber.unsubscribed_at = datetime.fromisoformat(
                     subscriber_data["unsubscribed_at"]
@@ -290,7 +283,7 @@ def register_cli_commands(app: Any) -> None:
 
         sample_users = []
         for i in range(3):
-            user = User(username=f"author{i+1}", is_admin=False)
+            user = User(username=f"author{i + 1}", is_admin=False)
             user.set_password("Password123!")
             db.session.add(user)
             sample_users.append(user)
@@ -299,17 +292,17 @@ def register_cli_commands(app: Any) -> None:
 
         for i in range(posts):
             post = Post(
-                title=f"Sample Post {i+1}: Testing the Blog",
-                slug=f"sample-post-{i+1}",
-                body=f"# Sample Post {i+1}\n\nThis is sample content for post {i+1}. "
+                title=f"Sample Post {i + 1}: Testing the Blog",
+                slug=f"sample-post-{i + 1}",
+                body=f"# Sample Post {i + 1}\n\nThis is sample content for post {i + 1}. "
                 f"It contains multiple paragraphs to simulate real content.\n\n"
-                f"## Section {i+1}.1\n\n"
+                f"## Section {i + 1}.1\n\n"
                 f"Here is some more content with a code example:\n\n"
                 f"```python\nprint('Hello, World!')\n```\n\n"
-                f"## Section {i+1}.2\n\n"
+                f"## Section {i + 1}.2\n\n"
                 f"More content here with a list:\n\n"
                 f"- Item 1\n- Item 2\n- Item 3\n",
-                summary=f"This is a summary for sample post {i+1}",
+                summary=f"This is a summary for sample post {i + 1}",
                 published=published,
                 published_at=utc_now() if published else None,
             )
@@ -327,7 +320,7 @@ def register_cli_commands(app: Any) -> None:
 
         for i in range(subscribers):
             subscriber = Subscriber(
-                email=f"subscriber{i+1}@example.com",
+                email=f"subscriber{i + 1}@example.com",
                 token=uuid.uuid4().hex,
                 confirmed=True,
             )
