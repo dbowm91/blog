@@ -18,7 +18,23 @@ architecture, review, documentation, verify, cross-reference
 
 ## Status
 
-Wave O completed (May 2026). Waves A-F completed (May 22, 2026). Wave 1 (consolidated plan) completed (May 28, 2026). All architecture documentation fixes verified.
+Architecture review completed (May 29, 2026). All 3 phases done: 8 module reviews (Phase 1), overview cross-reference (Phase 2), stale pruning (Phase 3). Findings in `plans/`.
+
+### Architecture Review Completion (May 29, 2026)
+Full architecture review completed across 3 phases:
+- **Phase 1**: 8 module reviews (Core, Routes, Services, Tasks, Infrastructure, Frontend, Deployment, Testing)
+- **Phase 2**: Overview cross-reference review
+- **Phase 3**: Stale item pruning (0 prune candidates, 8 docs need minor fixes, 26 fine as-is)
+
+Key findings:
+- **Core**: ApiToken model missing from docs, Comment model missing spam fields, 12+ config settings undocumented
+- **Routes**: 18+ API endpoints undocumented (tags, pages, series), scoped token auth system missing, backup route paths wrong
+- **Services**: Line number drift in search.md (-1 to -7), tag_cache.md drift, _SQLITE_MAX_VARS misrepresented
+- **Tasks**: deliver_webhook_task retry behavior outdated (dispatches to deliver_single_webhook_task which does retry)
+- **Infrastructure**: is_safe_url → is_safe_webhook_url, health check ?detailed=true, disk space 10% free
+- **Frontend**: Template inheritance has 4 base templates (not 2), duplicate Atom feed link bug
+- **Deployment**: CI workflow is ci.yml not test.yml, missing validate_openapi.py script, WORKDIR mismatch
+- **Testing**: pytest.ini reference wrong (config in pyproject.toml), phantom fixtures (regular_user, post)
 
 ### Wave 1 Completion (May 28, 2026)
 15 documentation files updated across 8 modules:
