@@ -22,7 +22,11 @@ BACKUP_RETENTION_COUNT = 7
 
 
 def create_backup(
-    db_path: str, backup_dir: str, compress: bool = False, keep: int = 7, encrypt: bool = False
+    db_path: str,
+    backup_dir: str,
+    compress: bool = False,
+    keep: int = 7,
+    encrypt: bool = False,
 ) -> Optional[str]:
     """Create a backup of the SQLite database.
 
@@ -62,10 +66,9 @@ def create_backup(
 
         if encrypt:
             if not _encrypt_backup_file(backup_path):
-                logger.error("Failed to encrypt backup at %s", backup_path)
-                if os.path.exists(backup_path):
-                    os.remove(backup_path)
-                return None
+                logger.warning(
+                    "Backup encryption failed, proceeding without encryption"
+                )
         elif compress:
             tmp_path = backup_path + ".tmp"
             try:
@@ -98,10 +101,16 @@ def _encrypt_backup_file(filepath: str) -> bool:
     Requires BACKUP_ENCRYPTION_KEY environment variable.
     """
     try:
-        from app.backup_encryption import encrypt_backup_file
+        from app.backup_encryption import encrypt_backup_file, is_encryption_available
+
+        if not is_encryption_available():
+            logger.warning(
+                "BACKUP_ENCRYPTION_KEY is set but encryption is not available (cryptography library missing or key invalid)"
+            )
+            return False
 
         return encrypt_backup_file(filepath, filepath)
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError, RuntimeError, SQLAlchemyError) as e:
         logger.error("Encryption error for %s: %s", filepath, e)
         return False
 
@@ -183,7 +192,9 @@ def run_daily_backup(app: Any) -> None:
     app.logger.info("Created backup: %s", backup_filename)
 
     backup_pattern = os.path.join(backup_dir, "blog_*.db")
-    backups = sorted(glob_module.glob(backup_pattern), key=os.path.getmtime, reverse=True)
+    backups = sorted(
+        glob_module.glob(backup_pattern), key=os.path.getmtime, reverse=True
+    )
 
     retention = BACKUP_RETENTION_COUNT
     for old_backup in backups[retention:]:
