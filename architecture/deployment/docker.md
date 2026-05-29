@@ -10,12 +10,12 @@ Multi-container Docker setup for production deployment.
 | `celery` | Custom | Celery worker |
 | `redis` | `redis:7-alpine` | Cache and message broker |
 | `nginx` | `nginx:alpine` | Reverse proxy |
+| `backup` | Custom | Scheduled database backups |
 
 ## Docker Compose Profiles
 
 | Profile | Services | Purpose |
 |---------|----------|---------|
-| (default) | `blog`, `redis` | Development |
 | `production` | `blog`, `celery`, `redis`, `nginx` | Production |
 | `backup` | `blog` (backup only) | Scheduled backups |
 
@@ -34,7 +34,7 @@ Resource limits (memory, CPU) are configured in `docker-compose.yml` under each 
 
 ## Backup Service
 
-The `backup` service in `docker-compose.yml:103-118` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:24`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
+The `backup` service in `docker-compose.yml:105-120` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:23`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
 
 ## Nginx Configuration
 
@@ -91,6 +91,9 @@ For coordinated multi-worker deployments, consider:
 | `SECRET_KEY` | Flask secret key |
 | `ADMIN_PASSWORD` | Admin password |
 | `ADMIN_USERNAME` | Admin username (optional, defaults to `admin`) |
+| `SQLALCHEMY_DATABASE_URI` | SQLAlchemy connection string (optional, defaults to SQLite `blog.db`) |
+| `API_KEY` | API key for REST API authentication |
+| `SESSION_COOKIE_SECURE` | Set to `true` for HTTPS-only cookies (default: `true`) |
 | `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `blog.db`) |
 | `REDIS_URL` | Redis connection |
 | `SMTP_HOST` | SMTP server for newsletter/email (optional) |

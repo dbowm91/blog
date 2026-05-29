@@ -176,15 +176,6 @@ def mock_email(mock_render, mock_smtp):
     yield
 
 
-@pytest.fixture(scope="function")
-def clean_analytics_cache():
-    """Clear analytics cache before each test to prevent cross-test pollution."""
-    from app.routes.admin import _analytics_cache
-
-    _analytics_cache.clear()
-    yield
-    _analytics_cache.clear()
-
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_uploads():
