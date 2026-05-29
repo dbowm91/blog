@@ -7,16 +7,24 @@ Implementation Status: All waves completed. Project in maintenance mode.
 
 ## Implementation Summary
 
-All implementation waves (A-F from plan.md) have been verified and completed:
-- **Wave A**: Testing documentation (clean_db fixture, test file list with line numbers)
-- **Wave B**: Services documentation (search.md source clarification, reset_fts_available(), backup.md line numbers)
-- **Wave C**: Tasks documentation (error handling table, deliver_webhook_task non-retry, line numbers fixed)
-- **Wave D**: Routes documentation (comment rate limit 10/min, sitemap cache, API pages field, JSON feed authors)
-- **Wave E**: Frontend documentation (route-based code splitting, post_image_url filter, lazy-load.js fallback)
-- **Wave F**: Infrastructure documentation (WEBHOOK_TIMEOUT, variant cleanup, FLASK_ENV, PYTHONPATH, BACKUP_ENCRYPTION_KEY)
+All implementation waves completed and verified:
+- **Waves A-F**: Original documentation fixes (May 28, 2026)
+- **Waves 1-5**: Architecture review fixes (May 29, 2026) — 96 items across 5 waves
+  - Wave 1: Critical documentation fixes (50 items) — model counts, line numbers, route paths, event types, config docs
+  - Wave 2: Code-level fixes (6 items) — duplicate Atom feed, dead code cleanup, test teardown
+  - Wave 3: Documentation improvements (17 items) — Vite integration, CLI commands, Celery config, scripts docs
+  - Wave 4: Project polish (19 items) — project identity, security docs, Docker/CI, contribution hygiene
+  - Wave 5: Verification — all checks pass
 
-### Deferred Item (Acknowledged)
-**Per-Webhook Retry** - Implemented May 28, 2026. `deliver_webhook_task` now dispatches to `deliver_single_webhook_task` for per-webhook retry with exponential backoff (up to 3 retries).
+### Key Fixes Applied
+- **Duplicate Atom feed**: Removed hardcoded duplicate at `base.html:24`
+- **Dead code**: Removed unused vars from SQLiteSearchProvider, dead expressions in RSS feeds
+- **Model docs**: Added ApiToken, Comment spam fields, timestamps, indexes
+- **Config docs**: Added ADMIN_RATE_LIMITS, comment settings, analytics settings
+- **Route docs**: Fixed admin paths, backup filenames, API endpoints (pages, series, tags)
+- **Webhook docs**: Documented two-level dispatch, SSRF validation, encryption, retry behavior
+- **CI**: Removed broken openapi-validation job, added Dependabot config
+- **Security**: Expanded SECURITY.md with reporting path and boundaries section
 
 ## Triggers
 Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log

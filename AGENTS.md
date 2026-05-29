@@ -139,19 +139,19 @@ Webhook delivery uses a two-level dispatch pattern:
 
 ### Missing Script
 
-`scripts/validate_openapi.py` is referenced in CI but does not exist. Either create it or remove the CI job.
+`scripts/validate_openapi.py` was referenced in CI but did not exist. The `openapi-validation` CI job has been removed (Wave 1E, D-1).
 
 ### Model Count
 
 There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
 
-### Template Bug
+### Template Bug (Fixed)
 
-`app/templates/base.html:24` contains a hardcoded duplicate Atom feed link outside `{% block feed_links %}`. Every page gets two identical feed links. Line 19 (inside the block) is the correct one; line 24 should be removed.
+`app/templates/base.html:24` contained a hardcoded duplicate Atom feed link outside `{% block feed_links %}`. This was fixed in Wave 2A (CF-1) — the duplicate line was removed.
 
 ## Implementation Plan
 
-The consolidated implementation plan is at `plans/plan.md`. It contains 96 items across 5 waves, optimized for parallel sub-agent execution. Review it before starting any documentation or code fix work.
+The consolidated implementation plan is at `plans/plan.md`. It contains 96 items across 5 waves, all completed May 29, 2026.
 
 ## Historical Implementation Caveats
 
