@@ -6,9 +6,9 @@ GitHub Actions workflows for testing and deployment.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `test.yml` | push, pull_request | Full test suite |
+| `ci.yml` | push, pull_request, schedule | Full test suite |
 
-## test.yml Jobs
+## ci.yml Jobs
 
 ### 1. lint-and-type
 - **Tool**: `ruff` (linting), `mypy` (type checking)
@@ -24,18 +24,44 @@ GitHub Actions workflows for testing and deployment.
 - **Tool**: `pip-audit`
 - **Purpose**: Vulnerability scanning
 
-### 4. e2e-tests
+### 4. frontend-build
+- **Tool**: Node.js 20, `npm ci` + `npm run build`
+- **Purpose**: Build frontend assets
+
+### 5. docker-build
+- **Tool**: `docker build .`
+- **Purpose**: Verify Dockerfile builds successfully
+
+### 6. e2e-tests
 - **Tool**: Playwright
 - **Environment**: Docker-based with `--profile production`
 - **Browser**: Chromium
-- **Setup**: Uses `docker-compose wait redis` to ensure Redis is ready before running tests
+- **Setup**: Uses `docker compose wait redis` to ensure Redis is ready before running tests
+
+### Schedule
+
+The CI workflow runs on a weekly schedule (Monday 08:00 UTC) in addition to push/PR triggers.
 
 ## Test Configuration
 
-From `pytest.ini`:
-- Test discovery: `tests/`
-- Coverage HTML: `htmlcov/`
-- Minimum coverage: 80%
+From `pyproject.toml`:
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing"
+
+[tool.coverage.report]
+fail_under = 80
+```
+
+Additional markers are defined in `pytest.ini`:
+```ini
+[pytest]
+markers =
+    e2e: end-to-end browser tests
+```
+
+Minimum coverage: 80%
 
 ### Running Tests Locally
 

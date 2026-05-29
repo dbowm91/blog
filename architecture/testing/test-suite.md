@@ -76,14 +76,35 @@ tests/
 
 ## Key Configuration
 
-From `pytest.ini`:
-```ini
-[pytest]
-testpaths = tests
-addopts = --cov=app --cov-report=term-missing
+From `pyproject.toml`:
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing"
 ```
 
-Minimum coverage: 80%
+Coverage settings in `pyproject.toml`:
+```toml
+[tool.coverage.report]
+fail_under = 80
+```
+
+Additional markers are defined in `pytest.ini`:
+```ini
+[pytest]
+markers =
+    e2e: end-to-end browser tests
+```
+
+A `slow` marker is registered in `conftest.py` via `pytest_configure`:
+```python
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
+```
+
+Skip slow tests with: `pytest -m "not slow"`
 
 ## Running Tests
 
@@ -134,6 +155,21 @@ The page view buffer (`app/page_view_buffer.py`) can cause test interference:
 - Disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0`
 - Call `shutdown_page_view_buffer()` in tests
 - The `ensure_buffer_disabled` fixture (autouse) handles this automatically
+
+## Celery Test Configuration
+
+Celery is configured to run tasks eagerly (synchronously) during tests in `conftest.py`:
+
+```python
+from celery import current_app as celery_app
+
+celery_app.conf.update(
+    task_always_eager=True,
+    task_eager_propagates=True,
+)
+```
+
+This ensures all Celery tasks (newsletter, webhooks, email) execute inline during tests rather than being dispatched to a broker.
 
 ## Database Session Considerations
 
