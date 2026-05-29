@@ -49,12 +49,23 @@ def app_server(app, app_url, tmp_path_factory):
 
     from threading import Thread
 
-    thread = Thread(
-        target=lambda: app.run(port=5010, threaded=True, use_reloader=False), daemon=True
-    )
+    def run_server():
+        from werkzeug.serving import BaseWSGIServer, WSGIRequestHandler
+
+        server = BaseWSGIServer("127.0.0.1", 5010, WSGIRequestHandler)
+        server.set_app(app.wsgi_app)
+        app._e2e_server = server
+        server.serve_forever()
+
+    thread = Thread(target=run_server, daemon=True)
     thread.start()
     time.sleep(1)
 
     yield app_url
+
+    server = getattr(app, "_e2e_server", None)
+    if server:
+        server.shutdown()
+        server.server_close()
 
     app.config["SERVER_NAME"] = None
