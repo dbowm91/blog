@@ -198,10 +198,6 @@ def tag_atom_feed(slug: str) -> Any:
         return Response(status=304)
 
     tag_obj = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one()
-    utc_now().isoformat() + "Z"
-    if posts:
-        latest = max(post.updated_at or post.created_at for post in posts)
-        latest.isoformat() + "Z"
 
     entries = []
     for post in posts:
@@ -303,10 +299,6 @@ def tag_json_feed(slug: str) -> Any:
         return Response(status=304)
 
     tag_obj = db.session.execute(select(Tag).filter_by(slug=slug)).scalar_one()
-    utc_now().isoformat() + "Z"
-    if posts:
-        latest = max(post.updated_at or post.created_at for post in posts)
-        latest.isoformat() + "Z"
 
     items = []
     for post in posts:
@@ -351,10 +343,6 @@ def series_atom_feed(slug: str) -> Any:
         return Response(status=304)
 
     series_obj = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one()
-    utc_now().isoformat() + "Z"
-    if posts:
-        latest = max(post.updated_at or post.created_at for post in posts)
-        latest.isoformat() + "Z"
 
     entries = []
     for post in posts:
@@ -456,10 +444,6 @@ def series_json_feed(slug: str) -> Any:
         return Response(status=304)
 
     series_obj = db.session.execute(select(Series).filter_by(slug=slug)).scalar_one()
-    utc_now().isoformat() + "Z"
-    if posts:
-        latest = max(post.updated_at or post.created_at for post in posts)
-        latest.isoformat() + "Z"
 
     items = []
     for post in posts:
@@ -636,11 +620,6 @@ def json_feed() -> Any:
     if_none_match = request.headers.get("If-None-Match")
     if if_none_match and if_none_match.strip('"') == etag:
         return Response(status=304)
-
-    utc_now().isoformat() + "Z"
-    if posts:
-        latest = max(post.updated_at or post.created_at for post in posts)
-        latest.isoformat() + "Z"
 
     items = []
     for post in posts:

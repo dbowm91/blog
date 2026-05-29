@@ -6,11 +6,6 @@ from app.services.search import SearchProvider
 class SQLiteSearchProvider(SearchProvider):
     """SQLite FTS5 implementation of SearchProvider."""
 
-    def __init__(self) -> None:
-        self._fts_enabled: bool | None = None
-        self._fts_check_time: float = 0
-        self._FTS_CHECK_TTL = 300
-
     def initialize(self) -> None:
         """Initialize the SQLite FTS5 provider. Wraps init_fts()."""
         from app.search import init_fts
