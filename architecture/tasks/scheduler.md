@@ -6,7 +6,7 @@ In-process scheduled job scheduler.
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `send_daily_newsletter` | Daily at configured time | Send newsletter to subscribers |
+| `send_daily_newsletter` | Daily at configured time | Send newsletter to subscribers (only when `SMTP_HOST` is configured) |
 | `cleanup_expired_subscribers` | Every 5 minutes (`*/5`) | Remove unconfirmed expired subscribers |
 | `publish_scheduled_posts` | Every 5 minutes (`*/5`) | Auto-publish scheduled posts |
 | `run_daily_backup` | Daily at 02:00 | Create database backup |
@@ -26,7 +26,7 @@ Runs daily at `NEWSLETTER_SEND_TIME` (default: 08:00):
 
 **Retry Logic:** Respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` configuration. Posts with `newsletter_attempts >= NEWSLETTER_MAX_RETRY_ATTEMPTS` are excluded from selection until reset.
 
-**Celery vs. Scheduler:** This job sends newsletters synchronously via `app.email.send_newsletter()`. The Celery `send_newsletter_task` (`app/tasks.py:127`) is separate and used only for manual/ad-hoc sends from the admin dashboard — it is never invoked by the scheduler.
+**Celery vs. Scheduler:** This job sends newsletters synchronously via `app.email.send_newsletter()`. The Celery `send_newsletter_task` (`app/tasks.py:129`) is separate and used only for manual/ad-hoc sends from the admin dashboard — it is never invoked by the scheduler.
 
 ### `cleanup_expired_subscribers`
 
@@ -56,11 +56,11 @@ Celery tasks use specific queues for different workloads (for reference — APSc
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
-| `images` | Image processing | `app/tasks.py:28` |
-| `newsletter` | Newsletter delivery | `app/tasks.py:127` |
-| `webhooks` | Webhook delivery | `app/tasks.py:184` |
-| `email` | Transactional email | `app/tasks.py:263,284` |
-| `backup` | Backup tasks | `app/tasks.py:305` |
+| `images` | Image processing | `app/tasks.py:30` |
+| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
+| `webhooks` | Webhook delivery | `app/tasks.py:194` |
+| `email` | Transactional email | `app/tasks.py:333,354` |
+| `backup` | Backup tasks | `app/tasks.py:375` |
 
 ## Multi-Worker Deployment
 
@@ -85,7 +85,7 @@ Lock files are created at `{instance_path}/{job_name}.lock`. All four jobs follo
 ## Initialization
 
 ```python
-def init_scheduler(app: Flask) -> None:
+def init_scheduler(app: Flask) -> Optional["BackgroundScheduler"]:
     # Called during app factory
 ```
 
