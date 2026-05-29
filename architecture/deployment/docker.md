@@ -156,6 +156,69 @@ Memory limits configured in `docker-compose.yml` under `deploy.resources`:
 | `celery` | 256M | - |
 | `redis` | 128M | - |
 
+## Scripts Directory
+
+Operational scripts in `scripts/` for development and deployment tasks:
+
+| Script | Language | Purpose |
+|--------|----------|---------|
+| `build_assets.py` | Python | Basic CSS/JS minification (removes whitespace and comments). Creates `.orig` backups of modified files. |
+| `dev.sh` | Bash | Local development setup: checks Python ≥ 3.14, creates venv, installs deps, runs migrations, prints env var instructions. |
+| `update-assets.sh` | Bash | Downloads latest CDN assets (marked.js, Prism.js) into `app/static/js/lib/`. |
+| `sync_backups.sh` | Bash | Syncs local backups to off-site storage via rclone or native AWS S3 CLI. Supports `--dry-run`, `--verify`, and `--cleanup` flags. |
+
+### `build_assets.py`
+
+Minifies CSS and JS files in `app/static/css/` and `app/static/js/`. Use `--dry-run` to preview, `--force` to overwrite. Not intended for production use (see Vite bundler for production builds).
+
+### `dev.sh`
+
+Full local development bootstrap. Verifies Python ≥ 3.14, creates virtualenv, installs requirements, runs `flask db upgrade`, and prints startup instructions including required environment variables (`SECRET_KEY`, `ADMIN_PASSWORD`).
+
+### `update-assets.sh`
+
+Fetches marked.js and Prism.js from jsDelivr CDN into `app/static/js/lib/`. Run after dependency updates to refresh vendored libraries.
+
+### `sync_backups.sh`
+
+Off-site backup synchronization. Requires `REMOTE_TYPE` (`s3` or `rclone`) and corresponding credentials. Options: `--dry-run` (preview), `--verify` (post-sync check), `--cleanup DAYS` (prune old local backups). Default retention: 7 days.
+
+## Granian Configuration
+
+The blog service runs via Granian ASGI server, configured in the Dockerfile `CMD`:
+
+```
+granian --interface asgi --workers 4 --timeout 60 --host 0.0.0.0 --port 5000 run:asgi_app
+```
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `--workers` | 4 | Worker processes (matches typical CPU core count) |
+| `--timeout` | 60 | Request timeout in seconds |
+| `--interface` | asgi | ASGI interface (Flask via `run:asgi_app`) |
+| `--host` | 0.0.0.0 | Listen on all interfaces |
+| `--port` | 5000 | Application port |
+
+**Note:** Celery runs with `--concurrency=1` (single worker) to prevent duplicate newsletter sends and webhook deliveries. The Granian worker count (4) is independent of Celery concurrency.
+
+## Nginx Proxy Networking
+
+The nginx configuration uses `proxy_pass http://127.0.0.1:5000` to reach the blog service. In Docker Compose, containers on the same user-defined network share a network namespace for inter-container communication. The `blog` service exposes port 5000 via the `expose` directive, and nginx resolves `127.0.0.1:5000` to the blog service through the shared Docker network.
+
+**Important:** This works because Docker Compose places all services in the `production` profile on the same default network. If nginx were deployed in a separate network, it would need to use the service name `blog` instead of `127.0.0.1`.
+
+The nginx `client_max_body_size` is set to `16M` to accommodate file uploads proxied to the Flask app.
+
+## Backup Service Encryption Key Loading
+
+The backup container (`docker-compose.yml:105-120`) runs `backup.py` with `PYTHONPATH=/home/blog` to import `app.services.backup`. Encryption keys are not mounted as files — they are loaded via the application's config module (`app/config.py`) which reads from `config.toml` and environment variables.
+
+The backup service mounts:
+- `blog_data:/home/blog/instance:ro` — read-only database access
+- `./backups:/backups` — writeable backup output directory
+
+The `BACKUP_ENCRYPTION_KEY` environment variable (referenced in `docker-compose.yml:117`) is expected to be set in the host environment or `.env` file. The backup script does not mount `config.toml` into the container — the backup service only needs `app/services/backup.py` and the database, not the full app configuration.
+
 ## See Also
 - [CI/CD](deployment/cicd.md) - Docker in CI pipeline
 - [Security](deployment/security.md) - Security configuration

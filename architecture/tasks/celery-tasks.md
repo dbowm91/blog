@@ -142,6 +142,34 @@ Runs database backup asynchronously via `create_backup()`:
 
 **Note:** `deliver_webhook_task` is a dispatcher that delegates to `deliver_single_webhook_task` for each webhook. The per-webhook task has independent retry logic — it calls `self.retry(exc=e)` on HTTP errors or request failures, with exponential backoff up to `max_retries=3`.
 
+## Global Celery Configuration
+
+Global Celery settings are configured in `app/celery_app.py:20-31` via `celery_app.conf.update()`:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `task_serializer` | `json` | JSON serialization for tasks |
+| `accept_content` | `['json']` | Only accept JSON payloads |
+| `result_serializer` | `json` | JSON serialization for results |
+| `timezone` | `UTC` | All timestamps in UTC |
+| `enable_utc` | `True` | Use UTC for scheduling |
+| `task_track_started` | `True` | Track task state transitions |
+| `task_time_limit` | 300 | Hard kill after 5 minutes (default for all tasks) |
+| `task_soft_time_limit` | 240 | Soft timeout raises `SoftTimeLimitExceeded` after 4 minutes |
+| `worker_prefetch_multiplier` | `1` | Disable prefetching — one task at a time per worker |
+| `worker_max_tasks_per_child` | 100 | Worker restarts after 100 tasks (prevents memory leaks) |
+
+When Flask app context is available (`init_celery(app)` is called with an app):
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `task_acks_late` | `True` | Acknowledge tasks after completion, not before |
+| `task_reject_on_worker_lost` | `True` | Re-queue task if worker crashes |
+
+**Task-specific overrides** (defined on individual tasks):
+- `send_newsletter_task`: `time_limit=600`, `soft_time_limit=540` — longer limits for bulk email sending
+- `run_backup_task`: `max_retries=2` (not 3)
+
 ## Retry Policy
 
 - `max_retries=3` (2 for backup)
