@@ -106,10 +106,17 @@ This allows Vite to create optimized chunks that are only loaded when needed.
 
 ### Lazy Image Loading
 
-CSS pattern for progressive image loading:
-- Default: `opacity: 0`
-- `.loaded` class: `opacity: 1` with transition
+CSS pattern for progressive image loading (`app/static/css/public.css:1114-1138`):
+- Default: `opacity: 0` on `img[loading="lazy"]` (requires `.js` class on `<html>`)
+- `.loaded` class: `opacity: 1` with 0.4s ease transition
 - JavaScript adds `document.documentElement.classList.add('js')` first to enable progressive enhancement
+
+#### Image Skeleton Shimmer
+
+`.img-skeleton` class provides a loading placeholder animation:
+- Background: `linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%)` with `background-size: 200% 100%`
+- Animation: `shimmer` keyframe moves background position from `200%` to `-200%` over 1.5s (infinite loop)
+- When `.loaded` is added: animation stops, background clears
 
 #### JavaScript Fallback Behavior
 

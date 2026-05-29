@@ -123,15 +123,15 @@ Comment
 ```python
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True)
-    email = db.Column(db.String(120), unique=True)
-    password_hash = db.Column(db.String(256))
-    is_admin = db.Column(db.Boolean, default=False)
-    reset_token = db.Column(db.String(64), unique=True)
-    reset_token_expires_at = db.Column(UTCDateTime)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    reset_token = db.Column(db.String(64), nullable=True, unique=True)
+    reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
     failed_login_count = db.Column(db.Integer, default=0)
-    locked_until = db.Column(UTCDateTime)  # Account lockout
-    totp_secret_encrypted = db.Column(db.String(256), nullable=True)  # Encrypted storage
+    locked_until = db.Column(UTCDateTime, nullable=True)
+    totp_secret_encrypted = db.Column(db.String(256), nullable=True)
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
 
     # TOTP secret is accessed via property that decrypts on access:
@@ -139,7 +139,7 @@ class User(UserMixin, db.Model):
     def totp_secret(self) -> Optional[str]: ...  # Decrypts from totp_secret_encrypted
     set_totp_secret(secret)                     # Encrypts for storage
     get_totp_uri()                              # Generate QR code provisioning URI
-    backup_codes_hashed = db.Column(db.JSON)    # SHA-256 hashed backup codes
+    backup_codes_hashed = db.Column(db.JSON, nullable=True)    # SHA-256 hashed backup codes
 
     # Relationships
     admin_sessions = db.relationship("AdminSession", back_populates="user")

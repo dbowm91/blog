@@ -66,6 +66,8 @@ Current default implementation using SQLite FTS5.
 | `remove_fts()` | `app/search.py:174` | Remove post from index |
 | `search()` | `app/search.py:196` | FTS5 search with bm25 ranking |
 | `get_indexed_terms()` | `app/search.py:219` | Get all indexed terms via fts5vocab |
+| `get_indexed_terms_fallback()` | `app/search.py:230` | Fallback when fts5vocab unavailable; extracts terms from published post titles |
+| `_escape_fts_term()` | `app/search.py:188` | Escapes FTS5 special characters (`()*+:<>"-`) and whitespace for safe query construction |
 | `extract_snippet()` | `app/search.py:246` | Extract text snippet around match |
 | `get_search_snippets()` | `app/search.py:275` | Get highlighted snippets |
 | `get_did_you_mean()` | `app/search.py:320` | Fuzzy suggestion for failed queries |

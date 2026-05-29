@@ -58,6 +58,24 @@ class S3StorageBackend(StorageBackend):
 | `S3_SECRET_KEY` | AWS secret key |
 | `S3_PUBLIC_URL` | Custom CDN URL |
 
+## Module-Level Functions
+
+### `init_storage()`
+
+```python
+def init_storage(base_dir: str) -> StorageBackend:
+```
+
+Initializes the global storage singleton with a `LocalStorageBackend` using the given `base_dir`. Used during app startup to configure the upload directory.
+
+### `storage_delete_file()`
+
+```python
+def storage_delete_file(filename: str) -> bool:
+```
+
+Convenience function to delete a file from the configured storage backend. Returns `True` on success, `False` on failure. Delegates to `get_storage().delete(filename)`.
+
 ## Factory Function
 
 ```python

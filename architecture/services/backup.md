@@ -42,6 +42,20 @@ def cleanup_old_backups(backup_dir: str, keep: int) -> None
 
 Removes old backups, keeping only the most recent `keep` backups.
 
+### `run_daily_backup()`
+
+```python
+def run_daily_backup(app: Any) -> None
+```
+
+Service-level daily backup designed for scheduler and CLI use. Unlike `create_backup()`, this does **not** support compression or encryption — use the Celery task `run_backup_task` for encrypted/compressed backups.
+
+**Behavior:**
+- Uses `sqlite3.backup()` for WAL mode consistency
+- Naming pattern: `blog_YYYYMMDD_HHMMSS.db`
+- Retention: 7 backups (via `BACKUP_RETENTION_COUNT`)
+- Reads `DATA_BACKUP_DIR` from config for backup directory
+
 ### `decrypt_backup_file()`
 
 ```python

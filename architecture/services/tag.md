@@ -37,5 +37,21 @@ Tag counts are cached for performance:
 - Post publish/unpublish
 - Tag create/delete/update
 
+## Cache Coordination
+
+### `_invalidate_all_caches()`
+
+Defined in `app/routes/admin/__init__.py:62`. Coordinates invalidation of all application caches after admin operations:
+
+| Cache | Invalidation Function |
+|-------|----------------------|
+| Tag count cache | `invalidate_tag_cache()` (from `app/tag_cache.py`) |
+| FTS availability flag | `reset_fts_available()` (from `app/search.py`) |
+| Analytics cache | `invalidate_analytics_cache()` (from `app/routes/admin/helpers/analytics.py`) |
+| Dashboard cache | `invalidate_dashboard_cache()` (from `app/routes/admin/helpers.py`) |
+| Footer data cache | `invalidate_footer_cache()` (from `app/context_processors.py`) |
+
+Called after post create/update/delete, tag operations, and settings changes to ensure all cached data stays consistent.
+
 ## See Also
 - [Models](core/models.md) - Tag model

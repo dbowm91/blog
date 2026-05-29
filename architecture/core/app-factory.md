@@ -79,7 +79,58 @@ def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
 - APScheduler initialization
 - Page view buffer initialization
 
-### 9. Security Headers (CSP)
+### 9. CLI Commands
+
+Registered via `register_cli_commands()` in `app/cli.py`:
+
+| Command | Description |
+|---------|-------------|
+| `flask rebuild-search` | Rebuild the FTS5 search index |
+| `flask cleanup-orphaned-images` | Remove image files not associated with any post |
+| `flask create-admin` | Create a new admin user (interactive prompt) |
+| `flask promote-admin <username>` | Promote an existing user to admin (non-interactive) |
+| `flask check-integrity` | Run `PRAGMA integrity_check` on the database |
+| `flask export-data <output_file>` | Export posts, subscribers, tags, and pages as JSON |
+| `flask import-data <input_file>` | Import posts, subscribers, tags, and pages from JSON |
+| `flask seed` | Generate sample data (options: `--posts`, `--subscribers`, `--published`) |
+
+### 10. Vite Integration
+
+Initialized via `init_vite(app)` in `app/vite.py`:
+
+- Registers `vite_asset()` as a Jinja2 global function for content-hashed asset URLs
+- Reads `.vite/manifest.json` to resolve hashed filenames in production
+- Falls back to MD5 content-hash query strings for CSS/non-JS assets
+- Respects `CDN_URL` config for asset path prefixing
+
+### 11. Structured Logging
+
+Configured via `configure_logging(app)`:
+
+- **Formatter**: `StructuredLogFormatter` outputs JSON logs with `timestamp`, `level`, `request_id`, `message`
+- **Filter**: `RequestIdFilter` injects `g.request_id` into log records
+- **Handler**: `RotatingFileHandler` writes to `logs/blog.log` (10MB max, 10 backups)
+- **Level**: INFO in production; debug/testing modes skip file handler
+
+### 12. ProxyFix Middleware
+
+```python
+proxy_count = int(os.environ.get("PROXY_COUNT", 1))
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)
+```
+
+`PROXY_COUNT` controls trusted proxy hops (default: 1). Required behind reverse proxies like nginx.
+
+### 13. Cache Configuration
+
+| Environment | Backend | Config |
+|-------------|---------|--------|
+| Production (`FLASK_ENV=production`) | `RedisCache` | `CACHE_REDIS_URL` (default: `redis://localhost:6379/0`), prefix `blog_`, 300s TTL |
+| Development | `SimpleCache` | 300s TTL |
+
+Cache is initialized via `flask-caching`. Rate limiting uses separate `RATE_LIMIT_STORAGE_URI` config.
+
+### 14. Security Headers (CSP)
 ```
 Content-Security-Policy:
   default-src 'self';

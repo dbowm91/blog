@@ -74,13 +74,15 @@ Bulk newsletter delivery:
 ## Templates
 
 Email templates in `app/templates/email/`:
+- `base_email.html` - Base email template (standalone, not extending `base.html`)
 - `confirm.html` - Subscription confirmation
 - `password_reset.html` - Password reset
 - `newsletter.html` - Newsletter layout
 
 ## Retry Logic
 
-- Max retries: 5 (configurable via `NEWSLETTER_MAX_RETRY_ATTEMPTS`)
+- `_send_email_with_retry()` default: **3 retries** (function parameter default)
+- Newsletter override: **5 retries** (via `NEWSLETTER_MAX_RETRY_ATTEMPTS` config, default 5 in `config.toml`)
 - Exponential backoff
 - Reconnects on `SMTPServerDisconnected`
 
