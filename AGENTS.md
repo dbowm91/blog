@@ -161,9 +161,37 @@ Webhook delivery uses a two-level dispatch pattern:
 
 There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
 
+### Thread-Unsafe Storage Singleton
+
+`app/storage.py:get_storage()` singleton is not thread-safe. Multiple threads could create multiple storage instances. Uses lazy initialization without locking.
+
+### E2E Test Isolation
+
+`tests/e2e/conftest.py` does not define its own `app` fixture. Running `pytest tests/e2e/` alone fails because it relies on import chain from main conftest.
+
+### Login Template Asset Loading
+
+`admin/login_base.html` uses `url_for('static', ...)` directly instead of `vite_asset()` unlike `admin/base.html`. Login pages won't benefit from content-hashed URLs or CDN prefix.
+
+### Prism CSS CDN Bypass
+
+`main.js:102` loads Prism CSS via direct path `/static/css/...` bypassing vite_asset(). If CDN_URL is configured, Prism CSS won't include it.
+
+### Python Version Mismatch
+
+`scripts/dev.sh:11` requires Python >= 3.14 but `Dockerfile:1` uses python:3.12-slim. This dev/prod version mismatch could cause compatibility issues.
+
+### Session IP Binding Not Enforced
+
+`SESSION_IP_BINDING` config option exists but enforcement logic appears missing from `before_request_handler`. Verify before relying on this security feature.
+
+### Silent FTS Initialization
+
+`app/__init__.py:430-433` catches `OperationalError` during FTS init silently. User is never informed if search won't work.
+
 ## Implementation Plan
 
-The consolidated implementation plan is at `plans/plan.md`. It contains 96 items across 5 waves, all completed May 29, 2026.
+The consolidated implementation plan is at `plans/plan.md`. It contains NEW items identified in architecture reviews (May 29, 2026) that were not addressed in the previous plan. The previous 96-item plan was marked complete May 29, 2026.
 
 ## Historical Implementation Caveats
 
