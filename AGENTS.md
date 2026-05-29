@@ -119,7 +119,7 @@ Actual filters (defined in `app/filters.py`):
 
 ### Critical CSS
 
-The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:25` with `media="screen"` for immediate loading.
+The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:24` with `media="screen"` for immediate loading.
 
 ### Docker Compose Profiles
 
@@ -129,7 +129,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI Workflow
 
-The CI workflow is at `.github/workflows/ci.yml` (not `test.yml`). It includes 7 jobs: `openapi-validation`, `frontend-build`, `docker-build`, plus standard lint/test/typecheck.
+The CI workflow is at `.github/workflows/ci.yml` (not `test.yml`). It includes 6 jobs: `lint-and-type`, `test`, `security-audit`, `frontend-build`, `docker-build`, `e2e-tests`. Also has a weekly schedule trigger (Monday 08:00 UTC).
 
 ### Webhook Delivery Architecture
 
@@ -137,17 +137,9 @@ Webhook delivery uses a two-level dispatch pattern:
 - `deliver_webhook_task` dispatches to `deliver_single_webhook_task`
 - `deliver_single_webhook_task` handles per-webhook SSRF protection, HMAC signing, retry logic, and delivery status updates
 
-### Missing Script
-
-`scripts/validate_openapi.py` was referenced in CI but did not exist. The `openapi-validation` CI job has been removed (Wave 1E, D-1).
-
 ### Model Count
 
 There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
-
-### Template Bug (Fixed)
-
-`app/templates/base.html:24` contained a hardcoded duplicate Atom feed link outside `{% block feed_links %}`. This was fixed in Wave 2A (CF-1) — the duplicate line was removed.
 
 ## Implementation Plan
 

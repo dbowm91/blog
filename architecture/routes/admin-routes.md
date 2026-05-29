@@ -215,6 +215,6 @@ admin/
 - **Purpose**: Moderate comments
 
 ## See Also
-- [Public Routes](routes/public-routes.md) - Public blog routes
-- [API Routes](routes/api-routes.md) - REST API
-- [RSS/Feeds](routes/rss-feeds.md) - Feeds
+- [Public Routes](public-routes.md) - Public blog routes
+- [API Routes](api-routes.md) - REST API
+- [RSS/Feeds](rss-feeds.md) - Feeds

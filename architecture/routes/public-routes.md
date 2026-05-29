@@ -115,6 +115,6 @@ Public routes serve the blog's public-facing pages.
 - **Purpose**: Redirects to SVG favicon
 
 ## See Also
-- [RSS/Feeds](routes/rss-feeds.md) - RSS, Atom, JSON feeds
-- [Admin Routes](routes/admin-routes.md) - Admin dashboard routes
-- [API Routes](routes/api-routes.md) - REST API endpoints
+- [RSS/Feeds](rss-feeds.md) - RSS, Atom, JSON feeds
+- [Admin Routes](admin-routes.md) - Admin dashboard routes
+- [API Routes](api-routes.md) - REST API endpoints
