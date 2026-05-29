@@ -98,6 +98,26 @@ Important actual file locations (verify before assuming):
 
 ## Important Notes for Future Agents
 
+### APScheduler Multi-Container Limitation
+
+APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently (duplicate newsletter sends, duplicate backups, duplicate post publishes). No external coordination mechanism exists.
+
+### E2E Test Password Inconsistency
+
+`tests/conftest.py` uses `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` uses `"test-password"` (with hyphen) at line 44. Tests may fail inconsistently depending on which fixture set is used.
+
+### Webhook Delivery Status Tracking Bug
+
+`_update_delivery_status()` sets `event.delivered = True` at the dispatcher level BEFORE `deliver_single_webhook_task` calls complete. The per-webhook status is never checked. Webhook delivery status in DB will be misleading.
+
+### Backup Encryption Silent Failure
+
+`app/services/backup.py:_encrypt_backup_file()` catches exceptions and returns `False`. If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, backup proceeds unencrypted without error. The `backup.py` CLI uses `create_backup()` which handles encryption failures, but silently falls back.
+
+### Vite Build Required for Production
+
+The `npm run build` (or `vite build`) must be run before production deployment. The `manifest.json` must be present. If Vite build hasn't run, JS assets will return hashed paths that don't exist.
+
 ### APScheduler SMTP Handling
 
 When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run.

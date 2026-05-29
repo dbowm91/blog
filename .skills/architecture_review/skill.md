@@ -45,3 +45,28 @@ When reviewing documentation:
 - Rate limit values should be verified against actual code
 - Error handling table documents actual retry behavior for Celery tasks
 - E2E tests use pytest-playwright, not @playwright/test
+
+## Second Wave Review (May 29, 2026)
+
+All 10 reviews now complete. Key findings:
+
+### HIGH Severity Bugs Found
+1. **testing/test-suite.md:113** - FALSE claim: "playwright not in requirements" - playwright>=1.58.0 IS in requirements.txt:18
+2. **testing/test-suite.md:190-196** - FALSE claim: "E2E conftest defines its own app fixture" - it does NOT, relies on import chain
+3. **APScheduler FileLock** not enforced against scaling (docker-compose.yml:60)
+4. **Backup encryption silently disabled** if BACKUP_ENCRYPTION_KEY set but cannot be loaded (backup.py:103-106)
+5. **E2E test password mismatch** - conftest.py:100 "testpassword" vs e2e/conftest.py:44 "test-password"
+
+### Documentation Gaps Found
+- Vite build required for production (manifest.json) - not documented anywhere
+- APScheduler multi-container detection/alerting mechanism missing
+- Backup encryption key can come from config.toml (not just env var)
+- Celery scaling warning (concurrency=1 is per-container, not total)
+- Health check start_period (10s before container marked healthy)
+- Python version mismatch: dev.sh requires 3.14, Dockerfile uses 3.12-slim
+
+### Docs to Rewrite
+- `architecture/testing/test-suite.md` - two confirmed false claims
+- `architecture/overview.md` - missing Vite build req, APScheduler multi-container warning, Python version mismatch
+- `architecture/infrastructure/webhooks.md` - stale line references, delivery_status bug undocumented
+- `architecture/frontend/static-assets.md` - login template asset loading inconsistency, Prism CSS CDN bypass

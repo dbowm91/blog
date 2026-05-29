@@ -38,3 +38,20 @@ All module-level functions in `app/search.py` catch `OperationalError`, `Program
 
 ### Critical CSS
 The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:22` with `media="screen"` for immediate loading.
+
+### E2E Test Password Inconsistency
+`tests/conftest.py` uses `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` uses `"test-password"` (with hyphen) at line 44. Tests may fail inconsistently depending on which fixture set is used.
+
+### Vite Build Required for Production
+The `npm run build` (or `vite build`) must be run before production deployment. The `manifest.json` must be present. If Vite build hasn't run, JS assets will return hashed paths that don't exist.
+
+### Backup Encryption Silent Failure
+`app/services/backup.py:_encrypt_backup_file()` catches exceptions and returns `False`. If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, backup proceeds unencrypted without error. The `backup.py` CLI uses `create_backup()` which handles encryption failures, but silently falls back.
+
+### Testing/test-suite.md False Claims
+The architecture doc at `architecture/testing/test-suite.md` contains two factually incorrect claims:
+- Line 113: Claims playwright is NOT in requirements.txt - FALSE, it IS (playwright>=1.58.0 at requirements.txt:18)
+- Lines 190-196: Claims E2E conftest creates its own `app` fixture - FALSE, it relies on import chain from main conftest
+
+### Python Version Mismatch
+`scripts/dev.sh:11` requires Python >= 3.14, but `Dockerfile:1` uses `python:3.12-slim`. Development requires Python 3.14 but production uses 3.12.
