@@ -60,16 +60,16 @@ Current default implementation using SQLite FTS5.
 | Function | Location | Description |
 |----------|----------|-------------|
 | `reset_fts_available()` | `app/search.py:36` | Reset FTS availability cache (for testing and cache invalidation) |
-| `rebuild_fts()` | `app/search.py:102` | Rebuild entire index |
-| `sync_fts()` | `app/search.py:112` | Index/update a single post |
-| `sync_fts_batch()` | `app/search.py:136` | Batch index multiple posts |
-| `remove_fts()` | `app/search.py:177` | Remove post from index |
-| `search()` | `app/search.py:201` | FTS5 search with bm25 ranking |
-| `get_indexed_terms()` | `app/search.py:224` | Get all indexed terms via fts5vocab |
-| `extract_snippet()` | `app/search.py:253` | Extract text snippet around match |
-| `get_search_snippets()` | `app/search.py:282` | Get highlighted snippets |
-| `get_did_you_mean()` | `app/search.py:327` | Fuzzy suggestion for failed queries |
-| `highlight_query()` | `app/search.py:356` | Add `<mark>` tags around query terms |
+| `rebuild_fts()` | `app/search.py:101` | Rebuild entire index |
+| `sync_fts()` | `app/search.py:111` | Index/update a single post |
+| `sync_fts_batch()` | `app/search.py:133` | Batch index multiple posts |
+| `remove_fts()` | `app/search.py:174` | Remove post from index |
+| `search()` | `app/search.py:196` | FTS5 search with bm25 ranking |
+| `get_indexed_terms()` | `app/search.py:219` | Get all indexed terms via fts5vocab |
+| `extract_snippet()` | `app/search.py:246` | Extract text snippet around match |
+| `get_search_snippets()` | `app/search.py:275` | Get highlighted snippets |
+| `get_did_you_mean()` | `app/search.py:320` | Fuzzy suggestion for failed queries |
+| `highlight_query()` | `app/search.py:349` | Add `<mark>` tags around query terms |
 
 ### Exception Handling
 
@@ -80,6 +80,11 @@ All module-level functions in `app/search.py` catch `OperationalError`, `Program
 ```python
 # app/config.py
 SEARCH_PROVIDER = "sqlite"  # or "postgresql"
+FTS_RESULT_LIMIT = 100  # max FTS5 search results (configurable)
+```
+
+```python
+# app/search.py (local constants)
 _FTS_CHECK_TTL = 300  # 5 minutes cache TTL
 _SQLITE_MAX_VARS = 500  # batching limit for SQLite parameters
 ```
