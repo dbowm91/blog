@@ -31,22 +31,22 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 │                               Clients                                        │
 │                    (Browser, API Clients, RSS Readers)                        │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
+                                       │
+                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           Nginx (TLS Termination)                            │
-│                    Static Files, Load Balancing, Brotli                     │
+│                    Static Files, Load Balancing, Brotli                       │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
+                                       │
+                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        Granian ASGI Server (Rust)                            │
 │                     Flask App + APScheduler (in-process)                      │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-            ┌─────────────────────────┼─────────────────────────┐
-            │                         │                         │
-            ▼                         ▼                         ▼
+                                       │
+             ┌─────────────────────────┼─────────────────────────┐
+             │                         │                         │
+             ▼                         ▼                         ▼
 ┌─────────────────┐     ┌─────────────────────┐     ┌─────────────────┐
 │   Celery Worker │     │       Redis         │     │      Redis       │
 │   (Redis Queue) │◄────│  (Broker + Cache)  │────►│  (Rate Limits)   │
@@ -58,10 +58,10 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 │  • backup       │     │  • email           │     │                  │
 │                 │     │  • backup          │     │                  │
 └─────────────────┘     └─────────────────────┘     └─────────────────┘
-            │                         │
-            └─────────────────────────┼─────────────────────────┘
-                                      │
-                                      ▼
+             │                         │
+             └─────────────────────────┼─────────────────────────┘
+                                       │
+                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        SQLite (WAL) / PostgreSQL                             │
 │                                                                              │
@@ -402,7 +402,7 @@ blog/
 │       ├── js/                    # JavaScript (Vite-bundled)
 │       ├── img/                   # Static images
 │       ├── fonts/                 # Web fonts
-│       └── uploads/               # User media uploads
+│       └── uploads/              # User media uploads
 │
 ├── tests/                           # Test suite
 │   ├── conftest.py                 # Pytest configuration
@@ -462,30 +462,24 @@ blog/
 └─────────────────┘ └─────────┘ └──────┬──────┘ └───────────┘ └─────────────┘
                                        │ (self-referential)
                                        ▼
-                                  ┌─────────────┐
-                                  │   Comment   │
-                                  │  (parent_id)│
-                                  └─────────────┘
+                                   ┌─────────────┐
+                                   │   Comment   │
+                                   │  (parent_id)│
+                                   └─────────────┘
 
 ┌─────────────────┐     ┌─────────────────┐
 │   Subscriber     │     │     Series       │
 └─────────────────┘     └────────┬────────┘
-                                 │
-                                 ▼
-                          ┌─────────────┐
-                          │  PostSeries │
-                          └─────────────┘
+                                  │
+                                  ▼
+                           ┌─────────────┐
+                           │  PostSeries │
+                           └─────────────┘
 
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │     Webhook     │────►│  WebhookEvent   │     │   SiteSettings  │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
-
----
-
-## Implementation Plan
-
-For the consolidated implementation plan covering all documentation fixes and code changes, see [plans/plan.md](../plans/plan.md).
 
 ---
 
@@ -513,4 +507,11 @@ For the consolidated implementation plan covering all documentation fixes and co
 | HTTP Client | requests |
 | Monitoring | Prometheus (optional) |
 
-(End of file - total 645 lines)
+---
+
+## Related Documents
+
+- [Implementation Plan](../plans/plan.md) - Consolidated implementation plan
+- [AGENTS.md](../AGENTS.md) - Agent guidelines and conventions
+- [DEPLOY.md](../DEPLOY.md) - Deployment documentation
+- [USAGE.md](../USAGE.md) - Usage documentation
