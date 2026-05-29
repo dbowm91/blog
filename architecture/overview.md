@@ -13,7 +13,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Module | Description | Deep Dive |
 |--------|-------------|-----------|
 | [Core Application](#1-core-application) | Flask app factory, configuration, extensions | [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md) |
-| [Data Models](#2-data-models) | SQLAlchemy ORM models (19 models) | [core/models.md](core/models.md) |
+| [Data Models](#2-data-models) | SQLAlchemy ORM models (20 models) | [core/models.md](core/models.md) |
 | [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
 | [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md) |
 | [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
@@ -96,7 +96,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ## 2. Data Models
 
-**Source:** `app/models.py` (19 models)
+**Source:** `app/models.py` (20 models)
 
 **Purpose:** Database schema and relationships.
 
@@ -118,6 +118,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | `Comment` | Threaded comments with parent-child relationships |
 | `PostRevision` | Post edit history |
 | `AdminAuditLog` | Security audit trail |
+| `ApiToken` | API authentication tokens with scoped access |
 
 **Deep Dive:** [core/models.md](core/models.md)
 
@@ -141,6 +142,20 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ---
 
+### API Routes Detail (`app/routes/api/`)
+
+| Endpoint | File | Purpose |
+|----------|------|---------|
+| `/api/posts` | `posts.py` | Post CRUD with pagination, search, filtering |
+| `/api/subscribers` | `subscribers.py` | Subscriber management |
+| `/api/stats` | `stats.py` | Dashboard statistics |
+| `/api/pages` | `pages.py` | Static page management |
+| `/api/series` | `series.py` | Post series management |
+| `/api/tags` | `tags.py` | Tag management |
+| API Auth | `auth.py` | `require_api_key` decorator |
+
+---
+
 ## 4. Services Layer
 
 **Source:** `app/services/`
@@ -153,10 +168,29 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secrets |
 | Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
 | Slug | `app/services/slug.py` | Slug generation with collision handling |
-| Tag | `app/services/tag.py` | Tag CRUD with caching |
+| Tag | `app/services/tag.py` | Tag CRUD operations |
 | Serialization | `app/services/serialization.py` | JSON export/import |
 
 **Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md)
+
+---
+
+### Search Provider Abstraction (`app/services/search/`)
+
+The search module provides a provider-based abstraction for full-text search:
+
+| File | Purpose |
+|------|---------|
+| `__init__.py` | `SearchProvider` ABC defining the interface |
+| `sqlite.py` | FTS5 implementation with BM25 ranking |
+| `postgresql.py` | PostgreSQL FTS stub (future implementation) |
+
+**Key Functions:**
+- `init_fts()` - Create FTS5 virtual table
+- `sync_fts()` / `sync_fts_batch()` - Index posts
+- `search()` - Query with BM25 ranking
+- `get_search_snippets()` - Generate highlighted snippets
+- `get_did_you_mean()` - Fuzzy matching suggestions
 
 ---
 
