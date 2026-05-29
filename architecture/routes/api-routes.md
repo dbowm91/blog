@@ -316,6 +316,6 @@ Rate limit headers are returned on all responses:
 When limits are exceeded, `429 Too Many Requests` is returned with `Retry-After` header.
 
 ## See Also
-- [Admin Routes](routes/admin-routes.md) - Admin dashboard
-- [Public Routes](routes/public-routes.md) - Public blog routes
-- [RSS/Feeds](routes/rss-feeds.md) - Feed formats
+- [Admin Routes](admin-routes.md) - Admin dashboard
+- [Public Routes](public-routes.md) - Public blog routes
+- [RSS/Feeds](rss-feeds.md) - Feed formats

@@ -197,6 +197,6 @@ This ensures that:
 Tasks using this pattern: `send_newsletter_task`, `deliver_webhook_task`, `deliver_single_webhook_task`, `send_confirmation_task`, `send_password_reset_task`, `run_backup_task`.
 
 ## See Also
-- [APScheduler](tasks/scheduler.md) - In-process scheduled jobs
+- [APScheduler](scheduler.md) - In-process scheduled jobs
 - [Email Infrastructure](../infrastructure/email.md) - Email sending
 - [Webhooks Infrastructure](../infrastructure/webhooks.md) - Webhook delivery

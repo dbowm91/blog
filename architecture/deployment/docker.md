@@ -34,7 +34,7 @@ Resource limits (memory, CPU) are configured in `docker-compose.yml` under each 
 
 ## Backup Service
 
-The `backup` service in `docker-compose.yml:105-120` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:23`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
+The `backup` service in `docker-compose.yml:111-129` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:23`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
 
 ## Nginx Configuration
 
@@ -62,7 +62,7 @@ For production deployments with Celery:
 - **email**: Transactional emails
 - **backup**: Database backups
 
-**Important**: The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:50`). This single-concurrency setting ensures:
+**Important**: The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:58`). This single-concurrency setting ensures:
 - Newsletter emails are sent in order without duplication
 - Webhook delivery is serialized
 
@@ -217,7 +217,7 @@ The backup service mounts:
 - `blog_data:/home/blog/instance:ro` — read-only database access
 - `./backups:/backups` — writeable backup output directory
 
-The `BACKUP_ENCRYPTION_KEY` environment variable (referenced in `docker-compose.yml:117`) is expected to be set in the host environment or `.env` file. The backup script does not mount `config.toml` into the container — the backup service only needs `app/services/backup.py` and the database, not the full app configuration.
+The `BACKUP_ENCRYPTION_KEY` environment variable (referenced in `docker-compose.yml:126`) is expected to be set in the host environment or `.env` file. The backup script does not mount `config.toml` into the container — the backup service only needs `app/services/backup.py` and the database, not the full app configuration.
 
 ## Production Checklist
 
@@ -269,5 +269,5 @@ Before deploying to production, verify all items:
 - [ ] Disk space monitoring for database and backups
 
 ## See Also
-- [CI/CD](deployment/cicd.md) - Docker in CI pipeline
-- [Security](deployment/security.md) - Security configuration
+- [CI/CD](cicd.md) - Docker in CI pipeline
+- [Security](security.md) - Security configuration

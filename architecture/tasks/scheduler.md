@@ -113,5 +113,5 @@ There are two separate backup implementations with different capabilities:
 Both implementations use the `blog_*.db` naming pattern and share the same retention count of 7. The key difference is that the APScheduler backup is a simple scheduled copy, while the Celery backup supports compression and encryption for production use.
 
 ## See Also
-- [Celery Tasks](tasks/celery-tasks.md) - Async task queue
+- [Celery Tasks](celery-tasks.md) - Async task queue
 - [Backup Service](../services/backup.md) - Backup implementation
