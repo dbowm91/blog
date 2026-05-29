@@ -270,6 +270,27 @@ class PostSeries(db.Model):
 
 Junction table linking Series and Post with ordering support.
 
+## PostRevision Model Details
+
+```python
+class PostRevision(db.Model):
+    __tablename__ = "post_revisions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    summary = db.Column(db.String(500), default="")
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    post = db.relationship("Post", back_populates="revisions")
+    author = db.relationship("User", lazy="select")
+
+    # Indexes: ix_post_revisions_post_created, ix_post_revisions_author_id
+```
+
 ## Post Model Details
 
 ```python

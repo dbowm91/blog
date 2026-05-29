@@ -170,7 +170,7 @@ Stylesheets in `app/static/css/`:
 
 ### Dark Mode
 
-Dark mode is the default (no `data-theme` attribute = dark). Default follows OS preference via `prefers-color-scheme: dark` in `dark-mode.js:13-14`. Light mode is applied via `data-theme="light"` on `<html>`. The `dark-mode.js` module:
+Dark mode follows OS preference by default via `prefers-color-scheme: dark` in `dark-mode.js:13-14`. If the OS preference is light, `data-theme="light"` is set immediately on page load. When no `data-theme` attribute is present, dark mode is active. The `dark-mode.js` module:
 - Checks `localStorage.getItem('theme')` for persisted preference
 - Falls back to `prefers-color-scheme: dark` media query
 - Toggles by setting/removing `data-theme="light"` attribute
@@ -179,18 +179,18 @@ Dark mode is the default (no `data-theme` attribute = dark). Default follows OS 
 
 ### Critical CSS
 
-`critical.css` provides above-the-fold styles for fast initial paint. Loaded in `base.html:25` with `media="screen"` for immediate rendering. Other stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
+`critical.css` provides above-the-fold styles for fast initial paint. Loaded in `base.html:24` with `media="screen"` for immediate rendering. Other stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
 
 ### Font Self-Hosting
 
 Fonts are self-hosted in `app/static/fonts/` as woff2 files:
 - Inter (weights 300–700) for body text (`--font-sans`)
 - JetBrains Mono (weights 400, 500) for code blocks (`--font-mono`)
-- Preloaded in `base.html:40-41` with `crossorigin` attribute
+- Preloaded in `base.html:39-40` with `crossorigin` attribute
 
 ### Syntax Highlighting Themes
 
-Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically in `base.html:31` using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js:97-112` only when code blocks are present.
+Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically in `base.html:30` using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js:97-112` only when code blocks are present.
 
 ## Vite Configuration
 

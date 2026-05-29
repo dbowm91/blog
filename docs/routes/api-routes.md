@@ -2,7 +2,7 @@
 
 ## Posts API
 
-See [posts.md](posts.md)
+See [posts.md](../api/posts.md)
 
 ## Subscribers API
 
