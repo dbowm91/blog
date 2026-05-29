@@ -37,7 +37,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 |----------|--------|---------|
 | `public` | `/` | Public blog pages |
 | `admin` | `/admin` | Admin dashboard |
-| `rss` | `/rss`, `/atom`, `/json` | RSS/Atom/JSON feeds |
+| `rss` | (none) | RSS/Atom/JSON feeds at root level (`/rss`, `/atom`, `/json`) |
 | `errors` | - | Error handlers |
 | `api` | `/api` | REST API |
 | `swaggerui` | `/api/docs` | API documentation |

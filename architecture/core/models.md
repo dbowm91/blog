@@ -98,6 +98,7 @@ Comment
 | `ix_comments_post_approved` | (post_id, approved) |
 | `ix_comments_created_at` | (created_at) |
 | `ix_comments_parent_id` | (parent_id) |
+| `ix_comments_is_spam` | (is_spam) |
 
 ### PostSeries (Series-Post Mapping)
 | Name | Columns |
@@ -280,6 +281,8 @@ class Post(db.Model):
     summary = db.Column(db.String(500))
     image = db.Column(db.String(256))  # Featured image
     image_alt_text = db.Column(db.String(256))
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
     published = db.Column(db.Boolean, default=False)
     published_at = db.Column(UTCDateTime)
     scheduled_publish_at = db.Column(UTCDateTime)
@@ -306,10 +309,28 @@ class Comment(db.Model):
     author_email = db.Column(db.String(256), nullable=False)  # Required field
     content = db.Column(db.Text)
     approved = db.Column(db.Boolean, default=False)  # Moderation required
+    is_spam = db.Column(db.Boolean, default=False, nullable=False)
+    spam_score = db.Column(db.Float, nullable=True)
+    created_at = db.Column(UTCDateTime, default=utc_now)
 
     # Self-referential relationship for replies
     parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
     replies = db.relationship("Comment", back_populates="parent", lazy="select")
+```
+
+## Page Model Details
+
+```python
+class Page(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200))
+    slug = db.Column(db.String(200), unique=True)
+    body = db.Column(db.Text)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
+    published = db.Column(db.Boolean, default=False)
+
+    # Index: ix_pages_published_slug
 ```
 
 ## SiteSettings
@@ -328,6 +349,7 @@ class SiteSettings(db.Model):
     custom_css_enabled = db.Column(db.Boolean, default=False)
     custom_css = db.Column(db.Text, default="")
     logo_text = db.Column(db.String(100), default="")
+    updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod
     def get_instance(cls) -> "SiteSettings":
@@ -338,6 +360,31 @@ class SiteSettings(db.Model):
             db.session.add(instance)
             db.session.commit()
         return instance
+```
+
+## ApiToken Model Details
+
+```python
+class ApiToken(db.Model):
+    __tablename__ = "api_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    token_hash = db.Column(db.String(64), nullable=False)
+    scopes = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    last_used_at = db.Column(UTCDateTime, nullable=True)
+    expires_at = db.Column(UTCDateTime, nullable=True)
+    revoked_at = db.Column(UTCDateTime, nullable=True)
+
+    # Indexes: ix_api_tokens_token_hash, ix_api_tokens_revoked_at
+
+    def is_valid(self) -> bool:
+        """Check if token is valid (not expired and not revoked)."""
+    def has_scope(self, scope: str) -> bool:
+        """Check if token has the given scope. 'admin:*' matches all scopes."""
+
+    __repr__()  # Returns <ApiToken id={self.id} name={self.name!r}>
 ```
 
 ## See Also

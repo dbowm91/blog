@@ -115,7 +115,7 @@ CSS pattern for progressive image loading:
 
 The `lazy-load.js` module implements a three-tier fallback strategy:
 
-1. **Native lazy loading**: If `'loading' in HTMLImageElement.prototype`, use native `loading="lazy"` attribute
+1. **Native lazy loading**: If `'loading' in HTMLImageElement.prototype`, the JS returns early and does nothing — the browser handles `loading="lazy"` natively
 2. **IntersectionObserver polyfill**: If native not supported but IntersectionObserver exists, observe images with `rootMargin: '200px 0px'` and swap `dataset.src` into `src` when intersecting
 3. **Immediate load fallback**: If no IntersectionObserver support, load all `loading="lazy"` images immediately by copying `dataset.src` to `src`
 
@@ -163,7 +163,7 @@ Stylesheets in `app/static/css/`:
 
 ### Dark Mode
 
-Dark mode is the default (no `data-theme` attribute = dark). Light mode is applied via `data-theme="light"` on `<html>`. The `dark-mode.js` module:
+Dark mode is the default (no `data-theme` attribute = dark). Default follows OS preference via `prefers-color-scheme: dark` in `dark-mode.js:13-14`. Light mode is applied via `data-theme="light"` on `<html>`. The `dark-mode.js` module:
 - Checks `localStorage.getItem('theme')` for persisted preference
 - Falls back to `prefers-color-scheme: dark` media query
 - Toggles by setting/removing `data-theme="light"` attribute
@@ -172,18 +172,18 @@ Dark mode is the default (no `data-theme` attribute = dark). Light mode is appli
 
 ### Critical CSS
 
-`critical.css` provides above-the-fold styles for fast initial paint. Loaded in `base.html:22` with `media="screen"` for immediate rendering. Other stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
+`critical.css` provides above-the-fold styles for fast initial paint. Loaded in `base.html:25` with `media="screen"` for immediate rendering. Other stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
 
 ### Font Self-Hosting
 
 Fonts are self-hosted in `app/static/fonts/` as woff2 files:
 - Inter (weights 300–700) for body text (`--font-sans`)
 - JetBrains Mono (weights 400, 500) for code blocks (`--font-mono`)
-- Preloaded in `base.html:37-38` with `crossorigin` attribute
+- Preloaded in `base.html:40-41` with `crossorigin` attribute
 
 ### Syntax Highlighting Themes
 
-Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically in `base.html:28` using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js:97-112` only when code blocks are present.
+Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically in `base.html:31` using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js:97-112` only when code blocks are present.
 
 ## Vite Configuration
 
@@ -196,7 +196,7 @@ Located at `vite.config.js`:
 
 ### Vite Asset Helper
 
-`vite_asset()` in `app/vite.py:47` resolves content-hashed asset URLs. Registered as a Jinja2 global via `init_vite()` (`app/vite.py:80-82`). Used in `base.html` for all CSS, JS, and font references.
+`vite_asset()` in `app/vite.py:48` resolves content-hashed asset URLs. Registered as a Jinja2 global via `init_vite()` (`app/vite.py:81-83`). Used in `base.html` for all CSS, JS, and font references.
 
 In production:
 - JS files: looks up hashed filename from `.vite/manifest.json`
