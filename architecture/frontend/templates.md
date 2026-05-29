@@ -66,9 +66,19 @@ app/templates/
 ## Template Inheritance
 
 ```
-base.html
+base.html                              # Public base template
 ├── public/*.html (extends base.html)
-└── admin/*.html (extends base.html)
+├── admin/base.html                    # Admin base (extends base.html)
+│   └── admin/*.html (extends admin/base.html)
+├── admin/login_base.html              # Auth pages base (extends base.html)
+│   ├── admin/login.html
+│   ├── admin/login_2fa.html
+│   ├── admin/forgot-password.html
+│   └── admin/reset-password.html
+└── email/base_email.html              # Email base (standalone)
+    ├── email/confirm.html
+    ├── email/newsletter.html
+    └── email/password_reset.html
 ```
 
 ## Filters
@@ -78,7 +88,7 @@ Registered in `app/filters.py`:
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`
-- `post_image_srcset` - Generate srcset for responsive images
+- `post_image_srcset` - Generate srcset for responsive images. Checks for variants at 400, 800, and 1200 widths (`{width}_{filename}`), builds `srcset` attribute string with width descriptors (e.g., `400w, 800w, 1200w`). Uses request-level caching via `g._post_image_cache`. Returns `None` if no variants found. (app/filters.py:52-76)
 - `post_image_avif_url_stub` - DEPRECATED — always returns `None`. No templates currently use it.
 
 ## Context Processors

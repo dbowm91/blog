@@ -141,6 +141,38 @@ config = {}
 | `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds) |
 | `TOKEN_ENUMERATION_DELAY` | - | `0.1` | Delay to prevent token enumeration |
 
+### Admin Rate Limits
+
+`ADMIN_RATE_LIMITS` dict (app/config.py:164-171) defines per-endpoint rate limits as `(requests, seconds)` tuples:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `login` | `(5, 60)` | Login attempts per minute |
+| `api_write` | `(100, 60)` | Write API calls per minute |
+| `api_read` | `(500, 60)` | Read API calls per minute |
+| `settings` | `(50, 60)` | Settings updates per minute |
+| `post_create` | `(100, 60)` | Post creation per minute |
+| `post_update` | `(100, 60)` | Post updates per minute |
+
+### Comment Settings
+
+| Variable | Env Var | Default | Description |
+|----------|---------|---------|-------------|
+| `COMMENT_MIN_LENGTH` | - | `3` | Minimum comment length |
+| `COMMENT_MAX_LENGTH` | - | `5000` | Maximum comment length |
+| `COMMENT_RATE_LIMIT_PER_IP` | - | `5 per minute` | Rate limit per IP address |
+| `COMMENT_RATE_LIMIT_PER_POST` | - | `3 per minute` | Rate limit per post |
+| `COMMENT_NOTIFY_PENDING` | - | `false` | Notify admin of pending comments |
+| `COMMENT_SPAM_WORDS` | - | (empty) | Comma-separated spam trigger words |
+
+### Analytics Settings
+
+| Variable | Env Var | Default | Description |
+|----------|---------|---------|-------------|
+| `ANALYTICS_DAYS_MIN` | - | `7` | Minimum days for analytics range |
+| `ANALYTICS_DAYS_MAX` | - | `365` | Maximum days for analytics range |
+| `PAGE_VIEW_BUFFER_SIZE` | `PAGE_VIEW_BUFFER_SIZE` | `0` | Buffer size for page view writes |
+
 ## Validation
 
 The `_validate_config()` function validates:
