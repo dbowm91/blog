@@ -6,13 +6,22 @@ This module contains the consolidated implementation plan in `plans/plan.md`.
 
 ## Plan Status
 
-The implementation plan (`plans/plan.md`) is **FULLY COMPLETED**. All documentation fixes and the per-webhook retry feature have been implemented and verified.
+The implementation plan (`plans/plan.md`) is **PENDING**. It consolidates findings from architecture reviews of all 8 modules (conducted May 29, 2026) into a single actionable plan.
 
-The architecture review (`architecture/review_plan.md`) is **FULLY COMPLETED**. All 3 phases done. Findings in `plans/*_review.md` and `plans/architecture_prune.md`.
+Previous documentation waves (A-F, 43 items) and Wave 1 implementation were completed May 28, 2026. The current plan addresses remaining discrepancies, code bugs, and project polish items.
+
+## Plan Structure
+
+The plan is organized into 5 waves:
+- **Wave 1**: Critical documentation fixes (50 items, parallelizable)
+- **Wave 2**: Code-level fixes (4 items, parallelizable after Wave 1)
+- **Wave 3**: Documentation improvements (17 items, can run parallel with Wave 2)
+- **Wave 4**: Project polish for public release (19 items, sequential)
+- **Wave 5**: Final verification (6 items, after all other waves)
 
 ## Plan File
 
-The main plan file `plans/plan.md` serves as the single source of truth for documentation fixes.
+The main plan file `plans/plan.md` serves as the single source of truth for all implementation items.
 
 ## Plan Maintenance
 
@@ -33,3 +42,18 @@ When implementing plan items:
 | Infrastructure | `app/services/search/`, `app/search.py`, `app/utils.py`, `app/webhook_encryption.py`, `app/storage.py` |
 | Testing | `tests/conftest.py`, `tests/shared_fixtures.py`, `tests/e2e/test_e2e.py` |
 | Frontend | `app/filters.py`, `app/context_processors.py`, `app/vite.py`, `app/static/js/`, `app/templates/` |
+
+## Review Files
+
+The following review files contain detailed findings from the architecture review:
+- `plans/architecture_prune.md` - Documentation health assessment
+- `plans/core_review.md` - Core module findings
+- `plans/deployment_review.md` - Deployment module findings
+- `plans/frontend_review.md` - Frontend module findings
+- `plans/improvements.md` - Public release readiness plan
+- `plans/infrastructure_review.md` - Infrastructure module findings
+- `plans/overview_review.md` - Overview module findings
+- `plans/routes_review.md` - Routes module findings
+- `plans/services_review.md` - Services module findings
+- `plans/tasks_review.md` - Tasks module findings
+- `plans/testing_review.md` - Testing module findings

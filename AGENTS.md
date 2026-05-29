@@ -119,7 +119,27 @@ Actual filters (defined in `app/filters.py`):
 
 ### Critical CSS
 
-The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:22` with `media="screen"` for immediate loading.
+The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:25` with `media="screen"` for immediate loading.
+
+### Docker Compose Profiles
+
+All services require explicit profiles. There is no default profile:
+- `--profile production`: blog, celery, redis, nginx
+- `--profile backup`: backup service
+
+### CI Workflow
+
+The CI workflow is at `.github/workflows/ci.yml` (not `test.yml`). It includes 7 jobs: `openapi-validation`, `frontend-build`, `docker-build`, plus standard lint/test/typecheck.
+
+### Webhook Delivery Architecture
+
+Webhook delivery uses a two-level dispatch pattern:
+- `deliver_webhook_task` dispatches to `deliver_single_webhook_task`
+- `deliver_single_webhook_task` handles per-webhook SSRF protection, HMAC signing, retry logic, and delivery status updates
+
+### Missing Script
+
+`scripts/validate_openapi.py` is referenced in CI but does not exist. Either create it or remove the CI job.
 
 ## Historical Implementation Caveats
 
