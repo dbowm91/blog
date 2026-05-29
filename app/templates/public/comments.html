@@ -19,6 +19,7 @@
 <form method="POST" action="{{ url_for('public.add_comment', slug=slug) }}" class="comment-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="parent_id" value="{{ parent_id or '' }}">
+    <input type="text" name="website_url" class="hidden-field" tabindex="-1" autocomplete="off">
     <div class="form-group">
         <label for="author_name">Name</label>
         <input type="text" name="author_name" required>

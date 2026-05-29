@@ -47,3 +47,11 @@ smtp_timeout = 30  # seconds
 send_time = "08:00"
 confirmation_expiry_hours = 1
 max_retry_attempts = 5
+
+[comments]
+min_length = 3
+max_length = 5000
+rate_limit_per_ip = "5 per minute"
+rate_limit_per_post = "3 per minute"
+notify_pending = false
+spam_words = ""

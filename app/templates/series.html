@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block title %}{{ series.name }} - {{ super() }}{% endblock %}
+{% block feed_links %}
+<link rel="alternate" type="application/rss+xml" title="RSS Feed for {{ series.name }}" href="{{ url_for('rss.series_rss_feed', slug=series.slug) }}">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed for {{ series.name }}" href="{{ url_for('rss.series_atom_feed', slug=series.slug) }}">
+<link rel="alternate" type="application/feed+json" title="JSON Feed for {{ series.name }}" href="{{ url_for('rss.series_json_feed', slug=series.slug) }}">
+{% endblock %}
 
 {% block content %}
 <div class="series-view animate-in">

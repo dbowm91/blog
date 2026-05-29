@@ -9,28 +9,41 @@
     </div>
 
     <div class="comments-filters">
-        <a href="{{ url_for('admin.comments_list', approved='no') }}" class="btn btn-small {% if approved_filter == 'no' %}btn-primary{% else %}btn-ghost{% endif %}">Pending</a>
-        <a href="{{ url_for('admin.comments_list', approved='yes') }}" class="btn btn-small {% if approved_filter == 'yes' %}btn-primary{% else %}btn-ghost{% endif %}">Approved</a>
-        <a href="{{ url_for('admin.comments_list', approved='all') }}" class="btn btn-small {% if approved_filter == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">All</a>
+        <a href="{{ url_for('admin.comments_list', approved='no', spam='all') }}" class="btn btn-small {% if approved_filter == 'no' %}btn-primary{% else %}btn-ghost{% endif %}">Pending</a>
+        <a href="{{ url_for('admin.comments_list', approved='yes', spam='all') }}" class="btn btn-small {% if approved_filter == 'yes' %}btn-primary{% else %}btn-ghost{% endif %}">Approved</a>
+        <a href="{{ url_for('admin.comments_list', approved='all', spam='yes') }}" class="btn btn-small {% if spam_filter == 'yes' %}btn-primary{% else %}btn-ghost{% endif %}">Spam</a>
+        <a href="{{ url_for('admin.comments_list', approved='all', spam='all') }}" class="btn btn-small {% if approved_filter == 'all' and spam_filter == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">All</a>
     </div>
 
     {% if comments %}
     <div class="comments-list">
         {% for comment in comments %}
-        <div class="comment-item {% if not comment.approved %}comment-pending{% endif %}">
+        <div class="comment-item {% if not comment.approved %}comment-pending{% endif %} {% if comment.is_spam %}comment-spam{% endif %}">
             <div class="comment-meta">
                 <strong>{{ comment.author_name }}</strong> ({{ comment.author_email }})
                 {% if comment.post %}
                 <a href="{{ url_for('public.post', slug=comment.post.slug) }}">{{ comment.post.title }}</a>
                 {% endif %}
                 <time>{{ comment.created_at.strftime('%b %d, %Y at %H:%M') }}</time>
+                {% if comment.is_spam %}
+                <span class="badge badge-spam">Spam</span>
+                {% endif %}
+                {% if comment.spam_score is not none %}
+                <span class="spam-score">[Score: {{ "%.0f"|format(comment.spam_score * 100) }}%]</span>
+                {% endif %}
             </div>
             <div class="comment-content">{{ comment.content }}</div>
             <div class="comment-actions">
-                {% if not comment.approved %}
+                {% if not comment.approved and not comment.is_spam %}
                 <form method="POST" action="{{ url_for('admin.approve_comment', comment_id=comment.id) }}" style="display:inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="btn btn-small btn-success">Approve</button>
+                </form>
+                {% endif %}
+                {% if comment.is_spam %}
+                <form method="POST" action="{{ url_for('admin.approve_comment', comment_id=comment.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-small btn-warning">Not Spam</button>
                 </form>
                 {% endif %}
                 <form method="POST" action="{{ url_for('admin.delete_comment', comment_id=comment.id) }}" style="display:inline" data-confirm="Delete this comment?">
@@ -45,11 +58,11 @@
     {% if pagination.pages > 1 %}
     <div class="pagination">
         {% if pagination.has_prev %}
-        <a href="{{ url_for('admin.comments_list', page=pagination.prev_num, approved=approved_filter) }}" class="btn btn-small">&larr; Previous</a>
+        <a href="{{ url_for('admin.comments_list', page=pagination.prev_num, approved=approved_filter, spam=spam_filter) }}" class="btn btn-small">&larr; Previous</a>
         {% endif %}
         <span class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
         {% if pagination.has_next %}
-        <a href="{{ url_for('admin.comments_list', page=pagination.next_num, approved=approved_filter) }}" class="btn btn-small">Next &rarr;</a>
+        <a href="{{ url_for('admin.comments_list', page=pagination.next_num, approved=approved_filter, spam=spam_filter) }}" class="btn btn-small">Next &rarr;</a>
         {% endif %}
     </div>
     {% endif %}

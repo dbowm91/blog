@@ -52,6 +52,13 @@ __all__ = [
     "WEBHOOK_TIMEOUT",
     "WEBHOOK_ENCRYPTION_KEY",
     "COMPRESS_ALGORITHM",
+    "ENABLE_SCHEDULER",
+    "COMMENT_MIN_LENGTH",
+    "COMMENT_MAX_LENGTH",
+    "COMMENT_RATE_LIMIT_PER_IP",
+    "COMMENT_RATE_LIMIT_PER_POST",
+    "COMMENT_NOTIFY_PENDING",
+    "COMMENT_SPAM_WORDS",
 ]
 
 
@@ -128,6 +135,14 @@ ANALYTICS_DAYS_MAX = int(_config["app"].get("analytics_days_max", 365))
 PAGE_VIEW_BUFFER_SIZE = int(os.environ.get("PAGE_VIEW_BUFFER_SIZE", _config["app"].get("page_view_buffer_size", 0)))
 TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.1))
 PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
+
+COMMENT_MIN_LENGTH = int(_config.get("comments", {}).get("min_length", 3))
+COMMENT_MAX_LENGTH = int(_config.get("comments", {}).get("max_length", 5000))
+COMMENT_RATE_LIMIT_PER_IP = _config.get("comments", {}).get("rate_limit_per_ip", "5 per minute")
+COMMENT_RATE_LIMIT_PER_POST = _config.get("comments", {}).get("rate_limit_per_post", "3 per minute")
+COMMENT_NOTIFY_PENDING = bool(_config.get("comments", {}).get("notify_pending", False))
+COMMENT_SPAM_WORDS = _config.get("comments", {}).get("spam_words", "")
+
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
 LOGIN_FAILURE_DELAY = float(_env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05)))
 RATE_LIMIT_STORAGE_URI = _env(

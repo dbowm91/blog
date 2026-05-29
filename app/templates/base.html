@@ -15,6 +15,9 @@
     <meta name="twitter:description" content="{% block twitter_description %}{% endblock %}">
     {% block twitter_image %}{% endblock %}
     <link rel="canonical" href="{{ canonical_url }}">
+    {% block feed_links %}
+    <link rel="alternate" type="application/atom+xml" title="{{ site_title }} (Atom)" href="{{ url_for('rss.atom_feed') }}">
+    {% endblock %}
     {% block article_schema %}{% endblock %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" type="image/svg+xml" href="{{ vite_asset('img/favicon.svg') }}">

@@ -242,10 +242,22 @@ create_webhook_event(
 ```
 
 ### Feed Endpoints
-Three feed endpoints available:
+Three main feed endpoints available:
 - `/atom` - Atom 1.0 feed
 - `/rss` - RSS 2.0 feed
 - `/json` - JSON Feed 1.1
+
+Tag-specific feeds:
+- `/tag/<slug>/atom` - Atom 1.0 feed for posts with that tag
+- `/tag/<slug>/rss` - RSS 2.0 feed for posts with that tag
+- `/tag/<slug>/json` - JSON Feed for posts with that tag
+
+Series-specific feeds:
+- `/series/<slug>/atom` - Atom 1.0 feed for posts in that series
+- `/series/<slug>/rss` - RSS 2.0 feed for posts in that series
+- `/series/<slug>/json` - JSON Feed for posts in that series
+
+Tag and series pages include feed discovery links in `<head>` for RSS readers to auto-detect the feeds.
 
 ### Deprecated Function
 `deliver_webhook()` in `app/webhooks.py` is deprecated - use `deliver_webhook_task` Celery task instead for all webhook deliveries.

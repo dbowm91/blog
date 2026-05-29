@@ -2,6 +2,11 @@
 
 {% block title %}#{{ tag.name | escape }} | {{ site_title }}{% endblock %}
 {% block meta_description %}Posts tagged with {{ tag.name | escape }}{% endblock %}
+{% block feed_links %}
+<link rel="alternate" type="application/rss+xml" title="RSS Feed for #{{ tag.name | escape }}" href="{{ url_for('rss.tag_rss_feed', slug=tag.slug) }}">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed for #{{ tag.name | escape }}" href="{{ url_for('rss.tag_atom_feed', slug=tag.slug) }}">
+<link rel="alternate" type="application/feed+json" title="JSON Feed for #{{ tag.name | escape }}" href="{{ url_for('rss.tag_json_feed', slug=tag.slug) }}">
+{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb" aria-label="Breadcrumb">

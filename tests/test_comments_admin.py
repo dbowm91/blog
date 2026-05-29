@@ -132,3 +132,55 @@ def test_delete_comment_not_found(authenticated_client):
         follow_redirects=True
     )
     assert response.status_code == 404
+
+
+def test_comments_list_filter_spam(authenticated_client, db, sample_post):
+    """Test comments list filters spam comments."""
+    comment1 = Comment(
+        post_id=sample_post.id,
+        author_name="Author1",
+        author_email="a1@example.com",
+        content="Not spam comment",
+        approved=False,
+        is_spam=False,
+    )
+    comment2 = Comment(
+        post_id=sample_post.id,
+        author_name="Spammer",
+        author_email="spam@example.com",
+        content="BUY NOW!!!!!!! CLICK HERE!!!! https://spam.com https://spam.com https://spam.com https://spam.com",
+        approved=False,
+        is_spam=True,
+        spam_score=0.75,
+    )
+    db.session.add_all([comment1, comment2])
+    db.session.commit()
+    # Filter spam
+    response = authenticated_client.get("/admin/comments?approved=all&spam=yes")
+    assert response.status_code == 200
+    assert b"Spammer" in response.data
+    assert b"Not spam comment" not in response.data
+
+
+def test_approve_spam_comment(authenticated_client, db, sample_post):
+    """Test approving a spam comment marks it as not spam."""
+    comment = Comment(
+        post_id=sample_post.id,
+        author_name="Spammer",
+        author_email="spam@example.com",
+        content="Spam content",
+        approved=False,
+        is_spam=True,
+        spam_score=0.8,
+    )
+    db.session.add(comment)
+    db.session.commit()
+    response = authenticated_client.post(
+        f"/admin/comments/{comment.id}/approve",
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    db.session.expire(comment)
+    comment = db.session.get(Comment, comment.id)
+    assert comment.approved is True
+    assert comment.is_spam is False

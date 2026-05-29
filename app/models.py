@@ -601,6 +601,8 @@ class Comment(db.Model):  # type: ignore[name-defined]
     author_email = db.Column(db.String(256), nullable=False)
     content = db.Column(db.Text, nullable=False)
     approved = db.Column(db.Boolean, default=False, nullable=False)
+    is_spam = db.Column(db.Boolean, default=False, nullable=False)
+    spam_score = db.Column(db.Float, nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
     post = db.relationship("Post", back_populates="comments")
@@ -611,7 +613,43 @@ class Comment(db.Model):  # type: ignore[name-defined]
         db.Index("ix_comments_post_approved", "post_id", "approved"),
         db.Index("ix_comments_created_at", "created_at"),
         db.Index("ix_comments_parent_id", "parent_id"),
+        db.Index("ix_comments_is_spam", "is_spam"),
     )
 
     def __repr__(self) -> str:
-        return f"<Comment post_id={self.post_id} approved={self.approved}>"
+        return f"<Comment post_id={self.post_id} approved={self.approved} is_spam={self.is_spam}>"
+
+
+class ApiToken(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "api_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    token_hash = db.Column(db.String(64), nullable=False)
+    scopes = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    last_used_at = db.Column(UTCDateTime, nullable=True)
+    expires_at = db.Column(UTCDateTime, nullable=True)
+    revoked_at = db.Column(UTCDateTime, nullable=True)
+
+    __table_args__ = (
+        db.Index("ix_api_tokens_token_hash", "token_hash"),
+        db.Index("ix_api_tokens_revoked_at", "revoked_at"),
+    )
+
+    def is_valid(self) -> bool:
+        """Check if token is valid (not expired and not revoked)."""
+        if self.revoked_at is not None:
+            return False
+        if self.expires_at is not None and utc_now() > self.expires_at:
+            return False
+        return True
+
+    def has_scope(self, scope: str) -> bool:
+        """Check if token has the given scope."""
+        if "admin:*" in self.scopes:
+            return True
+        return scope in self.scopes
+
+    def __repr__(self) -> str:
+        return f"<ApiToken id={self.id} name={self.name!r}>"
