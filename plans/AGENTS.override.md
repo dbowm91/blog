@@ -6,7 +6,9 @@ This module contains the consolidated implementation plan in `plans/plan.md`.
 
 ## Plan Status
 
-The plan is **FULLY COMPLETED**. All documentation fixes and the per-webhook retry feature have been implemented and verified.
+The implementation plan (`plans/plan.md`) is **FULLY COMPLETED**. All documentation fixes and the per-webhook retry feature have been implemented and verified.
+
+The architecture review (`architecture/review_plan.md`) is **FULLY COMPLETED**. All 3 phases done. Findings in `plans/*_review.md` and `plans/architecture_prune.md`.
 
 ## Plan File
 
