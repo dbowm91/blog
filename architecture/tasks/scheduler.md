@@ -37,10 +37,15 @@ Runs every 5 minutes (`minute="*/5"`):
 ### `publish_scheduled_posts`
 
 Runs every 5 minutes (`minute="*/5"`):
-1. Finds posts where `scheduled_publish_at <= now` and `published = False`
-2. Sets `published = True` and `published_at = now`
-3. Syncs to FTS index via `sync_fts_batch()`
-4. Invalidates tag cache via `invalidate_tag_cache()`
+1. Acquires FileLock (`scheduled.lock`) with `timeout=0` - skips if lock held
+2. Finds posts where `scheduled_publish_at <= now` and `published = False`
+3. Sets `published = True`, `published_at = now`, clears `scheduled_publish_at`
+4. Builds FTS batch items from post data
+5. Calls `sync_fts_batch()` to update the FTS5 search index
+6. **If FTS sync fails**: rolls back the entire database transaction and logs a warning — posts remain unpublished and will be retried on the next run
+7. On success: commits, invalidates tag cache via `invalidate_tag_cache()`
+
+**FTS Rollback Behavior:** The function uses a pre-commit validation pattern. Posts are marked as published in the session but the commit only occurs after `sync_fts_batch()` succeeds. If FTS sync returns `False` (e.g., due to a database error or FTS5 unavailability), the entire batch publish is rolled back. This ensures FTS index consistency with the database — posts never appear published in the DB but missing from search. The posts will be re-selected and re-attempted on the next scheduler cycle (every 5 minutes).
 
 ### `run_daily_backup`
 
