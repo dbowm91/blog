@@ -229,6 +229,10 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 | `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
 | `run_daily_backup` | Daily at 02:00 | Daily database backup |
 
+**Newsletter Three-Way Path:** The newsletter system has two delivery paths that both terminate at `email.send_newsletter()`:
+1. **Daily scheduled:** `scheduler.send_daily_newsletter()` (APScheduler) → `email.send_newsletter()` (direct call)
+2. **Manual/ad-hoc:** `send_newsletter_task` (Celery) → `email.send_newsletter()` (admin dashboard triggers)
+
 **Deep Dive:** [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md)
 
 ---

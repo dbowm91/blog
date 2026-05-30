@@ -45,6 +45,10 @@ Sends newsletter to all confirmed subscribers (manual/ad-hoc sends from admin da
 4. Sends via SMTP with retry logic
 5. Updates `newsletter_sent_at` on success
 
+**Newsletter Three-Way Path:** The newsletter system has two delivery paths that both terminate at `email.send_newsletter()`:
+1. **Daily scheduled:** `scheduler.send_daily_newsletter()` (APScheduler) → `email.send_newsletter()` (direct call)
+2. **Manual/ad-hoc:** `send_newsletter_task` (Celery, this task) → `email.send_newsletter()` (admin dashboard triggers)
+
 ### `deliver_webhook_task`
 
 ```python
