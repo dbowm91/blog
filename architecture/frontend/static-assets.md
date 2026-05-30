@@ -201,6 +201,8 @@ Located at `vite.config.js`:
 - JSX support via esbuildOptions for `.jsx` files
 - Dev server on port 3000 with proxy to Flask on port 5000
 
+> **⚠️ Production Build Requirement:** The `npm run build` command (or `vite build`) must be executed before production deployment. This generates the `manifest.json` at `app/static/dist/.vite/manifest.json`. Without this build, JavaScript assets reference hashed filenames that do not exist, causing JavaScript failures in production.
+
 ### Vite Asset Helper
 
 `vite_asset()` in `app/vite.py:48` resolves content-hashed asset URLs. Registered as a Jinja2 global via `init_vite()` (`app/vite.py:81-83`). Used in `base.html` for all CSS, JS, and font references.
