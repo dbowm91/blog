@@ -386,6 +386,7 @@ def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
 @shared_task(bind=True, max_retries=2, retry_backoff=True, queue="backup")
 def run_backup_task(self: Any) -> bool:
     """Run database backup asynchronously to avoid blocking web requests."""
+    from app.extensions import db
     from app.services.backup import create_backup
 
     try:
