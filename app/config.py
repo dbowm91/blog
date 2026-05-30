@@ -145,6 +145,7 @@ HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
 LOGIN_FAILURE_DELAY = float(
     _env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05))
 )
+LOGIN_FAILURE_DELAY = max(LOGIN_FAILURE_DELAY, 0.1)
 RATE_LIMIT_STORAGE_URI = _env(
     "RATE_LIMIT_STORAGE_URI",
     "redis://localhost:6379/1" if os.environ.get("FLASK_ENV") == "production" else "memory://",
