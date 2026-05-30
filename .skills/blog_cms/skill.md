@@ -3,30 +3,24 @@
 ## Description
 Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff
 
-Implementation Status: All waves completed. Project in maintenance mode.
+## Implementation Status
+
+**COMPLETED** - All implementation waves completed and verified. Project in maintenance mode.
 
 ## Implementation Summary
 
-All implementation waves completed and verified:
+All implementation waves completed:
 - **Waves A-F**: Original documentation fixes (May 28, 2026)
-- **Waves 1-5**: Architecture review fixes (May 29, 2026) — 96 items across 5 waves
-  - Wave 1: Critical documentation fixes (50 items) — model counts, line numbers, route paths, event types, config docs
-  - Wave 2: Code-level fixes (6 items) — duplicate Atom feed, dead code cleanup, test teardown
-  - Wave 3: Documentation improvements (17 items) — Vite integration, CLI commands, Celery config, scripts docs
-  - Wave 4: Project polish (19 items) — project identity, security docs, Docker/CI, contribution hygiene
-  - Wave 5: Verification — all checks pass
-
-### Key Fixes Applied
-- **Duplicate Atom feed**: Removed hardcoded duplicate at `base.html:24`
-- **Dead code**: Removed unused vars from SQLiteSearchProvider, dead expressions in RSS feeds
-- **Model docs**: Added ApiToken, Comment spam fields, timestamps, indexes
-- **Config docs**: Added ADMIN_RATE_LIMITS, comment settings, analytics settings
-- **Route docs**: Fixed admin paths, backup filenames, API endpoints (pages, series, tags)
-- **Webhook docs**: Documented two-level dispatch, SSRF validation, encryption, retry behavior
-- **CI**: Removed broken openapi-validation job, added Dependabot config
-- **Security**: Expanded SECURITY.md with reporting path and boundaries section
+- **Waves 1-5**: Architecture review fixes (May 29-30, 2026) — 90+ items across 6 waves
+  - Wave 1: Critical code bugs (6 items) — APScheduler race, webhook status, E2E fixtures, backup encryption, Python version, thread-safe storage
+  - Wave 2: Documentation corrections (3 items) — test-suite rewrite, module boundaries, stale line references
+  - Wave 3: Missing documentation (13 items) — Vite build, APScheduler detection, encryption keys, API errors, rate limits, etc.
+  - Wave 4: Frontend fixes (2 items) — login template assets, Prism CSS CDN
+  - Wave 5: Source cleanup (5 items) — dead imports, exports, session.remove(), metrics auth, S3 errors
+  - Wave 6: Security hardening (2 items) — LOGIN_FAILURE_DELAY min, comment rate limit bypass
 
 ## Triggers
+
 Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log
 
 ## Key Files
@@ -59,13 +53,13 @@ Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, 
 
 ### Infrastructure
 - `app/email.py` - SMTP email delivery
-- `app/storage.py` - Local/S3 storage abstraction
+- `app/storage.py` - Local/S3 storage abstraction (thread-safe singleton via double-checked locking)
 - `app/webhooks.py` - Webhook delivery with SSRF protection
 - `app/page_view_buffer.py` - Page view buffering
 
 ### Testing
 - `tests/conftest.py` - Test fixtures (app, client, db, admin_user)
-- `tests/shared_fixtures.py` - Shared `ensure_buffer_disabled` autouse fixture (Wave F consolidation)
+- `tests/shared_fixtures.py` - Shared `ensure_buffer_disabled` autouse fixture
 - `tests/test_*.py` - Unit tests
 - `tests/benchmarks/` - Benchmark tests
 - `tests/e2e/` - E2E tests with Playwright
@@ -120,7 +114,7 @@ for i in range(0, len(post_ids), chunk_size):
 ## Security Notes
 
 ### High-Risk Files (Error Handling)
-These files previously used broad `except Exception` clauses. All have been replaced with specific exceptions:
+These files use specific exception handling:
 - `app/routes/public/meta.py`
 - `app/email.py`
 - `app/backup_integrity.py`
@@ -133,24 +127,24 @@ These files previously used broad `except Exception` clauses. All have been repl
 - `User.totp_secret` is a property that decrypts on access
 - Backup codes SHA-256 hashed and single-use
 
-### Log ID, not Username
-When logging user actions, always use `user.id`. Never log raw User objects or usernames.
+### LOGIN_FAILURE_DELAY
+Minimum enforced at 0.1s in `app/config.py` to prevent brute force.
 
-### Credential Protection
-Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys.
+### Thread-Safe Storage
+`app/storage.py:get_storage()` uses double-checked locking with `threading.Lock()`.
 
 ## Test Interference Notes
 
 ### Page View Buffer
 - Buffer started during `create_app()` if `PAGE_VIEW_BUFFER_SIZE > 0`
 - In tests: disable via `app.config.PAGE_VIEW_BUFFER_SIZE = 0` and call `shutdown_page_view_buffer()`
-- `ensure_buffer_disabled` fixture consolidated in `tests/shared_fixtures.py` (Wave F)
+- `ensure_buffer_disabled` fixture in `tests/shared_fixtures.py`
 
 ### Test Database Session
 `db.session.refresh()` fails if object isn't in current session. Re-query from database instead.
 
-## Implementation Plan
+## Maintenance
 
-All waves completed: `plans/plan.md`
-- Project in maintenance mode
-- See `plans/plan.md` for complete reference of all implementation details
+Project is in maintenance mode. No active implementation plans.
+- See `plans/AGENTS.override.md` for completed items reference
+- See `docs/internals/agent-maintainer-notes.md` for detailed history
