@@ -11,6 +11,15 @@ For S3, set these env vars:
 - S3_ACCESS_KEY (required)
 - S3_SECRET_KEY (required)
 - S3_PUBLIC_URL (optional, for custom CDN URLs)
+
+Known Limitations
+-----------------
+S3StorageBackend.exists() and list_files() do not differentiate between
+"not found" and other errors. Both return False/empty list on any error,
+making it impossible to distinguish network failures, permission errors,
+or bucket issues from a simple404. This is a design limitation; fixing
+would require an API change to return discriminated results (e.g.,
+Result[T, StorageError]).
 """
 
 from __future__ import annotations
