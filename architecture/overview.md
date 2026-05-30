@@ -306,7 +306,7 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 
 | Component | Purpose |
 |-----------|---------|
-| Docker | Containerized deployment |
+| Docker | Containerized deployment; health check includes 10s `start_period` before healthy status |
 | Docker Compose | Multi-container orchestration |
 | Nginx | TLS termination, static files, load balancing |
 | CI/CD | Automated testing and deployment |
