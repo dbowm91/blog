@@ -140,6 +140,28 @@ The `/health` endpoint provides JSON status for all components:
 | Rate Limiting | 60 requests/minute via Flask-Limiter |
 | Status Response | Returns 200 even if optional services are degraded |
 
+### Docker Health Check Configuration
+
+The `blog` service uses a Docker health check with `start_period: 10s`:
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s
+```
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `start_period` | 10s | Grace period before first health check evaluation; container reports `starting` status during this time |
+| `interval` | 30s | Time between checks |
+| `timeout` | 10s | Max time for check to complete |
+| `retries` | 3 | Consecutive failures before unhealthy |
+
+**Note:** During the 10-second `start_period`, the container is in `starting` state and will not be marked unhealthy even if the health check fails. The container is only evaluated as healthy or unhealthy after `start_period` elapses.
+
 ### Critical Checks
 
 Only these checks affect the overall health status:
