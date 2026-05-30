@@ -49,6 +49,9 @@ services:
           memory: 256M
     profiles:
       - production
+    depends_on:
+      redis:
+        condition: service_healthy
 
   # WARNING: APScheduler runs on all replicas. Scaling celery beyond 1 container
   # without external job coordination (Redis, etcd) will cause duplicate job execution.
