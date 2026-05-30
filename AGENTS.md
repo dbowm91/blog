@@ -100,19 +100,7 @@ Important actual file locations (verify before assuming):
 
 ### APScheduler Multi-Container Limitation
 
-APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently (duplicate newsletter sends, duplicate backups, duplicate post publishes). No external coordination mechanism exists. **This limitation is now documented in docker-compose.yml with a warning comment.**
-
-### E2E Test Password Inconsistency ~~(FIXED May 30, 2026)~~
-
-~~`tests/conftest.py` used `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` used `"test-password"` (with hyphen) at line 44.~~ **FIXED: Both now use `"test-password"`.**
-
-### Webhook Delivery Status Tracking Bug ~~(FIXED May 30, 2026)~~
-
-~~`_update_delivery_status()` sets `event.delivered = True` at the dispatcher level BEFORE `deliver_single_webhook_task` calls complete.~~ **FIXED: Per-webhook `successful_deliveries` and `failed_deliveries` counters now track individual results. Status is now "delivered", "failed", or "partial_failure".**
-
-### Backup Encryption Silent Failure ~~(FIXED May 30, 2026)~~
-
-~~`app/services/backup.py:_encrypt_backup_file()` catches exceptions and returns `False`.~~ **FIXED: Encryption failures now log a WARNING and proceed with unencrypted backup.**
+APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently. **This limitation is documented in docker-compose.yml with a warning comment.**
 
 ### Vite Build Required for Production
 
@@ -161,9 +149,9 @@ Webhook delivery uses a two-level dispatch pattern:
 
 There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
 
-### Thread-Unsafe Storage Singleton
+### Thread-Safe Storage Singleton
 
-`app/storage.py:get_storage()` singleton is not thread-safe. Multiple threads could create multiple storage instances. Uses lazy initialization without locking.
+`app/storage.py:get_storage()` uses double-checked locking pattern with `threading.Lock()` for thread-safe singleton initialization.
 
 ### E2E Test Isolation
 
@@ -171,15 +159,11 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 ### Login Template Asset Loading
 
-`admin/login_base.html` uses `url_for('static', ...)` directly instead of `vite_asset()` unlike `admin/base.html`. Login pages won't benefit from content-hashed URLs or CDN prefix.
+`admin/login_base.html` uses `vite_asset()` for CSS/JS assets, enabling CDN prefix support.
 
-### Prism CSS CDN Bypass
+### Prism CSS Loading
 
-`main.js:102` loads Prism CSS via direct path `/static/css/...` bypassing vite_asset(). If CDN_URL is configured, Prism CSS won't include it.
-
-### Python Version Mismatch ~~(FIXED May 30, 2026)~~
-
-~~`scripts/dev.sh:11` requires Python >= 3.14 but `Dockerfile:1` uses python:3.12-slim.~~ **FIXED: dev.sh now accepts Python 3.12, aligning with Dockerfile.**
+Prism CSS is loaded via `data-prism-css-url` attribute which templates set using `vite_asset()`.
 
 ### Session IP Binding
 
@@ -189,21 +173,13 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 `app/__init__.py:430-433` catches `OperationalError` during FTS init silently. User is never informed if search won't work.
 
-### E2E Test CI Race Condition ~~(FIXED May 30, 2026)~~
+### LOGIN_FAILURE_DELAY
 
-~~`docker compose wait redis` only waits for redis. Blog service may not be healthy yet when tests start.~~ **FIXED: CI workflow now waits for blog health directly, not just redis.**
-
-### LOGIN_FAILURE_DELAY Can Be Zero
-
-`app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. If `LOGIN_FAILURE_DELAY` is 0, there's no delay between failed attempts making brute force easier. No minimum validation exists in config.
+`app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. A minimum of 0.1s is enforced in `app/config.py`.
 
 ### Comment Rate Limit IP Header Bypass
 
 `app/routes/public/comments.py:24-32` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed. This is a known limitation with no validation for trusted proxies.
-
-## Implementation Plan
-
-The consolidated implementation plan is at `plans/plan.md`. It contains ~90 items across 6 waves identified during architecture reviews (May 29, 2026). **All waves completed May 30, 2026.**
 
 ## Historical Implementation Caveats
 
