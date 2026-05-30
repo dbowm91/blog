@@ -9,6 +9,41 @@ os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 
 @pytest.fixture(scope="session")
+def app(tmp_path_factory):
+    """Create application for the test session."""
+    db_dir = tmp_path_factory.mktemp("blog_e2e")
+    db_path = db_dir / "test.db"
+
+    os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+
+    from app import create_app
+
+    application = create_app()
+    application.config.update(
+        {
+            "TESTING": True,
+            "CSRF_ENABLED": False,
+        }
+    )
+
+    import app.config as _app_config
+
+    _app_config.PAGE_VIEW_BUFFER_SIZE = 0
+    from app.page_view_buffer import shutdown_page_view_buffer
+
+    shutdown_page_view_buffer()
+
+    from celery import current_app as celery_app
+
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+    )
+
+    yield application
+
+
+@pytest.fixture(scope="session")
 def browser_type_launch_args(browser_type_launch_args):
     """Configure browser launch arguments."""
     return {
