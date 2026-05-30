@@ -144,22 +144,10 @@ jobs:
         run: docker build -t blog-app:latest .
 
       - name: Start services
-        run: |
-          docker compose up -d --profile production
-          docker compose wait redis
+        run: docker compose up -d --profile production
 
       - name: Wait for blog to be healthy
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:5000/health > /dev/null 2>&1; then
-              echo "Blog is healthy"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Blog failed to become healthy"
-          docker compose logs blog
-          exit 1
+        run: docker compose wait blog
 
       - name: Install Playwright
         run: |
