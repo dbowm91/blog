@@ -315,6 +315,36 @@ Rate limit headers are returned on all responses:
 
 When limits are exceeded, `429 Too Many Requests` is returned with `Retry-After` header.
 
+## Error Responses
+
+All API endpoints return consistent JSON error responses. Error responses include an `error` field with a human-readable message.
+
+| Status Code | Meaning | Example Response |
+|-------------|---------|------------------|
+| 400 | Bad Request - Invalid JSON body or validation failure | `{"error": "Invalid JSON body"}` |
+| 400 | Validation error - Missing or invalid field | `{"error": "title is required"}` |
+| 401 | Unauthorized - Invalid or missing API key | `{"error": "Invalid or missing API key"}` |
+| 403 | Forbidden - Missing required scope | `{"error": "Missing scope: pages:write"}` |
+| 404 | Not Found - Resource does not exist | `{"error": "Post not found"}` |
+| 409 | Conflict - Duplicate slug or constraint violation | `{"error": "Duplicate slug or database constraint violation"}` |
+| 429 | Too Many Requests - Rate limit exceeded | Rate limit headers + `Retry-After` header |
+| 500 | Internal Server Error - Database operational failure | `{"error": "Database operational error"}` |
+| 503 | Service Unavailable - Search index unavailable | `{"error": "Search index unavailable"}` |
+
+### Common Error Messages
+
+| Error Message | Cause |
+|---------------|-------|
+| `Invalid JSON body` | Request body is not valid JSON |
+| `title is required` | Required field missing in request body |
+| `Invalid or missing API key` | No `X-API-Key` header or invalid key |
+| `Missing scope: {scope}` | API key lacks required scope for endpoint |
+| `{resource} not found` | Resource with given ID does not exist |
+| `Duplicate slug or database constraint violation` | Slug already exists or other DB constraint failed |
+| `A {resource} with this {field} already exists` | Unique constraint violation |
+| `Database operational error` | Database connection or query failure |
+| `Search index unavailable` | FTS5 search index sync failed (503) |
+
 ## See Also
 - [Admin Routes](admin-routes.md) - Admin dashboard
 - [Public Routes](public-routes.md) - Public blog routes
