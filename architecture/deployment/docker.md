@@ -71,6 +71,8 @@ Workers can be scaled independently:
 docker-compose up -d --scale celery=3
 ```
 
+**Warning:** The `--concurrency=1` setting is per-container, not total. Scaling to 3 containers (`--scale celery=3`) results in 3x parallelism (3 concurrent workers). This can cause duplicate newsletter sends or webhook deliveries unless task routing or queue partitioning is implemented.
+
 ## Multi-Worker Deployment Considerations
 
 **APScheduler Limitation:** APScheduler jobs run in-process and use FileLock for concurrency control. FileLock only works on a single machine, meaning:
