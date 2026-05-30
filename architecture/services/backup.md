@@ -51,10 +51,19 @@ def run_daily_backup(app: Any) -> None
 Service-level daily backup designed for scheduler and CLI use. Unlike `create_backup()`, this does **not** support compression or encryption — use the Celery task `run_backup_task` for encrypted/compressed backups.
 
 **Behavior:**
-- Uses `sqlite3.backup()` for WAL mode consistency
-- Naming pattern: `blog_YYYYMMDD_HHMMSS.db`
-- Retention: 7 backups (via `BACKUP_RETENTION_COUNT`)
-- Reads `DATA_BACKUP_DIR` from config for backup directory
+- `create_backup()` proceeds to create an unencrypted backup if encryption fails (warning logged)
+- `run_daily_backup()` does NOT support encryption or compression
+
+## Encryption Behavior
+
+When `encrypt=True` is passed to `create_backup()`:
+
+1. Backup is created as unencrypted `.db` file
+2. `_encrypt_backup_file()` is called to encrypt in-place
+3. If encryption fails (key not loadable, cryptography library missing, or other error), a warning is logged and the unencrypted backup is retained
+4. Backup creation does NOT fail on encryption errors — the plain backup is preserved
+
+**Note:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, the backup proceeds unencrypted with a warning. To enforce encryption, use the Celery task which handles errors differently.
 
 ### `decrypt_backup_file()`
 
