@@ -138,7 +138,7 @@ config = {}
 |----------|---------|---------|-------------|
 | `MAX_FAILED_ATTEMPTS` | - | `5` | Login attempts before lockout |
 | `LOCKOUT_DURATION_MINUTES` | - | `15` | Account lockout duration |
-| `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds) |
+| `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds, no minimum enforced) |
 | `TOKEN_ENUMERATION_DELAY` | - | `0.1` | Delay to prevent token enumeration |
 
 ### Admin Rate Limits
