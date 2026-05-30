@@ -302,8 +302,8 @@ API endpoints have the following rate limits:
 
 | Endpoint Type | Limit | Notes |
 |---------------|-------|-------|
-| Authenticated reads | 20/min | GET /api/posts, GET /api/subscribers, GET /api/stats |
-| Authenticated writes | 10/min | POST, PUT, DELETE operations |
+| Authenticated reads | 20/min | GET /api/posts, GET /api/subscribers, GET /api/stats, GET /api/pages, GET /api/series, GET /api/tags |
+| Authenticated writes | 10/min | POST, PUT, DELETE operations on posts, subscribers, pages, series, tags |
 | Public subscribe | 10/min | POST /subscribe |
 | Public comments | 10/min | POST /post/<slug>/comment |
 | API key check | 1000/hour | Per API key |
