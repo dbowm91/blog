@@ -100,19 +100,19 @@ Important actual file locations (verify before assuming):
 
 ### APScheduler Multi-Container Limitation
 
-APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently (duplicate newsletter sends, duplicate backups, duplicate post publishes). No external coordination mechanism exists.
+APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently (duplicate newsletter sends, duplicate backups, duplicate post publishes). No external coordination mechanism exists. **This limitation is now documented in docker-compose.yml with a warning comment.**
 
-### E2E Test Password Inconsistency
+### E2E Test Password Inconsistency ~~(FIXED May 30, 2026)~~
 
-`tests/conftest.py` uses `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` uses `"test-password"` (with hyphen) at line 44. Tests may fail inconsistently depending on which fixture set is used.
+~~`tests/conftest.py` used `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` used `"test-password"` (with hyphen) at line 44.~~ **FIXED: Both now use `"test-password"`.**
 
-### Webhook Delivery Status Tracking Bug
+### Webhook Delivery Status Tracking Bug ~~(FIXED May 30, 2026)~~
 
-`_update_delivery_status()` sets `event.delivered = True` at the dispatcher level BEFORE `deliver_single_webhook_task` calls complete. The per-webhook status is never checked. Webhook delivery status in DB will be misleading.
+~~`_update_delivery_status()` sets `event.delivered = True` at the dispatcher level BEFORE `deliver_single_webhook_task` calls complete.~~ **FIXED: Per-webhook `successful_deliveries` and `failed_deliveries` counters now track individual results. Status is now "delivered", "failed", or "partial_failure".**
 
-### Backup Encryption Silent Failure
+### Backup Encryption Silent Failure ~~(FIXED May 30, 2026)~~
 
-`app/services/backup.py:_encrypt_backup_file()` catches exceptions and returns `False`. If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, backup proceeds unencrypted without error. The `backup.py` CLI uses `create_backup()` which handles encryption failures, but silently falls back.
+~~`app/services/backup.py:_encrypt_backup_file()` catches exceptions and returns `False`.~~ **FIXED: Encryption failures now log a WARNING and proceed with unencrypted backup.**
 
 ### Vite Build Required for Production
 
@@ -177,9 +177,9 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 `main.js:102` loads Prism CSS via direct path `/static/css/...` bypassing vite_asset(). If CDN_URL is configured, Prism CSS won't include it.
 
-### Python Version Mismatch
+### Python Version Mismatch ~~(FIXED May 30, 2026)~~
 
-`scripts/dev.sh:11` requires Python >= 3.14 but `Dockerfile:1` uses python:3.12-slim. This dev/prod version mismatch could cause compatibility issues.
+~~`scripts/dev.sh:11` requires Python >= 3.14 but `Dockerfile:1` uses python:3.12-slim.~~ **FIXED: dev.sh now accepts Python 3.12, aligning with Dockerfile.**
 
 ### Session IP Binding
 
@@ -189,21 +189,21 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 `app/__init__.py:430-433` catches `OperationalError` during FTS init silently. User is never informed if search won't work.
 
-### E2E Test CI Race Condition
+### E2E Test CI Race Condition ~~(FIXED May 30, 2026)~~
 
-`docker compose wait redis` only waits for redis to be ready. Blog service may not be healthy yet when tests start. The wait loop in ci.yml works but is fragile.
+~~`docker compose wait redis` only waits for redis. Blog service may not be healthy yet when tests start.~~ **FIXED: CI workflow now waits for blog health directly, not just redis.**
 
 ### LOGIN_FAILURE_DELAY Can Be Zero
 
-`app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. If `LOGIN_FAILURE_DELAY` is 0, there's no delay between failed attempts making brute force easier.
+`app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. If `LOGIN_FAILURE_DELAY` is 0, there's no delay between failed attempts making brute force easier. No minimum validation exists in config.
 
 ### Comment Rate Limit IP Header Bypass
 
-`app/routes/public/comments.py:24-32` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed.
+`app/routes/public/comments.py:24-32` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed. This is a known limitation with no validation for trusted proxies.
 
 ## Implementation Plan
 
-The consolidated implementation plan is at `plans/plan.md`. It contains NEW items identified in architecture reviews (May 29, 2026) that were not addressed in the previous plan. The previous 96-item plan was marked complete May 29, 2026.
+The consolidated implementation plan is at `plans/plan.md`. It contains ~90 items across 6 waves identified during architecture reviews (May 29, 2026). **All waves completed May 30, 2026.**
 
 ## Historical Implementation Caveats
 
