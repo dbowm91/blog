@@ -45,18 +45,22 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │
              ┌─────────────────────────┼─────────────────────────┐
-             │                         │                         │
-             ▼                         ▼                         ▼
+              │                         │                         │
+              ▼                         ▼                         ▼
 ┌─────────────────┐     ┌─────────────────────┐     ┌─────────────────┐
-│   Celery Worker │     │       Redis         │     │      Redis       │
-│   (Redis Queue) │◄────│  (Broker + Cache)  │────►│  (Rate Limits)   │
-│                 │     │                     │     │                  │
-│  • images       │     │  Queues:           │     │                  │
-│  • newsletter   │     │  • images          │     │                  │
-│  • webhooks     │     │  • newsletter      │     │                  │
-│  • email        │     │  • webhooks        │     │                  │
-│  • backup       │     │  • email           │     │                  │
-│                 │     │  • backup          │     │                  │
+│   Celery Worker │     │       Redis         │     │                 │
+│   (Redis Queue) │◄────│  (Broker + Cache   │────►│  (Rate Limits)  │
+│                 │     │   + Rate Limits)    │     │                 │
+│  • images       │     │                     │     │                 │
+│  • newsletter   │     │  Queues:           │     │                 │
+│  • webhooks     │     │  • images          │     │                 │
+│  • email        │     │  • newsletter      │     │                 │
+│  • backup       │     │  • webhooks        │     │                 │
+│                 │     │  • email           │     │                 │
+│                 │     │  • backup          │     │                 │
+│                 │     │                     │     │                 │
+│                 │     │  Single REDIS_URL  │     │                 │
+│                 │     │  (multiple uses)   │     │                 │
 └─────────────────┘     └─────────────────────┘     └─────────────────┘
              │                         │
              └─────────────────────────┼─────────────────────────┘
@@ -78,7 +82,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ## 1. Core Application
 
-**Source:** `app/__init__.py`, `app/config.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`
+**Source:** `app/__init__.py`, `app/config.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`, `app/tag_cache.py`
 
 **Purpose:** Initialize Flask app, configure extensions, register blueprints, set up middleware.
 
@@ -91,6 +95,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Context Processors | `app/context_processors.py` | Template global variables |
 | CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, etc.) |
 | Validators | `app/validators.py` | API input validation |
+| Tag Cache | `app/tag_cache.py` | Tag count caching with Flask-Caching TTL |
 
 **Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
 
@@ -179,15 +184,15 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ### Search Provider Abstraction (`app/services/search/`)
 
-The search module provides a provider-based abstraction for full-text search:
+The `app/services/search/` module wraps the low-level `app/search.py` FTS5 implementation with a provider-based abstraction for future flexibility:
 
 | File | Purpose |
 |------|---------|
 | `__init__.py` | `SearchProvider` ABC defining the interface |
-| `sqlite.py` | FTS5 implementation with BM25 ranking |
+| `sqlite.py` | FTS5 implementation delegating to `app/search.py` |
 | `postgresql.py` | PostgreSQL FTS stub (future implementation) |
 
-**Key Functions:**
+**Key Functions (from `app/search.py`):**
 - `init_fts()` - Create FTS5 virtual table
 - `sync_fts()` / `sync_fts_batch()` - Index posts
 - `search()` - Query with BM25 ranking
@@ -230,16 +235,17 @@ The search module provides a provider-based abstraction for full-text search:
 
 ## 6. Infrastructure
 
-**Source:** `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`
+**Source:** `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py`
 
 **Purpose:** Supporting systems for core application operation.
 
 | Component | Source | Purpose |
 |-----------|--------|---------|
-| Search | `app/search.py` | FTS5 full-text search |
+| Search | `app/search.py` | FTS5 full-text search (low-level implementation) |
 | Email | `app/email.py` | SMTP email delivery |
 | Storage | `app/storage.py` | Local/S3 storage abstraction |
 | Webhooks | `app/webhooks.py` | Event-driven webhook delivery |
+| Utilities | `app/utils.py` | SSRF protection, logging helpers |
 | Health Check | `app/routes/public/meta.py` | System health monitoring |
 
 **Deep Dive:** [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
@@ -263,7 +269,7 @@ The search module provides a provider-based abstraction for full-text search:
 
 ## 8. Security Architecture
 
-**Source:** `app/routes/admin/auth.py`, `app/services/encryption.py`, `app/middleware/rate_limit.py`
+**Source:** `app/routes/admin/auth.py`, `app/services/encryption.py`, `app/middleware/rate_limit.py`, `app/csrf.py`
 
 **Purpose:** Authentication, authorization, and protection against attacks.
 
@@ -272,14 +278,14 @@ The search module provides a provider-based abstraction for full-text search:
 | **Authentication** | Session-based with optional TOTP 2FA |
 | **2FA** | TOTP secrets encrypted with AES-256-GCM |
 | **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
-| **CSRF** | Sliding window tokens (5 valid) |
+| **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py` |
 | **API Auth** | X-API-Key header with HMAC timing-safe comparison |
 | **Account Lockout** | 5 failed attempts → 15-minute lockout |
 | **SSRF Protection** | URL validation against private IP ranges |
 | **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
 | **XSS** | `nh3` HTML sanitizer, CSP headers |
 | **Audit Logging** | `AdminAuditLog` for all admin actions |
-| **Rate Limiting** | Flask-Limiter with Redis/memory backend |
+| **Rate Limiting** | Flask-Limiter with Redis/memory backend via `app/middleware/rate_limit.py` |
 | **Session Fixation** | `session.clear()` before `login_user()` |
 
 **Deep Dive:** [deployment/security.md](deployment/security.md)
