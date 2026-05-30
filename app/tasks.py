@@ -389,3 +389,5 @@ def run_backup_task(self: Any) -> bool:
     except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Backup task failed: %s", e)
         return False
+    finally:
+        db.session.remove()
