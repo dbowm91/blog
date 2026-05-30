@@ -29,7 +29,6 @@ def _get_encryption_key() -> bytes:
     Raises:
         WebhookEncryptionError: If no key is configured or key is invalid.
     """
-    import binascii
     from app.config import WEBHOOK_ENCRYPTION_KEY
 
     key_source = WEBHOOK_ENCRYPTION_KEY or ""
