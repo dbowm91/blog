@@ -255,13 +255,16 @@ def get_storage_backend() -> StorageBackend:
 
 
 _storage: Optional[StorageBackend] = None
+_storage_lock = threading.Lock()
 
 
 def get_storage() -> StorageBackend:
     """Get the global storage instance (singleton)."""
     global _storage
     if _storage is None:
-        _storage = get_storage_backend()
+        with _storage_lock:
+            if _storage is None:
+                _storage = get_storage_backend()
     return _storage
 
 
