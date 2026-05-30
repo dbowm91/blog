@@ -41,7 +41,7 @@ tests/
 | `mock_render`, `mock_smtp`, `mock_email` | `conftest.py` | function |
 | `clean_analytics_cache` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `cleanup_uploads` | `conftest.py` | session (autouse) |
-| `ensure_buffer_disabled` | `conftest.py`, `benchmarks/conftest.py`, `e2e/conftest.py`, `shared_fixtures.py` | autouse |
+| `ensure_buffer_disabled` | `shared_fixtures.py` (imported via `*` into other conftest files) | autouse |
 | `browser_type_launch_args` | `e2e/conftest.py` | session |
 | `app_server` | `e2e/conftest.py` | session |
 
@@ -56,7 +56,7 @@ tests/
 - `sample_subscriber` - Creates a confirmed `Subscriber` with email "test@example.com"
 - `mock_render` - Patches `app.email.render_template` to return `"<html>Mock</html>"`
 - `mock_smtp` - Patches `app.email._connect_smtp` with a `MagicMock` server (has `sendmail`, `quit`)
-- `mock_email` - Combined fixture composing `mock_render` and `mock_smtp`
+- `mock_email` - No-op fixture that yields immediately; relies on autouse `mock_render` and `mock_smtp` being active
 - `clean_analytics_cache` - Clears `app.routes.admin._analytics_cache` before and after tests
 - `cleanup_uploads` - Session-scoped autouse; removes files from `app/static/uploads/` after session ends
 - `ensure_buffer_disabled` - Autouse fixture (from `shared_fixtures.py`) that sets `PAGE_VIEW_BUFFER_SIZE=0` and calls `shutdown_page_view_buffer()` before/after each test
@@ -110,9 +110,9 @@ Skip slow tests with: `pytest -m "not slow"`
 
 ### Setup
 
-E2E tests require `pytest-playwright`, which is **not** in committed requirements files — must be installed separately:
+E2E tests require `pytest-playwright`, which **is** in `requirements.txt` (lines 18-19):
 ```bash
-pip install pytest-playwright
+pip install -r requirements.txt
 playwright install chromium
 ```
 
@@ -187,12 +187,7 @@ post = db.session.get(Post, post.id)
 
 ### E2E Test `app` Fixture
 
-The E2E tests in `tests/e2e/conftest.py` define their own session-scoped `app` fixture which:
-- Creates a temporary database
-- Initializes FTS search
-- Creates an admin user
-- Starts the Flask server on port 5010
-- Has function-scoped buffer shutdown via `ensure_buffer_disabled`
+The E2E tests in `tests/e2e/conftest.py` do **not** define their own `app` fixture. They rely on the import chain: `from tests.shared_fixtures import *` brings in `ensure_buffer_disabled`, and the session-scoped `app` fixture comes from the main `tests/conftest.py`. Running `pytest tests/e2e/` alone fails because of this dependency.
 
 ## SQLAlchemy 2.0 Query Patterns
 
