@@ -83,9 +83,20 @@ Three separate encryption modules exist with different key derivation strategies
 - **Key size**: 32 bytes (AES-256)
 - **Nonce**: 12 bytes (AES-GCM recommended)
 - **Cipher**: AES-256-GCM (authenticated encryption)
-- **Min password**: 12 characters (`BACKUP_ENCRYPTION_KEY` env var)
+- **Min password**: 12 characters
+- **Key source**: `BACKUP_ENCRYPTION_KEY` environment variable, or `config.toml [backup] encryption_key`
 - **File format**: `salt(16) + nonce(12) + ciphertext + tag(16)`
 - **Functions**: `encrypt_backup()`, `decrypt_backup()`, `encrypt_backup_file()`, `decrypt_backup_file()`, `is_encryption_available()`
+
+### Key Configuration
+
+The backup encryption key can be configured via:
+1. Environment variable `BACKUP_ENCRYPTION_KEY`
+2. `config.toml` under `[backup]` section as `encryption_key`
+
+Environment variable takes precedence over config.toml.
+
+**Silent fallback:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded (cryptography library unavailable or key validation fails), encryption is silently skipped and the backup proceeds unencrypted. No error or warning is logged.
 
 ### `app/services/encryption.py` — TOTP Secret Encryption
 

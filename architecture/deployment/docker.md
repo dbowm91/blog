@@ -242,7 +242,13 @@ The backup service mounts:
 - `blog_data:/home/blog/instance:ro` — read-only database access
 - `./backups:/backups` — writeable backup output directory
 
-The `BACKUP_ENCRYPTION_KEY` environment variable (referenced in `docker-compose.yml:126`) is expected to be set in the host environment or `.env` file. The backup script does not mount `config.toml` into the container — the backup service only needs `app/services/backup.py` and the database, not the full app configuration.
+The `BACKUP_ENCRYPTION_KEY` can be provided via:
+- Environment variable `BACKUP_ENCRYPTION_KEY` (set in host environment or `.env` file)
+- `config.toml` under `[backup]` section as `encryption_key`
+
+If the key is set in both places, the environment variable takes precedence.
+
+**Silent fallback behavior:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded (e.g., cryptography library unavailable), backup proceeds unencrypted without error. The backup file will be created without encryption, and no warning is logged.
 
 ## Production Checklist
 
@@ -251,7 +257,7 @@ Before deploying to production, verify all items:
 ### Secrets & Credentials
 - [ ] `SECRET_KEY` set to a random 64-character hex string (`python3 -c 'import secrets; print(secrets.token_hex(32))'`)
 - [ ] `ADMIN_PASSWORD` set to a strong password (12+ chars, mixed case, numbers, symbols)
-- [ ] `BACKUP_ENCRYPTION_KEY` set if using encrypted backups (12+ characters)
+- [ ] `BACKUP_ENCRYPTION_KEY` set (via environment or `config.toml [backup] encryption_key`) if using encrypted backups (12+ characters)
 - [ ] `WEBHOOK_ENCRYPTION_KEY` set if using encrypted webhooks (64-char hex string)
 - [ ] `HEALTH_CHECK_SECRET` set for authenticated health check endpoint
 - [ ] All secrets stored in `.env` file or environment, **not** in `config.toml` or source code
