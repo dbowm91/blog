@@ -61,11 +61,11 @@ Celery tasks use specific queues for different workloads (for reference — APSc
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
-| `images` | Image processing | `app/tasks.py:30` |
-| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
-| `webhooks` | Webhook delivery | `app/tasks.py:194` |
-| `email` | Transactional email | `app/tasks.py:333,354` |
-| `backup` | Backup tasks | `app/tasks.py:375` |
+| `images` | Image processing | `generate_image_variants` (`app/tasks.py:31`) |
+| `newsletter` | Newsletter delivery | `send_newsletter_task` (`app/tasks.py:137`) |
+| `webhooks` | Webhook delivery | `deliver_webhook_task` (`app/tasks.py:195`) |
+| `email` | Transactional email | `send_confirmation_task` (`app/tasks.py:334`), `send_password_reset_task` (`app/tasks.py:355`) |
+| `backup` | Backup tasks | `run_backup_task` (`app/tasks.py:376`) |
 
 ## Multi-Worker Deployment
 

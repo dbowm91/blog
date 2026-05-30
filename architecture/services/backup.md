@@ -146,5 +146,5 @@ backup_path = create_backup("/path/to/blog.db", "/backups", compress=True)
 ```
 
 ## See Also
-- [APScheduler](../tasks/scheduler.md) - Scheduled backups (`run_daily_backup()` at `app/scheduler.py:261`)
+- [APScheduler](../tasks/scheduler.md) - Scheduled backups (`run_daily_backup()` at `app/scheduler.py:262`)
 - [Celery Tasks](../tasks/celery-tasks.md) - Async task queue
