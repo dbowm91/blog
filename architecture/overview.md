@@ -265,6 +265,8 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 
 **Deep Dive:** [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md)
 
+> **⚠️ Production Deployment Requirement:** The Vite build (`npm run build`) must be run before production deployment. The `manifest.json` file (generated at `app/static/dist/.vite/manifest.json`) must be present. If Vite build has not run, JavaScript assets will return hashed paths that do not exist, resulting in broken functionality.
+
 ---
 
 ## 8. Security Architecture
