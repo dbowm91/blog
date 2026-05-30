@@ -25,8 +25,6 @@ import hashlib
 import logging
 import os
 
-from sqlalchemy.exc import SQLAlchemyError
-
 try:
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     from cryptography.hazmat.backends import default_backend
@@ -126,7 +124,7 @@ def encrypt_backup(data: bytes, filename: str = "backup.db") -> bytes:
         # Output format: salt + nonce + ciphertext + tag
         return salt + nonce + ciphertext + encryptor.tag
 
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError) as e:
         raise RuntimeError(f"Encryption failed: {e}")
 
 
@@ -174,7 +172,7 @@ def decrypt_backup(data: bytes) -> bytes:
 
         return plaintext
 
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError) as e:
         raise RuntimeError(f"Decryption failed: {e}")
 
 
@@ -203,7 +201,7 @@ def encrypt_backup_file(input_path: str, output_path: str) -> bool:
             f.write(encrypted)
 
         return True
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError) as e:
         logger.error("Failed to encrypt backup file %s: %s", input_path, e)
         return False
 
@@ -228,6 +226,6 @@ def decrypt_backup_file(input_path: str, output_path: str) -> bool:
             f.write(decrypted)
 
         return True
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError) as e:
         logger.error("Failed to decrypt backup file %s: %s", input_path, e)
         return False
