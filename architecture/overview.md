@@ -242,6 +242,8 @@ The search module provides a provider-based abstraction for full-text search:
 | Webhooks | `app/webhooks.py` | Event-driven webhook delivery |
 | Health Check | `app/routes/public/meta.py` | System health monitoring |
 
+**Note on FTS Initialization:** FTS5 init failures are caught and rolled back silently (`app/__init__.py:430-433`). The user is never informed if full-text search will not function. Consider failing loudly or surfacing a user-visible error when FTS init fails.
+
 **Deep Dive:** [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
 
 ---
