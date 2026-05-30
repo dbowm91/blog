@@ -322,7 +322,19 @@ Sitemap: {BASE_URL}/sitemap.xml
 
     @public.route("/metrics")
     def metrics():
-        """Prometheus-compatible metrics endpoint."""
+        """Prometheus-compatible metrics endpoint.
+
+        Requires METRICS_SECRET query parameter for authentication when configured.
+        Intentionally public if METRICS_SECRET is not set, for environments where
+        the endpoint is only accessible via internal network/reverse proxy.
+        """
+        import hmac
+
+        if HEALTH_CHECK_SECRET:
+            secret = request.args.get("secret", "")
+            if not hmac.compare_digest(secret, HEALTH_CHECK_SECRET):
+                return Response("Unauthorized", status=401)
+
         if PROMETHEUS_AVAILABLE:
             return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
