@@ -85,7 +85,55 @@ Each scheduler job acquires a `FileLock` with `timeout=0` before executing. `tim
 | `publish_scheduled_posts` | `scheduled.lock` | Prevents duplicate scheduled post publishing |
 | `run_daily_backup` | `backup.lock` | Prevents duplicate backup creation |
 
-Lock files are created at `{instance_path}/{job_name}.lock`. All four jobs follow the same pattern: acquire lock → do work in `try` block → release lock in `finally`.
+### FileLock Skip Detection
+
+When FileLock fails to acquire (lock held by another process), the job logs a warning and skips execution:
+```
+WARNING - Job "send_daily_newsletter" was not executed because the lock file ... is already acquired
+```
+On a single machine, this is normal behavior (prevents concurrent runs). In multi-container deployments, this indicates that another container is executing the job.
+
+**Multi-container detection:**
+- Monitor logs for lock skip warnings appearing simultaneously from different container instances
+- If skip warnings appear frequently with no corresponding job execution, the job may be starved
+- Track job execution timestamps - if a job runs less frequently than expected, a race condition may be causing repeated skips
+
+### Concurrent Execution Detection
+
+To detect when multiple APScheduler instances execute the same job simultaneously:
+
+1. **Newsletter duplication check:** Query posts for multiple `newsletter_sent_at` events within a short window. Duplicate timestamps within seconds indicate race condition.
+
+2. **Backup count anomaly:** If `run_daily_backup` creates multiple backups within minutes, scaling beyond 1 container is causing duplicate execution.
+
+3. **Log aggregation:** Aggregate container logs and search for concurrent job starts:
+   ```
+   grep "Starting job" | grep "publish_scheduled_posts" | grep "container-name"
+   ```
+   Multiple containers reporting job start within the same minute confirms duplicate execution.
+
+4. **Metric emission:** Each job could emit a counter metric (e.g., `scheduler.job.started{job="send_daily_newsletter"}`). Alert when the sum across containers exceeds 1 per schedule interval.
+
+### Alerting Rules
+
+Configure alerts for APScheduler race conditions:
+
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| Newsletter duplicate send | Post has multiple `newsletter_sent_at` entries within 60s | Critical |
+| Backup duplication | More than 1 backup created within 30 minutes | Warning |
+| Job starvation | Lock skip warnings exceed 10 per hour | Warning |
+| Scheduler instance count | More than 1 container reporting scheduler status | Critical |
+
+### Scaling Warning
+
+**Never scale the `blog` service beyond 1 container when APScheduler jobs are enabled.** FileLock with `timeout=0` cannot coordinate across container boundaries. Running multiple replicas will cause:
+- Duplicate newsletter sends (subscribers receive multiple emails)
+- Duplicate backups (multiple processes writing to backup directory)
+- Duplicate post publishing (posts marked published multiple times)
+- Wasted compute on cleanup jobs
+
+If high availability is required, use Celery Beat instead of APScheduler for scheduled tasks.
 
 ## Initialization
 

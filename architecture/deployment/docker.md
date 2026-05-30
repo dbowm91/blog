@@ -106,6 +106,32 @@ APScheduler uses `filelock.FileLock` with `timeout=0` (see `app/scheduler.py:76`
 2. **Use Celery Beat** - Replace APScheduler with Celery Beat for distributed job scheduling
 3. **External distributed lock** - Implement Redis or etcd-based locking (future enhancement)
 
+### Detection and Alerting
+
+To detect APScheduler race conditions in multi-container deployments:
+
+**Log-based detection:** Monitor logs for multiple instances of the same job firing simultaneously:
+```
+grep "Starting job" app.log | grep "send_daily_newsletter" | wc -l
+```
+If more than 1 instance starts within a short window, a race condition occurred.
+
+**FileLock skip detection:** When FileLock fails to acquire (lock held by another container), the job logs a warning:
+```
+WARNING - Job "send_daily_newsletter" was not executed because the lock file ... is already acquired
+```
+Multiple skip warnings across different containers indicate no actual job execution is happening.
+
+**Newsletter count anomaly:** Track `newsletter_sent_at` timestamps on posts. If posts show multiple newsletter send events with very close timestamps (within seconds), this indicates duplicate sends.
+
+**Alerting configuration:**
+1. Set up log aggregation (e.g., ELK, Loki, CloudWatch) to detect concurrent job execution
+2. Alert when `send_daily_newsletter` runs more than once per scheduled interval
+3. Alert when `run_daily_backup` creates multiple backups within a short window
+4. Monitor `publish_scheduled_posts` for duplicate execution within 5-minute window
+
+**Scaling warning:** Running more than 1 `blog` container with APScheduler enabled will cause duplicate job execution. FileLock with `timeout=0` cannot coordinate across containers. Always ensure only 1 replica has the scheduler active, or disable APScheduler on additional replicas via environment variables or deployment constraints.
+
 The `celery` service in `docker-compose.yml` runs with `--concurrency=1` and does not run APScheduler. APScheduler runs within the `blog` service (via `app/__init__.py` initialization).
 
 ## Environment Variables
