@@ -155,6 +155,19 @@ The `is_safe_webhook_url()` utility in `app/utils.py:383-485` performs extensive
 - **Return value**: `tuple[bool, str]` — `(True, "URL is safe")` or `(False, "<reason>")`
 - **Redirect blocking**: Both `deliver_webhook()` and `deliver_webhook_task` set `allow_redirects=False`
 
+### DNS Time-of-Check Gap
+
+`is_safe_webhook_url()` resolves the hostname's DNS once and validates the returned IP addresses. There is no mechanism to hold the resolved IP locked for the duration of the HTTP request. This creates a **DNS rebinding vulnerability window**: between the DNS resolution in `is_safe_webhook_url()` and the actual HTTP request, the DNS record could change to point to a private/internal IP address (e.g., via a short TTL or attacker-controlled DNS server).
+
+**Impact:** A webhook URL that appears safe at validation time (e.g., `https://attacker-controlled-domain.com/webhook`) could resolve to a private IP address when the actual request is made, potentially enabling SSRF attacks against internal services.
+
+**Limitations:**
+- No lock or lease holds the resolved IP beyond the validation call
+- Short TTL DNS records increase the window of vulnerability
+- No binding of the validated IP to the request itself
+
+**Mitigations to consider:** Pin the resolved IP and reuse it for the connection, use a DNS resolver that validates against the private IP check at request time, or employ a DNS-over-HTTPS provider that caches and re-validates records.
+
 ## Delivery Status Tracking
 
 `WebhookEvent.delivery_status` tracks the outcome of webhook deliveries:
