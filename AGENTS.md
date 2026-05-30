@@ -199,7 +199,7 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 ### Comment Rate Limit IP Header Bypass
 
-`app/routes/api/comments.py:78-79` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed.
+`app/routes/public/comments.py:24-32` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed.
 
 ## Implementation Plan
 
