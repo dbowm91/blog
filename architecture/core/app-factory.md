@@ -75,6 +75,8 @@ def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
 - Initialize FTS5 search tables
 - Run integrity check (`PRAGMA integrity_check`)
 
+**FTS Initialization Note:** FTS init failures are caught and rolled back silently (`app/__init__.py:430-433`). The user is never informed if search functionality is unavailable. Consider surfacing a user-visible error when FTS init fails rather than failing silently.
+
 ### 8. Background Services
 - APScheduler initialization
 - Page view buffer initialization
