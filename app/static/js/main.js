@@ -99,7 +99,7 @@ function loadPrismIfNeeded() {
     if (codeBlocks.length === 0) return;
     const prismCSS = document.createElement('link');
     prismCSS.rel = 'stylesheet';
-    prismCSS.href = document.documentElement.dataset.prismCssUrl || `/static/css/${document.documentElement.dataset.syntaxTheme || 'okaidia'}.css`;
+    prismCSS.href = document.documentElement.dataset.prismCssUrl;
     document.head.appendChild(prismCSS);
     const prismJS = document.createElement('script');
     prismJS.src = '/static/js/prism.min.js';
