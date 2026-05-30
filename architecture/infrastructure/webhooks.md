@@ -115,7 +115,7 @@ Webhook delivery uses a two-level dispatch pattern:
 
 1. **`deliver_webhook_task`** (`app/tasks.py:195`): Receives a `webhook_event_id`, queries all enabled webhooks matching the event type, and dispatches individual `deliver_single_webhook_task` invocations — one per webhook. This enables per-webhook retry without blocking other webhooks.
 
-2. **`deliver_single_webhook_task`** (`app/tasks.py:234`): Handles delivery to a single webhook endpoint with independent retry logic (up to 3 retries with exponential backoff). Responsibilities:
+2. **`deliver_single_webhook_task`** (`app/tasks.py:231`): Handles delivery to a single webhook endpoint with independent retry logic (up to 3 retries with exponential backoff). Responsibilities:
    - SSRF validation via `is_safe_webhook_url()`
    - HMAC-SHA256 signature generation and header injection
    - HTTP POST with `allow_redirects=False`
