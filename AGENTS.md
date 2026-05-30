@@ -181,9 +181,9 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 `scripts/dev.sh:11` requires Python >= 3.14 but `Dockerfile:1` uses python:3.12-slim. This dev/prod version mismatch could cause compatibility issues.
 
-### Session IP Binding Not Enforced
+### Session IP Binding
 
-`SESSION_IP_BINDING` config option exists but enforcement logic appears missing from `before_request_handler`. Verify before relying on this security feature.
+`SESSION_IP_BINDING` is enforced via the `admin_required` decorator in `app/routes/admin/__init__.py:25-55`, not in the global `before_request_handler`. When IP mismatch is detected and mode is `enforce`, the admin session is invalidated and the user is redirected to login. When mode is `warn`, a warning is logged but session continues.
 
 ### Silent FTS Initialization
 
