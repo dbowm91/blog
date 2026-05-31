@@ -6,7 +6,7 @@
     <title>Admin | {{ site_title }}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" type="image/svg+xml" href="{{ vite_asset('img/favicon.svg') }}">
-    <link rel="stylesheet" href="{{ vite_asset('css/prism-okaidia.css') }}">
+    <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/base.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/layout.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/admin.css') }}">
@@ -159,9 +159,7 @@
             pages: "{{ url_for('admin.pages_list') }}",
         };
     </script>
-    <script defer src="{{ vite_asset('js/prism.min.js') }}"></script>
-    <script defer src="{{ vite_asset('js/prism-languages.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/lib/marked.min.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ vite_asset('js/lib/marked.min.js') }}" nonce="{{ csp_nonce }}"></script>
     <script defer src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>
