@@ -31,7 +31,6 @@ Health endpoint with optional `?detailed=true` and `?secret=<HEALTH_CHECK_SECRET
 | Check | What it validates |
 |-------|-------------------|
 | `backup_freshness` | Most recent backup < 24 hours old |
-| `email` | SMTP connectivity (if configured) |
 | `redis` | Redis connectivity |
 | `celery` | Celery worker availability |
 
@@ -70,7 +69,7 @@ S3 environment variables:
 
 ### Error Handling
 
-S3 methods return `False` or empty lists on failure. `LocalStorageBackend` methods raise on filesystem errors.
+`save()` raises exceptions on failure (with logging). Other S3 methods return `False` or empty lists on failure. `LocalStorageBackend` methods raise on filesystem errors.
 
 ## SSRF Protection (`app/webhooks.py`)
 
@@ -85,18 +84,7 @@ Webhook delivery includes Server-Side Request Forgery (SSRF) protection to preve
 
 ### Implementation
 
-```python
-def is_safe_webhook_url(url: str) -> tuple[bool, str]:
-    """Validate URL is not targeting private/internal networks."""
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-    addr_infos = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
-    for addr_info in addr_infos:
-        ip = ipaddress.ip_address(addr_info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or not ip.is_global:
-            return False, f"Blocked IP: {ip}"
-    return True, "URL is safe"
-```
+Full implementation in `app/utils.py:383-485` (~100 lines). Performs scheme validation, hostname checks, DNS resolution, per-IP validation against private/loopback/link-local/reserved/multicast ranges, cloud metadata endpoint blocking, and global routability checks. Returns `tuple[bool, str]`.
 
 ### Related Documentation
 

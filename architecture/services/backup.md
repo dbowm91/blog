@@ -63,7 +63,7 @@ When `encrypt=True` is passed to `create_backup()`:
 3. If encryption fails (key not loadable, cryptography library missing, or other error), a warning is logged and the unencrypted backup is retained
 4. Backup creation does NOT fail on encryption errors — the plain backup is preserved
 
-**Note:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, the backup proceeds unencrypted with a warning. To enforce encryption, use the Celery task which handles errors differently.
+**Note:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, two warnings are logged (one in `_encrypt_backup_file` at backup.py:107-110, one in `create_backup` at backup.py:69-71) and the backup proceeds unencrypted. To enforce encryption, use the Celery task which handles errors differently.
 
 ### `decrypt_backup_file()`
 
@@ -93,19 +93,13 @@ Three separate encryption modules exist with different key derivation strategies
 - **Nonce**: 12 bytes (AES-GCM recommended)
 - **Cipher**: AES-256-GCM (authenticated encryption)
 - **Min password**: 12 characters
-- **Key source**: `BACKUP_ENCRYPTION_KEY` environment variable, or `config.toml [backup] encryption_key`
+- **Key source**: `BACKUP_ENCRYPTION_KEY` environment variable only
 - **File format**: `salt(16) + nonce(12) + ciphertext + tag(16)`
 - **Functions**: `encrypt_backup()`, `decrypt_backup()`, `encrypt_backup_file()`, `decrypt_backup_file()`, `is_encryption_available()`
 
 ### Key Configuration
 
-The backup encryption key can be configured via:
-1. Environment variable `BACKUP_ENCRYPTION_KEY`
-2. `config.toml` under `[backup]` section as `encryption_key`
-
-Environment variable takes precedence over config.toml.
-
-**Silent fallback:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded (cryptography library unavailable or key validation fails), encryption is silently skipped and the backup proceeds unencrypted. No error or warning is logged.
+The backup encryption key is loaded from the `BACKUP_ENCRYPTION_KEY` environment variable only. If the key is set but cannot be loaded (cryptography library unavailable or key validation fails), two warnings are logged and the backup proceeds unencrypted.
 
 ### `app/services/encryption.py` — TOTP Secret Encryption
 

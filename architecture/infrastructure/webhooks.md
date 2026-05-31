@@ -33,6 +33,8 @@ class WebhookEvent(db.Model):
     delivered = db.Column(db.Boolean, default=False)
     delivery_status = db.Column(db.String(32))  # 'failed', 'partial_failure', 'delivered'
     delivery_attempts = db.Column(db.Integer, default=0)
+    successful_deliveries = db.Column(db.Integer, default=0)
+    failed_deliveries = db.Column(db.Integer, default=0)
 ```
 
 ## Webhook Encryption (`app/webhook_encryption.py`)

@@ -52,7 +52,7 @@ def _send_email_with_retry(
 ) -> tuple[bool, str, Optional[SMTP]]:
 ```
 
-Sends with exponential backoff retry. Handles `SMTPServerDisconnected` by reconnecting.
+Sends with retry. Handles `SMTPServerDisconnected` by reconnecting.
 
 ### `send_newsletter()`
 
@@ -83,7 +83,6 @@ Email templates in `app/templates/email/`:
 
 - `_send_email_with_retry()` default: **3 retries** (function parameter default)
 - Newsletter override: **5 retries** (via `NEWSLETTER_MAX_RETRY_ATTEMPTS` config, default 5 in `config.toml`)
-- Exponential backoff
 - Reconnects on `SMTPServerDisconnected`
 
 ## Queue Configuration
