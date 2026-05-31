@@ -3,7 +3,7 @@
 **Purpose:** Systematic review of all architecture documentation against actual codebase implementation. Each discrete module is reviewed by a subagent that verifies claims, identifies discrepancies, interrogates code for bugs and improvements, and writes improvement plans to `plans/`.
 
 **Created:** May 31, 2026
-**Status:** INCOMPLETE — Phase 1-3 executed, findings written to plans/. Architecture doc fixes pending (see plans/architecture_prune.md for rewrite/merge/stale items). Iterative improvement ongoing.
+**Status:** FRESH — Ready for execution.
 
 ---
 
@@ -15,15 +15,15 @@ All documents in `architecture/` **except this file**. Nine discrete modules:
 |---|--------|-----------|------|----------------------|
 | 1 | Core | `architecture/core/` | `app-factory.md`, `configuration.md`, `models.md` | `app/__init__.py`, `app/config.py`, `app/models.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py` |
 | 2 | Routes | `architecture/routes/` | `admin-routes.md`, `api-routes.md`, `public-routes.md`, `rss-feeds.md` | `app/routes/admin/`, `app/routes/api/`, `app/routes/public/`, `app/routes/rss.py`, `app/routes/errors.py` |
-| 3 | Services | `architecture/services/` | `overview.md`, `backup.md`, `search.md`, `slug.md`, `tag.md`, `tag_cache.md`, `serialization.md` | `app/services/`, `app/tag_cache.py`, `app/backup_encryption.py`, `app/webhook_encryption.py` |
+| 3 | Services | `architecture/services/` | `overview.md`, `backup.md`, `encryption.md`, `search.md`, `slug.md`, `tag.md`, `tag_cache.md`, `serialization.md` | `app/services/`, `app/tag_cache.py`, `app/backup_encryption.py`, `app/webhook_encryption.py` |
 | 4 | Tasks | `architecture/tasks/` | `overview.md`, `celery-tasks.md`, `scheduler.md` | `app/tasks.py`, `app/scheduler.py`, `app/celery_app.py` |
-| 5 | Infrastructure | `architecture/infrastructure/` | `overview.md`, `search.md`, `email.md`, `storage.md`, `webhooks.md` | `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py` |
+| 5 | Infrastructure | `architecture/infrastructure/` | `overview.md` (if exists), `search.md`, `email.md`, `storage.md`, `webhooks.md` | `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py` |
 | 6 | Frontend | `architecture/frontend/` | `overview.md`, `templates.md`, `static-assets.md` | `app/templates/`, `app/static/`, `app/filters.py`, `app/vite.py`, `app/context_processors.py` |
 | 7 | Deployment | `architecture/deployment/` | `overview.md`, `docker.md`, `security.md`, `cicd.md` | `Dockerfile`, `docker-compose.yml`, `nginx/`, `.github/workflows/ci.yml`, `scripts/` |
 | 8 | Testing | `architecture/testing/` | `test-suite.md` | `tests/`, `tests/conftest.py`, `tests/e2e/conftest.py`, `pytest.ini` |
 | 9 | Overview | `architecture/` | `overview.md` | Cross-references all module findings |
 
-**Total documents:** 32 (excluding this review plan)
+**Total documents:** 33 (excluding this review plan)
 
 ---
 
@@ -104,7 +104,7 @@ Focus on: All route paths and HTTP methods, auth decorator usage, CSRF protectio
 Write findings to: `plans/routes_review.md`
 
 **Services Subagent**
-Review `architecture/services/` containing `overview.md`, `backup.md`, `search.md`, `slug.md`, `tag.md`, `tag_cache.md`, `serialization.md`.
+Review `architecture/services/` containing `overview.md`, `backup.md`, `encryption.md`, `search.md`, `slug.md`, `tag.md`, `tag_cache.md`, `serialization.md`.
 Verify claims against: `app/services/`, `app/tag_cache.py`, `app/backup_encryption.py`, `app/webhook_encryption.py`.
 Focus on: Service abstractions and function signatures, encryption module implementations, error handling patterns, cache coordination.
 Write findings to: `plans/services_review.md`
@@ -116,7 +116,7 @@ Focus on: Celery task configs and queue names, APScheduler job definitions and s
 Write findings to: `plans/tasks_review.md`
 
 **Infrastructure Subagent**
-Review `architecture/infrastructure/` containing `overview.md`, `search.md`, `email.md`, `storage.md`, `webhooks.md`.
+Review `architecture/infrastructure/` containing any `overview.md`, `search.md`, `email.md`, `storage.md`, `webhooks.md`.
 Verify claims against: `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py`.
 Focus on: FTS5 search functions and error handling, SMTP email delivery and retry logic, storage backend abstraction, webhook SSRF protection and HMAC signing, health check implementation.
 Write findings to: `plans/infrastructure_review.md`
@@ -207,4 +207,4 @@ After execution, these files should exist in `plans/`:
 - Subagents should NOT edit architecture docs or source code — all findings go into `plans/`.
 - Line number references in docs are expected to drift. Flag drifts >5 lines but minor drift is low priority.
 - Use `explore` subagent type for all module reviews.
-- This is a fresh review plan (May 31, 2026), replacing the prior completed plan from May 29, 2026.
+- This is a fresh review plan (May 31, 2026), replacing the prior completed plan.
