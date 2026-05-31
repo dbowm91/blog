@@ -2,67 +2,70 @@
 
 ## Overview
 
-This module contains the implementation plan history and completed items reference.
+This module contains the consolidated implementation plan and architecture review findings.
 
 ## Plan Status
 
-**COMPLETED** - All implementation plan items have been completed and verified (May 30, 2026).
+**ACTIVE** - New consolidated plan created from May 31, 2026 architecture review.
 
-The implementation plan `plans/plan.md` has been pruned. All items from the architecture review (90+ items across 6 waves) are now documented in the codebase and AGENTS.md notes.
+The consolidated plan `plans/plan.md` contains 153 tasks across 6 waves, organized for parallel execution via sub-agents. Previous completed plans have been archived.
 
 ## Architecture Review Findings (May 31, 2026)
 
-A fresh architecture review was conducted. Findings are in `plans/*_review.md` and `plans/architecture_prune.md`.
+A comprehensive architecture review was conducted across all modules. Findings are consolidated in `plans/plan.md`.
 
-### Key Action Items from Review
+### Key Statistics
 
-| Priority | Count | Description |
-|----------|-------|-------------|
-| HIGH | ~30 | Critical doc/code discrepancies across all modules |
-| MEDIUM | ~50 | Documentation gaps, line reference drift, phantom claims |
-| LOW | ~30 | Minor improvements, dead code, style issues |
+| Category | Count |
+|----------|-------|
+| Verified Claims | 124 |
+| Discrepancies | 51 |
+| Missing Documentation | 30 |
+| Potential Bugs | 24 |
+| Action Items | 153 |
 
-### Pruning Recommendations
+### Critical Findings
 
-- **3 docs to REWRITE:** testing/test-suite.md, routes/public-routes.md, routes/admin-routes.md
-- **2 docs to MERGE/FIX:** infrastructure/overview.md, services/overview.md
-- **11 phantom claims** across search.md, email.md, storage.md, docker.md, backup.md, api-routes.md, configuration.md
-- **8 docs with stale line references** (drift >5 lines)
+1. **CRITICAL:** Nginx `proxy_pass` uses `127.0.0.1` instead of service name `blog`
+2. **HIGH:** RSS cache invalidation incomplete (atom/json feeds not invalidated)
+3. **HIGH:** Global rate limit bypass via X-Forwarded-For spoofing
+4. **HIGH:** `decrypt_backup_file()` missing RuntimeError catch
+5. **HIGH:** `S3StorageBackend.save()` lacks error handling
+6. **HIGH:** Admin Prism CSS hardcoded to okaidia (ignores user setting)
+7. **HIGH:** Prism double-loading on admin pages
+8. **HIGH:** Template inheritance diagram is factually wrong
+9. **HIGH:** Widespread test password inconsistency ("testpassword" vs "test-password")
+10. **HIGH:** Documentation claims features that don't exist (LIKE fallback, PostgreSQL fallback, email health check, exponential backoff)
 
-### Notable Source Code Bugs Found
+### Plan Waves
 
-- RSS cache invalidation incomplete (atom/json feeds not invalidated)
-- Global rate limit bypass via X-Forwarded-For spoofing
-- `decrypt_backup_file()` missing RuntimeError catch
-- `S3StorageBackend.save()` lacks error handling
-- Admin Prism CSS hardcoded to okaidia (ignores user setting)
-- Widespread test password inconsistency ("testpassword" vs "test-password")
+| Wave | Focus | Tasks | Parallelizable |
+|------|-------|-------|----------------|
+| 1 | Critical Source Code Fixes | 12 | Yes |
+| 2 | High Priority Documentation Corrections | 48 | Yes |
+| 3 | Medium Priority Improvements | 33 | Yes |
+| 4 | Low Priority Cleanup | 27 | Yes |
+| 5 | Architecture Pruning | 12 | Partially |
+| 6 | AGENTS.md Cleanup | 21 | No |
 
-## Historical Context
+### Historical Context
 
-The plan contained ~90 items across 6 waves from architecture reviews conducted May 29, 2026:
-
-- **Wave 1**: Critical code bugs (6 items) - APScheduler race, webhook status, E2E fixtures, backup encryption, Python version, thread-safe storage
-- **Wave 2**: Documentation corrections (3 items) - test-suite rewrite, module boundaries, stale line references
-- **Wave 3**: Missing documentation (13 items) - APScheduler detection, Vite build, encryption keys, feeds, API errors, rate limits, newsletter path, health check, session IP binding, FTS init, webhook SSRF, celery scaling, E2E race
-- **Wave 4**: Frontend fixes (2 items) - login template assets, Prism CSS CDN
-- **Wave 5**: Source cleanup (5 items) - dead imports, decrypt_backup_file export, session.remove(), metrics auth, S3 error differentiation
-- **Wave 6**: Security hardening (2 items) - LOGIN_FAILURE_DELAY min, comment rate limit bypass
-
-All items were verified complete before removal from plan.md.
+Previous implementation plan (May 29, 2026) contained ~90 items across 6 waves, all completed and verified. The current plan addresses new findings from the May 31 review.
 
 ## Key Files for Reference
 
 | Item | Location |
 |------|----------|
-| APScheduler warning | `docker-compose.yml:56-58` |
-| Webhook partial_failure | `app/tasks.py:312-341` |
-| E2E password consistency | `tests/conftest.py:100`, `tests/e2e/conftest.py:7,79` |
-| Backup encryption warning | `app/services/backup.py:68-71,107-110` |
-| Python 3.12 alignment | `scripts/dev.sh:11`, `Dockerfile:1` |
-| Thread-safe storage | `app/storage.py:270-277` |
-| LOGIN_FAILURE_DELAY min | `app/config.py:148` |
-| Prism CSS via vite_asset | `app/static/js/main.js:102`, `app/templates/base.html:2` |
+| Nginx proxy_pass bug | `nginx/conf.d/blog.conf:52,65,75,84` |
+| RSS cache invalidation | `app/routes/rss.py:103-105` |
+| X-Forwarded-For bypass | `app/__init__.py:45-49`, `app/routes/public/comments.py:24-32` |
+| Backup encryption bug | `app/backup_encryption.py:237` |
+| S3 save error handling | `app/storage.py:182-184` |
+| Admin Prism CSS hardcode | `app/templates/admin/base.html:9` |
+| Prism double-loading | `app/templates/admin/base.html:9,162-163`, `app/static/js/main.js:97-111` |
+| Test password inconsistency | `tests/` directory (24 occurrences) |
+| Template inheritance | `app/templates/admin/base.html:1` (standalone, not extending base.html) |
+| marked.min.js loading | `app/templates/admin/base.html:164` (url_for, not vite_asset) |
 
 ## Maintenance Notes
 
@@ -70,3 +73,4 @@ When updating code that affects documented behavior:
 1. Update the relevant AGENTS.override.md for that module
 2. If adding new behavior, consider updating AGENTS.md Important Notes
 3. If documentation becomes stale, update architecture docs or add a note in agent-maintainer-notes.md
+4. After completing wave items, update this file to reflect progress

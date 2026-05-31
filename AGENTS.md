@@ -181,6 +181,34 @@ Prism CSS is loaded via `data-prism-css-url` attribute which templates set using
 
 `app/routes/public/comments.py:24-32` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed. This is a known limitation with no validation for trusted proxies.
 
+### Nginx Proxy Configuration
+
+`nginx/conf.d/blog.conf` uses `proxy_pass http://127.0.0.1:5000` which will not work across Docker containers. Should use service name `blog` instead.
+
+### RSS Cache Invalidation
+
+`app/routes/rss.py:103-105` `invalidate_rss_cache()` only invalidates `rss_feed_posts` cache key. Atom and JSON feeds remain stale until TTL expires (300 seconds).
+
+### Prism Double-Loading
+
+Admin pages load Prism CSS and JS twice: once via static `<link>` and `<script>` tags in `admin/base.html`, and again via `loadPrismIfNeeded()` in `main.js`. The static tags should be removed.
+
+### Admin Prism CSS Theme
+
+`admin/base.html:9` hardcodes `prism-okaidia.css` instead of using the `syntax_theme` variable. The `data-prism-css-url` attribute is dynamic but the static `<link>` ignores it.
+
+### Test Password Inconsistency
+
+Tests use two different password strings: `"test-password"` (with hyphen) in fixtures and `"testpassword"` (no hyphen) in individual tests. This causes mismatches between `ADMIN_PASSWORD` env var and login form submissions.
+
+### Template Inheritance
+
+Admin templates (`admin/base.html`) and public templates (`base.html`) are standalone root templates. `admin/base.html` does NOT extend `base.html`.
+
+### marked.min.js Loading
+
+`marked.min.js` is loaded via `url_for('static', ...)` instead of `vite_asset()`, bypassing Vite's content hashing and CDN support.
+
 ## Historical Implementation Caveats
 
 For detailed implementation history, deprecated features, actual route corrections, test interference notes, encryption module details, task line numbers, and other maintainer context, see:
