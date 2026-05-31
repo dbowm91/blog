@@ -23,6 +23,6 @@ This is a **package** (not a single file like `api.py`):
 - `/comments/<post_id>` - View comments
 
 ## Performance Notes
-- Uses `joinedload(Post.tags)` to fix N+1 (PERF-1, PERF-2)
-- FTS5 search with native `bm25()` and `snippet()` (PERF-8)
-- Page view buffer enabled in production (PERF-9)
+- Uses `joinedload(Post.tags)` to fix N+1 queries
+- FTS5 search with native `bm25()` and `snippet()`
+- Page view buffer enabled in production

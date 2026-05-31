@@ -5,19 +5,19 @@ Blog CMS - Flask-based blogging platform with admin dashboard, newsletter schedu
 
 ## Implementation Status
 
-**COMPLETED** - All implementation waves completed and verified. Project in maintenance mode.
+**COMPLETED** — All implementation waves completed and verified. Project in maintenance mode.
 
 ## Implementation Summary
 
 All implementation waves completed:
-- **Waves A-F**: Original documentation fixes (May 28, 2026)
-- **Waves 1-5**: Architecture review fixes (May 29-30, 2026) — 90+ items across 6 waves
-  - Wave 1: Critical code bugs (6 items) — APScheduler race, webhook status, E2E fixtures, backup encryption, Python version, thread-safe storage
-  - Wave 2: Documentation corrections (3 items) — test-suite rewrite, module boundaries, stale line references
-  - Wave 3: Missing documentation (13 items) — Vite build, APScheduler detection, encryption keys, API errors, rate limits, etc.
-  - Wave 4: Frontend fixes (2 items) — login template assets, Prism CSS CDN
-  - Wave 5: Source cleanup (5 items) — dead imports, exports, session.remove(), metrics auth, S3 errors
-  - Wave 6: Security hardening (2 items) — LOGIN_FAILURE_DELAY min, comment rate limit bypass
+- **Waves A-F**: Original documentation fixes
+- **Waves 1-6**: Architecture review fixes — 152 items across 6 waves
+  - Wave 1: Critical code bugs (security, RSS, frontend, tests)
+  - Wave 2: Documentation corrections (core, routes, infra, services, deployment, tasks, overview)
+  - Wave 3: Source code improvements + documentation additions
+  - Wave 4: Dead code removal + style cleanup
+  - Wave 5: Architecture pruning (rewrites, merges, stale line refs)
+  - Wave 6: AGENTS.md cleanup
 
 ## Triggers
 
