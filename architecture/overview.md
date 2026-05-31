@@ -15,7 +15,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | [Core Application](#1-core-application) | Flask app factory, configuration, extensions | [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md) |
 | [Data Models](#2-data-models) | SQLAlchemy ORM models (17 models) | [core/models.md](core/models.md) |
 | [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
-| [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md) |
+| [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags, encryption) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md) |
 | [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
 | [Infrastructure](#6-infrastructure) | Search, email, storage, webhooks | [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
 | [Frontend](#7-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
@@ -180,7 +180,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Serialization | `app/services/serialization.py` | JSON export/import |
 | Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption |
 
-**Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md)
+**Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md)
 
 ---
 
