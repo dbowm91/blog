@@ -1,4 +1,5 @@
 import os
+import shutil
 import pytest
 from tests.shared_fixtures import *
 from unittest.mock import patch, MagicMock
@@ -172,7 +173,11 @@ def mock_smtp():
 
 @pytest.fixture(scope="function")
 def mock_email(mock_render, mock_smtp):
-    """Combined mock for email rendering and SMTP sending."""
+    """Combined mock for email rendering and SMTP sending.
+
+    Function-scoped fixtures that must be explicitly requested by tests,
+    not autouse.
+    """
     yield
 
 
@@ -187,3 +192,5 @@ def cleanup_uploads():
             item_path = os.path.join(upload_folder, item)
             if os.path.isfile(item_path):
                 os.remove(item_path)
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)

@@ -59,12 +59,8 @@ def app_url():
 
 
 @pytest.fixture(scope="session")
-def app_server(app, app_url, tmp_path_factory):
+def app_server(app, app_url):
     """Start the Flask server for e2e tests."""
-    db_dir = tmp_path_factory.mktemp("blog_e2e")
-    db_path = db_dir / "test.db"
-    os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
-
     from app.extensions import db
 
     with app.app_context():
@@ -94,7 +90,14 @@ def app_server(app, app_url, tmp_path_factory):
 
     thread = Thread(target=run_server, daemon=True)
     thread.start()
-    time.sleep(1)
+
+    import socket
+    for _ in range(50):
+        try:
+            with socket.create_connection(("127.0.0.1", 5010), timeout=0.5):
+                break
+        except OSError:
+            time.sleep(0.1)
 
     yield app_url
 

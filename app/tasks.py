@@ -135,7 +135,11 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     queue="newsletter",
 )
 def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
-    """Send newsletter for specified posts (async)."""
+    """Send newsletter for specified posts (async).
+
+    Celery max_retries=3 controls task-level retries. Per-email retries are
+    handled inside send_newsletter via NEWSLETTER_MAX_RETRY_ATTEMPTS (default 5).
+    """
     from app.email import send_newsletter
     from app.extensions import db
     from app.models import Post, Subscriber

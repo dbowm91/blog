@@ -321,6 +321,7 @@ Sitemap: {BASE_URL}/sitemap.xml
         return jsonify(result), status_code
 
     @public.route("/metrics")
+    @limiter.limit("60 per minute")
     def metrics():
         """Prometheus-compatible metrics endpoint.
 

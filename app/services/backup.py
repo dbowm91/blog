@@ -46,7 +46,7 @@ def create_backup(
 
     os.makedirs(backup_dir, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     backup_name = f"blog_{timestamp}.db"
     if compress:
         backup_name += ".gz"

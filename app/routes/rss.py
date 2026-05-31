@@ -49,14 +49,6 @@ def _get_feed_posts(limit: int = 20) -> tuple[list[Post], str]:
     return list(posts), etag
 
 
-def _get_cached_feed_posts(limit: int = 20) -> list[Post]:
-    """Get cached feed posts - uses cache unless in testing mode."""
-    if current_app.testing:
-        posts, _ = _get_feed_posts(limit)
-        return posts
-    return _get_cached_atom_posts(limit)
-
-
 @flask_cache.cached(timeout=300, key_prefix="atom_feed_posts")
 def _get_cached_atom_posts(limit: int = 20) -> list[Post]:
     """Cached version for Atom feed."""

@@ -19,7 +19,7 @@ from typing import Any, cast
 from flask_login import current_user
 
 from app.extensions import db
-from app.models import Post, PostRevision, Tag
+from app.models import Post, Tag
 from app.routes.admin import admin_required
 from app.routes.admin.helpers import (
     _generate_unique_slug,
@@ -33,19 +33,7 @@ from app.routes.admin.helpers import (
 )
 
 
-def _save_revision(post: Post, author_id: int | None) -> None:
-    """Save a revision snapshot of the post."""
-    revision = PostRevision(
-        post_id=post.id,
-        title=post.title,
-        slug=post.slug,
-        body=post.body,
-        summary=post.summary,
-        author_id=author_id,
-    )
-    db.session.add(revision)
-
-
+from app.routes.admin.posts.revisions import _save_revision  # noqa: E402
 from app.context_processors import invalidate_footer_cache  # noqa: E402
 from app.utils import utc_now, safe_delete_file  # noqa: E402
 from app.tag_cache import invalidate_tag_cache  # noqa: E402

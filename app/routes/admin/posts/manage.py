@@ -15,7 +15,7 @@ from flask import (
 from typing import Any
 
 from app.extensions import db
-from app.models import Post, PostRevision
+from app.models import Post
 from app.routes.admin import admin_required
 from app.routes.admin.helpers import (
     _cleanup_orphan_tags,
@@ -29,19 +29,7 @@ from app.search import remove_fts
 from app.routes.rss import invalidate_rss_cache
 from app.routes.public import invalidate_archive_cache
 from app.config import BASE_URL, PREVIEW_TOKEN_EXPIRY_DAYS
-
-
-def _save_revision(post: Post, author_id: int | None) -> None:
-    """Save a revision snapshot of the post."""
-    revision = PostRevision(
-        post_id=post.id,
-        title=post.title,
-        slug=post.slug,
-        body=post.body,
-        summary=post.summary,
-        author_id=author_id,
-    )
-    db.session.add(revision)
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 
 def _generate_preview_token(post_id: int, expiry_timestamp: int) -> str:
@@ -85,7 +73,12 @@ def register_manage_routes(admin: Any) -> None:
         invalidate_rss_cache()
         invalidate_archive_cache()
         _cleanup_orphan_tags()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash("Database error occurred while deleting post.", "error")
+            return redirect(url_for("admin.dashboard"))
         remove_fts(post_id_for_fts)
         if old_image:
             safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))

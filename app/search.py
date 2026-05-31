@@ -2,6 +2,7 @@
 
 import html
 import re
+import threading
 
 __all__ = [
     "init_fts",
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 _fts_enabled: bool | None = None
 _fts_check_time: float = 0
 _FTS_CHECK_TTL = 300
+_fts_lock = threading.Lock()
 
 _ESCAPE_SPECIAL_CHARS_RE = re.compile(r'[()*+:+"<>\-]')
 _ESCAPE_WHITESPACE_RE = re.compile(r"\s+")
@@ -47,11 +49,13 @@ def _check_fts_enabled() -> bool:
 
     now = time.monotonic()
     if _fts_enabled is None or (now - _fts_check_time) > _FTS_CHECK_TTL:
-        check = db.session.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
-        ).fetchone()
-        _fts_enabled = bool(check)
-        _fts_check_time = now
+        with _fts_lock:
+            if _fts_enabled is None or (now - _fts_check_time) > _FTS_CHECK_TTL:
+                check = db.session.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
+                ).fetchone()
+                _fts_enabled = bool(check)
+                _fts_check_time = now
     return _fts_enabled
 
 
@@ -87,13 +91,8 @@ def init_fts() -> None:
             db.session.commit()
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         db.session.rollback()
-        try:
-            db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
-            db.session.commit()
-        except (OperationalError, ProgrammingError, DatabaseError):
-            db.session.rollback()
         logger.warning(
-            "FTS5 initialization failed; search will use LIKE fallback (post_ids=%s, operation=init)",
+            "FTS5 initialization failed; search will use LIKE fallback (error=%s, operation=init)",
             e,
         )
 
@@ -350,15 +349,19 @@ def highlight_query(text: str, query: str) -> str:
     """Add <mark> tags around query terms in text for highlighting.
 
     Args:
-        text: The text to highlight within
+        text: The text to highlight within (may contain HTML)
         query: The search query (may contain multiple words)
 
     Returns:
-        The text with <mark> tags around matched terms
+        The text with <mark> tags around matched terms, with HTML entities escaped
     """
     if not text or not query:
         return text
 
-    escaped_text = html.escape(text)
     pattern = re.compile(re.escape(query), re.IGNORECASE)
-    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", escaped_text)
+
+    def _replace_with_mark(match: re.Match) -> str:
+        return f"<mark>{html.escape(match.group(0))}</mark>"
+
+    result = pattern.sub(_replace_with_mark, html.escape(text))
+    return result
