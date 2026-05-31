@@ -130,31 +130,51 @@ The `lazy-load.js` module implements a three-tier fallback strategy:
 
 Admin pages can be detected via `document.body.classList.contains('admin-body')`.
 
+### marked.min.js Loading Pattern
+
+`marked.min.js` is loaded outside the Vite pipeline via `url_for('static', ...)` instead of `vite_asset()`. This bypasses Vite's content hashing and CDN support:
+
+```html
+<script src="{{ url_for('static', filename='js/lib/marked.min.js') }}"></script>
+```
+
+**Limitations:**
+- No content hashing — browser caching depends on server-side cache headers
+- No CDN prefix support — `CDN_URL` config is ignored for this asset
+- `marked-wrapper.js` (the adapter layer) is loaded through the Vite pipeline and gets proper hashing
+
 ### JSX Support
 
-JSX files (like `mobile-menu.jsx`) are handled via Vite's esbuild options in `vite.config.js:31-39`:
+JSX files (like `mobile-menu.jsx`) are handled via Vite's esbuild options in `vite.config.js:36-44`:
 
 ```javascript
 optimizeDeps: {
     esbuildOptions: {
         loader: {
             '.js': 'js',
-            '.jsx': 'jsx',  // JSX support for .jsx files
+            '.jsx': 'jsx',
+            '.svg': 'text',
         },
+        target: ['chrome100', 'edge100', 'firefox100', 'safari15'],
     },
 }
 ```
 
 ### Admin JS
-- Dashboard functionality
+- Dashboard analytics and charts
 - Post editor enhancements
-- Media management
-- Settings forms
+- Media upload management
+- Settings and theme forms
+- Bulk operations
 
 ### Public JS
-- Comments submission
-- Newsletter subscription
-- Search functionality
+- Anchor link handling (`anchor-links.js`)
+- Code block copy buttons (`code-copy.js`)
+- Image lightbox (`lightbox.js`)
+- Media URL copying (`media-copy.js`)
+- Search functionality (`search.js`)
+- Social share buttons (`share.js`)
+- Table of contents generation (`toc.js`)
 
 ## CSS
 

@@ -110,6 +110,32 @@ From `app/context_processors.py`:
 - `invalidate_settings_cache()` - Invalidates the SiteSettings cache (line 30-32)
 - `invalidate_footer_cache()` - Invalidates the footer data memoization cache (line 35-37)
 
+## Template Partials
+
+### `prefetch.js`
+Intelligent link prefetching that observes link visibility via IntersectionObserver. Prefetches pages when links enter the viewport with configurable delay. Uses `rel="prefetch"` for Chromium-based browsers and falls back to `fetch()` for others.
+
+### `macros.html`
+Reusable Jinja2 macros:
+- `paginate(pagination)` — Renders pagination controls with page numbers, prev/next links
+- `field_error(field)` — Renders inline validation error messages for form fields
+
+### `_post_content.html`
+Post content partial with:
+- Post hero section (title, date, tags, reading time)
+- Share bar (social sharing buttons)
+- TL;DR summary block
+- Markdown body content
+
+### `_error.html`
+Error page partial used by `404.html`, `429.html`, and `500.html`. Renders error code, message, and back link.
+
+### `_sidebar.html`
+Admin sidebar partial with navigation links to dashboard sections (posts, pages, media, subscribers, tags, series, settings, audit, backup).
+
+### `_breadcrumbs.html`
+Admin breadcrumb navigation partial for nested admin pages.
+
 ## See Also
 - [Static Assets](frontend/static-assets.md) - JS/CSS
 - [App Factory](core/app-factory.md) - Filter registration

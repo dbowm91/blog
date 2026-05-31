@@ -34,6 +34,8 @@ def create_backup(
 
 **Returns:** Path to backup file or `None` on failure
 
+**Parameter Mutual Exclusivity:** The `compress` and `encrypt` parameters are mutually exclusive in the implementation. When `encrypt=True`, compression is skipped — the code uses `elif compress:` (`app/services/backup.py:72`), meaning only one operation is applied. If both are `True`, encryption takes precedence and compression is ignored.
+
 ### `cleanup_old_backups()`
 
 ```python

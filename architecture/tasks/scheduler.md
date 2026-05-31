@@ -144,6 +144,22 @@ def init_scheduler(app: Flask) -> Optional["BackgroundScheduler"]:
     # Called during app factory
 ```
 
+## Celery Worker Requirements
+
+For production deployments, the Celery worker must run with:
+
+| Setting | Value | Location |
+|---------|-------|----------|
+| `--concurrency=1` | Single worker process | `docker-compose.yml` worker command |
+| `worker_prefetch_multiplier=1` | Fetch one task at a time | `app/celery_app.py:29` |
+
+These settings are **required** to prevent:
+- Duplicate newsletter sends (multiple workers pulling the same task)
+- Race conditions in `_update_delivery_status()` (concurrent status updates)
+- Webhook delivery duplication
+
+Combined with `task_acks_late=True` (`app/celery_app.py:34`), tasks are acknowledged only after completion, ensuring reliable delivery even if a worker crashes mid-task.
+
 ## Backup Implementation Comparison
 
 There are two separate backup implementations with different capabilities:

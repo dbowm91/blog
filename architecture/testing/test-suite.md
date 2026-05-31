@@ -61,6 +61,23 @@ tests/
 - `cleanup_uploads` - Session-scoped autouse; removes files from `app/static/uploads/` after session ends
 - `ensure_buffer_disabled` - Autouse fixture (from `shared_fixtures.py`) that sets `PAGE_VIEW_BUFFER_SIZE=0` and calls `shutdown_page_view_buffer()` before/after each test
 
+### FakeSubscriber
+
+`FakeSubscriber` is a dataclass (`tests/conftest.py:60-69`) for newsletter testing without real subscriber database records:
+
+```python
+@dataclass
+class FakeSubscriber:
+    email: str
+    token: str = "test"
+    confirmed: bool = True
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
+```
+
+Used to test newsletter rendering and email logic without creating actual `Subscriber` model instances.
+
 ### Benchmark-Only Fixtures
 
 - `clean_db` - Cleans up test data after each benchmark function, keeping user records

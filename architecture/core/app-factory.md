@@ -81,6 +81,17 @@ def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
 - APScheduler initialization
 - Page view buffer initialization
 
+**Page View Buffer:** Configured via `PAGE_VIEW_BUFFER_SIZE` env var (default: disabled). When enabled, page views are batched in memory and flushed to the database periodically. Flush triggers (`app/page_view_buffer.py`):
+- When buffer reaches `PAGE_VIEW_BUFFER_SIZE` (if configured)
+- Every `PAGE_VIEW_FLUSH_INTERVAL` seconds (default: 5, configurable via env var)
+- On application shutdown (`stop()` performs a final flush before thread joins)
+
+The buffer uses a background daemon thread. If `PAGE_VIEW_BUFFER_SIZE <= 0`, views are written synchronously on each request.
+
+**Tag Cache:** Tag counts are cached via `flask-caching` with configurable TTL (`TAG_CACHE_TTL_SECONDS`). The `_get_tag_counts()` function in `app/tag_cache.py` uses `@cache.memoize()` for request-context queries and falls back to uncached queries for non-request contexts (e.g., CLI). Cache is invalidated via `invalidate_tag_cache()` after tag-modifying operations.
+
+**Footer Exclusion:** The `inject_footer_data()` context processor (`app/context_processors.py:158-178`) returns empty footer data for `/admin`, `/api`, and `/rss` paths, avoiding unnecessary database queries for pages that don't render the public footer.
+
 ### 9. CLI Commands
 
 Registered via `register_cli_commands()` in `app/cli.py`:

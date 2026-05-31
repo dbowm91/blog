@@ -33,8 +33,10 @@ Public routes serve the blog's public-facing pages.
 
 ### Archive
 - **Route**: `GET /archive`
-- **Purpose**: Browse posts by year/month
+- **Purpose**: Browse posts by year/month with cursor-based pagination
 - **Template**: `public/archive.html`
+- **Query Params**: `cursor` (ISO datetime string for pagination), `direction` (`next` or `prev`, default: `next`), `year` (filter by year)
+- **Pagination**: Returns up to 200 posts per page (`ARCHIVE_PER_PAGE`). Cursor is the `created_at` timestamp of the last/first post in the current page. `has_next`/`has_prev` booleans indicate available navigation.
 
 ### Series
 - **Route**: `GET /series/<slug>`
@@ -76,6 +78,14 @@ Public routes serve the blog's public-facing pages.
 - **Moderation**: Comments require approval
 - **Rate Limit**: 10 per minute
 - **CSRF**: Requires valid `csrf_token` in form data
+- **Spam Scoring**: `compute_spam_score()` (`app/routes/public/comments.py:41-74`) evaluates comments using heuristics:
+  - Excessive links (>3 URLs: +0.15, >5: +0.3)
+  - Repeated characters (5+ same char: +0.2)
+  - Configured spam words (`COMMENT_SPAM_WORDS` config: +0.25)
+  - Author name looks like email (+0.15)
+  - Mostly uppercase content (>70% of alpha chars: +0.2)
+  - Score capped at 1.0; threshold 0.7 triggers auto-quarantine (`is_spam=True`)
+- **Honeypot**: Hidden `website_url` field — if filled, comment is silently accepted but not processed
 
 ## Subscribe Routes (`subscribe.py`)
 

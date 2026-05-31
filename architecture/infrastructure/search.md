@@ -53,7 +53,23 @@ CREATE VIRTUAL TABLE posts_fts_vocab USING fts5vocab(posts_fts, 'row')
 
 ### `init_fts()`
 
-Creates FTS5 tables and populates with existing published posts. Idempotent.
+Creates FTS5 tables and populates with existing published posts. Idempotent. Called during app factory initialization (`app/__init__.py:430-433`). Failures are caught and rolled back silently.
+
+### `_check_fts_enabled()`
+
+Checks if the `posts_fts` virtual table exists. Result is cached for 5 minutes (`_FTS_CHECK_TTL = 300`) to avoid repeated SQLite queries.
+
+### `extract_snippet()`
+
+```python
+def extract_snippet(text: str, query: str, context_chars: int = 200) -> str:
+```
+
+Extracts a snippet from text around the first query match. Returns approximately `context_chars` length with leading/trailing ellipsis if match is not at start/end.
+
+### `get_indexed_terms()`
+
+Returns alphabetically sorted list of unique terms in the search index. Uses FTS5 vocabulary table for efficiency; falls back to extracting terms from post titles if vocabulary table unavailable.
 
 ### `rebuild_fts()`
 
@@ -127,6 +143,8 @@ Add `<mark>` tags around query terms in text for highlighting.
 - `query`: The search query (may contain multiple words)
 
 **Returns:** The text with `<mark>` tags around matched terms.
+
+**HTML Escaping:** The function calls `html.escape()` on the input text *before* applying `<mark>` tags (`app/search.py:362`). This prevents XSS from user-generated content but means the input `text` should be raw text, not pre-escaped HTML. The regex replacement wraps matches in `<mark>` tags after escaping.
 
 ### `search()`
 
