@@ -29,11 +29,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 try:
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives.exceptions import InvalidTag
     from cryptography.hazmat.backends import default_backend
 
     CRYPTOGRAPHY_AVAILABLE = True
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
+    InvalidTag = type("InvalidTag", (Exception,), {})  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +182,7 @@ def decrypt_backup(data: bytes) -> bytes:
 
         return plaintext
 
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError, RuntimeError, InvalidTag, SQLAlchemyError) as e:
         raise RuntimeError(f"Decryption failed: {e}")
 
 
@@ -234,6 +236,6 @@ def decrypt_backup_file(input_path: str, output_path: str) -> bool:
             f.write(decrypted)
 
         return True
-    except (OSError, ValueError, SQLAlchemyError) as e:
+    except (OSError, ValueError, RuntimeError, InvalidTag, SQLAlchemyError) as e:
         logger.error("Failed to decrypt backup file %s: %s", input_path, e)
         return False

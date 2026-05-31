@@ -45,7 +45,7 @@ sqlite3.register_converter("datetime", lambda s: datetime.fromisoformat(s.decode
 def get_client_ip() -> str:
     forwarded_for = req.headers.get("X-Forwarded-For")
     if forwarded_for:
-        return forwarded_for
+        return forwarded_for.split(",")[0].strip()
     return req.remote_addr or "unknown"
 
 

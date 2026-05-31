@@ -180,8 +180,12 @@ class S3StorageBackend(StorageBackend):
         return self._client
 
     def save(self, filename: str, data: bytes) -> str:
-        self.client.put_object(Bucket=self.bucket, Key=filename, Body=data)
-        return filename
+        try:
+            self.client.put_object(Bucket=self.bucket, Key=filename, Body=data)
+            return filename
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 save failed: %s", e)
+            raise
 
     def load(self, filename: str) -> Optional[bytes]:
         try:

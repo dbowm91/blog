@@ -103,6 +103,8 @@ def _add_cache_headers(response: Any, etag: str, is_feed: bool = True) -> Any:
 def invalidate_rss_cache() -> None:
     """Invalidate RSS feed cache."""
     flask_cache.delete("rss_feed_posts")
+    flask_cache.delete("atom_feed_posts")
+    flask_cache.delete("json_feed_posts")
 
 
 def _get_tag_posts(tag_slug: str, limit: int = 20) -> tuple[list[Post], str]:
