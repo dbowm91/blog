@@ -112,6 +112,33 @@ Comment
 | `ix_post_revisions_post_created` | (post_id, created_at) |
 | `ix_post_revisions_author_id` | (author_id) |
 
+### AdminSession
+| Name | Columns |
+|------|---------|
+| `ix_admin_sessions_user_id` | (user_id) |
+
+### Webhook
+| Name | Columns |
+|------|---------|
+| `ix_webhooks_event_type_enabled` | (event_type, enabled) |
+
+### WebhookEvent
+| Name | Columns |
+|------|---------|
+| `ix_webhook_events_event_type_delivered` | (event_type, delivered) |
+| `ix_webhook_events_webhook_id` | (webhook_id) |
+
+### Series
+| Name | Columns |
+|------|---------|
+| `ix_series_slug` | (slug) |
+
+### ApiToken
+| Name | Columns |
+|------|---------|
+| `ix_api_tokens_token_hash` | (token_hash) |
+| `ix_api_tokens_revoked_at` | (revoked_at) |
+
 ### AdminAuditLog
 | Name | Columns |
 |------|---------|
@@ -218,6 +245,8 @@ class WebhookEvent(db.Model):
     delivered = db.Column(db.Boolean, default=False, nullable=False)
     delivery_status = db.Column(db.String(32), nullable=True)  # 'delivered', 'partial_failure', 'failed'
     delivery_attempts = db.Column(db.Integer, default=0, nullable=False)
+    successful_deliveries = db.Column(db.Integer, default=0, nullable=False)
+    failed_deliveries = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
 
     webhook = db.relationship("Webhook", lazy="select")
@@ -265,7 +294,7 @@ class PostSeries(db.Model):
     # Indexes: ix_post_series_series_id, ix_post_series_post_id
     # UniqueConstraint: (series_id, post_id) named uq_series_post
 
-    __repr__()  # Returns <PostSeries series={series_id} post={post_id}>
+    __repr__()  # Returns <PostSeries series_id={self.series_id} post_id={self.post_id} order={self.order_index}>
 ```
 
 Junction table linking Series and Post with ordering support.
@@ -296,19 +325,19 @@ class PostRevision(db.Model):
 ```python
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200))
-    slug = db.Column(db.String(200), unique=True)
-    body = db.Column(db.Text)
-    summary = db.Column(db.String(500))
-    image = db.Column(db.String(256))  # Featured image
-    image_alt_text = db.Column(db.String(256))
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    summary = db.Column(db.String(500), default="")
+    image = db.Column(db.String(256), nullable=True)  # Featured image
+    image_alt_text = db.Column(db.String(256), nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
-    published = db.Column(db.Boolean, default=False)
-    published_at = db.Column(UTCDateTime)
-    scheduled_publish_at = db.Column(UTCDateTime)
-    newsletter_sent_at = db.Column(UTCDateTime)
-    newsletter_attempts = db.Column(db.Integer, default=0)
+    published = db.Column(db.Boolean, default=False, nullable=False)
+    published_at = db.Column(UTCDateTime, nullable=True)
+    scheduled_publish_at = db.Column(UTCDateTime, nullable=True)
+    newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
+    newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
 
     # Relationships
     tags = db.relationship("Tag", secondary=post_tags)
@@ -324,12 +353,12 @@ class Post(db.Model):
 ```python
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"))
-    parent_id = db.Column(db.Integer, db.ForeignKey("comments.id"))  # For nested replies
-    author_name = db.Column(db.String(100))
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey("comments.id"), nullable=True)  # For nested replies
+    author_name = db.Column(db.String(100), nullable=False)
     author_email = db.Column(db.String(256), nullable=False)  # Required field
-    content = db.Column(db.Text)
-    approved = db.Column(db.Boolean, default=False)  # Moderation required
+    content = db.Column(db.Text, nullable=False)
+    approved = db.Column(db.Boolean, default=False, nullable=False)  # Moderation required
     is_spam = db.Column(db.Boolean, default=False, nullable=False)
     spam_score = db.Column(db.Float, nullable=True)
     created_at = db.Column(UTCDateTime, default=utc_now)
@@ -344,12 +373,12 @@ class Comment(db.Model):
 ```python
 class Page(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200))
-    slug = db.Column(db.String(200), unique=True)
-    body = db.Column(db.Text)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    body = db.Column(db.Text, nullable=False)
     created_at = db.Column(UTCDateTime, default=utc_now)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
-    published = db.Column(db.Boolean, default=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
 
     # Index: ix_pages_published_slug
 ```
@@ -365,11 +394,11 @@ THEME_PRESETS = {
 }
 
 class SiteSettings(db.Model):
-    theme_preset = db.Column(db.String(32), default="github-dark")
-    syntax_theme = db.Column(db.String(50), default="prism")
-    custom_css_enabled = db.Column(db.Boolean, default=False)
-    custom_css = db.Column(db.Text, default="")
-    logo_text = db.Column(db.String(100), default="")
+    theme_preset = db.Column(db.String(32), default="github-dark", nullable=False)
+    syntax_theme = db.Column(db.String(50), default="prism", nullable=False)
+    custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    custom_css = db.Column(db.Text, default="", nullable=False)
+    logo_text = db.Column(db.String(100), default="", nullable=False)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod

@@ -288,13 +288,16 @@ Requires scope: `tags:write`
 
 ## Authentication (`auth.py`)
 
-The `auth.py` module provides a `require_api_key` decorator (not a route). Protected API routes use `@require_api_key` to validate the `X-API-Key` header against the `API_KEY` environment variable via HMAC comparison.
+The `auth.py` module provides a `require_api_key` decorator (not a route) and a `require_scope` decorator for scoped access control. Protected API routes use `@require_api_key` which implements two-tier authentication:
+
+1. **Legacy API_KEY**: Validates `X-API-Key` header against the `API_KEY` environment variable via HMAC comparison. Grants all scopes.
+2. **Scoped ApiToken**: Validates token hash against the `api_tokens` table. Grants only the scopes listed on the token.
 
 | Aspect | Details |
 |--------|---------|
 | Header | `X-API-Key: <api-key>` |
-| Env var | `API_KEY` (must be set, otherwise returns 503) |
 | Failure | 401 `{"error": "Invalid or missing API key"}` |
+| Missing scope | 403 `{"error": "Missing scope: {scope}"}` |
 
 ## Rate Limits
 
@@ -306,7 +309,6 @@ API endpoints have the following rate limits:
 | Authenticated writes | 10/min | POST, PUT, DELETE operations on posts, subscribers, pages, series, tags |
 | Public subscribe | 10/min | POST /subscribe |
 | Public comments | 10/min | POST /post/<slug>/comment |
-| API key check | 1000/hour | Per API key |
 
 Rate limit headers are returned on all responses:
 - `X-RateLimit-Limit`: Maximum requests allowed
@@ -344,6 +346,43 @@ All API endpoints return consistent JSON error responses. Error responses includ
 | `A {resource} with this {field} already exists` | Unique constraint violation |
 | `Database operational error` | Database connection or query failure |
 | `Search index unavailable` | FTS5 search index sync failed (503) |
+
+## Scoped API Tokens (`ApiToken` model)
+
+ApiToken (`app/models.py:625-657`) provides scoped API authentication. Tokens are SHA-256 hashed before storage.
+
+### Scopes
+
+Full scope list (defined in `app/routes/api/auth.py:18-34`):
+
+| Scope | Description |
+|-------|-------------|
+| `posts:read` | Read posts |
+| `posts:write` | Create/update/delete posts |
+| `media:read` | Read media |
+| `media:write` | Upload/delete media |
+| `subscribers:read` | Read subscribers |
+| `subscribers:write` | Create/delete subscribers |
+| `newsletter:send` | Send newsletters |
+| `analytics:read` | Read analytics |
+| `tags:read` | Read tags |
+| `tags:write` | Create/update/delete tags |
+| `pages:read` | Read pages |
+| `pages:write` | Create/update/delete pages |
+| `series:read` | Read series |
+| `series:write` | Create/update/delete series |
+| `admin:*` | Matches all scopes |
+
+### `require_scope` decorator
+
+Used after `@require_api_key` to enforce scope-based access:
+
+```python
+@require_api_key
+@require_scope("posts:write")
+def create_post():
+    ...
+```
 
 ## See Also
 - [Admin Routes](admin-routes.md) - Admin dashboard

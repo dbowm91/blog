@@ -47,7 +47,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 **Before Request:**
 - Generate request ID (`g.request_id`)
 - Generate CSP nonce (`g.csp_nonce`)
-- CSRF validation for POST requests
+- CSRF validation for POST requests: sliding window of 5 valid tokens per session (app/csrf.py:20), token rotation on validation (app/csrf.py:53-60), and global enforcement via before_request_handler() (app/__init__.py:296-298)
 - Session timeout check with sliding expiration
 
 **After Request:**
@@ -94,7 +94,7 @@ Registered via `register_cli_commands()` in `app/cli.py`:
 | `flask check-integrity` | Run `PRAGMA integrity_check` on the database |
 | `flask export-data <output_file>` | Export posts, subscribers, tags, and pages as JSON |
 | `flask import-data <input_file>` | Import posts, subscribers, tags, and pages from JSON |
-| `flask seed` | Generate sample data (options: `--posts`, `--subscribers`, `--published`) |
+| `flask seed` | Generate sample data (options: `--posts`, `--subscribers`, `--published/--draft` (boolean flag pair, app/cli.py:264-268)) |
 
 ### 10. Vite Integration
 

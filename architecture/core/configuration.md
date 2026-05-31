@@ -114,6 +114,8 @@ config = {}
 
 ### Storage Settings
 
+Defined in `app/storage.py:53-60`, not in `app/config.py`.
+
 | Variable | Env Var | Default | Description |
 |----------|---------|---------|-------------|
 | `STORAGE_BACKEND` | `STORAGE_BACKEND` | `local` | `local` or `s3` |
@@ -138,7 +140,7 @@ config = {}
 |----------|---------|---------|-------------|
 | `MAX_FAILED_ATTEMPTS` | - | `5` | Login attempts before lockout |
 | `LOCKOUT_DURATION_MINUTES` | - | `15` | Account lockout duration |
-| `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds, no minimum enforced) |
+| `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds, minimum 0.1s enforced (app/config.py:148 via max(LOGIN_FAILURE_DELAY, 0.1))) |
 | `TOKEN_ENUMERATION_DELAY` | - | `0.1` | Delay to prevent token enumeration |
 
 ### Admin Rate Limits
@@ -181,6 +183,15 @@ The `_validate_config()` function validates:
 - `confirmation_expiry_hours` is positive integer
 - `smtp_port` is 1-65535
 - `base_url` has valid scheme and domain
+- `dashboard_per_page` is positive integer (app/config.py:214-230)
+- `subscribers_per_page` is positive integer (app/config.py:214-230)
+- `media_per_page` is positive integer (app/config.py:214-230)
+- `media_max_files` is positive integer (app/config.py:214-230)
+- `max_upload_size` is positive integer (app/config.py:214-230)
+- `export_batch_size` is positive integer (app/config.py:214-230)
+- `fts_result_limit` is positive integer (app/config.py:214-230)
+- `token_enumeration_delay` is positive number (app/config.py:232-241)
+- `smtp_timeout` is positive integer (app/config.py:243-250)
 
 ## See Also
 - [App Factory](core/app-factory.md) - How config is used

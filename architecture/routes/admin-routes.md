@@ -24,7 +24,16 @@ admin/
 ├── pages.py             # Static page management
 ├── series.py            # Post series management
 ├── audit.py             # Audit log viewer
-└── comments.py          # Comment moderation
+├── comments.py          # Comment moderation
+└── helpers/             # Shared helper modules
+    ├── __init__.py
+    ├── analytics.py
+    ├── dashboard.py
+    ├── images.py
+    ├── posts.py
+    ├── shared.py
+    ├── slug.py
+    └── tags.py
 ```
 
 ## Auth Routes (`auth.py`)
@@ -101,10 +110,13 @@ admin/
 
 ### Post Revisions (`revisions.py`)
 - **Route**: `GET /admin/posts/<int:post_id>/revisions`
-- **Route**: `GET /admin/posts/<int:post_id>/revisions/<int:rev_id>`
 - **Route**: `POST /admin/posts/<int:post_id>/revisions/<int:revision_id>/restore`
 - **Purpose**: View post edit history, restore previous revisions
 - **Diff**: Side-by-side diff view
+
+### Markdown Preview (`editor.py`)
+- **Route**: `POST /admin/preview-markdown`
+- **Purpose**: Render markdown preview for live editing (AJAX endpoint)
 
 ## Subscriber Management (`subscribers.py`)
 
@@ -130,7 +142,7 @@ admin/
 - **Route**: `POST /admin/users/<int:user_id>/promote`
 - **Route**: `POST /admin/users/<int:user_id>/demote`
 - **Route**: `POST /admin/users/<int:user_id>/make-owner`
-- **Route**: `POST /admin/users/<int:user_id>/password`
+- **Route**: `POST /admin/users/password/<int:user_id>`
 - **Purpose**: Manage admin users
 
 ## Session Monitoring (`sessions.py`)
@@ -139,10 +151,6 @@ admin/
 - **Route**: `POST /admin/sessions/revoke/<int:sess_id>`
 - **Purpose**: View active admin sessions and revoke sessions
 - **Features**: IP binding, session termination
-
-### Markdown Preview
-- **Route**: `POST /admin/preview-markdown`
-- **Purpose**: Render markdown preview for live editing (AJAX endpoint)
 
 ## Media Management (`media.py`)
 

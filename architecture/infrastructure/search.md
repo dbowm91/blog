@@ -32,7 +32,6 @@ provider = get_search_provider()  # Returns configured provider
 - **Prefix Matching**: Supports `term*` wildcards
 - **Snippets**: Query highlighting in results
 - **Did You Mean**: Fuzzy suggestions for misspellings
-- **Fallback**: LIKE-based search when FTS unavailable
 
 ## FTS5 Table Structure
 

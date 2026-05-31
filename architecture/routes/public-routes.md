@@ -6,7 +6,7 @@ Public routes serve the blog's public-facing pages.
 
 | File | Routes | Purpose |
 |------|--------|---------|
-| `browse.py` | `/`, `/page/<page>`, `/tag/<tag>`, `/tag/<tag>/<page>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
+| `browse.py` | `/`, `/tag/<tag>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
 | `posts.py` | `/post/<slug>`, `/preview/<int:post_id>`, `/s/<code>`, `/api/track-share` | Individual post pages, short URLs, share tracking |
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
 | `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health`, `/metrics`, `/favicon.ico` | Sitemap, robots, health check, metrics |
@@ -15,14 +15,14 @@ Public routes serve the blog's public-facing pages.
 ## Browse Routes (`browse.py`)
 
 ### Home Page
-- **Route**: `GET /` and `GET /page/<int:page>`
-- **Purpose**: Display paginated list of published posts
+- **Route**: `GET /`
+- **Purpose**: Display paginated list of published posts (pagination via `?page=N` query param)
 - **Template**: `public/index.html`
 - **Context**: Recent posts, tag cloud, page number
 
 ### Tag Pages
-- **Route**: `GET /tag/<slug>` and `GET /tag/<slug>/<int:page>`
-- **Purpose**: Display posts filtered by tag
+- **Route**: `GET /tag/<slug>`
+- **Purpose**: Display posts filtered by tag (pagination via `?page=N` query param)
 - **Template**: `public/tag.html`
 
 ### Search
@@ -59,6 +59,14 @@ Public routes serve the blog's public-facing pages.
 - **Auth**: HMAC token-based (token and expires query parameters)
 - **Args**: `token` (HMAC signature), `expires` (Unix timestamp)
 
+### Short URL Redirect
+- **Route**: `GET /s/<code>`
+- **Purpose**: Redirect base62-encoded post ID to canonical URL and track share event
+
+### Share Tracking API
+- **Route**: `POST /api/track-share`
+- **Purpose**: Track social share events
+
 ## Comment Routes (`comments.py`)
 
 ### Submit Comment
@@ -68,14 +76,6 @@ Public routes serve the blog's public-facing pages.
 - **Moderation**: Comments require approval
 - **Rate Limit**: 10 per minute
 - **CSRF**: Requires valid `csrf_token` in form data
-
-### Short URL Redirect
-- **Route**: `GET /s/<code>`
-- **Purpose**: Redirect base62-encoded post ID to canonical URL and track share event
-
-### Share Tracking API
-- **Route**: `POST /api/track-share`
-- **Purpose**: Track social share events
 
 ## Subscribe Routes (`subscribe.py`)
 
@@ -103,7 +103,7 @@ Public routes serve the blog's public-facing pages.
 
 ### Health Check
 - **Route**: `GET /health`
-- **Purpose**: Health check endpoint with optional `?detailed=1`
+- **Purpose**: Health check endpoint with optional `?detailed=true`
 - **Auth**: Optional secret via `HEALTH_CHECK_SECRET`
 
 ### Metrics
