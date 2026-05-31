@@ -12,7 +12,7 @@ Specialized handling for the Flask application core.
 - `base62.py` - Short URL encoding (base62)
 - `csrf.py` - CSRF token handling (sliding window)
 - `tag_cache.py` - Tag count cache (flask-cache memoization)
-- `search.py` - FTS5 full-text search with LIKE fallback + snippet extraction
+- `search.py` - FTS5 full-text search (returns empty list when FTS unavailable) + snippet extraction
 - `markdown_config.py` - Shared nh3 allowed tags/attributes for markdown rendering
 - `csv_utils.py` - Subscriber CSV export with formula injection prevention
 - `context_processors.py` - Template context (theme, footer, canonical_url)
@@ -90,9 +90,9 @@ Structured error handling utilities in `app/utils.py`:
 - Token enumeration prevention with constant-time delay
 - SQLAlchemy 2.0 parameterized queries throughout
 - Magic byte detection for file uploads
-- **Custom CSS sanitization**: `sanitize_css()` uses tinycss2 parser + allowlist (Wave 1 complete)
-- **Webhook Encryption**: AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation implemented in `webhook_encryption.py` (Wave 1 complete)
-- **FTS Security**: `app/search.py` uses parameterized queries with individual bindparams (Wave 1 complete)
+- **Custom CSS sanitization**: `sanitize_css()` uses tinycss2 parser + allowlist
+- **Webhook Encryption**: AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation in `webhook_encryption.py`
+- **FTS Security**: `app/search.py` uses parameterized queries with individual bindparams
 - Comprehensive security headers (CSP with nonces, HSTS, X-Frame-Options)
 
 ## Security Headers

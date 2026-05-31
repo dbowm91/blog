@@ -40,12 +40,6 @@ When reviewing documentation:
 - Error handling table documents actual retry behavior for Celery tasks
 - E2E tests use pytest-playwright, not @playwright/test
 
-### Key Verified Line References
-- `deliver_single_webhook_task`: tasks.py:231 (NOT 234)
-- `send_confirmation_task`: tasks.py:345 (NOT 334)
-- `send_password_reset_task`: tasks.py:366 (NOT 355)
-- `run_backup_task`: tasks.py:387 (NOT 376)
-
 ## Maintenance
 
 All items from architecture review (90+ across 6 waves) have been implemented and verified.

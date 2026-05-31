@@ -5,7 +5,7 @@ Specialized handling for public routes, API, and RSS.
 ## Key Files
 
 - `public.py` - Public-facing routes (index, post, page, tag, series, archive, search, share, subscribe, confirm, unsubscribe)
-- `api.py` - REST API (Post/Subscriber endpoints) - **Modularized into `app/routes/api/` package (Wave 2 complete)**
+- `api/` - REST API package (posts, subscribers, stats, auth, pages, series, tags)
 - `rss.py` - RSS feed generation
 - `errors.py` - Error handlers
 - `admin/` - Admin routes package (requires login)
@@ -44,7 +44,7 @@ POST `/share` tracks share events. `ALLOWED_SHARE_PLATFORMS` in public.py expect
     - `sync_fts()` MUST be called **BEFORE** `db.session.commit()` for create/edit/publish.
     - `remove_fts()` MUST be called **AFTER** `db.session.commit()` for delete.
 - FTS table existence cached with 5-minute TTL
-- LIKE fallback filters by `Post.published == True`
+- When FTS unavailable, returns empty list (no LIKE fallback)
 - "Did you mean?" suggestions via `difflib.get_close_matches()`
 - Query term highlighting with `<mark>` tags
 
