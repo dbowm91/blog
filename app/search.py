@@ -19,6 +19,7 @@ __all__ = [
 
 import difflib
 import logging
+import nh3
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, ProgrammingError, DatabaseError
 from app.extensions import db
@@ -310,7 +311,7 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
         for i in range(0, len(post_ids), _SQLITE_MAX_VARS):
             batch = post_ids[i : i + _SQLITE_MAX_VARS]
             for row in _fetch_snippets(batch):
-                snippets[row[0]] = row[1]
+                snippets[row[0]] = nh3.clean(row[1], tags={"mark"})
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         logger.error("FTS snippet query failed: %s", e)
     return snippets

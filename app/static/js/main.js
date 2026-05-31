@@ -95,6 +95,7 @@ const loadModule = (path) => {
     }
 };
 function loadPrismIfNeeded() {
+    if (window.Prism) return;
     const codeBlocks = document.querySelectorAll('pre[class*="language-"]');
     if (codeBlocks.length === 0) return;
     const prismCSS = document.createElement('link');

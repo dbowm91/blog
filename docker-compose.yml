@@ -131,6 +131,8 @@ services:
       - BACKUP_DIR=/backups
       # Required for backup.py to import app.services:
       - PYTHONPATH=/home/blog
+      # SECRET_KEY needed for Flask app config when importing app modules
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       # BACKUP_ENCRYPTION_KEY for encrypted backups (loaded from config.toml in app)
       # WEBHOOK_ENCRYPTION_KEY for webhook secrets (loaded from config.toml in app)
     profiles:

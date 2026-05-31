@@ -23,6 +23,7 @@ GitHub Actions workflows for testing and deployment.
 ### 3. security-audit
 - **Tool**: `pip-audit`
 - **Purpose**: Vulnerability scanning
+- **Mode**: `--fail-on=all` (strict mode — fails on any known vulnerability, including informational)
 
 ### 4. frontend-build
 - **Tool**: Node.js 20, `npm ci` + `npm run build`

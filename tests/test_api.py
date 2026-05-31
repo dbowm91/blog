@@ -13,19 +13,6 @@ from app.models import Post, Tag, Subscriber, PageView, ShareEvent
 from app.utils import utc_now
 
 
-@pytest.fixture(scope="function")
-def api_client(client, admin_user):
-    """Create test client with valid API key."""
-    client.post(
-        "/admin/login",
-        data={
-            "username": "admin",
-            "password": "test-password",
-        },
-    )
-    return client
-
-
 def test_api_requires_key(client):
     """Test that API endpoints require API key."""
     response = client.get("/api/posts")

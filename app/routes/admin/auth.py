@@ -244,9 +244,8 @@ def reset_password(token: str) -> Any:
         session.clear()
 
         logger.info(
-            "Password reset completed: user_id=%d username=%s",
+            "Password reset completed: user_id=%d",
             user.id,
-            user.username,
         )
         flash("Your password has been reset. Please sign in with your new password.", "success")
         return redirect(url_for("admin.login"))

@@ -2,6 +2,9 @@ from unittest.mock import patch, MagicMock
 from sqlalchemy import select
 from app.models import Post, Subscriber
 from app.utils import utc_now
+import pytest
+
+pytestmark = pytest.mark.slow
 
 
 def test_scheduler_filters_unsent_posts(app, db):

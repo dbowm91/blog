@@ -111,6 +111,8 @@ def create_webhook_event(
 
 Creates `WebhookEvent` record and queues `deliver_webhook_task` Celery task.
 
+**Silent failure:** If the Celery task cannot be queued (e.g., `RequestException`, `ValueError`, `OSError`), the error is logged but the `WebhookEvent` record remains in the database with `delivered=False`. The event is never retried. Callers are not notified of the failure — the function always returns the event ID regardless of whether delivery was queued.
+
 ## Delivery Architecture
 
 Webhook delivery uses a two-level dispatch pattern:

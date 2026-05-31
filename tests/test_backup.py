@@ -3,6 +3,8 @@ import pytest
 from app.models import Post
 from app.utils import utc_now
 
+pytestmark = pytest.mark.slow
+
 
 def test_backup_creation_uncompressed(app, db, authenticated_client):
     """Test creating an uncompressed backup."""

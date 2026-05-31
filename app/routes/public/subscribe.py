@@ -71,7 +71,12 @@ def register_subscribe_routes(public):
                 existing.unsubscribed_at = None
                 existing.confirmed = False
                 _reset_subscriber_token(existing)
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except (IntegrityError, OperationalError):
+                    db.session.rollback()
+                    flash("An error occurred. Please try again.", "error")
+                    return redirect(_safe_redirect_url())
                 return _send_or_flash_confirmation(existing)
             elif existing.confirmed:
                 logger.info("Already-subscribed user %s attempted to resubscribe", email)
@@ -79,7 +84,12 @@ def register_subscribe_routes(public):
                 return redirect(_safe_redirect_url())
             else:
                 _reset_subscriber_token(existing)
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except (IntegrityError, OperationalError):
+                    db.session.rollback()
+                    flash("An error occurred. Please try again.", "error")
+                    return redirect(_safe_redirect_url())
                 return _send_or_flash_confirmation(existing)
 
         sub = Subscriber(
@@ -102,16 +112,31 @@ def register_subscribe_routes(public):
                 return redirect(_safe_redirect_url())
             if existing.expires_at and existing.expires_at < utc_now():
                 db.session.delete(existing)
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except (IntegrityError, OperationalError):
+                    db.session.rollback()
+                    flash("An error occurred. Please try again.", "error")
+                    return redirect(_safe_redirect_url())
                 sub = Subscriber(
                     email=email,
                     expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
                 )
                 db.session.add(sub)
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except (IntegrityError, OperationalError):
+                    db.session.rollback()
+                    flash("An error occurred. Please try again.", "error")
+                    return redirect(_safe_redirect_url())
                 return _send_or_flash_confirmation(sub)
             _reset_subscriber_token(existing)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+                flash("An error occurred. Please try again.", "error")
+                return redirect(_safe_redirect_url())
             return _send_or_flash_confirmation(existing)
 
     @public.route("/confirm/<token>")
@@ -140,7 +165,12 @@ def register_subscribe_routes(public):
             flash("Already confirmed.", "info")
             return redirect("/")
         sub.confirmed = True
-        db.session.commit()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash("An error occurred. Please try again.", "error")
+            return redirect("/")
         try:
             from app.webhooks import create_webhook_event
 
