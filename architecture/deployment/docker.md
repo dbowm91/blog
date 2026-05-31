@@ -34,7 +34,7 @@ Resource limits (memory, CPU) are configured in `docker-compose.yml` under each 
 
 ## Backup Service
 
-The `backup` service in `docker-compose.yml:111-129` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:23`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
+The `backup` service in `docker-compose.yml:119-137` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:23`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
 
 ## Nginx Configuration
 
@@ -77,7 +77,7 @@ Additional config when Flask app context is available (`app/celery_app.py:33-37`
 - `task_acks_late=True` — Acknowledge tasks after execution (not before)
 - `task_reject_on_worker_lost=True` — Re-queue task if worker crashes
 
-**Important**: The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:58`). This single-concurrency setting ensures:
+**Important**: The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:66`). This single-concurrency setting ensures:
 - Newsletter emails are sent in order without duplication
 - Webhook delivery is serialized
 

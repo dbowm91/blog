@@ -6,11 +6,12 @@ The admin module provides the dashboard and management interfaces.
 
 ```
 admin/
-├── __init__.py          # Blueprint registration
-├── auth.py              # Login, logout, 2FA
+├── __init__.py          # Blueprint registration, auth decorators
+├── auth.py              # Login, logout, 2FA, password reset
 ├── posts/               # Post management
-│   ├── __init__.py      # Route registration + dashboard/list
-│   ├── editor.py        # Post editor
+│   ├── __init__.py      # Dashboard and bulk operations
+│   ├── editor.py        # Post editor, markdown preview
+│   ├── manage.py        # Post delete, preview
 │   └── revisions.py     # Post revisions
 ├── subscribers.py       # Subscriber management
 ├── tags.py              # Tag CRUD
@@ -39,8 +40,7 @@ admin/
 ## Auth Routes (`auth.py`)
 
 ### Login
-- **Route**: `GET /admin/login`
-- **Route**: `POST /admin/login`
+- **Route**: `GET/POST /admin/login`
 - **Purpose**: Admin authentication
 - **Features**: Account lockout, failed login tracking
 
@@ -50,15 +50,15 @@ admin/
 - **Auth**: CSRF protection required
 
 ### 2FA Setup
-- **Route**: `GET /admin/2fa/setup` (POST for setup confirmation)
+- **Route**: `GET/POST /admin/2fa/setup`
 - **Purpose**: Setup TOTP 2FA
 
 ### 2FA Verify
-- **Route**: `GET /admin/2fa/verify` (POST for verification)
+- **Route**: `GET/POST /admin/2fa/verify`
 - **Purpose**: Verify 2FA code
 
 ### Login 2FA
-- **Route**: `GET /admin/login-2fa` (POST for verification)
+- **Route**: `GET/POST /admin/login-2fa`
 - **Purpose**: TOTP verification during login flow
 
 ### 2FA Backup Codes
@@ -66,17 +66,15 @@ admin/
 - **Purpose**: Display backup codes
 
 ### 2FA Disable
-- **Route**: `GET /admin/2fa/disable` (POST to confirm disable)
+- **Route**: `GET/POST /admin/2fa/disable`
 - **Purpose**: Disable 2FA for account
 
 ### Forgot Password
-- **Route**: `GET /admin/forgot-password`
-- **Route**: `POST /admin/forgot-password`
+- **Route**: `GET/POST /admin/forgot-password`
 - **Purpose**: Request password reset
 
 ### Reset Password
-- **Route**: `GET /admin/reset/<token>`
-- **Route**: `POST /admin/reset/<token>`
+- **Route**: `GET/POST /admin/reset/<token>`
 - **Purpose**: Reset password with token
 
 ### Newsletter Reset
@@ -86,16 +84,20 @@ admin/
 ## Post Management (`posts/`)
 
 ### Post Editor (`editor.py`)
-- **Route**: `GET /admin/new`
-- **Route**: `GET /admin/edit/<int:post_id>`
+- **Route**: `GET/POST /admin/new`
+- **Route**: `GET/POST /admin/edit/<int:post_id>`
 - **Purpose**: Create/edit posts
 - **Features**: Markdown editor, tag selection, image upload, series assignment
 
-### Post Delete (`posts/manage.py`)
+### Markdown Preview (`editor.py`)
+- **Route**: `POST /admin/preview-markdown`
+- **Purpose**: Render markdown preview for live editing (AJAX endpoint)
+
+### Post Delete (`manage.py`)
 - **Route**: `POST /admin/delete/<int:post_id>`
 - **Purpose**: Delete a post
 
-### Post Preview (`posts/manage.py`)
+### Post Preview (`manage.py`)
 - **Route**: `GET /admin/preview/<int:post_id>`
 - **Route**: `GET /admin/preview/<int:post_id>?share=1`
 - **Purpose**: Preview post before publishing, with optional shareable URL
@@ -113,10 +115,6 @@ admin/
 - **Route**: `POST /admin/posts/<int:post_id>/revisions/<int:revision_id>/restore`
 - **Purpose**: View post edit history, restore previous revisions
 - **Diff**: Side-by-side diff view
-
-### Markdown Preview (`editor.py`)
-- **Route**: `POST /admin/preview-markdown`
-- **Purpose**: Render markdown preview for live editing (AJAX endpoint)
 
 ## Subscriber Management (`subscribers.py`)
 
@@ -183,6 +181,8 @@ admin/
 - **Route**: `GET /admin/newsletter/preview`
 - **Route**: `POST /admin/newsletter-test`
 - **Purpose**: Preview and send newsletters
+- **Preview**: Renders the newsletter HTML in-browser (no email sent)
+- **Test**: Sends an actual email to the admin's address for delivery verification
 
 ## Settings (`settings.py`)
 
@@ -198,20 +198,18 @@ admin/
 ## Static Page Management (`pages.py`)
 
 - **Route**: `GET /admin/pages`
-- **Route**: `GET /admin/pages/new`
-- **Route**: `POST /admin/pages/new`
-- **Route**: `GET /admin/pages/edit/<int:page_id>`
-- **Route**: `POST /admin/pages/edit/<int:page_id>`
+- **Route**: `GET/POST /admin/pages/new`
+- **Route**: `GET/POST /admin/pages/edit/<int:page_id>`
 - **Route**: `POST /admin/pages/delete/<int:page_id>`
 - **Purpose**: Create and manage static pages
 
 ## Series Management (`series.py`)
 
 - **Route**: `GET /admin/series`
-- **Route**: `GET /admin/series/new` (POST to create)
-- **Route**: `GET /admin/series/<int:series_id>/edit` (POST to update)
+- **Route**: `GET/POST /admin/series/new`
+- **Route**: `GET/POST /admin/series/<int:series_id>/edit`
 - **Route**: `POST /admin/series/<int:series_id>/delete`
-- **Route**: `GET /admin/series/<int:series_id>/posts` (POST to add/remove posts)
+- **Route**: `GET/POST /admin/series/<int:series_id>/posts`
 - **Route**: `POST /admin/series/<int:series_id>/reorder`
 - **Purpose**: Create and manage post series (ordered collections of posts)
 
@@ -237,14 +235,6 @@ Shared helper modules extracted from route files:
 | `tags.py` | Tag name validation, orphan cleanup, get-or-create tags |
 
 All public functions are re-exported via `helpers/__init__.py` for backward compatibility.
-
-## Newsletter (`newsletter.py`)
-
-- **Route**: `GET /admin/newsletter/preview`
-- **Route**: `POST /admin/newsletter-test`
-- **Purpose**: Preview and send newsletters
-- **Preview**: Renders the newsletter HTML in-browser (no email sent)
-- **Test**: Sends an actual email to the admin's address for delivery verification
 
 ## See Also
 - [Public Routes](public-routes.md) - Public blog routes

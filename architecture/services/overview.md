@@ -7,14 +7,14 @@ Business logic layer for the blog application.
 | Service | File | Purpose |
 |---------|------|---------|
 | Backup | `app/services/backup.py` | Database backup with compression/encryption |
-| Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secret encryption |
+| Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secrets |
+| Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption with PBKDF2 key derivation |
+| Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM encryption for webhook secrets at rest |
 | Serialization | `app/services/serialization.py` | JSON export/import |
 | Slug | `app/services/slug.py` | Unique slug generation |
 | Tag | `app/services/tag.py` | Tag CRUD and count management |
 | Tag Cache | `app/tag_cache.py` | Tag count caching with TTL |
 | Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
-| Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup encryption with PBKDF2 key derivation |
-| Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM encryption for webhook secrets at rest |
 | Search (FTS5) | `app/search.py` | Standalone FTS5 functions (search, sync, snippets, did-you-mean) |
 
 ## See Also

@@ -201,7 +201,7 @@ Other queues used by the system:
 | `images` | Image processing | `app/tasks.py:30` |
 | `newsletter` | Newsletter delivery | `app/tasks.py:129` |
 | `webhooks` | Webhook delivery | `app/tasks.py:194` |
-| `email` | Transactional email | `app/tasks.py:333,354` |
+| `email` | Transactional email | `app/tasks.py:344,365` |
 | `backup` | Backup tasks | `app/tasks.py:375` |
 
 ## See Also

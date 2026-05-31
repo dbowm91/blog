@@ -17,7 +17,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
 | [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md) |
 | [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
-| [Infrastructure](#6-infrastructure) | Search, email, storage, webhooks | [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
+| [Infrastructure](#6-infrastructure) | Search, email, storage, webhooks | [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
 | [Frontend](#7-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
 | [Security](#8-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
 | [Deployment](#9-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
@@ -260,7 +260,53 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 
 **Note on FTS Initialization:** FTS5 init failures are caught and rolled back silently (`app/__init__.py:430-433`). The user is never informed if full-text search will not function. Consider failing loudly or surfacing a user-visible error when FTS init fails.
 
-**Deep Dive:** [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
+### Health Check (`GET /health`)
+
+Health endpoint with optional `?detailed=true` and `?secret=<HEALTH_CHECK_SECRET>` parameters.
+
+**Critical Checks** (determine overall status):
+
+| Check | What it validates |
+|-------|-------------------|
+| `database` | SQLite connectivity |
+| `scheduler` | APScheduler running |
+| `search` | FTS5 availability |
+| `disk_space` | Free disk space >= 10% |
+| `db_integrity` | Database passes integrity check |
+
+**Optional Checks** (do not affect overall status):
+
+| Check | What it validates |
+|-------|-------------------|
+| `backup_freshness` | Most recent backup < 24 hours old |
+| `redis` | Redis connectivity |
+| `celery` | Celery worker availability |
+
+**Status Logic**: `ok` when all critical checks pass (status in "ok", "running", "disabled"); `degraded` when any critical check fails.
+
+### Storage (`app/storage.py`)
+
+Storage abstraction layer for media files with local and S3 backends.
+
+| Class | Purpose |
+|-------|---------|
+| `StorageBackend` | Abstract base class defining the interface |
+| `LocalStorageBackend` | Local filesystem storage |
+| `S3StorageBackend` | S3-compatible storage via boto3 |
+
+Configured via `STORAGE_BACKEND` env var: `"local"` (default) or `"s3"`. `get_storage()` returns a module-level singleton. Lazy client initialization for S3 uses `threading.Lock`. `save()` raises exceptions on failure (with logging). Other S3 methods return `False` or empty lists on failure.
+
+### SSRF Protection (`app/webhooks.py`)
+
+Webhook delivery includes Server-Side Request Forgery (SSRF) protection to prevent requests to internal/private networks.
+
+- **URL Validation**: Before sending webhook requests, URLs are validated against private IP ranges
+- **Blocked Ranges**: `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1/128`, `fc00::/7`
+- **DNS Rebinding Protection**: Resolves hostname and checks resolved IP before sending
+- **Redirect Prevention**: `allow_redirects=False` prevents redirect-based SSRF bypass
+- **Implementation**: `app/utils.py:383-485` (~100 lines). Returns `tuple[bool, str]`.
+
+**Deep Dive:** [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
 
 ---
 

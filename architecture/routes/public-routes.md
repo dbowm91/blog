@@ -6,7 +6,7 @@ Public routes serve the blog's public-facing pages.
 
 | File | Routes | Purpose |
 |------|--------|---------|
-| `browse.py` | `/`, `/tag/<tag>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
+| `browse.py` | `/`, `/tag/<slug>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
 | `posts.py` | `/post/<slug>`, `/preview/<int:post_id>`, `/s/<code>`, `/api/track-share` | Individual post pages, short URLs, share tracking |
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
 | `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health`, `/metrics`, `/favicon.ico` | Sitemap, robots, health check, metrics |
@@ -113,8 +113,8 @@ Public routes serve the blog's public-facing pages.
 
 ### Health Check
 - **Route**: `GET /health`
-- **Purpose**: Health check endpoint with optional `?detailed=true`
-- **Auth**: Optional secret via `HEALTH_CHECK_SECRET`
+- **Purpose**: Health check endpoint with optional `?detailed=true` and `?secret=<HEALTH_CHECK_SECRET>` query parameters
+- **Auth**: Optional HMAC authentication when `HEALTH_CHECK_SECRET` is configured
 
 ### Metrics
 - **Route**: `GET /metrics`

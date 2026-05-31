@@ -145,7 +145,7 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 
 ### Admin Rate Limits
 
-`ADMIN_RATE_LIMITS` dict (app/config.py:164-171) defines per-endpoint rate limits as `(requests, seconds)` tuples:
+`ADMIN_RATE_LIMITS` dict (app/config.py:165-172) defines per-endpoint rate limits as `(requests, seconds)` tuples:
 
 | Key | Default | Description |
 |-----|---------|-------------|

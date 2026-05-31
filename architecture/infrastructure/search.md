@@ -148,7 +148,7 @@ Add `<mark>` tags around query terms in text for highlighting.
 
 **Returns:** The text with `<mark>` tags around matched terms.
 
-**HTML Escaping:** The function calls `html.escape()` on the input text *before* applying `<mark>` tags (`app/search.py:362`). This prevents XSS from user-generated content but means the input `text` should be raw text, not pre-escaped HTML. The regex replacement wraps matches in `<mark>` tags after escaping.
+**HTML Escaping:** The function calls `html.escape()` on the input text *before* applying `<mark>` tags (`app/search.py:367`). This prevents XSS from user-generated content but means the input `text` should be raw text, not pre-escaped HTML. The regex replacement wraps matches in `<mark>` tags after escaping.
 
 ### `search()`
 

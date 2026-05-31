@@ -11,7 +11,7 @@ tests/
 │   └── test_benchmarks.py
 ├── conftest.py          # Pytest fixtures (session-scoped `app`, `ensure_buffer_disabled` autouse)
 ├── e2e/                 # End-to-end Playwright tests
-│   ├── conftest.py      # E2E fixtures (Playwright setup, app server on port 5010)
+│   ├── conftest.py      # E2E fixtures (session-scoped `app`, `app_server`, `browser_type_launch_args`)
 │   └── test_e2e.py      # E2E tests with classes: TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ├── shared_fixtures.py   # Shared fixtures (`ensure_buffer_disabled` autouse)
 ├── test_*.py            # Unit/integration tests (flat structure, NOT in unit/ or integration/ subdirs)
@@ -24,7 +24,7 @@ tests/
 |------|----------|------|
 | Unit/Integration | `tests/` (flat) | pytest |
 | Benchmark | `tests/benchmarks/` | pytest |
-| E2E | `tests/e2e/` | Playwright |
+| E2E | `tests/e2e/` | Playwright (via `pytest-playwright`) |
 
 ## Fixtures (`conftest.py`)
 
@@ -32,17 +32,18 @@ tests/
 
 | Fixture | Location | Scope |
 |---------|----------|-------|
-| `app` | `conftest.py`, `benchmarks/conftest.py` | session |
+| `app` | `conftest.py`, `benchmarks/conftest.py`, `e2e/conftest.py` | session |
 | `db` | `conftest.py` (function), `benchmarks/conftest.py` (session) | varies |
 | `client` | `conftest.py` | function |
 | `admin_user` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `authenticated_client` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `sample_post`, `sample_tag`, `sample_subscriber` | `conftest.py` | function |
-| `mock_render`, `mock_smtp`, `mock_email` | `conftest.py` | function |
+| `mock_render`, `mock_smtp` | `conftest.py` | function |
 | `clean_analytics_cache` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `cleanup_uploads` | `conftest.py` | session (autouse) |
 | `ensure_buffer_disabled` | `shared_fixtures.py` (imported via `*` into other conftest files) | autouse |
 | `browser_type_launch_args` | `e2e/conftest.py` | session |
+| `app_url` | `e2e/conftest.py` | session |
 | `app_server` | `e2e/conftest.py` | session |
 
 ### Key Fixtures
@@ -56,7 +57,6 @@ tests/
 - `sample_subscriber` - Creates a confirmed `Subscriber` with email "test@example.com"
 - `mock_render` - Patches `app.email.render_template` to return `"<html>Mock</html>"`
 - `mock_smtp` - Patches `app.email._connect_smtp` with a `MagicMock` server (has `sendmail`, `quit`)
-- `mock_email` - No-op fixture that yields immediately; relies on autouse `mock_render` and `mock_smtp` being active
 - `clean_analytics_cache` - Clears `app.routes.admin._analytics_cache` before and after tests
 - `cleanup_uploads` - Session-scoped autouse; removes files from `app/static/uploads/` after session ends
 - `ensure_buffer_disabled` - Autouse fixture (from `shared_fixtures.py`) that sets `PAGE_VIEW_BUFFER_SIZE=0` and calls `shutdown_page_view_buffer()` before/after each test
@@ -86,6 +86,7 @@ Used to test newsletter rendering and email logic without creating actual `Subsc
 
 ### E2E-Only Fixtures
 
+- `app` - Session-scoped fixture defined in `e2e/conftest.py:11-43`; creates a separate database (`blog_e2e`) and disables CSRF. This fixture **shadows** the main `conftest.py` `app` fixture for E2E tests.
 - `app_url` - Base URL for the Flask application (`http://127.0.0.1:5010`)
 - `browser_type_launch_args` - Configured browser launch arguments (`--no-sandbox`, `--disable-setuid-sandbox`)
 - `app_server` - Session-scoped fixture that starts the Flask server on port 5010
@@ -204,7 +205,7 @@ post = db.session.get(Post, post.id)
 
 ### E2E Test `app` Fixture
 
-The E2E tests in `tests/e2e/conftest.py` do **not** define their own `app` fixture. They rely on the import chain: `from tests.shared_fixtures import *` brings in `ensure_buffer_disabled`, and the session-scoped `app` fixture comes from the main `tests/conftest.py`. Running `pytest tests/e2e/` alone fails because of this dependency.
+The E2E tests in `tests/e2e/conftest.py` define their **own** session-scoped `app` fixture (lines 11-43) that creates a separate database (`blog_e2e`). This fixture **shadows** the main `tests/conftest.py` `app` fixture for E2E tests. Running `pytest tests/e2e/` alone works because the E2E conftest provides its own `app` fixture.
 
 ## SQLAlchemy 2.0 Query Patterns
 
