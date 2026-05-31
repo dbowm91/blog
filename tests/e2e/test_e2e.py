@@ -1,5 +1,9 @@
 """End-to-end browser tests for the blog CMS."""
 
+import pytest
+
+pytestmark = pytest.mark.e2e
+
 
 class TestAdminLogin:
     """Test admin login and logout flows."""

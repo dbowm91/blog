@@ -133,6 +133,16 @@ Error page partial used by `404.html`, `429.html`, and `500.html`. Renders error
 ### `_sidebar.html`
 Admin sidebar partial with navigation links to dashboard sections (posts, pages, media, subscribers, tags, series, settings, audit, backup).
 
+### `data-prism-css-url` Attribute
+
+The `<html>` element in `base.html:2` includes a `data-prism-css-url` attribute set to the Vite-resolved URL for the configured syntax theme CSS:
+
+```html
+<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}">
+```
+
+This attribute is consumed by `main.js:102` in `loadPrismIfNeeded()` to dynamically inject the Prism CSS stylesheet only when code blocks are present on the page. This enables lazy loading of syntax highlighting CSS — the stylesheet is fetched and applied only when needed, avoiding unnecessary CSS overhead on pages without code blocks.
+
 ### `_breadcrumbs.html`
 Admin breadcrumb navigation partial for nested admin pages.
 

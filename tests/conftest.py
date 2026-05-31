@@ -118,6 +118,19 @@ def authenticated_client(client, admin_user):
 
 
 @pytest.fixture(scope="function")
+def api_client(client, admin_user):
+    """Create test client with valid API key."""
+    client.post(
+        "/admin/login",
+        data={
+            "username": "admin",
+            "password": "test-password",
+        },
+    )
+    return client
+
+
+@pytest.fixture(scope="function")
 def sample_post(db, admin_user):
     """Create a sample published post."""
     post = Post(

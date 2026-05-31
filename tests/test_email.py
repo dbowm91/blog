@@ -4,6 +4,8 @@ from app.email import send_newsletter
 from app.models import Post, Subscriber
 from app.utils import utc_now
 
+pytestmark = pytest.mark.slow
+
 
 def test_send_newsletter_smtp_failure(app, db, mock_render):
     """Test send_newsletter logs error and does not crash on SMTP failure."""

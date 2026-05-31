@@ -203,6 +203,8 @@ healthcheck:
 | `timeout` | 10s | Max time for check to complete |
 | `retries` | 3 | Consecutive failures before unhealthy |
 
+**Note:** The Dockerfile `HEALTHCHECK` instruction uses `--timeout=3s` while docker-compose overrides it to `timeout: 10s`. The docker-compose value takes precedence at runtime. The shorter Dockerfile timeout is a fallback for non-compose builds.
+
 **Note:** During the 10-second `start_period`, the container is in `starting` state and will not be marked unhealthy even if the health check fails. The container is only evaluated as healthy or unhealthy after `start_period` elapses.
 
 ### Critical Checks
@@ -298,6 +300,10 @@ The nginx configuration uses `proxy_pass http://127.0.0.1:5000` to reach the blo
 **Important:** This works because Docker Compose places all services in the `production` profile on the same default network. If nginx were deployed in a separate network, it would need to use the service name `blog` instead of `127.0.0.1`.
 
 The nginx `client_max_body_size` is set to `16M` to accommodate file uploads proxied to the Flask app.
+
+### Nginx Security Headers
+
+The nginx configuration (`nginx/conf.d/blog.conf:25-32`) sets security headers including `X-XSS-Protection "1; mode=block"`. These headers are only present when traffic is proxied through nginx — Flask does not set them. Direct access to the Flask app (port 5000) will not include these headers.
 
 ## Backup Service Encryption Key Loading
 

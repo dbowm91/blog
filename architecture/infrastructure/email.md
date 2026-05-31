@@ -81,9 +81,13 @@ Email templates in `app/templates/email/`:
 
 ## Retry Logic
 
-- `_send_email_with_retry()` default: **3 retries** (function parameter default)
-- Newsletter override: **5 retries** (via `NEWSLETTER_MAX_RETRY_ATTEMPTS` config, default 5 in `config.toml`)
+- `_send_email_with_retry()` default: **3 retries** (function parameter default, `app/email.py:111`)
+- Newsletter override: **5 retries** (via `NEWSLETTER_MAX_RETRY_ATTEMPTS` config, default 5 in `app/config.py:118`)
 - Reconnects on `SMTPServerDisconnected`
+
+The retry architecture uses two distinct paths:
+1. **Transactional emails** (confirmation, password reset): Use the default 3-retry count via `_send_email_with_retry()` called by Celery tasks. These are single-send operations where fewer retries are acceptable.
+2. **Newsletter delivery**: Uses 5 retries via `NEWSLETTER_MAX_RETRY_ATTEMPTS` to handle transient SMTP failures across potentially thousands of recipients. The higher retry count reduces the chance of partial newsletter delivery due to temporary server issues.
 
 ## Queue Configuration
 
