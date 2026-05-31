@@ -36,7 +36,7 @@ GitHub Actions workflows for testing and deployment.
 - **Tool**: Playwright
 - **Environment**: Docker-based with `--profile production`
 - **Browser**: Chromium
-- **Setup**: Uses `docker compose wait redis` to ensure Redis is ready before running tests
+- **Setup**: Uses `docker compose wait blog` to ensure the blog service is ready before running tests
 
 ### Schedule
 

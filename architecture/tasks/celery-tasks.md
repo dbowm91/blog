@@ -49,6 +49,8 @@ Sends newsletter to all confirmed subscribers (manual/ad-hoc sends from admin da
 1. **Daily scheduled:** `scheduler.send_daily_newsletter()` (APScheduler) → `email.send_newsletter()` (direct call)
 2. **Manual/ad-hoc:** `send_newsletter_task` (Celery, this task) → `email.send_newsletter()` (admin dashboard triggers)
 
+**Retry Gap:** This Celery task does NOT check `NEWSLETTER_MAX_RETRY_ATTEMPTS` (unlike the scheduler path at `app/scheduler.py:118`). The scheduler filters posts by `newsletter_attempts` to avoid retrying exhausted posts. This task sends for all requested post IDs regardless of attempt count — it is designed for manual/admin-triggered sends where the admin explicitly chooses which posts to send.
+
 ### `deliver_webhook_task`
 
 ```python
@@ -75,29 +77,6 @@ Delivers a webhook event to a single endpoint with per-webhook retry:
 4. On HTTP success: calls `_update_delivery_status()` to update delivery status
 5. On HTTP error or request exception: calls `self.retry(exc=e)` with exponential backoff
 6. After max retries: logs error and calls `_update_delivery_status()` to mark failed
-
-### `deliver_single_webhook_task`
-
-```python
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='webhooks')
-def deliver_single_webhook_task(self, webhook_event_id: int, webhook_id: int) -> bool:
-```
-
-Delivers a webhook event to a single endpoint with per-webhook retry. Called by `deliver_webhook_task` which dispatches individual deliveries for each registered webhook (line 223).
-
-Features:
-- **SSRF Protection**: URL validation via `is_safe_webhook_url()` before request
-- **HMAC Signing**: `X-Webhook-Signature` header via `sign_webhook_payload()`
-- **Retry Logic**: Calls `self.retry(exc=e)` on HTTP errors and request exceptions
-- **Delivery Status**: Updates `WebhookEvent.delivery_status` via `_update_delivery_status()`
-
-**Non-Retry Behavior:** On `MaxRetriesExceededError`, delivery is marked as failed via `_update_delivery_status()` without further retries (line 299-301).
-
-**Dispatch Pattern:**
-```
-deliver_webhook_task (event-level)
-  └── deliver_single_webhook_task (per-webhook, called for each enabled webhook)
-```
 
 ### `send_confirmation_task`
 
@@ -137,7 +116,7 @@ Runs database backup asynchronously via `create_backup()`:
 | Task | Failure Behavior | Retry |
 |------|------------------|-------|
 | `generate_image_variants` | Returns `False` | No |
-| `send_newsletter_task` | Exception triggers `self.retry(exc=e)` | Yes |
+| `send_newsletter_task` | Returns `False` on send failure; Celery auto-retry only on uncaught exceptions | No (no explicit retry) |
 | `deliver_webhook_task` | Dispatches to `deliver_single_webhook_task` per webhook | N/A (dispatch only) |
 | `deliver_single_webhook_task` | Exception triggers `self.retry(exc=e)`; after max retries logs error and updates status | Yes |
 | `send_confirmation_task` | Exception triggers `self.retry(exc=e)` | Yes |

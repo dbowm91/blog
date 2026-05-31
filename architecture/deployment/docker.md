@@ -17,7 +17,7 @@ Multi-container Docker setup for production deployment.
 | Profile | Services | Purpose |
 |---------|----------|---------|
 | `production` | `blog`, `celery`, `redis`, `nginx` | Production |
-| `backup` | `blog` (backup only) | Scheduled backups |
+| `backup` | `backup` | Scheduled backups |
 
 ## Dockerfile
 
@@ -298,7 +298,7 @@ The `BACKUP_ENCRYPTION_KEY` can be provided via:
 
 If the key is set in both places, the environment variable takes precedence.
 
-**Silent fallback behavior:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded (e.g., cryptography library unavailable), backup proceeds unencrypted without error. The backup file will be created without encryption, and no warning is logged.
+**Fallback behavior:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded (e.g., cryptography library unavailable), backup proceeds unencrypted. A `WARNING: Backup encryption failed, proceeding without encryption` is logged (`backup.py:69-70`).
 
 ## Production Checklist
 
