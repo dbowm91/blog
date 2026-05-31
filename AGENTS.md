@@ -155,7 +155,7 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 ### E2E Test Isolation
 
-`tests/e2e/conftest.py` defines its own session-scoped `app` fixture (lines 11-43) with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone should work. However, the E2E `app_server` fixture (lines 64-66) contains dead code: it creates a new temp directory and overrides `SQLALCHEMY_DATABASE_URI` env var, but this has no effect because the Flask app is already configured by the `app` fixture.
+`tests/e2e/conftest.py` defines its own session-scoped `app` fixture with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone works. The `app_server` fixture uses readiness polling for server startup.
 
 ### Login Template Asset Loading
 
@@ -183,23 +183,23 @@ Prism CSS is loaded via `data-prism-css-url` attribute which templates set using
 
 ### Nginx Proxy Configuration
 
-`nginx/conf.d/blog.conf` uses `proxy_pass http://127.0.0.1:5000` which will not work across Docker containers. Should use service name `blog` instead.
+`nginx/conf.d/blog.conf` uses `proxy_pass http://blog:5000` (Docker service name).
 
 ### RSS Cache Invalidation
 
-`app/routes/rss.py:103-105` `invalidate_rss_cache()` only invalidates `rss_feed_posts` cache key. Atom and JSON feeds remain stale until TTL expires (300 seconds).
+`app/routes/rss.py:103-107` `invalidate_rss_cache()` invalidates `rss_feed_posts`, `atom_feed_posts`, and `json_feed_posts` cache keys.
 
-### Prism Double-Loading
+### Prism Loading
 
-Admin pages load Prism CSS and JS twice: once via static `<link>` and `<script>` tags in `admin/base.html`, and again via `loadPrismIfNeeded()` in `main.js`. The static tags should be removed.
+Prism JS is loaded dynamically via `loadPrismIfNeeded()` in `main.js` when code blocks exist. Prism CSS uses `data-prism-css-url` attribute for theme selection.
 
 ### Admin Prism CSS Theme
 
-`admin/base.html:9` hardcodes `prism-okaidia.css` instead of using the `syntax_theme` variable. The `data-prism-css-url` attribute is dynamic but the static `<link>` ignores it.
+`admin/base.html:9` uses `syntax_theme` variable for dynamic Prism CSS theme selection via `vite_asset('css/' + syntax_theme + '.css')`.
 
-### Test Password Inconsistency
+### Test Password Standardization
 
-Tests use two different password strings: `"test-password"` (with hyphen) in fixtures and `"testpassword"` (no hyphen) in individual tests. This causes mismatches between `ADMIN_PASSWORD` env var and login form submissions.
+All tests use `"test-password"` (with hyphen) to match the `ADMIN_PASSWORD` env var set in `tests/conftest.py`.
 
 ### Template Inheritance
 
@@ -207,7 +207,7 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 ### marked.min.js Loading
 
-`marked.min.js` is loaded via `url_for('static', ...)` instead of `vite_asset()`, bypassing Vite's content hashing and CDN support.
+`marked.min.js` is loaded via `vite_asset()` for content hashing and CDN support.
 
 ## Historical Implementation Caveats
 
