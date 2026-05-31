@@ -1,6 +1,6 @@
 # Search (`app/search.py`)
 
-Full-text search using SQLite FTS5 with LIKE fallback.
+Full-text search using SQLite FTS5. Returns empty list when FTS unavailable.
 
 ## Search Provider Abstraction (`app/services/search/`)
 
@@ -23,7 +23,6 @@ provider = get_search_provider()  # Returns configured provider
 
 - `SEARCH_PROVIDER` config (default: `"sqlite"`, can be `"postgresql"`)
 - `SEARCH_CONFIG` - Provider-specific configuration dict
-- When set to `"postgresql"`, falls back to SQLite until full PostgreSQL implementation is complete
 
 ## Features
 
@@ -32,6 +31,7 @@ provider = get_search_provider()  # Returns configured provider
 - **Prefix Matching**: Supports `term*` wildcards
 - **Snippets**: Query highlighting in results
 - **Did You Mean**: Fuzzy suggestions for misspellings
+- **Fallback**: Returns empty list when FTS unavailable
 
 ## FTS5 Table Structure
 
