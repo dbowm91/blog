@@ -110,7 +110,7 @@ def test_make_owner(authenticated_client, db, admin_user):
     db.session.commit()
     response = authenticated_client.post(
         f"/admin/users/{new_owner.id}/make-owner",
-        data={"password": "testpassword"},
+        data={"password": "test-password"},
         follow_redirects=False,
     )
     assert response.status_code == 302

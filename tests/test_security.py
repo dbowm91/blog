@@ -11,7 +11,7 @@ def test_session_fixation_prevention(app, client, db, admin_user):
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "testpassword",
+                "password": "test-password",
             },
             follow_redirects=True,
         )
@@ -114,7 +114,7 @@ def test_logout_is_post_only(client, admin_user):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "testpassword",
+            "password": "test-password",
         },
     )
     response = client.get("/admin/logout")
@@ -126,7 +126,7 @@ def test_non_admin_cannot_log_in(app, db, client):
     from app.models import User
 
     user = User(username="regular", is_admin=False)
-    user.set_password("testpassword")
+    user.set_password("test-password")
     db.session.add(user)
     db.session.commit()
 
@@ -134,7 +134,7 @@ def test_non_admin_cannot_log_in(app, db, client):
         "/admin/login",
         data={
             "username": "regular",
-            "password": "testpassword",
+            "password": "test-password",
         },
         follow_redirects=True,
     )
@@ -146,7 +146,7 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
     from app.models import User
 
     user = User(username="regular", is_admin=False)
-    user.set_password("testpassword")
+    user.set_password("test-password")
     db.session.add(user)
     db.session.commit()
 
@@ -161,7 +161,7 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
     # We'll test via a different approach: create an admin, log in,
     # then set is_admin=False on the user and try accessing routes.
     admin = User(username="admin2", is_admin=True)
-    admin.set_password("testpassword")
+    admin.set_password("test-password")
     db.session.add(admin)
     db.session.commit()
 
@@ -169,7 +169,7 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
         "/admin/login",
         data={
             "username": "admin2",
-            "password": "testpassword",
+            "password": "test-password",
         },
     )
     # Demote user to non-admin
@@ -240,7 +240,7 @@ def test_csrf_bypass_prevented(app, client, db, admin_user):
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "testpassword",
+                "password": "test-password",
             },
         )
         fake_csrf = "attacker-fake-csrf-token"
@@ -305,7 +305,7 @@ def test_admin_rate_limit_exceeded(client, admin_user, db):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "testpassword",
+            "password": "test-password",
         },
     )
 

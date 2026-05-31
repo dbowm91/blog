@@ -70,7 +70,7 @@ def admin_user(clean_db):
     if existing:
         return existing
     user = User(username="admin", email="admin@example.com", is_admin=True)
-    user.set_password("testpassword")
+    user.set_password("test-password")
     clean_db.session.add(user)
     clean_db.session.commit()
     return user
@@ -84,7 +84,7 @@ def authenticated_client(app, admin_user, clean_db):
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "testpassword",
+                "password": "test-password",
             },
         )
         yield client

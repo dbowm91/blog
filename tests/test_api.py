@@ -20,7 +20,7 @@ def api_client(client, admin_user):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "testpassword",
+            "password": "test-password",
         },
     )
     return client
