@@ -49,9 +49,18 @@ Both Flask and nginx set these headers. nginx headers are defined in `nginx/conf
 | `Content-Security-Policy` | `default-src 'self'; ...` |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Content-Security-Policy` | nonce-based (Flask) or `unsafe-inline` (nginx) — see below |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `X-Download-Options` | `noopen` |
+| `X-Permitted-Cross-Domain-Policies` | `none` |
 
-**Not set**: `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`.
+### CSP Differences
+
+Nginx and Flask set different `Content-Security-Policy` values for `script-src`:
+- **Flask** (`app/__init__.py`): `script-src 'self' 'nonce-{nonce}'` — nonce-based, more secure
+- **Nginx** (`nginx/conf.d/blog.conf`): `script-src 'self' 'unsafe-inline'` — overrides Flask's CSP
+
+When behind nginx, the nginx CSP header takes precedence, replacing Flask's nonce-based policy with `unsafe-inline`. This weakens XSS protection since `unsafe-inline` allows arbitrary inline scripts.
 
 ## Nginx Rate Limiting
 

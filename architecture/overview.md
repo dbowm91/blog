@@ -72,7 +72,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 │  Tables: users, posts, tags, subscribers, page_views, share_events,           │
 │          admin_sessions, site_settings, pages, post_revisions,                │
 │          webhooks, webhook_events, series, post_series, comments,             │
-│          admin_audit_logs                                                    │
+│          admin_audit_logs, api_tokens                                         │
 │                                                                              │
 │  FTS5: posts_fts (full-text search virtual table)                            │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -82,7 +82,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ## 1. Core Application
 
-**Source:** `app/__init__.py`, `app/config.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`, `app/tag_cache.py`
+**Source:** `app/__init__.py`, `app/config.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`, `app/tag_cache.py`, `app/cli.py`, `app/validators.py`
 
 **Purpose:** Initialize Flask app, configure extensions, register blueprints, set up middleware.
 
@@ -172,11 +172,13 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Service | Source | Purpose |
 |---------|--------|---------|
 | Backup | `app/services/backup.py` | Database backup with compression/encryption |
+| Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption |
 | Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secrets |
 | Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
 | Slug | `app/services/slug.py` | Slug generation with collision handling |
 | Tag | `app/services/tag.py` | Tag CRUD operations |
 | Serialization | `app/services/serialization.py` | JSON export/import |
+| Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption |
 
 **Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md)
 
@@ -216,7 +218,7 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 | Queue | Tasks |
 |-------|-------|
 | `images` | Image variant generation |
-| `newsletter` | Newsletter delivery |
+| `newsletter` | Newsletter delivery (Celery task — no attempt check) |
 | `webhooks` | Webhook delivery |
 | `email` | Transactional emails |
 | `backup` | Database backups |
@@ -229,9 +231,13 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 | `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
 | `run_daily_backup` | Daily at 02:00 | Daily database backup |
 
-**Newsletter Three-Way Path:** The newsletter system has two delivery paths that both terminate at `email.send_newsletter()`:
-1. **Daily scheduled:** `scheduler.send_daily_newsletter()` (APScheduler) → `email.send_newsletter()` (direct call)
-2. **Manual/ad-hoc:** `send_newsletter_task` (Celery) → `email.send_newsletter()` (admin dashboard triggers)
+**Newsletter Delivery Paths:** Two paths terminate at `email.send_newsletter()`:
+1. **Daily scheduled:** `scheduler.send_daily_newsletter()` (APScheduler) → `email.send_newsletter()` — checks `NEWSLETTER_MAX_RETRY_ATTEMPTS`, filters posts by `newsletter_attempts`
+2. **Manual/ad-hoc:** `send_newsletter_task` (Celery) → `email.send_newsletter()` — no attempt count check, sends for all requested post IDs
+
+**Newsletter Retry:** Scheduler path respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` (`app/scheduler.py:118`). Celery task does not check attempt counts — it sends for all posts in `post_ids` regardless of prior failures. Retry count is 5.
+
+**APScheduler Multi-Container Warning:** APScheduler uses `FileLock` with `timeout=0` which only works on a single machine. In multi-container deployments, each container runs its own scheduler and jobs may execute simultaneously.
 
 **Deep Dive:** [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md)
 
@@ -286,8 +292,8 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 | **Authentication** | Session-based with optional TOTP 2FA |
 | **2FA** | TOTP secrets encrypted with AES-256-GCM |
 | **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
-| **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py` |
-| **API Auth** | X-API-Key header with HMAC timing-safe comparison |
+| **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py`; globally enforced via `before_request_handler()` (`app/__init__.py:296-298`) |
+| **API Auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison + scoped `ApiToken` model with `require_scope()` decorator |
 | **Account Lockout** | 5 failed attempts → 15-minute lockout |
 | **SSRF Protection** | URL validation against private IP ranges |
 | **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
@@ -309,7 +315,7 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 | Component | Purpose |
 |-----------|---------|
 | Docker | Containerized deployment; health check includes 10s `start_period` before healthy status |
-| Docker Compose | Multi-container orchestration |
+| Docker Compose | Multi-container orchestration; requires explicit profiles (`--profile production`, `--profile backup`) — no default profile |
 | Nginx | TLS termination, static files, load balancing |
 | CI/CD | Automated testing and deployment |
 
@@ -493,6 +499,11 @@ blog/
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │     Webhook     │────►│  WebhookEvent   │     │   SiteSettings  │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
+
+┌─────────────────┐
+│    ApiToken     │
+│ (scoped access) │
+└─────────────────┘
 ```
 
 ---

@@ -78,6 +78,8 @@ Celery tasks use specific queues for different workloads (for reference — APSc
 
 Each scheduler job acquires a `FileLock` with `timeout=0` before executing. `timeout=0` means non-blocking: if the lock is already held (e.g., by another process on the same machine), the job immediately skips execution with a warning log. This prevents duplicate concurrent runs on a single machine.
 
+**Delivery Status Race:** `_update_delivery_status()` correctness depends on `--concurrency=1` (`docker-compose.yml:66`). If concurrency is increased, multiple workers could update the same delivery status concurrently, causing race conditions where status updates overwrite each other.
+
 | Job Function | Lock File | Purpose |
 |-------------|-----------|---------|
 | `send_daily_newsletter` | `newsletter.lock` | Prevents duplicate newsletter sends |
@@ -89,7 +91,7 @@ Each scheduler job acquires a `FileLock` with `timeout=0` before executing. `tim
 
 When FileLock fails to acquire (lock held by another process), the job logs a warning and skips execution:
 ```
-WARNING - Job "send_daily_newsletter" was not executed because the lock file ... is already acquired
+WARNING - Could not acquire lock newsletter.lock, skipping run
 ```
 On a single machine, this is normal behavior (prevents concurrent runs). In multi-container deployments, this indicates that another container is executing the job.
 
