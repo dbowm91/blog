@@ -110,10 +110,11 @@ def _send_email_with_retry(
     msg_str: str,
     max_retries: int = 3,
 ) -> tuple[bool, str, Optional[SMTP]]:
-    """Send an email with retry logic and exponential backoff.
+    """Send an email with retry logic.
 
-    Returns (success, error_message, server). The server may be a new connection
-    if reconnection occurred during retry.
+    Retries on SMTP disconnection with automatic reconnection. No delay between
+    retries. Returns (success, error_message, server). The server may be a new
+    connection if reconnection occurred during retry.
     """
 
     last_error = ""
