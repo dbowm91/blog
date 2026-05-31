@@ -3,10 +3,7 @@
 import os
 import pytest
 
-os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
-os.environ["ADMIN_PASSWORD"] = "test-password"
 os.environ["API_KEY"] = "test-api-key-12345"
-os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 
 from app.models import Post, Tag, Subscriber, PageView, ShareEvent

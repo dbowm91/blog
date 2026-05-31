@@ -1,13 +1,10 @@
 import os
 
-os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
-os.environ["ADMIN_PASSWORD"] = "test-password"
-
 import pytest
 from sqlalchemy import text
 from app import create_app
 from app.extensions import db as _db
-from app.models import User, Post
+from app.models import Post
 from app.utils import utc_now
 from app.search import (
     init_fts,
@@ -52,35 +49,6 @@ def db(app):
         _db.session.remove()
         _db.drop_all()
         _db.session.remove()
-
-
-@pytest.fixture(scope="function")
-def admin_user(db):
-    """Create an admin user."""
-    existing = db.session.execute(db.select(User).filter_by(username="admin")).scalar_one_or_none()
-    if existing:
-        return existing
-    user = User(username="admin", is_admin=True)
-    user.set_password("test-password")
-    db.session.add(user)
-    db.session.commit()
-    return user
-
-
-@pytest.fixture(scope="function")
-def sample_post(db, admin_user):
-    """Create a sample published post."""
-    post = Post(
-        title="Test Post",
-        slug="test-post",
-        body="# Hello World\n\nThis is a test post about Flask and Python.",
-        summary="A test post summary about Flask and Python",
-        published=True,
-        published_at=utc_now(),
-    )
-    db.session.add(post)
-    db.session.commit()
-    return post
 
 
 class TestGetSearchProvider:

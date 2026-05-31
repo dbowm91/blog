@@ -281,13 +281,6 @@ def get_storage() -> StorageBackend:
     return _storage
 
 
-def init_storage(base_dir: str) -> StorageBackend:
-    """Initialize storage with the given base directory for local backend."""
-    global _storage
-    _storage = LocalStorageBackend(base_dir)
-    return _storage
-
-
 def storage_delete_file(filename: str) -> bool:
     """Delete a file from storage, returning True on success."""
     storage = get_storage()
