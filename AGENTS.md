@@ -155,7 +155,7 @@ There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscrib
 
 ### E2E Test Isolation
 
-`tests/e2e/conftest.py` does not define its own `app` fixture. Running `pytest tests/e2e/` alone fails because it relies on import chain from main conftest.
+`tests/e2e/conftest.py` defines its own session-scoped `app` fixture (lines 11-43) with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone should work. However, the E2E `app_server` fixture (lines 64-66) contains dead code: it creates a new temp directory and overrides `SQLALCHEMY_DATABASE_URI` env var, but this has no effect because the Flask app is already configured by the `app` fixture.
 
 ### Login Template Asset Loading
 

@@ -10,6 +10,34 @@ This module contains the implementation plan history and completed items referen
 
 The implementation plan `plans/plan.md` has been pruned. All items from the architecture review (90+ items across 6 waves) are now documented in the codebase and AGENTS.md notes.
 
+## Architecture Review Findings (May 31, 2026)
+
+A fresh architecture review was conducted. Findings are in `plans/*_review.md` and `plans/architecture_prune.md`.
+
+### Key Action Items from Review
+
+| Priority | Count | Description |
+|----------|-------|-------------|
+| HIGH | ~30 | Critical doc/code discrepancies across all modules |
+| MEDIUM | ~50 | Documentation gaps, line reference drift, phantom claims |
+| LOW | ~30 | Minor improvements, dead code, style issues |
+
+### Pruning Recommendations
+
+- **3 docs to REWRITE:** testing/test-suite.md, routes/public-routes.md, routes/admin-routes.md
+- **2 docs to MERGE/FIX:** infrastructure/overview.md, services/overview.md
+- **11 phantom claims** across search.md, email.md, storage.md, docker.md, backup.md, api-routes.md, configuration.md
+- **8 docs with stale line references** (drift >5 lines)
+
+### Notable Source Code Bugs Found
+
+- RSS cache invalidation incomplete (atom/json feeds not invalidated)
+- Global rate limit bypass via X-Forwarded-For spoofing
+- `decrypt_backup_file()` missing RuntimeError catch
+- `S3StorageBackend.save()` lacks error handling
+- Admin Prism CSS hardcoded to okaidia (ignores user setting)
+- Widespread test password inconsistency ("testpassword" vs "test-password")
+
 ## Historical Context
 
 The plan contained ~90 items across 6 waves from architecture reviews conducted May 29, 2026:

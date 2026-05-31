@@ -42,6 +42,9 @@ The `critical.css` file at `app/static/css/critical.css` provides above-the-fold
 ### E2E Test Password Inconsistency
 `tests/conftest.py` uses `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` uses `"test-password"` (with hyphen) at line 44. Tests may fail inconsistently depending on which fixture set is used.
 
+### E2E Test Isolation
+`tests/e2e/conftest.py` defines its own session-scoped `app` fixture (lines 11-43) with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone should work. However, the E2E `app_server` fixture (lines 64-66) contains dead code: it creates a new temp directory and overrides `SQLALCHEMY_DATABASE_URI` env var, but this has no effect because the Flask app is already configured by the `app` fixture.
+
 ### Vite Build Required for Production
 The `npm run build` (or `vite build`) must be run before production deployment. The `manifest.json` must be present. If Vite build hasn't run, JS assets will return hashed paths that don't exist.
 
