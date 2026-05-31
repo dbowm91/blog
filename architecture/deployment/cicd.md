@@ -38,6 +38,20 @@ GitHub Actions workflows for testing and deployment.
 - **Browser**: Chromium
 - **Setup**: Uses `docker compose wait blog` to ensure the blog service is ready before running tests
 
+### Job Dependency Chain
+
+```
+lint-and-type ──> test ──> e2e-tests
+frontend-build
+security-audit
+docker-build ──> e2e-tests
+```
+
+- `lint-and-type` must pass before `test` runs
+- `test` must pass before `e2e-tests` runs
+- `docker-build` must pass before `e2e-tests` runs (E2E needs the Docker image)
+- `frontend-build`, `security-audit`, and `docker-build` run in parallel with each other
+
 ### Schedule
 
 The CI workflow runs on a weekly schedule (Monday 08:00 UTC) in addition to push/PR triggers.

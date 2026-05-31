@@ -62,6 +62,21 @@ For production deployments with Celery:
 - **email**: Transactional emails
 - **backup**: Database backups
 
+### Celery Configuration
+
+Configured in `app/celery_app.py:20-31`:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `task_time_limit` | 300s | Hard time limit per task (kills worker) |
+| `task_soft_time_limit` | 240s | Soft time limit (raises `SoftTimeLimitExceeded`) |
+| `worker_prefetch_multiplier` | 1 | Worker fetches one task at a time |
+| `worker_max_tasks_per_child` | 100 | Recycle worker after 100 tasks (prevents memory leaks) |
+
+Additional config when Flask app context is available (`app/celery_app.py:33-37`):
+- `task_acks_late=True` — Acknowledge tasks after execution (not before)
+- `task_reject_on_worker_lost=True` — Re-queue task if worker crashes
+
 **Important**: The Celery worker runs with `--concurrency=1` (see `docker-compose.yml:58`). This single-concurrency setting ensures:
 - Newsletter emails are sent in order without duplication
 - Webhook delivery is serialized

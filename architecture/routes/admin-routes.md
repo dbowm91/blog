@@ -222,6 +222,30 @@ admin/
 - **Route**: `POST /admin/comments/<int:comment_id>/delete`
 - **Purpose**: Moderate comments
 
+## Helpers (`helpers/`)
+
+Shared helper modules extracted from route files:
+
+| Module | Purpose |
+|--------|---------|
+| `analytics.py` | Analytics cache invalidation |
+| `dashboard.py` | Dashboard cache invalidation |
+| `images.py` | Image type detection, file validation, saving |
+| `posts.py` | Post query building, applying post updates |
+| `shared.py` | Constants (`ALLOWED_EXTENSIONS`, `TAG_NAME_REGEX`, `BACKUP_FILENAME_RE`), referrer categorization, password complexity checks, backup directory resolution |
+| `slug.py` | Unique slug generation |
+| `tags.py` | Tag name validation, orphan cleanup, get-or-create tags |
+
+All public functions are re-exported via `helpers/__init__.py` for backward compatibility.
+
+## Newsletter (`newsletter.py`)
+
+- **Route**: `GET /admin/newsletter/preview`
+- **Route**: `POST /admin/newsletter-test`
+- **Purpose**: Preview and send newsletters
+- **Preview**: Renders the newsletter HTML in-browser (no email sent)
+- **Test**: Sends an actual email to the admin's address for delivery verification
+
 ## See Also
 - [Public Routes](public-routes.md) - Public blog routes
 - [API Routes](api-routes.md) - REST API
