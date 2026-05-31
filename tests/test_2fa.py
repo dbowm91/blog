@@ -40,7 +40,7 @@ class Test2FALogin:
                     "/admin/login",
                     data={
                         "username": "admin",
-                        "password": "testpassword",
+                        "password": "test-password",
                     },
                     follow_redirects=False,
                 )
@@ -60,7 +60,7 @@ class Test2FALogin:
                     "/admin/login",
                     data={
                         "username": "admin",
-                        "password": "testpassword",
+                        "password": "test-password",
                     },
                 )
                 response = client.post(
@@ -85,7 +85,7 @@ class Test2FALogin:
                 "/admin/login",
                 data={
                     "username": "admin",
-                    "password": "testpassword",
+                    "password": "test-password",
                 },
             )
             response = client.post(
@@ -110,7 +110,7 @@ class Test2FALogin:
                     "/admin/login",
                     data={
                         "username": "admin",
-                        "password": "testpassword",
+                        "password": "test-password",
                     },
                 )
                 response = client.post(
@@ -197,7 +197,7 @@ class TestBackupCodeSingleUse:
                 "/admin/login",
                 data={
                     "username": "admin",
-                    "password": "testpassword",
+                    "password": "test-password",
                 },
             )
             response1 = client.post(
@@ -214,7 +214,7 @@ class TestBackupCodeSingleUse:
                 "/admin/login",
                 data={
                     "username": "admin",
-                    "password": "testpassword",
+                    "password": "test-password",
                 },
             )
             response2 = client.post(

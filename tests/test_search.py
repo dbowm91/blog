@@ -61,7 +61,7 @@ def admin_user(db):
     if existing:
         return existing
     user = User(username="admin", is_admin=True)
-    user.set_password("testpassword")
+    user.set_password("test-password")
     db.session.add(user)
     db.session.commit()
     return user

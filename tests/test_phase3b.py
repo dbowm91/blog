@@ -139,7 +139,7 @@ class TestAdminSessionManagement:
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "testpassword",
+                "password": "test-password",
             },
         )
 

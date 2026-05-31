@@ -14,7 +14,7 @@ def test_login_success(client, admin_user):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "testpassword",
+            "password": "test-password",
         },
         follow_redirects=True,
     )
