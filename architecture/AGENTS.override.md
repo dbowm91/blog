@@ -39,8 +39,8 @@ All module-level functions in `app/search.py` catch `OperationalError`, `Program
 ### Critical CSS
 The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:22` with `media="screen"` for immediate loading.
 
-### E2E Test Password Inconsistency
-`tests/conftest.py` uses `"testpassword"` (no hyphen) at line 100; `tests/e2e/conftest.py` uses `"test-password"` (with hyphen) at line 44. Tests may fail inconsistently depending on which fixture set is used.
+### E2E Test Password Hardcoded
+`tests/e2e/conftest.py:75` hardcodes `admin.set_password("test-password")` instead of reading `os.environ["ADMIN_PASSWORD"]`. The `tests/conftest.py:10` sets the env var to `"test-password"`, so they happen to match. But if someone changes the env var, E2E tests would still use the hardcoded value. Similarly, `tests/conftest.py:101` hardcodes the password for the main test user.
 
 ### E2E Test Isolation
 `tests/e2e/conftest.py` defines its own session-scoped `app` fixture (lines 11-43) with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone should work. However, the E2E `app_server` fixture (lines 64-66) contains dead code: it creates a new temp directory and overrides `SQLALCHEMY_DATABASE_URI` env var, but this has no effect because the Flask app is already configured by the `app` fixture.
@@ -51,10 +51,12 @@ The `npm run build` (or `vite build`) must be run before production deployment. 
 ### Backup Encryption Silent Failure
 `app/services/backup.py:_encrypt_backup_file()` catches exceptions and returns `False`. If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, backup proceeds unencrypted without error. The `backup.py` CLI uses `create_backup()` which handles encryption failures, but silently falls back.
 
-### Testing/test-suite.md False Claims
-The architecture doc at `architecture/testing/test-suite.md` contains two factually incorrect claims:
-- Line 113: Claims playwright is NOT in requirements.txt - FALSE, it IS (playwright>=1.58.0 at requirements.txt:18)
-- Lines 190-196: Claims E2E conftest creates its own `app` fixture - FALSE, it relies on import chain from main conftest
+### Testing/test-suite.md Inaccuracies
+The architecture doc at `architecture/testing/test-suite.md` has several issues:
+- Line 42: Attributes `clean_analytics_cache` to `conftest.py` but it's actually in `shared_fixtures.py:17-24`
+- Test file count "~36" is inflated; actual count is ~30
+- Missing `api_client` and `mock_email` fixtures from fixture table
+- `slow` marker registered redundantly in both `pytest.ini:3` and `conftest.py:20-23`
 
-### Python Version Mismatch
-`scripts/dev.sh:11` requires Python >= 3.14, but `Dockerfile:1` uses `python:3.12-slim`. Development requires Python 3.14 but production uses 3.12.
+### Python Version
+`scripts/dev.sh:11` requires Python >= 3.12. `Dockerfile:1` uses `python:3.12-slim`. Both are aligned at Python 3.12.
