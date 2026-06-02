@@ -50,7 +50,7 @@ Runs every 5 minutes (`minute="*/5"`):
 ### `run_daily_backup`
 
 Runs daily at 02:00 (`hour=2, minute=0`):
-1. Creates backup using inline `run_daily_backup()` service function
+1. Creates backup using `run_daily_backup` imported from `app.services.backup`
 2. Respects retention policy
 
 **Naming Convention:** This scheduler job uses `blog_*.db` naming pattern (e.g., `blog_20260509_020000.db`). For encrypted/compressed backups, use the Celery task `run_backup_task` which also uses `blog_*.db` naming but supports compression and encryption via `create_backup()`.
@@ -63,9 +63,9 @@ Celery tasks use specific queues for different workloads (for reference — APSc
 |-------|-------|----------|
 | `images` | Image processing | `generate_image_variants` (`app/tasks.py:31`) |
 | `newsletter` | Newsletter delivery | `send_newsletter_task` (`app/tasks.py:137`) |
-| `webhooks` | Webhook delivery | `deliver_webhook_task` (`app/tasks.py:195`) |
-| `email` | Transactional email | `send_confirmation_task` (`app/tasks.py:345`), `send_password_reset_task` (`app/tasks.py:366`) |
-| `backup` | Backup tasks | `run_backup_task` (`app/tasks.py:387`) |
+| `webhooks` | Webhook delivery | `deliver_webhook_task` (`app/tasks.py:200`) |
+| `email` | Transactional email | `send_confirmation_task` (`app/tasks.py:350`), `send_password_reset_task` (`app/tasks.py:371`) |
+| `backup` | Backup tasks | `run_backup_task` (`app/tasks.py:392`) |
 
 ## Multi-Worker Deployment
 
