@@ -391,7 +391,7 @@ Webhook delivery includes Server-Side Request Forgery (SSRF) protection to preve
 | **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py`; globally enforced via `before_request_handler()` (`app/__init__.py:296-298`) |
 | **API Auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison + scoped `ApiToken` model with `require_scope()` decorator |
 
-> **CSRF Scope for API Clients:** CSRF validation is enforced globally for **all POST requests** (`app/__init__.py:297-298`), including API endpoints. API clients authenticating with Bearer tokens (`ApiToken`) do not have Flask sessions containing CSRF tokens, so POST requests to API endpoints will return 403. API clients should either use the legacy `API_KEY` header (which bypasses CSRF via HMAC comparison) or provide a valid CSRF token in the request. This is a known design interaction documented in `plans/plan.md` (Wave 2 item 2.12).
+> **CSRF Scope for API Clients:** CSRF validation is enforced globally for **all POST requests** (`app/__init__.py:297-298`), including API endpoints. API clients authenticating with Bearer tokens (`ApiToken`) do not have Flask sessions containing CSRF tokens, so POST requests to API endpoints will return 403. API clients should either use the legacy `API_KEY` header (which bypasses CSRF via HMAC comparison) or provide a valid CSRF token in the request. This is a known design interaction documented in `plans/plan.md` (Wave 2 item 2.12). See `deployment/security.md` for full security architecture details.
 | **Account Lockout** | 5 failed attempts → 15-minute lockout |
 | **SSRF Protection** | URL validation against private IP ranges |
 | **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
