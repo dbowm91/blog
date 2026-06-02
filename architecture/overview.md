@@ -19,8 +19,9 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
 | [Infrastructure](#6-infrastructure) | Search, email, storage, webhooks | [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
 | [Frontend](#7-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
-| [Security](#8-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
-| [Deployment](#9-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
+| [Testing](#8-testing) | pytest unit/integration, Playwright E2E, benchmarks | [testing/test-suite.md](testing/test-suite.md) |
+| [Security](#9-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
+| [Deployment](#10-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
 
 ---
 
@@ -379,7 +380,25 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 ---
 
-## 8. Security Architecture
+## 8. Testing
+
+**Source:** `tests/`
+
+**Purpose:** Automated testing with pytest and Playwright.
+
+| Test Type | Location | Tool |
+|-----------|----------|------|
+| Unit/Integration | `tests/test_*.py` | pytest |
+| Benchmark | `tests/benchmarks/` | pytest |
+| E2E | `tests/e2e/` | Playwright |
+
+**Key Fixtures:** `app`, `db`, `client`, `admin_user`, `authenticated_client`, `sample_post`, `sample_tag`, `sample_subscriber`
+
+**Deep Dive:** [testing/test-suite.md](testing/test-suite.md)
+
+---
+
+## 9. Security Architecture
 
 **Source:** `app/routes/admin/auth.py`, `app/services/encryption.py`, `app/middleware/rate_limit.py`, `app/csrf.py`
 
@@ -406,7 +425,7 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 ---
 
-## 9. Deployment
+## 10. Deployment
 
 **Source:** `Dockerfile`, `docker-compose.yml`, `nginx/`, `scripts/`
 
