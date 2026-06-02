@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="images")
+@shared_task(bind=True, queue="images")
 def generate_image_variants(self: Any, filename: str) -> bool:
     """Generate responsive image variants for an image file.
 
@@ -389,7 +389,7 @@ def send_password_reset_task(self: Any, user_id: int, token: str) -> bool:
         db.session.remove()
 
 
-@shared_task(bind=True, max_retries=2, retry_backoff=True, queue="backup")
+@shared_task(bind=True, queue="backup")
 def run_backup_task(self: Any) -> bool:
     """Run database backup asynchronously to avoid blocking web requests."""
     from app.extensions import db
