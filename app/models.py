@@ -356,7 +356,7 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
         if instance is None:
             instance = cls()
             db.session.add(instance)
-            db.session.commit()
+            db.session.flush()
         return instance
 
     def __repr__(self) -> str:
