@@ -295,9 +295,7 @@ granian --interface asgi --workers 4 --timeout 60 --host 0.0.0.0 --port 5000 run
 
 ## Nginx Proxy Networking
 
-The nginx configuration uses `proxy_pass http://127.0.0.1:5000` to reach the blog service. In Docker Compose, containers on the same user-defined network share a network namespace for inter-container communication. The `blog` service exposes port 5000 via the `expose` directive, and nginx resolves `127.0.0.1:5000` to the blog service through the shared Docker network.
-
-**Important:** This works because Docker Compose places all services in the `production` profile on the same default network. If nginx were deployed in a separate network, it would need to use the service name `blog` instead of `127.0.0.1`.
+The nginx configuration uses `proxy_pass http://blog:5000` to reach the blog service. In Docker Compose, containers on the same user-defined network share a network namespace for inter-container communication. The `blog` service exposes port 5000 via the `expose` directive, and nginx resolves `blog` to the blog service through the shared Docker network.
 
 The nginx `client_max_body_size` is set to `16M` to accommodate file uploads proxied to the Flask app.
 
