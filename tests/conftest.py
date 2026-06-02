@@ -11,6 +11,8 @@ os.environ["ADMIN_PASSWORD"] = "test-password"
 os.environ["TESTING"] = "True"
 os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
+TEST_PASSWORD = os.environ["ADMIN_PASSWORD"]
+
 from app import create_app
 from app.extensions import db as _db
 from app.models import User, Post, Tag
@@ -98,7 +100,7 @@ def admin_user(db):
     if existing:
         return existing
     user = User(username="admin", email="admin@example.com", is_admin=True)
-    user.set_password(os.environ["ADMIN_PASSWORD"])
+    user.set_password(TEST_PASSWORD)
     db.session.add(user)
     db.session.commit()
     return user
@@ -111,7 +113,7 @@ def authenticated_client(client, admin_user):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
     )
     return client
@@ -124,7 +126,7 @@ def api_client(client, admin_user):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
     )
     return client

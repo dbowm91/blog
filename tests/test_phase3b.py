@@ -135,11 +135,13 @@ class TestAdminSessionManagement:
 
     def test_revoked_session_causes_redirect(self, client, db, admin_user):
         """Test a revoked session causes logout and redirect to login."""
+        from tests.conftest import TEST_PASSWORD
+
         client.post(
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "test-password",
+                "password": TEST_PASSWORD,
             },
         )
 

@@ -3,6 +3,7 @@
 import os
 import pytest
 from tests.shared_fixtures import *
+from tests.conftest import TEST_PASSWORD
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 os.environ["ADMIN_PASSWORD"] = "test-password"
@@ -77,7 +78,7 @@ def admin_user(clean_db):
     if existing:
         return existing
     user = User(username="admin", email="admin@example.com", is_admin=True)
-    user.set_password("test-password")
+    user.set_password(TEST_PASSWORD)
     clean_db.session.add(user)
     clean_db.session.commit()
     return user
@@ -91,7 +92,7 @@ def authenticated_client(app, admin_user, clean_db):
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "test-password",
+                "password": TEST_PASSWORD,
             },
         )
         yield client
