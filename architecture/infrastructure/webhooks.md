@@ -54,6 +54,57 @@ Requires `WEBHOOK_ENCRYPTION_KEY` environment variable. Accepts either:
 | `encrypt_webhook_secret(plaintext: str) -> str` | Encrypt secret, returns base64-encoded nonce + ciphertext + tag |
 | `decrypt_webhook_secret(encrypted: str) -> str` | Decrypt base64-encoded encrypted secret |
 
+### `encrypt_webhook_secret()`
+
+```python
+def encrypt_webhook_secret(plaintext: str) -> str:
+```
+
+Encrypts a webhook secret using AES-256-GCM.
+
+**Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `plaintext` | `str` | The webhook secret to encrypt |
+
+**Returns:** Base64-encoded string containing nonce + ciphertext + tag
+
+**Raises:** `WebhookEncryptionError` if encryption fails
+
+**Implementation:**
+```python
+key = _get_encryption_key()  # 32 bytes from WEBHOOK_ENCRYPTION_KEY
+nonce = os.urandom(12)  # 12-byte nonce
+ciphertext = AESGCM(key).encrypt(nonce, plaintext.encode("utf-8"), None)
+return base64.b64encode(nonce + ciphertext).decode("utf-8")
+```
+
+### `decrypt_webhook_secret()`
+
+```python
+def decrypt_webhook_secret(encrypted: str) -> str:
+```
+
+Decrypts a webhook secret encrypted with AES-256-GCM.
+
+**Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `encrypted` | `str` | Base64-encoded string containing nonce + ciphertext + tag |
+
+**Returns:** The decrypted webhook secret
+
+**Raises:** `WebhookEncryptionError` if decryption fails
+
+**Implementation:**
+```python
+key = _get_encryption_key()
+combined = base64.b64decode(encrypted)
+nonce = combined[:12]
+ciphertext = combined[12:]
+return AESGCM(key).decrypt(nonce, ciphertext, None).decode("utf-8")
+```
+
 ### Encryption Details
 
 - **Algorithm**: AES-256-GCM (authenticated encryption)
@@ -117,9 +168,9 @@ Creates `WebhookEvent` record and queues `deliver_webhook_task` Celery task.
 
 Webhook delivery uses a two-level dispatch pattern:
 
-1. **`deliver_webhook_task`** (`app/tasks.py:195`): Receives a `webhook_event_id`, queries all enabled webhooks matching the event type, and dispatches individual `deliver_single_webhook_task` invocations — one per webhook. This enables per-webhook retry without blocking other webhooks.
+1. **`deliver_webhook_task`** (`app/tasks.py:208`): Receives a `webhook_event_id`, queries all enabled webhooks matching the event type, and dispatches individual `deliver_single_webhook_task` invocations — one per webhook. This enables per-webhook retry without blocking other webhooks. Retry count default is 5 (Celery `max_retries=3` with exponential backoff per task invocation).
 
-2. **`deliver_single_webhook_task`** (`app/tasks.py:231`): Handles delivery to a single webhook endpoint with independent retry logic (up to 3 retries with exponential backoff). Responsibilities:
+2. **`deliver_single_webhook_task`** (`app/tasks.py:244`): Handles delivery to a single webhook endpoint with independent retry logic (up to 3 retries with exponential backoff). Responsibilities:
    - SSRF validation via `is_safe_webhook_url()`
    - HMAC-SHA256 signature generation and header injection
    - HTTP POST with `allow_redirects=False`
@@ -199,10 +250,10 @@ Other queues used by the system:
 | Queue | Tasks | Location |
 |-------|-------|----------|
 | `images` | Image processing | `app/tasks.py:30` |
-| `newsletter` | Newsletter delivery | `app/tasks.py:129` |
-| `webhooks` | Webhook delivery | `app/tasks.py:194` |
-| `email` | Transactional email | `app/tasks.py:344,365` |
-| `backup` | Backup tasks | `app/tasks.py:375` |
+| `newsletter` | Newsletter delivery | `app/tasks.py:132` |
+| `webhooks` | Webhook delivery | `app/tasks.py:207` |
+| `email` | Transactional email | `app/tasks.py:357,378` |
+| `backup` | Backup tasks | `app/tasks.py:399` |
 
 ## See Also
 - [Celery Tasks](../tasks/celery-tasks.md) - Async delivery

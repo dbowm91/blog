@@ -50,11 +50,21 @@ Removes old backups, keeping only the most recent `keep` backups.
 def run_daily_backup(app: Any) -> None
 ```
 
-Service-level daily backup designed for scheduler and CLI use. Unlike `create_backup()`, this does **not** support compression or encryption — use the Celery task `run_backup_task` for encrypted/compressed backups.
+Service-level daily backup designed for scheduler and CLI use. **Creates plain (unencrypted) backups only.** Unlike `create_backup()`, this does **not** support compression or encryption — use the Celery task `run_backup_task` for encrypted/compressed backups.
 
 **Behavior:**
+- Creates plain `.db` backups (no encryption, no compression)
 - `create_backup()` proceeds to create an unencrypted backup if encryption fails (warning logged)
 - `run_daily_backup()` does NOT support encryption or compression
+
+### Backup Type Summary
+
+| Function | Backup Type | Encryption | Compression |
+|----------|-------------|------------|-------------|
+| `run_daily_backup()` | Plain `.db` | No | No |
+| `create_backup(encrypt=True)` | Encrypted `.db.gpg` | AES-256-GCM | No |
+| `create_backup(compress=True)` | Compressed `.db.gz` | No | Gzip |
+| `run_backup_task` (Celery) | Plain `.db` | No | Gzip |
 
 ## Encryption Behavior
 
