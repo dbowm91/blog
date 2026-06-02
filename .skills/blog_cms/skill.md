@@ -18,11 +18,7 @@ All implementation waves completed:
   - Wave 4: Dead code removal + style cleanup
   - Wave 5: Architecture pruning (rewrites, merges, stale line refs)
   - Wave 6: AGENTS.md cleanup
-- **Plan Waves 1-4**: Consolidated architecture improvement plan (69 items)
-  - Wave 1: Source code fixes (dead code, nullable columns, encryption, celery, error handling)
-  - Wave 2: Documentation corrections (nginx, templates, marked.js, SSRF, encryption, line numbers)
-  - Wave 3: Source code improvements (Prism, filters, RSS, logging, search, storage)
-  - Wave 4: Documentation additions & cleanup (rate limits, CSRF, health checks, models, utilities)
+- **Plan Waves 1-7**: Consolidated architecture improvement plan (135 items) — completed June 2026
 
 ## Triggers
 
@@ -151,5 +147,4 @@ Minimum enforced at 0.1s in `app/config.py` to prevent brute force.
 ## Maintenance
 
 Project is in maintenance mode. No active implementation plans.
-- See `plans/AGENTS.override.md` for completed items reference
-- See `docs/internals/agent-maintainer-notes.md` for detailed history
+- See `docs/internals/agent-maintainer-notes.md` for detailed implementation history
