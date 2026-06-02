@@ -69,6 +69,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_HOST=${SMTP_HOST:-}
       - PYTHONPATH=/home/blog
     volumes:
       - blog_data:/home/blog/instance
