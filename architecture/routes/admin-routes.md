@@ -101,6 +101,8 @@ admin/
 - **Route**: `GET /admin/preview/<int:post_id>`
 - **Route**: `GET /admin/preview/<int:post_id>?share=1`
 - **Purpose**: Preview post before publishing, with optional shareable URL
+- **Shareable Preview URL**: When `?share=1` is passed, returns a signed URL valid for `PREVIEW_TOKEN_EXPIRY_DAYS` days (default: 7)
+- **Token Generation**: HMAC-SHA256 signature using `SECRET_KEY` — message is `"{post_id}:{expiry_timestamp}"`, signature is base64-urlsafe encoded (`app/routes/admin/posts/manage.py:35-47`)
 
 ### Post List (`__init__.py`)
 - **Route**: `GET /admin/`
@@ -225,7 +227,8 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `GET /admin/settings`
 - **Route**: `POST /admin/settings/theme`
 - **Purpose**: View and update theme, syntax theme, custom CSS
-- **Available syntax themes**: `github-dark`, `github-light`, `solarized-dark`, `monokai` (defined in `app/models.py:366-457`)
+- **Theme Presets (CSS color schemes)**: `github-dark`, `github-light`, `solarized-dark`, `monokai` — defined in `app/models.py:366-457` as `THEME_PRESETS`
+- **Syntax Themes (Prism-based)**: `prism`, `prism-coy`, `prism-dark`, `prism-funky`, `prism-okaidia`, `prism-tomorrow` — defined in `app/routes/admin/settings.py:24-36`
 
 ## Audit Log (`audit.py`)
 
