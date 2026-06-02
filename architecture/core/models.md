@@ -437,6 +437,76 @@ class ApiToken(db.Model):
     __repr__()  # Returns <ApiToken id={self.id} name={self.name!r}>
 ```
 
+## Subscriber Model Details
+
+```python
+class Subscriber(db.Model):
+    __tablename__ = "subscribers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(256), unique=True, nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: uuid.uuid4().hex)
+    confirmed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    expires_at = db.Column(UTCDateTime, nullable=True, doc="Confirmation deadline")
+    unsubscribed_at = db.Column(UTCDateTime, nullable=True)
+
+    # Index: ix_subscribers_confirmed_unsubscribed
+```
+
+Stores newsletter subscribers. The `token` is a random UUID hex used for confirmation/unsubscribe links. `confirmed` is `False` until the subscriber clicks the confirmation link. `expires_at` is the deadline for confirmation — expired unconfirmed subscribers are cleaned up by the scheduler. `unsubscribed_at` is set when a subscriber opts out; active subscribers have this as `NULL`.
+
+## Tag Model Details
+
+```python
+class Tag(db.Model):
+    __tablename__ = "tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    slug = db.Column(db.String(50), unique=True, nullable=False)
+
+    posts = db.relationship("Post", secondary=post_tags, back_populates="tags", lazy="select")
+```
+
+Tags are linked to Posts via the `post_tags` junction table (N:N). The `slug` is auto-generated from `name` via `generate_slug()`. Tags appear on the home page as filter links and in the admin tag management interface.
+
+## PageView Model Details
+
+```python
+class PageView(db.Model):
+    __tablename__ = "page_views"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    referrer = db.Column(db.String(512), nullable=True)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    post = db.relationship("Post", back_populates="page_views")
+
+    # Index: ix_page_views_post_created
+```
+
+Records individual page views for analytics. Each row represents a single visit to a post. `referrer` stores the HTTP `Referer` header value (may be `NULL`). Used by the analytics dashboard to show traffic over time, top posts, and referrer breakdowns.
+
+## ShareEvent Model Details
+
+```python
+class ShareEvent(db.Model):
+    __tablename__ = "share_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    platform = db.Column(db.String(32), nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    post = db.relationship("Post", back_populates="share_events")
+
+    # Indexes: ix_share_events_post_created, ix_share_events_platform
+```
+
+Tracks social sharing actions. `platform` is a string identifier (e.g. `"twitter"`, `"facebook"`, `"linkedin"`). Used by the analytics dashboard to show which posts are shared most and on which platforms.
+
 ## Known Issues
 
 ### Nullable `published` Columns

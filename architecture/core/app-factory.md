@@ -81,12 +81,38 @@ def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
 - APScheduler initialization
 - Page view buffer initialization
 
-**Page View Buffer:** Configured via `PAGE_VIEW_BUFFER_SIZE` env var (default: disabled). When enabled, page views are batched in memory and flushed to the database periodically. Flush triggers (`app/page_view_buffer.py`):
-- When buffer reaches `PAGE_VIEW_BUFFER_SIZE` (if configured)
-- Every `PAGE_VIEW_FLUSH_INTERVAL` seconds (default: 5, configurable via env var)
-- On application shutdown (`stop()` performs a final flush before thread joins)
+**Page View Buffer (`app/page_view_buffer.py`):** Configured via `PAGE_VIEW_BUFFER_SIZE` env var (default: disabled, value `0`). When enabled (`> 0`), page views are batched in memory and flushed to the database periodically, reducing per-request write load.
 
-The buffer uses a background daemon thread. If `PAGE_VIEW_BUFFER_SIZE <= 0`, views are written synchronously on each request.
+#### Daemon Thread Mechanics
+
+- `PageViewBuffer` spawns a **daemon thread** (`threading.Thread(..., daemon=True)`) that runs `_flush_loop()`.
+- The loop uses `threading.Event.wait(timeout=flush_interval)` to sleep between flushes, checking `_stop_event` each iteration.
+- Flush triggers:
+  1. When the internal `Queue` reaches `PAGE_VIEW_BUFFER_SIZE` (checked synchronously after each `record()` call)
+  2. Every `PAGE_VIEW_FLUSH_INTERVAL` seconds (default: 5, configurable via env var)
+  3. On application shutdown — `stop()` sets the event, joins the thread with a 10s timeout, then performs a final `_flush_now()`
+
+#### Thread Safety
+
+- `_flush_lock` (`threading.Lock`) serializes concurrent flush attempts — only one thread can drain the queue and write to the database at a time.
+- `_buffer_lock` (`threading.Lock`) protects singleton initialization in `init_page_view_buffer()`.
+- The `Queue` itself is thread-safe for `put()`/`get_nowait()` operations.
+
+#### Flush Behavior
+
+- `_flush_now()` drains all pending items from the `Queue` into a list, then performs a **single bulk insert** via `db.session.execute(PageView.__table__.insert(), [...])`.
+- On success, `flushed` stat is incremented and views are committed.
+- On `SQLAlchemyError` or `OSError`, the session is rolled back, views are counted as `dropped`, and an error is logged. Individual view losses do not crash the application.
+
+#### Fallback Mode
+
+When `PAGE_VIEW_BUFFER_SIZE <= 0`, `init_page_view_buffer()` returns `None` and `record_page_view()` falls back to **synchronous inserts** — each page view is written directly to the database in the request path.
+
+#### Lifecycle Integration
+
+- `init_page_view_buffer(db, PageView)` is called during app factory background services initialization (`app/__init__.py`).
+- `shutdown_page_view_buffer()` is called during graceful shutdown to flush remaining views.
+- `get_buffer()` returns the global singleton (or `None` if disabled).
 
 **Tag Cache:** Tag counts are cached via `flask-caching` with configurable TTL (`TAG_CACHE_TTL_SECONDS`). The `_get_tag_counts()` function in `app/tag_cache.py` uses `@cache.memoize()` for request-context queries and falls back to uncached queries for non-request contexts (e.g., CLI). Cache is invalidated via `invalidate_tag_cache()` after tag-modifying operations.
 
