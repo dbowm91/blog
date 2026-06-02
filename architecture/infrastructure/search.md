@@ -187,6 +187,12 @@ Fuzzy matching suggestions for misspelled queries.
 3. Build OR query with prefix matching: `"term"*`
 4. Execute with BM25 ranking
 
+## FTS Fallback to ILIKE
+
+When FTS search returns no results, the search route (`app/routes/public/browse.py:290-308`) falls back to ILIKE-based search across post titles and bodies. This provides results for queries that don't match FTS5 tokenization rules (e.g., very short terms, special characters).
+
+The fallback also triggers "did you mean" suggestions via `get_did_you_mean()` when FTS returns no results but indexed terms exist that are close to the query.
+
 ## Caching
 
 - FTS availability check cached for 5 minutes (`_FTS_CHECK_TTL = 300`)
