@@ -60,8 +60,10 @@ def deliver_webhook_task(self, webhook_event_id: int) -> bool:
 
 Dispatches webhook deliveries to individual endpoints:
 1. Fetches event and enabled webhooks for the event type
-2. Dispatches each webhook to `deliver_single_webhook_task` for per-webhook delivery
-3. Marks event as delivered (individual webhooks update delivery status)
+2. Dispatches each webhook to `deliver_single_webhook_task` via `.delay()` (fire-and-forget)
+3. Returns `True` immediately — parent success only means dispatch succeeded, not that individual webhooks were delivered
+
+**Fire-and-forget pattern:** `deliver_webhook_task` uses `deliver_single_webhook_task.delay()` at `app/tasks.py:229`. The parent task returns success as soon as child tasks are enqueued. Each child runs independently with its own retry logic. A successful `deliver_webhook_task` return value does **not** indicate child delivery success — individual webhook outcomes are tracked via `_update_delivery_status()` on each `WebhookEvent`.
 
 ### `deliver_single_webhook_task`
 
