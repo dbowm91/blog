@@ -103,10 +103,10 @@ function loadPrismIfNeeded() {
     prismCSS.href = document.documentElement.dataset.prismCssUrl;
     document.head.appendChild(prismCSS);
     const prismJS = document.createElement('script');
-    prismJS.src = '/static/js/prism.min.js';
+    prismJS.src = document.documentElement.dataset.prismJsUrl;
     prismJS.onload = () => {
         const langJS = document.createElement('script');
-        langJS.src = '/static/js/prism-languages.js';
+        langJS.src = document.documentElement.dataset.prismLangsUrl;
         document.body.appendChild(langJS);
     };
     document.body.appendChild(prismJS);
