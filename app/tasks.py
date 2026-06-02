@@ -35,6 +35,7 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     Matches the naming convention used by _generate_responsive_variants_local.
     """
     from PIL import Image
+    from app.extensions import db
     from app.storage import get_storage, LocalStorageBackend, S3StorageBackend
 
     storage = get_storage()
@@ -124,6 +125,8 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Image variant generation failed: %s", e)
         return False
+    finally:
+        db.session.remove()
 
 
 @shared_task(
