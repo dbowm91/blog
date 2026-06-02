@@ -150,6 +150,41 @@ admin/
 - **Purpose**: View active admin sessions and revoke sessions
 - **Features**: IP binding, session termination
 
+## Admin Session IP Binding (`__init__.py:25-55`)
+
+The `admin_required` decorator enforces session IP binding to detect session hijacking. Controlled by the `SESSION_IP_BINDING` config option (set via environment variable or `config.toml`).
+
+### Mode: `enforce`
+
+When the client IP changes mid-session:
+
+1. Looks up the `AdminSession` record by `session_id`
+2. Deletes the session record from the database
+3. Calls `logout_user()` and `session.clear()`
+4. Flashes an error: "Session invalidated due to IP address change."
+5. Redirects to the admin login page
+
+This is the strictest mode — any IP change (e.g., VPN reconnect, mobile network switch) immediately terminates the session.
+
+### Mode: `warn`
+
+When the client IP changes mid-session:
+
+1. Logs a warning: `IP address changed for admin session <sid>: expected <old_ip>, got <new_ip>`
+2. Request continues normally — the session is **not** terminated
+
+This mode is suitable for environments where IP addresses change frequently (e.g., mobile networks, load balancers) but you still want visibility into session anomalies.
+
+### Mode: disabled (any other value)
+
+If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or `"warn"`, IP binding checks are skipped entirely.
+
+### Implementation Notes
+
+- IP is compared from `session["admin_session_ip"]` vs `request.remote_addr`
+- The check only runs if both `stored_ip` and `current_ip` are truthy (non-None, non-empty)
+- In `enforce` mode, `IntegrityError` and `OperationalError` from the session delete are caught and rolled back gracefully
+
 ## Media Management (`media.py`)
 
 - **Route**: `GET /admin/media`
