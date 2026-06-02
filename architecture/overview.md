@@ -296,7 +296,7 @@ Storage abstraction layer for media files with local and S3 backends.
 
 Configured via `STORAGE_BACKEND` env var: `"local"` (default) or `"s3"`. `get_storage()` returns a module-level singleton. Lazy client initialization for S3 uses `threading.Lock`. `save()` raises exceptions on failure (with logging). Other S3 methods return `False` or empty lists on failure.
 
-### SSRF Protection (`app/webhooks.py`)
+### SSRF Protection (`app/utils.py`)
 
 Webhook delivery includes Server-Side Request Forgery (SSRF) protection to prevent requests to internal/private networks.
 
