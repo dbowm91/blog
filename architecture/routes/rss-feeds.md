@@ -229,6 +229,10 @@ Series feeds filter posts by series slug, providing the same three formats as th
 }
 ```
 
+### Ordering Note
+
+Series feeds preserve `PostSeries.order_index` ordering rather than the default date-based ordering used by other feeds. Posts appear in the order they were arranged in the series.
+
 ## ETag / Conditional GET
 
 All feed endpoints support efficient caching via `If-None-Match` / `304 Not Modified`:
