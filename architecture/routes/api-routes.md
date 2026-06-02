@@ -21,6 +21,40 @@ REST API for programmatic access to blog data.
 | `tags.py` | `/api/tags` | GET, POST | List/create tags |
 | `tags.py` | `/api/tags/<int:tag_id>` | GET, PUT, DELETE | Single tag operations |
 
+### Scope Requirements
+
+All endpoints require authentication via `X-API-Key` header. Scoped tokens (`ApiToken`) must have the required scope.
+
+| Endpoint | Methods | Required Scope |
+|----------|---------|----------------|
+| `GET /api/posts` | GET | `posts:read` |
+| `POST /api/posts` | POST | `posts:write` |
+| `GET /api/posts/<id>` | GET | `posts:read` |
+| `PUT /api/posts/<id>` | PUT | `posts:write` |
+| `DELETE /api/posts/<id>` | DELETE | `posts:write` |
+| `GET /api/subscribers` | GET | `subscribers:read` |
+| `POST /api/subscribers` | POST | `subscribers:write` |
+| `DELETE /api/subscribers/<id>` | DELETE | `subscribers:write` |
+| `GET /api/stats` | GET | `stats:read` |
+| `GET /api/pages` | GET | `pages:read` |
+| `POST /api/pages` | POST | `pages:write` |
+| `GET /api/pages/<id>` | GET | `pages:read` |
+| `PUT /api/pages/<id>` | PUT | `pages:write` |
+| `DELETE /api/pages/<id>` | DELETE | `pages:write` |
+| `GET /api/series` | GET | `series:read` |
+| `POST /api/series` | POST | `series:write` |
+| `GET /api/series/<id>` | GET | `series:read` |
+| `PUT /api/series/<id>` | PUT | `series:write` |
+| `DELETE /api/series/<id>` | DELETE | `series:write` |
+| `POST /api/series/<id>/posts` | POST | `series:write` |
+| `DELETE /api/series/<id>/posts/<post_id>` | DELETE | `series:write` |
+| `POST /api/series/<id>/reorder` | POST | `series:write` |
+| `GET /api/tags` | GET | `tags:read` |
+| `POST /api/tags` | POST | `tags:write` |
+| `GET /api/tags/<id>` | GET | `tags:read` |
+| `PUT /api/tags/<id>` | PUT | `tags:write` |
+| `DELETE /api/tags/<id>` | DELETE | `tags:write` |
+
 
 ## Webhook Events
 

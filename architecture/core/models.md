@@ -156,7 +156,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     reset_token = db.Column(db.String(64), nullable=True, unique=True)
     reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
-    failed_login_count = db.Column(db.Integer, default=0)
+    failed_login_count = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(UTCDateTime, nullable=True)
     totp_secret_encrypted = db.Column(db.String(256), nullable=True)
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
@@ -403,12 +403,17 @@ class SiteSettings(db.Model):
 
     @classmethod
     def get_instance(cls) -> "SiteSettings":
-        """Return singleton instance (id=1), creating if needed."""
-        instance = db.session.get(cls, 1)
+        """Return singleton instance (id=1), creating if needed.
+
+        Uses flush() rather than commit() to persist the instance within
+        the current transaction. Caller is responsible for calling commit()
+        after get_instance() if changes should be persisted.
+        """
+        instance = cls.query.filter_by(id=1).with_for_update().first()
         if instance is None:
             instance = cls()
             db.session.add(instance)
-            db.session.commit()
+            db.session.flush()
         return instance
 ```
 
@@ -509,11 +514,7 @@ Tracks social sharing actions. `platform` is a string identifier (e.g. `"twitter
 
 ## Known Issues
 
-### Nullable `published` Columns
-
-`Post.published` and `Page.published` are defined with `nullable=False` in the documentation above, but the actual database columns allow `NULL`. The SQLAlchemy `db.Column(db.Boolean, default=False)` declaration does **not** enforce `nullable=False` at the database level. This means queries filtering on `Post.published == True` silently exclude rows where `published` is `NULL`.
-
-This is addressed in Wave 1 items 1.2 and 1.3 of `plans/plan.md`.
+None currently documented.
 
 ## See Also
 - [App Factory](core/app-factory.md) - Application initialization

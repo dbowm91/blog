@@ -32,7 +32,7 @@ Invalidation calls found in:
 - `app/routes/admin/posts/manage.py:70`
 - `app/routes/admin/tags.py:76,104,142`
 - `app/routes/admin/posts/__init__.py:158,179,198,216`
-- `app/scheduler.py:224,256`
+- `app/scheduler.py:224` (import in `publish_scheduled_posts`), `app/scheduler.py:256` (call in `publish_scheduled_posts`)
 - `app/routes/api/tags.py:130,189,219`
 
 ## Implementation Details

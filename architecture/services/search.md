@@ -70,6 +70,8 @@ Current default implementation using SQLite FTS5.
 | `_escape_fts_term()` | `app/search.py:188` | Escapes FTS5 special characters (`()*+:<>"-`) and whitespace for safe query construction |
 | `extract_snippet()` | `app/search.py:246` | Extract text snippet around match |
 | `get_search_snippets()` | `app/search.py:275` | Get highlighted snippets |
+
+**Note**: `extract_snippet`, `get_search_snippets`, `_escape_fts_term`, and `get_indexed_terms_fallback` are **not** exported in `__all__` and are internal implementation details not intended for external use.
 | `get_did_you_mean()` | `app/search.py:320` | Fuzzy suggestion for failed queries |
 | `highlight_query()` | `app/search.py:349` | Add `<mark>` tags around query terms |
 

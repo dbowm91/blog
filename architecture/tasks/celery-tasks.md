@@ -17,7 +17,7 @@ Async task queue using Celery with Redis as broker.
 ### `generate_image_variants`
 
 ```python
-@shared_task(bind=True, max_retries=3, retry_backoff=True, queue='images')
+@shared_task(bind=True, queue="images")
 def generate_image_variants(self, filename: str) -> bool:
 ```
 
@@ -101,7 +101,7 @@ Sends password reset email to user.
 ### `run_backup_task`
 
 ```python
-@shared_task(bind=True, max_retries=2, retry_backoff=True, queue='backup')
+@shared_task(bind=True, queue="backup")
 def run_backup_task(self) -> bool:
 ```
 
@@ -136,7 +136,7 @@ Determines the final `delivery_status` of a `WebhookEvent` after individual webh
 | Task | Failure Behavior | Retry |
 |------|------------------|-------|
 | `generate_image_variants` | Returns `False` | No |
-| `send_newsletter_task` | Returns `False` on send failure; Celery auto-retry only on uncaught exceptions | No (no explicit retry) |
+| `send_newsletter_task` | Returns `False` on send failure; Celery auto-retry via `self.retry()` (line 200) when `send_newsletter()` returns False | Yes (`max_retries=3`) |
 | `deliver_webhook_task` | Dispatches to `deliver_single_webhook_task` per webhook | N/A (dispatch only) |
 | `deliver_single_webhook_task` | Exception triggers `self.retry(exc=e)`; after max retries logs error and updates status | Yes |
 | `send_confirmation_task` | Exception triggers `self.retry(exc=e)` | Yes |
@@ -171,11 +171,10 @@ When Flask app context is available (`init_celery(app)` is called with an app):
 
 **Task-specific overrides** (defined on individual tasks):
 - `send_newsletter_task`: `time_limit=600`, `soft_time_limit=540` — longer limits for bulk email sending
-- `run_backup_task`: `max_retries=2` (not 3)
 
 ## Retry Policy
 
-- `max_retries=3` (2 for backup)
+- `max_retries=3` (default for most tasks; backup task has no retries)
 - `retry_backoff=True` (exponential backoff)
 - Time limits for long-running tasks
 
