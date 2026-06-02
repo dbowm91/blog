@@ -446,13 +446,13 @@ blog/
 │   ├── csrf.py                      # CSRF token validation
 │   ├── page_view_buffer.py          # Buffered page view writes
 │   ├── tag_cache.py                 # Tag count caching
-│   ├── backup_integrity.py          # Backup verification
+│   ├── backup_integrity.py          # Backup file integrity verification (checksums, SQLite validation)
 │   ├── webhook_encryption.py        # Webhook secret encryption
 │   ├── backup_encryption.py         # Backup file encryption
-│   ├── markdown_config.py           # Markdown processing config
-│   ├── transaction.py              # Transaction helpers
-│   ├── csv_utils.py                 # CSV export utilities
-│   ├── base62.py                    # Post ID encoding
+│   ├── markdown_config.py           # Shared nh3.clean() config for markdown HTML sanitization
+│   ├── transaction.py              # Transaction decorator/context manager (IntegrityError rollback)
+│   ├── csv_utils.py                 # CSV export with formula injection prevention
+│   ├── base62.py                    # Base62 encode/decode for short share URLs (/s/<code>)
 │   ├── cli.py                       # CLI commands (flask cli)
 │   │
 │   ├── routes/                      # Route blueprints
