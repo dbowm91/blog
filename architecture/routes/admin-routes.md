@@ -225,6 +225,7 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `GET /admin/settings`
 - **Route**: `POST /admin/settings/theme`
 - **Purpose**: View and update theme, syntax theme, custom CSS
+- **Available syntax themes**: `github-dark`, `github-light`, `solarized-dark`, `monokai` (defined in `app/models.py:366-457`)
 
 ## Audit Log (`audit.py`)
 
