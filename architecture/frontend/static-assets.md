@@ -132,16 +132,13 @@ Admin pages can be detected via `document.body.classList.contains('admin-body')`
 
 ### marked.min.js Loading Pattern
 
-`marked.min.js` is loaded outside the Vite pipeline via `url_for('static', ...)` instead of `vite_asset()`. This bypasses Vite's content hashing and CDN support:
+`marked.min.js` is loaded through Vite's asset pipeline via `vite_asset()` in both `base.html:150` and `admin/base.html:162`, receiving content hashing and CDN support like other JS assets:
 
 ```html
-<script src="{{ url_for('static', filename='js/lib/marked.min.js') }}"></script>
+<script src="{{ vite_asset('js/lib/marked.min.js') }}"></script>
 ```
 
-**Limitations:**
-- No content hashing — browser caching depends on server-side cache headers
-- No CDN prefix support — `CDN_URL` config is ignored for this asset
-- `marked-wrapper.js` (the adapter layer) is loaded through the Vite pipeline and gets proper hashing
+The adapter layer `marked-wrapper.js` is also loaded via `vite_asset()`.
 
 ### JSX Support
 
