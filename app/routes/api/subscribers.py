@@ -1,5 +1,7 @@
 """Subscribers API endpoints."""
 
+from datetime import timedelta
+
 from flask import jsonify, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -100,7 +102,7 @@ def create_subscriber() -> any:
 
     subscriber = Subscriber(
         email=email,
-        expires_at=utc_now() + __import__("datetime").timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
+        expires_at=utc_now() + timedelta(hours=CONFIRMATION_EXPIRY_HOURS),
     )
     db.session.add(subscriber)
     try:

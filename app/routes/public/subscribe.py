@@ -181,7 +181,7 @@ def register_subscribe_routes(public):
                 target_type="subscriber",
             )
         except Exception:
-            pass
+            logger.warning("Webhook event creation failed", exc_info=True)
         flash("Subscription confirmed! You'll receive our newsletter.", "success")
         return redirect("/")
 

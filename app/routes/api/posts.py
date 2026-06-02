@@ -1,5 +1,6 @@
 """Posts API endpoints."""
 
+import logging
 from typing import Any, cast
 
 from flask import jsonify, request
@@ -14,6 +15,8 @@ from app.validators import validate_string, validate_boolean
 from app import limiter
 from app.routes.api import api
 from app.routes.api.auth import require_api_key
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = "20 per minute"
 WRITE_LIMIT = "10 per minute"
@@ -312,7 +315,7 @@ def update_post(post_id: int) -> Any:
                 target_type="post",
             )
         except Exception:
-            pass
+            logger.warning("Webhook event creation failed", exc_info=True)
 
     return jsonify(_post_to_dict(post))
 

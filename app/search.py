@@ -238,7 +238,7 @@ def get_indexed_terms_fallback() -> list[str]:
             if row[0]:
                 words = str(row[0]).split()
                 terms.extend(words)
-        return list(set(terms))
+        return sorted(set(terms))
     except (OperationalError, ProgrammingError, DatabaseError):
         return []
 

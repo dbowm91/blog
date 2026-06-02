@@ -274,7 +274,7 @@ def register_browse_routes(public):
         post_results = _fts_search(query)
         if post_results:
             if not all(isinstance(r, tuple) and len(r) == 2 for r in post_results):
-                logging.warning(f"FTS returned invalid results: {post_results}")
+                logging.warning("FTS returned invalid results: %s", post_results)
                 post_results = []
             post_ids = [pid for pid, _ in post_results]
             pagination = db.paginate(

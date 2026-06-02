@@ -111,7 +111,7 @@ def _encrypt_backup_file(filepath: str) -> bool:
         encrypt_backup_file(filepath, tmp_path)
         os.replace(tmp_path, filepath)
         return True
-    except (OSError, ValueError, RuntimeError, SQLAlchemyError) as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error("Encryption error for %s: %s", filepath, e)
         return False
     finally:

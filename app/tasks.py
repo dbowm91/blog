@@ -35,11 +35,11 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     Matches the naming convention used by _generate_responsive_variants_local.
     """
     from PIL import Image
-    from app.storage import get_storage
+    from app.storage import get_storage, LocalStorageBackend, S3StorageBackend
 
     storage = get_storage()
     try:
-        if storage.__class__.__name__ == "LocalStorageBackend":
+        if isinstance(storage, LocalStorageBackend):
             upload_folder = os.environ.get(
                 "UPLOAD_FOLDER",
                 os.path.join(os.path.dirname(__file__), "static", "uploads"),
@@ -68,7 +68,7 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                         variant_filename = f"{width}_{basename}.{ext}"
                         variant_path = os.path.join(upload_folder, variant_filename)
                         resized.save(variant_path, optimize=True)
-        elif storage.__class__.__name__ == "S3StorageBackend":
+        elif isinstance(storage, S3StorageBackend):
             # For S3, download the file first, process locally, then re-upload
             import tempfile
             from botocore.exceptions import ClientError, BotoCoreError

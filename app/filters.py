@@ -3,7 +3,7 @@
 import markdown
 import nh3
 from typing import Any
-from flask import Flask, g, has_request_context
+from flask import Flask, g, has_request_context, url_for
 
 from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TAGS
 
@@ -68,9 +68,8 @@ def register_filters(app: Flask) -> None:
             for width in (400, 800, 1200):
                 variant_name = f"{width}_{post.image}"
                 if storage.exists(variant_name):
-                    srcset_parts.append(
-                        f"{base_url.rstrip('/')}/static/uploads/{variant_name} {width}w"
-                    )
+                    static_path = url_for("static", filename=f"uploads/{variant_name}")
+                    srcset_parts.append(f"{base_url.rstrip('/')}{static_path} {width}w")
             g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
             return g._post_image_cache[cache_key]
         return None

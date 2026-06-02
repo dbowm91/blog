@@ -88,7 +88,6 @@ def _add_cache_headers(response: Any, etag: str, is_feed: bool = True) -> Any:
     """Add cache headers to feed response."""
     response.headers["ETag"] = f'"{etag}"'
     response.headers["Cache-Control"] = "public, max-age=3600"
-    response.headers["Expires"] = "Thu, 01 Jan 2027 00:00:00 GMT"
     return response
 
 
