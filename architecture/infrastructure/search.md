@@ -53,9 +53,11 @@ CREATE VIRTUAL TABLE posts_fts_vocab USING fts5vocab(posts_fts, 'row')
 
 ### `init_fts()`
 
-Creates FTS5 tables and populates with existing published posts. Idempotent. Called during app factory initialization (`app/__init__.py:430-433`). Failures are caught and rolled back silently.
+Creates FTS5 tables and populates with existing published posts. Idempotent. Called during app factory initialization. Failures are caught and rolled back silently.
 
 **Error handling:** On failure (`OperationalError`, `ProgrammingError`, or `DatabaseError`), `init_fts()` rolls back the transaction and logs a warning. It does **not** drop the FTS table on failure — the existing table is left intact. The warning message indicates that search will fall back to LIKE-based queries. This destructive error handling means a corrupted FTS table will persist until manually rebuilt via `rebuild_fts()`.
+
+**Corruption Recovery:** If the FTS table becomes corrupted (e.g., after a database crash or disk failure), operators should run `rebuild_fts()` manually to rebuild the search index from scratch. This function uses `INSERT INTO posts_fts(posts_fts) VALUES('rebuild')` to reconstruct the index.
 
 ### `_check_fts_enabled()`
 
@@ -73,7 +75,7 @@ Extracts a snippet from text around the first query match. Returns approximately
 
 Returns alphabetically sorted list of unique terms in the search index. Uses FTS5 vocabulary table for efficiency; falls back to extracting terms from post titles if vocabulary table unavailable.
 
-**Fallback path** (`get_indexed_terms_fallback()` at `app/search.py:229-243`): When the `posts_fts_vocab` table is unavailable (e.g., after an `OperationalError` or `ProgrammingError`), the function queries `SELECT title FROM posts WHERE published = 1` and splits titles into individual words. Returns a deduplicated list of these words. This provides basic autocomplete suggestions even when the FTS5 vocabulary table is broken or missing.
+**Fallback path** (`get_indexed_terms_fallback()`): When the `posts_fts_vocab` table is unavailable (e.g., after an `OperationalError` or `ProgrammingError`), the function queries `SELECT title FROM posts WHERE published = 1` and splits titles into individual words. Returns a deduplicated list of these words. This provides basic autocomplete suggestions even when the FTS5 vocabulary table is broken or missing.
 
 ### `rebuild_fts()`
 
@@ -148,7 +150,7 @@ Add `<mark>` tags around query terms in text for highlighting.
 
 **Returns:** The text with `<mark>` tags around matched terms.
 
-**HTML Escaping:** The function calls `html.escape()` on the input text *before* applying `<mark>` tags (`app/search.py:367`). This prevents XSS from user-generated content but means the input `text` should be raw text, not pre-escaped HTML. The regex replacement wraps matches in `<mark>` tags after escaping.
+**HTML Escaping:** The function calls `html.escape()` on the input text *before* applying `<mark>` tags. This prevents XSS from user-generated content but means the input `text` should be raw text, not pre-escaped HTML. The regex replacement wraps matches in `<mark>` tags after escaping.
 
 ### `search()`
 
@@ -166,7 +168,7 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
 
 Returns dict mapping post_id to highlighted snippet using FTS5 `snippet()` function.
 
-**SQLite Batching**: Uses a local `_SQLITE_MAX_VARS = 500` constant (defined inside the function at `app/search.py:290`) to batch queries due to SQLite's parameter limit (999). For large result sets, post_ids are chunked into groups of 500. Snippets are sanitized with `nh3.clean()` allowing only `<mark>` tags before rendering with `| safe` in templates.
+**SQLite Batching**: Uses a local `_SQLITE_MAX_VARS = 500` constant to batch queries due to SQLite's parameter limit (999). For large result sets, post_ids are chunked into groups of 500. Snippets are sanitized with `nh3.clean()` allowing only `<mark>` tags before rendering with `| safe` in templates.
 
 ### `get_did_you_mean()`
 

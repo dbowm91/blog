@@ -69,6 +69,7 @@ def init_fts() -> None:
         if not posts_exist:
             return
 
+        db.session.execute(text("DROP TABLE IF EXISTS posts_fts"))
         db.session.execute(
             text(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5("
@@ -76,6 +77,7 @@ def init_fts() -> None:
                 ")"
             )
         )
+        db.session.execute(text("DROP TABLE IF EXISTS posts_fts_vocab"))
         db.session.execute(
             text(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts_vocab USING fts5vocab(posts_fts, 'row')"

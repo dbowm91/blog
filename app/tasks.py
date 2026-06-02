@@ -70,17 +70,20 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                         variant_path = os.path.join(upload_folder, variant_filename)
                         resized.save(variant_path, optimize=True)
         elif isinstance(storage, S3StorageBackend):
-            # For S3, download the file first, process locally, then re-upload
             import tempfile
             from botocore.exceptions import ClientError, BotoCoreError
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmp_path = os.path.join(tmpdir, filename)
-                file_data = storage.load(filename)
-                if not file_data:
+                try:
+                    response = storage.client.get_object(Bucket=storage.bucket, Key=filename)
+                    with open(tmp_path, "wb") as f:
+                        for chunk in response["Body"].iter_chunks():
+                            f.write(chunk)
+                except (ClientError, BotoCoreError):
                     return False
-                with open(tmp_path, "wb") as f:
-                    f.write(file_data)
+                if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+                    return False
 
                 ext = os.path.splitext(tmp_path)[1].lower().lstrip(".")
                 basename = os.path.splitext(os.path.basename(tmp_path))[0]
@@ -103,7 +106,6 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                             variant_path = os.path.join(tmpdir, variant_filename)
                             resized.save(variant_path, optimize=True)
 
-                # Upload all generated variants
                 for width in (400, 800, 1200):
                     webp_variant_name = f"{width}_{basename}.webp"
                     webp_variant_path = os.path.join(tmpdir, webp_variant_name)
@@ -325,6 +327,20 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
 def _update_delivery_status(event: Any, db: Any) -> None:
     """Update the delivery_status field based on per-webhook delivery results."""
     from app.models import Webhook
+
+    concurrency = os.environ.get("CELERYD_CONCURRENCY")
+    if concurrency is not None:
+        try:
+            concurrency_int = int(concurrency)
+            if concurrency_int > 1:
+                logger.warning(
+                    "Celery concurrency is %d (>1). "
+                    "_update_delivery_status() uses in-memory state and may produce incorrect results. "
+                    "Use --concurrency=1 for webhook delivery workers.",
+                    concurrency_int,
+                )
+        except ValueError:
+            pass
 
     webhooks = (
         db.session.execute(select(Webhook).filter_by(enabled=True, event_type=event.event_type))

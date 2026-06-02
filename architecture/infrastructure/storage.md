@@ -46,6 +46,8 @@ class S3StorageBackend(StorageBackend):
     def list_files(self, prefix: str = "") -> list[str]: ...
 ```
 
+**Error Handling Limitation:** `exists()` returns `False` and `list_files()` returns an empty list on any error (network issues, authentication failures, bucket not found, etc.). Callers cannot distinguish between "file does not exist" and "error checking existence" from the return value alone.
+
 ## Environment Variables
 
 | Variable | Description |

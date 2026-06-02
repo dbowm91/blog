@@ -205,9 +205,13 @@ Fonts are self-hosted in `app/static/fonts/` as woff2 files:
 - JetBrains Mono (weights 400, 500) for code blocks (`--font-mono`)
 - Preloaded in `base.html:39-40` with `crossorigin` attribute
 
+### Admin Prism CSS Theme
+
+`admin/base.html` uses `syntax_theme` variable for dynamic Prism CSS theme selection via `vite_asset('css/' + syntax_theme + '.css')`.
+
 ### Syntax Highlighting Themes
 
-Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically in `base.html:30` using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js:97-112` only when code blocks are present.
+Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js` only when code blocks are present.
 
 ## Vite Configuration
 

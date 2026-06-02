@@ -159,7 +159,6 @@ jobs:
         env:
           ADMIN_PASSWORD: test
           SECRET_KEY: test
-          REDIS_URL: redis://localhost:6379/0
         run: python -m pytest tests/e2e/ -v
 
       - name: Show logs on failure

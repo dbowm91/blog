@@ -1,5 +1,6 @@
 from sqlalchemy import select, func
 from app.utils import utc_now
+from tests.conftest import TEST_PASSWORD
 
 
 def test_login_page(client):
@@ -14,7 +15,7 @@ def test_login_success(client, admin_user):
         "/admin/login",
         data={
             "username": "admin",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
         follow_redirects=True,
     )

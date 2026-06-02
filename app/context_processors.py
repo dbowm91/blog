@@ -76,6 +76,7 @@ def _get_cached_settings() -> dict[str, Any]:
         }
     except OperationalError:
         logger.exception("Database error loading theme settings, using fallback")
+        invalidate_settings_cache()
         from app.models import THEME_PRESETS
 
         return {
@@ -170,6 +171,7 @@ def register_context_processors(app: Any) -> None:
             return _get_footer_data()
         except OperationalError:
             logger.exception("Database error loading footer data, using fallback")
+            invalidate_footer_cache()
             return {
                 "recent_posts_footer": [],
                 "recent_posts_sidebar": [],
