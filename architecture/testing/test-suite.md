@@ -39,7 +39,7 @@ tests/
 | `authenticated_client` | `conftest.py`, `benchmarks/conftest.py` | function |
 | `sample_post`, `sample_tag`, `sample_subscriber` | `conftest.py` | function |
 | `mock_render`, `mock_smtp` | `conftest.py` | function |
-| `clean_analytics_cache` | `conftest.py`, `benchmarks/conftest.py` | function |
+| `clean_analytics_cache` | `shared_fixtures.py` (imported via `*` into conftest files) | function |
 | `cleanup_uploads` | `conftest.py` | session (autouse) |
 | `ensure_buffer_disabled` | `shared_fixtures.py` (imported via `*` into other conftest files) | autouse |
 | `browser_type_launch_args` | `e2e/conftest.py` | session |
