@@ -262,27 +262,77 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 
 ### Health Check (`GET /health`)
 
-Health endpoint with optional `?detailed=true` and `?secret=<HEALTH_CHECK_SECRET>` parameters.
+**Source:** `app/routes/public/meta.py:188-321`
 
-**Critical Checks** (determine overall status):
+Health endpoint for monitoring with rate limit of 60/min per IP.
 
-| Check | What it validates |
-|-------|-------------------|
-| `database` | SQLite connectivity |
-| `scheduler` | APScheduler running |
-| `search` | FTS5 availability |
-| `disk_space` | Free disk space >= 10% |
-| `db_integrity` | Database passes integrity check |
+#### Authentication
 
-**Optional Checks** (do not affect overall status):
+- **Basic call**: `GET /health` — returns summary status without sensitive details
+- **Detailed call**: `GET /health?detailed=true&secret=<HEALTH_CHECK_SECRET>` — returns extra detail fields (database latency, scheduler next run, last newsletter send)
+- The `detailed` param alone is not enough; `secret` must match `HEALTH_CHECK_SECRET` env var via constant-time HMAC comparison
 
-| Check | What it validates |
-|-------|-------------------|
-| `backup_freshness` | Most recent backup < 24 hours old |
-| `redis` | Redis connectivity |
-| `celery` | Celery worker availability |
+#### Critical Checks
 
-**Status Logic**: `ok` when all critical checks pass (status in "ok", "running", "disabled"); `degraded` when any critical check fails.
+These checks determine the overall `status` field:
+
+| Check | Validation | Status Values |
+|-------|-----------|---------------|
+| `database` | Executes `SELECT 1` against the database, measures latency | `ok`, `error` |
+| `scheduler` | Calls `get_scheduler_health()` if `SMTP_HOST` is set | `running`, `disabled`, `error` |
+| `search` | Queries `sqlite_master` for `posts_fts` table existence | `ok`, `unavailable`, `error` |
+| `disk_space` | Checks `shutil.disk_usage()` on instance path; threshold is 10% free | `ok`, `low`, `error` |
+| `db_integrity` | Runs `PRAGMA integrity_check` | `ok`, `error` |
+
+#### Optional Checks
+
+These checks are included in the response but do **not** affect overall status:
+
+| Check | Validation | Status Values |
+|-------|-----------|---------------|
+| `redis` | Redis `PING` with 2s connect/timeout | `ok`, `error` |
+| `celery` | `celery_app.control.inspect().ping()` with 3s timeout | `ok`, `unavailable`, `disabled` |
+| `backup_freshness` | Finds most recent backup file by mtime; checks age < 24 hours | `ok`, `stale`, `no_backups`, `error` |
+
+#### Overall Status Logic
+
+- **`ok`**: All critical checks have status in `("ok", "running", "disabled")`
+- **`degraded`**: Any critical check has status `"error"` or `"low"`
+- The HTTP status code is `200` when overall is `ok`, `503` when `degraded`
+
+#### Detailed Response
+
+When authenticated with `?detailed=true&secret=<key>`, the response includes a `details` object:
+
+| Field | Source |
+|-------|--------|
+| `database_latency_ms` | Time for `SELECT 1` in milliseconds |
+| `scheduler_next_run` | Next scheduled job run time (if scheduler enabled) |
+| `scheduler_last_newsletter_send` | Timestamp of last newsletter send (if scheduler enabled) |
+
+#### Response Format
+
+```json
+{
+  "status": "ok|degraded",
+  "checks": {
+    "database": "ok",
+    "scheduler": "running",
+    "search": "ok",
+    "disk_space": "ok",
+    "db_integrity": "ok",
+    "redis": "ok",
+    "celery": "ok",
+    "backup_freshness": "ok"
+  },
+  "timestamp": "2026-06-02T12:00:00+00:00",
+  "details": {
+    "database_latency_ms": 0.42,
+    "scheduler_next_run": "2026-06-03T08:00:00+00:00",
+    "scheduler_last_newsletter_send": "2026-06-02T08:00:00+00:00"
+  }
+}
+```
 
 ### Storage (`app/storage.py`)
 
