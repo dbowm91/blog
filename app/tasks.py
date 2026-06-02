@@ -70,17 +70,20 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                         variant_path = os.path.join(upload_folder, variant_filename)
                         resized.save(variant_path, optimize=True)
         elif isinstance(storage, S3StorageBackend):
-            # For S3, download the file first, process locally, then re-upload
             import tempfile
             from botocore.exceptions import ClientError, BotoCoreError
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmp_path = os.path.join(tmpdir, filename)
-                file_data = storage.load(filename)
-                if not file_data:
+                try:
+                    response = storage.client.get_object(Bucket=storage.bucket, Key=filename)
+                    with open(tmp_path, "wb") as f:
+                        for chunk in response["Body"].iter_chunks():
+                            f.write(chunk)
+                except (ClientError, BotoCoreError):
                     return False
-                with open(tmp_path, "wb") as f:
-                    f.write(file_data)
+                if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+                    return False
 
                 ext = os.path.splitext(tmp_path)[1].lower().lstrip(".")
                 basename = os.path.splitext(os.path.basename(tmp_path))[0]
@@ -103,7 +106,6 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                             variant_path = os.path.join(tmpdir, variant_filename)
                             resized.save(variant_path, optimize=True)
 
-                # Upload all generated variants
                 for width in (400, 800, 1200):
                     webp_variant_name = f"{width}_{basename}.webp"
                     webp_variant_path = os.path.join(tmpdir, webp_variant_name)
