@@ -86,11 +86,15 @@ email/base_email.html                  # Standalone email base template
 └── email/password_reset.html
 ```
 
-> **Note:** `admin/base.html` does NOT extend `base.html`. This creates
-> triple duplication of the HTML boilerplate (`<!DOCTYPE>`, `<head>`,
-> asset tags) across `base.html`, `admin/base.html`, and
-> `admin/login_base.html`. A shared partial or macro would reduce this
-> maintenance burden.
+> **⚠️ Critical Architectural Detail:** `admin/base.html` and
+> `admin/login_base.html` are **standalone templates** — they do NOT
+> extend `base.html`. Each has its own complete `<!DOCTYPE html>`,
+> `<head>`, and asset tags. This creates triple duplication of HTML
+> boilerplate across `base.html`, `admin/base.html`, and
+> `admin/login_base.html`. When modifying global `<head>` elements
+> (meta tags, CSS links, etc.), all three templates must be updated
+> independently. A shared partial or macro would reduce this maintenance
+> burden.
 
 ## Filters
 
