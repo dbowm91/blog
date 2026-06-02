@@ -229,6 +229,14 @@ Series feeds filter posts by series slug, providing the same three formats as th
 }
 ```
 
+## ETag / Conditional GET
+
+All feed endpoints support efficient caching via `If-None-Match` / `304 Not Modified`:
+
+- Each response includes an `ETag` header derived from the latest post's `updated_at` timestamp.
+- When a client sends `If-None-Match` matching the current ETag, the endpoint returns `304 Not Modified` with no body, avoiding unnecessary re-rendering and data transfer.
+- Implemented in `app/routes/rss.py:190-192` (RSS), `240-242` (Atom), `292-294` (JSON), as well as the tag and series variants.
+
 ## Caching
 
 Two layers of caching:
