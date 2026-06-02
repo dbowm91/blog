@@ -26,7 +26,7 @@ Runs daily at `NEWSLETTER_SEND_TIME` (default: 08:00):
 
 **Retry Logic:** Respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` configuration. Posts with `newsletter_attempts >= NEWSLETTER_MAX_RETRY_ATTEMPTS` are excluded from selection until reset.
 
-**Celery vs. Scheduler:** This job sends newsletters synchronously via `app.email.send_newsletter()`. The Celery `send_newsletter_task` (`app/tasks.py:129`) is separate and used only for manual/ad-hoc sends from the admin dashboard — it is never invoked by the scheduler.
+**Celery vs. Scheduler:** This job sends newsletters synchronously via `app.email.send_newsletter()`. The Celery `send_newsletter_task` (`app/tasks.py:132`) is separate and used only for manual/ad-hoc sends from the admin dashboard — it is never invoked by the scheduler.
 
 ### `cleanup_expired_subscribers`
 
@@ -61,11 +61,11 @@ Celery tasks use specific queues for different workloads (for reference — APSc
 
 | Queue | Tasks | Location |
 |-------|-------|----------|
-| `images` | Image processing | `generate_image_variants` (`app/tasks.py:31`) |
-| `newsletter` | Newsletter delivery | `send_newsletter_task` (`app/tasks.py:137`) |
-| `webhooks` | Webhook delivery | `deliver_webhook_task` (`app/tasks.py:200`) |
-| `email` | Transactional email | `send_confirmation_task` (`app/tasks.py:350`), `send_password_reset_task` (`app/tasks.py:371`) |
-| `backup` | Backup tasks | `run_backup_task` (`app/tasks.py:392`) |
+| `images` | Image processing | `generate_image_variants` (`app/tasks.py:30`) |
+| `newsletter` | Newsletter delivery | `send_newsletter_task` (`app/tasks.py:132`) |
+| `webhooks` | Webhook delivery | `deliver_webhook_task` (`app/tasks.py:207`) |
+| `email` | Transactional email | `send_confirmation_task` (`app/tasks.py:357`), `send_password_reset_task` (`app/tasks.py:378`) |
+| `backup` | Backup tasks | `run_backup_task` (`app/tasks.py:399`) |
 
 ## Multi-Worker Deployment
 
