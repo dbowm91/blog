@@ -2,14 +2,14 @@
 
 **Purpose:** Systematic review of all architecture documentation against actual codebase implementation. Each discrete module is reviewed by a subagent that verifies claims, identifies discrepancies, interrogates code for bugs and improvements, and writes improvement plans to `plans/`.
 
-**Created:** May 31, 2026
-**Status:** COMPLETE — All reviews consolidated into `plans/plan.md` (June 2, 2026). Individual review files removed.
+**Created:** June 2, 2026
+**Status:** PENDING — Review not yet executed
 
 ---
 
 ## Scope
 
-All documents in `architecture/` **except this file**. Nine discrete modules:
+All documents in `architecture/` **except this file**. Eight discrete modules:
 
 | # | Module | Directory | Docs | Source Files to Verify |
 |---|--------|-----------|------|----------------------|
@@ -17,13 +17,12 @@ All documents in `architecture/` **except this file**. Nine discrete modules:
 | 2 | Routes | `architecture/routes/` | `admin-routes.md`, `api-routes.md`, `public-routes.md`, `rss-feeds.md` | `app/routes/admin/`, `app/routes/api/`, `app/routes/public/`, `app/routes/rss.py`, `app/routes/errors.py` |
 | 3 | Services | `architecture/services/` | `overview.md`, `backup.md`, `encryption.md`, `search.md`, `slug.md`, `tag.md`, `tag_cache.md`, `serialization.md` | `app/services/`, `app/tag_cache.py`, `app/backup_encryption.py`, `app/webhook_encryption.py` |
 | 4 | Tasks | `architecture/tasks/` | `overview.md`, `celery-tasks.md`, `scheduler.md` | `app/tasks.py`, `app/scheduler.py`, `app/celery_app.py` |
-| 5 | Infrastructure | `architecture/infrastructure/` | `overview.md` (if exists), `search.md`, `email.md`, `storage.md`, `webhooks.md` | `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py` |
+| 5 | Infrastructure | `architecture/infrastructure/` | `email.md`, `search.md`, `storage.md`, `webhooks.md` | `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py` |
 | 6 | Frontend | `architecture/frontend/` | `overview.md`, `templates.md`, `static-assets.md` | `app/templates/`, `app/static/`, `app/filters.py`, `app/vite.py`, `app/context_processors.py` |
 | 7 | Deployment | `architecture/deployment/` | `overview.md`, `docker.md`, `security.md`, `cicd.md` | `Dockerfile`, `docker-compose.yml`, `nginx/`, `.github/workflows/ci.yml`, `scripts/` |
 | 8 | Testing | `architecture/testing/` | `test-suite.md` | `tests/`, `tests/conftest.py`, `tests/e2e/conftest.py`, `pytest.ini` |
-| 9 | Overview | `architecture/` | `overview.md` | Cross-references all module findings |
 
-**Total documents:** 33 (excluding this review plan)
+**Total documents:** 32 (excluding this review plan)
 
 ---
 
@@ -116,7 +115,7 @@ Focus on: Celery task configs and queue names, APScheduler job definitions and s
 Write findings to: `plans/tasks_review.md`
 
 **Infrastructure Subagent**
-Review `architecture/infrastructure/` containing any `overview.md`, `search.md`, `email.md`, `storage.md`, `webhooks.md`.
+Review `architecture/infrastructure/` containing `email.md`, `search.md`, `storage.md`, `webhooks.md`.
 Verify claims against: `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py`.
 Focus on: FTS5 search functions and error handling, SMTP email delivery and retry logic, storage backend abstraction, webhook SSRF protection and HMAC signing, health check implementation.
 Write findings to: `plans/infrastructure_review.md`
@@ -141,26 +140,21 @@ Write findings to: `plans/testing_review.md`
 
 ---
 
-## Phase 2: Overview Cross-Reference
+## Phase 2: Stale Item Pruning
 
-After all 8 module reviews complete, launch a 9th subagent to review `architecture/overview.md`.
+After all 8 module reviews complete, collect all `plans/*_review.md` files and scan `architecture/` for:
 
-**Overview Subagent**
-Review `architecture/overview.md`.
-Cross-reference all claims against the 8 module review findings in `plans/*_review.md`.
-Focus on: Cross-cutting references, module interdependencies, consistency of terminology, completeness of module coverage, model count verification (17 models), queue count verification (5 queues), scheduled job count verification (4 jobs).
-Write findings to: `plans/overview_review.md`
+1. Docs that reference removed features or non-existent files
+2. Docs where >50% of claims are wrong or source files no longer exist
+3. Duplicate docs with no unique content
+4. Deprecated API references that are no longer accurate
 
----
+Write pruning recommendations to `plans/architecture_prune.md` with:
 
-## Phase 3: Stale Item Pruning
-
-After all 9 reviews complete, the executing agent will:
-
-1. Collect all `plans/*_review.md` files created by subagents
-2. Scan `architecture/` for docs that reference removed features, non-existent files, or incorrect patterns
-3. Identify docs where >50% of claims are wrong or source files no longer exist
-4. Write pruning recommendations to `plans/architecture_prune.md`
+- List of docs to DELETE (with rationale)
+- List of docs to REWRITE (with rationale and scope)
+- List of docs to MERGE (with rationale)
+- Any stale items (lines in docs referencing removed files/functions)
 
 ### Prune Criteria
 
@@ -184,21 +178,19 @@ An architecture doc is a prune candidate if:
 
 ## Final Deliverables
 
-After execution, the following files were created and then consolidated:
+After execution, the following files will be created in `plans/`:
 
-| File | Status |
-|------|--------|
-| `plans/core_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/routes_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/services_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/tasks_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/infrastructure_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/frontend_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/deployment_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/testing_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/overview_review.md` | Consolidated into `plans/plan.md`, then removed |
-| `plans/architecture_prune.md` | Consolidated into `plans/plan.md`, then removed |
-| **`plans/plan.md`** | **Active — single source of truth for all architecture improvements** |
+| File | Purpose |
+|------|---------|
+| `plans/core_review.md` | Core module findings |
+| `plans/routes_review.md` | Routes module findings |
+| `plans/services_review.md` | Services module findings |
+| `plans/tasks_review.md` | Tasks module findings |
+| `plans/infrastructure_review.md` | Infrastructure module findings |
+| `plans/frontend_review.md` | Frontend module findings |
+| `plans/deployment_review.md` | Deployment module findings |
+| `plans/testing_review.md` | Testing module findings |
+| `plans/architecture_prune.md` | Stale item pruning recommendations |
 
 ---
 
@@ -208,4 +200,4 @@ After execution, the following files were created and then consolidated:
 - Subagents should NOT edit architecture docs or source code — all findings go into `plans/`.
 - Line number references in docs are expected to drift. Flag drifts >5 lines but minor drift is low priority.
 - Use `explore` subagent type for all module reviews.
-- This is a fresh review plan (May 31, 2026), replacing the prior completed plan.
+- This is a fresh review plan (June 2, 2026), replacing any prior completed plan.
