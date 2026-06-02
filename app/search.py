@@ -350,7 +350,7 @@ def highlight_query(text: str, query: str) -> str:
     """Add <mark> tags around query terms in text for highlighting.
 
     Args:
-        text: The text to highlight within (may contain HTML)
+        text: The raw text to highlight within (must not be pre-escaped HTML)
         query: The search query (may contain multiple words)
 
     Returns:
@@ -359,7 +359,7 @@ def highlight_query(text: str, query: str) -> str:
     if not text or not query:
         return text
 
-    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    pattern = re.compile(r"\b" + re.escape(query) + r"\b", re.IGNORECASE)
 
     def _replace_with_mark(match: re.Match) -> str:
         return f"<mark>{html.escape(match.group(0))}</mark>"
