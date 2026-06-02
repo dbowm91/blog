@@ -65,4 +65,6 @@ def handle_large_request(e: Exception) -> Response:
         f"File too large. Maximum upload size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
         "error",
     )
-    return redirect(req.referrer or url_for("admin.dashboard"))
+    if req.referrer and "/admin" in req.referrer:
+        return redirect(req.referrer)
+    return redirect(url_for("public.index"))
