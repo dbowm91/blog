@@ -209,6 +209,30 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 `marked.min.js` is loaded via `vite_asset()` for content hashing and CDN support.
 
+### Post/Page Published Nullable Columns
+
+`Post.published` and `Page.published` at `app/models.py:196,166` use `db.Column(db.Boolean, default=False)` without `nullable=False`. The database columns allow NULL, which means queries filtering on `Post.published == True` silently exclude rows where `published` is NULL. This is a known data integrity issue tracked in `plans/plan.md` (Wave 1 items 1.2, 1.3).
+
+### User.failed_login_count Nullable
+
+`User.failed_login_count` at `app/models.py:31` uses `db.Column(db.Integer, default=0)` without `nullable=False`. The `record_failed_login()` method does `self.failed_login_count += 1` which would TypeError on NULL from legacy data. Tracked in `plans/plan.md` (Wave 1 item 1.4).
+
+### CSRF Applies to All POSTs Including API
+
+CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:297-298`, including API endpoints. API clients using `ApiToken` (Bearer token) don't have Flask sessions with CSRF tokens, so POST requests would get 403. This is tracked in `plans/plan.md` (Wave 4 item 4.2).
+
+### Benchmark Tests Missing Celery Eager Config
+
+`tests/benchmarks/conftest.py` does NOT configure `task_always_eager=True`, unlike `tests/conftest.py` and `tests/e2e/conftest.py`. Celery tasks triggered during benchmarks would go to a real broker. Tracked in `plans/plan.md` (Wave 1 item 1.7).
+
+### _invalidate_all_caches() Dead Code
+
+`_invalidate_all_caches()` at `app/routes/admin/__init__.py:62-76` is defined but never called anywhere. Individual caches are invalidated separately in route handlers via direct function calls. Tracked in `plans/plan.md` (Wave 1 item 1.1).
+
+### SiteSettings.get_instance() Unconditional Commit
+
+`SiteSettings.get_instance()` at `app/models.py:359` does `db.session.commit()` unconditionally when creating a new instance. If called within a session that has other uncommitted changes, those changes are committed as a side effect.
+
 ## Historical Implementation Caveats
 
 For detailed implementation history, deprecated features, actual route corrections, test interference notes, encryption module details, task line numbers, and other maintainer context, see:
