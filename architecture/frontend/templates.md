@@ -96,6 +96,10 @@ email/base_email.html                  # Standalone email base template
 > independently. A shared partial or macro would reduce this maintenance
 > burden.
 
+### Login Template Asset Loading
+
+`admin/login_base.html` uses `vite_asset()` for CSS and JS assets, enabling CDN prefix support and content hashing just like other templates. This ensures consistent asset loading across all admin templates.
+
 ## Filters
 
 Registered in `app/filters.py`:

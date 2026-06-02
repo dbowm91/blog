@@ -1,5 +1,6 @@
 """End-to-end browser tests for the blog CMS."""
 
+import os
 import pytest
 
 pytestmark = pytest.mark.e2e
@@ -19,7 +20,7 @@ class TestAdminLogin:
         """Admin should be able to log in with valid credentials."""
         page.goto(f"{app_server}/admin/login")
         page.fill('input[name="username"]', "admin")
-        page.fill('input[name="password"]', "test-password")
+        page.fill('input[name="password"]', os.environ["ADMIN_PASSWORD"])
         page.click('button[type="submit"]')
 
         page.wait_for_url(f"{app_server}/admin/**", timeout=5000)
@@ -41,7 +42,7 @@ class TestAdminLogin:
         """Admin should be able to log out."""
         page.goto(f"{app_server}/admin/login")
         page.fill('input[name="username"]', "admin")
-        page.fill('input[name="password"]', "test-password")
+        page.fill('input[name="password"]', os.environ["ADMIN_PASSWORD"])
         page.click('button[type="submit"]')
         page.wait_for_url(f"{app_server}/admin/**", timeout=5000)
 
@@ -59,7 +60,7 @@ class TestPostCreation:
         """New post editor page should load correctly."""
         page.goto(f"{app_server}/admin/login")
         page.fill('input[name="username"]', "admin")
-        page.fill('input[name="password"]', "test-password")
+        page.fill('input[name="password"]', os.environ["ADMIN_PASSWORD"])
         page.click('button[type="submit"]')
         page.wait_for_url(f"{app_server}/admin/**", timeout=5000)
 
@@ -118,6 +119,6 @@ class TestMobileResponsiveness:
         page.goto(f"{app_server}/admin/login")
         page.wait_for_selector('input[name="username"]')
         page.fill('input[name="username"]', "admin")
-        page.fill('input[name="password"]', "test-password")
+        page.fill('input[name="password"]', os.environ["ADMIN_PASSWORD"])
         page.click('button[type="submit"]')
         page.wait_for_url(f"{app_server}/admin/**", timeout=5000)

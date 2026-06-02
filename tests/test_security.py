@@ -1,5 +1,7 @@
 def test_session_fixation_prevention(app, client, db, admin_user):
     """Test that session is cleared before login to prevent session fixation."""
+    from tests.conftest import TEST_PASSWORD
+
     with app.test_request_context():
         # Set a known session value before login
         with client.session_transaction() as sess:
@@ -11,7 +13,7 @@ def test_session_fixation_prevention(app, client, db, admin_user):
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "test-password",
+                "password": TEST_PASSWORD,
             },
             follow_redirects=True,
         )
@@ -110,11 +112,13 @@ def test_csp_connect_src(client):
 
 def test_logout_is_post_only(client, admin_user):
     """Test that GET /admin/logout returns 405 (method not allowed)."""
+    from tests.conftest import TEST_PASSWORD
+
     client.post(
         "/admin/login",
         data={
             "username": "admin",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
     )
     response = client.get("/admin/logout")
@@ -124,9 +128,10 @@ def test_logout_is_post_only(client, admin_user):
 def test_non_admin_cannot_log_in(app, db, client):
     """Test that non-admin users cannot log in to admin panel."""
     from app.models import User
+    from tests.conftest import TEST_PASSWORD
 
     user = User(username="regular", is_admin=False)
-    user.set_password("test-password")
+    user.set_password(TEST_PASSWORD)
     db.session.add(user)
     db.session.commit()
 
@@ -134,7 +139,7 @@ def test_non_admin_cannot_log_in(app, db, client):
         "/admin/login",
         data={
             "username": "regular",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
         follow_redirects=True,
     )
@@ -144,9 +149,10 @@ def test_non_admin_cannot_log_in(app, db, client):
 def test_non_admin_gets_403_on_admin_routes(app, db, client):
     """Test that authenticated non-admin users get 403 on admin routes."""
     from app.models import User
+    from tests.conftest import TEST_PASSWORD
 
     user = User(username="regular", is_admin=False)
-    user.set_password("test-password")
+    user.set_password(TEST_PASSWORD)
     db.session.add(user)
     db.session.commit()
 
@@ -161,7 +167,7 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
     # We'll test via a different approach: create an admin, log in,
     # then set is_admin=False on the user and try accessing routes.
     admin = User(username="admin2", is_admin=True)
-    admin.set_password("test-password")
+    admin.set_password(TEST_PASSWORD)
     db.session.add(admin)
     db.session.commit()
 
@@ -169,7 +175,7 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
         "/admin/login",
         data={
             "username": "admin2",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
     )
     # Demote user to non-admin
@@ -231,6 +237,8 @@ def test_locked_account_rejects_login(app, db, client):
 
 def test_csrf_bypass_prevented(app, client, db, admin_user):
     """Test CSRF protection prevents bypass attempts."""
+    from tests.conftest import TEST_PASSWORD
+
     original_csrf = app.config.get("CSRF_ENABLED", True)
     original_testing = app.config.get("TESTING", False)
     app.config["CSRF_ENABLED"] = True
@@ -240,7 +248,7 @@ def test_csrf_bypass_prevented(app, client, db, admin_user):
             "/admin/login",
             data={
                 "username": "admin",
-                "password": "test-password",
+                "password": TEST_PASSWORD,
             },
         )
         fake_csrf = "attacker-fake-csrf-token"
@@ -301,11 +309,13 @@ def test_rate_limit_blocked_ip_after_excessive_requests(client, db):
 
 def test_admin_rate_limit_exceeded(client, admin_user, db):
     """Test admin endpoints can handle multiple requests."""
+    from tests.conftest import TEST_PASSWORD
+
     client.post(
         "/admin/login",
         data={
             "username": "admin",
-            "password": "test-password",
+            "password": TEST_PASSWORD,
         },
     )
 

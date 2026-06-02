@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 from app.models import User
+from tests.conftest import TEST_PASSWORD
 
 
 class Test2FASetup:
@@ -40,7 +41,7 @@ class Test2FALogin:
                     "/admin/login",
                     data={
                         "username": "admin",
-                        "password": "test-password",
+                        "password": TEST_PASSWORD,
                     },
                     follow_redirects=False,
                 )
@@ -60,7 +61,7 @@ class Test2FALogin:
                     "/admin/login",
                     data={
                         "username": "admin",
-                        "password": "test-password",
+                        "password": TEST_PASSWORD,
                     },
                 )
                 response = client.post(
@@ -85,7 +86,7 @@ class Test2FALogin:
                 "/admin/login",
                 data={
                     "username": "admin",
-                    "password": "test-password",
+                    "password": TEST_PASSWORD,
                 },
             )
             response = client.post(
@@ -110,7 +111,7 @@ class Test2FALogin:
                     "/admin/login",
                     data={
                         "username": "admin",
-                        "password": "test-password",
+                        "password": TEST_PASSWORD,
                     },
                 )
                 response = client.post(
@@ -197,7 +198,7 @@ class TestBackupCodeSingleUse:
                 "/admin/login",
                 data={
                     "username": "admin",
-                    "password": "test-password",
+                    "password": TEST_PASSWORD,
                 },
             )
             response1 = client.post(
@@ -214,7 +215,7 @@ class TestBackupCodeSingleUse:
                 "/admin/login",
                 data={
                     "username": "admin",
-                    "password": "test-password",
+                    "password": TEST_PASSWORD,
                 },
             )
             response2 = client.post(

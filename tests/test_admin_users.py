@@ -1,4 +1,5 @@
 from app.models import User
+from tests.conftest import TEST_PASSWORD
 
 
 def test_create_user_success(authenticated_client, db):
@@ -110,7 +111,7 @@ def test_make_owner(authenticated_client, db, admin_user):
     db.session.commit()
     response = authenticated_client.post(
         f"/admin/users/{new_owner.id}/make-owner",
-        data={"password": "test-password"},
+        data={"password": TEST_PASSWORD},
         follow_redirects=False,
     )
     assert response.status_code == 302
