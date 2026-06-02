@@ -35,6 +35,7 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     Matches the naming convention used by _generate_responsive_variants_local.
     """
     from PIL import Image
+    from app.extensions import db
     from app.storage import get_storage, LocalStorageBackend, S3StorageBackend
 
     storage = get_storage()
@@ -124,6 +125,8 @@ def generate_image_variants(self: Any, filename: str) -> bool:
     except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Image variant generation failed: %s", e)
         return False
+    finally:
+        db.session.remove()
 
 
 @shared_task(
@@ -140,6 +143,7 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
     Celery max_retries=3 controls task-level retries. Per-email retries are
     handled inside send_newsletter via NEWSLETTER_MAX_RETRY_ATTEMPTS (default 5).
     """
+    from app.config import NEWSLETTER_MAX_RETRY_ATTEMPTS
     from app.email import send_newsletter
     from app.extensions import db
     from app.models import Post, Subscriber
@@ -183,7 +187,9 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
             last_attempts = 0
             for post in posts:
                 if post is not None:
-                    post.newsletter_attempts = (post.newsletter_attempts or 0) + 1
+                    post.newsletter_attempts = min(
+                        (post.newsletter_attempts or 0) + 1, NEWSLETTER_MAX_RETRY_ATTEMPTS
+                    )
                     last_attempts = post.newsletter_attempts
             db.session.commit()
             logger.warning(

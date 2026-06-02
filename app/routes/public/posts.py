@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_SHARE_PLATFORMS = {"twitter", "facebook", "linkedin", "reddit", "hackernews", "link"}
 
+CLOCK_SKEW_TOLERANCE = 30
+
 
 def _safe_redirect_url() -> str:
     """Return a safe redirect URL, preventing open redirects via spoofed Referer header."""
@@ -118,7 +120,7 @@ def register_post_routes(public: Any) -> None:
         except (ValueError, TypeError):
             abort(403)
 
-        if time() > expires:
+        if time() > expires + CLOCK_SKEW_TOLERANCE:
             abort(410)
 
         message = f"{post_id}:{expires}"
