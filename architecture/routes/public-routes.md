@@ -127,6 +127,18 @@ Public routes serve the blog's public-facing pages.
 - **Route**: `GET /favicon.ico`
 - **Purpose**: Redirects to SVG favicon
 
+## Error Handlers (`app/routes/errors.py`)
+
+Registered as `app_errorhandler` on the `errors` blueprint, so they apply globally to all 404, 500, and 413 responses.
+
+| Code | Handler | Behavior |
+|------|---------|----------|
+| 404 | `not_found()` | Renders `404.html` with recent posts list; returns HTTP 404 |
+| 500 | `internal_error()` | Logs exception with request path, renders `500.html` with recent posts; returns HTTP 500 |
+| 413 | `handle_large_request()` | Flashes error message with `MAX_UPLOAD_SIZE` in MB, redirects to referrer or admin dashboard (POST only — flash/redirect) |
+
+**Shared helper:** `_get_recent_posts(limit)` fetches up to `limit` published posts for error page display. Catches `OperationalError`/`IntegrityError` and returns an empty list if the database is unavailable, so error pages still render gracefully.
+
 ## See Also
 - [RSS/Feeds](rss-feeds.md) - RSS, Atom, JSON feeds
 - [Admin Routes](admin-routes.md) - Admin dashboard routes
