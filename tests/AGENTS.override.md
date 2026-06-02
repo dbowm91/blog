@@ -32,7 +32,7 @@ Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config.
 
 ## Test Count
 
-Tests are organized across ~36 test files covering models, routes, API, search, security, and more. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get current count.
+Tests are organized across ~39 test files covering models, routes, API, search, security, and more. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get current count.
 
 ## Test Structure
 
@@ -57,7 +57,7 @@ tests/
     └── test_e2e.py          # Contains TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ```
 
-Note: There are ~36 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get exact count.
+Note: There are ~39 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get exact count.
 
 ## Key Fixtures
 
@@ -66,9 +66,10 @@ Note: There are ~36 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .
 - `db` - Database fixture
 - `admin_user` - Admin user fixture
 - `sample_post`, `sample_tag`, `sample_subscriber` - From conftest.py
-- `clean_analytics_cache` - From shared_fixtures.py
+- `clean_analytics_cache` - From shared_fixtures.py:17-24
 - `clean_db` - From benchmarks/conftest.py:52
-- `api_client` - From test_api.py
+- `api_client` - From conftest.py:120-130 (functionally identical to authenticated_client)
+- `mock_email` - From conftest.py:188-194 (combines mock_render + mock_smtp)
 
 ## Page View Buffer in Tests
 

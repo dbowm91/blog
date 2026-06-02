@@ -2,43 +2,31 @@
 
 ## Overview
 
-This module contains the consolidated architecture review plan and individual review findings.
+This module contains the consolidated architecture improvement plan.
 
 ## Plan Status
 
-**CONSOLIDATED PLAN CREATED** — All 9 module reviews consolidated into `plans/plan.md` (June 2, 2026). 69 action items organized into 6 parallelizable waves.
+**CONSOLIDATED PLAN ACTIVE** — 69 action items organized into 4 parallelizable waves (June 2, 2026, verified against codebase).
 
 ## Consolidated Plan
 
-`plans/plan.md` is the single source of truth for all pending architecture work. It consolidates items from:
-
-| Review File | Module |
-|-------------|--------|
-| `core_review.md` | Core (app factory, config, models) |
-| `routes_review.md` | Routes (admin, API, public, RSS) |
-| `services_review.md` | Services (backup, encryption, search, slug, tag, serialization) |
-| `tasks_review.md` | Tasks (Celery, APScheduler) |
-| `infrastructure_review.md` | Infrastructure (search, email, storage, webhooks) |
-| `frontend_review.md` | Frontend (templates, static assets, Vite) |
-| `deployment_review.md` | Deployment (Docker, CI/CD, nginx) |
-| `testing_review.md` | Testing (pytest, E2E, benchmarks) |
-| `overview_review.md` | Overview cross-reference |
-| `architecture_prune.md` | Stale item pruning recommendations |
+`plans/plan.md` is the single source of truth for all pending architecture work. All items have been verified against the actual codebase via subagent exploration.
 
 ## Wave Structure
 
 | Wave | Focus | Items | Can Parallelize |
 |------|-------|-------|-----------------|
-| 1 | Critical & High Source Fixes | 11 | Yes |
-| 2 | High & Medium Documentation Corrections | 10 | Yes |
-| 3 | Medium Source Code Fixes | 10 | Yes |
-| 4 | Medium Documentation Additions | 12 | Yes |
-| 5 | Low Source Improvements | 12 | Yes |
-| 6 | Low Documentation & Cleanup | 14 | Yes |
+| 1 | Source Code Fixes | 11 | Yes |
+| 2 | Documentation Corrections | 12 | Yes |
+| 3 | Source Code Improvements | 12 | Yes |
+| 4 | Documentation Additions | 34 | Yes |
 
-## Individual Review Files
+## Execution Notes
 
-The individual review files are preserved for historical reference and cross-referencing. They contain detailed findings (verified claims, discrepancies, missing documentation, potential bugs) that informed the consolidated plan.
+- All items within a wave are fully independent
+- Source code changes (Wave 1) should generally land before documentation referencing corrected code (Waves 2-4)
+- Each item includes file paths, line numbers, current code, and expected changes
+- Subagents can execute items autonomously with minimal research
 
 ## Maintenance Notes
 
