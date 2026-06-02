@@ -194,7 +194,6 @@ def mock_email(mock_render, mock_smtp):
     yield
 
 
-
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_uploads():
     """Clean up uploads directory after all tests in session."""

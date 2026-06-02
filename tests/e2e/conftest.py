@@ -92,6 +92,7 @@ def app_server(app, app_url):
     thread.start()
 
     import socket
+
     for _ in range(50):
         try:
             with socket.create_connection(("127.0.0.1", 5010), timeout=0.5):

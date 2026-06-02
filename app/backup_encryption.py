@@ -66,9 +66,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
         ValueError: If password is too short or salt is invalid
     """
     if len(password) < 12:
-        raise ValueError(
-            "BACKUP_ENCRYPTION_KEY must be at least 12 characters for encryption"
-        )
+        raise ValueError("BACKUP_ENCRYPTION_KEY must be at least 12 characters for encryption")
     if len(salt) != SALT_SIZE:
         raise ValueError(f"Salt must be exactly {SALT_SIZE} bytes")
 
@@ -116,9 +114,7 @@ def encrypt_backup(data: bytes, filename: str = "backup.db") -> bytes:
         key = _derive_key(BACKUP_ENCRYPTION_KEY, salt)
 
         # Encrypt using AES-256-GCM
-        cipher = Cipher(
-            algorithms.AES(key), modes.GCM(nonce), backend=default_backend()
-        )
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce), backend=default_backend())
         encryptor = cipher.encryptor()
         ciphertext = encryptor.update(data) + encryptor.finalize()
 
@@ -167,9 +163,7 @@ def decrypt_backup(data: bytes) -> bytes:
         key = _derive_key(BACKUP_ENCRYPTION_KEY, salt)
 
         # Decrypt using AES-256-GCM
-        cipher = Cipher(
-            algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend()
-        )
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend())
         decryptor = cipher.decryptor()
         plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 
