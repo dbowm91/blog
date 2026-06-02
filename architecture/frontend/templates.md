@@ -65,21 +65,32 @@ app/templates/
 
 ## Template Inheritance
 
+There are **3 standalone base templates**, each with its own `<!DOCTYPE html>` and full HTML skeleton. They do NOT extend each other.
+
 ```
-base.html                              # Public base template
-├── public/*.html (extends base.html)
-├── admin/base.html                    # Admin base (extends base.html)
-│   └── admin/*.html (extends admin/base.html)
-├── admin/login_base.html              # Auth pages base (extends base.html)
-│   ├── admin/login.html
-│   ├── admin/login_2fa.html
-│   ├── admin/forgot-password.html
-│   └── admin/reset-password.html
-└── email/base_email.html              # Email base (standalone)
-    ├── email/confirm.html
-    ├── email/newsletter.html
-    └── email/password_reset.html
+base.html                              # Standalone public base template
+└── public/*.html (extends base.html)
+
+admin/base.html                        # Standalone admin base template
+└── admin/*.html (extends admin/base.html)
+
+admin/login_base.html                  # Standalone auth pages base template
+├── admin/login.html
+├── admin/login_2fa.html
+├── admin/forgot-password.html
+└── admin/reset-password.html
+
+email/base_email.html                  # Standalone email base template
+├── email/confirm.html
+├── email/newsletter.html
+└── email/password_reset.html
 ```
+
+> **Note:** `admin/base.html` does NOT extend `base.html`. This creates
+> triple duplication of the HTML boilerplate (`<!DOCTYPE>`, `<head>`,
+> asset tags) across `base.html`, `admin/base.html`, and
+> `admin/login_base.html`. A shared partial or macro would reduce this
+> maintenance burden.
 
 ## Filters
 
