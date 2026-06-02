@@ -34,7 +34,10 @@ def get_encryption_key() -> bytes:
 
     key = key_source.encode("utf-8")
     if len(key) < KEY_SIZE:
-        key = key.ljust(KEY_SIZE, b"\x00")[:KEY_SIZE]
+        raise EncryptionError(
+            f"SECRET_KEY must be at least {KEY_SIZE} bytes ({KEY_SIZE * 8} bits) for AES-256. "
+            f"Got {len(key)} bytes. Use a longer key or generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'"
+        )
     return key[:KEY_SIZE]
 
 
