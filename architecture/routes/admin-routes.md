@@ -204,6 +204,7 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `GET /admin/backup/verify-all`
 - **Purpose**: Database backup/restore
 - **Features**: Compression, encryption (AES-256-GCM), integrity verification
+- **Verify endpoints return**: JSON with `valid` (boolean) and `message` (string) fields
 
 ## Analytics (`analytics.py`)
 
