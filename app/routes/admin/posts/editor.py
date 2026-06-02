@@ -101,7 +101,7 @@ def _commit_post_with_rollback(
         db.session.flush()
         if not sync_fts(post.id, post.title, post.body, post.summary, post.published):
             db.session.rollback()
-            raise Exception("FTS sync failed for post %d" % post.id)
+            raise Exception(f"FTS sync failed for post {post.id}")
         db.session.commit()
         return post.slug, True
     except IntegrityError as e:
@@ -115,7 +115,7 @@ def _commit_post_with_rollback(
         db.session.flush()
         if not sync_fts(post.id, post.title, post.body, post.summary, post.published):
             db.session.rollback()
-            raise Exception("FTS sync failed for post %d" % post.id)
+            raise Exception(f"FTS sync failed for post {post.id}")
         db.session.commit()
         return post.slug, False
 
