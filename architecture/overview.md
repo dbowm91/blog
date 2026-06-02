@@ -371,6 +371,8 @@ Webhook delivery includes Server-Side Request Forgery (SSRF) protection to preve
 | Static Assets | `app/static/` | JS modules (Vite-bundled), CSS, fonts, images |
 | Templates | `app/templates/` | Jinja2 templates (admin, public, email) |
 
+All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for content-hashed filenames and optional CDN prefix support. This includes `marked.min.js`, Prism JS/CSS, and all route-specific modules.
+
 **Deep Dive:** [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md)
 
 > **⚠️ Production Deployment Requirement:** The Vite build (`npm run build`) must be run before production deployment. The `manifest.json` file (generated at `app/static/dist/.vite/manifest.json`) must be present. If Vite build has not run, JavaScript assets will return hashed paths that do not exist, resulting in broken functionality.
