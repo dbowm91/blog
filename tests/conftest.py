@@ -98,7 +98,7 @@ def admin_user(db):
     if existing:
         return existing
     user = User(username="admin", email="admin@example.com", is_admin=True)
-    user.set_password("test-password")
+    user.set_password(os.environ["ADMIN_PASSWORD"])
     db.session.add(user)
     db.session.commit()
     return user

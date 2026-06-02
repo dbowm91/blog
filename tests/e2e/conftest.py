@@ -72,7 +72,7 @@ def app_server(app, app_url):
         from app.models import User
 
         admin = User(username="admin", is_admin=True)
-        admin.set_password("test-password")
+        admin.set_password(os.environ["ADMIN_PASSWORD"])
         db.session.add(admin)
         db.session.commit()
 
