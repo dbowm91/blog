@@ -111,6 +111,24 @@ Runs database backup asynchronously via `create_backup()`:
 
 **Non-Retry Behavior:** On failure, returns `False` without raising an exception or calling `self.retry()`. Backup failures are logged but do not trigger Celery retry, as the scheduler will attempt the next scheduled backup.
 
+### `_update_delivery_status` (helper)
+
+```python
+def _update_delivery_status(event: Any, db: Any) -> None:
+```
+
+Determines the final `delivery_status` of a `WebhookEvent` after individual webhooks complete. Called by `deliver_single_webhook_task` after each webhook finishes (success, HTTP error, or exhausted retries).
+
+**Logic (`app/tasks.py:318-347`):**
+1. Count enabled webhooks for the event's `event_type`
+2. If no enabled webhooks, set `delivery_status = None` and return
+3. If `successful_deliveries + failed_deliveries < total_count`, not all webhooks have finished — return without updating
+4. If all succeeded: `"delivered"`, `delivered = True`
+5. If all failed: `"failed"`, `delivered = False`
+6. Mixed results: `"partial_failure"`, `delivered = True`
+
+**Concurrency dependency:** This function must run with `--concurrency=1` on the `webhooks` queue. Multiple concurrent workers calling `db.session.commit()` on the same event simultaneously could cause lost updates to the delivery counters. The single-worker constraint ensures sequential updates to `successful_deliveries` and `failed_deliveries`.
+
 ## Error Handling
 
 | Task | Failure Behavior | Retry |
