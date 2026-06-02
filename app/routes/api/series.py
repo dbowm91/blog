@@ -50,20 +50,26 @@ def list_series() -> Any:
     """List all series.
 
     Query params:
+        page: Page number (default 1)
+        per_page: Items per page (default 20, max 100)
         include_posts: Include post list (true/false)
 
     Returns:
-        JSON with series array
+        JSON with series array and pagination info
     """
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 20, type=int), 100)
     include_posts = request.args.get("include_posts", "").lower() in ("true", "1", "yes")
 
     query = select(Series).options(joinedload(Series.posts)).order_by(Series.created_at.desc())
-    all_series = db.session.execute(query).scalars().unique().all()
+    pagination = db.paginate(query, page=page, per_page=per_page, error_out=False)
 
     return jsonify(
         {
-            "series": [_series_to_dict(s, include_posts=include_posts) for s in all_series],
-            "total": len(all_series),
+            "series": [_series_to_dict(s, include_posts=include_posts) for s in pagination.items],
+            "total": pagination.total,
+            "page": page,
+            "per_page": per_page,
         }
     )
 
