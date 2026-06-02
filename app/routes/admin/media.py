@@ -69,9 +69,6 @@ def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
     storage = get_storage()
     all_files = []
     for name in storage.list_files():
-        from app.storage import get_storage
-
-        storage = get_storage()
         if storage.exists(name):
             import os as _os
 
