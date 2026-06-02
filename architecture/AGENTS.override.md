@@ -60,3 +60,18 @@ The architecture doc at `architecture/testing/test-suite.md` has several issues:
 
 ### Python Version
 `scripts/dev.sh:11` requires Python >= 3.12. `Dockerfile:1` uses `python:3.12-slim`. Both are aligned at Python 3.12.
+
+## Architecture Review (June 2, 2026)
+
+**Completed:** Full architecture review of all 8 modules (core, routes, services, tasks, infrastructure, frontend, deployment, testing) plus stale item pruning.
+
+**Review Files:** `plans/*_review.md` (8 modules) and `plans/architecture_prune.md`
+
+**Key Discrepancies Found:**
+- docker.md: Line range for backup service wrong (119-137 vs 120-140)
+- security.md: X-Download-Options and X-Permitted-Cross-Domain-Policies headers missing from nginx
+- celery-tasks.md: generate_image_variants and run_backup_task claim retries but have NONE
+- webhooks.md: deliver_webhook_task line refs off by 5-6 lines
+- admin-routes.md: THEME_PRESETS (color schemes) confused with syntax themes (Prism)
+
+**Recommendation:** Run targeted fixes on 2 docs (docker.md, security.md) per `plans/architecture_prune.md`
