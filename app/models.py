@@ -28,7 +28,7 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     reset_token = db.Column(db.String(64), nullable=True, unique=True)
     reset_token_expires_at = db.Column(UTCDateTime, nullable=True)
-    failed_login_count = db.Column(db.Integer, default=0)
+    failed_login_count = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(UTCDateTime, nullable=True)
     totp_secret_encrypted = db.Column(db.String(256), nullable=True)
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
@@ -163,7 +163,7 @@ class Page(db.Model):  # type: ignore[name-defined]
         default=utc_now,
         onupdate=utc_now,
     )
-    published = db.Column(db.Boolean, default=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
 
     __table_args__ = (db.Index("ix_pages_published_slug", "published", "slug"),)
 
@@ -193,7 +193,7 @@ class Post(db.Model):  # type: ignore[name-defined]
         default=utc_now,
         onupdate=utc_now,
     )
-    published = db.Column(db.Boolean, default=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
     published_at = db.Column(UTCDateTime, nullable=True)
     scheduled_publish_at = db.Column(UTCDateTime, nullable=True)
     newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
