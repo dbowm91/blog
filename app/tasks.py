@@ -326,6 +326,20 @@ def _update_delivery_status(event: Any, db: Any) -> None:
     """Update the delivery_status field based on per-webhook delivery results."""
     from app.models import Webhook
 
+    concurrency = os.environ.get("CELERYD_CONCURRENCY")
+    if concurrency is not None:
+        try:
+            concurrency_int = int(concurrency)
+            if concurrency_int > 1:
+                logger.warning(
+                    "Celery concurrency is %d (>1). "
+                    "_update_delivery_status() uses in-memory state and may produce incorrect results. "
+                    "Use --concurrency=1 for webhook delivery workers.",
+                    concurrency_int,
+                )
+        except ValueError:
+            pass
+
     webhooks = (
         db.session.execute(select(Webhook).filter_by(enabled=True, event_type=event.event_type))
         .scalars()

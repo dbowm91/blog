@@ -27,8 +27,18 @@ export function initPrefetch() {
         }
     };
 
+    const ALLOWED_PROTOCOLS = ['http:', 'https:'];
+    const ALLOWED_SPECIAL = ['mailto:', 'tel:'];
+    const DANGEROUS_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:'];
+
+    const isAllowedUrl = (url) => {
+        if (ALLOWED_SPECIAL.some(p => url.startsWith(p))) return true;
+        if (DANGEROUS_PROTOCOLS.some(p => url.startsWith(p))) return false;
+        return ALLOWED_PROTOCOLS.some(p => url.startsWith(p));
+    };
+
     const queuePrefetch = (url) => {
-        if (prefetchedUrls.has(url) || url.startsWith('mailto:') || url.startsWith('tel:')) return;
+        if (prefetchedUrls.has(url) || !isAllowedUrl(url)) return;
         if (prefetchQueue.length >= MAX_QUEUE) return;
 
         prefetchedUrls.add(url);
