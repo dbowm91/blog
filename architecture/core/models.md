@@ -437,6 +437,14 @@ class ApiToken(db.Model):
     __repr__()  # Returns <ApiToken id={self.id} name={self.name!r}>
 ```
 
+## Known Issues
+
+### Nullable `published` Columns
+
+`Post.published` and `Page.published` are defined with `nullable=False` in the documentation above, but the actual database columns allow `NULL`. The SQLAlchemy `db.Column(db.Boolean, default=False)` declaration does **not** enforce `nullable=False` at the database level. This means queries filtering on `Post.published == True` silently exclude rows where `published` is `NULL`.
+
+This is addressed in Wave 1 items 1.2 and 1.3 of `plans/plan.md`.
+
 ## See Also
 - [App Factory](core/app-factory.md) - Application initialization
 - [Search](infrastructure/search.md) - FTS5 full-text search
