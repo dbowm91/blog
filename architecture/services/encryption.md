@@ -14,7 +14,7 @@ class EncryptionError(Exception):
     pass
 ```
 
-**Used by:** `app/services/encryption.py` functions (`encrypt_secret()`, `decrypt_secret()`) when the encryption key cannot be loaded from `SECRET_KEY` config or crypto operations fail.
+**Used by:** `app/services/encryption.py` functions (`encrypt()`, `decrypt()`) when the encryption key cannot be loaded from `SECRET_KEY` config or crypto operations fail.
 
 ### `WebhookEncryptionError` (`app/webhook_encryption.py:16-19`)
 
