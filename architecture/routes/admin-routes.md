@@ -236,6 +236,32 @@ Shared helper modules extracted from route files:
 
 All public functions are re-exported via `helpers/__init__.py` for backward compatibility.
 
+## Rate Limits
+
+Flask-Limiter enforces per-IP rate limits across all routes. Limits are applied via `@limiter.limit()` decorators on individual route handlers.
+
+| Endpoint | Limit | Key | Source |
+|----------|-------|-----|--------|
+| Admin login | 5/min | per-IP | `app/routes/admin/auth.py:33` |
+| 2FA login | 5/min | per-IP | `app/routes/admin/auth.py:154` |
+| Forgot password | 5/min | per-IP | `app/routes/admin/auth.py:341` |
+| Public browse | 60/min | per-IP | `app/routes/public/browse.py` |
+| Archive | 30/min | per-IP | `app/routes/public/browse.py:124` |
+| Search | 20/min | per-IP | `app/routes/public/browse.py:263` |
+| Subscribe | 10/min | per-IP | `app/routes/public/subscribe.py:56` |
+| Unsubscribe/confirm | 5/min | per-IP | `app/routes/public/subscribe.py:143,189` |
+| Comments | dual-key | per-IP + per-post | `app/routes/public/comments.py:78-79` |
+| API reads | 20/min | per-IP | `DEFAULT_LIMIT` in `app/routes/api/*.py` |
+| API writes | 10/min | per-IP | `WRITE_LIMIT` in `app/routes/api/*.py` |
+| Public posts | 60/min | per-IP | `app/routes/public/posts.py:47,156` |
+| Post search results | 30/min | per-IP | `app/routes/public/posts.py:102` |
+| Post share | 20/min | per-IP | `app/routes/public/posts.py:179` |
+| Sitemap/robots/health | 60/min | per-IP | `app/routes/public/meta.py` |
+
+Comment rate limits are configurable via `config.toml` (`comments.rate_limit_per_ip`, `comments.rate_limit_per_post`). Defaults: 5/min per-IP, 3/min per-post.
+
+Admin rate limits for API writes/reads are configured in `app/config.py:164-171` (`ADMIN_RATE_LIMITS`) but these are used by the `AdminRateLimiter` class, not the route-level decorators.
+
 ## See Also
 - [Public Routes](public-routes.md) - Public blog routes
 - [API Routes](api-routes.md) - REST API
