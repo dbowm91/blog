@@ -4,13 +4,9 @@
 
 This module contains the consolidated architecture improvement plan.
 
-## Plan Status
-
-**CONSOLIDATED PLAN ACTIVE** — 135 action items organized into 7 waves (69 completed in Waves 1-4, 66 pending in Waves 5-7).
-
 ## Consolidated Plan
 
-`plans/plan.md` is the single source of truth for all pending architecture work. All items have been verified against the actual codebase via subagent exploration.
+`plans/plan.md` is the single source of truth for all pending architecture work. Items have been verified against the actual codebase.
 
 ## Wave Structure
 
@@ -31,19 +27,6 @@ This module contains the consolidated architecture improvement plan.
 - Each item includes file paths, line numbers, current code, and expected changes
 - Subagents can execute items autonomously with minimal research
 - Recommended batch size: 4-6 subagents per wave
-
-## Review File Sources
-
-The pending items in Waves 5-7 were consolidated from 9 review files:
-- `architecture_prune.md` - Stale item pruning recommendations
-- `testing_review.md` - Testing architecture review findings
-- `deployment_review.md` - Deployment architecture review findings
-- `frontend_review.md` - Frontend architecture review findings
-- `infrastructure_review.md` - Infrastructure architecture review findings
-- `tasks_review.md` - Tasks/Celery architecture review findings
-- `services_review.md` - Services architecture review findings
-- `routes_review.md` - Routes architecture review findings
-- `core_review.md` - Core app architecture review findings
 
 ## Maintenance Notes
 

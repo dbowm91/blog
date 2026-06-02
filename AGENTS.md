@@ -235,24 +235,9 @@ CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:2
 
 ## Additional Notes for Future Agents
 
-### Review File Consolidation
-
-When consolidating review files (e.g., `*_review.md` in `plans/`):
-- Use subagents to read files in batches of 4-5 to avoid context compaction
-- Each subagent should consolidate 4-5 review files to a single output
-- Then consolidate the subagent outputs into the main plan
-- Always verify plan items against actual codebase line numbers before finalizing
-
 ### Line Number References in Documentation
 
 Line number references in architecture documentation drift over time. Prefer symbolic references (function names, class names) over exact line numbers when possible. When line numbers are required, verify against current codebase before publishing.
-
-### Plan Structure
-
-Plans in `plans/plan.md` are organized into waves for parallelization:
-- Items within a wave are fully independent and can be executed concurrently
-- Source code changes should land before documentation that references corrected code
-- Use 4-6 subagents per wave to avoid overwhelming the system
 
 For detailed implementation history, deprecated features, actual route corrections, test interference notes, encryption module details, task line numbers, and other maintainer context, see:
 
