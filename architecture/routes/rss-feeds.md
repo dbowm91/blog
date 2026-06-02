@@ -233,7 +233,7 @@ Series feeds filter posts by series slug, providing the same three formats as th
 
 Two layers of caching:
 - **Server-side cache**: 5 minutes via Flask-Caching (TTL 300s)
-- **HTTP Cache-Control**: `public, max-age=3600` (1 hour) set in `app/routes/rss.py:98`
+- **HTTP Cache-Control**: `public, max-age=3600` (1 hour) set in `app/routes/rss.py:90`
 
 ## See Also
 - [Public Routes](public-routes.md) - Public blog routes
