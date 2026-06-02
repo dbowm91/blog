@@ -41,17 +41,18 @@ def _get_encryption_key() -> bytes:
 
     key = key_source.encode("utf-8")
 
+    if len(key) == KEY_SIZE:
+        return key
+
     if len(key) == 64:
         try:
             return binascii.unhexlify(key)
         except (binascii.Error, ValueError) as e:
             raise WebhookEncryptionError(f"WEBHOOK_ENCRYPTION_KEY is not valid hex: {e}")
 
-    if len(key) != KEY_SIZE:
-        raise WebhookEncryptionError(
-            f"WEBHOOK_ENCRYPTION_KEY must be {KEY_SIZE} bytes or 64 hex characters"
-        )
-    return key
+    raise WebhookEncryptionError(
+        f"WEBHOOK_ENCRYPTION_KEY must be {KEY_SIZE} bytes or 64 hex characters"
+    )
 
 
 def encrypt_webhook_secret(plaintext: str) -> str:

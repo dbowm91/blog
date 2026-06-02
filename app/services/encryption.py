@@ -1,11 +1,19 @@
 """AES-256-GCM encryption for sensitive data at rest."""
 
+from __future__ import annotations
+
 import binascii
 import base64
 import os
 import logging
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    CRYPTOGRAPHY_AVAILABLE = True
+except ImportError:
+    CRYPTOGRAPHY_AVAILABLE = False
+    AESGCM = None
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +42,10 @@ def get_encryption_key() -> bytes:
 
     key = key_source.encode("utf-8")
     if len(key) < KEY_SIZE:
-        key = key.ljust(KEY_SIZE, b"\x00")[:KEY_SIZE]
+        raise EncryptionError(
+            f"SECRET_KEY must be at least {KEY_SIZE} bytes ({KEY_SIZE * 8} bits) for AES-256. "
+            f"Got {len(key)} bytes. Use a longer key or generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'"
+        )
     return key[:KEY_SIZE]
 
 
@@ -50,6 +61,11 @@ def encrypt(plaintext: str) -> str:
     Raises:
         EncryptionError: If encryption fails.
     """
+    if not CRYPTOGRAPHY_AVAILABLE:
+        raise EncryptionError(
+            "cryptography library is not available. Install with: pip install cryptography"
+        )
+
     if not plaintext:
         return ""
 
@@ -78,6 +94,11 @@ def decrypt(encrypted: str) -> str:
     Raises:
         EncryptionError: If decryption fails.
     """
+    if not CRYPTOGRAPHY_AVAILABLE:
+        raise EncryptionError(
+            "cryptography library is not available. Install with: pip install cryptography"
+        )
+
     if not encrypted:
         return ""
 

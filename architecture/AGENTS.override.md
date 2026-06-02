@@ -60,3 +60,4 @@ The architecture doc at `architecture/testing/test-suite.md` has several issues:
 
 ### Python Version
 `scripts/dev.sh:11` requires Python >= 3.12. `Dockerfile:1` uses `python:3.12-slim`. Both are aligned at Python 3.12.
+

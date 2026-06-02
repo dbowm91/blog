@@ -352,7 +352,7 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
 
     @classmethod
     def get_instance(cls) -> "SiteSettings":
-        instance = db.session.get(cls, 1)
+        instance = cls.query.filter_by(id=1).with_for_update().first()
         if instance is None:
             instance = cls()
             db.session.add(instance)

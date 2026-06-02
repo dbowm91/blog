@@ -215,25 +215,29 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 ### Post/Page Published Nullable Columns
 
-`Post.published` and `Page.published` at `app/models.py:196,166` now have `nullable=False` (fixed in Wave 1 items 1.2, 1.3). The database columns no longer allow NULL.
+`Post.published` and `Page.published` at `app/models.py:196,166` have `nullable=False`. The database columns no longer allow NULL.
 
 ### User.failed_login_count Nullable
 
-`User.failed_login_count` at `app/models.py:31` now has `nullable=False` (fixed in Wave 1 item 1.4).
+`User.failed_login_count` at `app/models.py:31` has `nullable=False`.
 
 ### CSRF Applies to All POSTs Including API
 
-CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:297-298`, including API endpoints. API clients using `ApiToken` (Bearer token) don't have Flask sessions with CSRF tokens, so POST requests would get 403. This is a known design choice documented in `plans/plan.md` (Wave 2 item 2.12).
+CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:297-298`, including API endpoints. API clients using `ApiToken` (Bearer token) don't have Flask sessions with CSRF tokens, so POST requests would get 403. This is a known design choice.
 
-### Benchmark Tests Missing Celery Eager Config
+### Benchmark Tests Celery Eager Config
 
-`tests/benchmarks/conftest.py` now configures `task_always_eager=True` (fixed in Wave 1 item 1.7).
+`tests/benchmarks/conftest.py` configures `task_always_eager=True` for benchmark tests.
 
-### SiteSettings.get_instance() Unconditional Commit
+### SiteSettings.get_instance() Flush Side Effect
 
-`SiteSettings.get_instance()` at `app/models.py:359` does `db.session.commit()` unconditionally when creating a new instance. If called within a session that has other uncommitted changes, those changes are committed as a side effect.
+`SiteSettings.get_instance()` at `app/models.py:359` does `db.session.flush()` when creating a new instance. If called within a session that has other uncommitted changes, those changes are flushed (but not committed) as a side effect. Use `db.session.merge()` or `SELECT FOR UPDATE` to avoid this.
 
-## Historical Implementation Caveats
+## Additional Notes for Future Agents
+
+### Line Number References in Documentation
+
+Line number references in architecture documentation drift over time. Prefer symbolic references (function names, class names) over exact line numbers when possible. When line numbers are required, verify against current codebase before publishing.
 
 For detailed implementation history, deprecated features, actual route corrections, test interference notes, encryption module details, task line numbers, and other maintainer context, see:
 
