@@ -229,10 +229,6 @@ CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:2
 
 `tests/benchmarks/conftest.py` does NOT configure `task_always_eager=True`, unlike `tests/conftest.py` and `tests/e2e/conftest.py`. Celery tasks triggered during benchmarks would go to a real broker. Fix pending in `plans/plan.md` (Wave 1 item 1.7).
 
-### _invalidate_all_caches() Dead Code
-
-`_invalidate_all_caches()` at `app/routes/admin/__init__.py:62-76` is defined but never called anywhere. Individual caches are invalidated separately in route handlers via direct function calls. Removal pending in `plans/plan.md` (Wave 1 item 1.1).
-
 ### SiteSettings.get_instance() Unconditional Commit
 
 `SiteSettings.get_instance()` at `app/models.py:359` does `db.session.commit()` unconditionally when creating a new instance. If called within a session that has other uncommitted changes, those changes are committed as a side effect.

@@ -106,10 +106,6 @@ The `nh3.clean()` allowed tags/attributes are defined in `app/markdown_config.py
 
 Always use `.options(joinedload(PostRevision.author))` when querying revisions to avoid N+1 queries in templates that display the author.
 
-## Cache Invalidation
-
-`_invalidate_all_caches()` in `__init__.py` invalidates tag, FTS, analytics, dashboard, and footer caches.
-
 ## Scheduled Post Notifications
 
 Dashboard widgets show scheduled posts count: `scheduled_posts_count` added to dashboard metrics.
