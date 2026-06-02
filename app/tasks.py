@@ -191,6 +191,7 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
                 len(posts),
                 last_attempts,
             )
+            self.retry()
 
         return success
     finally:
