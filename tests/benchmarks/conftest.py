@@ -32,6 +32,13 @@ def app(tmp_path_factory):
         }
     )
 
+    from celery import current_app as celery_app
+
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+    )
+
     yield app
 
 
