@@ -191,7 +191,7 @@ Prism CSS is loaded via `data-prism-css-url` attribute which templates set using
 
 ### Prism Loading
 
-Prism JS is loaded dynamically via `loadPrismIfNeeded()` in `main.js` when code blocks exist. Prism CSS uses `data-prism-css-url` attribute for theme selection.
+Prism JS is loaded dynamically via `loadPrismIfNeeded()` in `main.js` when code blocks exist. Prism CSS and JS URLs are read from `data-prism-css-url`, `data-prism-js-url`, and `data-prism-langs-url` attributes on script tags, which use `vite_asset()` for theme selection.
 
 ### Admin Prism CSS Theme
 
@@ -199,7 +199,7 @@ Prism JS is loaded dynamically via `loadPrismIfNeeded()` in `main.js` when code 
 
 ### Test Password Standardization
 
-All tests use `"test-password"` (with hyphen) to match the `ADMIN_PASSWORD` env var set in `tests/conftest.py`.
+All tests use `os.environ["ADMIN_PASSWORD"]` to stay in sync with the environment variable. The `ADMIN_PASSWORD` env var must be set when running tests.
 
 ### Shared Test Fixtures Location
 
@@ -215,11 +215,11 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 ### Post/Page Published Nullable Columns
 
-`Post.published` and `Page.published` at `app/models.py:196,166` use `db.Column(db.Boolean, default=False)` without `nullable=False`. The database columns allow NULL, which means queries filtering on `Post.published == True` silently exclude rows where `published` is NULL. Fix pending in `plans/plan.md` (Wave 1 items 1.2, 1.3).
+`Post.published` and `Page.published` at `app/models.py:196,166` now have `nullable=False` (fixed in Wave 1 items 1.2, 1.3). The database columns no longer allow NULL.
 
 ### User.failed_login_count Nullable
 
-`User.failed_login_count` at `app/models.py:31` uses `db.Column(db.Integer, default=0)` without `nullable=False`. The `record_failed_login()` method does `self.failed_login_count += 1` which would TypeError on NULL from legacy data. Fix pending in `plans/plan.md` (Wave 1 item 1.4).
+`User.failed_login_count` at `app/models.py:31` now has `nullable=False` (fixed in Wave 1 item 1.4).
 
 ### CSRF Applies to All POSTs Including API
 
@@ -227,7 +227,7 @@ CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:2
 
 ### Benchmark Tests Missing Celery Eager Config
 
-`tests/benchmarks/conftest.py` does NOT configure `task_always_eager=True`, unlike `tests/conftest.py` and `tests/e2e/conftest.py`. Celery tasks triggered during benchmarks would go to a real broker. Fix pending in `plans/plan.md` (Wave 1 item 1.7).
+`tests/benchmarks/conftest.py` now configures `task_always_eager=True` (fixed in Wave 1 item 1.7).
 
 ### SiteSettings.get_instance() Unconditional Commit
 
