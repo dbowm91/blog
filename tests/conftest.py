@@ -199,10 +199,11 @@ def cleanup_uploads():
     """Clean up uploads directory after all tests in session."""
     yield
     upload_folder = os.path.join(os.path.dirname(__file__), "..", "app", "static", "uploads")
-    if os.path.exists(upload_folder):
-        for item in os.listdir(upload_folder):
-            item_path = os.path.join(upload_folder, item)
-            if os.path.isfile(item_path):
-                os.remove(item_path)
-            elif os.path.isdir(item_path):
-                shutil.rmtree(item_path)
+    if not os.path.isdir(upload_folder):
+        return
+    for item in os.listdir(upload_folder):
+        item_path = os.path.join(upload_folder, item)
+        if os.path.isfile(item_path):
+            os.remove(item_path)
+        elif os.path.isdir(item_path):
+            shutil.rmtree(item_path)
