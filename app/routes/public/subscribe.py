@@ -201,7 +201,12 @@ def register_subscribe_routes(public):
         sub_email = sub.email
         sub.unsubscribed_at = utc_now()
         sub.confirmed = False
-        db.session.commit()
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            flash("An error occurred. Please try again.", "error")
+            return redirect("/")
         logger.info("Unsubscribed: email=%s", sub_email)
         flash("You have been unsubscribed.", "success")
         return redirect("/")

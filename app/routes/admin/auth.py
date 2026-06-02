@@ -270,9 +270,7 @@ def setup_2fa() -> Any:
         abort(404)
 
     if request.method == "POST":
-        token = request.form.get("token", "").strip()
-        secret = user.totp_secret
-        if secret and pyotp.TOTP(secret).verify(token):
+        if user.totp_enabled:
             flash("2FA is already enabled.", "info")
             return redirect(url_for("admin.dashboard"))
 

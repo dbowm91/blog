@@ -66,9 +66,7 @@ def create_backup(
 
         if encrypt:
             if not _encrypt_backup_file(backup_path):
-                logger.warning(
-                    "Backup encryption failed, proceeding without encryption"
-                )
+                logger.warning("Backup encryption failed, proceeding without encryption")
         elif compress:
             tmp_path = backup_path + ".tmp"
             try:
@@ -100,19 +98,25 @@ def _encrypt_backup_file(filepath: str) -> bool:
 
     Requires BACKUP_ENCRYPTION_KEY environment variable.
     """
+    from app.backup_encryption import encrypt_backup_file, is_encryption_available
+
+    if not is_encryption_available():
+        logger.warning(
+            "BACKUP_ENCRYPTION_KEY is set but encryption is not available (cryptography library missing or key invalid)"
+        )
+        return False
+
+    tmp_path = filepath + ".enc.tmp"
     try:
-        from app.backup_encryption import encrypt_backup_file, is_encryption_available
-
-        if not is_encryption_available():
-            logger.warning(
-                "BACKUP_ENCRYPTION_KEY is set but encryption is not available (cryptography library missing or key invalid)"
-            )
-            return False
-
-        return encrypt_backup_file(filepath, filepath)
+        encrypt_backup_file(filepath, tmp_path)
+        os.replace(tmp_path, filepath)
+        return True
     except (OSError, ValueError, RuntimeError, SQLAlchemyError) as e:
         logger.error("Encryption error for %s: %s", filepath, e)
         return False
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def decrypt_backup_file(input_path: str, output_path: Optional[str] = None) -> bool:
@@ -192,9 +196,7 @@ def run_daily_backup(app: Any) -> None:
     app.logger.info("Created backup: %s", backup_filename)
 
     backup_pattern = os.path.join(backup_dir, "blog_*.db")
-    backups = sorted(
-        glob_module.glob(backup_pattern), key=os.path.getmtime, reverse=True
-    )
+    backups = sorted(glob_module.glob(backup_pattern), key=os.path.getmtime, reverse=True)
 
     retention = BACKUP_RETENTION_COUNT
     for old_backup in backups[retention:]:
