@@ -8,12 +8,16 @@ __all__ = ["celery_app", "init_celery"]
 
 def init_celery(app: Flask | None = None) -> Celery:
     """Initialize Celery with Flask app context."""
-    from app.config import REDIS_URL
+    import os
+
+    broker_url = os.environ.get("CELERY_BROKER_URL") or os.environ.get(
+        "REDIS_URL", "redis://localhost:6379/0"
+    )
 
     celery_app = Celery(
         "blog",
-        broker=REDIS_URL,
-        backend=REDIS_URL,
+        broker=broker_url,
+        backend=broker_url,
         include=["app.tasks"],
     )
 

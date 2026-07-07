@@ -74,6 +74,21 @@ fi
 # Create required directories
 mkdir -p instance logs app/static/uploads
 
+# Create config.toml from example if it doesn't exist
+if [ ! -f "config.toml" ] && [ -f "config.toml.example" ]; then
+    cp config.toml.example config.toml
+    echo "Created config.toml from config.toml.example."
+    echo "Review config.toml and adjust settings as needed."
+fi
+
+# Source .env so variables are available in the current shell
+if [ -f ".env" ]; then
+    set -a
+    source .env
+    set +a
+    echo "Environment variables loaded from .env."
+fi
+
 echo ""
 echo "=== Setup Complete ==="
 echo ""
@@ -84,7 +99,6 @@ else
 fi
 echo ""
 echo "To start the application:"
-echo "  source venv/bin/activate"
 echo "  python run.py"
 echo ""
 echo "Visit http://localhost:5000"

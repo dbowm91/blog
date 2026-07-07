@@ -55,6 +55,22 @@ config = {}
 | 2 | config.toml | `posts_per_page = 10` |
 | 3 | Default value | `SESSION_LIFETIME_HOURS = 24` |
 
+### _env_str Helper
+
+`app/config.py:_env_str(key, default="")` reads environment variables and treats empty strings as unset (returns default). Used for env vars where an empty value should fall through to the next option.
+
+### Env Var Fallback Chains
+
+Some settings support multiple env var names with fallback logic:
+
+| Setting | Primary Env Var | Fallback Env Var | Default |
+|---------|----------------|------------------|---------|
+| Database URI | `SQLALCHEMY_DATABASE_URI` | `DATABASE_URL` | SQLite (`instance/blog.db`) |
+| Cache Redis | `CACHE_REDIS_URL` | `REDIS_URL` | `redis://localhost:6379/0` |
+| Celery broker | `CELERY_BROKER_URL` | `REDIS_URL` | `redis://localhost:6379/0` |
+
+This allows standard env var names (`DATABASE_URL`, `CELERY_BROKER_URL`) from platforms like Heroku/Railway to work without additional configuration.
+
 ## Key Settings
 
 ### Application Settings
@@ -132,7 +148,14 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 |----------|---------|---------|-------------|
 | `REDIS_URL` | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
 | `RATE_LIMIT_STORAGE_URI` | `RATE_LIMIT_STORAGE_URI` | `memory://` (dev) | Rate limit storage |
-| `CACHE_REDIS_URL` | `CACHE_REDIS_URL` | `redis://localhost:6379/0` | Cache storage |
+| `CACHE_REDIS_URL` | `CACHE_REDIS_URL` (falls back to `REDIS_URL`) | `redis://localhost:6379/0` | Cache storage |
+| `CELERY_BROKER_URL` | `CELERY_BROKER_URL` (falls back to `REDIS_URL`) | `redis://localhost:6379/0` | Celery broker/backend |
+
+### Database Settings
+
+| Variable | Env Var | Default | Description |
+|----------|---------|---------|-------------|
+| `SQLALCHEMY_DATABASE_URI` | `SQLALCHEMY_DATABASE_URI` (or `DATABASE_URL`) | `sqlite:///instance/blog.db` | Database connection URI |
 
 ### Security Settings
 

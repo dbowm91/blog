@@ -233,6 +233,24 @@ CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:2
 
 `SiteSettings.get_instance()` at `app/models.py:359` does `db.session.flush()` when creating a new instance. If called within a session that has other uncommitted changes, those changes are flushed (but not committed) as a side effect. Use `db.session.merge()` or `SELECT FOR UPDATE` to avoid this.
 
+### _env_str Helper
+
+`app/config.py:_env_str(key, default="")` reads env vars and treats empty strings as unset (returns default). Use this instead of `os.environ.get()` when empty-string-means-unset is desired.
+
+### Env Var Fallback Chains
+
+Database URI: `SQLALCHEMY_DATABASE_URI` → `DATABASE_URL` → SQLite default.
+Cache Redis: `CACHE_REDIS_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
+Celery broker: `CELERY_BROKER_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
+
+### config.toml.example
+
+`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. The real `config.toml` is not gitignored.
+
+### setup.sh Behavior
+
+`setup.sh` creates a venv, installs deps, generates `.env` (if missing), copies `config.toml` from template, then sources `.env`. It does NOT start the server — the final message tells the user to run `python run.py`.
+
 ## Additional Notes for Future Agents
 
 ### Line Number References in Documentation

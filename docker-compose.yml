@@ -21,10 +21,10 @@ services:
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}  # String "true" is truthy in Flask
       # Redis for Celery broker and Flask-Caching
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      # Flask-Caching (defaults to redis://localhost:6379/0, override if needed)
-      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-}
-      # Celery configuration (uses REDIS_URL if not set)
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-}
+      # Flask-Caching (defaults to REDIS_URL, override if needed)
+      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-redis://redis:6379/0}
+      # Celery configuration (defaults to REDIS_URL, override if needed)
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
       # Health check endpoint secret (optional, for detailed health info)
       - HEALTH_CHECK_SECRET=${HEALTH_CHECK_SECRET:-}
       # API key for REST API authentication

@@ -34,6 +34,7 @@ from app.config import (
     ADMIN_PASSWORD,
     SESSION_LIFETIME_HOURS,
     MAX_UPLOAD_SIZE,
+    _env_str,
 )
 from app.csrf import validate_csrf_token
 
@@ -170,8 +171,9 @@ def create_app() -> Flask:
     app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "static", "uploads")
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    if "SQLALCHEMY_DATABASE_URI" in os.environ:
-        app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["SQLALCHEMY_DATABASE_URI"]
+    db_uri = _env_str("SQLALCHEMY_DATABASE_URI") or _env_str("DATABASE_URL")
+    if db_uri:
+        app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     else:
         db_path = os.path.join(app.instance_path, "blog.db")
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
@@ -219,9 +221,12 @@ def create_app() -> Flask:
 
     limiter.init_app(app)
     if os.environ.get("FLASK_ENV") == "production":
+        cache_redis_url = _env_str("CACHE_REDIS_URL") or _env_str(
+            "REDIS_URL", "redis://localhost:6379/0"
+        )
         cache_config = {
             "CACHE_TYPE": "RedisCache",
-            "CACHE_REDIS_URL": os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/0"),
+            "CACHE_REDIS_URL": cache_redis_url,
             "CACHE_DEFAULT_TIMEOUT": 300,
             "CACHE_KEY_PREFIX": "blog_",
         }

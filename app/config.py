@@ -71,6 +71,14 @@ def _env(key: str, default: Any = None) -> Any:
     return default
 
 
+def _env_str(key: str, default: str = "") -> str:
+    """Get a string environment variable, treating empty strings as unset."""
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    return value
+
+
 def load_config() -> dict[str, Any]:
     """Load configuration from TOML file."""
     config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")

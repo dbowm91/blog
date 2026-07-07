@@ -54,9 +54,10 @@ Get from zero to a running blog in 5 minutes.
 git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 ./setup.sh
+python run.py
 ```
 
-This creates a virtual environment, generates secure credentials, and starts the dev server.
+This creates a virtual environment, generates secure credentials, and loads the `.env` file. Then starts the dev server.
 
 ### 2. Access Your Blog
 
@@ -185,8 +186,9 @@ Click **Preview** to see how your post will look with theme styling.
 | `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
 | `SMTP_USER` | No | SMTP username |
 | `SMTP_PASSWORD` | No | SMTP password |
-| `SESSION_COOKIE_SECURE` | No | Require HTTPS (default: `true`) |
+| `SESSION_COOKIE_SECURE` | No | Require HTTPS for cookies. Set `false` for local HTTP (default: `true`) |
 | `API_KEY` | No | REST API authentication |
+| `DATABASE_URL` | No | PostgreSQL connection string (overrides SQLite) |
 
 ### CLI Commands
 
