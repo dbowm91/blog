@@ -74,7 +74,7 @@ BACKUP_FILENAME_RE = re.compile(r"^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$")
 ```
 
 This validation is applied at:
-- `app/routes/admin/backup.py:95`
-- `app/routes/admin/backup.py:120`
-- `app/routes/admin/backup.py:182`
-- `app/routes/admin/backup.py:213`
+- `app/routes/admin/backup.py:92`
+- `app/routes/admin/backup.py:117`
+- `app/routes/admin/backup.py:180`
+- `app/routes/admin/backup.py:211`

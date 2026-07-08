@@ -93,7 +93,7 @@ Backups must match pattern `blog_\d{8}_\d{6}\.db(\.gz)?` to prevent path travers
 The regex `BACKUP_FILENAME_RE` in `app/routes/admin/helpers/shared.py` validates all backup filenames.
 
 **Locations:**
-- `app/routes/admin/backup.py:95`
-- `app/routes/admin/backup.py:120`
-- `app/routes/admin/backup.py:182`
-- `app/routes/admin/backup.py:213`
+- `app/routes/admin/backup.py:92`
+- `app/routes/admin/backup.py:117`
+- `app/routes/admin/backup.py:180`
+- `app/routes/admin/backup.py:211`

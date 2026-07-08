@@ -18,10 +18,11 @@ Sends newsletter emails to confirmed subscribers.
 
 **Configuration**: `NEWSLETTER_MAX_RETRY_ATTEMPTS` (default: 5)
 
-The task increments `post.newsletter_attempts` on failure rather than using Celery's built-in retry mechanism. This provides:
-- Predictable retry behavior across restarts
-- Persistent retry state in the database
-- No task duplication on worker crashes
+The task uses a dual retry mechanism:
+1. **Celery-level retries**: `max_retries=3` with exponential backoff for transient failures
+2. **Post-level tracking**: On failure, increments `post.newsletter_attempts` to prevent retrying exhausted posts across scheduler runs
+
+This provides predictable retry behavior across restarts, persistent retry state in the database, and task duplication prevention on worker crashes.
 
 **Important**: Email wrapper tasks (`send_confirmation_task`, `send_password_reset_task`) catch exceptions and return `False`, making `max_retries` ineffective. See [Email Wrapper Task Pattern](../infrastructure/email.md) for details.
 
@@ -64,7 +65,7 @@ Delivers webhook events to registered endpoints with:
 
 ### `run_backup_task`
 
-Creates compressed database backups asynchronously. Runs with `max_retries=2`.
+Creates compressed database backups asynchronously. No retries on failure (backup scheduler will attempt next scheduled backup).
 
 ## Image Variant Generation
 
