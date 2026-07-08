@@ -59,7 +59,7 @@ def _get_cached_media_list(
             ]
             return files
         return [
-            {"name": str(f["name"]), "size": int(f["size"]), "mtime": f["mtime"]} for f in all_files
+            {"name": str(f["name"]), "size": f["size"], "mtime": f["mtime"]} for f in all_files
         ]
 
 
@@ -67,28 +67,17 @@ def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
     from app.storage import get_storage
 
     storage = get_storage()
-    all_files = []
-    for name in storage.list_files():
-        if storage.exists(name):
-            import os as _os
-
-            path = storage.path(name)
-            try:
-                stat = _os.stat(path)
-                file_info = (
-                    stat.st_mtime,
-                    name,
-                    stat.st_size,
-                )
-                all_files.append(file_info)
-            except OSError:
-                continue
+    file_infos = storage.list_file_info()
+    all_files = [
+        (fi.mtime or datetime.min.replace(tzinfo=timezone.utc), fi.name, fi.size)
+        for fi in file_infos
+    ]
     all_files = heapq.nlargest(MEDIA_MAX_FILES, all_files, key=lambda f: f[0])
     return [
         {
             "name": f[1],
             "size": f[2],
-            "mtime": datetime.fromtimestamp(f[0], tz=timezone.utc),
+            "mtime": f[0],
         }
         for f in all_files
     ]

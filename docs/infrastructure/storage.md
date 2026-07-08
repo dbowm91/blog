@@ -1,5 +1,14 @@
 # Storage Infrastructure
 
+## Stability Status
+
+| Backend | Status | Notes |
+|---------|--------|-------|
+| LocalStorageBackend | **Stable** | Default, fully tested |
+| S3StorageBackend | **Experimental** | Requires boto3; not CI-tested |
+
+S3 storage is functional but marked experimental for the initial release. The admin media listing now works with both backends via `list_file_info()`.
+
 ## Image Storage Backend
 
 The blog uses a pluggable storage backend system for handling media uploads:

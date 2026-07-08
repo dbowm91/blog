@@ -31,13 +31,13 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 - **Newsletter** — Send newsletters to confirmed subscribers with retry logic
 - **Feeds** — RSS 2.0, Atom 1.0, and JSON Feed 1.1 endpoints
 - **Tags & Series** — Organize posts with tags and multi-part series
-- **Full-Text Search** — FTS5-powered search with snippets
+- **Full-Text Search** — SQLite FTS5-powered search with snippets
 - **REST API** — Manage posts, pages, tags, subscribers, and series via API
 - **2FA** — TOTP-based two-factor authentication for admin accounts
 - **Backups** — Encrypted (AES-256-GCM) and compressed backups with restore
 - **Theming** — CSS custom properties with theme presets (GitHub Dark/Light, Solarized, Monokai)
 - **Analytics** — Page views, referrers, and share tracking
-- **Media Library** — Upload and manage images with S3 or local storage
+- **Media Library** — Upload and manage images with local storage (S3 support is experimental)
 - **Static Pages** — Create standalone pages at custom slugs
 - **Comments** — Moderated comments with spam filtering
 - **Security** — CSRF protection, rate limiting, security headers, session IP binding
@@ -213,7 +213,7 @@ Click **Preview** to see how your post will look with theme styling.
 | `SMTP_PASSWORD` | No | SMTP password |
 | `SESSION_COOKIE_SECURE` | No | Require HTTPS for cookies. Set `false` for local HTTP (default: `true`) |
 | `API_KEY` | No | REST API authentication |
-| `DATABASE_URL` | No | PostgreSQL connection string (overrides SQLite) |
+| `DATABASE_URL` | No | PostgreSQL connection string (experimental, overrides SQLite) |
 
 ### CLI Commands
 

@@ -65,6 +65,19 @@ The app listens on `0.0.0.0:5000` by default.
 
 ---
 
+## Support Matrix
+
+| Feature | Stable | Experimental | Notes |
+|---------|--------|--------------|-------|
+| SQLite with WAL | Yes | No | Default single-server database |
+| PostgreSQL | No | Yes | Not fully tested in CI; migration path exists but search uses FTS5 fallback |
+| Local filesystem media | Yes | No | Default media backend |
+| S3-compatible media | No | Yes | Requires boto3; admin media listing works but not CI-tested |
+| Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
+| Celery + Redis (async tasks) | Yes | No | Newsletter, webhooks, image variants |
+
+---
+
 ## 3. Environment Variables
 
 Environment variables override `config.toml` settings. **Required** variables must be set at runtime.
@@ -86,7 +99,7 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | `SESSION_COOKIE_SECURE` | `true` | Require HTTPS for session cookies. Set `false` only for local HTTP development |
 | `PROXY_COUNT` | `1` | Number of reverse proxies in front of the app. Set `0` to disable `ProxyFix` |
 | `API_KEY` | — | REST API authentication key. Generate: `python3 -c 'import secrets; print(secrets.token_hex(32))'` |
-| `DATABASE_URL` | — | PostgreSQL connection string (overrides SQLite) |
+| `DATABASE_URL` | — | PostgreSQL connection string (experimental - see Section 8) |
 | `ENABLE_SCHEDULER` | `false` | Enable APScheduler (set `true` on exactly ONE container) |
 
 ### Storage Variables
@@ -546,6 +559,8 @@ If restoring from a different version:
 ---
 
 ## 8. PostgreSQL Migration
+
+> **Experimental:** PostgreSQL support is experimental and not fully tested in CI. SQLite with WAL mode is the stable, recommended database for single-server deployments. The migration path exists but PostgreSQL search initialization may need adjustment for production use.
 
 For single-server deployments, SQLite with WAL mode is sufficient. For higher traffic or multi-server deployments, migrate to PostgreSQL.
 

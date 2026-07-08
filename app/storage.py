@@ -28,6 +28,8 @@ import os
 import logging
 import threading
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING, Any
 
 # Optional botocore imports - only needed for S3 storage backend
@@ -49,6 +51,15 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class StorageFileInfo:
+    name: str
+    size: int
+    mtime: datetime | None
+    url: str
+
 
 STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND", "local")
 
@@ -87,9 +98,9 @@ class StorageBackend(ABC):
     def list_files(self, prefix: str = "") -> list[str]:
         """List files with optional prefix filter."""
 
-    def path(self, filename: str) -> str:
-        """Get local path for a file (only valid for LocalStorageBackend)."""
-        raise NotImplementedError("path() is only available on LocalStorageBackend")
+    @abstractmethod
+    def list_file_info(self, prefix: str = "") -> list[StorageFileInfo]:
+        """List files with metadata (size, mtime, URL)."""
 
 
 class LocalStorageBackend(StorageBackend):
@@ -135,6 +146,29 @@ class LocalStorageBackend(StorageBackend):
                 if not prefix or entry.name.startswith(prefix):
                     files.append(entry.name)
         return sorted(files)
+
+    def list_file_info(self, prefix: str = "") -> list[StorageFileInfo]:
+        if not os.path.isdir(self.base_dir):
+            return []
+        files = []
+        for entry in os.scandir(self.base_dir):
+            if entry.is_file():
+                if not prefix or entry.name.startswith(prefix):
+                    try:
+                        stat = entry.stat()
+                        files.append(
+                            StorageFileInfo(
+                                name=entry.name,
+                                size=stat.st_size,
+                                mtime=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                                url=self.url(entry.name),
+                            )
+                        )
+                    except OSError:
+                        continue
+        return sorted(
+            files, key=lambda f: f.mtime or datetime.min.replace(tzinfo=timezone.utc), reverse=True
+        )
 
     def path(self, filename: str) -> str:
         return os.path.join(self.base_dir, filename)
@@ -237,14 +271,50 @@ class S3StorageBackend(StorageBackend):
         except (KeyboardInterrupt, SystemExit):
             raise
 
+    def list_file_info(self, prefix: str = "") -> list[StorageFileInfo]:
+        try:
+            kwargs = {"Bucket": self.bucket}
+            if prefix:
+                kwargs["Prefix"] = prefix
+            response = self.client.list_objects_v2(**kwargs)
+            contents = response.get("Contents", [])
+            files = []
+            for obj in contents:
+                files.append(
+                    StorageFileInfo(
+                        name=obj["Key"],
+                        size=obj["Size"],
+                        mtime=obj.get("LastModified"),
+                        url=self.url(obj["Key"]),
+                    )
+                )
+            return sorted(
+                files,
+                key=lambda f: f.mtime or datetime.min.replace(tzinfo=timezone.utc),
+                reverse=True,
+            )
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 operation failed: %s", e)
+            return []
+        except (KeyboardInterrupt, SystemExit):
+            raise
+
 
 def get_storage_backend() -> StorageBackend:
     """Factory function to get the configured storage backend."""
     if STORAGE_BACKEND == "s3":
-        if not all([_S3_BUCKET, _S3_ACCESS_KEY, _S3_SECRET_KEY]):
+        missing = []
+        if not _S3_BUCKET:
+            missing.append("S3_BUCKET")
+        if not _S3_ACCESS_KEY:
+            missing.append("S3_ACCESS_KEY")
+        if not _S3_SECRET_KEY:
+            missing.append("S3_SECRET_KEY")
+        if missing:
             logger.warning(
-                "S3 storage backend configured but missing credentials. "
-                "Falling back to local storage."
+                "STORAGE_BACKEND=s3 but missing required config: %s. "
+                "Falling back to local storage. Set these env vars to enable S3.",
+                ", ".join(missing),
             )
             upload_folder = os.environ.get(
                 "UPLOAD_FOLDER",

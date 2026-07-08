@@ -1,5 +1,12 @@
 # Search Provider
 
+## Stability Status
+
+| Provider | Status | Notes |
+|----------|--------|-------|
+| SQLiteSearchProvider (FTS5) | **Stable** | Default, fully tested |
+| PostgreSQLSearchProvider | **Experimental** | Stub implementation; not CI-tested |
+
 The search system uses an abstraction layer to support multiple backends.
 
 ## SearchProvider Abstract Class

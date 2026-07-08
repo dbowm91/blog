@@ -10,7 +10,7 @@ DevLog is a Flask-based blogging platform with SQLAlchemy ORM, SQLite (default) 
 |-----------|------------|---------|
 | Web Framework | Flask 3.1+ | Request handling, routing, templating |
 | ORM | SQLAlchemy 2.0 | Database abstraction |
-| Database | SQLite (default) / PostgreSQL | Data persistence |
+| Database | SQLite (stable) / PostgreSQL (experimental) | Data persistence |
 | ASGI Server | Granian (Rust-based) | High-performance ASGI server |
 | Task Queue | Celery + Redis | Async task processing |
 | Cache | Flask-Caching + Redis | Response and data caching |
@@ -289,6 +289,8 @@ S3_SECRET_KEY=...
 S3_ENDPOINT=https://s3.amazonaws.com  # optional
 S3_PUBLIC_URL=https://cdn.example.com  # optional
 ```
+
+> **Note:** Local filesystem storage is the stable default. S3 support is experimental -- the backend code exists but is not CI-tested. The `STORAGE_BACKEND` env var defaults to `local`.
 
 ## Deployment Options
 
