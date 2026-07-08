@@ -48,6 +48,7 @@ def _post_to_dict(post: Post) -> dict:
 
 @api.route("/posts", methods=["GET"])
 @require_api_key
+@require_scope("posts:read")
 @limiter.limit(DEFAULT_LIMIT)
 def list_posts() -> Any:
     """List posts with pagination.
@@ -89,6 +90,7 @@ def list_posts() -> Any:
 
 @api.route("/posts/<int:post_id>", methods=["GET"])
 @require_api_key
+@require_scope("posts:read")
 @limiter.limit(DEFAULT_LIMIT)
 def get_post(post_id: int) -> Any:
     """Get a single post by ID.
@@ -216,6 +218,7 @@ def create_post() -> Any:
 
 @api.route("/posts/<int:post_id>", methods=["PUT"])
 @require_api_key
+@require_scope("posts:write")
 @limiter.limit(WRITE_LIMIT)
 def update_post(post_id: int) -> Any:
     """Update an existing post.
@@ -325,6 +328,7 @@ def update_post(post_id: int) -> Any:
 
 @api.route("/posts/<int:post_id>", methods=["DELETE"])
 @require_api_key
+@require_scope("posts:write")
 @limiter.limit(WRITE_LIMIT)
 def delete_post(post_id: int) -> Any:
     """Delete a post.

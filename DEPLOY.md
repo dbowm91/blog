@@ -102,6 +102,8 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | `DATABASE_URL` | — | PostgreSQL connection string (fallback for `SQLALCHEMY_DATABASE_URI` — see Section 8) |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Celery broker URL (fallback: `REDIS_URL`) |
 | `ENABLE_SCHEDULER` | `false` | Enable APScheduler (set `true` on exactly ONE container) |
+| `HEALTH_CHECK_SECRET` | — | Secret for detailed `/health?detailed=true` endpoint. When set, detailed health requires `?secret=` param |
+| `METRICS_SECRET` | — | Secret for `/metrics` endpoint. Falls back to `HEALTH_CHECK_SECRET`, then public |
 
 ### Storage Variables
 
@@ -145,6 +147,8 @@ PAGE_VIEW_BUFFER_SIZE=100
 PAGE_VIEW_FLUSH_INTERVAL=10
 BACKUP_ENCRYPTION_KEY=your-encryption-passphrase
 ENABLE_SCHEDULER=true
+HEALTH_CHECK_SECRET=your-health-check-secret
+METRICS_SECRET=your-metrics-secret
 ```
 
 Load with `EnvironmentFile=/etc/blog/env` in systemd unit.
@@ -317,6 +321,8 @@ Copy `.env.example` and fill in your values:
 | `STORAGE_BACKEND` | No | `local` or `s3` |
 | `S3_*` | No | S3 configuration |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler (default: `false`, set on ONE container) |
+| `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |
+| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (fallback: `HEALTH_CHECK_SECRET`) |
 
 ### Data Persistence
 
@@ -345,14 +351,33 @@ docker compose --profile production logs -f
 
 ### Health Check
 
-The container includes a health check verifying the app responds:
+The `/health` endpoint is split into two modes:
 
+**Basic (no auth required)** — fast, for Docker healthchecks and uptime monitoring:
 ```bash
-# Check health status
-docker inspect --format='{{.State.Health.Status}}' blog
-
-# Manual health check
 curl -f http://localhost:5000/health
+```
+
+Response:
+```json
+{
+  "status": "ok",
+  "database": "connected",
+  "scheduler": "running",
+  "timestamp": "2026-04-29T12:00:00+00:00"
+}
+```
+
+**Detailed (requires secret)** — all 8 checks with details:
+```bash
+curl "http://localhost:5000/health?detailed=true&secret=YOUR_HEALTH_CHECK_SECRET"
+```
+
+Response includes: database, scheduler, search, disk_space, db_integrity, backup_freshness, email, redis, celery — with status and detail for each. Only critical checks (database, scheduler, search, disk_space, db_integrity) affect overall status.
+
+The container health check uses the basic endpoint:
+```bash
+docker inspect --format='{{.State.Health.Status}}' blog
 ```
 
 ### Production Scaling Caveats
@@ -825,10 +850,14 @@ sudo journalctl -u blog -f
 ### Health Check
 
 ```bash
+# Basic health (fast, no auth — use for uptime monitoring)
 curl http://127.0.0.1:5000/health
+
+# Detailed health (requires secret when HEALTH_CHECK_SECRET is set)
+curl "http://127.0.0.1:5000/health?detailed=true&secret=YOUR_HEALTH_CHECK_SECRET"
 ```
 
-Response:
+Basic response:
 ```json
 {
   "status": "ok",
@@ -837,6 +866,17 @@ Response:
   "timestamp": "2026-04-29T12:00:00+00:00"
 }
 ```
+
+Detailed response includes all checks: database, scheduler, search, disk_space, db_integrity, backup_freshness, email, redis, celery.
+
+### Metrics
+
+```bash
+# Requires METRICS_SECRET when set (falls back to HEALTH_CHECK_SECRET)
+curl "http://127.0.0.1:5000/metrics?secret=YOUR_METRICS_SECRET"
+```
+
+When neither `METRICS_SECRET` nor `HEALTH_CHECK_SECRET` is set, `/metrics` is publicly accessible.
 
 ### Application Logs
 
@@ -854,9 +894,9 @@ journalctl -u blog -f
 ### Uptime Monitoring
 
 Use `/health` endpoint with:
-- [Uptime Robot](https://uptimerobot.com/)
-- [Healthchecks.io](https://healthchecks.io/)
-- [Pingdom](https://pingdom.com/)
+- [Uptime Robot](https://uptimerobot.com/) — use the basic `/health` endpoint (no auth)
+- [Healthchecks.io](https://healthchecks.io/) — use the basic `/health` endpoint
+- [Pingdom](https://pingdom.com/) — use the basic `/health` endpoint
 
 ---
 
@@ -885,11 +925,14 @@ The newsletter scheduler runs in-process via APScheduler—no external cron need
 
 - [ ] `SECRET_KEY` is random 64-character hex string
 - [ ] `ADMIN_PASSWORD` is strong (12+ chars, mixed case, numbers, symbols)
+- [ ] `config.toml` is NOT tracked in git (only `config.toml.example` is committed)
 - [ ] `config.toml [server] debug = false`
 - [ ] `config.toml [site] base_url` uses `https://`
 - [ ] HTTPS enforced at reverse proxy (redirect from HTTP, HSTS header)
 - [ ] `SESSION_COOKIE_SECURE = True` (must be explicitly set in production)
 - [ ] `PROXY_COUNT` set correctly for proxy setup (affects rate limiting and session IP binding via `ProxyFix`)
+- [ ] `HEALTH_CHECK_SECRET` set to gate detailed health endpoint
+- [ ] `METRICS_SECRET` set to gate `/metrics` endpoint (or leave unset for public access)
 - [ ] Static files served by nginx, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
 - [ ] `instance/blog.db` not in web-accessible directory

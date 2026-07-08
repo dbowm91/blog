@@ -1,3 +1,8 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
+import logging
 import os
 import tomllib
 from typing import Any
@@ -46,6 +51,7 @@ __all__ = [
     "LOGIN_FAILURE_DELAY",
     "PREVIEW_TOKEN_EXPIRY_DAYS",
     "HEALTH_CHECK_SECRET",
+    "METRICS_SECRET",
     "RATE_LIMIT_STORAGE_URI",
     "REDIS_URL",
     "DATA_BACKUP_DIR",
@@ -90,15 +96,25 @@ def _env_bool(key: str, default: bool = False) -> bool:
 
 def load_config() -> dict[str, Any]:
     """Load configuration from TOML file."""
-    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")
-    try:
+    project_root = os.path.dirname(os.path.dirname(__file__))
+    config_path = os.path.join(project_root, "config.toml")
+    if os.path.exists(config_path):
         with open(config_path, "rb") as f:
             return tomllib.load(f)
-    except FileNotFoundError:
-        raise RuntimeError(
-            f"Configuration file not found: {config_path}\n"
-            "Copy config.toml.example to config.toml and edit it."
+
+    fallback_path = os.path.join(project_root, "config.toml.example")
+    if os.path.exists(fallback_path):
+        logging.warning(
+            "config.toml not found; using config.toml.example as fallback. "
+            "Copy config.toml.example to config.toml and customize."
         )
+        with open(fallback_path, "rb") as f:
+            return tomllib.load(f)
+
+    raise RuntimeError(
+        "Configuration file not found: config.toml\n"
+        "Copy config.toml.example to config.toml and edit it."
+    )
 
 
 _config = load_config()
@@ -161,6 +177,7 @@ COMMENT_NOTIFY_PENDING = bool(_config.get("comments", {}).get("notify_pending", 
 COMMENT_SPAM_WORDS = _config.get("comments", {}).get("spam_words", "")
 
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
+METRICS_SECRET = _env("METRICS_SECRET", "")
 LOGIN_FAILURE_DELAY = float(
     _env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05))
 )

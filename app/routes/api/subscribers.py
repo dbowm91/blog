@@ -12,7 +12,7 @@ from app.utils import utc_now
 from app.validators import validate_email
 from app import limiter
 from app.routes.api import api
-from app.routes.api.auth import require_api_key
+from app.routes.api.auth import require_api_key, require_scope
 
 DEFAULT_LIMIT = "20 per minute"
 WRITE_LIMIT = "10 per minute"
@@ -34,6 +34,7 @@ def _subscriber_to_dict(subscriber: Subscriber) -> dict:
 
 @api.route("/subscribers", methods=["GET"])
 @require_api_key
+@require_scope("subscribers:read")
 @limiter.limit(DEFAULT_LIMIT)
 def list_subscribers() -> any:
     """List subscribers with pagination.
@@ -71,6 +72,7 @@ def list_subscribers() -> any:
 
 @api.route("/subscribers", methods=["POST"])
 @require_api_key
+@require_scope("subscribers:write")
 @limiter.limit(WRITE_LIMIT)
 def create_subscriber() -> any:
     """Create a new subscriber.
@@ -124,6 +126,7 @@ def create_subscriber() -> any:
 
 @api.route("/subscribers/<int:subscriber_id>", methods=["DELETE"])
 @require_api_key
+@require_scope("subscribers:write")
 @limiter.limit(WRITE_LIMIT)
 def delete_subscriber(subscriber_id: int) -> any:
     """Delete a subscriber.

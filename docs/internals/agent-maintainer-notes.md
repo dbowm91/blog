@@ -132,6 +132,20 @@ The health check endpoint (`GET /health`) determines overall status using only c
 - Redis and celery checks are included in detailed health output but don't affect degraded status
 - See `architecture/infrastructure/overview.md` for details
 
+### Health Endpoint Split
+
+`/health` has two modes:
+- **Basic** (`/health`): Returns only database + scheduler status. Fast, no auth required. Used for Docker healthchecks and uptime monitoring.
+- **Detailed** (`/health?detailed=true&secret=...`): Returns all 8 checks with details. Requires `HEALTH_CHECK_SECRET` when set.
+
+### METRICS_SECRET
+
+`METRICS_SECRET` gates the `/metrics` endpoint. Fallback chain: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public (no auth). When neither secret is set, `/metrics` is publicly accessible.
+
+### python-dotenv Auto-Loading
+
+`python-dotenv` is included in `requirements.txt` and called via `load_dotenv()` in both `run.py` and `app/config.py`. The app auto-loads `.env` without requiring manual `source` commands.
+
 ### Email Retry Count
 
 Newsletter retry count default is 5 (not 3 as some documentation may claim).

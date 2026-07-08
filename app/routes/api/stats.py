@@ -9,13 +9,14 @@ from app.extensions import db
 from app.utils import utc_now
 from app import limiter
 from app.routes.api import api
-from app.routes.api.auth import require_api_key
+from app.routes.api.auth import require_api_key, require_scope
 
 DEFAULT_LIMIT = "20 per minute"
 
 
 @api.route("/stats", methods=["GET"])
 @require_api_key
+@require_scope("analytics:read")
 @limiter.limit(DEFAULT_LIMIT)
 def get_stats() -> any:
     """Get dashboard statistics.

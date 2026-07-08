@@ -21,3 +21,4 @@ pyotp>=2.9.0,<3.0
 qrcode[pil]>=7.4.0,<8.0
 tinycss2>=1.5.1,<2.0
 prometheus-client>=0.20.0,<1.0
+python-dotenv>=1.0,<2.0

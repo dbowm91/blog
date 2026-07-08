@@ -106,16 +106,21 @@ SESSION_COOKIE_SECURE=true
 | `ADMIN_PASSWORD` | Use strong password |
 | `BACKUP_ENCRYPTION_KEY` | 12+ characters for backup encryption |
 | `WEBHOOK_ENCRYPTION_KEY` | 32 bytes for webhook encryption |
+| `HEALTH_CHECK_SECRET` | Gates detailed `/health?detailed=true` endpoint |
+| `METRICS_SECRET` | Gates `/metrics` endpoint. Falls back to `HEALTH_CHECK_SECRET`, then public |
 
 ## Production Security Checklist
 
 - [ ] `SECRET_KEY` is a random 64-character hex string
 - [ ] `ADMIN_PASSWORD` is strong (12+ chars, mixed case, numbers, symbols)
+- [ ] `config.toml` is NOT tracked in git (only `config.toml.example` is committed)
 - [ ] `config.toml [server] debug = false`
 - [ ] `config.toml [site] base_url` uses `https://`
 - [ ] HTTPS enforced at reverse proxy (redirect from HTTP, HSTS header)
 - [ ] `SESSION_COOKIE_SECURE = True`
 - [ ] `PROXY_COUNT` set correctly for proxy setup
+- [ ] `HEALTH_CHECK_SECRET` set to gate detailed health endpoint
+- [ ] `METRICS_SECRET` set to gate `/metrics` endpoint (or leave unset for public access)
 - [ ] Static files served by nginx/Caddy, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
 - [ ] `instance/blog.db` not in web-accessible directory

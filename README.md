@@ -216,6 +216,8 @@ Click **Preview** to see how your post will look with theme styling.
 | `DATABASE_URL` | No | PostgreSQL connection string (experimental — falls back to SQLite if unset). See `SQLALCHEMY_DATABASE_URI` for the primary override. |
 | `REDIS_URL` | No | Redis connection URL for cache/Celery (default: `redis://localhost:6379/0`) |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler for newsletters and backups (default: `false`, set `true` on exactly ONE container) |
+| `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |
+| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (fallback: `HEALTH_CHECK_SECRET`, then public) |
 
 ### CLI Commands
 

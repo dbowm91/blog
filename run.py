@@ -1,5 +1,9 @@
 import signal
 import threading
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from asgiref.wsgi import WsgiToAsgi
 from app import create_app
 from app.config import SERVER_HOST, SERVER_PORT, DEBUG
