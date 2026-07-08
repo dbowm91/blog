@@ -223,6 +223,10 @@ Located at `vite.config.js`:
 - Dev server on port 3000 with proxy to Flask on port 5000
 
 > **⚠️ Production Build Requirement:** The `npm run build` command (or `vite build`) must be executed before production deployment. This generates the `manifest.json` at `app/static/dist/.vite/manifest.json`. Without this build, JavaScript assets reference hashed filenames that do not exist, causing JavaScript failures in production.
+>
+> **Docker builds handle this automatically.** The Dockerfile uses a multi-stage build where the first stage (`node:20-alpine`) runs `npm ci && npm run build`, and the runtime stage copies the resulting `app/static/dist/` into the final image. No manual build step is needed for Docker deployments.
+>
+> **Non-Docker deployments** require running `npm ci && npm run build` manually before starting the server.
 
 ### Vite Asset Helper
 

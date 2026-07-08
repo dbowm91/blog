@@ -261,6 +261,13 @@ docker compose --profile production up -d --build
 docker compose --profile production logs -f
 ```
 
+The Docker build uses a multi-stage Dockerfile:
+1. **Node builder** — runs `npm ci` and `npm run build` to produce frontend assets
+2. **Python builder** — installs Python dependencies into a venv
+3. **Runtime** — copies the venv, application code, and built frontend assets into a slim image
+
+Frontend assets are built automatically inside the container. No local Node.js installation is required for Docker deployments.
+
 The blog will be available at `http://localhost:5000`. Admin at `http://localhost:5000/admin/login`.
 
 ### Compose Profiles
@@ -315,7 +322,7 @@ These persist across container restarts and upgrades.
 # Pull latest code
 git pull
 
-# Rebuild and restart
+# Rebuild and restart (includes frontend asset build)
 docker compose --profile production up -d --build
 
 # View logs
@@ -910,6 +917,25 @@ Vite is used for frontend asset bundling with content hashing for cache busting.
 - **Development**: `npm run dev` starts Vite dev server with HMR (Hot Module Replacement)
 - **Production**: `npm run build` generates content-hashed assets in `app/static/dist/`
 - Flask's `vite_asset()` helper maps unhashed paths to hashed filenames via `manifest.json`
+
+### Docker Builds
+
+Docker builds frontend assets automatically via a multi-stage Dockerfile. The Node builder stage runs `npm ci` and `npm run build`, and the runtime image includes the compiled assets. No manual build step is needed for Docker deployments.
+
+### Manual Builds (Non-Docker)
+
+For non-Docker production deployments, build assets before starting the server:
+
+```bash
+npm ci
+npm run build
+```
+
+Verify the build produced the manifest:
+
+```bash
+test -f app/static/dist/.vite/manifest.json && echo "Build OK"
+```
 
 ### Admin Tasks
 - **Rebuild assets**: After changing JS/CSS files, run `npm run build` and restart the app

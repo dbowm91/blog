@@ -106,6 +106,8 @@ APScheduler uses FileLock with `timeout=0` which only works on a single machine.
 
 The `npm run build` (or `vite build`) must be run before production deployment. The `manifest.json` must be present. If Vite build hasn't run, JS assets will return hashed paths that don't exist.
 
+**Docker builds handle this automatically** via the multi-stage `Dockerfile` — the `frontend-builder` stage runs `npm run build` and copies the output to the final image. This note applies to non-Docker deployments only.
+
 ### APScheduler SMTP Handling
 
 When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run.
@@ -141,7 +143,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI Workflow
 
-The CI workflow is at `.github/workflows/ci.yml` (not `test.yml`). It includes 6 jobs: `lint-and-type`, `test`, `security-audit`, `frontend-build`, `docker-build`, `e2e-tests`. Also has a weekly schedule trigger (Monday 08:00 UTC).
+CI configuration was at `.github/workflows/ci.yml` (not `test.yml`). It included 6 jobs: `lint-and-type`, `test`, `security-audit`, `frontend-build`, `docker-build`, `e2e-tests`, plus a weekly schedule trigger (Monday 08:00 UTC). **Note:** The `.github` directory does not currently exist in this repo. Verify CI setup before referencing this section.
 
 ### Webhook Delivery Architecture
 

@@ -48,7 +48,19 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 
 Get from zero to a running blog in 5 minutes.
 
-### 1. Clone and Install
+### Option A: Docker (Recommended for Production)
+
+```bash
+git clone https://github.com/dbowm91/blog.git /opt/blog
+cd /opt/blog
+cp .env.example .env
+# Edit .env with your SECRET_KEY and ADMIN_PASSWORD
+docker compose --profile production up -d --build
+```
+
+Docker builds frontend assets (Vite) automatically inside the container. No local Node.js installation required.
+
+### Option B: Local Development
 
 ```bash
 git clone https://github.com/dbowm91/blog.git /opt/blog
@@ -79,6 +91,19 @@ Visit `http://localhost:5000`. Admin panel at `http://localhost:5000/admin/login
 4. Send newsletters from `/admin/subscribers`
 
 For production deployment, see [DEPLOY.md](DEPLOY.md).
+
+---
+
+## Building Frontend Assets
+
+Docker builds frontend assets automatically via a multi-stage build. For non-Docker deployments:
+
+```bash
+npm ci
+npm run build
+```
+
+This generates content-hashed assets in `app/static/dist/` with a `manifest.json`. The app's `vite_asset()` helper resolves hashed filenames. Without this build, JavaScript assets will return 404 in production.
 
 ---
 

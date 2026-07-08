@@ -31,7 +31,15 @@ GitHub Actions workflows for testing and deployment.
 
 ### 5. docker-build
 - **Tool**: `docker build .`
-- **Purpose**: Verify Dockerfile builds successfully
+- **Purpose**: Verify Dockerfile builds successfully and the resulting image is functional
+- **Smoke test steps**:
+  1. Builds image with tag `devlog:ci-smoke`
+  2. Verifies `app/static/dist/.vite/manifest.json` exists in the image (confirms frontend builder stage produced assets)
+  3. Starts container with test env vars (`SECRET_KEY`, `ADMIN_PASSWORD`, `SESSION_COOKIE_SECURE=false`)
+  4. Polls the `/health` endpoint for up to 60 seconds (30 iterations × 2s sleep)
+  5. Cleans up the container on completion (always runs, even on failure)
+
+This job validates the full multi-stage build pipeline: Node.js frontend build → Python dependency install → runtime image assembly.
 
 ### 6. e2e-tests
 - **Tool**: Playwright

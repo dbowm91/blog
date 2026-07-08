@@ -21,13 +21,21 @@ Multi-container Docker setup for production deployment.
 
 ## Dockerfile
 
-Multi-stage build:
-1. **Builder stage**: Python dependencies
-2. **Runtime stage**: Final image with non-root user
+Three-stage build:
+1. **Frontend builder stage** (`node:20-alpine`): Runs `npm ci` + `npm run build` to produce Vite-bundled assets in `app/static/dist/`
+2. **Python builder stage** (`python:3.12-slim`): Installs Python dependencies into a virtualenv
+3. **Runtime stage** (`python:3.12-slim`): Copies the virtualenv from the Python builder and built frontend assets from the frontend builder; sets up non-root user and Granian CMD
+
+The frontend assets are copied into the runtime image via:
+```dockerfile
+COPY --from=frontend-builder /app/app/static/dist /app/app/static/dist
+```
+
+This means `npm ci && npm run build` does **not** need to run separately for Docker builds — it happens automatically in the first stage. The CI `docker-build` job verifies this by checking that `app/static/dist/.vite/manifest.json` exists in the built image.
 
 ### Key Features
 - Non-root user (`blog`)
-- Multi-stage for minimal image size
+- Three-stage build for minimal image size (no Node.js in runtime image)
 - Health checks
 
 Resource limits (memory, CPU) are configured in `docker-compose.yml` under each service's `deploy.resources` section, not in the Dockerfile itself.

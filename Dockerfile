@@ -1,3 +1,14 @@
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY app/static ./app/static
+COPY vite.config.js ./
+RUN npm run build
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -24,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=blog:blog . .
+COPY --from=frontend-builder /app/app/static/dist /app/app/static/dist
 
 RUN mkdir -p /home/blog/instance /home/blog/logs /home/blog/app/static/uploads
 
