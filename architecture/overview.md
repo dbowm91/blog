@@ -285,9 +285,9 @@ These checks determine the overall `status` field:
 |-------|-----------|---------------|
 | `database` | Executes `SELECT 1` against the database, measures latency | `ok`, `error` |
 | `scheduler` | Calls `get_scheduler_health()` if `SMTP_HOST` is set | `running`, `disabled`, `error` |
-| `search` | Queries `sqlite_master` for `posts_fts` table existence | `ok`, `unavailable`, `error` |
+| `search` | SQLite: queries `sqlite_master` for `posts_fts` table existence; non-SQLite: returns `unsupported` | `ok`, `unavailable`, `unsupported`, `error` |
 | `disk_space` | Checks `shutil.disk_usage()` on instance path; threshold is 10% free | `ok`, `low`, `error` |
-| `db_integrity` | Runs `PRAGMA integrity_check` | `ok`, `error` |
+| `db_integrity` | SQLite: runs `PRAGMA integrity_check`; non-SQLite: returns `unsupported` | `ok`, `unsupported`, `error` |
 
 #### Optional Checks
 

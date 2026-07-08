@@ -443,8 +443,15 @@ def create_app() -> Flask:
     configure_logging(app)
 
     def _check_database_integrity(app: Flask) -> None:
-        """Run PRAGMA integrity_check to verify database is not corrupted."""
+        """Run PRAGMA integrity_check for SQLite; skip for other dialects."""
         with app.app_context():
+            try:
+                dialect = db.engine.dialect.name
+            except Exception:
+                dialect = "unknown"
+            if dialect != "sqlite":
+                logger.info("Skipping SQLite integrity check (dialect=%s)", dialect)
+                return
             try:
                 result = db.session.execute(text("PRAGMA integrity_check"))
                 row = result.scalar()
@@ -459,6 +466,18 @@ def create_app() -> Flask:
                 logger.warning("Database integrity check failed: %s", e)
 
     _check_database_integrity(app)
+
+    with app.app_context():
+        try:
+            dialect = db.engine.dialect.name
+        except Exception:
+            dialect = "unknown"
+        if dialect != "sqlite" and os.environ.get("FLASK_ENV") == "production":
+            logger.warning(
+                "Non-SQLite database dialect '%s' is experimental in DevLog v1. "
+                "SQLite WAL is the supported production database for single-server deployments.",
+                dialect,
+            )
 
     from app.config import ENABLE_SCHEDULER  # noqa: E402
     from app.scheduler import init_scheduler  # noqa: E402

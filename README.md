@@ -205,7 +205,7 @@ Click **Preview** to see how your post will look with theme styling.
 | Feature | Stable | Experimental | Notes |
 |---------|--------|--------------|-------|
 | SQLite with WAL | Yes | No | Default single-server database |
-| PostgreSQL | No | Yes | Not fully tested in CI; migration path exists |
+| PostgreSQL | No | Experimental | Not supported for v1 production; health checks report unsupported for SQLite-specific features |
 | Local filesystem media | Yes | No | Default media backend |
 | S3-compatible media | No | Yes | Requires boto3; not CI-tested |
 | Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
@@ -228,7 +228,7 @@ See [DEPLOY.md § Support Matrix](DEPLOY.md#support-matrix) for details.
 | `SMTP_PASSWORD` | No | SMTP password |
 | `SESSION_COOKIE_SECURE` | No | Require HTTPS for cookies. Set `false` for local HTTP (default: `true`) |
 | `API_KEY` | No | REST API authentication |
-| `DATABASE_URL` | No | PostgreSQL connection string (experimental — falls back to SQLite if unset) |
+| `DATABASE_URL` | No | Non-SQLite database URL (experimental — falls back to SQLite if unset) |
 | `REDIS_URL` | No | Redis connection URL for cache/Celery (default: `redis://localhost:6379/0`) |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler for newsletters and backups (default: `false`, set `true` on exactly ONE container) |
 | `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |

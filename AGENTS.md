@@ -80,6 +80,7 @@ Important actual file locations (verify before assuming):
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, slug, serialization, tag) |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
+| DB Dialect Helpers | `app/db_utils.py` (`get_database_dialect()`, `is_sqlite_database()`) |
 
 ## Security & Privacy Rules
 

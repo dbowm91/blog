@@ -77,9 +77,9 @@ The `/health` endpoint (`app/routes/public/meta.py:188`) is the single integrati
 | Check | Source | Critical? |
 |-------|--------|-----------|
 | `database` | `SELECT 1` | Yes |
-| `search` | `sqlite_master` FTS5 table check | Yes |
+| `search` | SQLite: `sqlite_master` FTS5 table check; non-SQLite: `unsupported` | Yes |
 | `disk_space` | `shutil.disk_usage()` — 10% threshold | Yes |
-| `db_integrity` | `PRAGMA integrity_check` | Yes |
+| `db_integrity` | SQLite: `PRAGMA integrity_check`; non-SQLite: `unsupported` | Yes |
 | `scheduler` | `get_scheduler_health()` — only when `SMTP_HOST` set | Yes |
 | `redis` | `redis.ping()` | No |
 | `celery` | `celery_app.control.inspect().ping()` | No |

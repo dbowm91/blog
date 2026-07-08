@@ -182,7 +182,6 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production ps
           docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs blog
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs nginx
           docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs redis
           docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs celery || true
 

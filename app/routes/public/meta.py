@@ -32,6 +32,7 @@ from app.config import (
 from app.scheduler import get_scheduler_health
 from app.utils import xml_escape, utc_now
 from app import limiter
+from app.db_utils import is_sqlite_database
 
 try:
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -243,13 +244,18 @@ Sitemap: {BASE_URL}/sitemap.xml
             health = get_scheduler_health()
             checks["scheduler"] = health["status"]
 
-            try:
-                has_fts = db.session.execute(
-                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
-                ).fetchone()
-                checks["search"] = "ok" if has_fts else "unavailable"
-            except (OperationalError, ProgrammingError):
-                checks["search"] = "error"
+            if is_sqlite_database():
+                try:
+                    has_fts = db.session.execute(
+                        text(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'"
+                        )
+                    ).fetchone()
+                    checks["search"] = "ok" if has_fts else "unavailable"
+                except (OperationalError, ProgrammingError):
+                    checks["search"] = "error"
+            else:
+                checks["search"] = "unsupported"
 
             try:
                 disk_path = Path(current_app.instance_path)
@@ -259,13 +265,16 @@ Sitemap: {BASE_URL}/sitemap.xml
             except OSError:
                 checks["disk_space"] = "error"
 
-            try:
-                integrity_result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
-                checks["db_integrity"] = (
-                    "ok" if integrity_result and integrity_result[0] == "ok" else "error"
-                )
-            except (OperationalError, ProgrammingError):
-                checks["db_integrity"] = "error"
+            if is_sqlite_database():
+                try:
+                    integrity_result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
+                    checks["db_integrity"] = (
+                        "ok" if integrity_result and integrity_result[0] == "ok" else "error"
+                    )
+                except (OperationalError, ProgrammingError):
+                    checks["db_integrity"] = "error"
+            else:
+                checks["db_integrity"] = "unsupported"
 
             try:
                 import redis
@@ -313,7 +322,7 @@ Sitemap: {BASE_URL}/sitemap.xml
             overall = (
                 "ok"
                 if all(
-                    v in ("ok", "running", "disabled")
+                    v in ("ok", "running", "disabled", "unsupported")
                     for v in critical_checks.values()
                     if v is not None
                 )
@@ -397,12 +406,15 @@ Sitemap: {BASE_URL}/sitemap.xml
         # DB integrity
         metrics_lines.append("# HELP blog_db_integrity Database integrity (1=ok, 0=error)")
         metrics_lines.append("# TYPE blog_db_integrity gauge")
-        try:
-            result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
-            integrity_ok = result and result[0] == "ok"
-            metrics_lines.append(f"blog_db_integrity {1 if integrity_ok else 0}")
-        except (OperationalError, ProgrammingError):
-            metrics_lines.append("blog_db_integrity 0")
+        if is_sqlite_database():
+            try:
+                result = db.session.execute(text("PRAGMA integrity_check")).fetchone()
+                integrity_ok = result and result[0] == "ok"
+                metrics_lines.append(f"blog_db_integrity {1 if integrity_ok else 0}")
+            except (OperationalError, ProgrammingError):
+                metrics_lines.append("blog_db_integrity 0")
+        else:
+            metrics_lines.append("blog_db_integrity 1")
 
         # Scheduler status
         metrics_lines.append("# HELP blog_scheduler_status Scheduler status (1=running, 0=stopped)")

@@ -601,11 +601,13 @@ If restoring from a different version:
 
 ---
 
-## 8. PostgreSQL Migration
+## 8. PostgreSQL Migration (Experimental)
 
-> **Experimental:** PostgreSQL support is experimental and not fully tested in CI. SQLite with WAL mode is the stable, recommended database for single-server deployments. The migration path exists but PostgreSQL search initialization may need adjustment for production use. Do not use PostgreSQL in production without thorough testing.
+> **Warning:** PostgreSQL support is **experimental** and not recommended for v1 production. SQLite WAL is the supported production database for single-server deployments. PostgreSQL is not fully tested in CI, and SQLite-specific features (FTS5 search, PRAGMA integrity checks) report as `unsupported` in health checks when running on PostgreSQL.
+>
+> This section is provided for operators evaluating future migration paths. Do not use PostgreSQL in production without thorough testing of search, health, backup/restore, and migration behavior.
 
-For single-server deployments, SQLite with WAL mode is sufficient. For higher traffic or multi-server deployments, migrate to PostgreSQL.
+For single-server deployments, SQLite with WAL mode is sufficient and recommended. PostgreSQL support is planned for a future release when backend-specific search, health checks, and backup/restore are fully implemented.
 
 ### Prerequisites
 

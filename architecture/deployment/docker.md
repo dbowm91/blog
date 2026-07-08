@@ -9,14 +9,15 @@ Multi-container Docker setup for production deployment.
 | `blog` | Custom | Main Flask app (Granian ASGI) |
 | `celery` | Custom | Celery worker |
 | `redis` | `redis:7-alpine` | Cache and message broker |
-| `nginx` | `nginx:alpine` | Reverse proxy |
+| `nginx` | `nginx:alpine` | Reverse proxy (optional, `reverse-proxy` profile) |
 | `backup` | Custom | Scheduled database backups |
 
 ## Docker Compose Profiles
 
 | Profile | Services | Purpose |
 |---------|----------|---------|
-| `production` | `blog`, `celery`, `redis`, `nginx` | Production |
+| `production` | `blog`, `celery`, `redis` | Production stack (app on `127.0.0.1:5000`) |
+| `reverse-proxy` | `nginx` | Optional nginx reverse proxy with TLS |
 | `backup` | `backup` | Scheduled backups |
 
 ## Dockerfile

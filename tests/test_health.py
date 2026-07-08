@@ -130,3 +130,47 @@ class TestHealthProductionMode:
     def test_basic_still_works_in_production_without_secret(self, mock_prod, client, db):
         resp = client.get("/health")
         assert resp.status_code == 200
+
+
+class TestHealthBackendAware:
+    """Tests for backend-sensitive health checks (Milestone D)."""
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    def test_sqlite_detailed_search_check(self, client, db):
+        resp = client.get("/health?detailed=true")
+        data = resp.get_json()
+        assert data["checks"]["search"] in ("ok", "unavailable")
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    def test_sqlite_detailed_db_integrity_check(self, client, db):
+        resp = client.get("/health?detailed=true")
+        data = resp.get_json()
+        assert data["checks"]["db_integrity"] in ("ok", "error")
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    @patch("app.routes.public.meta.is_sqlite_database", return_value=False)
+    def test_non_sqlite_search_unsupported(self, mock_is_sqlite, client, db):
+        resp = client.get("/health?detailed=true")
+        data = resp.get_json()
+        assert data["checks"]["search"] == "unsupported"
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    @patch("app.routes.public.meta.is_sqlite_database", return_value=False)
+    def test_non_sqlite_db_integrity_unsupported(self, mock_is_sqlite, client, db):
+        resp = client.get("/health?detailed=true")
+        data = resp.get_json()
+        assert data["checks"]["db_integrity"] == "unsupported"
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    @patch("app.routes.public.meta.is_sqlite_database", return_value=False)
+    def test_non_sqlite_overall_ok_despite_unsupported(self, mock_is_sqlite, client, db):
+        resp = client.get("/health?detailed=true")
+        data = resp.get_json()
+        assert data["status"] == "ok"
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    @patch("app.routes.public.meta.is_sqlite_database", return_value=False)
+    def test_non_sqlite_db_check_still_ok(self, mock_is_sqlite, client, db):
+        resp = client.get("/health?detailed=true")
+        data = resp.get_json()
+        assert data["checks"]["database"] == "ok"

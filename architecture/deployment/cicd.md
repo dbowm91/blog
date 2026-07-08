@@ -48,7 +48,7 @@ This job validates the full multi-stage build pipeline: Node.js frontend build â
 - **Compose files**: `docker-compose.yml` + `docker-compose.ci.yml` (CI override publishes port 5000)
 - **Base URL**: Configured via `E2E_BASE_URL` env var (default: `http://localhost:5000` in CI)
 - **Depends on**: `test`, `docker-build`
-- **Failure diagnostics**: Dumps logs for blog, nginx, redis, celery services
+- **Failure diagnostics**: Dumps logs for blog, redis, celery services
 
 ### Job Dependency Chain
 
