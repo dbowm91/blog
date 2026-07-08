@@ -74,6 +74,7 @@ blog/
 │
 ├── tests/                 # Test suite
 ├── migrations/           # Flask-Migrate database migrations
+├── architecture/         # Detailed architecture documentation
 ├── docs/                 # OpenAPI specification
 ├── nginx/                # Nginx configuration
 ├── plans/                # Development roadmap
@@ -104,6 +105,7 @@ The `create_app()` function initializes:
 User
 ├── AdminSession (1:N)
 ├── Post (1:N)
+├── AdminAuditLog (1:N)
 └── totp_secret (2FA)
 
 Post
@@ -120,6 +122,9 @@ Page
 Series
 AdminSession
 SiteSettings
+Webhook
+├── WebhookEvent (1:N)
+ApiToken
 ```
 
 ### Route Blueprints
@@ -156,9 +161,10 @@ SiteSettings
 - `send_password_reset_task`: Send password reset emails
 
 **APScheduler (`app/scheduler.py`):**
-- `publish_scheduled_posts`: Publish posts at scheduled time
-- `send_daily_newsletter`: Send daily newsletter
-- `cleanup_expired_subscribers`: Remove unconfirmed subscribers
+- `publish_scheduled_posts`: Publish posts at scheduled time (every 5 minutes)
+- `send_daily_newsletter`: Send daily newsletter (configurable time)
+- `cleanup_expired_subscribers`: Remove unconfirmed subscribers (every 5 minutes)
+- `run_daily_backup`: Daily database backup (02:00)
 
 ## Data Flow
 
@@ -208,7 +214,7 @@ Request → Nginx → Granian → Flask → Blueprint → Route Handler
 ### CSRF Protection
 
 - Sliding window of 5 valid tokens per session
-- Token rotation on privilege changes
+- Token rotation on every successful validation
 - Timing-safe comparison via `hmac.compare_digest`
 
 ### Input Sanitization
@@ -335,9 +341,13 @@ Log files:
 | `ADMIN_USERNAME` | No | `admin` | Admin username |
 | `DATABASE_URL` | No | SQLite | PostgreSQL connection string |
 | `REDIS_URL` | No | `redis://localhost:6379/0` | Redis connection |
+| `SMTP_HOST` | No | - | SMTP server hostname |
 | `SMTP_USER` | No | - | SMTP username |
 | `SMTP_PASSWORD` | No | - | SMTP password |
 | `API_KEY` | No | - | REST API key |
 | `BACKUP_ENCRYPTION_KEY` | No | - | Backup encryption passphrase |
 | `WEBHOOK_ENCRYPTION_KEY` | No | - | Webhook secret encryption |
 | `STORAGE_BACKEND` | No | `local` | `local` or `s3` |
+| `ENABLE_SCHEDULER` | No | `false` | Enable APScheduler (set on ONE container only) |
+| `HEALTH_CHECK_SECRET` | No | - | Secret for detailed `/health` endpoint |
+| `METRICS_SECRET` | No | - | Secret for `/metrics` endpoint |

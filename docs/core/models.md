@@ -60,14 +60,15 @@ posts = db.relationship("Post", secondary="post_series", back_populates="series"
 | id | Integer | Primary key |
 | name | String(100) | Webhook name |
 | url | String(512) | Target URL |
-| secret | String | AES-256-GCM encrypted secret (decrypted on access) |
+| webhook_secret_encrypted | LargeBinary(256) | AES-256-GCM encrypted secret (DB column) |
+| secret | (property) | Decrypted webhook secret (computed, not a column) |
 | event_type | String(32) | Event type filter |
 | enabled | Boolean | Whether webhook is active |
 | created_at | UTCDateTime | Creation timestamp |
 
 **Location:** `app/models.py:484-514`
 
-The `secret` property is decrypted on access via `app/webhook_encryption.py`. Storage uses AES-256-GCM encryption.
+The `secret` property decrypts `webhook_secret_encrypted` on access via `app/webhook_encryption.py`.
 
 ```python
 webhook_secret_encrypted = db.Column(db.LargeBinary(256), nullable=True)

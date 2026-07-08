@@ -253,7 +253,7 @@ See `docs/openapi.yaml` for full API documentation.
 
 ### Database Models
 
-Key tables: `posts`, `users`, `tags`, `subscribers`, `page_views`, `share_events`, `admin_sessions`, `site_settings`, `pages`, `post_revisions`
+Key tables: `users`, `posts`, `tags`, `subscribers`, `pages`, `page_views`, `share_events`, `admin_sessions`, `site_settings`, `post_revisions`, `webhooks`, `webhook_events`, `series`, `post_series`, `comments`, `admin_audit_logs`, `api_tokens`
 
 ### Ports
 

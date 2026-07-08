@@ -74,40 +74,41 @@ Redis uses `redis-cli ping` for health checks. For additional reliability, you c
 
 ## Health Checks
 
-The `blog` service exposes a health check endpoint:
+The `blog` service exposes a health check endpoint with two modes:
+
+### Basic Health Check
+
 ```
 GET /health
 ```
 
-Returns JSON with status of database, scheduler, search, disk space, and db_integrity. The scheduler status is "disabled", "running", or "stopped" depending on `ENABLE_SCHEDULER`.
+Returns only `database` and `scheduler` status. Fast, no auth required. Used for Docker healthchecks.
 
-### Authenticated Health Check
+**Location:** `app/routes/public/meta.py:188-321`
 
-For detailed health information, authenticate with `HEALTH_CHECK_SECRET`:
+### Detailed Health Check
+
+For full health information, authenticate with `HEALTH_CHECK_SECRET`:
 
 ```
 GET /health?secret=<value>&detailed=true
 ```
 
-Requires `HEALTH_CHECK_SECRET` environment variable in docker-compose.yml.
-
-**Location:** `app/routes/public/meta.py:199-203`
+Returns all 8 checks with details. Requires `HEALTH_CHECK_SECRET` environment variable in docker-compose.yml.
 
 ### Health Check Status
 
-| Check | Category | Affects Overall Status |
-|-------|----------|------------------------|
-| database | critical | Yes |
-| scheduler | critical | Yes |
-| search | critical | Yes |
-| disk_space | critical | Yes |
-| db_integrity | critical | Yes |
-| backup_freshness | optional | No |
-| email | optional | No |
-| redis | optional | No |
-| celery | optional | No |
-
-**Location:** `app/routes/public/meta.py:286-293`
+| Check | Category | Affects Overall Status | Mode |
+|-------|----------|------------------------|------|
+| database | critical | Yes | Basic + Detailed |
+| scheduler | critical | Yes | Basic + Detailed |
+| search | critical | Yes | Detailed only |
+| disk_space | critical | Yes | Detailed only |
+| db_integrity | critical | Yes | Detailed only |
+| backup_freshness | optional | No | Detailed only |
+| email | optional | No | Detailed only |
+| redis | optional | No | Detailed only |
+| celery | optional | No | Detailed only |
 
 ## Graceful Shutdown
 

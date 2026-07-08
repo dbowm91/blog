@@ -51,7 +51,6 @@ When an agent operates within a module, it should:
 | Frontend | `app/static/AGENTS.override.md` | JS/CSS assets, Vite build |
 | Templates | `app/templates/AGENTS.override.md` | Jinja2 templates, filters |
 | Tests | `tests/AGENTS.override.md` | Testing patterns, fixtures |
-| OpenCode Config | `.opencode/AGENTS.override.md` | Agent tool configuration (may not exist) |
 | Documentation | `docs/AGENTS.override.md` | Documentation structure |
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
 | Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
@@ -102,6 +101,8 @@ Important actual file locations (verify before assuming):
 
 APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently. **Set `ENABLE_SCHEDULER=true` on exactly ONE container to prevent duplicate jobs.** The scheduler has an idempotency guard, but explicit opt-in via `ENABLE_SCHEDULER` is the recommended approach.
 
+See [architecture/tasks/scheduler.md](architecture/tasks/scheduler.md) for full scheduler documentation.
+
 ### Vite Build Required for Production
 
 The `npm run build` (or `vite build`) must be run before production deployment. The `manifest.json` must be present. If Vite build hasn't run, JS assets will return hashed paths that don't exist.
@@ -151,9 +152,13 @@ Webhook delivery uses a two-level dispatch pattern:
 - `deliver_webhook_task` dispatches to `deliver_single_webhook_task`
 - `deliver_single_webhook_task` handles per-webhook SSRF protection, HMAC signing, retry logic, and delivery status updates
 
+See [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhooks.md) for full details.
+
 ### Model Count
 
 There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
+
+See [architecture/core/models.md](architecture/core/models.md) for model details.
 
 ### Thread-Safe Storage Singleton
 
@@ -260,6 +265,8 @@ Metrics secret: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public.
 - **Basic** (`/health`): Returns only database + scheduler status. Fast, no auth required. Used for Docker healthchecks.
 - **Detailed** (`/health?detailed=true&secret=...`): Returns all 8 checks with details. Requires `HEALTH_CHECK_SECRET` when set.
 
+See [architecture/overview.md](architecture/overview.md#health-check-get-health) for full health check documentation.
+
 ### METRICS_SECRET
 
 `METRICS_SECRET` gates the `/metrics` endpoint. Fallback chain: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public (no auth). When neither secret is set, `/metrics` is publicly accessible.
@@ -280,6 +287,8 @@ There is a release checklist at `RELEASE.md` for version bumps and release proce
 
 `STORAGE_BACKEND` env var (default: `"local"`) controls media storage. Set to `"s3"` for S3-compatible storage. When using S3, required env vars: `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Optional: `S3_REGION`, `S3_ENDPOINT`, `S3_PUBLIC_URL`. If required S3 vars are missing, falls back to local storage with a warning.
 
+See [architecture/infrastructure/storage.md](architecture/infrastructure/storage.md) for storage architecture details.
+
 ## Additional Notes for Future Agents
 
 ### Line Number References in Documentation
@@ -297,14 +306,8 @@ Load specialized skills using the `skill` tool with the skill name.
 | Skill | Description | Triggers |
 |-------|-------------|----------|
 | `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log |
-| `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
-| `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline (select→research→write→edit), subagent system, SQLite/WAL, Granian ASGI | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
 | `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference, architecture review plan |
-| `nara` | Nara chain CLI agent — free PoMI mining, wallet, transfer, quest, on-chain skills, ZK ID, agent registry | NARA, quest, mining, airdrop, earn/claim/collect NARA, wallet, balance, transfer, skills, zkid, agent, referral, PoMI, keypair, mnemonic, faucet, deposit, withdraw |
-| `osinit` | OSINIT Dashboard - FastAPI backend with 24 intelligence sources, React/TypeScript frontend with 3D globe | build, test, deploy, run, data source, panel, SSE, sweep, synthesis, authentication, rate limiting, cache, delta, VIX, SSRF, circuit breaker, routers, Granian |
 
 ## Skills Directory Note
 
-Skills are stored in `.skills/` which may be a symlink to an external location.
-If the symlink is broken (shows as "broken symbolic link"), skills are not available.
-To fix: `rm .skills && ln -s /actual/path/to/skills .skills`
+Skills are stored in `.skills/` (local directory). The `blog_cms` skill is also registered in `.opencode/skills/blog_cms/` for the opencode agent. When adding new skills, create a `skill.md` in `.skills/<skill_name>/` and optionally register in `.opencode/skills/<skill_name>/SKILL.md`.
