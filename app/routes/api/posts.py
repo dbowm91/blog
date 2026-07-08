@@ -161,7 +161,7 @@ def create_post() -> Any:
 
     from app.routes.admin.helpers.slug import _generate_unique_slug
 
-    slug = _generate_unique_slug(Post, title, slug)
+    slug = _generate_unique_slug(Post, title, slug=slug)
 
     summary = data.get("summary", "")
     if summary:

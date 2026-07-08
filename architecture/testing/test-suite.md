@@ -57,7 +57,7 @@ tests/
 - `sample_subscriber` - Creates a confirmed `Subscriber` with email "test@example.com"
 - `mock_render` - Patches `app.email.render_template` to return `"<html>Mock</html>"`
 - `mock_smtp` - Patches `app.email._connect_smtp` with a `MagicMock` server (has `sendmail`, `quit`)
-- `clean_analytics_cache` - Clears `app.routes.admin._analytics_cache` before and after tests
+- `clean_analytics_cache` - Clears the analytics memoization cache via `_clear_analytics_cache()` in `app/routes/admin/helpers/analytics.py` before and after tests
 - `cleanup_uploads` - Session-scoped autouse; removes files from `app/static/uploads/` after session ends
 - `ensure_buffer_disabled` - Autouse fixture (from `shared_fixtures.py`) that sets `PAGE_VIEW_BUFFER_SIZE=0` and calls `shutdown_page_view_buffer()` before/after each test
 

@@ -3,7 +3,7 @@
 from typing import Any
 
 from flask import jsonify, request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -19,15 +19,15 @@ DEFAULT_LIMIT = "20 per minute"
 WRITE_LIMIT = "10 per minute"
 
 
-def _tag_to_dict(tag: Tag, include_post_count: bool = False) -> dict:
+def _tag_to_dict(tag: Tag, post_count: int | None = None) -> dict:
     """Serialize a Tag model to a dictionary."""
     result = {
         "id": tag.id,
         "name": tag.name,
         "slug": tag.slug,
     }
-    if include_post_count:
-        result["post_count"] = len(tag.posts)
+    if post_count is not None:
+        result["post_count"] = post_count
     return result
 
 
@@ -46,13 +46,31 @@ def list_tags() -> Any:
     """
     include_count = request.args.get("include_count", "").lower() in ("true", "1", "yes")
 
-    query = select(Tag).order_by(Tag.name)
-    tags = db.session.execute(query).scalars().all()
+    if include_count:
+        from app.models import Post  # noqa: F401
+        from app.models import post_tags  # noqa: F401
+
+        post_count_subq = (
+            select(post_tags.c.tag_id, func.count(post_tags.c.post_id).label("post_count"))
+            .group_by(post_tags.c.tag_id)
+            .subquery()
+        )
+        query = (
+            select(Tag, post_count_subq.c.post_count)
+            .outerjoin(post_count_subq, Tag.id == post_count_subq.c.tag_id)
+            .order_by(Tag.name)
+        )
+        rows = db.session.execute(query).all()
+        items = [_tag_to_dict(t, post_count=count or 0) for t, count in rows]
+    else:
+        query = select(Tag).order_by(Tag.name)
+        tags = db.session.execute(query).scalars().all()
+        items = [_tag_to_dict(t) for t in tags]
 
     return jsonify(
         {
-            "tags": [_tag_to_dict(t, include_post_count=include_count) for t in tags],
-            "total": len(tags),
+            "tags": items,
+            "total": len(items),
         }
     )
 

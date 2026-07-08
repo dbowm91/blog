@@ -6,19 +6,19 @@ os.environ.setdefault("WEBHOOK_ENCRYPTION_KEY", "0123456789abcdef0123456789abcde
 os.environ["TESTING"] = "True"
 os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
-import shutil
-import pytest
-from tests.shared_fixtures import *
-from unittest.mock import patch, MagicMock
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+import shutil  # noqa: E402
+import pytest  # noqa: E402
+from tests.shared_fixtures import *  # noqa: E402, F403
+from unittest.mock import patch, MagicMock  # noqa: E402
+from dataclasses import dataclass, field  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
 
 TEST_PASSWORD = os.environ["ADMIN_PASSWORD"]
 
-from app import create_app
-from app.extensions import db as _db
-from app.models import User, Post, Tag
-from app.utils import utc_now
+from app import create_app  # noqa: E402
+from app.extensions import db as _db  # noqa: E402
+from app.models import User, Post, Tag  # noqa: E402
+from app.utils import utc_now  # noqa: E402
 
 
 def pytest_configure(config):

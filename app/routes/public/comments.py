@@ -29,7 +29,9 @@ def get_client_ip() -> str:
 
 def get_per_post_comment_key() -> str:
     """Get rate limit key that includes post slug and IP for per-post limiting."""
-    slug = request.view_args.get("slug", "unknown") if has_request_context() else "unknown"
+    slug = "unknown"
+    if has_request_context() and request.view_args:
+        slug = request.view_args.get("slug", "unknown")
     return f"comment:{slug}:{get_client_ip()}"
 
 
@@ -99,6 +101,17 @@ def add_comment(slug: str) -> ResponseReturnValue:
     if not author_name or not author_email or not content:
         flash("All fields are required.", "error")
         return redirect(url_for("public.post", slug=slug))
+
+    if "@" not in author_email or "." not in author_email.split("@")[-1] or len(author_email) > 254:
+        flash("Please provide a valid email address.", "error")
+        return redirect(url_for("public.post", slug=slug))
+
+    if parent_id is not None:
+        parent = db.session.execute(
+            select(Comment).filter(Comment.id == parent_id)
+        ).scalar_one_or_none()
+        if not parent or parent.post_id != post.id:
+            parent_id = None
 
     # Content length validation
     if len(content) < COMMENT_MIN_LENGTH:

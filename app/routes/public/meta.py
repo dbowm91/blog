@@ -25,7 +25,7 @@ from app.utils import xml_escape, utc_now
 from app import limiter
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:

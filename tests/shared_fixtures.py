@@ -17,8 +17,8 @@ def ensure_buffer_disabled():
 @pytest.fixture(scope="function")
 def clean_analytics_cache():
     """Clear analytics cache before each test to prevent cross-test pollution."""
-    from app.routes.admin import _analytics_cache
+    from app.routes.admin.helpers.analytics import _clear_analytics_cache
 
-    _analytics_cache.clear()
+    _clear_analytics_cache()
     yield
-    _analytics_cache.clear()
+    _clear_analytics_cache()

@@ -59,15 +59,19 @@ PROMETHEUS_REQUEST_COUNT = None
 try:
     from prometheus_client import Counter, Histogram
 
-    PROMETHEUS_REQUEST_LATENCY = Histogram(
-        "blog_request_latency_seconds",
-        "Request latency in seconds",
-        ["method", "endpoint", "status"],
-        buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
-    )
-    PROMETHEUS_REQUEST_COUNT = Counter(
-        "blog_requests_total", "Total request count", ["method", "endpoint", "status"]
-    )
+    try:
+        PROMETHEUS_REQUEST_LATENCY = Histogram(
+            "blog_request_latency_seconds",
+            "Request latency in seconds",
+            ["method", "endpoint", "status"],
+            buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+        )
+        PROMETHEUS_REQUEST_COUNT = Counter(
+            "blog_requests_total", "Total request count", ["method", "endpoint", "status"]
+        )
+    except ValueError:
+        PROMETHEUS_REQUEST_LATENCY = None
+        PROMETHEUS_REQUEST_COUNT = None
 except ImportError:
     pass
 
@@ -353,6 +357,7 @@ def create_app() -> Flask:
             f"font-src 'self'; "
             f"img-src 'self' data:; "
             f"script-src 'self' 'nonce-{nonce}'; "
+            f"script-src-attr 'unsafe-inline'; "
             f"connect-src 'self'; "
             f"frame-src 'none'; "
             f"frame-ancestors 'none'"
@@ -365,6 +370,7 @@ def create_app() -> Flask:
                 f"font-src 'self'; "
                 f"img-src 'self' data:; "
                 f"script-src 'self' 'nonce-{nonce}'; "
+                f"script-src-attr 'unsafe-inline'; "
                 f"connect-src 'self' report-uri /csp-violation; "
                 f"frame-src 'none'; "
                 f"frame-ancestors 'none'"

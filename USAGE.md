@@ -89,10 +89,10 @@ Click the **Preview** button to see how your post will look. The preview:
 
 ### Editing Posts
 
-1. Go to `/admin/posts`
+1. Go to `/admin/`
 2. Find your post and click **Edit**
 3. Make changes
-4. Click **Update** to save changes
+4. Click **Save Changes** to save changes
 
 **Note:** If you see an "IntegrityError" message, a slug collision occurred. The system will auto-generate a new unique slug.
 
@@ -107,7 +107,7 @@ Every time you publish a post, a revision is saved:
 
 ### Bulk Operations
 
-From `/admin/posts`:
+From `/admin/`:
 
 1. Check the box next to each post you want to modify
 2. Select a bulk action from the dropdown:
@@ -120,13 +120,13 @@ From `/admin/posts`:
 
 To schedule a post for future publication:
 
-1. While creating/editing a post, find **Publish At** field
+1. While creating/editing a post, find **Schedule publication** field
 2. Select a future date and time
-3. Click **Save Draft** (not Publish)
+3. Click **Create Post** / **Save Changes** without checking **Publish immediately**
 
 The scheduler checks every 5 minutes for posts with `scheduled_publish_at` in the past. When triggered, the post is automatically published and the scheduled time is cleared.
 
-**Status indicators on `/admin/posts`:**
+**Status indicators on `/admin/`:**
 - Clock icon = Scheduled
 - Green dot = Published
 - Gray dot = Draft
@@ -237,7 +237,7 @@ Tokens expire after 24 hours by default. Configure `PREVIEW_LINK_EXPIRY_HOURS` i
 
 ### Programmatic Generation
 Generate preview links via the admin panel or code:
-1. **Admin panel**: Edit a post, click **Generate Preview Link**
+1. **Admin panel**: Edit a post, click the **Preview** button to open the preview
 2. **Code**:
 ```python
 import hmac

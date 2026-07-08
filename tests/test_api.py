@@ -1,7 +1,6 @@
 """Tests for REST API endpoints."""
 
 import os
-import pytest
 
 os.environ["API_KEY"] = "test-api-key-12345"
 

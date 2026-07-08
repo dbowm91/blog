@@ -27,8 +27,9 @@ Specialized handling for the admin dashboard and management routes.
 
 ## Routes
 
-- `/admin/` - Dashboard with widgets (traffic chart, top shares, trending, scheduled posts count)
-- `/admin/posts` - Post CRUD with bulk operations
+- `/admin/` - Dashboard with widgets (traffic chart, top shares, trending, scheduled posts count) and post listing/CRUD with bulk operations
+- `/admin/new` - New post editor
+- `/admin/edit/<id>` - Edit post
 - `/admin/posts/<id>/revisions` - Post revision history
 - `/admin/subscribers` - Subscriber management with bulk resend
 - `/admin/users` - User management with promote/demote/make-owner

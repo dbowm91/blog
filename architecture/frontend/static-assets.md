@@ -64,7 +64,7 @@ Code splitting is implemented in `main.js:30-83` using `import.meta.glob()`. Mod
 
 ```javascript
 const ROUTE_MODULES = {
-    '/admin/posts': [
+    '/admin/new': [
         './shared/utils.js',
         './shared/modal.js',
         './shared/nav-dropdown.js',
@@ -74,6 +74,37 @@ const ROUTE_MODULES = {
         './admin/bulk.js',
         './admin/editor.js',
         './image-preview.js',
+    ],
+    '/admin/edit': [
+        './shared/utils.js',
+        './shared/modal.js',
+        './shared/nav-dropdown.js',
+        './shared/filter-select.js',
+        './shared/toast.js',
+        './admin/shortcuts.js',
+        './admin/bulk.js',
+        './admin/editor.js',
+        './image-preview.js',
+    ],
+    '/admin/pages/new': [
+        './shared/utils.js',
+        './shared/modal.js',
+        './shared/nav-dropdown.js',
+        './shared/filter-select.js',
+        './shared/toast.js',
+        './admin/shortcuts.js',
+        './admin/bulk.js',
+        './admin/editor.js',
+    ],
+    '/admin/pages/edit': [
+        './shared/utils.js',
+        './shared/modal.js',
+        './shared/nav-dropdown.js',
+        './shared/filter-select.js',
+        './shared/toast.js',
+        './admin/shortcuts.js',
+        './admin/bulk.js',
+        './admin/editor.js',
     ],
     '/admin/media': [
         './shared/utils.js',

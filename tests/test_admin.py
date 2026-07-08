@@ -112,7 +112,7 @@ def test_logout(authenticated_client):
     assert response.status_code == 200
 
 
-import io
+import io  # noqa: E402
 
 
 def test_upload_valid_image(authenticated_client, db):

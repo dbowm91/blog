@@ -9,13 +9,12 @@ from flask import (
     request,
     flash,
     current_app,
-    Response,
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, QueryableAttribute
-from typing import cast, Union
+from typing import cast
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db

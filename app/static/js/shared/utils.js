@@ -25,6 +25,17 @@ export function announce(message) {
 }
 
 export function initSharedUtils() {
+    // --- History back button (CSP-safe replacement for inline onclick) ---
+    document.querySelectorAll('[data-history-back]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/';
+            }
+        });
+    });
+
     // --- Password visibility toggle ---
     document.querySelectorAll('.pw-toggle').forEach(btn => {
         btn.addEventListener('click', () => {

@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from asgiref.wsgi import WsgiToAsgi
-from app import create_app
-from app.config import SERVER_HOST, SERVER_PORT, DEBUG
+from asgiref.wsgi import WsgiToAsgi  # noqa: E402
+from app import create_app  # noqa: E402
+from app.config import SERVER_HOST, SERVER_PORT, DEBUG  # noqa: E402
 
 app = create_app()
 asgi_app = WsgiToAsgi(app)

@@ -1,6 +1,7 @@
 """Stats API endpoint."""
 
 from datetime import timedelta
+from typing import Any
 
 from flask import jsonify
 from sqlalchemy import text
@@ -18,7 +19,7 @@ DEFAULT_LIMIT = "20 per minute"
 @require_api_key
 @require_scope("analytics:read")
 @limiter.limit(DEFAULT_LIMIT)
-def get_stats() -> any:
+def get_stats() -> Any:
     """Get dashboard statistics.
 
     Returns:

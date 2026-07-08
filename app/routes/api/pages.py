@@ -124,7 +124,7 @@ def create_page() -> Any:
     if not slug:
         slug = generate_slug(title)
 
-    slug = _generate_unique_slug(Page, title, slug)
+    slug = _generate_unique_slug(Page, title, slug=slug)
 
     published = data.get("published", False)
     published, err = validate_boolean(published, "published")
@@ -194,7 +194,7 @@ def update_page(page_id: int) -> Any:
             return jsonify({"error": err}), 400
         slug = generate_slug(slug)
         if slug != page.slug:
-            page.slug = _generate_unique_slug(Page, page.title, slug, exclude_id=page_id)
+            page.slug = _generate_unique_slug(Page, page.title, slug=slug, exclude_id=page_id)
 
     if "body" in data:
         body, err = validate_string(data["body"], 50000, "body")

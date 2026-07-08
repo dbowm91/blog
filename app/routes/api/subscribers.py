@@ -1,6 +1,7 @@
 """Subscribers API endpoints."""
 
 from datetime import timedelta
+from typing import Any
 
 from flask import jsonify, request
 from sqlalchemy import select
@@ -36,7 +37,7 @@ def _subscriber_to_dict(subscriber: Subscriber) -> dict:
 @require_api_key
 @require_scope("subscribers:read")
 @limiter.limit(DEFAULT_LIMIT)
-def list_subscribers() -> any:
+def list_subscribers() -> Any:
     """List subscribers with pagination.
 
     Query params:
@@ -74,7 +75,7 @@ def list_subscribers() -> any:
 @require_api_key
 @require_scope("subscribers:write")
 @limiter.limit(WRITE_LIMIT)
-def create_subscriber() -> any:
+def create_subscriber() -> Any:
     """Create a new subscriber.
 
     JSON body:
@@ -128,7 +129,7 @@ def create_subscriber() -> any:
 @require_api_key
 @require_scope("subscribers:write")
 @limiter.limit(WRITE_LIMIT)
-def delete_subscriber(subscriber_id: int) -> any:
+def delete_subscriber(subscriber_id: int) -> Any:
     """Delete a subscriber.
 
     Returns:

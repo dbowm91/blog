@@ -24,6 +24,7 @@ __all__ = [
     "send_confirmation_task",
     "send_password_reset_task",
     "run_backup_task",
+    "notify_pending_comment_task",
 ]
 
 
@@ -230,9 +231,13 @@ def deliver_webhook_task(self: Any, webhook_event_id: int) -> bool:
             db.session.commit()
             return True
 
+        # Collect IDs before dispatch to avoid DetachedInstanceError under
+        # eager Celery execution where child task may close the session.
+        webhook_ids = [w.id for w in webhooks]
+
         # Dispatch individual webhook deliveries for per-webhook retry
-        for webhook in webhooks:
-            deliver_single_webhook_task.delay(webhook_event_id, webhook.id)
+        for webhook_id in webhook_ids:
+            deliver_single_webhook_task.delay(webhook_event_id, webhook_id)
 
         return True
     finally:
@@ -310,14 +315,20 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
             db.session.commit()
             raise self.retry(exc=e)
     except MaxRetriesExceededError:
-        logger.error("Webhook delivery to %s failed after max retries", webhook.name)
-        event.failed_deliveries += 1
-        _update_delivery_status(event, db)
+        webhook_name = webhook.name if webhook else "unknown"
+        event_obj = db.session.get(WebhookEvent, webhook_event_id) if webhook_event_id else None
+        if event_obj is not None:
+            event_obj.failed_deliveries += 1
+            _update_delivery_status(event_obj, db)
+        logger.error("Webhook delivery to %s failed after max retries", webhook_name)
         return False
     except Exception as e:
-        logger.error("Unexpected error delivering webhook to %s: %s", webhook.name, e)
-        event.failed_deliveries += 1
-        _update_delivery_status(event, db)
+        webhook_name = webhook.name if webhook else "unknown"
+        event_obj = db.session.get(WebhookEvent, webhook_event_id) if webhook_event_id else None
+        if event_obj is not None:
+            event_obj.failed_deliveries += 1
+            _update_delivery_status(event_obj, db)
+        logger.error("Unexpected error delivering webhook to %s: %s", webhook_name, e)
         return False
     finally:
         db.session.remove()
@@ -428,6 +439,41 @@ def run_backup_task(self: Any) -> bool:
         return result is not None
     except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Backup task failed: %s", e)
+        return False
+    finally:
+        db.session.remove()
+
+
+@shared_task(bind=True, max_retries=3, retry_backoff=True, queue="email")
+def notify_pending_comment_task(self: Any, comment_id: int) -> bool:
+    """Notify admins of a pending comment awaiting moderation."""
+    from app.extensions import db
+    from app.models import Comment, User
+    from app.email import _send_email
+
+    try:
+        comment = db.session.get(Comment, comment_id)
+        if not comment:
+            return False
+
+        post_title = comment.post.title if comment.post else "Unknown post"
+        subject = f"New pending comment on '{post_title}'"
+        body = (
+            f"A new comment is awaiting moderation:\n\n"
+            f"Author: {comment.author_name} <{comment.author_email}>\n"
+            f"Post: {post_title}\n\n"
+            f"{comment.content}\n\n"
+            f"Approve or delete it at /admin/comments"
+        )
+
+        admins = db.session.execute(select(User).filter_by(is_admin=True)).scalars().all()
+        for admin in admins:
+            if admin.email:
+                _send_email(admin.email, subject, body)
+
+        return True
+    except (SQLAlchemyError, OSError, ImportError) as e:
+        logger.error("Pending comment notification failed: %s", e)
         return False
     finally:
         db.session.remove()

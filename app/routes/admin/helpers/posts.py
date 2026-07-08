@@ -1,6 +1,6 @@
 """Post-related helpers for admin routes."""
 
-from sqlalchemy import select, Select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload, QueryableAttribute
 from typing import cast, Any, Optional
 

@@ -1,7 +1,6 @@
 """Search provider abstraction for full-text search backends."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class ConfigurationError(Exception):

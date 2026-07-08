@@ -1,11 +1,11 @@
 """Series API endpoints."""
 
-from typing import Any
+from typing import Any, cast
 
 from flask import jsonify, request
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import QueryableAttribute, selectinload
 
 from app.extensions import db
 from app.models import Series, Post, PostSeries
@@ -37,7 +37,7 @@ def _series_to_dict(series: Series, include_posts: bool = False) -> dict:
                 "slug": ps.post.slug,
                 "order_index": ps.order_index,
             }
-            for ps in series.posts
+            for ps in list(cast(Any, series.posts))
         ]
     return result
 
@@ -61,7 +61,9 @@ def list_series() -> Any:
     per_page = min(request.args.get("per_page", 20, type=int), 100)
     include_posts = request.args.get("include_posts", "").lower() in ("true", "1", "yes")
 
-    query = select(Series).options(joinedload(Series.posts)).order_by(Series.created_at.desc())
+    query = select(Series).order_by(Series.created_at.desc())
+    if include_posts:
+        query = query.options(selectinload(cast(QueryableAttribute, Series.posts)))
     pagination = db.paginate(query, page=page, per_page=per_page, error_out=False)
 
     return jsonify(
@@ -87,12 +89,15 @@ def get_series(series_id: int) -> Any:
     Returns:
         JSON with series data or 404 error
     """
-    query = select(Series).options(joinedload(Series.posts)).filter(Series.id == series_id)
+    include_posts = request.args.get("include_posts", "").lower() in ("true", "1", "yes")
+
+    query = select(Series).filter(Series.id == series_id)
+    if include_posts:
+        query = query.options(selectinload(cast(QueryableAttribute, Series.posts)))
     series = db.session.execute(query).scalars().unique().one_or_none()
     if not series:
         return jsonify({"error": "Series not found"}), 404
 
-    include_posts = request.args.get("include_posts", "").lower() in ("true", "1", "yes")
     return jsonify(_series_to_dict(series, include_posts=include_posts))
 
 

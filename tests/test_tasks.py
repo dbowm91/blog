@@ -1,5 +1,4 @@
 from unittest.mock import patch, MagicMock
-from app.models import Webhook, WebhookEvent
 import json
 
 
@@ -74,30 +73,30 @@ def test_deliver_webhook_task_event_not_found(db):
 def test_deliver_webhook_task_no_webhooks(db):
     """Test deliver_webhook_task marks event delivered if no webhooks."""
     from app.tasks import deliver_webhook_task
-    from app.models import WebhookEvent
+    from app.models import WebhookEvent as _WebhookEvent
 
-    event = WebhookEvent(event_type="test", payload=json.dumps({"test": "data"}))
+    event = _WebhookEvent(event_type="test", payload=json.dumps({"test": "data"}))
     db.session.add(event)
     db.session.commit()
     event_id = event.id
     result = deliver_webhook_task.apply(args=(event_id,))
     assert result.get() is True
     # Re-query event
-    event = db.session.execute(db.select(WebhookEvent).filter_by(id=event_id)).scalar_one()
+    event = db.session.execute(db.select(_WebhookEvent).filter_by(id=event_id)).scalar_one()
     assert event.delivered is True
 
 
 def test_deliver_webhook_task_ssrf_block(db):
     """Test deliver_webhook_task blocks unsafe URLs via subtask."""
     from app.tasks import deliver_single_webhook_task
-    from app.models import Webhook, WebhookEvent
-    from app.tasks import _update_delivery_status
+    from app.models import Webhook as _Webhook
+    from app.models import WebhookEvent as _WebhookEvent
 
-    webhook = Webhook(
+    webhook = _Webhook(
         name="Test Webhook", url="http://169.254.169.254/latest", secret="secret", event_type="test"
     )
     db.session.add(webhook)
-    event = WebhookEvent(event_type="test", payload=json.dumps({"test": "data"}))
+    event = _WebhookEvent(event_type="test", payload=json.dumps({"test": "data"}))
     db.session.add(event)
     db.session.commit()
     webhook_id = webhook.id
@@ -107,7 +106,7 @@ def test_deliver_webhook_task_ssrf_block(db):
         result = deliver_single_webhook_task.apply(args=(event_id, webhook_id))
         assert result.get() is False
 
-    event = db.session.get(WebhookEvent, event_id)
+    event = db.session.get(_WebhookEvent, event_id)
     assert event.failed_deliveries == 1
 
 

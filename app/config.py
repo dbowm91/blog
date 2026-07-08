@@ -2,11 +2,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import logging
-import os
-import tomllib
-from typing import Any
-from urllib.parse import urlparse
+import logging  # noqa: E402
+import os  # noqa: E402
+import tomllib  # noqa: E402
+from typing import Any  # noqa: E402
+from urllib.parse import urlparse  # noqa: E402
 
 __all__ = [
     "APP_TITLE",
