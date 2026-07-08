@@ -55,7 +55,7 @@ def browser_type_launch_args(browser_type_launch_args):
 @pytest.fixture(scope="session")
 def app_url():
     """Base URL for the Flask application."""
-    return "http://127.0.0.1:5010"
+    return os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5010")
 
 
 @pytest.fixture(scope="session")

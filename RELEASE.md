@@ -10,6 +10,7 @@ Use this checklist before tagging a new release.
 - [ ] Type check passes: `mypy app/`
 - [ ] Frontend builds: `npm run build`
 - [ ] No secrets in tracked files: `git diff --name-only HEAD~5..HEAD | xargs grep -l "SECRET_KEY\|ADMIN_PASSWORD" || true`
+- [ ] Security audit passes: `pip-audit -r requirements.txt --fail-on=all`
 - [ ] `config.toml` is NOT tracked (only `config.toml.example` is committed)
 - [ ] CHANGELOG.md updated with release version and date
 - [ ] `HEALTH_CHECK_SECRET` and `METRICS_SECRET` are set in production environment

@@ -143,7 +143,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI Workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 5 jobs: `lint-and-type`, `test`, `frontend-build`, `docker-build`, `e2e-tests`.
+CI configuration is at `.github/workflows/ci.yml`. It includes 6 jobs: `lint-and-type`, `test`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
 
 ### Webhook Delivery Architecture
 
