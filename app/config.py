@@ -52,6 +52,7 @@ __all__ = [
     "PREVIEW_TOKEN_EXPIRY_DAYS",
     "HEALTH_CHECK_SECRET",
     "METRICS_SECRET",
+    "ENABLE_METRICS",
     "RATE_LIMIT_STORAGE_URI",
     "REDIS_URL",
     "DATA_BACKUP_DIR",
@@ -178,6 +179,13 @@ COMMENT_SPAM_WORDS = _config.get("comments", {}).get("spam_words", "")
 
 HEALTH_CHECK_SECRET = _env("HEALTH_CHECK_SECRET", "")
 METRICS_SECRET = _env("METRICS_SECRET", "")
+ENABLE_METRICS = _env_bool("ENABLE_METRICS", default=False)
+
+
+def is_production() -> bool:
+    return os.environ.get("FLASK_ENV") == "production"
+
+
 LOGIN_FAILURE_DELAY = float(
     _env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05))
 )

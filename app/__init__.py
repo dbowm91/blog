@@ -468,6 +468,14 @@ def create_app() -> Flask:
     else:
         app.logger.info("APScheduler disabled; set ENABLE_SCHEDULER=true to run scheduled jobs")
 
+    from app.config import ENABLE_METRICS, METRICS_SECRET, is_production  # noqa: E402
+
+    if ENABLE_METRICS and is_production() and not METRICS_SECRET:
+        raise RuntimeError(
+            "METRICS_SECRET must be set when ENABLE_METRICS=true in production. "
+            "Generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'"
+        )
+
     from app.page_view_buffer import init_page_view_buffer  # noqa: E402
     from app.models import PageView  # noqa: E402
 

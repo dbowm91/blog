@@ -69,7 +69,7 @@ class TestHealthDetailedWithSecret:
         assert resp.status_code == 401
 
     @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "my-secret-123")
-    def test_detailed_with_correct_secret_returns_all_checks(self, client, db):
+    def test_detailed_with_correct_query_secret_returns_all_checks(self, client, db):
         resp = client.get("/health?detailed=true&secret=my-secret-123")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -81,8 +81,52 @@ class TestHealthDetailedWithSecret:
         assert "details" in data
 
     @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "my-secret-123")
+    def test_detailed_with_correct_header_secret_returns_all_checks(self, client, db):
+        resp = client.get(
+            "/health?detailed=true",
+            headers={"X-Health-Secret": "my-secret-123"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "database" in data["checks"]
+        assert "details" in data
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "my-secret-123")
+    def test_detailed_with_bearer_token_returns_all_checks(self, client, db):
+        resp = client.get(
+            "/health?detailed=true",
+            headers={"Authorization": "Bearer my-secret-123"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "database" in data["checks"]
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "my-secret-123")
+    def test_detailed_with_wrong_header_returns_401(self, client, db):
+        resp = client.get(
+            "/health?detailed=true",
+            headers={"X-Health-Secret": "wrong"},
+        )
+        assert resp.status_code == 401
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "my-secret-123")
     def test_basic_still_works_without_secret_when_secret_required(self, client, db):
         resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.get_json()
         assert set(data["checks"].keys()) == {"database", "scheduler"}
+
+
+class TestHealthProductionMode:
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    @patch("app.routes.public.meta.is_production", return_value=True)
+    def test_detailed_returns_403_when_no_secret_in_production(self, mock_prod, client, db):
+        resp = client.get("/health?detailed=true")
+        assert resp.status_code == 403
+        assert resp.get_json()["error"] == "disabled"
+
+    @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
+    @patch("app.routes.public.meta.is_production", return_value=True)
+    def test_basic_still_works_in_production_without_secret(self, mock_prod, client, db):
+        resp = client.get("/health")
+        assert resp.status_code == 200

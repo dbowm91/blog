@@ -270,8 +270,12 @@ Health endpoint for monitoring with rate limit of 60/min per IP.
 #### Authentication
 
 - **Basic call**: `GET /health` — returns summary status without sensitive details
-- **Detailed call**: `GET /health?detailed=true&secret=<HEALTH_CHECK_SECRET>` — returns extra detail fields (database latency, scheduler next run, last newsletter send)
-- The `detailed` param alone is not enough; `secret` must match `HEALTH_CHECK_SECRET` env var via constant-time HMAC comparison
+- **Detailed call**: `GET /health?detailed=true` with secret via:
+  - Header: `X-Health-Secret: <HEALTH_CHECK_SECRET>`
+  - Bearer token: `Authorization: Bearer <HEALTH_CHECK_SECRET>`
+  - Query param: `?secret=<HEALTH_CHECK_SECRET>` (legacy, still supported)
+- In production without `HEALTH_CHECK_SECRET`, detailed mode returns 403
+- Secret validated via constant-time HMAC comparison
 
 #### Critical Checks
 

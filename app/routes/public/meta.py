@@ -1,5 +1,6 @@
 """Meta routes - robots.txt, sitemap.xml, favicon, health check, metrics."""
 
+import hmac
 import logging
 import time
 import shutil
@@ -19,7 +20,15 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.extensions import db
 from app.models import Post, Tag, Page
-from app.config import BASE_URL, HEALTH_CHECK_SECRET, METRICS_SECRET, REDIS_URL, DATA_BACKUP_DIR
+from app.config import (
+    BASE_URL,
+    HEALTH_CHECK_SECRET,
+    METRICS_SECRET,
+    ENABLE_METRICS,
+    REDIS_URL,
+    DATA_BACKUP_DIR,
+    is_production,
+)
 from app.scheduler import get_scheduler_health
 from app.utils import xml_escape, utc_now
 from app import limiter
@@ -32,6 +41,20 @@ except ImportError:
     PROMETHEUS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+def _provided_secret(header_name: str) -> str:
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        return auth.removeprefix("Bearer ").strip()
+    return request.headers.get(header_name, "") or request.args.get("secret", "")
+
+
+def _secret_matches(expected: str, header_name: str) -> bool:
+    if not expected:
+        return False
+    provided = _provided_secret(header_name)
+    return bool(provided) and hmac.compare_digest(provided, expected)
 
 
 def _generate_sitemap():
@@ -193,17 +216,17 @@ Sitemap: {BASE_URL}/sitemap.xml
         Basic mode (default): Only database and scheduler checks. Safe for Docker healthchecks.
         Detailed mode (?detailed=true): All checks including disk, integrity, redis, celery, backup.
         Requires valid secret when HEALTH_CHECK_SECRET is configured.
+        In production without HEALTH_CHECK_SECRET, detailed mode returns 403.
         """
-        import hmac
-
         detailed = request.args.get("detailed", "").lower() == "true"
         status_code = 200
 
         if detailed:
             if HEALTH_CHECK_SECRET:
-                secret = request.args.get("secret", "")
-                if not hmac.compare_digest(secret, HEALTH_CHECK_SECRET):
+                if not _secret_matches(HEALTH_CHECK_SECRET, "X-Health-Secret"):
                     return jsonify({"error": "unauthorized"}), 401
+            elif is_production():
+                return jsonify({"error": "disabled"}), 403
 
             checks = {}
 
@@ -334,17 +357,18 @@ Sitemap: {BASE_URL}/sitemap.xml
     def metrics():
         """Prometheus-compatible metrics endpoint.
 
-        Requires METRICS_SECRET query parameter for authentication when configured.
-        Falls back to HEALTH_CHECK_SECRET if METRICS_SECRET is not set.
-        Public if neither is configured.
+        Disabled by default (ENABLE_METRICS=false). When enabled:
+        - Production: requires METRICS_SECRET via header or query string
+        - Development: allows unauthenticated access when no secret is configured
         """
-        import hmac
+        if not ENABLE_METRICS:
+            return jsonify({"error": "not found"}), 404
 
-        secret_required = METRICS_SECRET or HEALTH_CHECK_SECRET
-        if secret_required:
-            secret = request.args.get("secret", "")
-            if not hmac.compare_digest(secret, secret_required):
+        if METRICS_SECRET:
+            if not _secret_matches(METRICS_SECRET, "X-Metrics-Secret"):
                 return Response("Unauthorized", status=401)
+        elif is_production():
+            return jsonify({"error": "METRICS_SECRET required in production"}), 403
 
         if PROMETHEUS_AVAILABLE:
             return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)

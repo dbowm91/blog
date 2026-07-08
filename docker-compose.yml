@@ -7,6 +7,8 @@ services:
       org.opencontainers.image.description: "Flask blog CMS with admin dashboard, newsletter scheduling, and FTS5 search"
     expose:
       - "5000"
+    ports:
+      - "127.0.0.1:5000:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
@@ -29,6 +31,9 @@ services:
       - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
       # Health check endpoint secret (optional, for detailed health info)
       - HEALTH_CHECK_SECRET=${HEALTH_CHECK_SECRET:-}
+      # Metrics endpoint configuration
+      - METRICS_SECRET=${METRICS_SECRET:-}
+      - ENABLE_METRICS=${ENABLE_METRICS:-false}
       # API key for REST API authentication
       - API_KEY=${API_KEY:-}
       # Number of proxies (for ProxyFix middleware, default: 1)
@@ -55,9 +60,8 @@ services:
       redis:
         condition: service_healthy
 
-  # WARNING: APScheduler runs when ENABLE_SCHEDULER=true. With multiple replicas,
-  # set ENABLE_SCHEDULER=true on only ONE container to prevent duplicate jobs.
-  # The scheduler has an idempotency guard, but explicit opt-in is recommended.
+  # APScheduler runs in the blog container when ENABLE_SCHEDULER=true.
+  # Set ENABLE_SCHEDULER=true on exactly ONE container to prevent duplicate jobs.
   celery:
     build: .
     restart: unless-stopped
@@ -117,7 +121,7 @@ services:
       blog:
         condition: service_healthy
     profiles:
-      - production
+      - reverse-proxy
 
   backup:
     build: .

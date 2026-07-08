@@ -139,7 +139,8 @@ The `critical.css` file at `app/static/css/critical.css` provides above-the-fold
 ### Docker Compose Profiles
 
 All services require explicit profiles. There is no default profile:
-- `--profile production`: blog, celery, redis, nginx
+- `--profile production`: blog, celery, redis (app on `127.0.0.1:5000`)
+- `--profile reverse-proxy`: nginx (optional reverse proxy with TLS)
 - `--profile backup`: backup service
 
 ### CI Workflow
@@ -253,7 +254,7 @@ CSRF validation is enforced globally for all POST requests in `app/__init__.py:3
 Database URI: `SQLALCHEMY_DATABASE_URI` → `DATABASE_URL` → SQLite default.
 Cache Redis: `CACHE_REDIS_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
 Celery broker: `CELERY_BROKER_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
-Metrics secret: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public.
+Metrics: `ENABLE_METRICS=true` + `METRICS_SECRET` required in production.
 
 ### config.toml.example
 
@@ -263,13 +264,16 @@ Metrics secret: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public.
 
 `/health` has two modes:
 - **Basic** (`/health`): Returns only database + scheduler status. Fast, no auth required. Used for Docker healthchecks.
-- **Detailed** (`/health?detailed=true&secret=...`): Returns all 8 checks with details. Requires `HEALTH_CHECK_SECRET` when set.
+- **Detailed** (`/health?detailed=true`): Returns all 8 checks with details. Requires `HEALTH_CHECK_SECRET` via header (`X-Health-Secret`), Bearer token, or `?secret=` query param. In production without `HEALTH_CHECK_SECRET`, returns 403.
 
 See [architecture/overview.md](architecture/overview.md#health-check-get-health) for full health check documentation.
 
-### METRICS_SECRET
+### ENABLE_METRICS / METRICS_SECRET
 
-`METRICS_SECRET` gates the `/metrics` endpoint. Fallback chain: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public (no auth). When neither secret is set, `/metrics` is publicly accessible.
+`/metrics` is disabled by default (`ENABLE_METRICS=false`). When `ENABLE_METRICS=true`:
+- Production: requires `METRICS_SECRET` via header (`X-Metrics-Secret`), Bearer token, or `?secret=` query param
+- Without `METRICS_SECRET` in production: returns 403
+- Startup validation: raises `RuntimeError` if `ENABLE_METRICS=true` + `is_production()` + no `METRICS_SECRET`
 
 ### python-dotenv Auto-Loading
 

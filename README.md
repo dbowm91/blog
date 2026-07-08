@@ -46,21 +46,21 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 
 ## Quick Start
 
-Get from zero to a running blog in 5 minutes.
-
-### Option A: Docker (Recommended for Production)
+### Docker Production (Recommended)
 
 ```bash
 git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 cp .env.example .env
-# Edit .env with your SECRET_KEY and ADMIN_PASSWORD
+# Edit .env: set SECRET_KEY and ADMIN_PASSWORD
 docker compose --profile production up -d --build
 ```
 
 Docker builds frontend assets (Vite) automatically inside the container. No local Node.js installation required.
 
-### Option B: Local Development
+The app binds to `127.0.0.1:5000` (localhost only). For public access, put a reverse proxy (Caddy, nginx, Traefik) in front with TLS. See [DEPLOY.md § Reverse Proxy Setup](DEPLOY.md#9-reverse-proxy-setup) for examples.
+
+### Local Development
 
 ```bash
 git clone https://github.com/dbowm91/blog.git /opt/blog
@@ -71,11 +71,11 @@ python run.py
 
 This creates a virtual environment, generates secure credentials, and loads the `.env` file.
 
-### 2. Access Your Blog
+### Access Your Blog
 
 Visit `http://localhost:5000`. Admin panel at `http://localhost:5000/admin/login`.
 
-### 3. Write Your First Post
+### Write Your First Post
 
 1. Log in at `/admin/login`
 2. Click **New Post** in the dashboard
@@ -83,7 +83,7 @@ Visit `http://localhost:5000`. Admin panel at `http://localhost:5000/admin/login
 4. Add tags (comma-separated)
 5. Click **Publish**
 
-### 4. Set Up Newsletter (Optional)
+### Set Up Newsletter (Optional)
 
 1. Configure SMTP in `config.toml` under `[email]`
 2. Set `SMTP_USER` and `SMTP_PASSWORD` environment variables
@@ -200,6 +200,21 @@ Click **Preview** to see how your post will look with theme styling.
 
 ---
 
+## Support Matrix
+
+| Feature | Stable | Experimental | Notes |
+|---------|--------|--------------|-------|
+| SQLite with WAL | Yes | No | Default single-server database |
+| PostgreSQL | No | Yes | Not fully tested in CI; migration path exists |
+| Local filesystem media | Yes | No | Default media backend |
+| S3-compatible media | No | Yes | Requires boto3; not CI-tested |
+| Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
+| Celery + Redis (async tasks) | Yes | No | Newsletter, webhooks, image variants; included in production compose profile |
+
+See [DEPLOY.md § Support Matrix](DEPLOY.md#support-matrix) for details.
+
+---
+
 ## Reference
 
 ### Environment Variables
@@ -213,11 +228,12 @@ Click **Preview** to see how your post will look with theme styling.
 | `SMTP_PASSWORD` | No | SMTP password |
 | `SESSION_COOKIE_SECURE` | No | Require HTTPS for cookies. Set `false` for local HTTP (default: `true`) |
 | `API_KEY` | No | REST API authentication |
-| `DATABASE_URL` | No | PostgreSQL connection string (experimental — falls back to SQLite if unset). See `SQLALCHEMY_DATABASE_URI` for the primary override. |
+| `DATABASE_URL` | No | PostgreSQL connection string (experimental — falls back to SQLite if unset) |
 | `REDIS_URL` | No | Redis connection URL for cache/Celery (default: `redis://localhost:6379/0`) |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler for newsletters and backups (default: `false`, set `true` on exactly ONE container) |
 | `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |
-| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (fallback: `HEALTH_CHECK_SECRET`, then public) |
+| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (no fallback; must be set with `ENABLE_METRICS`) |
+| `ENABLE_METRICS` | No | Enable `/metrics` endpoint (default: `false`; set `true` with `METRICS_SECRET` in production) |
 
 ### CLI Commands
 
@@ -258,7 +274,7 @@ Key tables: `users`, `posts`, `tags`, `subscribers`, `pages`, `page_views`, `sha
 ### Ports
 
 - Development server: `0.0.0.0:5000`
-- Granian (production): `127.0.0.1:5000`
+- Docker production: `127.0.0.1:5000` (localhost only — use a reverse proxy for public access)
 
 ---
 

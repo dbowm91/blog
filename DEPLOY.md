@@ -25,6 +25,14 @@ Comprehensive guide for deploying DevLog in production.
 
 ## 1. Prerequisites
 
+### Docker Production (Recommended)
+
+- [Docker](https://docs.docker.com/get-docker/) 20.10+
+- [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
+- A reverse proxy (nginx, Caddy, Traefik) for TLS termination and public access
+
+### Local / Non-Docker
+
 - Python 3.12 or later (tested with 3.12 and 3.13)
 - pip
 - SQLite 3.35+ (for `PRAGMA journal_mode=WAL` and FTS5 support)
@@ -35,29 +43,37 @@ Comprehensive guide for deploying DevLog in production.
 
 ## 2. Quick Start
 
+### Docker Production
+
 ```bash
-# Clone and enter the project
+git clone https://github.com/dbowm91/blog.git /opt/blog
+cd /opt/blog
+cp .env.example .env
+# Edit .env: set SECRET_KEY and ADMIN_PASSWORD
+docker compose --profile production up -d --build
+```
+
+The app binds to `127.0.0.1:5000` (localhost only). For public access, put a reverse proxy in front with TLS — see [Section 9: Reverse Proxy Setup](#9-reverse-proxy-setup).
+
+Admin panel: `http://localhost:5000/admin/login`.
+
+**First-admin bootstrap:** The `ADMIN_PASSWORD` env var is used only when creating the initial admin user. Changing it later does not overwrite the existing admin password — use the password reset flow (`/admin/forgot-password`) instead.
+
+### Local Development (NOT for production)
+
+```bash
 git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 
-# Create a virtual environment
 python3 -m venv venv
 source venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Create config.toml (edit as needed)
-
-# Set required environment variables
 export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 export ADMIN_PASSWORD="your-strong-password-here"
-
-# Initialize the database
 export FLASK_APP=run:app
 flask db upgrade
 
-# Run the development server (NOT for production)
 python run.py
 ```
 
@@ -74,7 +90,7 @@ The app listens on `0.0.0.0:5000` by default.
 | Local filesystem media | Yes | No | Default media backend |
 | S3-compatible media | No | Yes | Requires boto3; admin media listing works but not CI-tested |
 | Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
-| Celery + Redis (async tasks) | No | Yes | Newsletter, webhooks, image variants; optional and not CI-tested |
+| Celery + Redis (async tasks) | Yes | No | Newsletter, webhooks, image variants; included in production compose profile |
 
 ---
 
@@ -103,7 +119,8 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Celery broker URL (fallback: `REDIS_URL`) |
 | `ENABLE_SCHEDULER` | `false` | Enable APScheduler (set `true` on exactly ONE container) |
 | `HEALTH_CHECK_SECRET` | — | Secret for detailed `/health?detailed=true` endpoint. When set, detailed health requires `?secret=` param |
-| `METRICS_SECRET` | — | Secret for `/metrics` endpoint. Falls back to `HEALTH_CHECK_SECRET`, then public |
+| `METRICS_SECRET` | — | Secret for `/metrics` endpoint. Required when `ENABLE_METRICS=true` (no fallback) |
+| `ENABLE_METRICS` | `false` | Enable `/metrics` endpoint. Must be `true` with `METRICS_SECRET` in production |
 
 ### Storage Variables
 
@@ -286,23 +303,29 @@ The Docker build uses a multi-stage Dockerfile:
 
 Frontend assets are built automatically inside the container. No local Node.js installation is required for Docker deployments.
 
-The blog will be available at `http://localhost:5000`. Admin at `http://localhost:5000/admin/login`.
+The app binds to `127.0.0.1:5000` (localhost only). It is not directly accessible from other machines. For public access, put a reverse proxy (Caddy, nginx, Traefik) in front with TLS — see [Section 9: Reverse Proxy Setup](#9-reverse-proxy-setup).
+
+Admin at `http://localhost:5000/admin/login`.
 
 ### Compose Profiles
 
 | Profile | Services | Use Case |
 |---|---|---|
-| `production` | blog, celery, redis, nginx | Full production stack |
+| `production` | blog, celery, redis | Production stack (app on `127.0.0.1:5000`) |
+| `reverse-proxy` | nginx | Optional nginx reverse proxy with TLS |
 | `backup` | backup | Standalone backup runner |
 
 ```bash
-# Production stack (blog + celery + redis + nginx)
+# Production stack (blog + celery + redis)
 docker compose --profile production up -d --build
+
+# With included nginx reverse proxy
+docker compose --profile production --profile reverse-proxy up -d --build
 
 # Backup service
 docker compose --profile backup run --rm backup
 
-# Both
+# Both production and backup
 docker compose --profile production --profile backup up -d
 ```
 
@@ -322,7 +345,8 @@ Copy `.env.example` and fill in your values:
 | `S3_*` | No | S3 configuration |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler (default: `false`, set on ONE container) |
 | `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |
-| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (fallback: `HEALTH_CHECK_SECRET`) |
+| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (required with `ENABLE_METRICS`) |
+| `ENABLE_METRICS` | No | Enable `/metrics` endpoint (default: `false`) |
 
 ### Data Persistence
 
@@ -370,7 +394,7 @@ Response:
 
 **Detailed (requires secret)** — all 8 checks with details:
 ```bash
-curl "http://localhost:5000/health?detailed=true&secret=YOUR_HEALTH_CHECK_SECRET"
+curl -H "X-Health-Secret: YOUR_HEALTH_CHECK_SECRET" "http://localhost:5000/health?detailed=true"
 ```
 
 Response includes: database, scheduler, search, disk_space, db_integrity, backup_freshness, email, redis, celery — with status and detail for each. Only critical checks (database, scheduler, search, disk_space, db_integrity) affect overall status.
@@ -385,11 +409,11 @@ docker inspect --format='{{.State.Health.Status}}' blog
 1. **SQLite is single-writer**: Only one process can write at a time. Do not scale the blog service horizontally without migrating to PostgreSQL first.
 2. **APScheduler uses file locking**: The in-process scheduler (`fcntl` lock) only coordinates workers on a single machine. In multi-container deployments, each container runs its own scheduler. Use Celery Beat or an external cron if you need single-scheduled-execution across replicas. Set `ENABLE_SCHEDULER=true` on exactly ONE container.
 3. **Async jobs need Redis/Celery**: The `celery` service handles newsletter delivery, webhook delivery, image variant generation, and backups. Without Redis, these jobs block the web process.
-4. **Reverse proxy TLS is your responsibility**: The Docker stack does not terminate TLS. Put nginx or Caddy in front with valid certificates. The included nginx config expects TLS to be handled externally (e.g., via cloud load balancer or a sidecar).
+4. **Reverse proxy TLS is your responsibility**: The Docker stack does not terminate TLS. Put nginx, Caddy, or Traefik in front with valid certificates. The included nginx config (`--profile reverse-proxy`) handles TLS termination, rate limiting, and security headers.
 
 ### Production Docker Considerations
 
-1. **Use a reverse proxy** (nginx, Caddy) with HTTPS in front of Docker
+1. **Use a reverse proxy** (Caddy, nginx, Traefik) with HTTPS in front of Docker
 2. **Set `config.toml [site] base_url`** to your public HTTPS URL
 3. **Configure rate limiting** at the proxy level (see Section 10)
 4. **Back up the named volumes** regularly
@@ -402,7 +426,7 @@ docker run --rm -v blog_data:/data -v $(pwd):/backup alpine \
 
 ### Docker Network
 
-The blog container exposes port 5000. For production:
+The blog container publishes port 5000 bound to `127.0.0.1` (localhost only):
 
 ```yaml
 services:
@@ -411,7 +435,7 @@ services:
       - "127.0.0.1:5000:5000"  # Only bind to localhost
 ```
 
-This prevents direct external access—only the reverse proxy can reach it.
+This is the default in `docker-compose.yml`. It prevents direct external access — only the reverse proxy (or local processes) can reach it.
 
 ### Environment File
 
@@ -579,7 +603,7 @@ If restoring from a different version:
 
 ## 8. PostgreSQL Migration
 
-> **Experimental:** PostgreSQL support is experimental and not fully tested in CI. SQLite with WAL mode is the stable, recommended database for single-server deployments. The migration path exists but PostgreSQL search initialization may need adjustment for production use.
+> **Experimental:** PostgreSQL support is experimental and not fully tested in CI. SQLite with WAL mode is the stable, recommended database for single-server deployments. The migration path exists but PostgreSQL search initialization may need adjustment for production use. Do not use PostgreSQL in production without thorough testing.
 
 For single-server deployments, SQLite with WAL mode is sufficient. For higher traffic or multi-server deployments, migrate to PostgreSQL.
 
@@ -854,7 +878,7 @@ sudo journalctl -u blog -f
 curl http://127.0.0.1:5000/health
 
 # Detailed health (requires secret when HEALTH_CHECK_SECRET is set)
-curl "http://127.0.0.1:5000/health?detailed=true&secret=YOUR_HEALTH_CHECK_SECRET"
+curl -H "X-Health-Secret: YOUR_HEALTH_CHECK_SECRET" "http://127.0.0.1:5000/health?detailed=true"
 ```
 
 Basic response:
@@ -872,11 +896,11 @@ Detailed response includes all checks: database, scheduler, search, disk_space, 
 ### Metrics
 
 ```bash
-# Requires METRICS_SECRET when set (falls back to HEALTH_CHECK_SECRET)
-curl "http://127.0.0.1:5000/metrics?secret=YOUR_METRICS_SECRET"
+# Requires METRICS_SECRET when ENABLE_METRICS=true
+curl -H "X-Metrics-Secret: YOUR_METRICS_SECRET" http://127.0.0.1:5000/metrics
 ```
 
-When neither `METRICS_SECRET` nor `HEALTH_CHECK_SECRET` is set, `/metrics` is publicly accessible.
+When `ENABLE_METRICS=false` (default), `/metrics` returns 404. Set `ENABLE_METRICS=true` and `METRICS_SECRET` to enable.
 
 ### Application Logs
 
@@ -919,6 +943,17 @@ Use `/health` endpoint with:
 
 The newsletter scheduler runs in-process via APScheduler—no external cron needed. It wakes every 5 minutes to check for scheduled posts and newsletters. Requires `ENABLE_SCHEDULER=true` (default: `false`). Set it on exactly ONE container in multi-container deployments.
 
+### Background Jobs: Celery vs APScheduler
+
+DevLog uses two complementary systems for background work:
+
+| System | What it does | Where it runs |
+|--------|-------------|---------------|
+| **APScheduler** | Triggers scheduled tasks (newsletter sends, post publishing, backups, subscriber cleanup) | In-process, gated by `ENABLE_SCHEDULER=true` on one container |
+| **Celery** | Executes async jobs (newsletter delivery, webhook delivery, image variants, backup creation) | Dedicated `celery` service in the production compose profile |
+
+**How they interact:** APScheduler enqueues jobs into Celery when available. Without Celery, newsletter sends block the web process. The production compose profile includes both — APScheduler on the blog container, Celery as a separate worker.
+
 ---
 
 ## 14. Security Checklist
@@ -932,7 +967,7 @@ The newsletter scheduler runs in-process via APScheduler—no external cron need
 - [ ] `SESSION_COOKIE_SECURE = True` (must be explicitly set in production)
 - [ ] `PROXY_COUNT` set correctly for proxy setup (affects rate limiting and session IP binding via `ProxyFix`)
 - [ ] `HEALTH_CHECK_SECRET` set to gate detailed health endpoint
-- [ ] `METRICS_SECRET` set to gate `/metrics` endpoint (or leave unset for public access)
+- [ ] `METRICS_SECRET` set and `ENABLE_METRICS=true` to gate `/metrics` endpoint
 - [ ] Static files served by nginx, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
 - [ ] `instance/blog.db` not in web-accessible directory
