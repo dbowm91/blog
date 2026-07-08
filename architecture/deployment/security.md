@@ -23,9 +23,13 @@ Sliding expiration via `last_activity` in session.
 
 ## CSRF Protection
 
+- Global `before_request` hook in `app/__init__.py` validates CSRF on all POST requests
+- API blueprint (`/api/*`) is exempt via `should_skip_csrf()` in `app/csrf.py`
 - Sliding window of 5 valid tokens per session
-- Token rotation on every successful validation (not specifically on privilege changes)
+- Token rotation on every successful validation
 - Timing-safe comparison via `hmac.compare_digest`
+- Browser form POSTs (admin, public, comments, subscribe, logout) require valid CSRF tokens
+- API POST/PUT/DELETE use API key authentication, not CSRF
 
 ## Input Sanitization
 

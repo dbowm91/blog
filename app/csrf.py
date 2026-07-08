@@ -1,9 +1,12 @@
 """CSRF token generation and validation.
 
-Tokens are stored in the Flask session and checked on every POST request.
-The token is available both as a form field (csrf_token) and as an HTTP
-header (X-CSRF-Token) for JSON API calls. Validation is skipped when
-TESTING=True and CSRF_ENABLED=False.
+Tokens are stored in the Flask session and checked on every POST request
+except API-key authenticated endpoints. The token is available both as a
+form field (csrf_token) and as an HTTP header (X-CSRF-Token) for JSON
+API calls. Validation is skipped when TESTING=True and CSRF_ENABLED=False.
+
+API-key requests are bearer-token requests protected by token secrecy,
+HTTPS, scopes, rate limits, and audit logging — not browser CSRF tokens.
 
 Implements a sliding window of 5 valid tokens per session:
 1. Store multiple valid tokens in session (sliding window)
@@ -18,6 +21,18 @@ import hmac
 from flask import session, request, abort, current_app
 
 CSRF_TOKEN_WINDOW_SIZE = 5
+
+
+def should_skip_csrf() -> bool:
+    """Return True if the current request should skip CSRF validation.
+
+    API-key authenticated requests (blueprint "api") are exempt from CSRF.
+    They are protected by token secrecy, HTTPS, scopes, and audit logging
+    instead of browser-session CSRF tokens.
+    """
+    if request.blueprint == "api":
+        return True
+    return False
 
 
 def generate_csrf_token() -> str:

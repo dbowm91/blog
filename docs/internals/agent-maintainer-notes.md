@@ -262,7 +262,7 @@ Use `get_search_provider()` factory function to get configured provider based on
 
 ### Comment Submission Rate Limiting
 
-Comments are rate limited at 10 per minute and require CSRF protection via `validate_csrf_token()`.
+Comments are rate limited at 10 per minute and require CSRF protection via the global `before_request` hook (route-level `validate_csrf_token()` was removed in Phase 3).
 
 - Route: `POST /post/<slug>/comment` in `app/routes/public/comments.py`
 - Rate limit: `@limiter.limit("10 per minute")`

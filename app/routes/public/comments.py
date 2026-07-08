@@ -8,7 +8,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
 from app.models import Post, Comment
 from app.routes.public import public
-from app.csrf import validate_csrf_token
 from app import limiter
 from app.config import (
     COMMENT_MIN_LENGTH,
@@ -84,8 +83,6 @@ def add_comment(slug: str) -> ResponseReturnValue:
     Methods: POST
     POST: Validates and saves comment (requires approval).
     """
-    validate_csrf_token()
-
     # Honeypot check - if filled, silently reject
     honeypot = request.form.get("website_url", "").strip()
     if honeypot:

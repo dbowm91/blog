@@ -10,7 +10,7 @@ Specialized handling for the Flask application core.
 - `extensions.py` - Flask extensions (db, login_manager, migrate)
 - `utils.py` - Slug generation, email validation, XML escaping, UTCDateTime type
 - `base62.py` - Short URL encoding (base62)
-- `csrf.py` - CSRF token handling (sliding window)
+- `csrf.py` - CSRF token handling (sliding window, API exemption via `should_skip_csrf()`)
 - `tag_cache.py` - Tag count cache (flask-cache memoization)
 - `search.py` - FTS5 full-text search (returns empty list when FTS unavailable) + snippet extraction
 - `markdown_config.py` - Shared nh3 allowed tags/attributes for markdown rendering

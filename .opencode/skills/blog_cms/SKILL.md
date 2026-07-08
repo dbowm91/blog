@@ -93,7 +93,7 @@ for i in range(0, len(post_ids), chunk_size):
 1. **Log ID, not Username** - When logging user actions, always use `user.id`
 2. **Credential Protection** - Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys
 3. **SSRF Protection** - Webhook URLs validated via `app/utils.py:is_safe_webhook_url()`
-4. **CSRF** - Sliding window of 5 valid tokens with `hmac.compare_digest`
+4. **CSRF** - Sliding window of 5 valid tokens with `hmac.compare_digest`, API blueprint exempt via `should_skip_csrf()`
 
 ## Testing Fixtures
 

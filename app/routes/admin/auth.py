@@ -17,7 +17,7 @@ from app.extensions import db
 from app.models import User, AdminSession, Post
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import logger
-from app.csrf import validate_csrf_token
+
 from app.tasks import send_password_reset_task
 from app.routes.admin.helpers import _check_password_complexity
 from app.config import MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES, LOGIN_FAILURE_DELAY
@@ -104,7 +104,6 @@ def logout() -> Any:
     POST: Clears admin session, deletes AdminSession record, and redirects to home.
     Requires: Login (any authenticated user, not just admin).
     """
-    validate_csrf_token()
     sid = session.pop("admin_session_id", None)
     if sid:
         admin_session = db.session.execute(

@@ -28,7 +28,7 @@ Both `ADMIN_PASSWORD` and `SECRET_KEY` are **required**—the app raises `Runtim
 
 ## Test Configuration
 
-Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config.
+Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config. CSRF-specific tests in `test_csrf_api_auth.py` temporarily enable CSRF via `_enable_csrf(app)` to verify browser/API behavior.
 
 ## Test Count
 

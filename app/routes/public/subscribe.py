@@ -18,7 +18,7 @@ from app.extensions import db
 from app.models import Subscriber
 from app.config import CONFIRMATION_EXPIRY_HOURS, TOKEN_ENUMERATION_DELAY
 from app.tasks import send_confirmation_task
-from app.csrf import validate_csrf_token
+
 from app.utils import is_valid_email, utc_now
 from app.routes.public.posts import _safe_redirect_url
 from app import limiter
@@ -56,8 +56,6 @@ def register_subscribe_routes(public):
     @limiter.limit("10 per minute")
     def subscribe() -> ResponseReturnValue:
         """Subscribe to the newsletter."""
-        validate_csrf_token()
-
         email = request.form.get("email", "").strip().lower()[:256]
         if not is_valid_email(email):
             flash("Please enter a valid email address.", "error")

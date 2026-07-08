@@ -36,7 +36,7 @@ from app.config import (
     MAX_UPLOAD_SIZE,
     _env_str,
 )
-from app.csrf import validate_csrf_token
+from app.csrf import validate_csrf_token, should_skip_csrf
 
 # Register sqlite3 datetime adapters for Python 3.12+ compatibility
 sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
@@ -298,8 +298,8 @@ def create_app() -> Flask:
         g.csp_nonce = secrets.token_urlsafe(16)
         g.request_start_time = time.perf_counter()
 
-        # CSRF validation for POST requests
-        if req.method == "POST":
+        # CSRF validation for POST requests (skips API blueprint)
+        if req.method == "POST" and not should_skip_csrf():
             validate_csrf_token()
 
         # Session timeout check for authenticated users

@@ -221,9 +221,9 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 `User.failed_login_count` at `app/models.py:31` has `nullable=False`.
 
-### CSRF Applies to All POSTs Including API
+### CSRF Applies to All POSTs Except API Blueprint
 
-CSRF validation is enforced globally for ALL POST requests in `app/__init__.py:297-298`, including API endpoints. API clients using `ApiToken` (Bearer token) don't have Flask sessions with CSRF tokens, so POST requests would get 403. This is a known design choice.
+CSRF validation is enforced globally for all POST requests in `app/__init__.py:301-303`, except API endpoints. The `should_skip_csrf()` predicate in `app/csrf.py` exempts requests where `request.blueprint == "api"`. API-key authenticated requests are protected by token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. Browser form POSTs (admin, public, subscribe, comments, logout) all require valid CSRF tokens.
 
 ### Benchmark Tests Celery Eager Config
 
