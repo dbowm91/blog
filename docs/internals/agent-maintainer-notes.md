@@ -117,11 +117,11 @@ Slug collision limit is hardcoded to 100 tries before falling back to UUID suffi
 
 ### APScheduler SMTP Handling
 
-When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run.
+When `SMTP_HOST` is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run.
 
 ### APScheduler Multi-Worker Limitation
 
-APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously. This is documented in `architecture/tasks/scheduler.md` and `architecture/deployment/docker.md`.
+APScheduler jobs use FileLock which only works on a single machine. In multi-container deployments, each container runs its own APScheduler. Without external coordination (Redis, etcd), jobs may run on all replicas simultaneously. Set `ENABLE_SCHEDULER=true` on exactly ONE container. This is documented in `architecture/tasks/scheduler.md` and `architecture/deployment/docker.md`.
 
 ### Health Check Critical Checks
 

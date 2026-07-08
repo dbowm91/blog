@@ -166,6 +166,15 @@ def test_health_check(client, db):
     assert "timestamp" in data
 
 
+def test_health_check_scheduler_status(client, db):
+    """Test health check includes scheduler status in response."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "scheduler" in data["checks"]
+    assert data["checks"]["scheduler"] in ("running", "disabled", "stopped")
+
+
 def test_unsubscribe(client, db):
     """Test unsubscribing."""
     from app.models import Subscriber

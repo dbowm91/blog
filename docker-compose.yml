@@ -25,6 +25,8 @@ services:
       - CACHE_REDIS_URL=${CACHE_REDIS_URL:-redis://redis:6379/0}
       # Celery configuration (defaults to REDIS_URL, override if needed)
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      # Enable APScheduler in exactly ONE container (default: disabled)
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
       # Health check endpoint secret (optional, for detailed health info)
       - HEALTH_CHECK_SECRET=${HEALTH_CHECK_SECRET:-}
       # API key for REST API authentication
@@ -53,9 +55,9 @@ services:
       redis:
         condition: service_healthy
 
-  # WARNING: APScheduler runs on all replicas. Scaling celery beyond 1 container
-  # without external job coordination (Redis, etcd) will cause duplicate job execution.
-  # See app/scheduler.py lines 3-8 for details.
+  # WARNING: APScheduler runs when ENABLE_SCHEDULER=true. With multiple replicas,
+  # set ENABLE_SCHEDULER=true on only ONE container to prevent duplicate jobs.
+  # The scheduler has an idempotency guard, but explicit opt-in is recommended.
   celery:
     build: .
     restart: unless-stopped

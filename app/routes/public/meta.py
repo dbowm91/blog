@@ -19,7 +19,7 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.extensions import db
 from app.models import Post, Tag, Page
-from app.config import BASE_URL, SMTP_HOST, HEALTH_CHECK_SECRET, REDIS_URL, DATA_BACKUP_DIR
+from app.config import BASE_URL, HEALTH_CHECK_SECRET, REDIS_URL, DATA_BACKUP_DIR
 from app.scheduler import get_scheduler_health
 from app.utils import xml_escape, utc_now
 from app import limiter
@@ -212,11 +212,8 @@ Sitemap: {BASE_URL}/sitemap.xml
             status_code = 503
 
         # Scheduler check
-        if SMTP_HOST:
-            health = get_scheduler_health()
-            checks["scheduler"] = health["status"]
-        else:
-            checks["scheduler"] = "disabled"
+        health = get_scheduler_health()
+        checks["scheduler"] = health["status"]
 
         # FTS check
         try:
@@ -311,12 +308,9 @@ Sitemap: {BASE_URL}/sitemap.xml
             result["details"] = {
                 "database_latency_ms": round(db_latency_ms, 2),
             }
-            if SMTP_HOST:
-                health = get_scheduler_health()
-                result["details"]["scheduler_next_run"] = health.get("next_run")
-                result["details"]["scheduler_last_newsletter_send"] = health.get(
-                    "last_newsletter_send"
-                )
+            health = get_scheduler_health()
+            result["details"]["scheduler_next_run"] = health.get("next_run")
+            result["details"]["scheduler_last_newsletter_send"] = health.get("last_newsletter_send")
 
         return jsonify(result), status_code
 
@@ -373,13 +367,11 @@ Sitemap: {BASE_URL}/sitemap.xml
         # Scheduler status
         metrics_lines.append("# HELP blog_scheduler_status Scheduler status (1=running, 0=stopped)")
         metrics_lines.append("# TYPE blog_scheduler_status gauge")
-        scheduler_status = 1  # disabled is ok
-        if SMTP_HOST:
-            try:
-                health = get_scheduler_health()
-                scheduler_status = 1 if health["status"] == "running" else 0
-            except OSError:
-                scheduler_status = 0
+        try:
+            health = get_scheduler_health()
+            scheduler_status = 1 if health["status"] == "running" else 0
+        except OSError:
+            scheduler_status = 0
         metrics_lines.append(f"blog_scheduler_status {scheduler_status}")
 
         return "\n".join(metrics_lines), 200, {"Content-Type": "text/plain; version=0.0.4"}

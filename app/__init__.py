@@ -457,9 +457,13 @@ def create_app() -> Flask:
 
     _check_database_integrity(app)
 
+    from app.config import ENABLE_SCHEDULER  # noqa: E402
     from app.scheduler import init_scheduler  # noqa: E402
 
-    init_scheduler(app)
+    if ENABLE_SCHEDULER:
+        init_scheduler(app)
+    else:
+        app.logger.info("APScheduler disabled; set ENABLE_SCHEDULER=true to run scheduled jobs")
 
     from app.page_view_buffer import init_page_view_buffer  # noqa: E402
     from app.models import PageView  # noqa: E402

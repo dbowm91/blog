@@ -100,7 +100,7 @@ Important actual file locations (verify before assuming):
 
 ### APScheduler Multi-Container Limitation
 
-APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently. **This limitation is documented in docker-compose.yml with a warning comment.**
+APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently. **Set `ENABLE_SCHEDULER=true` on exactly ONE container to prevent duplicate jobs.** The scheduler has an idempotency guard, but explicit opt-in via `ENABLE_SCHEDULER` is the recommended approach.
 
 ### Vite Build Required for Production
 
@@ -128,6 +128,10 @@ Actual filters (defined in `app/filters.py`):
 ### Critical CSS
 
 The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:24` with `media="screen"` for immediate loading.
+
+### ENABLE_SCHEDULER
+
+`ENABLE_SCHEDULER` (default: `false`) controls whether the APScheduler scheduler starts in a given container. Set it to `true` on exactly one container when running in production. The scheduler handles newsletters, subscriber cleanup, scheduled post publishing, and daily backups. Disabled by default so multiple replicas can run without duplicate jobs.
 
 ### Docker Compose Profiles
 

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "init_scheduler",
+    "shutdown_scheduler",
     "get_scheduler_status",
     "get_scheduler_health",
     "get_scheduler_next_run",
@@ -60,12 +61,17 @@ def get_scheduler_next_run() -> Optional[datetime]:
 def get_scheduler_health() -> dict:
     """Return scheduler health info for monitoring."""
     global _last_newsletter_send
-    running = _scheduler_running.is_set()
+    if _scheduler is None:
+        status = "disabled"
+    elif _scheduler_running.is_set():
+        status = "running"
+    else:
+        status = "stopped"
     with _last_newsletter_send_lock:
         last_send = _last_newsletter_send
     next_run = get_scheduler_next_run()
     return {
-        "status": "running" if running else "stopped",
+        "status": status,
         "last_newsletter_send": last_send.isoformat() if last_send else None,
         "next_run": next_run.isoformat() if next_run else None,
     }
@@ -279,11 +285,17 @@ def run_daily_backup(app: Any) -> None:
 
 
 def init_scheduler(app: Any) -> Optional["BackgroundScheduler"]:
+    global _scheduler
+
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
     import atexit
 
     from app.config import NEWSLETTER_SEND_TIME, SMTP_HOST
+
+    if _scheduler is not None and _scheduler_running.is_set():
+        app.logger.info("Scheduler already running, skipping init")
+        return _scheduler
 
     scheduler = BackgroundScheduler(daemon=True)
 
@@ -320,7 +332,6 @@ def init_scheduler(app: Any) -> Optional["BackgroundScheduler"]:
         replace_existing=True,
     )
     scheduler.start()
-    global _scheduler
     _scheduler = scheduler
     _scheduler_running.set()
 
@@ -330,3 +341,13 @@ def init_scheduler(app: Any) -> Optional["BackgroundScheduler"]:
 
     atexit.register(_shutdown_scheduler)
     return scheduler
+
+
+def shutdown_scheduler(wait: bool = True) -> None:
+    """Shut down the scheduler if it is running."""
+    global _scheduler
+    if _scheduler is None or not _scheduler_running.is_set():
+        return
+    _scheduler_running.clear()
+    _scheduler.shutdown(wait=wait)
+    _scheduler = None

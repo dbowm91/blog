@@ -1,5 +1,11 @@
 # APScheduler Configuration
 
+## `ENABLE_SCHEDULER`
+
+The scheduler is gated by the `ENABLE_SCHEDULER` environment variable (default: `false`). When disabled, no scheduler jobs run and the app logs: `"APScheduler disabled; set ENABLE_SCHEDULER=true to run scheduled jobs"`.
+
+Set `ENABLE_SCHEDULER=true` on exactly ONE container in multi-container deployments.
+
 ## Job Scheduling
 
 The scheduler runs as a **daemon thread** (see `app/scheduler.py:290`):
@@ -53,7 +59,8 @@ When `SMTP_HOST` is not configured:
 
 ## Health Check
 
-The scheduler health endpoint reports:
-- `status`: "running" or "stopped"
+The scheduler health endpoint always reports scheduler status (not gated on SMTP_HOST):
+
+- `status`: "disabled" (not initialized), "running", or "stopped"
 - `last_newsletter_send`: ISO timestamp of last successful send
 - `next_run`: ISO timestamp of next scheduled job

@@ -1,6 +1,6 @@
 # APScheduler (`app/scheduler.py`)
 
-In-process scheduled job scheduler.
+In-process scheduled job scheduler. Controlled by the `ENABLE_SCHEDULER` environment variable (default: `false`). When disabled, no scheduler jobs run.
 
 ## Jobs
 
@@ -70,9 +70,10 @@ Celery tasks use specific queues for different workloads (for reference — APSc
 ## Multi-Worker Deployment
 
 **Important:** APScheduler's FileLock only works on a single machine. In multi-container deployments:
-- Each container runs its own APScheduler
+- Each container runs its own APScheduler when `ENABLE_SCHEDULER=true`
 - Without external coordination (Redis, etcd), jobs may run on all replicas
 - FileLock uses `timeout=0` (non-blocking) - silently skips if lock held
+- Set `ENABLE_SCHEDULER=true` on exactly ONE container to prevent duplicate jobs
 
 ### FileLock Usage
 
@@ -129,7 +130,7 @@ Configure alerts for APScheduler race conditions:
 
 ### Scaling Warning
 
-**Never scale the `blog` service beyond 1 container when APScheduler jobs are enabled.** FileLock with `timeout=0` cannot coordinate across container boundaries. Running multiple replicas will cause:
+**Never scale the `blog` service beyond 1 container when APScheduler jobs are enabled.** FileLock with `timeout=0` cannot coordinate across container boundaries. Set `ENABLE_SCHEDULER=true` on exactly ONE container. Running multiple replicas with scheduler enabled will cause:
 - Duplicate newsletter sends (subscribers receive multiple emails)
 - Duplicate backups (multiple processes writing to backup directory)
 - Duplicate post publishing (posts marked published multiple times)
@@ -139,10 +140,39 @@ If high availability is required, use Celery Beat instead of APScheduler for sch
 
 ## Initialization
 
+`init_scheduler()` is called during `create_app()` only when `ENABLE_SCHEDULER=true` (`app/__init__.py:463`). It has an idempotency guard — calling it twice is safe and returns the existing scheduler instance.
+
 ```python
 def init_scheduler(app: Flask) -> Optional["BackgroundScheduler"]:
-    # Called during app factory
+    if _scheduler is not None and _scheduler_running.is_set():
+        return _scheduler
+    # ... start scheduler ...
 ```
+
+### Shutdown
+
+`shutdown_scheduler(wait=True)` cleanly shuts down the scheduler and clears the running state. Called during graceful shutdown in `run.py` via `SIGTERM` handler.
+
+### `ENABLE_SCHEDULER`
+
+| Value | Behavior |
+|-------|----------|
+| `false` (default) | Scheduler not started; no jobs run |
+| `true` | Scheduler starts with all configured jobs |
+
+When `ENABLE_SCHEDULER=false`, the app logs: `"APScheduler disabled; set ENABLE_SCHEDULER=true to run scheduled jobs"`.
+
+### Health Status
+
+`get_scheduler_health()` returns a dict with `status`, `last_newsletter_send`, and `next_run`. The `status` field has three possible values:
+
+| Status | Meaning |
+|--------|---------|
+| `"disabled"` | Scheduler not initialized (`_scheduler is None`) — `ENABLE_SCHEDULER=false` |
+| `"running"` | Scheduler initialized and running |
+| `"stopped"` | Scheduler initialized but not running |
+
+The health endpoint (`GET /health`) always reports scheduler status — it is not gated on `SMTP_HOST`.
 
 ## Celery Worker Requirements
 

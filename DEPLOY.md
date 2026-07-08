@@ -87,6 +87,7 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | `PROXY_COUNT` | `1` | Number of reverse proxies in front of the app. Set `0` to disable `ProxyFix` |
 | `API_KEY` | — | REST API authentication key. Generate: `python3 -c 'import secrets; print(secrets.token_hex(32))'` |
 | `DATABASE_URL` | — | PostgreSQL connection string (overrides SQLite) |
+| `ENABLE_SCHEDULER` | `false` | Enable APScheduler (set `true` on exactly ONE container) |
 
 ### Storage Variables
 
@@ -129,6 +130,7 @@ API_KEY=your-api-key-hex
 PAGE_VIEW_BUFFER_SIZE=100
 PAGE_VIEW_FLUSH_INTERVAL=10
 BACKUP_ENCRYPTION_KEY=your-encryption-passphrase
+ENABLE_SCHEDULER=true
 ```
 
 Load with `EnvironmentFile=/etc/blog/env` in systemd unit.
@@ -215,7 +217,7 @@ granian --interface asgi --workers 4 --timeout 60 run:asgi_app
 
 ### Newsletter Scheduler Limitation
 
-The app uses in-process APScheduler with file locking (`fcntl`) to prevent duplicate newsletter sends.
+The app uses in-process APScheduler with file locking (`fcntl`) to prevent duplicate newsletter sends. The scheduler is gated by the `ENABLE_SCHEDULER` environment variable (default: `false`). Set `ENABLE_SCHEDULER=true` on exactly ONE container to run scheduled jobs.
 
 **Single-server (recommended):**
 - Multiple workers work fine—only one wins the file lock
@@ -293,6 +295,7 @@ Copy `.env.example` and fill in your values:
 | `API_KEY` | No | REST API authentication key |
 | `STORAGE_BACKEND` | No | `local` or `s3` |
 | `S3_*` | No | S3 configuration |
+| `ENABLE_SCHEDULER` | No | Enable APScheduler (default: `false`, set on ONE container) |
 
 ### Data Persistence
 
@@ -334,7 +337,7 @@ curl -f http://localhost:5000/health
 ### Production Scaling Caveats
 
 1. **SQLite is single-writer**: Only one process can write at a time. Do not scale the blog service horizontally without migrating to PostgreSQL first.
-2. **APScheduler uses file locking**: The in-process scheduler (`fcntl` lock) only coordinates workers on a single machine. In multi-container deployments, each container runs its own scheduler. Use Celery Beat or an external cron if you need single-scheduled-execution across replicas.
+2. **APScheduler uses file locking**: The in-process scheduler (`fcntl` lock) only coordinates workers on a single machine. In multi-container deployments, each container runs its own scheduler. Use Celery Beat or an external cron if you need single-scheduled-execution across replicas. Set `ENABLE_SCHEDULER=true` on exactly ONE container.
 3. **Async jobs need Redis/Celery**: The `celery` service handles newsletter delivery, webhook delivery, image variant generation, and backups. Without Redis, these jobs block the web process.
 4. **Reverse proxy TLS is your responsibility**: The Docker stack does not terminate TLS. Put nginx or Caddy in front with valid certificates. The included nginx config expects TLS to be handled externally (e.g., via cloud load balancer or a sidecar).
 
@@ -858,7 +861,7 @@ Use `/health` endpoint with:
 
 ### Newsletter Scheduler
 
-The newsletter scheduler runs in-process via APScheduler—no external cron needed. It wakes every 5 minutes to check for scheduled posts and newsletters.
+The newsletter scheduler runs in-process via APScheduler—no external cron needed. It wakes every 5 minutes to check for scheduled posts and newsletters. Requires `ENABLE_SCHEDULER=true` (default: `false`). Set it on exactly ONE container in multi-container deployments.
 
 ---
 

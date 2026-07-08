@@ -60,6 +60,7 @@ __all__ = [
     "COMMENT_SPAM_WORDS",
     "SEARCH_PROVIDER",
     "SEARCH_CONFIG",
+    "ENABLE_SCHEDULER",
 ]
 
 
@@ -77,6 +78,14 @@ def _env_str(key: str, default: str = "") -> str:
     if value is None or value == "":
         return default
     return value
+
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    """Get a boolean environment variable."""
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    return value.lower() in ("true", "1", "yes")
 
 
 def load_config() -> dict[str, Any]:
@@ -126,6 +135,7 @@ FROM_ADDRESS = _config["email"]["from_address"]
 NEWSLETTER_SEND_TIME = _config["newsletter"]["send_time"]
 CONFIRMATION_EXPIRY_HOURS = int(_config["newsletter"].get("confirmation_expiry_hours", 1))
 NEWSLETTER_MAX_RETRY_ATTEMPTS = int(_config["newsletter"].get("max_retry_attempts", 5))
+ENABLE_SCHEDULER = _env_bool("ENABLE_SCHEDULER", default=False)
 TAG_CACHE_TTL_SECONDS = int(_config["app"].get("tag_cache_ttl_seconds", 60))
 
 DASHBOARD_PER_PAGE = int(_config["app"].get("dashboard_per_page", 20))

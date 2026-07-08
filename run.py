@@ -8,16 +8,6 @@ app = create_app()
 asgi_app = WsgiToAsgi(app)
 
 _shutdown_event = threading.Event()
-_scheduler = None
-
-
-def _get_scheduler():
-    global _scheduler
-    if _scheduler is None:
-        from app.scheduler import init_scheduler
-
-        _scheduler = init_scheduler(app)
-    return _scheduler
 
 
 def _shutdown_handler(signum, frame):
@@ -33,10 +23,11 @@ def _shutdown_handler(signum, frame):
     _shutdown_event.set()
     logger.info("Graceful shutdown initiated")
 
-    scheduler = _get_scheduler()
-    if scheduler is not None:
+    from app.scheduler import shutdown_scheduler, get_scheduler_status
+
+    if get_scheduler_status():
         logger.info("Stopping scheduler (waiting for current jobs to complete)")
-        scheduler.shutdown(wait=True)
+        shutdown_scheduler(wait=True)
         logger.info("Scheduler stopped")
 
     from app.page_view_buffer import shutdown_page_view_buffer
@@ -54,5 +45,4 @@ signal.signal(signal.SIGTERM, _shutdown_handler)
 
 
 if __name__ == "__main__":
-    _get_scheduler()
     app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG)

@@ -38,4 +38,6 @@ EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD curl -f http://localhost:5000/health || exit 1
 
+# Granian with 4 workers for request handling. Set ENABLE_SCHEDULER=true on only
+# one container if running multiple replicas to avoid duplicate scheduled jobs.
 CMD ["granian", "--interface", "asgi", "--workers", "4", "--timeout", "60", "--host", "0.0.0.0", "--port", "5000", "run:asgi_app"]

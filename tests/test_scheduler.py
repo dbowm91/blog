@@ -34,7 +34,9 @@ def test_get_scheduler_health():
     """Test get_scheduler_health returns correct info."""
     from app.scheduler import get_scheduler_health
 
+    mock_scheduler = MagicMock()
     with (
+        patch("app.scheduler._scheduler", mock_scheduler),
         patch("app.scheduler._scheduler_running") as mock_running,
         patch("app.scheduler._last_newsletter_send") as mock_last,
         patch("app.scheduler.get_scheduler_next_run") as mock_next,
@@ -46,6 +48,38 @@ def test_get_scheduler_health():
         assert health["status"] == "running"
         assert health["last_newsletter_send"] is not None
         assert health["next_run"] is not None
+
+
+def test_get_scheduler_health_disabled():
+    """Test get_scheduler_health returns 'disabled' when no scheduler."""
+    from app.scheduler import get_scheduler_health
+
+    with (
+        patch("app.scheduler._scheduler", None),
+        patch("app.scheduler._scheduler_running") as mock_running,
+        patch("app.scheduler._last_newsletter_send", None),
+    ):
+        mock_running.is_set.return_value = False
+        health = get_scheduler_health()
+        assert health["status"] == "disabled"
+        assert health["last_newsletter_send"] is None
+        assert health["next_run"] is None
+
+
+def test_get_scheduler_health_stopped():
+    """Test get_scheduler_health returns 'stopped' when scheduler exists but not running."""
+    from app.scheduler import get_scheduler_health
+
+    mock_scheduler = MagicMock()
+    with (
+        patch("app.scheduler._scheduler", mock_scheduler),
+        patch("app.scheduler._scheduler_running") as mock_running,
+        patch("app.scheduler._last_newsletter_send", None),
+        patch("app.scheduler.get_scheduler_next_run", return_value=None),
+    ):
+        mock_running.is_set.return_value = False
+        health = get_scheduler_health()
+        assert health["status"] == "stopped"
 
 
 def test_send_daily_newsletter_no_posts(db):
@@ -114,8 +148,11 @@ def test_init_scheduler_no_smtp():
 
     with (
         patch("app.config.SMTP_HOST", None),
+        patch("app.scheduler._scheduler", None),
+        patch("app.scheduler._scheduler_running") as mock_running,
         patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler,
     ):
+        mock_running.is_set.return_value = False
         mock_scheduler = MagicMock()
         MockScheduler.return_value = mock_scheduler
         app = MagicMock()
@@ -133,7 +170,12 @@ def test_init_scheduler_with_smtp():
     from app.scheduler import init_scheduler
 
     # Patch the BackgroundScheduler where it's imported in scheduler module
-    with patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler:
+    with (
+        patch("app.scheduler._scheduler", None),
+        patch("app.scheduler._scheduler_running") as mock_running,
+        patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler,
+    ):
+        mock_running.is_set.return_value = False
         mock_scheduler = MagicMock()
         MockScheduler.return_value = mock_scheduler
         with (
@@ -231,3 +273,82 @@ def test_scheduler_sends_newsletter_to_subscribers(db, sample_post, sample_subsc
             send_daily_newsletter(app)
             assert mock_send.called or sample_post.newsletter_sent_at is not None
     db.session.remove()
+
+
+def test_init_scheduler_idempotent():
+    """Test calling init_scheduler twice doesn't create duplicate scheduler."""
+    from app.scheduler import init_scheduler, _scheduler_running
+
+    _scheduler_running.clear()
+    with (
+        patch("app.config.SMTP_HOST", "smtp.example.com"),
+        patch("app.config.NEWSLETTER_SEND_TIME", "09:00"),
+        patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler,
+    ):
+        mock_scheduler = MagicMock()
+        MockScheduler.return_value = mock_scheduler
+        app = MagicMock()
+        app.instance_path = "/tmp"
+        result1 = init_scheduler(app)
+        assert result1 is mock_scheduler
+        assert mock_scheduler.start.called
+
+        mock_scheduler.reset_mock()
+        result2 = init_scheduler(app)
+        assert result2 is mock_scheduler
+        mock_scheduler.start.assert_not_called()
+
+    from app.scheduler import shutdown_scheduler
+
+    shutdown_scheduler(wait=False)
+
+
+def test_shutdown_scheduler():
+    """Test shutdown_scheduler stops and clears state."""
+    from app.scheduler import init_scheduler, shutdown_scheduler, _scheduler_running
+
+    _scheduler_running.clear()
+    with (
+        patch("app.config.SMTP_HOST", "smtp.example.com"),
+        patch("app.config.NEWSLETTER_SEND_TIME", "09:00"),
+        patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler,
+    ):
+        mock_scheduler = MagicMock()
+        MockScheduler.return_value = mock_scheduler
+        app = MagicMock()
+        app.instance_path = "/tmp"
+        init_scheduler(app)
+
+    shutdown_scheduler(wait=False)
+    assert mock_scheduler.shutdown.called
+    assert not _scheduler_running.is_set()
+
+    from app.scheduler import _scheduler
+
+    assert _scheduler is None
+
+
+def test_shutdown_scheduler_noop_when_not_running():
+    """Test shutdown_scheduler is a no-op when no scheduler is running."""
+    from app.scheduler import shutdown_scheduler, _scheduler_running
+
+    _scheduler_running.clear()
+    with patch("app.scheduler._scheduler", None):
+        shutdown_scheduler(wait=False)
+
+
+def test_init_scheduler_respects_enable_flag():
+    """Test that ENABLE_SCHEDULER=False prevents scheduler init via create_app."""
+    import importlib
+    from app import config
+
+    original = config.ENABLE_SCHEDULER
+    try:
+        config.ENABLE_SCHEDULER = False
+        with patch("app.scheduler.init_scheduler") as mock_init:
+            import app as app_module
+
+            importlib.reload(app_module)
+            mock_init.assert_not_called()
+    finally:
+        config.ENABLE_SCHEDULER = original

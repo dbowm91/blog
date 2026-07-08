@@ -117,7 +117,7 @@ Click **Preview** to see how your post will look with theme styling.
 ### Scheduling Posts
 
 1. Set **Publish At** to a future datetime when editing a post
-2. Scheduler runs every 5 minutes and publishes automatically
+2. Scheduler runs every 5 minutes and publishes automatically (requires `ENABLE_SCHEDULER=true`)
 3. Scheduled posts show a clock icon in the dashboard
 
 ### Customizing Appearance

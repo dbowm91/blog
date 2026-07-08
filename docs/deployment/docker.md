@@ -79,7 +79,7 @@ The `blog` service exposes a health check endpoint:
 GET /health
 ```
 
-Returns JSON with status of database, scheduler, search, disk space, and db_integrity.
+Returns JSON with status of database, scheduler, search, disk space, and db_integrity. The scheduler status is "disabled", "running", or "stopped" depending on `ENABLE_SCHEDULER`.
 
 ### Authenticated Health Check
 
