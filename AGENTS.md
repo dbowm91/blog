@@ -183,9 +183,9 @@ Prism CSS is loaded via `data-prism-css-url` attribute which templates set using
 
 `app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. A minimum of 0.1s is enforced in `app/config.py`.
 
-### Comment Rate Limit IP Header Bypass
+### Comment Rate Limit IP Resolution (Fixed)
 
-`app/routes/public/comments.py:24-32` uses `X-Forwarded-For` header for rate limiting. If behind a trusted proxy that doesn't sanitize this header, rate limiting could be bypassed. This is a known limitation with no validation for trusted proxies.
+Previously, comment rate limiting read `X-Forwarded-For` directly, which could be spoofed. Both limiter key functions now use `request.remote_addr`, which is normalized by `ProxyFix`. Proper `PROXY_COUNT` configuration remains important for correct IP resolution behind proxies.
 
 ### Nginx Proxy Configuration
 

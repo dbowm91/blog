@@ -23,11 +23,7 @@ from flask.typing import ResponseReturnValue
 def get_client_ip() -> str:
     """Get client IP for rate limiting."""
     if has_request_context():
-        return (
-            request.headers.get("X-Forwarded-For", request.remote_addr or "unknown")
-            .split(",")[0]
-            .strip()
-        )
+        return request.remote_addr or "unknown"
     return "unknown"
 
 

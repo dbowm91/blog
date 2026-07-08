@@ -889,7 +889,7 @@ The newsletter scheduler runs in-process via APScheduler—no external cron need
 - [ ] `config.toml [site] base_url` uses `https://`
 - [ ] HTTPS enforced at reverse proxy (redirect from HTTP, HSTS header)
 - [ ] `SESSION_COOKIE_SECURE = True` (must be explicitly set in production)
-- [ ] `PROXY_COUNT` set correctly for proxy setup
+- [ ] `PROXY_COUNT` set correctly for proxy setup (affects rate limiting and session IP binding via `ProxyFix`)
 - [ ] Static files served by nginx, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
 - [ ] `instance/blog.db` not in web-accessible directory

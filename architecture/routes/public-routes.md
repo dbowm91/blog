@@ -77,7 +77,7 @@ Public routes serve the blog's public-facing pages.
 - **Fields**: author_name, author_email, content, parent_id (optional), csrf_token (hidden)
 - **Moderation**: Comments require approval
 - **Rate Limit**: Dual-key rate limiting — `COMMENT_RATE_LIMIT_PER_IP` (default: 5/min per IP) and `COMMENT_RATE_LIMIT_PER_POST` (default: 3/min per IP per post) from `app/config.py:140-141`
-- **X-Forwarded-For Trust Assumption**: Rate limiting uses `X-Forwarded-For` header for client IP detection (`app/routes/public/comments.py:24-32`). If behind a trusted proxy that doesn't sanitize this header, rate limiting can be bypassed by clients spoofing the header.
+- **IP Resolution**: Both limiter key functions use `request.remote_addr`, which is normalized by `ProxyFix`. Proper `PROXY_COUNT` configuration is required for correct client IP detection behind proxies.
 - **CSRF**: Requires valid `csrf_token` in form data
 - **Spam Scoring**: `compute_spam_score()` (`app/routes/public/comments.py:41-74`) evaluates comments using heuristics:
   - Excessive links (>3 URLs: +0.15, >5: +0.3)

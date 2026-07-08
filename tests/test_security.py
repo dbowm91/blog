@@ -328,3 +328,23 @@ def test_admin_rate_limit_exceeded(client, admin_user, db):
         responses.append(response.status_code)
 
     assert all(r == 200 for r in responses), "Admin page should respond successfully"
+
+
+def test_security_headers_on_admin_route(client, admin_user, db):
+    """Test security headers present on admin routes."""
+    from tests.conftest import TEST_PASSWORD
+
+    client.post(
+        "/admin/login",
+        data={"username": "admin", "password": TEST_PASSWORD},
+    )
+    response = client.get("/admin/")
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+    pp = response.headers.get("Permissions-Policy")
+    assert pp is not None
+    assert "camera=()" in pp
+    csp = response.headers.get("Content-Security-Policy")
+    assert csp is not None
+    assert "default-src 'self'" in csp

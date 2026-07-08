@@ -54,8 +54,7 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 
 - The application expects `X-Forwarded-For` and `X-Forwarded-Proto` headers from a trusted reverse proxy
 - `PROXY_COUNT` must match the number of proxies in front of the app (default: `1`)
-- If behind a CDN or load balancer that does not sanitize `X-Forwarded-For`, rate limiting may be bypassed
-- Session IP binding compares against the `X-Forwarded-For` header, not the direct connection IP
+- `request.remote_addr` (normalized by `ProxyFix`) is used for rate limiting and session IP binding
 - TLS termination must be handled by the reverse proxy — the application does not terminate TLS
 
 ## Security Features

@@ -450,3 +450,19 @@ def test_search_very_long_query(client, db):
     long_query = "a" * 300
     response = client.get(f"/search?q={long_query}")
     assert response.status_code == 200
+
+
+def test_metrics_endpoint(client, db):
+    """Test /metrics endpoint returns valid response."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    content_type = response.content_type or ""
+    assert "text/plain" in content_type or "text/html" in content_type
+
+
+def test_metrics_contains_prometheus_metrics(client, db):
+    """Test /metrics endpoint includes request counters when prometheus_client available."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    data = response.get_data(as_text=True)
+    assert "blog_health_status" in data or "blog_requests_total" in data

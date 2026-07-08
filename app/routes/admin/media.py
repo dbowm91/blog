@@ -58,9 +58,7 @@ def _get_cached_media_list(
                 if search.lower() in str(f["name"]).lower()
             ]
             return files
-        return [
-            {"name": str(f["name"]), "size": f["size"], "mtime": f["mtime"]} for f in all_files
-        ]
+        return [{"name": str(f["name"]), "size": f["size"], "mtime": f["mtime"]} for f in all_files]
 
 
 def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
