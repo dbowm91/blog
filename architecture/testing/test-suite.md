@@ -140,13 +140,13 @@ The E2E conftest uses the `page` fixture from `pytest-playwright` (not defined i
 
 ```bash
 # All tests (requires environment variables)
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest
 
 # Exclude E2E tests
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest --ignore=tests/e2e
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest --ignore=tests/e2e
 
 # List test count without running
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest --collect-only
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest --collect-only
 
 # Specific type
 pytest tests/
@@ -154,7 +154,7 @@ pytest tests/benchmarks/
 pytest tests/e2e/
 
 # With coverage
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest --cov=app
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest --cov=app
 ```
 
 ### Environment Variables

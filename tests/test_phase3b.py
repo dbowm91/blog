@@ -226,14 +226,17 @@ class TestResubscribeFlows:
 
     def test_unsubscribed_user_resubscribes(self, client, db):
         """Test previously unsubscribed user can resubscribe (clears unsubscribed_at)."""
+        from unittest.mock import patch
+
         sub = Subscriber(email="unsub@example.com", confirmed=True, unsubscribed_at=utc_now())
         db.session.add(sub)
         db.session.commit()
 
-        response = client.post(
-            "/subscribe", data={"email": "unsub@example.com"}, follow_redirects=True
-        )
-        assert response.status_code == 200
+        with patch("app.routes.public.subscribe.send_confirmation_task"):
+            response = client.post(
+                "/subscribe", data={"email": "unsub@example.com"}, follow_redirects=True
+            )
+            assert response.status_code == 200
 
         # Re-query the subscriber from the database
         sub = db.session.execute(
@@ -244,15 +247,18 @@ class TestResubscribeFlows:
 
     def test_unconfirmed_resubscribes_new_token(self, client, db):
         """Test unconfirmed subscriber gets new token on resubscribe."""
+        from unittest.mock import patch
+
         sub = Subscriber(email="unconfirmed@example.com", confirmed=False)
         db.session.add(sub)
         db.session.commit()
         old_token = sub.token
 
-        response = client.post(
-            "/subscribe", data={"email": "unconfirmed@example.com"}, follow_redirects=True
-        )
-        assert response.status_code == 200
+        with patch("app.routes.public.subscribe.send_confirmation_task"):
+            response = client.post(
+                "/subscribe", data={"email": "unconfirmed@example.com"}, follow_redirects=True
+            )
+            assert response.status_code == 200
 
         # Re-query the subscriber from the database
         sub = db.session.execute(
@@ -262,6 +268,8 @@ class TestResubscribeFlows:
 
     def test_expired_unconfirmed_resubscribes_gets_new_token(self, client, db):
         """Test expired unconfirmed subscriber gets a new token on resubscribe."""
+        from unittest.mock import patch
+
         sub = Subscriber(
             email="expired@example.com", confirmed=False, expires_at=utc_now() - timedelta(days=1)
         )
@@ -270,10 +278,11 @@ class TestResubscribeFlows:
         old_token = sub.token
         old_id = sub.id
 
-        response = client.post(
-            "/subscribe", data={"email": "expired@example.com"}, follow_redirects=True
-        )
-        assert response.status_code == 200
+        with patch("app.routes.public.subscribe.send_confirmation_task"):
+            response = client.post(
+                "/subscribe", data={"email": "expired@example.com"}, follow_redirects=True
+            )
+            assert response.status_code == 200
 
         # Re-query the subscriber from the database
         sub = db.session.execute(

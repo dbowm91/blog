@@ -7,11 +7,7 @@ def test_generate_image_variants_local_file_not_found(db):
     """Test generate_image_variants returns False if file not found."""
     from app.tasks import generate_image_variants
 
-    with patch("app.storage.get_storage") as mock_get_storage:
-        storage = MagicMock()
-        storage.__class__.__name__ = "LocalStorageBackend"
-        storage.exists.return_value = False
-        mock_get_storage.return_value = storage
+    with patch("os.path.exists", return_value=False):
         result = generate_image_variants.apply(args=("nonexistent.jpg",))
         assert result.get() is False
 
@@ -92,8 +88,10 @@ def test_deliver_webhook_task_no_webhooks(db):
 
 
 def test_deliver_webhook_task_ssrf_block(db):
-    """Test deliver_webhook_task blocks unsafe URLs."""
-    from app.tasks import deliver_webhook_task
+    """Test deliver_webhook_task blocks unsafe URLs via subtask."""
+    from app.tasks import deliver_single_webhook_task
+    from app.models import Webhook, WebhookEvent
+    from app.tasks import _update_delivery_status
 
     webhook = Webhook(
         name="Test Webhook", url="http://169.254.169.254/latest", secret="secret", event_type="test"
@@ -102,10 +100,15 @@ def test_deliver_webhook_task_ssrf_block(db):
     event = WebhookEvent(event_type="test", payload=json.dumps({"test": "data"}))
     db.session.add(event)
     db.session.commit()
+    webhook_id = webhook.id
+    event_id = event.id
 
     with patch("app.utils.is_safe_webhook_url", return_value=(False, "SSRF risk")):
-        result = deliver_webhook_task.apply(args=(event.id,))
+        result = deliver_single_webhook_task.apply(args=(event_id, webhook_id))
         assert result.get() is False
+
+    event = db.session.get(WebhookEvent, event_id)
+    assert event.failed_deliveries == 1
 
 
 def test_send_confirmation_task_user_not_found(db):

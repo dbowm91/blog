@@ -18,8 +18,8 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 
 # Run development server
-export ADMIN_PASSWORD=test
-export SECRET_KEY=test-secret-key-that-is-at-least-32-chars-long
+export ADMIN_PASSWORD=test-password-123
+export SECRET_KEY=test-secret-key-test-secret-key-1234
 python run.py
 ```
 
@@ -27,16 +27,16 @@ python run.py
 
 ```bash
 # All tests (requires Playwright for E2E)
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python -m pytest tests/ -v
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python -m pytest tests/ -v
 
 # Unit tests only (faster)
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python -m pytest tests/ --ignore=tests/e2e -v
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python -m pytest tests/ --ignore=tests/e2e -v
 
 # With coverage
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python -m pytest tests/ --cov=app --cov-report=term-missing
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python -m pytest tests/ --cov=app --cov-report=term-missing
 
 # Parallel execution
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python -m pytest tests/ -n auto
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python -m pytest tests/ -n auto
 ```
 
 ## Code Style

@@ -1,15 +1,17 @@
 import os
+
+os.environ.setdefault("SECRET_KEY", "test-secret-key-test-secret-key-1234")
+os.environ.setdefault("ADMIN_PASSWORD", "test-password-123")
+os.environ.setdefault("WEBHOOK_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+os.environ["TESTING"] = "True"
+os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
+
 import shutil
 import pytest
 from tests.shared_fixtures import *
 from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-
-os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
-os.environ["ADMIN_PASSWORD"] = "test-password"
-os.environ["TESTING"] = "True"
-os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
 TEST_PASSWORD = os.environ["ADMIN_PASSWORD"]
 
@@ -60,6 +62,22 @@ def app(tmp_path_factory):
     yield app
 
 
+@pytest.fixture(autouse=True)
+def _ensure_celery_eager():
+    """Ensure Celery runs tasks eagerly before every test.
+
+    test_config.py reloads app.celery_app which recreates the Celery app
+    without task_always_eager=True. This fixture restores it.
+    """
+    from celery import current_app as celery_app
+
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+    )
+    yield
+
+
 @dataclass
 class FakeSubscriber:
     """Test fixture for newsletter testing without real subscribers."""
@@ -83,6 +101,14 @@ def db(app):
         init_fts()
         yield _db
         _db.session.remove()
+        try:
+            conn = _db.engine.connect()
+            conn.execute(_db.text("DROP TABLE IF EXISTS posts_fts"))
+            conn.execute(_db.text("DROP TABLE IF EXISTS posts_fts_vocab"))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
         _db.drop_all()
         _db.session.remove()
 

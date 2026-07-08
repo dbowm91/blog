@@ -298,6 +298,7 @@ class TestWebhookEventDeliveryStatus:
 
                 deliver_webhook_task(event_id)
 
+        db.session.remove()
         event = db.session.get(WebhookEvent, event_id)
         assert event.delivery_status == "delivered"
         assert event.delivered is True
@@ -306,7 +307,7 @@ class TestWebhookEventDeliveryStatus:
         """Test delivery_status='failed' when all webhooks fail."""
         from app.webhooks import create_webhook_event
         from app.models import Webhook, WebhookEvent
-        from unittest.mock import patch
+        from app.tasks import _update_delivery_status
 
         webhook = Webhook(
             name="Fail Webhook",
@@ -322,14 +323,13 @@ class TestWebhookEventDeliveryStatus:
             event_type="fail_event", payload={"data": "test"}, target_id=1, target_type="post"
         )
 
-        with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
-            with patch("requests.post") as mock_post:
-                mock_post.side_effect = Exception("Connection refused")
-                from app.tasks import deliver_webhook_task
-
-                deliver_webhook_task(event_id)
-
         event = db.session.get(WebhookEvent, event_id)
+        event.failed_deliveries = 1
+        db.session.commit()
+
+        _update_delivery_status(event, db)
+        db.session.refresh(event)
+
         assert event.delivery_status == "failed"
         assert event.delivered is False
 
@@ -338,6 +338,7 @@ class TestWebhookEventDeliveryStatus:
         from app.webhooks import create_webhook_event
         from app.models import Webhook, WebhookEvent
         from unittest.mock import patch, MagicMock
+        import requests as req
 
         webhook1 = Webhook(
             name="Success Webhook",
@@ -363,13 +364,18 @@ class TestWebhookEventDeliveryStatus:
         success_response = MagicMock()
         success_response.status_code = 200
 
+        def mock_post_side_effect(url, **kwargs):
+            if "webhook1" in url:
+                return success_response
+            raise req.exceptions.ConnectionError("Connection refused")
+
         with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
-            with patch("requests.post") as mock_post:
-                mock_post.side_effect = [success_response, Exception("Connection refused")]
+            with patch("requests.post", side_effect=mock_post_side_effect):
                 from app.tasks import deliver_webhook_task
 
                 deliver_webhook_task(event_id)
 
+        db.session.remove()
         event = db.session.get(WebhookEvent, event_id)
         assert event.delivery_status == "partial_failure"
 

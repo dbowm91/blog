@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import text
@@ -16,6 +17,7 @@ from app.search import (
     get_search_snippets,
     reset_fts_available,
 )
+from app.services.search import get_search_provider
 
 
 @pytest.fixture(scope="function")
@@ -64,15 +66,14 @@ class TestGetSearchProvider:
             assert isinstance(provider, SQLiteSearchProvider)
 
     def test_get_search_provider_postgresql_stub(self, app):
-        """Test get_search_provider raises ConfigurationError for PostgreSQL."""
-        from app.services.search import get_search_provider, ConfigurationError
+        """Test PostgreSQL search provider raises ConfigurationError on use."""
+        from app.services.search import ConfigurationError
 
-        app.config["SEARCH_PROVIDER"] = "postgresql"
-
-        with app.app_context():
-            with pytest.raises(ConfigurationError) as exc_info:
-                get_search_provider()
-            assert "not yet implemented" in str(exc_info.value)
+        with patch("app.config.SEARCH_PROVIDER", "postgresql"):
+            with app.app_context():
+                provider = get_search_provider()
+                with pytest.raises(ConfigurationError, match="not yet implemented"):
+                    provider.search("test query")
 
     def test_search_provider_has_initialize(self, app):
         """Test SearchProvider base class has initialize() method."""
@@ -80,14 +81,14 @@ class TestGetSearchProvider:
 
         assert hasattr(SearchProvider, "initialize")
 
-    def test_sqlite_search_provider_initialize(self, app):
+    def test_sqlite_search_provider_initialize(self, app, db):
         """Test SQLiteSearchProvider.initialize() calls init_fts()."""
         from app.services.search.sqlite import SQLiteSearchProvider
 
         with app.app_context():
             provider = SQLiteSearchProvider()
             provider.initialize()
-            result = _db.session.execute(
+            result = db.session.execute(
                 text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
             ).fetchone()
             assert result is not None

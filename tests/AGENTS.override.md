@@ -6,12 +6,12 @@ Specialized handling for testing patterns, fixtures, and E2E testing.
 
 Use the project's `.venv` Python to avoid fixture errors:
 ```bash
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ -v
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ -v
 ```
 
 To run without E2E tests:
 ```bash
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e
 ```
 
 ## E2E Tests
@@ -32,7 +32,7 @@ Tests disable CSRF via `CSRF_ENABLED=False` + `TESTING=True` in config.
 
 ## Test Count
 
-Tests are organized across ~39 test files covering models, routes, API, search, security, and more. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get current count.
+Tests are organized across ~39 test files covering models, routes, API, search, security, and more. Run `ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --collect-only` to get current count.
 
 ## Test Structure
 
@@ -57,7 +57,7 @@ tests/
     └── test_e2e.py          # Contains TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ```
 
-Note: There are ~39 test files total. Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get exact count.
+Note: There are ~39 test files total. Run `ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --collect-only` to get exact count.
 
 ## Key Fixtures
 

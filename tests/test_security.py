@@ -292,19 +292,22 @@ def test_rate_limit_login_endpoint(client, db):
 
 def test_rate_limit_blocked_ip_after_excessive_requests(client, db):
     """Test that subscribe endpoint handles repeated requests."""
-    responses = []
-    for i in range(10):
-        response = client.post(
-            "/subscribe",
-            data={
-                "email": f"test{i}@example.com",
-            },
-        )
-        responses.append(response.status_code)
+    from unittest.mock import patch
 
-    assert all(r in (200, 302, 400) for r in responses), (
-        "Subscribe should handle requests gracefully"
-    )
+    with patch("app.routes.public.subscribe.send_confirmation_task"):
+        responses = []
+        for i in range(10):
+            response = client.post(
+                "/subscribe",
+                data={
+                    "email": f"test{i}@example.com",
+                },
+            )
+            responses.append(response.status_code)
+
+        assert all(r in (200, 302, 400) for r in responses), (
+            "Subscribe should handle requests gracefully"
+        )
 
 
 def test_admin_rate_limit_exceeded(client, admin_user, db):

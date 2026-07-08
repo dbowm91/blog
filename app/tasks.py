@@ -121,9 +121,6 @@ def generate_image_variants(self: Any, filename: str) -> bool:
                                 storage.save(variant_name, f.read())
 
         return True
-    except (ClientError, BotoCoreError) as e:
-        logger.error("S3 operation failed: %s", e)
-        return False
     except (SQLAlchemyError, OSError, ImportError) as e:
         logger.error("Image variant generation failed: %s", e)
         return False
@@ -300,15 +297,17 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
 
             if response.status_code < 400:
                 event.successful_deliveries += 1
+                db.session.commit()
                 _update_delivery_status(event, db)
                 return True
             else:
                 # HTTP error - retry
                 logger.warning("Webhook %s returned HTTP %d", webhook.name, response.status_code)
+                db.session.commit()
                 raise self.retry(exc=requests.RequestException(f"HTTP {response.status_code}"))
         except requests.RequestException as e:
             event.delivery_attempts += 1
-            # Retry on request exceptions
+            db.session.commit()
             raise self.retry(exc=e)
     except MaxRetriesExceededError:
         logger.error("Webhook delivery to %s failed after max retries", webhook.name)

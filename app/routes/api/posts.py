@@ -14,7 +14,7 @@ from app.utils import utc_now, safe_delete_file, generate_slug
 from app.validators import validate_string, validate_boolean
 from app import limiter
 from app.routes.api import api
-from app.routes.api.auth import require_api_key
+from app.routes.api.auth import require_api_key, require_scope
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +113,7 @@ def get_post(post_id: int) -> Any:
 
 @api.route("/posts", methods=["POST"])
 @require_api_key
+@require_scope("posts:write")
 @limiter.limit(WRITE_LIMIT)
 def create_post() -> Any:
     """Create a new post.
@@ -295,6 +296,8 @@ def update_post(post_id: int) -> Any:
         db.session.rollback()
         return jsonify({"error": "Search index unavailable"}), 503
 
+    response_data = _post_to_dict(post)
+
     try:
         db.session.commit()
     except IntegrityError:
@@ -317,7 +320,7 @@ def update_post(post_id: int) -> Any:
         except Exception:
             logger.warning("Webhook event creation failed", exc_info=True)
 
-    return jsonify(_post_to_dict(post))
+    return jsonify(response_data)
 
 
 @api.route("/posts/<int:post_id>", methods=["DELETE"])

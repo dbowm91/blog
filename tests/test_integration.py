@@ -96,9 +96,14 @@ class TestSubscriptionFlow:
     """Subscribe -> confirm -> unsubscribe."""
 
     def test_subscribe_confirm_unsubscribe(self, client, db):
+        from unittest.mock import patch
+
         # -- Subscribe --
-        resp = client.post("/subscribe", data={"email": "flow@example.com"}, follow_redirects=True)
-        assert resp.status_code == 200
+        with patch("app.routes.public.subscribe.send_confirmation_task"):
+            resp = client.post(
+                "/subscribe", data={"email": "flow@example.com"}, follow_redirects=True
+            )
+            assert resp.status_code == 200
 
         sub = db.session.execute(
             select(Subscriber).filter_by(email="flow@example.com")
@@ -109,15 +114,17 @@ class TestSubscriptionFlow:
         # -- Confirm --
         resp = client.get(f"/confirm/{token}", follow_redirects=True)
         assert resp.status_code == 200
-        db.session.expire(sub)
-        sub = db.session.get(Subscriber, sub.id)
+        sub = db.session.execute(
+            select(Subscriber).filter_by(email="flow@example.com")
+        ).scalar_one()
         assert sub.confirmed is True
 
         # -- Unsubscribe --
         resp = client.get(f"/unsubscribe/{token}", follow_redirects=True)
         assert resp.status_code == 200
-        db.session.expire(sub)
-        sub = db.session.get(Subscriber, sub.id)
+        sub = db.session.execute(
+            select(Subscriber).filter_by(email="flow@example.com")
+        ).scalar_one()
         assert sub.unsubscribed_at is not None
 
 

@@ -367,7 +367,7 @@ Actual line numbers in `app/tasks.py`:
 ## Test Structure
 
 - Tests are organized across 36 test files covering models, routes, API, search, security, and more
-- Run `ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/ --collect-only` to get current count
+- Run `ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --collect-only` to get current count
 - E2E tests use `pytest-playwright`, NOT `@playwright/test`
 - All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`
 - RSS/Atom feed tests are in `tests/test_coverage.py`, NOT in a separate `test_rss.py` file

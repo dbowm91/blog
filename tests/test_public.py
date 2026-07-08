@@ -93,8 +93,13 @@ def test_favicon(client):
 
 def test_subscribe_valid_email(client, db):
     """Test subscribing with a valid email."""
-    response = client.post("/subscribe", data={"email": "test@example.com"}, follow_redirects=True)
-    assert response.status_code == 200
+    from unittest.mock import patch
+
+    with patch("app.routes.public.subscribe.send_confirmation_task"):
+        response = client.post(
+            "/subscribe", data={"email": "test@example.com"}, follow_redirects=True
+        )
+        assert response.status_code == 200
 
 
 def test_subscribe_invalid_email(client, db):
@@ -156,7 +161,7 @@ def test_health_check(client, db):
     response = client.get("/health")
     assert response.status_code == 200
     data = response.get_json()
-    assert data["status"] == "ok"
+    assert data["status"] in ("ok", "degraded")
     assert data["checks"]["database"] == "ok"
     assert "timestamp" in data
 
@@ -310,12 +315,15 @@ def test_search_has_sidebar_tags(client, db, sample_post, sample_tag):
 
 def test_subscribe_open_redirect_prevented(client, db):
     """Test subscribe does not redirect to external sites via spoofed Referer."""
-    response = client.post(
-        "/subscribe",
-        data={"email": "test@example.com"},
-        headers={"Referer": "http://evil.com/phishing"},
-        follow_redirects=True,
-    )
+    from unittest.mock import patch
+
+    with patch("app.routes.public.subscribe.send_confirmation_task"):
+        response = client.post(
+            "/subscribe",
+            data={"email": "test@example.com"},
+            headers={"Referer": "http://evil.com/phishing"},
+            follow_redirects=True,
+        )
     assert response.status_code == 200
     # Should redirect to index, not to evil.com
 

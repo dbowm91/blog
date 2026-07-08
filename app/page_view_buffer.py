@@ -134,10 +134,9 @@ class PageViewBuffer:
 
     def flush(self) -> int:
         """Manually trigger a flush. Returns number of views flushed."""
-        with self._flush_lock:
-            before = self._stats["flushed"]
-            self._flush_now()
-            return self._stats["flushed"] - before
+        before = self._stats["flushed"]
+        self._flush_now()
+        return self._stats["flushed"] - before
 
     @property
     def pending(self) -> int:

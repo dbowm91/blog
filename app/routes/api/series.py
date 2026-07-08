@@ -88,7 +88,7 @@ def get_series(series_id: int) -> Any:
         JSON with series data or 404 error
     """
     query = select(Series).options(joinedload(Series.posts)).filter(Series.id == series_id)
-    series = db.session.execute(query).scalars().unique().scalar_one_or_none()
+    series = db.session.execute(query).scalars().unique().one_or_none()
     if not series:
         return jsonify({"error": "Series not found"}), 404
 

@@ -25,7 +25,6 @@ def _tag_to_dict(tag: Tag, include_post_count: bool = False) -> dict:
         "id": tag.id,
         "name": tag.name,
         "slug": tag.slug,
-        "created_at": tag.created_at.isoformat() if tag.created_at else None,
     }
     if include_post_count:
         result["post_count"] = len(tag.posts)

@@ -320,12 +320,15 @@ class TestDetectBackupCorruption:
 
     def test_detect_backup_corruption_too_large(self, tmp_path):
         """Test corruption detection for file that is suspiciously large."""
+        from unittest.mock import patch
         from app.backup_integrity import detect_backup_corruption
 
         large_file = tmp_path / "huge.db"
-        large_file.write_bytes(b"x" * (11 * 1024 * 1024 * 1024))
+        large_file.write_bytes(b"x" * 1024)
 
-        is_corrupted, reason = detect_backup_corruption(large_file)
+        with patch.object(type(large_file), "stat") as mock_stat:
+            mock_stat.return_value.st_size = 11 * 1024 * 1024 * 1024
+            is_corrupted, reason = detect_backup_corruption(large_file)
         assert is_corrupted is True
         assert "large" in reason.lower()
 

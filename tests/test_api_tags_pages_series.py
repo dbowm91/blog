@@ -2,8 +2,8 @@
 
 import os
 
-os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
-os.environ["ADMIN_PASSWORD"] = "test-password"
+os.environ.setdefault("SECRET_KEY", "test-secret-key-test-secret-key-1234")
+os.environ.setdefault("ADMIN_PASSWORD", "test-password-123")
 os.environ["API_KEY"] = "test-api-key-12345"
 os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 

@@ -21,7 +21,7 @@ export FLASK_APP=run:app
 flask db upgrade
 
 # Run tests
-ADMIN_PASSWORD=test SECRET_KEY=test .venv/bin/python3 -m pytest tests/
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/
 
 # Run linter
 ruff check .

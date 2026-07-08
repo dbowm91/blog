@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest.mock import patch, MagicMock
 from app.utils import utc_now
 from filelock import Timeout as FileLockTimeout
@@ -108,14 +109,23 @@ def test_publish_scheduled_posts(db, sample_post):
 
 
 def test_init_scheduler_no_smtp():
-    """Test init_scheduler returns None if SMTP_HOST not set."""
+    """Test init_scheduler skips newsletter job if SMTP_HOST not set."""
     from app.scheduler import init_scheduler
 
-    with patch("app.config.SMTP_HOST", None):
+    with (
+        patch("app.config.SMTP_HOST", None),
+        patch("apscheduler.schedulers.background.BackgroundScheduler") as MockScheduler,
+    ):
+        mock_scheduler = MagicMock()
+        MockScheduler.return_value = mock_scheduler
         app = MagicMock()
         app.instance_path = "/tmp"
         result = init_scheduler(app)
-        assert result is None
+        assert result is mock_scheduler
+        job_ids = [call.kwargs.get("id") for call in mock_scheduler.add_job.call_args_list]
+        assert "daily_newsletter" not in job_ids
+        assert "cleanup_expired_subscribers" in job_ids
+        assert "publish_scheduled_posts" in job_ids
 
 
 def test_init_scheduler_with_smtp():
@@ -205,6 +215,7 @@ def test_get_scheduler_next_run_with_scheduler():
 def test_scheduler_sends_newsletter_to_subscribers(db, sample_post, sample_subscriber):
     """Test send_daily_newsletter sends to confirmed subscribers."""
     from app.scheduler import send_daily_newsletter
+    from contextlib import nullcontext
 
     sample_post.newsletter_sent_at = None
     sample_post.published = True
@@ -212,8 +223,11 @@ def test_scheduler_sends_newsletter_to_subscribers(db, sample_post, sample_subsc
     db.session.commit()
 
     app = MagicMock()
+    app.app_context.return_value = nullcontext()
     with patch("app.scheduler.FileLock") as mock_lock:
         mock_lock.return_value.acquire.return_value = True
-        with patch("app.scheduler._send_newsletter_email") as mock_send:
+        with patch("app.email.send_newsletter") as mock_send:
+            mock_send.return_value = True
             send_daily_newsletter(app)
             assert mock_send.called or sample_post.newsletter_sent_at is not None
+    db.session.remove()

@@ -29,8 +29,8 @@ def test_scheduler_filters_unsent_posts(app, db):
         db.session.execute(
             select(Post).filter(
                 Post.published,
-                Post.published_at is not None,
-                Post.newsletter_sent_at is None,
+                Post.published_at.isnot(None),
+                Post.newsletter_sent_at.is_(None),
             )
         )
         .scalars()
@@ -152,8 +152,8 @@ def test_newsletter_attempts_skip_after_max(app, db):
         db.session.execute(
             select(Post).filter(
                 Post.published,
-                Post.published_at is not None,
-                Post.newsletter_sent_at is None,
+                Post.published_at.isnot(None),
+                Post.newsletter_sent_at.is_(None),
                 Post.newsletter_attempts < max_attempts,
             )
         )

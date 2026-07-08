@@ -25,8 +25,8 @@ cd blog
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export ADMIN_PASSWORD=test
-export SECRET_KEY=test
+export ADMIN_PASSWORD=test-password-123
+export SECRET_KEY=test-secret-key-test-secret-key-1234
 python run.py
 ```
 
