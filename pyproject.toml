@@ -5,6 +5,27 @@ description = "A self-hosted Flask blog CMS for technical writing, newsletters, 
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
+authors = [
+    { name = "David Bowman" },
+]
+keywords = ["blog", "flask", "cms", "newsletter", "self-hosted"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+]
+
+[project.urls]
+Homepage = "https://github.com/dbowm91/blog"
+Documentation = "https://github.com/dbowm91/blog/blob/main/DEPLOY.md"
+Repository = "https://github.com/dbowm91/blog"
+Issues = "https://github.com/dbowm91/blog/issues"
 
 [tool.ruff]
 line-length = 100

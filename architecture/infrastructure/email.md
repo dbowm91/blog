@@ -82,7 +82,7 @@ Email templates in `app/templates/email/`:
 ## Retry Logic
 
 - `_send_email_with_retry()` default: **3 retries** (function parameter default, `app/email.py:111`)
-- Newsletter override: **5 retries** (via `NEWSLETTER_MAX_RETRY_ATTEMPTS` config, default 5 in `app/config.py:120`)
+- Newsletter override: **5 retries** (via `NEWSLETTER_MAX_RETRY_ATTEMPTS` config, default 5 in `app/config.py:137`)
 - Reconnects on `SMTPServerDisconnected`
 
 The retry architecture uses two distinct paths:

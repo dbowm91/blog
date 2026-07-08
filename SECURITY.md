@@ -50,6 +50,14 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 - **Dependency auditing**: No automated dependency vulnerability scanning is built in. Operators should use tools like `pip-audit` or GitHub Dependabot.
 - **Container image scanning**: Docker images are not scanned for CVEs in the build process. Use `docker scan` or Trivy in CI.
 
+### Proxy and Reverse Proxy Assumptions
+
+- The application expects `X-Forwarded-For` and `X-Forwarded-Proto` headers from a trusted reverse proxy
+- `PROXY_COUNT` must match the number of proxies in front of the app (default: `1`)
+- If behind a CDN or load balancer that does not sanitize `X-Forwarded-For`, rate limiting may be bypassed
+- Session IP binding compares against the `X-Forwarded-For` header, not the direct connection IP
+- TLS termination must be handled by the reverse proxy — the application does not terminate TLS
+
 ## Security Features
 
 ### Authentication

@@ -7,6 +7,7 @@ instance/
 .venv/
 venv/
 .env
+config.toml
 .env.local
 .env.production
 logs/

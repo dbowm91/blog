@@ -251,11 +251,19 @@ Celery broker: `CELERY_BROKER_URL` → `REDIS_URL` → `redis://localhost:6379/0
 
 ### config.toml.example
 
-`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. The real `config.toml` is not gitignored.
+`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed.
 
 ### setup.sh Behavior
 
 `setup.sh` creates a venv, installs deps, generates `.env` (if missing), copies `config.toml` from template, then sources `.env`. It does NOT start the server — the final message tells the user to run `python run.py`.
+
+### RELEASE.md
+
+There is a release checklist at `RELEASE.md` for version bumps and release process. Refer to it before tagging releases.
+
+### STORAGE_BACKEND
+
+`STORAGE_BACKEND` env var (default: `"local"`) controls media storage. Set to `"s3"` for S3-compatible storage. When using S3, required env vars: `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Optional: `S3_REGION`, `S3_ENDPOINT`, `S3_PUBLIC_URL`. If required S3 vars are missing, falls back to local storage with a warning.
 
 ## Additional Notes for Future Agents
 

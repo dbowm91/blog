@@ -136,7 +136,7 @@ Determines the final `delivery_status` of a `WebhookEvent` after individual webh
 | Task | Failure Behavior | Retry |
 |------|------------------|-------|
 | `generate_image_variants` | Returns `False` | No |
-| `send_newsletter_task` | Returns `False` on send failure; Celery auto-retry via `self.retry()` (line 200) when `send_newsletter()` returns False | Yes (`max_retries=3`) |
+| `send_newsletter_task` | Returns `False` on send failure; Celery auto-retry via `self.retry()` (line 200) when `send_newsletter()` returns False | Yes (`max_retries=5`) |
 | `deliver_webhook_task` | Dispatches to `deliver_single_webhook_task` per webhook | N/A (dispatch only) |
 | `deliver_single_webhook_task` | Exception triggers `self.retry(exc=e)`; after max retries logs error and updates status | Yes |
 | `send_confirmation_task` | Exception triggers `self.retry(exc=e)` | Yes |

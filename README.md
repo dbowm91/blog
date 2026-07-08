@@ -69,7 +69,7 @@ cd /opt/blog
 python run.py
 ```
 
-This creates a virtual environment, generates secure credentials, and loads the `.env` file. Then starts the dev server.
+This creates a virtual environment, generates secure credentials, and loads the `.env` file.
 
 ### 2. Access Your Blog
 
@@ -213,7 +213,9 @@ Click **Preview** to see how your post will look with theme styling.
 | `SMTP_PASSWORD` | No | SMTP password |
 | `SESSION_COOKIE_SECURE` | No | Require HTTPS for cookies. Set `false` for local HTTP (default: `true`) |
 | `API_KEY` | No | REST API authentication |
-| `DATABASE_URL` | No | PostgreSQL connection string (experimental, overrides SQLite) |
+| `DATABASE_URL` | No | PostgreSQL connection string (experimental — falls back to SQLite if unset). See `SQLALCHEMY_DATABASE_URI` for the primary override. |
+| `REDIS_URL` | No | Redis connection URL for cache/Celery (default: `redis://localhost:6379/0`) |
+| `ENABLE_SCHEDULER` | No | Enable APScheduler for newsletters and backups (default: `false`, set `true` on exactly ONE container) |
 
 ### CLI Commands
 
@@ -260,7 +262,7 @@ Key tables: `posts`, `users`, `tags`, `subscribers`, `page_views`, `share_events
 
 ## Project Status
 
-DevLog is production-ready and actively maintained. The core feature set is stable and well-tested.
+DevLog is actively maintained. The core feature set is stable and well-tested.
 
 ## Non-Goals
 

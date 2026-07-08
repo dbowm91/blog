@@ -74,7 +74,7 @@ The app listens on `0.0.0.0:5000` by default.
 | Local filesystem media | Yes | No | Default media backend |
 | S3-compatible media | No | Yes | Requires boto3; admin media listing works but not CI-tested |
 | Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
-| Celery + Redis (async tasks) | Yes | No | Newsletter, webhooks, image variants |
+| Celery + Redis (async tasks) | No | Yes | Newsletter, webhooks, image variants; optional and not CI-tested |
 
 ---
 
@@ -99,7 +99,8 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | `SESSION_COOKIE_SECURE` | `true` | Require HTTPS for session cookies. Set `false` only for local HTTP development |
 | `PROXY_COUNT` | `1` | Number of reverse proxies in front of the app. Set `0` to disable `ProxyFix` |
 | `API_KEY` | — | REST API authentication key. Generate: `python3 -c 'import secrets; print(secrets.token_hex(32))'` |
-| `DATABASE_URL` | — | PostgreSQL connection string (experimental - see Section 8) |
+| `DATABASE_URL` | — | PostgreSQL connection string (fallback for `SQLALCHEMY_DATABASE_URI` — see Section 8) |
+| `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Celery broker URL (fallback: `REDIS_URL`) |
 | `ENABLE_SCHEDULER` | `false` | Enable APScheduler (set `true` on exactly ONE container) |
 
 ### Storage Variables
@@ -422,24 +423,17 @@ Never commit `.env` to version control.
 
 ### Built-in Backup (CLI)
 
+Backups are created via the admin UI (`/admin/backup`) or the backup service. The following Flask CLI commands are available for maintenance:
+
 ```bash
-# Create backup
-flask backup --create
-
-# Create compressed backup
-flask backup --create --compress
-
-# Create encrypted backup
-flask backup --create --encrypt
-
-# Create compressed and encrypted
-flask backup --create --compress --encrypt
-
-# List backups
-flask backup --list
-
-# Restore from backup
-flask backup --restore instance/backups/backup-2026-04-29.db
+flask rebuild-search          # Rebuild full-text search index
+flask cleanup-orphaned-images # Remove orphaned uploaded images
+flask create-admin            # Create a new admin user
+flask promote-admin           # Promote a user to admin
+flask check-integrity         # Verify database integrity
+flask export-data             # Export data to JSON
+flask import-data backup.json # Import data from JSON
+flask seed                    # Seed database with sample content
 ```
 
 ### Manual SQLite Backup
@@ -545,7 +539,7 @@ sudo systemctl start blog
 **From encrypted backup:**
 ```bash
 # Decrypt first
-python -c "from app.backup_encryption import decrypt_backup; open('backup.db', 'wb').write(decrypt_backup(open('backup.db.gpg', 'rb').read()))"
+python -c "from app.backup_encryption import decrypt_backup_file; open('backup.db', 'wb').write(decrypt_backup_file(open('backup.db.gpg', 'rb').read()))"
 
 # Then restore
 flask backup --restore backup.db
@@ -894,7 +888,7 @@ The newsletter scheduler runs in-process via APScheduler—no external cron need
 - [ ] `config.toml [server] debug = false`
 - [ ] `config.toml [site] base_url` uses `https://`
 - [ ] HTTPS enforced at reverse proxy (redirect from HTTP, HSTS header)
-- [ ] `SESSION_COOKIE_SECURE = True` (automatic when `debug = false`)
+- [ ] `SESSION_COOKIE_SECURE = True` (must be explicitly set in production)
 - [ ] `PROXY_COUNT` set correctly for proxy setup
 - [ ] Static files served by nginx, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
