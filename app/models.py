@@ -648,10 +648,23 @@ class ApiToken(db.Model):  # type: ignore[name-defined]
         return True
 
     def has_scope(self, scope: str) -> bool:
-        """Check if token has the given scope."""
+        """Check if token has the given scope.
+
+        Supports exact match, ``admin:*`` global wildcard, and category
+        wildcards (e.g. ``posts:*`` grants ``posts:read``).
+        """
+        from app.routes.api.auth import VALID_WILDCARD_SCOPES
+
         if "admin:*" in self.scopes:
             return True
-        return scope in self.scopes
+        if scope in self.scopes:
+            return True
+        if ":" in scope:
+            category = scope.split(":", 1)[0]
+            wildcard = f"{category}:*"
+            if wildcard in self.scopes and wildcard in VALID_WILDCARD_SCOPES:
+                return True
+        return False
 
     def __repr__(self) -> str:
         return f"<ApiToken id={self.id} name={self.name!r}>"

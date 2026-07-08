@@ -18,20 +18,65 @@ API_KEY = os.environ.get("API_KEY", "")
 SCOPES = {
     "posts:read",
     "posts:write",
+    "posts:*",
     "media:read",
     "media:write",
+    "media:*",
     "subscribers:read",
     "subscribers:write",
+    "subscribers:*",
     "newsletter:send",
+    "newsletter:*",
     "analytics:read",
+    "analytics:*",
     "tags:read",
     "tags:write",
+    "tags:*",
     "pages:read",
     "pages:write",
+    "pages:*",
     "series:read",
     "series:write",
+    "series:*",
     "admin:*",
 }
+
+VALID_WILDCARD_SCOPES = {
+    "admin:*",
+    "posts:*",
+    "media:*",
+    "subscribers:*",
+    "newsletter:*",
+    "analytics:*",
+    "tags:*",
+    "pages:*",
+    "series:*",
+}
+
+
+def scope_allows(granted_scopes: list[str], required_scope: str) -> bool:
+    """Check if granted scopes satisfy a required scope.
+
+    Matching semantics:
+    1. Exact scope match grants access.
+    2. ``admin:*`` grants access to every API scope.
+    3. Category wildcard (e.g. ``posts:*``) grants access to all scopes
+       in that category (e.g. ``posts:read``, ``posts:write``).
+    4. Unknown or malformed scopes do not grant access.
+    """
+    if not required_scope:
+        return False
+    normalized = {s for s in granted_scopes if isinstance(s, str)}
+    if "admin:*" in normalized:
+        return True
+    if required_scope in normalized:
+        return True
+    if ":" in required_scope:
+        category = required_scope.split(":", 1)[0]
+        wildcard = f"{category}:*"
+        if wildcard in normalized and wildcard in VALID_WILDCARD_SCOPES:
+            return True
+    return False
 
 
 def _hash_token(token: str) -> str:
@@ -98,7 +143,7 @@ def require_scope(scope: str) -> Any:
             if auth_info is None:
                 return jsonify({"error": "Invalid or missing API key"}), 401
 
-            if scope not in auth_info["scopes"]:
+            if not scope_allows(auth_info.get("scopes", []), scope):
                 return jsonify({"error": f"Missing scope: {scope}"}), 403
 
             return f(*args, **kwargs)

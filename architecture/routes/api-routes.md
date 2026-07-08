@@ -322,7 +322,7 @@ Requires scope: `tags:write`
 
 ## Authentication (`auth.py`)
 
-The `auth.py` module provides a `require_api_key` decorator (not a route) and a `require_scope` decorator for scoped access control. Protected API routes use `@require_api_key` which implements two-tier authentication:
+The `auth.py` module provides `require_api_key` and `require_scope` decorators for scoped access control. Protected API routes use `@require_api_key` which implements two-tier authentication:
 
 1. **Legacy API_KEY**: Validates `X-API-Key` header against the `API_KEY` environment variable via HMAC comparison. Grants all scopes.
 2. **Scoped ApiToken**: Validates token hash against the `api_tokens` table. Grants only the scopes listed on the token.
@@ -332,6 +332,32 @@ The `auth.py` module provides a `require_api_key` decorator (not a route) and a 
 | Header | `X-API-Key: <api-key>` |
 | Failure | 401 `{"error": "Invalid or missing API key"}` |
 | Missing scope | 403 `{"error": "Missing scope: {scope}"}` |
+
+### Scope Matching (`scope_allows()`)
+
+The `scope_allows()` function determines whether a set of granted scopes satisfies a required scope. Matching semantics:
+
+1. **Exact match** — A granted scope matching the required scope grants access (e.g. granted `posts:read` satisfies `posts:read`).
+2. **`admin:*` grants all** — `admin:*` grants access to every API scope, regardless of category.
+3. **Category wildcard** — A wildcard like `posts:*` grants access to all scopes in that category (`posts:read`, `posts:write`).
+4. **Unknown scopes** — Unrecognized or malformed scopes grant no access.
+
+### Wildcard Scopes
+
+The `VALID_WILDCARD_SCOPES` set controls which category wildcards are recognized:
+
+```
+admin:*, posts:*, media:*, subscribers:*, newsletter:*, analytics:*, tags:*, pages:*, series:*
+```
+
+The `SCOPES` set (all valid scope strings) includes the individual scopes plus category wildcards:
+
+```
+posts:read, posts:write, posts:*, media:read, media:write, media:*, subscribers:read,
+subscribers:write, subscribers:*, newsletter:send, newsletter:*, analytics:read, analytics:*,
+tags:read, tags:write, tags:*, pages:read, pages:write, pages:*, series:read, series:write,
+series:*, admin:*
+```
 
 ## Rate Limits
 
@@ -387,25 +413,33 @@ ApiToken (`app/models.py:625-657`) provides scoped API authentication. Tokens ar
 
 ### Scopes
 
-Full scope list (defined in `app/routes/api/auth.py:18-34`):
+Full scope list (defined in `app/routes/api/auth.py`):
 
 | Scope | Description |
 |-------|-------------|
 | `posts:read` | Read posts |
 | `posts:write` | Create/update/delete posts |
+| `posts:*` | Category wildcard — grants `posts:read` and `posts:write` |
 | `media:read` | Read media |
 | `media:write` | Upload/delete media |
+| `media:*` | Category wildcard — grants all media scopes |
 | `subscribers:read` | Read subscribers |
 | `subscribers:write` | Create/delete subscribers |
+| `subscribers:*` | Category wildcard — grants all subscriber scopes |
 | `newsletter:send` | Send newsletters |
+| `newsletter:*` | Category wildcard — grants all newsletter scopes |
 | `analytics:read` | Read analytics |
+| `analytics:*` | Category wildcard — grants all analytics scopes |
 | `tags:read` | Read tags |
 | `tags:write` | Create/update/delete tags |
+| `tags:*` | Category wildcard — grants all tag scopes |
 | `pages:read` | Read pages |
 | `pages:write` | Create/update/delete pages |
+| `pages:*` | Category wildcard — grants all page scopes |
 | `series:read` | Read series |
 | `series:write` | Create/update/delete series |
-| `admin:*` | Matches all scopes |
+| `series:*` | Category wildcard — grants all series scopes |
+| `admin:*` | Grants all scopes across every category |
 
 ### `require_scope` decorator
 

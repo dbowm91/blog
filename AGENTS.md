@@ -72,6 +72,7 @@ Important actual file locations (verify before assuming):
 | Item | Actual Location |
 |------|-----------------|
 | API routes | `app/routes/api/` (PACKAGE with posts.py, subscribers.py, stats.py, auth.py) |
+| API scope matching | `scope_allows()` in `app/routes/api/auth.py` — exact match, `admin:*` grants all, category wildcards (`posts:*` etc.) |
 | Validators | `app/validators.py` (NOT `app/core/validators.py`) |
 | Backup logic | `app/services/backup.py` (centralized service) |
 | Admin Audit Log model | `app/models.py:461-481` |

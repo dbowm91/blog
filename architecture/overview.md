@@ -414,7 +414,7 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 | **2FA** | TOTP secrets encrypted with AES-256-GCM |
 | **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
 | **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py`; enforced for all POST requests except API blueprint via `should_skip_csrf()` (`app/__init__.py:301-303`) |
-| **API Auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison + scoped `ApiToken` model with `require_scope()` decorator |
+| **API Auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison + scoped `ApiToken` model with `require_scope()` decorator; `scope_allows()` supports exact match, `admin:*` for full access, and category wildcards (e.g. `posts:*`) |
 
 > **CSRF Scope for API Clients:** CSRF validation is **skipped for API endpoints** (`request.blueprint == "api"` checked in `should_skip_csrf()` at `app/csrf.py:33`). The `before_request_handler()` at `app/__init__.py:301-303` calls `should_skip_csrf()` before validating tokens, so API POST requests are exempt. API endpoints are protected by token-based auth (API keys, `ApiToken` model) with token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. See `deployment/security.md` for full security architecture details.
 | **Account Lockout** | 5 failed attempts → 15-minute lockout |

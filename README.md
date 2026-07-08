@@ -253,6 +253,8 @@ flask shell                      # Interactive shell
 
 See `docs/openapi.yaml` for full API documentation.
 
+Authentication uses either the legacy `API_KEY` environment variable (grants all scopes) or scoped `ApiToken` objects. Scoped tokens support exact matches, `admin:*` for full access, and category wildcards (e.g. `posts:*` grants `posts:read` and `posts:write`).
+
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/posts` | GET | List posts (supports `?q=`, `?page=`, `?per_page=`, `?published=`) |

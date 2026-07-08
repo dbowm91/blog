@@ -595,7 +595,19 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
-      description: API key for authenticated endpoints. Set via `API_KEY` environment variable.
+      description: |
+        API key or scoped token for authenticated endpoints.
+
+        Two authentication methods are supported:
+        - **Legacy API_KEY**: Set via the `API_KEY` environment variable. Grants all scopes.
+        - **Scoped ApiToken**: Created via the admin panel. Grants only the scopes assigned to the token.
+
+        Scoped tokens use the `scope_allows()` matching function:
+        - Exact scope match grants access (e.g. `posts:read` grants `posts:read`).
+        - `admin:*` grants access to every API scope.
+        - Category wildcards (e.g. `posts:*`) grant all scopes in that category (`posts:read`, `posts:write`).
+
+        Returns 401 for invalid/missing keys, 403 for valid keys lacking the required scope.
 
   schemas:
     Error:
