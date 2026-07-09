@@ -23,6 +23,9 @@ flask db upgrade
 # Run tests
 ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/
 
+# Run a single test file
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/test_models.py -v
+
 # Run linter
 ruff check .
 ruff format --check .
@@ -60,14 +63,6 @@ When an agent operates within a module, it should:
 | Architecture | `architecture/AGENTS.override.md` | Architecture documentation |
 | Plans | `plans/AGENTS.override.md` | Implementation plans and deferred items |
 
-## Structure Convention
-
-When adding agent guidance for a specific module:
-1. Create `AGENTS.override.md` inside that module directory
-2. Do not create a separate "agents" directory
-3. Override files should be focused on module-specific concerns
-4. Update this index when adding new override files
-
 ## Codebase Structure Reference
 
 Important actual file locations (verify before assuming):
@@ -103,7 +98,9 @@ Important actual file locations (verify before assuming):
 
 ### APScheduler Multi-Container Limitation
 
-APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently. **Set `ENABLE_SCHEDULER=true` on exactly ONE container to prevent duplicate jobs.** The scheduler has an idempotency guard, but explicit opt-in via `ENABLE_SCHEDULER` is the recommended approach.
+APScheduler uses FileLock with `timeout=0` which only works on a single machine. Multiple container replicas will each run their own APScheduler and execute jobs concurrently. **Set `ENABLE_SCHEDULER=true` on exactly ONE container to prevent duplicate jobs.** The scheduler has an idempotency guard, but explicit opt-in via `ENABLE_SCHEDULER` is the recommended approach. Disabled by default so multiple replicas can run without duplicate jobs.
+
+The scheduler handles newsletters, subscriber cleanup, scheduled post publishing, and daily backups. When SMTP_HOST is not configured, only the daily newsletter job is disabled; other jobs continue to run.
 
 See [architecture/tasks/scheduler.md](architecture/tasks/scheduler.md) for full scheduler documentation.
 
@@ -113,9 +110,9 @@ The `npm run build` (or `vite build`) must be run before production deployment. 
 
 **Docker builds handle this automatically** via the multi-stage `Dockerfile` — the `frontend-builder` stage runs `npm run build` and copies the output to the final image. This note applies to non-Docker deployments only.
 
-### APScheduler SMTP Handling
+### Entry Point
 
-When SMTP_HOST is not configured, only the daily newsletter job is disabled. Other scheduler jobs (cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup) continue to run.
+`run.py` is the development entry point. It wraps the WSGI app with `asgiref.wsgi.WsgiToAsgi` for ASGI compatibility (used by Granian in production). For production, use Granian via Docker Compose rather than `python run.py`.
 
 ### Email Retry Count
 
@@ -136,10 +133,6 @@ Actual filters (defined in `app/filters.py`):
 ### Critical CSS
 
 The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html` with `media="screen"` for immediate loading.
-
-### ENABLE_SCHEDULER
-
-`ENABLE_SCHEDULER` (default: `false`) controls whether the APScheduler scheduler starts in a given container. Set it to `true` on exactly one container when running in production. The scheduler handles newsletters, subscriber cleanup, scheduled post publishing, and daily backups. Disabled by default so multiple replicas can run without duplicate jobs.
 
 ### Docker Compose Profiles
 
@@ -270,6 +263,16 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 `tests/benchmarks/conftest.py` configures `task_always_eager=True` for benchmark tests.
 
+### Line Number References in Documentation
+
+Line number references in architecture documentation drift over time. Prefer symbolic references (function names, class names) over exact line numbers when possible. When line numbers are required, verify against current codebase before publishing.
+
+### Maintainer Context
+
+For detailed implementation history, deprecated features, actual route corrections, test interference notes, encryption module details, task line numbers, and other maintainer context, see:
+
+> [docs/internals/agent-maintainer-notes.md](docs/internals/agent-maintainer-notes.md)
+
 ## Architecture Cross-Reference
 
 For detailed architecture documentation, see the `architecture/` directory:
@@ -287,16 +290,6 @@ For detailed architecture documentation, see the `architecture/` directory:
 | Security (2FA, CSRF, rate limiting) | [architecture/deployment/security.md](architecture/deployment/security.md) |
 | Deployment (Docker, CI/CD) | [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
 | System overview | [architecture/overview.md](architecture/overview.md) |
-
-## Additional Notes for Future Agents
-
-### Line Number References in Documentation
-
-Line number references in architecture documentation drift over time. Prefer symbolic references (function names, class names) over exact line numbers when possible. When line numbers are required, verify against current codebase before publishing.
-
-For detailed implementation history, deprecated features, actual route corrections, test interference notes, encryption module details, task line numbers, and other maintainer context, see:
-
-> [docs/internals/agent-maintainer-notes.md](docs/internals/agent-maintainer-notes.md)
 
 ## Skills
 
