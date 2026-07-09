@@ -1,3 +1,8 @@
+---
+name: architecture_review
+description: "Architecture documentation review and improvement workflow. Reviews architecture documents against actual source code and generates improvement plans. Use when reviewing, verifying, or cross-referencing architecture documentation."
+---
+
 # Architecture Review Skill
 
 ## Description

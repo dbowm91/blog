@@ -16,7 +16,6 @@ app/static/uploads/
 backups/
 node_modules/
 app/static/dist/
-.skills
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/

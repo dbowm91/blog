@@ -1,0 +1,1 @@
+../../../.skills/blog_cms/skill.md
