@@ -332,7 +332,7 @@ def create_app() -> Flask:
                             logger.warning("Failed to delete expired admin session: %s", sid)
                     logout_user()
                     flash("Session expired. Please log in again.", "info")
-                    return redirect(url_for("admin.login"))
+                    return redirect(url_for("admin.login"))  # type: ignore[return-value]
             session["last_activity"] = now
         return None
 

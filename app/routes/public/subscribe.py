@@ -77,7 +77,9 @@ def register_subscribe_routes(public):
                     return redirect(_safe_redirect_url())
                 return _send_or_flash_confirmation(existing)
             elif existing.confirmed:
-                logger.info("Already-subscribed user %s attempted to resubscribe", email)
+                logger.info(
+                    "Already-subscribed user attempted to resubscribe: sub_id=%d", existing.id
+                )
                 flash("You're already subscribed!", "info")
                 return redirect(_safe_redirect_url())
             else:
@@ -151,12 +153,13 @@ def register_subscribe_routes(public):
             flash("Subscription confirmed! You'll receive our newsletter.", "success")
             return redirect("/")
         if sub.expires_at and sub.expires_at < utc_now():
+            expired_sub_id = sub.id
             try:
                 db.session.delete(sub)
                 db.session.commit()
             except (IntegrityError, OperationalError):
                 db.session.rollback()
-            logger.info("Removed expired unconfirmed subscriber: %s", sub.email)
+            logger.info("Removed expired unconfirmed subscriber: sub_id=%d", expired_sub_id)
             flash("This confirmation link has expired. Please subscribe again.", "warning")
             return redirect("/")
         if sub.confirmed:
@@ -196,7 +199,7 @@ def register_subscribe_routes(public):
             )
             flash("You have been unsubscribed.", "success")
             return redirect("/")
-        sub_email = sub.email
+        unsub_sub_id = sub.id
         sub.unsubscribed_at = utc_now()
         sub.confirmed = False
         try:
@@ -205,6 +208,6 @@ def register_subscribe_routes(public):
             db.session.rollback()
             flash("An error occurred. Please try again.", "error")
             return redirect("/")
-        logger.info("Unsubscribed: email=%s", sub_email)
+        logger.info("Unsubscribed: sub_id=%d", unsub_sub_id)
         flash("You have been unsubscribed.", "success")
         return redirect("/")

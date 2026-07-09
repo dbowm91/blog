@@ -127,7 +127,7 @@ def require_api_key(f: Any) -> Any:
         if auth_info is None:
             return jsonify({"error": "Invalid or missing API key"}), 401
 
-        request.api_auth = auth_info
+        setattr(request, "api_auth", auth_info)
         return f(*args, **kwargs)
 
     return decorated

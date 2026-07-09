@@ -29,7 +29,7 @@ Three-stage build:
 
 The frontend assets are copied into the runtime image via:
 ```dockerfile
-COPY --from=frontend-builder /app/app/static/dist /app/app/static/dist
+COPY --from=frontend-builder /home/blog/app/static/dist /home/blog/app/static/dist
 ```
 
 This means `npm ci && npm run build` does **not** need to run separately for Docker builds — it happens automatically in the first stage. The CI `docker-build` job verifies this by checking that `app/static/dist/.vite/manifest.json` exists in the built image.

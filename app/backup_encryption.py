@@ -33,7 +33,7 @@ try:
     CRYPTOGRAPHY_AVAILABLE = True
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
-    InvalidTag = type("InvalidTag", (Exception,), {})  # type: ignore[misc,assignment]
+    InvalidTag = type("InvalidTag", (Exception,), {})
 
 logger = logging.getLogger(__name__)
 

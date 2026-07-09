@@ -27,6 +27,7 @@ export function initShare() {
                 if (platform === "copy") {
                     e.preventDefault();
                     const shareUrl = shareBar.dataset.shareUrl;
+                    const original = btn.innerHTML;
                     const copyToClipboard = (text) => {
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             return navigator.clipboard.writeText(text);
@@ -35,7 +36,6 @@ export function initShare() {
                     };
 
                     copyToClipboard(shareUrl).then(() => {
-                        const original = btn.innerHTML;
                         btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
                         const announcer = document.getElementById('sr-announce');
                         if (announcer) announcer.textContent = 'Link copied!';
@@ -44,6 +44,10 @@ export function initShare() {
                         btn.textContent = 'Failed';
                         setTimeout(() => { btn.innerHTML = original; }, 1500);
                     });
+                    return;
+                }
+
+                if (platform === "email") {
                     return;
                 }
 
@@ -76,7 +80,6 @@ export function initShare() {
         });
     }
 
-    // --- Share button color flash ---
     document.querySelectorAll('.share-btn[data-platform]:not([data-platform="copy"])').forEach(btn => {
         btn.addEventListener('click', function() {
             this.classList.add('share-flash');

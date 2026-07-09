@@ -385,7 +385,7 @@ def test_delete_subscriber_authenticated(authenticated_client, db):
         f"/admin/subscribers/delete/{sub_id}", follow_redirects=True
     )
     assert response.status_code == 200
-    assert b"Subscriber todelete@example.com deleted" in response.data
+    assert b"Subscriber deleted" in response.data
     # Verify subscriber is gone
     assert db.session.get(Subscriber, sub_id) is None
 

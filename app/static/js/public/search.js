@@ -49,7 +49,7 @@ export function initSearch() {
         currentRequest = new AbortController();
 
         try {
-            const response = await fetch(`/api/posts?q=${encodeURIComponent(query)}&published=true&per_page=5`, {
+            const response = await fetch(`/search/suggest?q=${encodeURIComponent(query)}`, {
                 signal: currentRequest.signal,
                 headers: {
                     'Accept': 'application/json',
@@ -59,7 +59,7 @@ export function initSearch() {
             if (!response.ok) return;
 
             const data = await response.json();
-            displaySuggestions(data.posts || []);
+            displaySuggestions(data.suggestions || []);
         } catch (err) {
             if (err.name !== 'AbortError') {
                 console.warn('Search suggestions error:', err);
@@ -158,6 +158,8 @@ function displaySuggestions(posts) {
             </a>
         </div>
     `).join('');
+
+    container.style.display = 'block';
 
     container.style.display = 'block';
 }

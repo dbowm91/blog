@@ -385,8 +385,8 @@ def reorder_series_posts(series_id: int) -> Any:
         return jsonify({"error": "order is required"}), 400
 
     validated_order, err = validate_list(order, "order", max_length=500)
-    if err:
-        return jsonify({"error": err}), 400
+    if err or not validated_order:
+        return jsonify({"error": err or "invalid order"}), 400
 
     for item in validated_order:
         if not isinstance(item, dict):

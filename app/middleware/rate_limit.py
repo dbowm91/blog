@@ -69,7 +69,7 @@ class AdminRateLimiter:
             def wrapped(*args, **kwargs):
                 return f(*args, **kwargs)
 
-            wrapped.__rate_limit = limit_str
+            wrapped.__rate_limit = limit_str  # type: ignore[attr-defined]
             return wrapped
 
         return decorator

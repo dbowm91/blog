@@ -16,25 +16,28 @@
     {% if series_posts %}
     <h3>Posts in this Series</h3>
     <div class="series-posts-list">
-        <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}">
+        <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}" id="series-reorder-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="reorder">
-            
+
             {% for ps in series_posts %}
             <div class="series-post-item" data-post-series-id="{{ ps.id }}">
                 <span class="drag-handle">⋮⋮</span>
                 <span class="post-order">{{ loop.index }}</span>
                 <a href="{{ url_for('admin.edit_post', post_id=ps.post.id) }}" class="post-title">{{ ps.post.title }}</a>
                 <input type="hidden" name="post_order[]" value="{{ ps.id }}">
-                <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}" class="inline-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="action" value="remove">
-                    <input type="hidden" name="post_series_id" value="{{ ps.id }}">
-                    <button type="submit" class="btn btn-small btn-danger" data-confirm="Remove this post from the series?">Remove</button>
-                </form>
+                <button type="submit" form="series-remove-{{ ps.id }}" class="btn btn-small btn-danger" data-confirm="Remove this post from the series?">Remove</button>
             </div>
             {% endfor %}
         </form>
+
+        {% for ps in series_posts %}
+        <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}" id="series-remove-{{ ps.id }}" class="inline-form" style="display:none">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="remove">
+            <input type="hidden" name="post_series_id" value="{{ ps.id }}">
+        </form>
+        {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">

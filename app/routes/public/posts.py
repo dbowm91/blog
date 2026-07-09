@@ -1,6 +1,8 @@
 """Post-related routes - view, preview, share tracking."""
 
 import logging
+from typing import Any, cast
+
 from flask import current_app
 
 from flask import (
@@ -15,7 +17,6 @@ from flask import (
 from flask.typing import ResponseReturnValue
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, QueryableAttribute
-from typing import cast, Any
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -53,8 +54,8 @@ def register_post_routes(public: Any) -> None:
             db.session.execute(
                 select(Post)
                 .options(
-                    joinedload(cast(QueryableAttribute, Post.tags)),
-                    joinedload(Post.series_entries).joinedload(PostSeries.series),
+                    joinedload(cast("QueryableAttribute[Any]", Post.tags)),
+                    joinedload(Post.series_entries).joinedload(PostSeries.series),  # type: ignore[arg-type]
                 )
                 .filter_by(slug=slug, published=True)
             )
@@ -137,7 +138,7 @@ def register_post_routes(public: Any) -> None:
         post_obj = (
             db.session.execute(
                 select(Post)
-                .options(joinedload(cast(QueryableAttribute, Post.tags)))
+                .options(joinedload(cast("QueryableAttribute[Any]", Post.tags)))
                 .filter(Post.id == post_id)
             )
             .unique()

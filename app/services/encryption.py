@@ -13,7 +13,7 @@ try:
     CRYPTOGRAPHY_AVAILABLE = True
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
-    AESGCM = None
+    AESGCM = None  # type: ignore[misc,assignment]  # noqa: F811
 
 logger = logging.getLogger(__name__)
 

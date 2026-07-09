@@ -307,7 +307,7 @@ def get_search_snippets(posts: list, query: str) -> dict[int, str]:
             )
             params = {f"id{i}": pid for i, pid in enumerate(ids)}
             params["q"] = fts_query
-        return db.session.execute(text(query_str), params).fetchall()
+        return db.session.execute(text(query_str), params).fetchall()  # type: ignore[return-value]  # SQLAlchemy Row vs tuple variance
 
     try:
         for i in range(0, len(post_ids), _SQLITE_MAX_VARS):

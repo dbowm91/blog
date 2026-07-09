@@ -8,7 +8,10 @@ info:
     All endpoints (except `/api/track-share`) require API key authentication.
     Pass the API key via the `X-API-Key` request header.
 
-    Set the `API_KEY` environment variable to enable API access.
+    API access is enabled by setting either the `API_KEY` environment variable
+    (grants all scopes) or by creating one or more scoped `ApiToken` records.
+    Scoped tokens support exact matches, `admin:*` for full access, and category
+    wildcards (e.g. `posts:*` grants `posts:read` and `posts:write`).
 
     ## Rate Limiting
     Rate limiting is handled by the reverse proxy in front of this application.
@@ -86,15 +89,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
-                error: "Invalid API key"
-        "503":
-          description: API not configured (API_KEY not set)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "API key not configured"
+                error: "Invalid or missing API key"
     post:
       summary: Create a post
       description: Create a new blog post. The slug is auto-generated if not provided.

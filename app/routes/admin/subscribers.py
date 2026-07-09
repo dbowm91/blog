@@ -66,7 +66,7 @@ def delete_subscriber(sub_id: int) -> ResponseReturnValue:
     sub = db.session.get(Subscriber, sub_id)
     if not sub:
         abort(404)
-    email = sub.email
+    sub_id_log = sub.id
     db.session.delete(sub)
     try:
         db.session.commit()
@@ -74,8 +74,8 @@ def delete_subscriber(sub_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.subscribers"))
-    logger.info("Subscriber deleted: sub_id=%d email=%s", sub_id, email)
-    flash(f"Subscriber {email} deleted.", "success")
+    logger.info("Subscriber deleted: sub_id=%d", sub_id_log)
+    flash("Subscriber deleted.", "success")
     return redirect(url_for("admin.subscribers"))
 
 

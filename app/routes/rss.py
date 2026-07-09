@@ -136,7 +136,7 @@ def _get_series_posts(series_slug: str, limit: int = 20) -> tuple[list[Post], st
     series_posts = (
         db.session.execute(
             select(PostSeries)
-            .options(joinedload(PostSeries.post))
+            .options(joinedload(cast("QueryableAttribute[Any]", PostSeries.post)))
             .filter_by(series_id=series_obj.id)
             .order_by(PostSeries.order_index)
         )
@@ -144,7 +144,7 @@ def _get_series_posts(series_slug: str, limit: int = 20) -> tuple[list[Post], st
         .unique()
         .all()
     )
-    posts = [sp.post for sp in series_posts if sp.post and sp.post.published][:limit]
+    posts = [cast(Post, sp.post) for sp in series_posts if sp.post and sp.post.published][:limit]
     etag = _generate_etag(posts, f"series_{series_slug}")
     return posts, etag
 

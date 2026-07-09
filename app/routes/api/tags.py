@@ -119,8 +119,8 @@ def create_tag() -> Any:
 
     tags_list = [name]
     validated, err = validate_tags(tags_list, "name", max_tags=1)
-    if err:
-        return jsonify({"error": err}), 400
+    if err or not validated:
+        return jsonify({"error": err or "invalid name"}), 400
     name = validated[0]
 
     slug = generate_slug(name)
@@ -179,9 +179,9 @@ def update_tag(tag_id: int) -> Any:
 
     tags_list = [name]
     validated, err = validate_tags(tags_list, "name", max_tags=1)
-    if err:
-        return jsonify({"error": err}), 400
-    name = validated[0]
+    if err or not validated:
+        return jsonify({"error": err or "invalid name"}), 400
+    name = validated[0]  # validated is non-None list after err check
 
     slug = generate_slug(name)
 

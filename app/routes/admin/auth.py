@@ -287,8 +287,8 @@ def setup_2fa() -> Any:
         return redirect(url_for("admin.verify_2fa"))
 
     qr_code = None
-    secret = user.totp_secret
-    if secret:
+    existing_secret = user.totp_secret
+    if existing_secret:
         uri = user.get_totp_uri()
         if uri:
             img = qrcode.make(uri)
@@ -296,7 +296,7 @@ def setup_2fa() -> Any:
             img.save(buf, format="PNG")
             qr_code = base64.b64encode(buf.getvalue()).decode()
 
-    return render_template("admin/2fa_setup.html", secret=secret, qr_code=qr_code)
+    return render_template("admin/2fa_setup.html", secret=existing_secret, qr_code=qr_code)
 
 
 @admin.route("/2fa/verify", methods=["GET", "POST"])
@@ -438,7 +438,8 @@ def disable_2fa() -> Any:
 
     if request.method == "POST":
         token = request.form.get("token", "").strip()
-        if pyotp.TOTP(user.totp_secret).verify(token):
+        secret = user.totp_secret
+        if secret and pyotp.TOTP(secret).verify(token):
             user.totp_enabled = False
             user.totp_secret_encrypted = None
             user.backup_codes_hashed = None
@@ -449,8 +450,7 @@ def disable_2fa() -> Any:
                 flash("Database error occurred.", "error")
                 return redirect(url_for("admin.disable_2fa"))
             logger.info("2FA disabled: user_id=%d", user.id)
-            flash("2FA has been disabled.", "success")
-            return redirect(url_for("admin.dashboard"))
+        flash("Invalid code. Please try again.", "error")
         flash("Invalid code. Please try again.", "error")
 
     return render_template("admin/disable_2fa.html")

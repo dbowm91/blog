@@ -1,9 +1,10 @@
 """Posts API endpoints."""
 
 import logging
+import os
 from typing import Any, cast
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload, QueryableAttribute
@@ -362,7 +363,7 @@ def delete_post(post_id: int) -> Any:
         return jsonify({"error": "Database operational error"}), 500
 
     if old_image:
-        safe_delete_file(old_image)
+        safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], old_image))
 
     from app.search import remove_fts
 

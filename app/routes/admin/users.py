@@ -138,7 +138,7 @@ def promote_user(user_id: int) -> ResponseReturnValue:
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
     session["csrf_tokens"] = [generate_csrf_token()]
-    logger.info("User promoted to admin: user_id=%d username=%s", user_id, user.username)
+    logger.info("User promoted to admin: user_id=%d", user_id)
     flash(f"'{user.username}' promoted to admin.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -173,7 +173,7 @@ def demote_user(user_id: int) -> ResponseReturnValue:
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
     session["csrf_tokens"] = [generate_csrf_token()]
-    logger.info("User demoted from admin: user_id=%d username=%s", user_id, user.username)
+    logger.info("User demoted from admin: user_id=%d", user_id)
     flash(f"'{user.username}' demoted from admin.", "success")
     return redirect(url_for("admin.users_list"))
 

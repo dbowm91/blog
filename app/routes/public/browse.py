@@ -9,6 +9,7 @@ from flask import (
     redirect,
     abort,
     g,
+    jsonify,
 )
 from flask.typing import ResponseReturnValue
 from sqlalchemy import func, or_, select, case
@@ -323,6 +324,56 @@ def register_browse_routes(public):
             did_you_mean=did_you_mean,
         )
 
+    @public.route("/search/suggest")
+    @limiter.limit("20 per minute")
+    def search_suggest() -> ResponseReturnValue:
+        """Public live-search suggestions for the navbar."""
+        query = request.args.get("q", "", type=str)[:200].strip()
+        if not query:
+            return jsonify({"suggestions": []})
+
+        post_results = _fts_search(query)
+        if post_results:
+            if not all(isinstance(r, tuple) and len(r) == 2 for r in post_results):
+                logging.warning("FTS returned invalid results: %s", post_results)
+                post_results = []
+            post_ids = [pid for pid, _ in post_results[:5]]
+        else:
+            escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            search_term = f"%{escaped}%"
+            post_ids = [
+                pid
+                for (pid,) in db.session.execute(
+                    select(Post.id)
+                    .filter(
+                        Post.published,
+                        or_(
+                            Post.title.ilike(search_term, escape="\\"),
+                            Post.summary.ilike(search_term, escape="\\"),
+                        ),
+                    )
+                    .order_by(Post.created_at.desc())
+                    .limit(5)
+                ).all()
+            ]
+
+        if not post_ids:
+            return jsonify({"suggestions": []})
+
+        posts = db.session.execute(
+            select(Post.id, Post.title, Post.slug, Post.summary).filter(Post.id.in_(post_ids))
+        ).all()
+
+        suggestions = [
+            {
+                "title": p.title,
+                "slug": p.slug,
+                "summary": (p.summary or "")[:120],
+            }
+            for p in posts
+        ]
+        return jsonify({"suggestions": suggestions})
+
     @public.route("/series/<slug>")
     @limiter.limit("60 per minute")
     def series_view(slug) -> ResponseReturnValue:
@@ -334,7 +385,7 @@ def register_browse_routes(public):
         series_posts = (
             db.session.execute(
                 select(PostSeries)
-                .options(joinedload(PostSeries.post))
+                .options(joinedload(PostSeries.post))  # type: ignore[arg-type]  # type cast not needed for PostSeries
                 .filter_by(series_id=series.id)
                 .order_by(PostSeries.order_index)
             )

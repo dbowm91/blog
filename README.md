@@ -263,7 +263,7 @@ Authentication uses either the legacy `API_KEY` environment variable (grants all
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/posts` | GET | List posts (supports `?q=`, `?page=`, `?per_page=`, `?published=`) |
+| `/api/posts` | GET | List posts (supports `?page=`, `?per_page=`, `?published=`) |
 | `/api/posts/<id>` | GET | Get single post by ID |
 | `/api/posts` | POST | Create post (requires API key) |
 | `/api/posts/<id>` | PUT | Update post |

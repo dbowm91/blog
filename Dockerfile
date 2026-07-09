@@ -1,6 +1,6 @@
 FROM node:20-alpine AS frontend-builder
 
-WORKDIR /app
+WORKDIR /home/blog
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -11,7 +11,7 @@ RUN npm run build
 
 FROM python:3.12-slim AS builder
 
-WORKDIR /app
+WORKDIR /home/blog
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -22,7 +22,7 @@ RUN python -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir -r requ
 
 FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /home/blog
 
 LABEL org.opencontainers.image.source="https://github.com/dbowm91/blog"
 LABEL org.opencontainers.image.description="DevLog - Self-hosted Flask blog CMS"
@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=blog:blog . .
-COPY --from=frontend-builder /app/app/static/dist /app/app/static/dist
+COPY --from=frontend-builder /home/blog/app/static/dist /home/blog/app/static/dist
 
 RUN mkdir -p /home/blog/instance /home/blog/logs /home/blog/app/static/uploads
 

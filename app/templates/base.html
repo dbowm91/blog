@@ -78,7 +78,7 @@
         <div class="nav-links">
             <form action="{{ url_for('public.search') }}" method="GET" class="search-form mobile-search-form" aria-label="Search posts">
                 <div class="search-input-wrapper">
-                    <input type="text" name="q" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
+                    <input type="text" name="q" id="search-input" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
                     <button type="button" class="search-clear" aria-label="Clear search" style="display:none">&times;</button>
                 </div>
                 <button type="submit" class="search-btn" aria-label="Submit search"><span class="btn-text">Search</span></button>

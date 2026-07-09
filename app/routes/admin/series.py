@@ -220,7 +220,7 @@ def series_posts(series_id: int) -> ResponseReturnValue:
     series_posts = (
         db.session.execute(
             select(PostSeries)
-            .options(joinedload(PostSeries.post))
+            .options(joinedload(PostSeries.post))  # type: ignore[arg-type]  # SQLAlchemy relationship typing
             .filter_by(series_id=series_id)
             .order_by(PostSeries.order_index)
         )

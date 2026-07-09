@@ -89,6 +89,10 @@ if [ -f ".env" ]; then
     echo "Environment variables loaded from .env."
 fi
 
+# Run database migrations
+echo "Running database migrations..."
+( cd "$(dirname "$0")" && venv/bin/python -m flask db upgrade ) || echo "Warning: migrations failed. Run 'venv/bin/python -m flask db upgrade' manually before starting the app."
+
 echo ""
 echo "=== Setup Complete ==="
 echo ""
@@ -99,7 +103,7 @@ else
 fi
 echo ""
 echo "To start the application:"
-echo "  python run.py"
+echo "  venv/bin/python run.py"
 echo ""
 echo "Visit http://localhost:5000"
 echo "Admin login at http://localhost:5000/admin/login"
