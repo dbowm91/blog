@@ -15,13 +15,14 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | [Core Application](#1-core-application) | Flask app factory, configuration, extensions | [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md) |
 | [Data Models](#2-data-models) | SQLAlchemy ORM models (17 models) | [core/models.md](core/models.md) |
 | [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
-| [Services Layer](#4-services-layer) | Business logic (backup, search, slug, tags, encryption) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md) |
-| [Task Processing](#5-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
-| [Infrastructure](#6-infrastructure) | Search, email, storage, webhooks | [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
-| [Frontend](#7-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
-| [Testing](#8-testing) | pytest unit/integration, Playwright E2E, benchmarks | [testing/test-suite.md](testing/test-suite.md) |
-| [Security](#9-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
-| [Deployment](#10-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
+| [Middleware](#4-middleware) | WSGI middleware (rate limiting) | — |
+| [Services Layer](#5-services-layer) | Business logic (backup, search, slug, tags, encryption) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md) |
+| [Task Processing](#6-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
+| [Infrastructure](#7-infrastructure) | Search, email, storage, webhooks | [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
+| [Frontend](#8-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
+| [Testing](#9-testing) | pytest unit/integration, Playwright E2E, benchmarks | [testing/test-suite.md](testing/test-suite.md) |
+| [Security](#10-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
+| [Deployment](#11-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
 
 ---
 
@@ -94,9 +95,20 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Extensions | `app/extensions.py` | SQLAlchemy, LoginManager, Migrate |
 | Filters | `app/filters.py` | Jinja2 template filters |
 | Context Processors | `app/context_processors.py` | Template global variables |
-| CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, etc.) |
+| CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, create-admin, etc.) |
 | Validators | `app/validators.py` | API input validation |
 | Tag Cache | `app/tag_cache.py` | Tag count caching with Flask-Caching TTL |
+| Transactions | `app/transaction.py` | `@transactional` decorator, `db_transaction()` context manager, slug retry |
+| CSRF | `app/csrf.py` | Sliding window CSRF tokens (5 valid), API blueprint exemption |
+| Vite Integration | `app/vite.py` | Content-hashed asset URLs, CDN prefix, manifest lookup |
+| Markdown Config | `app/markdown_config.py` | Shared nh3.clean() allowlists for markdown HTML sanitization |
+| CSV Utilities | `app/csv_utils.py` | Streaming CSV export with formula injection prevention |
+| Base62 | `app/base62.py` | Base62 encode/decode for short share URLs (`/s/<code>`) |
+| DB Utilities | `app/db_utils.py` | `get_database_dialect()`, `is_sqlite_database()` helpers |
+| Page View Buffer | `app/page_view_buffer.py` | Thread-safe buffer for batching page view inserts |
+| Backup Integrity | `app/backup_integrity.py` | Checksum verification and SQLite validation for backups |
+| Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption (PBKDF2-HMAC-SHA256 key derivation) |
+| Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption at rest |
 
 **Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
 
@@ -164,7 +176,21 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 
 ---
 
-## 4. Services Layer
+## 4. Middleware
+
+**Source:** `app/middleware/`
+
+**Purpose:** WSGI middleware for cross-cutting concerns.
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| Rate Limiting | `app/middleware/rate_limit.py` | Admin endpoint rate limiting with Flask-Limiter |
+
+**Note:** Global rate limiting is configured in `app/__init__.py` via Flask-Limiter (default: 100/min). The middleware module provides admin-specific rate limit configurations.
+
+---
+
+## 5. Services Layer
 
 **Source:** `app/services/`
 
@@ -204,7 +230,7 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 
 ---
 
-## 5. Task Processing
+## 6. Task Processing
 
 **Source:** `app/tasks.py`, `app/scheduler.py`, `app/celery_app.py`
 
@@ -244,7 +270,7 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 
 ---
 
-## 6. Infrastructure
+## 7. Infrastructure
 
 **Source:** `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py`
 
@@ -365,7 +391,7 @@ Webhook delivery includes Server-Side Request Forgery (SSRF) protection to preve
 
 ---
 
-## 7. Frontend
+## 8. Frontend
 
 **Source:** `app/templates/`, `app/static/`
 
@@ -384,7 +410,7 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 ---
 
-## 8. Testing
+## 9. Testing
 
 **Source:** `tests/`
 
@@ -402,7 +428,7 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 ---
 
-## 9. Security Architecture
+## 10. Security Architecture
 
 **Source:** `app/routes/admin/auth.py`, `app/services/encryption.py`, `app/middleware/rate_limit.py`, `app/csrf.py`
 
@@ -429,7 +455,7 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 ---
 
-## 10. Deployment
+## 11. Deployment
 
 **Source:** `Dockerfile`, `docker-compose.yml`, `nginx/`, `scripts/`
 
@@ -476,6 +502,8 @@ blog/
 │   ├── transaction.py              # Transaction decorator/context manager (IntegrityError rollback)
 │   ├── csv_utils.py                 # CSV export with formula injection prevention
 │   ├── base62.py                    # Base62 encode/decode for short share URLs (/s/<code>)
+│   ├── db_utils.py                  # Database dialect helpers (get_database_dialect, is_sqlite_database)
+│   ├── vite.py                      # Vite integration (content-hashed asset URLs, manifest lookup)
 │   ├── cli.py                       # CLI commands (flask cli)
 │   │
 │   ├── routes/                      # Route blueprints
@@ -568,9 +596,16 @@ blog/
 │   └── testing/                  # Testing docs
 │
 ├── scripts/                        # DevOps scripts
-├── plans/                          # Review plans (indexed from plans/)
+│   ├── dev.sh                      # Development environment setup
+│   ├── release_check.sh            # Release validation (lint, type, tests, build, Docker)
+│   ├── sync_backups.sh             # Off-site backup sync (rclone/S3)
+│   ├── build_assets.py             # Asset build helper
+│   └── update-assets.sh            # Asset update script
+├── plans/                          # Implementation plans and review roadmaps
 ├── nginx/                         # Nginx configuration
-├── docs/                          # OpenAPI spec
+├── docs/                          # OpenAPI spec and documentation
+│   ├── openapi.yaml               # OpenAPI 3.0 specification
+│   └── api/                       # API documentation
 ├── run.py                         # Entry point
 ├── config.toml                    # Configuration file
 ├── docker-compose.yml             # Container orchestration
@@ -645,6 +680,8 @@ blog/
 | Task Queue | Celery 5.x + Redis |
 | Scheduler | APScheduler |
 | Cache | Flask-Caching + Redis |
+| Rate Limiting | Flask-Limiter |
+| Compression | Flask-Compress |
 | Frontend Build | Vite 6.x |
 | CSS | Vanilla CSS (no framework) |
 | JavaScript | Vanilla JS (ES modules) |
@@ -656,6 +693,7 @@ blog/
 | Image Processing | Pillow |
 | S3 Client | boto3 |
 | HTTP Client | requests |
+| Cryptography | cryptography (AES-256-GCM) |
 | Monitoring | Prometheus (optional) |
 
 ---
