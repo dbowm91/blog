@@ -78,9 +78,8 @@ Important actual file locations (verify before assuming):
 | API scope matching | `scope_allows()` in `app/routes/api/auth.py` — exact match, `admin:*` grants all, category wildcards (`posts:*` etc.) |
 | Validators | `app/validators.py` (NOT `app/core/validators.py`) |
 | Backup logic | `app/services/backup.py` (centralized service) |
-| Admin Audit Log model | `app/models.py:461-481` |
-| PostRevision model | `app/models.py:236-249` |
-| User model `__repr__` | `app/models.py:63-64` |
+| Admin Audit Log model | `app/models.py` — `AdminAuditLog` class |
+| PostRevision model | `app/models.py` — `PostRevision` class |
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, slug, serialization, tag) |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
@@ -184,15 +183,15 @@ Prism CSS is loaded via `data-prism-css-url` attribute which templates set using
 
 ### Session IP Binding
 
-`SESSION_IP_BINDING` is enforced via the `admin_required` decorator in `app/routes/admin/__init__.py:25-55`, not in the global `before_request_handler`. When IP mismatch is detected and mode is `enforce`, the admin session is invalidated and the user is redirected to login. When mode is `warn`, a warning is logged but session continues.
+`SESSION_IP_BINDING` is enforced via the `admin_required` decorator in `app/routes/admin/__init__.py`, not in the global `before_request_handler`. When IP mismatch is detected and mode is `enforce`, the admin session is invalidated and the user is redirected to login. When mode is `warn`, a warning is logged but session continues.
 
 ### Silent FTS Initialization
 
-`app/__init__.py:430-433` catches `OperationalError` during FTS init silently. User is never informed if search won't work.
+`app/__init__.py` catches `OperationalError` during FTS init silently. User is never informed if search won't work.
 
 ### LOGIN_FAILURE_DELAY
 
-`app/routes/admin/auth.py:90` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. A minimum of 0.1s is enforced in `app/config.py`.
+`app/routes/admin/auth.py` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. A minimum of 0.1s is enforced in `app/config.py`.
 
 ### Comment Rate Limit IP Resolution (Fixed)
 
@@ -204,7 +203,7 @@ Previously, comment rate limiting read `X-Forwarded-For` directly, which could b
 
 ### RSS Cache Invalidation
 
-`app/routes/rss.py:103-107` `invalidate_rss_cache()` invalidates `rss_feed_posts`, `atom_feed_posts`, and `json_feed_posts` cache keys.
+`app/routes/rss.py` `invalidate_rss_cache()` invalidates `rss_feed_posts`, `atom_feed_posts`, and `json_feed_posts` cache keys.
 
 ### Prism Loading
 
@@ -212,7 +211,7 @@ Prism JS is loaded dynamically via `loadPrismIfNeeded()` in `main.js` when code 
 
 ### Admin Prism CSS Theme
 
-`admin/base.html:9` uses `syntax_theme` variable for dynamic Prism CSS theme selection via `vite_asset('css/' + syntax_theme + '.css')`.
+`admin/base.html` uses `syntax_theme` variable for dynamic Prism CSS theme selection via `vite_asset('css/' + syntax_theme + '.css')`.
 
 ### Test Password Standardization
 
@@ -220,7 +219,7 @@ All tests use `os.environ["ADMIN_PASSWORD"]` to stay in sync with the environmen
 
 ### Shared Test Fixtures Location
 
-`clean_analytics_cache` and `ensure_buffer_disabled` are defined in `tests/shared_fixtures.py` and imported into all conftest files via `from tests.shared_fixtures import *`. The `api_client` fixture in `tests/conftest.py:120-130` is functionally identical to `authenticated_client`.
+`clean_analytics_cache` and `ensure_buffer_disabled` are defined in `tests/shared_fixtures.py` and imported into all conftest files via `from tests.shared_fixtures import *`. The `api_client` fixture in `tests/conftest.py` is functionally identical to `authenticated_client`.
 
 ### Template Inheritance
 
@@ -232,15 +231,15 @@ Admin templates (`admin/base.html`) and public templates (`base.html`) are stand
 
 ### Post/Page Published Nullable Columns
 
-`Post.published` and `Page.published` at `app/models.py:196,166` have `nullable=False`. The database columns no longer allow NULL.
+`Post.published` and `Page.published` have `nullable=False`. The database columns no longer allow NULL.
 
 ### User.failed_login_count Nullable
 
-`User.failed_login_count` at `app/models.py:31` has `nullable=False`.
+`User.failed_login_count` has `nullable=False`.
 
 ### CSRF Applies to All POSTs Except API Blueprint
 
-CSRF validation is enforced globally for all POST requests in `app/__init__.py:301-303`, except API endpoints. The `should_skip_csrf()` predicate in `app/csrf.py` exempts requests where `request.blueprint == "api"`. API-key authenticated requests are protected by token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. Browser form POSTs (admin, public, subscribe, comments, logout) all require valid CSRF tokens.
+CSRF validation is enforced globally for all POST requests in `app/__init__.py`, except API endpoints. The `should_skip_csrf()` predicate in `app/csrf.py` exempts requests where `request.blueprint == "api"`. API-key authenticated requests are protected by token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. Browser form POSTs (admin, public, subscribe, comments, logout) all require valid CSRF tokens.
 
 ### Benchmark Tests Celery Eager Config
 
@@ -248,7 +247,7 @@ CSRF validation is enforced globally for all POST requests in `app/__init__.py:3
 
 ### SiteSettings.get_instance() Flush Side Effect
 
-`SiteSettings.get_instance()` at `app/models.py:359` does `db.session.flush()` when creating a new instance. If called within a session that has other uncommitted changes, those changes are flushed (but not committed) as a side effect. Use `db.session.merge()` or `SELECT FOR UPDATE` to avoid this.
+`SiteSettings.get_instance()` does `db.session.flush()` when creating a new instance. If called within a session that has other uncommitted changes, those changes are flushed (but not committed) as a side effect. Use `db.session.merge()` or `SELECT FOR UPDATE` to avoid this.
 
 ### _env_str Helper
 
