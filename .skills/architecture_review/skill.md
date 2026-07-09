@@ -16,7 +16,7 @@ architecture, review, documentation, verify, cross-reference
 - `architecture/routes/` - public-routes.md, admin-routes.md, api-routes.md, rss-feeds.md
 - `architecture/services/` - overview.md, backup.md, encryption.md, search.md, serialization.md, slug.md, tag.md, tag_cache.md
 - `architecture/tasks/` - overview.md, scheduler.md, celery-tasks.md
-- `architecture/infrastructure/` - search.md, email.md, storage.md, webhooks.md (no overview.md exists)
+- `architecture/infrastructure/` - overview.md, search.md, email.md, storage.md, webhooks.md
 - `architecture/frontend/` - overview.md, static-assets.md, templates.md
 - `architecture/deployment/` - overview.md, docker.md, cicd.md, security.md
 - `architecture/testing/` - test-suite.md

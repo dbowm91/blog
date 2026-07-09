@@ -365,7 +365,7 @@ python run.py
 
 - [DEPLOY.md](DEPLOY.md) — Production deployment, Docker, PostgreSQL migration, systemd, monitoring
 - [USAGE.md](USAGE.md) — Detailed user guide for all admin features
-- [ARCHITECTURE.md](ARCHITECTURE.md) — System design, data flow, and component relationships
+- [ARCHITECTURE.md](architecture/overview.md) — System design, data flow, and component relationships
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Developer setup and contribution guidelines
 - [SECURITY.md](SECURITY.md) — Security features and vulnerability reporting
 - [AGENTS.md](AGENTS.md) — Developer/contributor guidelines

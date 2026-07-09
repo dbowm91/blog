@@ -13,9 +13,23 @@ DevLog is a personal blog platform built with Flask, featuring an admin dashboar
 
 ## Documentation
 
-- [Architecture](../ARCHITECTURE.md) - System design and data flow
+- [Architecture](../architecture/overview.md) - System design, data flow, and component relationships
 - [Deployment](https://github.com/dbowm91/blog/blob/master/DEPLOY.md) - Production deployment guide
 - [API Documentation](https://github.com/dbowm91/blog/blob/master/docs/openapi.yaml) - OpenAPI specification
+- [Usage Guide](https://github.com/dbowm91/blog/blob/master/USAGE.md) - Detailed user guide for all admin features
+
+### Architecture Deep Dives
+
+- [App Factory & Configuration](../architecture/core/app-factory.md) - Flask app initialization
+- [Data Models](../architecture/core/models.md) - 17 SQLAlchemy models
+- [Routes](../architecture/routes/admin-routes.md) - Admin, public, API, and RSS routes
+- [Services](../architecture/services/overview.md) - Business logic layer
+- [Task Processing](../architecture/tasks/overview.md) - Celery and APScheduler
+- [Infrastructure](../architecture/infrastructure/overview.md) - Search, email, storage, webhooks
+- [Frontend](../architecture/frontend/overview.md) - Vite, templates, CSS
+- [Testing](../architecture/testing/test-suite.md) - pytest, E2E, benchmarks
+- [Security](../architecture/deployment/security.md) - 2FA, CSRF, rate limiting
+- [Deployment](../architecture/deployment/docker.md) - Docker, CI/CD
 
 ## Quick Start
 

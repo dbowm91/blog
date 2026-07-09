@@ -51,7 +51,7 @@ This is a Flask-based blog CMS with:
 
 ## Important Patterns
 
-### Feed Endpoints (since May 2026)
+### Feed Endpoints
 Three feed endpoints available at `/atom`, `/rss`, `/json`:
 - `/atom` - Atom 1.0 feed
 - `/rss` - RSS 2.0 feed
@@ -108,11 +108,11 @@ Default is 5 (not 3)
 - `run_daily_backup`: `hour=2, minute=0` (NOT midnight)
 
 ### Celery Queue Names
-- `images` - Image processing (tasks.py:32)
-- `newsletter` - Newsletter delivery (tasks.py:140)
-- `webhooks` - Webhook delivery (tasks.py:208)
-- `email` - Transactional email (tasks.py:384,405)
-- `backup` - Backup tasks (tasks.py:426)
+- `images` - Image processing
+- `newsletter` - Newsletter delivery
+- `webhooks` - Webhook delivery
+- `email` - Transactional email
+- `backup` - Backup tasks
 
 ### Comment Model Relationships
 ```python
@@ -164,7 +164,7 @@ Minimum enforced at 0.1s in `app/config.py` to prevent brute force.
 - Flask sets `X-Frame-Options: DENY` and `Cross-Origin-Opener-Policy: same-origin`
 - nginx aligned to use `DENY` and `Cross-Origin-Opener-Policy: same-origin`
 
-## Rate Limiting (Wave B - May 2026)
+## Rate Limiting
 
 - `ADMIN_RATE_LIMITS` in `app/config.py`:
   - `login`: 5 per 60 seconds
@@ -219,7 +219,7 @@ Two separate backup implementations (both use `blog_*.db` naming):
 
 Slug collision limit hardcoded to 100 tries before UUID suffix fallback (`app/services/slug.py`).
 
-## Search Abstraction (Wave C - May 2026)
+## Search Abstraction
 
 - `app/services/search/__init__.py` - `SearchProvider` abstract class
 - `app/services/search/sqlite.py` - `SQLiteSearchProvider` (current FTS5)
@@ -227,13 +227,13 @@ Slug collision limit hardcoded to 100 tries before UUID suffix fallback (`app/se
 - `get_search_provider()` factory selects by `SEARCH_PROVIDER` config
 - `SEARCH_PROVIDER` defaults to 'sqlite', can be set to 'postgresql'
 
-## Frontend (Wave D - May 2026)
+## Frontend
 
 - Vite configured for code splitting in `vite.config.js`
 - `manualChunks`: vendor, admin, public chunks
 - `post_image_avif_url` filter in `app/filters.py` (stub - returns None until AVIF enabled)
 
-## Brotli (Wave E - May 2026)
+## Brotli
 
 - `nginx/nginx.conf` includes commented Brotli configuration
 - Requires custom nginx image with `--with-http_brotli_module`

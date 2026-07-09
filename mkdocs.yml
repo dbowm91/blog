@@ -38,13 +38,8 @@ plugins:
 
 nav:
   - Home: index.md
-  - Architecture: architecture.md
   - API Reference:
       - Posts: api/posts.md
-      - Subscribers: api/subscribers.md
-      - Stats: api/stats.md
-  - Deployment: deployment.md
-  - Contributing: contributing.md
 
 markdown_extensions:
   - pymdownx.highlight:
