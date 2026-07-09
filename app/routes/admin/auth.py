@@ -176,7 +176,10 @@ def forgot_password() -> Any:
             user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
             try:
                 db.session.commit()
-                send_password_reset_task.delay(user.id, token)
+                try:
+                    send_password_reset_task.delay(user.id, token)
+                except Exception:
+                    logger.warning("Failed to queue password reset email for user_id=%d", user.id)
                 flash("If that account exists, a password reset email has been sent.", "success")
             except (IntegrityError, OperationalError):
                 db.session.rollback()

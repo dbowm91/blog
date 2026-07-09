@@ -149,7 +149,10 @@ def add_comment(slug: str) -> ResponseReturnValue:
     if COMMENT_NOTIFY_PENDING and not is_spam:
         from app.tasks import notify_pending_comment_task
 
-        notify_pending_comment_task.delay(comment.id)
+        try:
+            notify_pending_comment_task.delay(comment.id)
+        except Exception:
+            pass
 
     flash("Comment submitted and awaiting approval.", "success")
     return redirect(url_for("public.post", slug=slug))

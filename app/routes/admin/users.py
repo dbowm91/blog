@@ -76,7 +76,7 @@ def create_user() -> ResponseReturnValue:
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info("User created: id=%d username=%s is_admin=%s", user.id, username, is_admin)
+    logger.info("User created: id=%d is_admin=%s", user.id, is_admin)
     flash(f"User '{username}' created.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -108,7 +108,7 @@ def delete_user(user_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash("Cannot delete the last admin user.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info("User deleted: id=%d username=%s is_admin=%s", user_id, username, is_admin)
+    logger.info("User deleted: id=%d is_admin=%s", user_id, is_admin)
     flash(f"User '{username}' deleted.", "success")
     return redirect(url_for("admin.users_list"))
 
@@ -255,6 +255,6 @@ def change_password(user_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash("Database error occurred. Please try again.", "error")
         return redirect(url_for("admin.users_list"))
-    logger.info("Password changed: user_id=%d username=%s", user_id, user.username)
+    logger.info("Password changed: user_id=%d", user_id)
     flash(f"Password changed for '{user.username}'.", "success")
     return redirect(url_for("admin.users_list"))

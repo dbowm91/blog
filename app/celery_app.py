@@ -1,15 +1,25 @@
 """Celery application configuration."""
 
-from celery import Celery
+import os
+from celery import Celery, Task
 from flask import Flask
 
 __all__ = ["celery_app", "init_celery"]
 
 
+class ContextTask(Task):
+    """Celery Task subclass that wraps execution in a Flask app context."""
+
+    def __call__(self, *args, **kwargs):
+        from app import create_app
+
+        app = create_app()
+        with app.app_context():
+            return self.run(*args, **kwargs)
+
+
 def init_celery(app: Flask | None = None) -> Celery:
     """Initialize Celery with Flask app context."""
-    import os
-
     broker_url = os.environ.get("CELERY_BROKER_URL") or os.environ.get(
         "REDIS_URL", "redis://localhost:6379/0"
     )
@@ -39,6 +49,8 @@ def init_celery(app: Flask | None = None) -> Celery:
             task_acks_late=True,
             task_reject_on_worker_lost=True,
         )
+    else:
+        celery_app.Task = ContextTask
 
     return celery_app
 

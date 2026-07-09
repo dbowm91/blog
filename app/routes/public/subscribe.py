@@ -28,7 +28,11 @@ logger = logging.getLogger(__name__)
 
 def _try_send_confirmation(subscriber: Subscriber) -> bool:
     """Queue confirmation email task. Returns True (task queued)."""
-    send_confirmation_task.delay(subscriber.id)
+    try:
+        send_confirmation_task.delay(subscriber.id)
+    except Exception:
+        logger.warning("Failed to queue confirmation email for sub_id=%d", subscriber.id)
+        return False
     return True
 
 

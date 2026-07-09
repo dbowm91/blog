@@ -14,8 +14,9 @@ info:
     wildcards (e.g. `posts:*` grants `posts:read` and `posts:write`).
 
     ## Rate Limiting
-    Rate limiting is handled by the reverse proxy in front of this application.
-    Configure rate limits at the proxy level (e.g., nginx, Cloudflare WAF).
+    API endpoints are rate-limited by Flask-Limiter. Limits are configured per
+    endpoint group (e.g., `api_write: 100/minute`, `api_read: 500/minute`).
+    A reverse proxy (e.g., nginx, Cloudflare WAF) may apply additional limits.
   version: 1.0.0
   contact:
     name: Blog Admin

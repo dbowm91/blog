@@ -5,7 +5,7 @@ import os
 from typing import List, Any, TYPE_CHECKING
 
 from celery import shared_task
-from celery.exceptions import MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError, Retry
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -267,7 +267,15 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
         # SSRF Protection: validate URL before making request
         is_safe, reason = is_safe_webhook_url(webhook.url)
         if not is_safe:
-            logger.warning("SSRF protection blocked webhook URL: %s - %s", webhook.url, reason)
+            from urllib.parse import urlparse
+
+            hostname = urlparse(webhook.url).hostname or "unknown"
+            logger.warning(
+                "SSRF protection blocked webhook %d (host=%s): %s",
+                webhook.id,
+                hostname,
+                reason,
+            )
             event.delivery_attempts += 1
             event.failed_deliveries += 1
             db.session.commit()
@@ -322,6 +330,8 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
             _update_delivery_status(event_obj, db)
         logger.error("Webhook delivery to %s failed after max retries", webhook_name)
         return False
+    except Retry:
+        raise
     except Exception as e:
         webhook_name = webhook.name if webhook else "unknown"
         event_obj = db.session.get(WebhookEvent, webhook_event_id) if webhook_event_id else None

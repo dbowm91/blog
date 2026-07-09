@@ -13,7 +13,7 @@
 {% block twitter_description %}{{ truncated_desc }}{% endblock %}
 {% block twitter_image %}{% if og_img %}<meta name="twitter:image" content="{{ base_url }}/static/uploads/{{ og_img }}">{% else %}<meta name="twitter:image" content="{{ base_url }}/static/img/default-post.svg">{% endif %}{% endblock %}
 {% block article_schema %}
-<script type="application/ld+json">
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
 {
     "@context": "https://schema.org",
     "@type": "Article",

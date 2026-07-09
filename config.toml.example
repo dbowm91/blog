@@ -36,7 +36,7 @@ base_url = "http://localhost:5000"
 related_posts_count = 3
 
 [email]
-smtp_host = "smtp.gmail.com"
+smtp_host = ""
 smtp_port = 587
 smtp_user = ""
 smtp_password = ""

@@ -188,6 +188,7 @@ def create_post() -> Any:
         summary=summary,
         image=image,
         published=published,
+        published_at=utc_now() if published else None,
     )
 
     tags = data.get("tags", [])

@@ -190,8 +190,11 @@ def subscribers_bulk() -> ResponseReturnValue:
             for sub in subs:
                 if sub.confirmed and not sub.unsubscribed_at:
                     continue
-                send_confirmation_task.delay(sub.id)
-                sent_count += 1
+                try:
+                    send_confirmation_task.delay(sub.id)
+                    sent_count += 1
+                except Exception:
+                    logger.warning("Failed to queue confirmation email for sub_id=%d", sub.id)
             flash(f"Queued {sent_count} confirmation(s).", "success")
 
     return redirect(url_for("admin.subscribers", status=filter_status))

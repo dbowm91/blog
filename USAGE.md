@@ -804,6 +804,14 @@ This removes images not referenced by any post.
 
 The blog supports storing media files in S3-compatible storage instead of local filesystem.
 
+### Prerequisites
+
+S3 support requires `boto3`. Install it manually (not included in base requirements):
+
+```bash
+pip install boto3
+```
+
 ### Configuration
 
 Set environment variables:
