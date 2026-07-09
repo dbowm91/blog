@@ -58,7 +58,9 @@ docker compose --profile production up -d --build
 
 Docker builds frontend assets (Vite) automatically inside the container. No local Node.js installation required.
 
-The app binds to `127.0.0.1:5000` (localhost only). For public access, put a reverse proxy (Caddy, nginx, Traefik) in front with TLS. See [DEPLOY.md § Reverse Proxy Setup](DEPLOY.md#9-reverse-proxy-setup) for examples.
+The app binds to `127.0.0.1:5000` (localhost only). For public access, terminate TLS with a host-level reverse proxy (Caddy, nginx, Traefik) and proxy to `http://127.0.0.1:5000`. See [DEPLOY.md § Reverse Proxy Setup](DEPLOY.md#9-reverse-proxy-setup) for examples.
+
+> **Local HTTP testing:** Set `SESSION_COOKIE_SECURE=false` in your `.env` when testing at `http://localhost:5000`, otherwise admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
 
 ### Local Development
 
@@ -202,14 +204,18 @@ Click **Preview** to see how your post will look with theme styling.
 
 ## Support Matrix
 
-| Feature | Stable | Experimental | Notes |
-|---------|--------|--------------|-------|
-| SQLite with WAL | Yes | No | Default single-server database |
-| PostgreSQL | No | Experimental | Not supported for v1 production; health checks report unsupported for SQLite-specific features |
-| Local filesystem media | Yes | No | Default media backend |
-| S3-compatible media | No | Yes | Requires boto3; not CI-tested |
-| Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
-| Celery + Redis (async tasks) | Yes | No | Newsletter, webhooks, image variants; included in production compose profile |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| SQLite with WAL | Supported | Default single-server database for v1 |
+| PostgreSQL | Experimental | Not recommended for v1 production; health checks report unsupported for SQLite-specific features |
+| Local filesystem media | Supported | Default media backend |
+| S3-compatible media | Experimental | Requires boto3; not CI-tested |
+| Redis (cache/rate limiting) | Supported | Used in Docker production profile |
+| Celery + Redis (async tasks) | Supported | Newsletter, webhooks, image variants; included in production compose profile |
+| External TLS reverse proxy | Supported/recommended | Caddy/nginx/Traefik/cloud proxy to localhost app |
+| Included nginx profile | Optional/advanced | Requires `--profile reverse-proxy` and certificate configuration |
+| Metrics endpoint | Supported when enabled | Disabled by default; secret required in production |
+| Detailed health | Supported when protected | Basic health remains public; detailed health requires secret in production |
 
 See [DEPLOY.md § Support Matrix](DEPLOY.md#support-matrix) for details.
 

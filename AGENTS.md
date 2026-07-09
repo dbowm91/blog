@@ -29,6 +29,9 @@ ruff format --check .
 
 # Type check
 mypy app/
+
+# Release validation (lint + type + tests + build + Docker + Compose config)
+./scripts/release_check.sh
 ```
 
 ## Agent Override Convention
@@ -276,6 +279,10 @@ See [architecture/overview.md](architecture/overview.md#health-check-get-health)
 - Production: requires `METRICS_SECRET` via header (`X-Metrics-Secret`), Bearer token, or `?secret=` query param
 - Without `METRICS_SECRET` in production: returns 403
 - Startup validation: raises `RuntimeError` if `ENABLE_METRICS=true` + `is_production()` + no `METRICS_SECRET`
+
+### SESSION_COOKIE_SECURE
+
+`SESSION_COOKIE_SECURE` defaults to `"true"`. In production behind HTTPS, keep it `true`. For local HTTP testing at `http://localhost:5000`, set `SESSION_COOKIE_SECURE=false` or admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
 
 ### python-dotenv Auto-Loading
 

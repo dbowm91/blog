@@ -53,11 +53,13 @@ cp .env.example .env
 docker compose --profile production up -d --build
 ```
 
-The app binds to `127.0.0.1:5000` (localhost only). For public access, put a reverse proxy in front with TLS — see [Section 9: Reverse Proxy Setup](#9-reverse-proxy-setup).
+The app binds to `127.0.0.1:5000` (localhost only). For public access, terminate TLS with a host-level reverse proxy (Caddy, nginx, Traefik) and proxy to `http://127.0.0.1:5000` — see [Section 9: Reverse Proxy Setup](#9-reverse-proxy-setup).
 
 Admin panel: `http://localhost:5000/admin/login`.
 
 **First-admin bootstrap:** The `ADMIN_PASSWORD` env var is used only when creating the initial admin user. Changing it later does not overwrite the existing admin password — use the password reset flow (`/admin/forgot-password`) instead.
+
+> **Local HTTP testing:** Set `SESSION_COOKIE_SECURE=false` in your `.env` when testing at `http://localhost:5000`, otherwise admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
 
 ### Local Development (NOT for production)
 
@@ -83,14 +85,18 @@ The app listens on `0.0.0.0:5000` by default.
 
 ## Support Matrix
 
-| Feature | Stable | Experimental | Notes |
-|---------|--------|--------------|-------|
-| SQLite with WAL | Yes | No | Default single-server database |
-| PostgreSQL | No | Yes | Not fully tested in CI; migration path exists but search uses FTS5 fallback |
-| Local filesystem media | Yes | No | Default media backend |
-| S3-compatible media | No | Yes | Requires boto3; admin media listing works but not CI-tested |
-| Redis (cache/rate limiting) | Yes | No | Used in Docker production profile |
-| Celery + Redis (async tasks) | Yes | No | Newsletter, webhooks, image variants; included in production compose profile |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| SQLite with WAL | Supported | Default single-server database for v1 |
+| PostgreSQL | Experimental | Not recommended for v1 production; health checks report unsupported for SQLite-specific features |
+| Local filesystem media | Supported | Default media backend |
+| S3-compatible media | Experimental | Requires boto3; not CI-tested |
+| Redis (cache/rate limiting) | Supported | Used in Docker production profile |
+| Celery + Redis (async tasks) | Supported | Newsletter, webhooks, image variants; included in production compose profile |
+| External TLS reverse proxy | Supported/recommended | Caddy/nginx/Traefik/cloud proxy to localhost app |
+| Included nginx profile | Optional/advanced | Requires `--profile reverse-proxy` and certificate configuration |
+| Metrics endpoint | Supported when enabled | Disabled by default; secret required in production |
+| Detailed health | Supported when protected | Basic health remains public; detailed health requires secret in production |
 
 ---
 
@@ -303,7 +309,7 @@ The Docker build uses a multi-stage Dockerfile:
 
 Frontend assets are built automatically inside the container. No local Node.js installation is required for Docker deployments.
 
-The app binds to `127.0.0.1:5000` (localhost only). It is not directly accessible from other machines. For public access, put a reverse proxy (Caddy, nginx, Traefik) in front with TLS — see [Section 9: Reverse Proxy Setup](#9-reverse-proxy-setup).
+The app binds to `127.0.0.1:5000` (localhost only). It is not directly accessible from other machines. For public access, terminate TLS with a host-level reverse proxy (Caddy, nginx, Traefik) and proxy to `http://127.0.0.1:5000` — see [Section 9: Reverse Proxy Setup](#9-reverse-proxy-setup).
 
 Admin at `http://localhost:5000/admin/login`.
 
@@ -311,15 +317,16 @@ Admin at `http://localhost:5000/admin/login`.
 
 | Profile | Services | Use Case |
 |---|---|---|
-| `production` | blog, celery, redis | Production stack (app on `127.0.0.1:5000`) |
-| `reverse-proxy` | nginx | Optional nginx reverse proxy with TLS |
+| `production` | blog, celery, redis | Core production stack (app on `127.0.0.1:5000`) |
+| `reverse-proxy` | nginx | Optional nginx reverse proxy — requires certificate configuration |
 | `backup` | backup | Standalone backup runner |
 
 ```bash
-# Production stack (blog + celery + redis)
+# Core production stack (blog + celery + redis)
+# TLS is NOT terminated — use an external reverse proxy for public access
 docker compose --profile production up -d --build
 
-# With included nginx reverse proxy
+# With included nginx reverse proxy (optional, requires certificate setup)
 docker compose --profile production --profile reverse-proxy up -d --build
 
 # Backup service
@@ -409,7 +416,7 @@ docker inspect --format='{{.State.Health.Status}}' blog
 1. **SQLite is single-writer**: Only one process can write at a time. Do not scale the blog service horizontally without migrating to PostgreSQL first.
 2. **APScheduler uses file locking**: The in-process scheduler (`fcntl` lock) only coordinates workers on a single machine. In multi-container deployments, each container runs its own scheduler. Use Celery Beat or an external cron if you need single-scheduled-execution across replicas. Set `ENABLE_SCHEDULER=true` on exactly ONE container.
 3. **Async jobs need Redis/Celery**: The `celery` service handles newsletter delivery, webhook delivery, image variant generation, and backups. Without Redis, these jobs block the web process.
-4. **Reverse proxy TLS is your responsibility**: The Docker stack does not terminate TLS. Put nginx, Caddy, or Traefik in front with valid certificates. The included nginx config (`--profile reverse-proxy`) handles TLS termination, rate limiting, and security headers.
+4. **Reverse proxy TLS is your responsibility**: The core production profile does not terminate TLS. For public internet deployment, terminate TLS with a host-level reverse proxy such as Caddy, nginx, or Traefik and proxy to `http://127.0.0.1:5000`. The repository also includes an optional nginx Compose profile (`--profile reverse-proxy`) for operators who want to manage nginx inside Compose, but it is not required for the supported single-host path and must be configured with valid certificates before public use.
 
 ### Production Docker Considerations
 

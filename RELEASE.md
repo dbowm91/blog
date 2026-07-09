@@ -2,6 +2,16 @@
 
 Use this checklist before tagging a new release.
 
+## Quick Validation
+
+Run the automated release check script:
+
+```bash
+./scripts/release_check.sh
+```
+
+This runs lint, type check, tests, frontend build, Docker build, and Compose config validation.
+
 ## Pre-Release
 
 - [ ] All tests pass: `ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python -m pytest tests/ -v`

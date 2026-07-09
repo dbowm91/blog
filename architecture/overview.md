@@ -35,14 +35,14 @@ The codebase is organized into these discrete modules, each with dedicated deep-
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Nginx (TLS Termination)                            │
-│                    Static Files, Load Balancing, Brotli                       │
+│              Optional Reverse Proxy (nginx/Caddy/Traefik)                    │
+│        TLS Termination, Static Files, Rate Limiting, Security Headers        │
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        Granian ASGI Server (Rust)                            │
-│                     Flask App + APScheduler (in-process)                      │
+│              Flask App + APScheduler (in-process) on 127.0.0.1:5000          │
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │
              ┌─────────────────────────┼─────────────────────────┐
@@ -439,7 +439,7 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 |-----------|---------|
 | Docker | Containerized deployment; health check includes 10s `start_period` before healthy status |
 | Docker Compose | Multi-container orchestration; requires explicit profiles (`--profile production`, `--profile backup`) — no default profile |
-| Nginx | TLS termination, static files, load balancing |
+| Optional nginx | TLS termination, static files, rate limiting (requires `--profile reverse-proxy` and certificate configuration) |
 | CI/CD | Automated testing and deployment |
 
 **Deep Dive:** [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md)

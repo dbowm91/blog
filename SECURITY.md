@@ -107,7 +107,7 @@ SESSION_COOKIE_SECURE=true
 | `BACKUP_ENCRYPTION_KEY` | 12+ characters for backup encryption |
 | `WEBHOOK_ENCRYPTION_KEY` | 32 bytes for webhook encryption |
 | `HEALTH_CHECK_SECRET` | Gates detailed `/health?detailed=true` endpoint |
-| `METRICS_SECRET` | Gates `/metrics` endpoint. Falls back to `HEALTH_CHECK_SECRET`, then public |
+| `METRICS_SECRET` | Gates `/metrics` endpoint. Required when `ENABLE_METRICS=true`; no fallback |
 
 ## Production Security Checklist
 
@@ -120,7 +120,7 @@ SESSION_COOKIE_SECURE=true
 - [ ] `SESSION_COOKIE_SECURE = True`
 - [ ] `PROXY_COUNT` set correctly for proxy setup
 - [ ] `HEALTH_CHECK_SECRET` set to gate detailed health endpoint
-- [ ] `METRICS_SECRET` set to gate `/metrics` endpoint (or leave unset for public access)
+- [ ] `METRICS_SECRET` set and `ENABLE_METRICS=true` to gate `/metrics` endpoint
 - [ ] Static files served by nginx/Caddy, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
 - [ ] `instance/blog.db` not in web-accessible directory

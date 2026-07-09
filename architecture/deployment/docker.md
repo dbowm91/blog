@@ -16,8 +16,8 @@ Multi-container Docker setup for production deployment.
 
 | Profile | Services | Purpose |
 |---------|----------|---------|
-| `production` | `blog`, `celery`, `redis` | Production stack (app on `127.0.0.1:5000`) |
-| `reverse-proxy` | `nginx` | Optional nginx reverse proxy with TLS |
+| `production` | `blog`, `celery`, `redis` | Core production stack (app on `127.0.0.1:5000`); does not terminate TLS |
+| `reverse-proxy` | `nginx` | Optional nginx reverse proxy — requires certificate configuration before use |
 | `backup` | `backup` | Scheduled backups |
 
 ## Dockerfile
@@ -53,8 +53,10 @@ Located in `nginx/` subdirectory:
 - Gzip compression (optionally Brotli with custom nginx image)
 - Rate limiting (login: 5r/m, admin: 20r/m)
 - Static file caching
-- SSL termination (external)
+- SSL termination (requires external certificates — not automatic)
 - Health check endpoint proxy to `/health`
+
+The nginx service is **optional** and part of the `reverse-proxy` profile. The core production profile does not include nginx. For public deployment, TLS must be handled by an external reverse proxy (Caddy, nginx, Traefik, cloud load balancer) proxying to `http://127.0.0.1:5000`.
 
 ### Brotli Configuration
 
@@ -179,6 +181,8 @@ The `celery` service in `docker-compose.yml` runs with `--concurrency=1` and doe
 | `CACHE_REDIS_URL` | Redis URL for Flask-Caching (optional, defaults to REDIS_URL) |
 | `CELERY_BROKER_URL` | Celery broker URL (optional, defaults to REDIS_URL) |
 | `HEALTH_CHECK_SECRET` | Secret for detailed health check access |
+| `METRICS_SECRET` | Secret for `/metrics` endpoint (required with `ENABLE_METRICS=true`) |
+| `ENABLE_METRICS` | Enable `/metrics` endpoint (default: `false`; requires `METRICS_SECRET` in production) |
 | `PROXY_COUNT` | Number of proxies for ProxyFix middleware (default: 1) |
 | `PYTHONPATH` | Python path for Celery/backup services (set to `/home/blog`) |
 

@@ -140,7 +140,7 @@ The health check endpoint (`GET /health`) determines overall status using only c
 
 ### METRICS_SECRET
 
-`METRICS_SECRET` gates the `/metrics` endpoint. Fallback chain: `METRICS_SECRET` → `HEALTH_CHECK_SECRET` → public (no auth). When neither secret is set, `/metrics` is publicly accessible.
+`METRICS_SECRET` gates the `/metrics` endpoint. When `ENABLE_METRICS=true`, `METRICS_SECRET` must be set; in production without it, `/metrics` returns 403. No fallback to `HEALTH_CHECK_SECRET`.
 
 ### python-dotenv Auto-Loading
 
