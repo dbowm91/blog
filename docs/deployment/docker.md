@@ -84,7 +84,7 @@ GET /health
 
 Returns only `database` and `scheduler` status. Fast, no auth required. Used for Docker healthchecks.
 
-**Location:** `app/routes/public/meta.py:188-321`
+**Location:** `app/routes/public/meta.py:214-365`
 
 ### Detailed Health Check
 

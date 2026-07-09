@@ -28,7 +28,7 @@ This is a Flask-based blog CMS with:
 | Tasks | `app/tasks.py` |
 | Webhooks | `app/webhooks.py` |
 | Email | `app/email.py` |
-| Search | `app/search.py` |
+| Search | `app/services/search/` |
 | Storage | `app/storage.py` |
 | Templates | `app/templates/` |
 | Static CSS | `app/static/css/` |
@@ -111,6 +111,7 @@ Actual filters in `app/filters.py`:
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with request-level caching
 - `post_image_srcset` - Generate srcset for responsive images
+- `post_image_avif_url_stub` - DEPRECATED: stub, always returns None
 
 Note: `truncate` is Jinja2's built-in filter, not defined in app/filters.py
 Note: `custom_css` is a context variable (from `inject_theme()`), not a filter
@@ -127,11 +128,11 @@ From `app/context_processors.py`:
 ## Celery Queue Names
 
 Tasks use specific queues for different workloads:
-- `images` - Image processing (tasks.py:29)
-- `newsletter` - Newsletter delivery (tasks.py:129)
-- `webhooks` - Webhook delivery (tasks.py:192)
-- `email` - Transactional email (tasks.py:264,285)
-- `backup` - Backup tasks (tasks.py:306)
+- `images` - Image processing (tasks.py:32)
+- `newsletter` - Newsletter delivery (tasks.py:140)
+- `webhooks` - Webhook delivery (tasks.py:208)
+- `email` - Transactional email (tasks.py:384,405)
+- `backup` - Backup tasks (tasks.py:426)
 
 ## Backup Implementations
 

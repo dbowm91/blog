@@ -259,11 +259,11 @@ The `app/services/search/` module wraps the low-level `app/search.py` FTS5 imple
 | Utilities | `app/utils.py` | SSRF protection, logging helpers |
 | Health Check | `app/routes/public/meta.py` | System health monitoring |
 
-**Note on FTS Initialization:** FTS5 init failures are caught and rolled back silently (`app/__init__.py:435-438`). The user is never informed if full-text search will not function. Consider failing loudly or surfacing a user-visible error when FTS init fails.
+**Note on FTS Initialization:** FTS5 init failures are caught and rolled back silently (`app/__init__.py:437-441`). The user is never informed if full-text search will not function. Consider failing loudly or surfacing a user-visible error when FTS init fails.
 
 ### Health Check (`GET /health`)
 
-**Source:** `app/routes/public/meta.py:188-321`
+**Source:** `app/routes/public/meta.py:214-365`
 
 Health endpoint for monitoring with rate limit of 60/min per IP.
 
@@ -413,10 +413,10 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 | **Authentication** | Session-based with optional TOTP 2FA |
 | **2FA** | TOTP secrets encrypted with AES-256-GCM |
 | **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
-| **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py`; enforced for all POST requests except API blueprint via `should_skip_csrf()` (`app/__init__.py:301-303`) |
+| **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py`; enforced for all POST requests except API blueprint via `should_skip_csrf()` (`app/__init__.py:303`) |
 | **API Auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison + scoped `ApiToken` model with `require_scope()` decorator; `scope_allows()` supports exact match, `admin:*` for full access, and category wildcards (e.g. `posts:*`) |
 
-> **CSRF Scope for API Clients:** CSRF validation is **skipped for API endpoints** (`request.blueprint == "api"` checked in `should_skip_csrf()` at `app/csrf.py:33`). The `before_request_handler()` at `app/__init__.py:301-303` calls `should_skip_csrf()` before validating tokens, so API POST requests are exempt. API endpoints are protected by token-based auth (API keys, `ApiToken` model) with token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. See `deployment/security.md` for full security architecture details.
+> **CSRF Scope for API Clients:** CSRF validation is **skipped for API endpoints** (`request.blueprint == "api"` checked in `should_skip_csrf()` at `app/csrf.py:33`). The `before_request_handler()` at `app/__init__.py:303` calls `should_skip_csrf()` before validating tokens, so API POST requests are exempt. API endpoints are protected by token-based auth (API keys, `ApiToken` model) with token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. See `deployment/security.md` for full security architecture details.
 | **Account Lockout** | 5 failed attempts → 15-minute lockout |
 | **SSRF Protection** | URL validation against private IP ranges |
 | **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
@@ -514,6 +514,9 @@ blog/
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py            # require_api_key decorator
 │   │   │   ├── posts.py           # Post CRUD
+│   │   │   ├── pages.py           # Page management
+│   │   │   ├── series.py          # Series management
+│   │   │   ├── tags.py            # Tag management
 │   │   │   ├── subscribers.py     # Subscriber endpoints
 │   │   │   └── stats.py           # Analytics stats
 │   │   ├── public/                 # Public-facing blueprint

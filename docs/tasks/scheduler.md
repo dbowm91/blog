@@ -8,7 +8,7 @@ Set `ENABLE_SCHEDULER=true` on exactly ONE container in multi-container deployme
 
 ## Job Scheduling
 
-The scheduler runs as a **daemon thread** (see `app/scheduler.py:290`):
+The scheduler runs as a **daemon thread** (see `app/scheduler.py:300`):
 
 ```python
 scheduler = BackgroundScheduler(daemon=True)

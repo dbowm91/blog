@@ -74,14 +74,14 @@ Important actual file locations (verify before assuming):
 
 | Item | Actual Location |
 |------|-----------------|
-| API routes | `app/routes/api/` (PACKAGE with posts.py, subscribers.py, stats.py, auth.py) |
+| API routes | `app/routes/api/` (PACKAGE with posts.py, pages.py, series.py, tags.py, subscribers.py, stats.py, auth.py) |
 | API scope matching | `scope_allows()` in `app/routes/api/auth.py` — exact match, `admin:*` grants all, category wildcards (`posts:*` etc.) |
 | Validators | `app/validators.py` (NOT `app/core/validators.py`) |
 | Backup logic | `app/services/backup.py` (centralized service) |
 | Admin Audit Log model | `app/models.py` — `AdminAuditLog` class |
 | PostRevision model | `app/models.py` — `PostRevision` class |
 | Comment model | `app/models.py` |
-| Services | `app/services/` (backup, slug, serialization, tag) |
+| Services | `app/services/` (backup, encryption, search, serialization, slug, tag) |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
 | DB Dialect Helpers | `app/db_utils.py` (`get_database_dialect()`, `is_sqlite_database()`) |
 
@@ -129,12 +129,13 @@ Use `site_title` and `site_description` as context variables (NOT `site_name` or
 
 Actual filters (defined in `app/filters.py`):
 
-- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
+- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`
+- `post_image_avif_url_stub` — DEPRECATED: stub, always returns None
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
 ### Critical CSS
 
-The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:24` with `media="screen"` for immediate loading.
+The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html` with `media="screen"` for immediate loading.
 
 ### ENABLE_SCHEDULER
 
@@ -173,14 +174,6 @@ See [architecture/core/models.md](architecture/core/models.md) for model details
 
 `tests/e2e/conftest.py` defines its own session-scoped `app` fixture with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone works. The `app_server` fixture uses readiness polling for server startup.
 
-### Login Template Asset Loading
-
-`admin/login_base.html` uses `vite_asset()` for CSS/JS assets, enabling CDN prefix support.
-
-### Prism CSS Loading
-
-Prism CSS is loaded via `data-prism-css-url` attribute which templates set using `vite_asset()`.
-
 ### Session IP Binding
 
 `SESSION_IP_BINDING` is enforced via the `admin_required` decorator in `app/routes/admin/__init__.py`, not in the global `before_request_handler`. When IP mismatch is detected and mode is `enforce`, the admin session is invalidated and the user is redirected to login. When mode is `warn`, a warning is logged but session continues.
@@ -193,57 +186,9 @@ Prism CSS is loaded via `data-prism-css-url` attribute which templates set using
 
 `app/routes/admin/auth.py` has `time.sleep(LOGIN_FAILURE_DELAY)` after invalid credentials. A minimum of 0.1s is enforced in `app/config.py`.
 
-### Comment Rate Limit IP Resolution (Fixed)
-
-Previously, comment rate limiting read `X-Forwarded-For` directly, which could be spoofed. Both limiter key functions now use `request.remote_addr`, which is normalized by `ProxyFix`. Proper `PROXY_COUNT` configuration remains important for correct IP resolution behind proxies.
-
-### Nginx Proxy Configuration
-
-`nginx/conf.d/blog.conf` uses `proxy_pass http://blog:5000` (Docker service name).
-
-### RSS Cache Invalidation
-
-`app/routes/rss.py` `invalidate_rss_cache()` invalidates `rss_feed_posts`, `atom_feed_posts`, and `json_feed_posts` cache keys.
-
-### Prism Loading
-
-Prism JS is loaded dynamically via `loadPrismIfNeeded()` in `main.js` when code blocks exist. Prism CSS and JS URLs are read from `data-prism-css-url`, `data-prism-js-url`, and `data-prism-langs-url` attributes on script tags, which use `vite_asset()` for theme selection.
-
-### Admin Prism CSS Theme
-
-`admin/base.html` uses `syntax_theme` variable for dynamic Prism CSS theme selection via `vite_asset('css/' + syntax_theme + '.css')`.
-
-### Test Password Standardization
-
-All tests use `os.environ["ADMIN_PASSWORD"]` to stay in sync with the environment variable. The `ADMIN_PASSWORD` env var must be set when running tests.
-
-### Shared Test Fixtures Location
-
-`clean_analytics_cache` and `ensure_buffer_disabled` are defined in `tests/shared_fixtures.py` and imported into all conftest files via `from tests.shared_fixtures import *`. The `api_client` fixture in `tests/conftest.py` is functionally identical to `authenticated_client`.
-
-### Template Inheritance
-
-Admin templates (`admin/base.html`) and public templates (`base.html`) are standalone root templates. `admin/base.html` does NOT extend `base.html`.
-
-### marked.min.js Loading
-
-`marked.min.js` is loaded via `vite_asset()` for content hashing and CDN support.
-
-### Post/Page Published Nullable Columns
-
-`Post.published` and `Page.published` have `nullable=False`. The database columns no longer allow NULL.
-
-### User.failed_login_count Nullable
-
-`User.failed_login_count` has `nullable=False`.
-
 ### CSRF Applies to All POSTs Except API Blueprint
 
 CSRF validation is enforced globally for all POST requests in `app/__init__.py`, except API endpoints. The `should_skip_csrf()` predicate in `app/csrf.py` exempts requests where `request.blueprint == "api"`. API-key authenticated requests are protected by token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. Browser form POSTs (admin, public, subscribe, comments, logout) all require valid CSRF tokens.
-
-### Benchmark Tests Celery Eager Config
-
-`tests/benchmarks/conftest.py` configures `task_always_eager=True` for benchmark tests.
 
 ### SiteSettings.get_instance() Flush Side Effect
 
@@ -259,10 +204,6 @@ Database URI: `SQLALCHEMY_DATABASE_URI` → `DATABASE_URL` → SQLite default.
 Cache Redis: `CACHE_REDIS_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
 Celery broker: `CELERY_BROKER_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
 Metrics: `ENABLE_METRICS=true` + `METRICS_SECRET` required in production.
-
-### config.toml.example
-
-`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed. If `config.toml` is missing, `app/config.py` falls back to `config.toml.example` with a warning.
 
 ### Health Endpoint Split
 
@@ -281,7 +222,17 @@ See [architecture/overview.md](architecture/overview.md#health-check-get-health)
 
 ### SESSION_COOKIE_SECURE
 
-`SESSION_COOKIE_SECURE` defaults to `"true"`. In production behind HTTPS, keep it `true`. For local HTTP testing at `http://localhost:5000`, set `SESSION_COOKIE_SECURE=false` or admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
+`SESSION_COOKIE_SECURE` defaults to `"true"` (read in `app/__init__.py`). In production behind HTTPS, keep it `true`. For local HTTP testing at `http://localhost:5000`, set `SESSION_COOKIE_SECURE=false` or admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
+
+### STORAGE_BACKEND
+
+`STORAGE_BACKEND` env var (default: `"local"`) controls media storage. Set to `"s3"` for S3-compatible storage. When using S3, required env vars: `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Optional: `S3_REGION`, `S3_ENDPOINT`, `S3_PUBLIC_URL`. If required S3 vars are missing, falls back to local storage with a warning.
+
+See [architecture/infrastructure/storage.md](architecture/infrastructure/storage.md) for storage architecture details.
+
+### config.toml.example
+
+`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed. If `config.toml` is missing, `app/config.py` falls back to `config.toml.example` with a warning.
 
 ### python-dotenv Auto-Loading
 
@@ -295,11 +246,47 @@ See [architecture/overview.md](architecture/overview.md#health-check-get-health)
 
 There is a release checklist at `RELEASE.md` for version bumps and release process. Refer to it before tagging releases.
 
-### STORAGE_BACKEND
+### Test Password Standardization
 
-`STORAGE_BACKEND` env var (default: `"local"`) controls media storage. Set to `"s3"` for S3-compatible storage. When using S3, required env vars: `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Optional: `S3_REGION`, `S3_ENDPOINT`, `S3_PUBLIC_URL`. If required S3 vars are missing, falls back to local storage with a warning.
+All tests use `os.environ["ADMIN_PASSWORD"]` to stay in sync with the environment variable. The `ADMIN_PASSWORD` env var must be set when running tests.
 
-See [architecture/infrastructure/storage.md](architecture/infrastructure/storage.md) for storage architecture details.
+### Shared Test Fixtures Location
+
+`clean_analytics_cache` and `ensure_buffer_disabled` are defined in `tests/shared_fixtures.py` and imported into all conftest files via `from tests.shared_fixtures import *`. The `api_client` fixture in `tests/conftest.py` is functionally identical to `authenticated_client`.
+
+### Template Inheritance
+
+Admin templates (`admin/base.html`) and public templates (`base.html`) are standalone root templates. `admin/base.html` does NOT extend `base.html`.
+
+### Post/Page Published Nullable Columns
+
+`Post.published` and `Page.published` have `nullable=False`. The database columns no longer allow NULL.
+
+### User.failed_login_count Nullable
+
+`User.failed_login_count` has `nullable=False`.
+
+### Benchmark Tests Celery Eager Config
+
+`tests/benchmarks/conftest.py` configures `task_always_eager=True` for benchmark tests.
+
+## Architecture Cross-Reference
+
+For detailed architecture documentation, see the `architecture/` directory:
+
+| Topic | Document |
+|-------|----------|
+| App factory, configuration | [architecture/core/app-factory.md](architecture/core/app-factory.md), [architecture/core/configuration.md](architecture/core/configuration.md) |
+| Data models (17 models) | [architecture/core/models.md](architecture/core/models.md) |
+| Routes (admin, public, API, RSS) | [architecture/routes/admin-routes.md](architecture/routes/admin-routes.md), [architecture/routes/public-routes.md](architecture/routes/public-routes.md), [architecture/routes/api-routes.md](architecture/routes/api-routes.md), [architecture/routes/rss-feeds.md](architecture/routes/rss-feeds.md) |
+| Services (backup, search, slug, tag, encryption) | [architecture/services/overview.md](architecture/services/overview.md) |
+| Celery tasks, APScheduler | [architecture/tasks/celery-tasks.md](architecture/tasks/celery-tasks.md), [architecture/tasks/scheduler.md](architecture/tasks/scheduler.md) |
+| Infrastructure (search, email, storage, webhooks) | [architecture/infrastructure/search.md](architecture/infrastructure/search.md), [architecture/infrastructure/email.md](architecture/infrastructure/email.md), [architecture/infrastructure/storage.md](architecture/infrastructure/storage.md), [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhooks.md) |
+| Frontend (Vite, templates, CSS) | [architecture/frontend/overview.md](architecture/frontend/overview.md), [architecture/frontend/templates.md](architecture/frontend/templates.md), [architecture/frontend/static-assets.md](architecture/frontend/static-assets.md) |
+| Testing (pytest, E2E, benchmarks) | [architecture/testing/test-suite.md](architecture/testing/test-suite.md) |
+| Security (2FA, CSRF, rate limiting) | [architecture/deployment/security.md](architecture/deployment/security.md) |
+| Deployment (Docker, CI/CD) | [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
+| System overview | [architecture/overview.md](architecture/overview.md) |
 
 ## Additional Notes for Future Agents
 

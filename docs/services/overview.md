@@ -27,6 +27,12 @@ Both use `cleanup_old_backups()` which keeps the last 7 backups and recognizes `
 
 See [search.md](search.md) for SearchProvider abstraction.
 
+## Encryption Service
+
+Location: `app/services/encryption.py`
+
+AES-256-GCM encryption for TOTP secrets (2FA). Used by `User.totp_secret` property.
+
 ## Slug Service
 
 Location: `app/services/slug.py`

@@ -3,22 +3,9 @@
 ## Description
 Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff
 
-## Implementation Status
+## Status
 
-**COMPLETED** — All implementation waves completed and verified. Project in maintenance mode.
-
-## Implementation Summary
-
-All implementation waves completed:
-- **Waves A-F**: Original documentation fixes
-- **Waves 1-6**: Architecture review fixes — 152 items across 6 waves
-  - Wave 1: Critical code bugs (security, RSS, frontend, tests)
-  - Wave 2: Documentation corrections (core, routes, infra, services, deployment, tasks, overview)
-  - Wave 3: Source code improvements + documentation additions
-  - Wave 4: Dead code removal + style cleanup
-  - Wave 5: Architecture pruning (rewrites, merges, stale line refs)
-  - Wave 6: AGENTS.md cleanup
-- **Plan Waves 1-7**: Consolidated architecture improvement plan (135 items) — completed June 2026
+Maintenance mode. All implementation waves completed.
 
 ## Triggers
 
@@ -37,7 +24,7 @@ Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, 
 ### Routes
 - `app/routes/public/` - Public pages, search, comments, subscribe
 - `app/routes/admin/` - Admin dashboard, post editor, settings
-- `app/routes/api/` - REST API (posts, subscribers, stats, auth)
+- `app/routes/api/` - REST API (posts, pages, series, tags, subscribers, stats, auth)
 - `app/routes/rss.py` - RSS 2.0, Atom, JSON feed endpoints
 
 ### Services
@@ -46,11 +33,11 @@ Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, 
 - `app/services/serialization.py` - JSON export/import
 - `app/services/tag.py` - Tag management with caching
 - `app/services/search/` - Search provider abstraction (SQLiteSearchProvider, PostgreSQLSearchProvider stub)
-- `app/services/encryption.py` - AES-256-GCM encryption for TOTP
+- `app/services/encryption.py` - AES-256-GCM encryption for TOTP secrets
 
 ### Tasks
 - `app/tasks.py` - Celery tasks (images, newsletter, webhooks, email, backup queues)
-- `app/scheduler.py` - APScheduler jobs (cleanup_expired_subscribers every 5 min, run_daily_backup at 02:00)
+- `app/scheduler.py` - APScheduler jobs (cleanup_expired_subscribers every 5 min, publish_scheduled_posts every 5 min, run_daily_backup at 02:00)
 
 ### Infrastructure
 - `app/email.py` - SMTP email delivery
@@ -133,6 +120,12 @@ Minimum enforced at 0.1s in `app/config.py` to prevent brute force.
 
 ### Thread-Safe Storage
 `app/storage.py:get_storage()` uses double-checked locking with `threading.Lock()`.
+
+## Template Filters
+
+Actual filters in `app/filters.py`:
+- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`
+- `post_image_avif_url_stub` — DEPRECATED: stub, always returns None
 
 ## Test Interference Notes
 

@@ -156,7 +156,7 @@ The `critical.css` file at `app/static/css/critical.css` provides above-the-fold
 
 ### Celery Queue Names
 
-Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py:31,130,182,262,283,304`)
+Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py:32,140,208,384,405,426`)
 
 ### User Model `__repr__`
 
@@ -335,7 +335,8 @@ Actual context processor function names (not the injected variable names):
 
 Actual filters (defined in `app/filters.py`):
 
-- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub`
+- `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`
+- `post_image_avif_url_stub` — DEPRECATED: stub, always returns None
 - NOT `format_date`, `markdown`, `slugify` (these don't exist)
 
 ---
@@ -369,12 +370,12 @@ S3 settings are read from environment variables, NOT from config.toml or config 
 
 Actual line numbers in `app/tasks.py`:
 
-- `generate_image_variants`: 28
-- `send_newsletter_task`: 127
-- `deliver_webhook_task`: 184
-- `send_confirmation_task`: 263
-- `send_password_reset_task`: 284
-- `run_backup_task`: 305
+- `generate_image_variants`: 32
+- `send_newsletter_task`: 140
+- `deliver_webhook_task`: 208
+- `send_confirmation_task`: 384
+- `send_password_reset_task`: 405
+- `run_backup_task`: 426
 
 ---
 

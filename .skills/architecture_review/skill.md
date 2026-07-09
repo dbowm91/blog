@@ -28,15 +28,14 @@ architecture, review, documentation, verify, cross-reference
 - LOGIN_FAILURE_DELAY minimum 0.1s enforced in config
 - Vite build documented in overview.md and static-assets.md
 
-### New Findings (June 1, 2026)
-- **Template inheritance wrong** — `admin/base.html` and `login_base.html` are standalone, NOT extending `base.html`
-- **marked.min.js** — Uses `vite_asset()`, not `url_for('static', ...)` as docs claim
-- **SSRF protection** — Located at `app/utils.py`, not `app/webhooks.py` as overview.md claims
-- **Encryption function names** — Actual: `encrypt()`/`decrypt()`, docs say `encrypt_secret()`/`decrypt_secret()`
-- **Nginx proxy_pass** — Uses `http://blog:5000`, docs say `http://127.0.0.1:5000`
-- **Dead code** — `_invalidate_all_caches()` defined but never called
-- **In-place encryption risk** — `backup.py:112` overwrites source file; crash corrupts backup
-- **Celery missing SMTP_HOST** — docker-compose.yml celery service omits SMTP_HOST
+### June 2026 Fixes
+- Template inheritance corrected — admin/base.html and login_base.html are standalone
+- marked.min.js uses vite_asset(), not url_for()
+- SSRF protection correctly documented at app/utils.py
+- Encryption function names corrected to encrypt()/decrypt()
+- Nginx proxy_pass corrected to http://blog:5000
+- Dead code _invalidate_all_caches() removed
+- Celery missing SMTP_HOST in docker-compose.yml fixed
 
 ## Review Process
 
@@ -56,7 +55,7 @@ After all module reviews, run:
 - Scheduled jobs: 4 (send_daily_newsletter, cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup)
 - Newsletter retry count: 5 (not 3)
 - CI jobs: 6 (lint-and-type, test, security-audit, frontend-build, docker-build, e2e-tests)
-- Template filters: 6 (markdown_safe, reading_time, sanitize_css, post_image_url, post_image_srcset, post_image_avif_url_stub)
+- Template filters: 6 (markdown_safe, reading_time, sanitize_css, post_image_url, post_image_srcset, post_image_avif_url_stub [deprecated])
 
 ## Maintenance
 
