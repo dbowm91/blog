@@ -1,6 +1,6 @@
 # Architecture Overview
 
-DevLog is a Flask-based blog CMS with SQLAlchemy ORM, full-text search, async task processing, and Vue/Vite frontend.
+DevLog is a Flask-based blog CMS with SQLAlchemy ORM, full-text search, async task processing, and a Vanilla JS frontend built with Vite.
 
 This document provides a **birds-eye view** of all system components and serves as an **index** to detailed architecture documents for focused review.
 
