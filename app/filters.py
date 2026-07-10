@@ -3,7 +3,7 @@
 import markdown
 import nh3
 from typing import Any
-from flask import Flask, g, has_request_context, url_for
+from flask import Flask, g, has_request_context
 
 from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TAGS
 
@@ -41,13 +41,13 @@ def register_filters(app: Flask) -> None:
             from app.storage import get_storage
 
             storage = get_storage()
-            result: str | None = post.image if storage.exists(post.image) else None
+            result: str | None = storage.url(post.image) if storage.exists(post.image) else None
             g._post_image_cache[post_id] = result
             return result
         from app.storage import get_storage
 
         storage = get_storage()
-        return post.image if storage.exists(post.image) else None
+        return storage.url(post.image) if storage.exists(post.image) else None
 
     @app.template_filter("post_image_srcset")
     def post_image_srcset_filter(post: Any) -> str | None:
@@ -60,16 +60,14 @@ def register_filters(app: Flask) -> None:
             if cache_key in g._post_image_cache:
                 return g._post_image_cache[cache_key]
             from app.storage import get_storage
-            from app.config import BASE_URL, CDN_URL
 
             storage = get_storage()
-            base_url = CDN_URL if CDN_URL else BASE_URL
             srcset_parts = []
             for width in (400, 800, 1200):
                 variant_name = f"{width}_{post.image}"
                 if storage.exists(variant_name):
-                    static_path = url_for("static", filename=f"uploads/{variant_name}")
-                    srcset_parts.append(f"{base_url.rstrip('/')}{static_path} {width}w")
+                    variant_url = storage.url(variant_name)
+                    srcset_parts.append(f"{variant_url} {width}w")
             g._post_image_cache[cache_key] = ", ".join(srcset_parts) if srcset_parts else None
             return g._post_image_cache[cache_key]
         return None

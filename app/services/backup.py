@@ -62,10 +62,7 @@ def create_backup(
             dest.close()
             source.close()
 
-        if encrypt:
-            if not _encrypt_backup_file(backup_path):
-                logger.warning("Backup encryption failed, proceeding without encryption")
-        elif compress:
+        if compress:
             tmp_path = backup_path + ".tmp"
             try:
                 with open(backup_path, "rb") as f_in:
@@ -77,6 +74,13 @@ def create_backup(
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
+
+        if encrypt:
+            if not _encrypt_backup_file(backup_path):
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
+                logger.error("Backup encryption failed, discarding unencrypted backup")
+                return None
 
         logger.info("Backup created: %s", backup_path)
 

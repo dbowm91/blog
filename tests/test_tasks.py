@@ -24,8 +24,7 @@ def test_generate_image_variants_local_success(db, tmp_path):
     # Mock storage to return local path
     with (
         patch("app.storage.get_storage") as mock_get_storage,
-        patch("os.path.exists", return_value=True),
-        patch("os.environ.get", return_value=str(tmp_path)),
+        patch.dict("os.environ", {"UPLOAD_FOLDER": str(tmp_path)}),
     ):
         storage = MagicMock()
         storage.__class__.__name__ = "LocalStorageBackend"

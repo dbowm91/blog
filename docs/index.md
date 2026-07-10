@@ -14,9 +14,9 @@ DevLog is a personal blog platform built with Flask, featuring an admin dashboar
 ## Documentation
 
 - [Architecture](../architecture/overview.md) - System design, data flow, and component relationships
-- [Deployment](https://github.com/dbowm91/blog/blob/master/DEPLOY.md) - Production deployment guide
-- [API Documentation](https://github.com/dbowm91/blog/blob/master/docs/openapi.yaml) - OpenAPI specification
-- [Usage Guide](https://github.com/dbowm91/blog/blob/master/USAGE.md) - Detailed user guide for all admin features
+- [Deployment](https://github.com/dbowm91/blog/blob/main/DEPLOY.md) - Production deployment guide
+- [API Documentation](https://github.com/dbowm91/blog/blob/main/docs/openapi.yaml) - OpenAPI specification
+- [Usage Guide](https://github.com/dbowm91/blog/blob/main/USAGE.md) - Detailed user guide for all admin features
 
 ### Architecture Deep Dives
 

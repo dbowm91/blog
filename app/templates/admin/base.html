@@ -34,7 +34,7 @@
                 <a href="{{ url_for('admin.dashboard') }}" class="nav-logo">
                     <span class="logo-bracket">{</span>Admin<span class="logo-bracket">}</span>
                 </a>
-            <div class="nav-links">
+            <div class="nav-links" id="nav-links">
                 <a href="{{ url_for('public.index') }}" {% if request.endpoint and not request.endpoint.startswith('admin.') %}aria-current="page" class="active"{% endif %}>View Site</a>
                 {% if current_user.is_authenticated %}
                     <span class="nav-separator" aria-hidden="true"></span>

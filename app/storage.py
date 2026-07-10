@@ -438,9 +438,12 @@ def upload_with_processing(
         return None, "Unknown storage backend"
 
     if generate_variants:
-        from app.tasks import generate_image_variants
+        try:
+            from app.tasks import generate_image_variants
 
-        generate_image_variants.delay(filename)
+            generate_image_variants.delay(filename)
+        except Exception:
+            logger.debug("Celery unavailable, skipping async variant generation for %s", filename)
 
     return filename, None
 

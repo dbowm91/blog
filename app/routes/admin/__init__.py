@@ -23,36 +23,41 @@ def admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
         from app.extensions import db
         from app.models import AdminSession
         from app.config import SESSION_IP_BINDING
+        from sqlalchemy.exc import IntegrityError, OperationalError
 
         sid = session.get("admin_session_id")
         if sid:
+            admin_session = db.session.execute(
+                select(AdminSession).filter_by(session_id=sid)
+            ).scalar_one_or_none()
+            if not admin_session:
+                logout_user()
+                session.clear()
+                flash("Session has been revoked. Please log in again.", "error")
+                return redirect(url_for("admin.login"))
+
             stored_ip = session.get("admin_session_ip")
             current_ip = request.remote_addr
             if stored_ip and current_ip and stored_ip != current_ip:
-                if SESSION_IP_BINDING == "enforce":
-                    from app.extensions import db
-                    from app.models import AdminSession
-                    from sqlalchemy.exc import IntegrityError, OperationalError
-
-                    admin_session = db.session.execute(
-                        select(AdminSession).filter_by(session_id=sid)
-                    ).scalar_one_or_none()
-                    if admin_session:
-                        try:
-                            db.session.delete(admin_session)
-                            db.session.commit()
-                        except (IntegrityError, OperationalError):
-                            db.session.rollback()
+                if SESSION_IP_BINDING == "off":
+                    pass
+                elif SESSION_IP_BINDING == "enforce":
+                    try:
+                        db.session.delete(admin_session)
+                        db.session.commit()
+                    except (IntegrityError, OperationalError):
+                        db.session.rollback()
                     logout_user()
                     session.clear()
                     flash("Session invalidated due to IP address change.", "error")
                     return redirect(url_for("admin.login"))
-                logger.warning(
-                    "IP address changed for admin session %s: expected %s, got %s",
-                    sid,
-                    stored_ip,
-                    current_ip,
-                )
+                else:
+                    logger.warning(
+                        "IP address changed for admin session %s: expected %s, got %s",
+                        sid,
+                        stored_ip,
+                        current_ip,
+                    )
 
         return f(*args, **kwargs)
 

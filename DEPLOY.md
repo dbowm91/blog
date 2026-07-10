@@ -594,11 +594,11 @@ sudo systemctl start blog
 
 **From encrypted backup:**
 ```bash
-# Decrypt first
-python -c "from app.backup_encryption import decrypt_backup_file; open('backup.db', 'wb').write(decrypt_backup_file(open('backup.db.gpg', 'rb').read()))"
+# Decrypt first (input: encrypted file path, output: decrypted file path)
+python -c "from app.services.backup import decrypt_backup_file; decrypt_backup_file('backup.db.gpg', 'backup.db')"
 
-# Then restore
-flask backup --restore backup.db
+# Then restore via admin panel: POST /admin/backup/restore/backup.db
+# Or copy backup.db to instance/backups/ and use the admin UI
 ```
 
 **Cross-version restore:**

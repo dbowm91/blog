@@ -68,7 +68,7 @@ The app binds to `127.0.0.1:5000` (localhost only). For public access, terminate
 git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
 ./setup.sh
-python run.py
+venv/bin/python run.py
 ```
 
 This creates a virtual environment, generates secure credentials, and loads the `.env` file.
@@ -191,7 +191,7 @@ Click **Preview** to see how your post will look with theme styling.
 ### Media Library
 
 1. Go to `/admin/media`
-2. Upload images (JPEG, PNG, GIF, WebP, SVG)
+2. Upload images (JPEG, PNG, GIF, WebP)
 3. Click an image to copy its URL or delete it
 
 ### Accessing Feeds

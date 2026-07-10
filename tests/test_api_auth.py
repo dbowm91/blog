@@ -227,6 +227,9 @@ class TestTokenExpiryAndRevocation:
 
 class TestTokenLastUsedAt:
     def test_updates_on_use(self, client, make_scoped_token, db):
+        import app.routes.api.auth as auth_mod
+
+        auth_mod._token_last_used_cache.clear()
         raw_token = "last-used-token"
         token = ApiToken(
             name="last-used-test",

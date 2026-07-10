@@ -40,7 +40,9 @@ class PageViewBuffer:
     reducing database load for high-traffic sites.
     """
 
-    def __init__(self, db: Any, PageView: Any, max_size: int = 0, flush_interval: int = 5) -> None:
+    def __init__(
+        self, db: Any, PageView: Any, max_size: int = 0, flush_interval: int = 5, app: Any = None
+    ) -> None:
         self.db = db
         self.PageView = PageView
         self.max_size = max_size
@@ -51,6 +53,7 @@ class PageViewBuffer:
         self._started = False
         self._flush_lock = threading.Lock()
         self._stats = {"flushed": 0, "dropped": 0}
+        self._app = app
 
     def start(self) -> None:
         """Start the background flush thread."""
@@ -112,6 +115,9 @@ class PageViewBuffer:
             if not views:
                 return
 
+            ctx = self._app.app_context() if self._app else None
+            if ctx:
+                ctx.push()
             try:
                 self.db.session.execute(
                     self.PageView.__table__.insert(),
@@ -131,6 +137,9 @@ class PageViewBuffer:
                 self.db.session.rollback()
                 self._stats["dropped"] += len(views)
                 logger.error("Failed to flush page views: %s. Dropped %d views", e, len(views))
+            finally:
+                if ctx:
+                    ctx.pop()
 
     def flush(self) -> int:
         """Manually trigger a flush. Returns number of views flushed."""
@@ -162,13 +171,17 @@ def init_page_view_buffer(db: Any, PageView: Any) -> Optional["PageViewBuffer"]:
     if PAGE_VIEW_BUFFER_SIZE <= 0:
         return None
 
+    from flask import current_app
+
     with _buffer_lock:
         if _buffer is None:
+            app = current_app._get_current_object()  # type: ignore[attr-defined]
             _buffer = PageViewBuffer(
                 db,
                 PageView,
                 max_size=PAGE_VIEW_BUFFER_SIZE,
                 flush_interval=PAGE_VIEW_FLUSH_INTERVAL,
+                app=app,
             )
             _buffer.start()
 

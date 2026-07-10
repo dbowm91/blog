@@ -80,7 +80,7 @@ The `/health` endpoint (`app/routes/public/meta.py:188`) is the single integrati
 | `search` | SQLite: `sqlite_master` FTS5 table check; non-SQLite: `unsupported` | Yes |
 | `disk_space` | `shutil.disk_usage()` — 10% threshold | Yes |
 | `db_integrity` | SQLite: `PRAGMA integrity_check`; non-SQLite: `unsupported` | Yes |
-| `scheduler` | `get_scheduler_health()` — only when `SMTP_HOST` set | Yes |
+| `scheduler` | `get_scheduler_health()` — always checked; newsletter job skipped if SMTP absent | Yes |
 | `redis` | `redis.ping()` | No |
 | `celery` | `celery_app.control.inspect().ping()` | No |
 | `backup_freshness` | File age of latest backup — 24h threshold | No |

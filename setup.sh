@@ -91,7 +91,23 @@ fi
 
 # Run database migrations
 echo "Running database migrations..."
-( cd "$(dirname "$0")" && venv/bin/python -m flask db upgrade ) || echo "Warning: migrations failed. Run 'venv/bin/python -m flask db upgrade' manually before starting the app."
+if ! ( cd "$(dirname "$0")" && venv/bin/python -m flask db upgrade ); then
+    echo "Error: Database migrations failed."
+    echo "Please fix the issue and run 'venv/bin/python -m flask db upgrade' manually before starting the app."
+    exit 1
+fi
+
+# Build frontend assets
+echo "Building frontend assets..."
+if command -v npm &> /dev/null; then
+    if ! ( cd "$(dirname "$0")" && npm ci && npm run build ); then
+        echo "Warning: Frontend build failed. Admin UI may not work correctly."
+        echo "Run 'npm ci && npm run build' manually to build frontend assets."
+    fi
+else
+    echo "Warning: npm not found. Frontend assets not built."
+    echo "Install Node.js and run 'npm ci && npm run build' to build frontend assets."
+fi
 
 echo ""
 echo "=== Setup Complete ==="

@@ -34,9 +34,11 @@ from app.config import (
     ADMIN_PASSWORD,
     SESSION_LIFETIME_HOURS,
     MAX_UPLOAD_SIZE,
+    CDN_URL,
     _env_str,
 )
 from app.csrf import validate_csrf_token, should_skip_csrf
+from app.utils import utc_now
 
 # Register sqlite3 datetime adapters for Python 3.12+ compatibility
 sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
@@ -254,6 +256,10 @@ def create_app() -> Flask:
 
         @event.listens_for(db.engine, "connect")
         def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
+            import sqlite3
+
+            if not isinstance(dbapi_connection, sqlite3.Connection):
+                return
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA busy_timeout=5000")
@@ -334,6 +340,19 @@ def create_app() -> Flask:
                     flash("Session expired. Please log in again.", "info")
                     return redirect(url_for("admin.login"))  # type: ignore[return-value]
             session["last_activity"] = now
+            sid = session.get("admin_session_id")
+            if sid:
+                try:
+                    from app.models import AdminSession  # noqa: E402
+
+                    db.session.execute(
+                        AdminSession.__table__.update()
+                        .where(AdminSession.session_id == sid)
+                        .values(last_activity=utc_now())
+                    )
+                    db.session.commit()
+                except SQLAlchemyError:
+                    db.session.rollback()
         return None
 
     @app.after_request
@@ -350,28 +369,35 @@ def create_app() -> Flask:
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if not current_app.debug:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        cdn_src = ""
+        if CDN_URL:
+            try:
+                parsed = urlparse(CDN_URL)
+                cdn_src = f" {parsed.scheme}://{parsed.netloc}"
+            except (ValueError, AttributeError):
+                pass
         response.headers["Content-Security-Policy"] = (
             f"default-src 'self'; "
-            f"style-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'nonce-{nonce}'{cdn_src}; "
             f"style-src-attr 'unsafe-inline'; "
-            f"font-src 'self'; "
-            f"img-src 'self' data:; "
-            f"script-src 'self' 'nonce-{nonce}'; "
+            f"font-src 'self'{cdn_src}; "
+            f"img-src 'self' data:{cdn_src}; "
+            f"script-src 'self' 'nonce-{nonce}'{cdn_src}; "
             f"script-src-attr 'unsafe-inline'; "
-            f"connect-src 'self'; "
+            f"connect-src 'self'{cdn_src}; "
             f"frame-src 'none'; "
             f"frame-ancestors 'none'"
         )
         if current_app.debug:
             response.headers["Content-Security-Policy-Report-Only"] = (
                 f"default-src 'self'; "
-                f"style-src 'self' 'nonce-{nonce}'; "
+                f"style-src 'self' 'nonce-{nonce}'{cdn_src}; "
                 f"style-src-attr 'unsafe-inline'; "
-                f"font-src 'self'; "
-                f"img-src 'self' data:; "
-                f"script-src 'self' 'nonce-{nonce}'; "
+                f"font-src 'self'{cdn_src}; "
+                f"img-src 'self' data:{cdn_src}; "
+                f"script-src 'self' 'nonce-{nonce}'{cdn_src}; "
                 f"script-src-attr 'unsafe-inline'; "
-                f"connect-src 'self' report-uri /csp-violation; "
+                f"connect-src 'self' report-uri /csp-violation{cdn_src}; "
                 f"frame-src 'none'; "
                 f"frame-ancestors 'none'"
             )

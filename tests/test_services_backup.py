@@ -32,7 +32,7 @@ def test_create_backup_db_not_found():
 
 
 def test_create_backup_encrypt_failure():
-    """Test create_backup proceeds without encryption if encryption fails."""
+    """Test create_backup discards backup when encryption fails."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
         backup_dir = os.path.join(tmpdir, "backups")
@@ -44,8 +44,11 @@ def test_create_backup_encrypt_failure():
             from app.services.backup import create_backup
 
             result = create_backup(db_path, backup_dir, encrypt=True, keep=1)
-            assert result is not None
-            assert os.path.exists(result)
+            assert result is None
+            import glob as glob_module
+
+            backups = glob_module.glob(os.path.join(backup_dir, "blog_*.db.gpg"))
+            assert len(backups) == 0
 
 
 def test_cleanup_old_backups():

@@ -197,8 +197,12 @@ def series_posts(series_id: int) -> ResponseReturnValue:
                 ps = db.session.get(PostSeries, post_series_id)
                 if ps and ps.series_id == series_id:
                     db.session.delete(ps)
-                    db.session.commit()
-                    flash("Post removed from series.", "success")
+                    try:
+                        db.session.commit()
+                        flash("Post removed from series.", "success")
+                    except (IntegrityError, OperationalError) as e:
+                        db.session.rollback()
+                        flash(f"Error removing post from series: {str(e)}", "error")
 
         elif action == "reorder":
             # Update order_index for multiple posts

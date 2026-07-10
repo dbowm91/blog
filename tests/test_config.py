@@ -111,34 +111,52 @@ class TestCeleryBrokerResolution:
         monkeypatch.setenv("CELERY_BROKER_URL", "redis://broker:6379/0")
         monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
         import importlib
-        import app.celery_app
+        import app.celery_app as celery_mod
 
-        importlib.reload(app.celery_app)
-        from app.celery_app import init_celery
+        original_module = celery_mod
+        try:
+            importlib.reload(celery_mod)
+            from app.celery_app import init_celery
 
-        celery = init_celery()
-        assert celery.conf.broker_url == "redis://broker:6379/0"
+            celery = init_celery()
+            assert celery.conf.broker_url == "redis://broker:6379/0"
+        finally:
+            import sys
+
+            sys.modules["app.celery_app"] = original_module
 
     def test_falls_back_to_redis_url(self, monkeypatch):
         monkeypatch.delenv("CELERY_BROKER_URL", raising=False)
         monkeypatch.setenv("REDIS_URL", "redis://redis-main:6379/0")
         import importlib
-        import app.celery_app
+        import app.celery_app as celery_mod
 
-        importlib.reload(app.celery_app)
-        from app.celery_app import init_celery
+        original_module = celery_mod
+        try:
+            importlib.reload(celery_mod)
+            from app.celery_app import init_celery
 
-        celery = init_celery()
-        assert celery.conf.broker_url == "redis://redis-main:6379/0"
+            celery = init_celery()
+            assert celery.conf.broker_url == "redis://redis-main:6379/0"
+        finally:
+            import sys
+
+            sys.modules["app.celery_app"] = original_module
 
     def test_defaults_to_localhost(self, monkeypatch):
         monkeypatch.delenv("CELERY_BROKER_URL", raising=False)
         monkeypatch.delenv("REDIS_URL", raising=False)
         import importlib
-        import app.celery_app
+        import app.celery_app as celery_mod
 
-        importlib.reload(app.celery_app)
-        from app.celery_app import init_celery
+        original_module = celery_mod
+        try:
+            importlib.reload(celery_mod)
+            from app.celery_app import init_celery
 
-        celery = init_celery()
-        assert celery.conf.broker_url == "redis://localhost:6379/0"
+            celery = init_celery()
+            assert celery.conf.broker_url == "redis://localhost:6379/0"
+        finally:
+            import sys
+
+            sys.modules["app.celery_app"] = original_module

@@ -179,7 +179,7 @@ def test_backup_restore_corrupted_file(app, db, authenticated_client):
 
 
 def test_backup_restore_corrupted_compressed(app, db, authenticated_client):
-    """Test that restoring a corrupted compressed backup raises an error."""
+    """Test that restoring a corrupted compressed backup returns error redirect."""
     backup_dir = os.path.join(app.instance_path, "backups")
     os.makedirs(backup_dir, exist_ok=True)
 
@@ -189,8 +189,8 @@ def test_backup_restore_corrupted_compressed(app, db, authenticated_client):
         f.write(b"this is not a valid gzip file")
 
     try:
-        with pytest.raises(Exception):
-            authenticated_client.post(f"/admin/backup/restore/{corrupted_name}")
+        response = authenticated_client.post(f"/admin/backup/restore/{corrupted_name}")
+        assert response.status_code == 302
     finally:
         if os.path.exists(corrupted_path):
             os.remove(corrupted_path)

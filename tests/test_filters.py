@@ -84,7 +84,7 @@ def test_post_image_url_filter_with_image():
             with patch("app.storage.get_storage", return_value=storage):
                 post = type("Post", (), {"image": "test.jpg", "id": 1})()
                 result = app.jinja_env.filters["post_image_url"](post)
-                assert result == "test.jpg"
+                assert result == storage.url("test.jpg")
 
 
 def test_post_image_url_filter_with_missing_image():

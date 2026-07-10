@@ -233,7 +233,7 @@ Preview links use HMAC-SHA256 signed tokens to prevent unauthorized access:
 - Tokens are validated on every access
 
 ### Expiry
-Tokens expire after 24 hours by default. Configure `PREVIEW_LINK_EXPIRY_HOURS` in `config.toml` to customize expiry time.
+Tokens expire after 7 days by default. Configure `PREVIEW_TOKEN_EXPIRY_DAYS` in `config.toml` to customize expiry time.
 
 ### Programmatic Generation
 Generate preview links via the admin panel or code:
@@ -243,16 +243,18 @@ Generate preview links via the admin panel or code:
 import hmac
 import hashlib
 import time
+import base64
 from flask import current_app
 
 def generate_preview_link(post_id):
-    expires = int(time.time()) + 86400  # 24 hours
-    message = f"{post_id}:{expires}".encode()
-    token = hmac.new(
+    expires = int(time.time()) + (7 * 86400)  # 7 days
+    message = f"{post_id}:{expires}"
+    signature = hmac.new(
         current_app.config["SECRET_KEY"].encode(),
-        message,
-        hashlib.sha256
-    ).hexdigest()
+        message.encode(),
+        hashlib.sha256,
+    ).digest()
+    token = base64.urlsafe_b64encode(signature).decode().rstrip("=")
     return f"/preview/{post_id}?token={token}&expires={expires}"
 ```
 
@@ -734,12 +736,12 @@ Go to `/admin/media`
 ### Uploading Images
 
 1. Click **Upload** button
-2. Select file (JPEG, PNG, GIF, WebP, SVG)
+2. Select file (JPEG, PNG, GIF, WebP)
 3. Wait for upload to complete
 
 **Limits:**
-- Max file size: 16 MB
-- Allowed types: image/jpeg, image/png, image/gif, image/webp, image/svg+xml
+- Max file size: 10 MB
+- Allowed types: image/jpeg, image/png, image/gif, image/webp
 
 ### Responsive Images
 
@@ -750,9 +752,9 @@ On upload, images are automatically resized to create variants:
 Templates use `srcset` for responsive loading:
 ```html
 <img src="/static/uploads/image.jpg"
-     srcset="/static/uploads/400w/image.jpg 400w,
-             /static/uploads/800w/image.jpg 800w,
-             /static/uploads/1200w/image.jpg 1200w"
+     srcset="/static/uploads/400_image.jpg 400w,
+             /static/uploads/800_image.jpg 800w,
+             /static/uploads/1200_image.jpg 1200w"
      sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px">
 ```
 

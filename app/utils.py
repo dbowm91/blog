@@ -170,10 +170,13 @@ def safe_delete_file(filepath: str) -> bool:
         from app.storage import get_storage
 
         storage = get_storage()
-        if hasattr(storage, "base_dir") and filepath.startswith(storage.base_dir):
-            filename = os.path.basename(filepath)
-            return storage.delete(filename)
-        os.remove(filepath)
+        filename = os.path.basename(filepath)
+        deleted = storage.delete(filename)
+        if deleted:
+            return True
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            return True
         return True
     except FileNotFoundError:
         return True

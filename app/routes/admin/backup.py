@@ -133,8 +133,9 @@ def restore_backup(filename) -> ResponseReturnValue:
     is_encrypted = filename.endswith(".gpg")
     is_compressed = filename.endswith(".gz")
 
-    if is_encrypted:
-        try:
+    tmp_restored = None
+    try:
+        if is_encrypted:
             from app.backup_encryption import decrypt_backup_file
 
             with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
@@ -143,21 +144,51 @@ def restore_backup(filename) -> ResponseReturnValue:
             if not success:
                 flash("Failed to decrypt backup file.", "error")
                 return redirect(url_for("admin.backup"))
+            from pathlib import Path
+
+            from app.backup_integrity import verify_backup_integrity
+
+            is_valid, message = verify_backup_integrity(Path(tmp_path))
+            if not is_valid:
+                os.unlink(tmp_path)
+                flash(f"Backup integrity check failed: {message}", "error")
+                return redirect(url_for("admin.backup"))
+            tmp_restored = tmp_path
             shutil.copy2(tmp_path, db_path)
             os.unlink(tmp_path)
-        except (OSError, ValueError, SQLAlchemyError) as e:
-            flash(f"Failed to decrypt backup file: {e}", "error")
-            return redirect(url_for("admin.backup"))
-    elif is_compressed:
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-            tmp_path = tmp.name
-        with gzip.open(real_path, "rb") as f_in:
-            with open(tmp_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        shutil.copy2(tmp_path, db_path)
-        os.unlink(tmp_path)
-    else:
-        shutil.copy2(real_path, db_path)
+        elif is_compressed:
+            with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+                tmp_path = tmp.name
+            with gzip.open(real_path, "rb") as f_in:
+                with open(tmp_path, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            from pathlib import Path
+
+            from app.backup_integrity import verify_backup_integrity
+
+            is_valid, message = verify_backup_integrity(Path(tmp_path))
+            if not is_valid:
+                os.unlink(tmp_path)
+                flash(f"Backup integrity check failed: {message}", "error")
+                return redirect(url_for("admin.backup"))
+            tmp_restored = tmp_path
+            shutil.copy2(tmp_path, db_path)
+            os.unlink(tmp_path)
+        else:
+            from pathlib import Path
+
+            from app.backup_integrity import verify_backup_integrity
+
+            is_valid, message = verify_backup_integrity(Path(real_path))
+            if not is_valid:
+                flash(f"Backup integrity check failed: {message}", "error")
+                return redirect(url_for("admin.backup"))
+            shutil.copy2(real_path, db_path)
+    except (OSError, ValueError, SQLAlchemyError) as e:
+        if tmp_restored and os.path.exists(tmp_restored):
+            os.unlink(tmp_restored)
+        flash(f"Restore failed: {e}", "error")
+        return redirect(url_for("admin.backup"))
 
     flash(
         f"Database restored from {filename}. You may need to restart the app for all changes to take effect.",

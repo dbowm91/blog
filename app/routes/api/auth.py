@@ -1,6 +1,7 @@
 """API authentication and shared utilities."""
 
 import os
+import time
 import hmac
 import hashlib
 import secrets
@@ -14,6 +15,9 @@ from app.models import ApiToken
 from app.utils import utc_now
 
 API_KEY = os.environ.get("API_KEY", "")
+
+_token_last_used_cache: dict[int, float] = {}
+_TOKEN_UPDATE_INTERVAL = 60
 
 SCOPES = {
     "posts:read",
@@ -111,8 +115,12 @@ def _verify_token() -> Optional[dict]:
     if not token.is_valid():
         return None
 
-    token.last_used_at = utc_now()
-    db.session.commit()
+    now = time.monotonic()
+    last_update = _token_last_used_cache.get(token.id, 0)
+    if now - last_update >= _TOKEN_UPDATE_INTERVAL:
+        token.last_used_at = utc_now()
+        db.session.commit()
+        _token_last_used_cache[token.id] = now
 
     return {"type": "token", "token_id": token.id, "scopes": token.scopes}
 
