@@ -32,7 +32,8 @@ function dismissToast(toast) {
 function showToast(message, type = 'info') {
     const container = createToastContainer();
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    const toastType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+    toast.className = `toast toast-${toastType}`;
     toast.setAttribute('role', 'alert');
 
     const icons = {
@@ -43,10 +44,12 @@ function showToast(message, type = 'info') {
     };
 
     toast.innerHTML = `
-        ${icons[type] || icons.info}
-        <span class="toast-message">${message}</span>
-        <button class="toast-close" aria-label="Dismiss" onclick="this.parentElement.remove()">&times;</button>
+        ${icons[toastType]}
+        <span class="toast-message"></span>
+        <button type="button" class="toast-close" aria-label="Dismiss">&times;</button>
     `;
+    toast.querySelector('.toast-message').textContent = message;
+    toast.querySelector('.toast-close').addEventListener('click', () => dismissToast(toast));
 
     let cumulativeOffset = 0;
     toastStack.forEach(t => {

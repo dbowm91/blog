@@ -152,7 +152,7 @@ Newsletter retry count default is 5 (not 3 as some documentation may claim).
 
 ### Critical CSS
 
-The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It is loaded in `base.html:22` with `media="screen"` for immediate loading.
+The `critical.css` file at `app/static/css/critical.css` provides above-the-fold CSS for fast initial paint. It mirrors the actual public and admin shell classes and is loaded immediately by the base templates.
 
 ### Celery Queue Names
 
@@ -298,9 +298,9 @@ Comments are rate limited at 10 per minute and require CSRF protection via the g
 
 `app/csrf.py` rotates tokens on every successful validation, not specifically on privilege changes. The claim in `architecture/deployment/security.md` about "token rotation on privilege changes" is not accurate - that feature is not implemented.
 
-### image-preview.js Not image-review.js
+### Admin Image Preview
 
-The admin image preview module is named `image-preview.js`, NOT `image-review.js`. Code imports in `main.js:15,40,51` reference the wrong filename.
+The admin image preview module is named `image-preview.js` and is loaded by the editor and media routes through the route map in `main.js`.
 
 ---
 

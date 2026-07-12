@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import select, func
 from app.utils import utc_now
 
@@ -14,6 +16,17 @@ def test_post_page(client, db, sample_post):
     response = client.get("/post/test-post")
     assert response.status_code == 200
     assert b"Test Post" in response.data
+
+
+def test_post_schema_uses_valid_json_dates(client, db, sample_post):
+    """Test article metadata serializes populated timestamps as JSON strings."""
+    html = client.get("/post/test-post").get_data(as_text=True)
+    schema = html.split('<script type="application/ld+json"', 1)[1]
+    schema = schema.split(">", 1)[1].split("</script>", 1)[0]
+    data = json.loads(schema)
+
+    assert isinstance(data["datePublished"], str)
+    assert isinstance(data["dateModified"], str)
 
 
 def test_post_not_found(client, db):

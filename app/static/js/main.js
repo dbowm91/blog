@@ -106,7 +106,7 @@ function getModulesForPath(path) {
         './shared/utils.js',
         './shared/toast.js',
         './shared/dark-mode.js',
-    './shared/mobile-menu.jsx',
+        './shared/mobile-menu.jsx',
         './shared/lazy-load.js',
         './shared/prefetch.js',
         './public/share.js',

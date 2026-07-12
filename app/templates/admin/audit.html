@@ -10,7 +10,7 @@
 
     <div class="audit-filters">
         <form method="GET" class="filter-form">
-            <select name="action" class="form-select" onchange="this.form.submit()">
+            <select name="action" class="form-select" data-auto-submit>
                 <option value="">All Actions</option>
                 {% for act in actions %}
                 <option value="{{ act }}" {% if act == current_action %}selected{% endif %}>{{ act }}</option>

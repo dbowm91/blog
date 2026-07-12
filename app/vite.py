@@ -48,10 +48,10 @@ def get_file_hash(filepath: str) -> Optional[str]:
 def vite_asset(url: str) -> str:
     """Get the content-hashed URL for a static asset.
 
-    In development, returns the URL as-is (Vite dev server handles it).
-    In production:
-    - For JS: Looks up the hashed filename from the manifest.
-    - For CSS/other: Appends content hash as query string.
+    When a Vite manifest is available, JS entry points resolve to their
+    content-hashed build output. CSS and other source assets receive a
+    content-hash query string when the source file exists. Without a build,
+    the helper returns the original source path as a development fallback.
 
     If CDN_URL is configured, prepends it to the asset URL.
     """

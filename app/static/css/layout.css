@@ -1,11 +1,9 @@
-/* ============================================
-   layout.css - Generated from style.css
-   ============================================ */
+/* Shared page layout and navigation. */
 
 /* --- Container --- */
 .container {
     width: 100%;
-    max-width: 1100px;
+    max-width: 1160px;
     margin: 0 auto;
     padding: 0 24px;
 }
@@ -38,6 +36,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--space-md);
 }
 
 .nav-logo {
@@ -358,3 +357,29 @@
     color: var(--text-dim);
 }
 
+@media (max-width: 768px) {
+    .nav-container {
+        flex-wrap: wrap;
+        row-gap: 0;
+    }
+
+    .nav-logo {
+        margin-right: auto;
+    }
+
+    .nav-links {
+        order: 3;
+        flex-basis: 100%;
+    }
+
+    .mobile-menu-toggle {
+        order: 2;
+    }
+
+    .nav-links.open {
+        position: relative;
+        z-index: 101;
+        padding-top: var(--space-md);
+        background: var(--bg-surface);
+    }
+}

@@ -160,8 +160,6 @@ function displaySuggestions(posts) {
     `).join('');
 
     container.style.display = 'block';
-
-    container.style.display = 'block';
 }
 
 function hideSuggestions() {

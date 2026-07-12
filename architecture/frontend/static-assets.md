@@ -37,7 +37,7 @@ app/static/
 │   ├── image-preview.js
 │   ├── main.js         # Entry point with route-based code splitting
 │   └── upload.js
-├── css/                # SCSS/CSS files
+├── css/                # CSS files
 ├── fonts/              # Web fonts (woff2)
 ├── img/                # Static images (favicon, default-post)
 ├── uploads/            # User-uploaded media (local fallback; production may use S3)
@@ -48,7 +48,7 @@ app/static/
 
 ### Module Initialization Pattern
 
-JavaScript modules must export a default initialization function named `initXxx` (e.g., `export default initDarkMode`). The module loader in `main.js:85-96` calls `module.default()` if it exists:
+JavaScript modules must export a default initialization function named `initXxx` (e.g., `export default initDarkMode`). The module loader in `main.js` calls `module.default()` if it exists:
 
 ```javascript
 // Correct - default export named initXxx
@@ -60,7 +60,7 @@ export function setup() { ... }
 
 ### Route-Based Code Splitting
 
-Code splitting is implemented in `main.js:30-83` using `import.meta.glob()`. Modules are loaded dynamically based on the current route:
+Code splitting is implemented in `main.js` using `import.meta.glob()`. Modules are loaded dynamically based on the current route:
 
 ```javascript
 const ROUTE_MODULES = {
@@ -137,7 +137,7 @@ This allows Vite to create optimized chunks that are only loaded when needed.
 
 ### Lazy Image Loading
 
-CSS pattern for progressive image loading (`app/static/css/public.css:1114-1138`):
+The progressive image loading pattern in `app/static/css/public.css` is:
 - Default: `opacity: 0` on `img[loading="lazy"]` (requires `.js` class on `<html>`)
 - `.loaded` class: `opacity: 1` with 0.4s ease transition
 - JavaScript adds `document.documentElement.classList.add('js')` first to enable progressive enhancement
@@ -163,7 +163,7 @@ Admin pages can be detected via `document.body.classList.contains('admin-body')`
 
 ### marked.min.js Loading Pattern
 
-`marked.min.js` is loaded through Vite's asset pipeline via `vite_asset()` in both `base.html:150` and `admin/base.html:162`, receiving content hashing and CDN support like other JS assets:
+`marked.min.js` is loaded through Vite's asset pipeline via `vite_asset()` in both `base.html` and `admin/base.html`, receiving content hashing and CDN support like other JS assets:
 
 ```html
 <script src="{{ vite_asset('js/lib/marked.min.js') }}"></script>
@@ -173,7 +173,7 @@ The adapter layer `marked-wrapper.js` is also loaded via `vite_asset()`.
 
 ### JSX Support
 
-JSX files (like `mobile-menu.jsx`) are handled via Vite's esbuild options in `vite.config.js:36-44`:
+JSX files (like `mobile-menu.jsx`) are handled via Vite's esbuild options in `vite.config.js`:
 
 ```javascript
 optimizeDeps: {
@@ -227,14 +227,18 @@ Dark mode follows OS preference by default via `prefers-color-scheme: dark` in `
 
 ### Critical CSS
 
-`critical.css` provides above-the-fold styles for fast initial paint. Loaded in `base.html:24` with `media="screen"` for immediate rendering. Other stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
+`critical.css` provides above-the-fold styles for fast initial paint. It mirrors the actual navbar, hero, container, and post-card classes so the first paint uses the same dark theme as the full stylesheets. It is loaded immediately; the remaining stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
+
+### Design Tokens
+
+`base.css` owns the fallback design tokens used by every theme, including spacing, typography, surfaces, borders, focus colors, and semantic colors. The inline `theme_vars` block in the base templates overrides the color tokens for the selected preset. Keep new component rules on these variables so GitHub Dark, GitHub Light, Solarized, Monokai, and custom themes remain coherent.
 
 ### Font Self-Hosting
 
 Fonts are self-hosted in `app/static/fonts/` as woff2 files:
 - Inter (weights 300–700) for body text (`--font-sans`)
 - JetBrains Mono (weights 400, 500) for code blocks (`--font-mono`)
-- Preloaded in `base.html:39-40` with `crossorigin` attribute
+- Preloaded in `base.html` with the `crossorigin` attribute
 
 ### Admin Prism CSS Theme
 
@@ -253,7 +257,7 @@ Located at `vite.config.js`:
 - JSX support via esbuildOptions for `.jsx` files
 - Dev server on port 3000 with proxy to Flask on port 5000
 
-> **⚠️ Production Build Requirement:** The `npm run build` command (or `vite build`) must be executed before production deployment. This generates the `manifest.json` at `app/static/dist/.vite/manifest.json`. Without this build, JavaScript assets reference hashed filenames that do not exist, causing JavaScript failures in production.
+> **⚠️ Production Build Requirement:** The `npm run build` command (or `vite build`) must be executed before production deployment. This generates the `manifest.json` at `app/static/dist/.vite/manifest.json`. Without this build, templates fall back to unbundled source paths, so the production code-splitting entry point will not work correctly.
 >
 > **Docker builds handle this automatically.** The Dockerfile uses a multi-stage build where the first stage (`node:20-alpine`) runs `npm ci && npm run build`, and the runtime stage copies the resulting `app/static/dist/` into the final image. No manual build step is needed for Docker deployments.
 >
@@ -261,7 +265,7 @@ Located at `vite.config.js`:
 
 ### Vite Asset Helper
 
-`vite_asset()` in `app/vite.py:48` resolves content-hashed asset URLs. Registered as a Jinja2 global via `init_vite()` (`app/vite.py:81-83`). Used in `base.html` for all CSS, JS, and font references.
+`vite_asset()` in `app/vite.py` resolves content-hashed asset URLs and is registered as a Jinja2 global by `init_vite()`. It is used in the base templates for CSS, JS, fonts, and images.
 
 In production:
 - JS files: looks up hashed filename from `.vite/manifest.json`
@@ -270,7 +274,7 @@ In production:
 
 ### Chunk Split
 
-Actual chunks via `manualChunks` in `vite.config.js:15-19`:
+Actual chunks via `manualChunks` in `vite.config.js`:
 - `vendor` — Prism.js libraries (`prism.min.js`, `prism-languages.js`)
 - `admin` — Admin editor (`admin/editor.js`)
 - `public` — Public search (`public/search.js`)

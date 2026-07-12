@@ -24,6 +24,7 @@
     <section class="posts-list">
             {% for post in posts %}
             {% set img = post|post_image_url %}
+            {% set srcset = post|post_image_srcset %}
             {% set rt = post.body | reading_time %}
             <div class="post-card animate-in post-card-link">
                 {% if img %}

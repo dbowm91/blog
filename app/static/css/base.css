@@ -1,6 +1,4 @@
-/* ============================================
-   base.css - Generated from style.css
-   ============================================ */
+/* Theme tokens, reset, shared controls, and accessibility primitives. */
 
 /* --- Self-hosted Fonts --- */
 @font-face {
@@ -94,6 +92,45 @@
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
     --transition: 0.2s ease;
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-sm-md: 12px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+    --space-3xl: 64px;
+    --text-secondary: #c9d1d9;
+    --bg-hover: #21262d;
+    --amber: #f59e0b;
+    --amber-dim: rgba(245, 158, 11, 0.15);
+}
+
+html {
+    background: var(--bg);
+    scroll-behavior: smooth;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+}
+
+main {
+    flex: 1;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
 
 /* --- Buttons --- */
 .btn {
@@ -186,6 +223,8 @@
     --text: #1f2328;
     --text-muted: #57606a;
     --text-dim: #6e7781;
+    --text-secondary: #6e7781;
+    --bg-hover: #eaeef2;
     --accent: #0969da;
     --accent-hover: #0550ae;
     --accent-dim: rgba(9, 105, 218, 0.1);
@@ -198,8 +237,8 @@
     --purple-dim: rgba(130, 80, 223, 0.15);
     --coral: #d4513d;
     --coral-dim: rgba(212, 81, 61, 0.15);
-    --radius-sm: 6px;
-    --space-sm-md: 12px;
+    --amber: #9a6700;
+    --amber-dim: rgba(154, 103, 0, 0.15);
 }
 
 [data-theme="light"] .navbar {
@@ -228,6 +267,9 @@
     color: var(--text-muted);
     cursor: pointer;
     padding: 6px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: var(--radius);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -760,4 +802,3 @@
         content: none;
     }
 }
-

@@ -1,6 +1,4 @@
-/* ============================================
-   utilities.css - Generated from style.css
-   ============================================ */
+/* Small reusable layout and editor utility classes. */
 
 /* --- Utility classes (replacing inline styles for CSP compliance) --- */
 .flex-row {
@@ -30,4 +28,3 @@
 .editor-status-sep {
     color: var(--border);
 }
-

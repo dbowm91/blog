@@ -8,7 +8,7 @@ Jinja2 templates for the blog.
 app/templates/
 ├── _error.html                  # Error page partial
 ├── _post_content.html           # Post content partial
-├── _sidebar.html                # Admin sidebar partial
+├── _sidebar.html                # Public sidebar partial
 ├── 404.html                     # Not found page
 ├── 429.html                     # Rate limit page
 ├── 500.html                     # Server error page
@@ -69,7 +69,7 @@ There are **3 standalone base templates**, each with its own `<!DOCTYPE html>` a
 
 ```
 base.html                              # Standalone public base template
-└── public/*.html (extends base.html)
+└── root-level public page templates (extends base.html)
 
 admin/base.html                        # Standalone admin base template
 └── admin/*.html (extends admin/base.html)
@@ -107,7 +107,7 @@ Registered in `app/filters.py`:
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`
-- `post_image_srcset` - Generate srcset for responsive images. Checks for variants at 400, 800, and 1200 widths (`{width}_{filename}`), builds `srcset` attribute string with width descriptors (e.g., `400w, 800w, 1200w`). Uses request-level caching via `g._post_image_cache`. Returns `None` if no variants found. (app/filters.py:52-76)
+- `post_image_srcset` - Generate srcset for responsive images. Checks for variants at 400, 800, and 1200 widths (`{width}_{filename}`), builds `srcset` attribute string with width descriptors (e.g., `400w, 800w, 1200w`). Uses request-level caching via `g._post_image_cache`. Returns `None` if no variants are found.
 - `post_image_avif_url_stub` - DEPRECATED — always returns `None`. No templates currently use it.
 
 ## Context Processors
@@ -126,8 +126,8 @@ From `app/context_processors.py`:
 ## Cache Invalidation
 
 From `app/context_processors.py`:
-- `invalidate_settings_cache()` - Invalidates the SiteSettings cache (line 30-32)
-- `invalidate_footer_cache()` - Invalidates the footer data memoization cache (line 35-37)
+- `invalidate_settings_cache()` - Invalidates the SiteSettings cache
+- `invalidate_footer_cache()` - Invalidates the footer data memoization cache
 
 ## Template Partials
 
@@ -154,13 +154,13 @@ Admin sidebar partial with navigation links to dashboard sections (posts, pages,
 
 ### `data-prism-css-url` Attribute
 
-The `<html>` element in `base.html:2` includes a `data-prism-css-url` attribute set to the Vite-resolved URL for the configured syntax theme CSS:
+The `<html>` element in `base.html` includes a `data-prism-css-url` attribute set to the Vite-resolved URL for the configured syntax theme CSS:
 
 ```html
 <html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}">
 ```
 
-This attribute is consumed by `main.js:102` in `loadPrismIfNeeded()` to dynamically inject the Prism CSS stylesheet only when code blocks are present on the page. This enables lazy loading of syntax highlighting CSS — the stylesheet is fetched and applied only when needed, avoiding unnecessary CSS overhead on pages without code blocks.
+This attribute is consumed by `loadPrismIfNeeded()` in `main.js` to dynamically inject the Prism CSS stylesheet only when code blocks are present on the page. This enables lazy loading of syntax highlighting CSS — the stylesheet is fetched and applied only when needed, avoiding unnecessary CSS overhead on pages without code blocks.
 
 ### `_breadcrumbs.html`
 Admin breadcrumb navigation partial for nested admin pages.

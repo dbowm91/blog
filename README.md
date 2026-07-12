@@ -105,7 +105,7 @@ npm ci
 npm run build
 ```
 
-This generates content-hashed assets in `app/static/dist/` with a `manifest.json`. The app's `vite_asset()` helper resolves hashed filenames. Without this build, JavaScript assets will return 404 in production.
+This generates content-hashed assets in `app/static/dist/` with a `manifest.json`. The app's `vite_asset()` helper resolves hashed filenames. Without this build, templates fall back to the unbundled source paths, so production JavaScript code-splitting will not work correctly.
 
 ---
 

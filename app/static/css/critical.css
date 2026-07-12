@@ -1,79 +1,105 @@
-/* critical.css - Above-the-fold styles for initial page render */
-/* This file contains minimal styles needed to prevent FOUC */
-
-/* Font declarations for preloading */
+/* Above-the-fold styles for the public and admin shells. */
 :root {
+    --bg: #0d1117;
+    --bg-surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-hover: #79c0ff;
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --radius: 8px;
 }
 
-/* Basic reset and box-sizing */
 *, *::before, *::after {
     box-sizing: border-box;
 }
 
-/* Body base styles - must match layout.css */
+html {
+    background: var(--bg);
+}
+
 body {
     margin: 0;
-    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     font-family: var(--font-sans);
     line-height: 1.6;
-    color: #1a1a1a;
-    background-color: #fafafa;
+    color: var(--text);
+    background: var(--bg);
 }
 
-/* Header/nav skeleton */
-.site-header {
-    padding: 1rem;
-    background: #fff;
-    border-bottom: 1px solid #e5e5e5;
-}
-
-.site-header .container {
-    max-width: 1200px;
+.container {
+    width: 100%;
+    max-width: 1160px;
     margin: 0 auto;
+    padding: 0 24px;
+}
+
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 16px 0;
+    background: rgba(13, 17, 23, 0.85);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.nav-container {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
 }
 
-.site-title {
-    font-size: 1.5rem;
+.nav-logo {
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
     font-weight: 600;
-    margin: 0;
 }
 
-/* Main content area */
-.main-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-}
-
-/* Footer skeleton */
-.site-footer {
-    padding: 1rem;
-    background: #f5f5f5;
-    border-top: 1px solid #e5e5e5;
+.hero {
+    padding: 64px 0 40px;
     text-align: center;
 }
 
-/* Skeleton loading state for posts */
+.hero-title {
+    margin: 0 0 12px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.hero-description {
+    max-width: 500px;
+    margin: 0 auto;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.posts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
 .post-card {
-    padding: 1rem;
-    margin-bottom: 1rem;
-    background: #fff;
-    border: 1px solid #e5e5e5;
-    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 }
 
-.post-card .title {
-    font-size: 1.25rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-}
-
-.post-card .excerpt {
-    color: #666;
-    font-size: 0.875rem;
+@media (max-width: 768px) {
+    .container { padding: 0 16px; }
+    .hero { padding: 40px 0 24px; }
+    .hero-title { font-size: 1.8rem; }
+    .nav-container { flex-wrap: wrap; }
+    .nav-links { display: none; }
+    .mobile-menu-toggle { display: block; }
 }

@@ -14,7 +14,6 @@ export function initEditor() {
     if (togglePreviewBtn && editorSplit) {
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
         if (isMobile) {
-            editorSplit.classList.remove('preview-hidden');
             editorSplit.classList.add('preview-hidden');
         }
 

@@ -1,6 +1,4 @@
-/* ============================================
-   public.css - Generated from style.css
-   ============================================ */
+/* Public blog pages, reading views, and discovery UI. */
 
 /* --- Hero (homepage) --- */
 .hero {
@@ -25,6 +23,34 @@
     font-size: 1.1rem;
     max-width: 500px;
     margin: 0 auto;
+}
+
+.hero-subscribe {
+    display: flex;
+    gap: var(--space-sm);
+    max-width: 520px;
+    margin: var(--space-lg) auto 0;
+}
+
+.hero-subscribe input[type="email"] {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-sans);
+}
+
+.hero-subscribe input[type="email"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.hero-subscribe input[type="email"]::placeholder {
+    color: var(--text-dim);
 }
 
 /* --- Post Cards (with image) --- */
@@ -1297,3 +1323,12 @@
     margin-top: 2px;
 }
 
+@media (max-width: 560px) {
+    .hero-subscribe {
+        flex-direction: column;
+    }
+
+    .hero-subscribe .btn {
+        width: 100%;
+    }
+}

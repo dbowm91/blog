@@ -20,8 +20,8 @@
     "headline": {{ post.title | tojson }},
     "description": {{ truncated_desc | tojson }},
     "image": "{{ base_url }}{% if og_img %}/static/uploads/{{ og_img }}{% else %}/static/img/default-post.svg{% endif %}",
-    "datePublished": {{ post.published_at.isoformat() if post.published_at else post.created_at.isoformat() | tojson }},
-    "dateModified": {{ post.updated_at.isoformat() if post.updated_at else post.created_at.isoformat() | tojson }},
+    "datePublished": {{ (post.published_at.isoformat() if post.published_at else post.created_at.isoformat()) | tojson }},
+    "dateModified": {{ (post.updated_at.isoformat() if post.updated_at else post.created_at.isoformat()) | tojson }},
     "author": {
         "@type": "Person",
         "name": {{ author_name | tojson }}
