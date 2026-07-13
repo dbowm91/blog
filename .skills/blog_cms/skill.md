@@ -246,7 +246,7 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), and Phase 03 (blog translation layer) complete; runtime still uses `THEME_PRESETS`.
+Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), and Phase 04 (safe registry and external overrides) complete; runtime still uses `THEME_PRESETS`.
 
 ### Theme Source Locations
 
@@ -259,7 +259,7 @@ Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitiv
 
 ### Planned Module Layout
 
-Phases 03-05 will create these modules:
+Phases 05+ will create these modules:
 
 | Module | Purpose | Phase | Status |
 |--------|---------|-------|--------|
@@ -268,8 +268,9 @@ Phases 03-05 will create these modules:
 | `app/themes/model.py` | `BlogTheme` frozen dataclass (50 fields, CSS_VARS, ALIASES, EMERGENCY_DEFAULT) | 03 | Done |
 | `app/themes/translate.py` | `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()` | 03 | Done |
 | `app/themes/diagnostics.py` | `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics` | 03 | Done |
-| `app/themes/registry.py` | Bundled + external theme resolution | 04 |
-| `app/themes/resources.py` | `importlib.resources` access for bundled themes | 04 |
+| `app/themes/resources.py` | `ThemeSource`, `ThemeFileInfo`, `validate_theme_name()`, `discover_bundled()`, `discover_external()` | 04 | Done |
+| `app/themes/cache.py` | `ThemeCache` in-process cache, `ThemeCacheEntry` | 04 | Done |
+| `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme` | 04 | Done |
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 |
 
 ### Phase 02 API
@@ -304,6 +305,36 @@ Phases 03-05 will create these modules:
 - `mix`, `adjust_lightness`, `shift_lightness` — color manipulation
 
 **Note:** The parser has zero Flask/SQLAlchemy/templates/registry coupling. It depends only on Python stdlib `tomllib`.
+
+### Phase 04 API
+
+#### ThemeRegistry (`app/themes/registry.py`)
+
+- `ThemeRegistry(bundled_root=None, external_root=None, default_theme="catppuccin-mocha")`
+- `list_themes()` -> sorted list of `ThemeDescriptor`
+- `resolve(name)` -> `ThemeDescriptor | None`
+- `load(name)` -> `LoadedTheme` (with caching)
+- `invalidate(name=None)` -> clear cache/catalog
+- `get_fallback(configured=None)` -> `LoadedTheme` (emergency fallback chain)
+
+#### ThemeDescriptor (frozen dataclass)
+
+Safe public metadata: `canonical_name`, `display_name`, `source`, `overrides_bundled`, `is_dark`, `status`, `warnings`. No absolute paths exposed.
+
+#### LoadedTheme (frozen dataclass)
+
+Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_dark`, `diagnostics`, `css_vars`, `legacy_vars`.
+
+#### Resources (`app/themes/resources.py`)
+
+- `validate_theme_name(name)` -> canonical stem or raises ValueError
+- `discover_bundled(root)` -> list of `ThemeFileInfo`
+- `discover_external(root)` -> list of `ThemeFileInfo` (symlink-safe, 1MB limit)
+
+#### Cache (`app/themes/cache.py`)
+
+- `ThemeCache` in-process cache with mtime/size validation
+- `ThemeCacheEntry` stores halloy_theme, blog_theme, css, diagnostics, css_vars, legacy_vars
 
 ### Hard Rules for Agents
 

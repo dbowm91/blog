@@ -275,7 +275,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), and Phase 03 (blog translation layer) are complete. Subsequent phases (translator, registry, packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), and Phase 04 (safe registry and external overrides) are complete. Subsequent phases (packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 #### Key files (existing runtime)
 
@@ -309,6 +309,14 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `app/themes/diagnostics.py` — `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics`
 - `tests/themes/test_translation.py` — translation, derivation, foreground selection, catalog-wide tests
 - `tests/themes/test_theme_css.py` — CSS serialization, ordering, selector, legacy vars tests
+
+#### Key files (Phase 04 deliverables)
+
+- `app/themes/resources.py` — `ThemeSource` enum, `ThemeFileInfo` dataclass, `validate_theme_name()`, `discover_bundled()`, `discover_external()`
+- `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry` dataclass
+- `app/themes/registry.py` — `ThemeRegistry` class (`list_themes()`, `resolve()`, `load()`, `invalidate()`, `get_fallback()`), `ThemeDescriptor`, `LoadedTheme`
+- `tests/themes/test_registry.py` — 50 tests: bundled listing, external overrides, invalidation, fallback, cache behavior
+- `tests/themes/test_theme_resolution_security.py` — 44 tests: name validation, symlink escape, traversal attacks, encoded separators
 
 #### Key files (catalog source)
 

@@ -116,15 +116,18 @@ Deliverables:
 
 ### Phase 04: safe registry and external override model
 
+**Status: Complete**
+
 Implement theme listing, safe name validation, path containment, bundled-resource lookup, external directory precedence, cache keys, cache invalidation, and fallback semantics. Reject path traversal, absolute paths, separators, and symlink escapes.
 
 Deliverables:
 
-- registry API;
-- safe resolver;
-- bundled plus external catalog merging;
-- user override precedence;
-- caching and resilience tests.
+- `app/themes/resources.py` — `ThemeSource`, `ThemeFileInfo`, `validate_theme_name()`, `discover_bundled()`, `discover_external()`
+- `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry`
+- `app/themes/registry.py` — `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`
+- `tests/themes/test_registry.py` — 50 tests: bundled listing, external overrides, invalidation, fallback, cache behavior
+- `tests/themes/test_theme_resolution_security.py` — 44 tests: name validation, symlink escape, traversal attacks, encoded separators
+- 94 new tests passing; all 467 theme tests passing
 
 ### Phase 05: package the Halloy catalog
 

@@ -1,4 +1,5 @@
-from app.themes import colors, diagnostics, halloy, model, translate
+from app.themes import cache, colors, diagnostics, halloy, model, registry, resources, translate
+from app.themes.cache import ThemeCache, ThemeCacheEntry
 from app.themes.colors import (
     RGB,
     RGBA,
@@ -44,6 +45,18 @@ from app.themes.model import (
     EMERGENCY_DEFAULT,
     BlogTheme,
 )
+from app.themes.registry import (
+    LoadedTheme,
+    ThemeDescriptor,
+    ThemeRegistry,
+)
+from app.themes.resources import (
+    ThemeFileInfo,
+    ThemeSource,
+    discover_bundled,
+    discover_external,
+    validate_theme_name,
+)
 from app.themes.translate import (
     ThemeTranslationResult,
     to_css_variables,
@@ -64,24 +77,34 @@ __all__ = [
     "HalloyGeneral",
     "HalloyText",
     "HalloyTheme",
+    "LoadedTheme",
     "ProvenanceEntry",
     "RGB",
     "RGBA",
     "SCHEMA_VERSION",
+    "ThemeCache",
+    "ThemeCacheEntry",
     "ThemeColorError",
+    "ThemeDescriptor",
+    "ThemeFileInfo",
     "ThemeParseError",
+    "ThemeRegistry",
     "ThemeSchemaError",
+    "ThemeSource",
     "ThemeTranslationResult",
     "TranslationDiagnostics",
     "adjust_lightness",
     "alpha_composite",
     "build_provenance",
     "bytes_to_rgb",
+    "cache",
     "check_blog_theme_contrast",
     "check_contrast",
     "colors",
     "contrast_ratio",
     "diagnostics",
+    "discover_bundled",
+    "discover_external",
     "from_hex",
     "halloy",
     "is_dark_background",
@@ -90,6 +113,8 @@ __all__ = [
     "model",
     "parse_halloy_theme",
     "parse_halloy_theme_bytes",
+    "registry",
+    "resources",
     "relative_luminance",
     "shift_lightness",
     "to_css",
@@ -99,5 +124,6 @@ __all__ = [
     "to_theme_vars",
     "translate",
     "translate_halloy_theme",
+    "validate_theme_name",
     "wcag_level",
 ]

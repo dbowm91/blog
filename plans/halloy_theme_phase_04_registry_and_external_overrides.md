@@ -1,5 +1,7 @@
 # Halloy Theme Phase 04 — Safe Registry and External Overrides
 
+> **Status: COMPLETE**
+
 ## Objective
 
 Implement the authoritative theme registry that discovers bundled themes, merges an optional external theme directory, resolves names safely, loads and translates themes, caches results, and applies deterministic fallback behavior.
