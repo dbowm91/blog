@@ -12,6 +12,7 @@ config.toml
 .env.production
 logs/
 .DS_Store
+._*
 app/static/uploads/
 backups/
 node_modules/
