@@ -99,14 +99,18 @@ Deliverables:
 
 ### Phase 03: blog translation layer
 
+**Status: Complete (BlogTheme model + translator + diagnostics + CSS serialization)**
+
 Implement `BlogTheme`, Halloy-to-blog translation, CSS serialization, dark/light classification, and translation warnings. Generated colors must cover all existing CSS tokens and new semantic tokens needed to eliminate hardcoded foreground/background assumptions.
 
 Deliverables:
 
-- deterministic translator;
-- complete CSS variable output;
-- contrast diagnostics;
-- representative dark/light/unusual theme tests.
+- `app/themes/model.py` — `BlogTheme` frozen dataclass (50 fields), `CSS_VARS`, `ALIASES`, `EMERGENCY_DEFAULT`
+- `app/themes/translate.py` — `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()`
+- `app/themes/diagnostics.py` — `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics`
+- `tests/themes/test_translation.py` — 91 tests covering translation, derivations, foreground selection, catalog-wide
+- `tests/themes/test_theme_css.py` — 78 tests covering CSS serialization, ordering, selectors, legacy vars
+- 373 total theme tests passing; all 50 catalog themes translate and serialize deterministically
 
 ## Milestone B — Registry and packaged resources
 

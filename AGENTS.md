@@ -275,7 +275,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract) and Phase 02 (parser + color primitives) are complete. Subsequent phases (translator, registry, packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), and Phase 03 (blog translation layer) are complete. Subsequent phases (translator, registry, packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 #### Key files (existing runtime)
 
@@ -301,6 +301,14 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `tests/themes/test_colors.py` — color primitive tests
 - `tests/themes/test_halloy_parser.py` — parser tests including parametrized catalog test (50 files)
 - `tests/themes/fixtures/*.toml` — minimal, full, light, dark, alpha, extra_sections, wrong_type, malformed, invalid_color, injection fixtures
+
+#### Key files (Phase 03 deliverables)
+
+- `app/themes/model.py` — `BlogTheme` frozen dataclass (50 fields: 44 semantic tokens + 6 RGBA fields), `CSS_VARS` mapping, `ALIASES` backward-compat mapping, `EMERGENCY_DEFAULT` constant
+- `app/themes/translate.py` — `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()`
+- `app/themes/diagnostics.py` — `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics`
+- `tests/themes/test_translation.py` — translation, derivation, foreground selection, catalog-wide tests
+- `tests/themes/test_theme_css.py` — CSS serialization, ordering, selector, legacy vars tests
 
 #### Key files (catalog source)
 

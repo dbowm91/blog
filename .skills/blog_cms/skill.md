@@ -246,7 +246,7 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract) and Phase 02 (parser + color primitives) complete; runtime still uses `THEME_PRESETS`.
+Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), and Phase 03 (blog translation layer) complete; runtime still uses `THEME_PRESETS`.
 
 ### Theme Source Locations
 
@@ -265,9 +265,9 @@ Phases 03-05 will create these modules:
 |--------|---------|-------|--------|
 | `app/themes/halloy.py` | Typed parser models for Halloy TOML schema | 02 | Done |
 | `app/themes/colors.py` | Color primitives (hex parsing, luminance, contrast) | 02 | Done |
-| `app/themes/model.py` | `BlogTheme` dataclass | 03 |
-| `app/themes/translate.py` | Halloy-to-BlogTheme translator | 03 |
-| `app/themes/diagnostics.py` | Contrast warnings and WCAG checks | 03 |
+| `app/themes/model.py` | `BlogTheme` frozen dataclass (50 fields, CSS_VARS, ALIASES, EMERGENCY_DEFAULT) | 03 | Done |
+| `app/themes/translate.py` | `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()` | 03 | Done |
+| `app/themes/diagnostics.py` | `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics` | 03 | Done |
 | `app/themes/registry.py` | Bundled + external theme resolution | 04 |
 | `app/themes/resources.py` | `importlib.resources` access for bundled themes | 04 |
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 |

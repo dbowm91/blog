@@ -1,4 +1,4 @@
-from app.themes import colors, halloy
+from app.themes import colors, diagnostics, halloy, model, translate
 from app.themes.colors import (
     RGB,
     RGBA,
@@ -16,6 +16,14 @@ from app.themes.colors import (
     to_hex,
     wcag_level,
 )
+from app.themes.diagnostics import (
+    ContrastWarning,
+    ProvenanceEntry,
+    TranslationDiagnostics,
+    build_provenance,
+    check_blog_theme_contrast,
+    check_contrast,
+)
 from app.themes.halloy import (
     SCHEMA_VERSION,
     HalloyBuffer,
@@ -30,35 +38,66 @@ from app.themes.halloy import (
     parse_halloy_theme,
     parse_halloy_theme_bytes,
 )
+from app.themes.model import (
+    ALIASES,
+    CSS_VARS,
+    EMERGENCY_DEFAULT,
+    BlogTheme,
+)
+from app.themes.translate import (
+    ThemeTranslationResult,
+    to_css_variables,
+    to_legacy_vars,
+    to_theme_vars,
+    translate_halloy_theme,
+)
 
 __all__ = [
+    "ALIASES",
+    "BlogTheme",
+    "CSS_VARS",
+    "ContrastWarning",
+    "EMERGENCY_DEFAULT",
     "HalloyBuffer",
     "HalloyBufferServerMessages",
     "HalloyButtons",
     "HalloyGeneral",
     "HalloyText",
     "HalloyTheme",
+    "ProvenanceEntry",
     "RGB",
     "RGBA",
     "SCHEMA_VERSION",
     "ThemeColorError",
     "ThemeParseError",
     "ThemeSchemaError",
+    "ThemeTranslationResult",
+    "TranslationDiagnostics",
     "adjust_lightness",
     "alpha_composite",
+    "build_provenance",
     "bytes_to_rgb",
+    "check_blog_theme_contrast",
+    "check_contrast",
     "colors",
     "contrast_ratio",
+    "diagnostics",
     "from_hex",
     "halloy",
     "is_dark_background",
     "is_light_background",
     "mix",
+    "model",
     "parse_halloy_theme",
     "parse_halloy_theme_bytes",
     "relative_luminance",
     "shift_lightness",
     "to_css",
+    "to_css_variables",
     "to_hex",
+    "to_legacy_vars",
+    "to_theme_vars",
+    "translate",
+    "translate_halloy_theme",
     "wcag_level",
 ]
