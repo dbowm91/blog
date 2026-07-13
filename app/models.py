@@ -348,6 +348,9 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
     custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
     custom_css = db.Column(db.Text, default="", nullable=False)
     logo_text = db.Column(db.String(100), default="", nullable=False)
+    theme_dark_name = db.Column(db.String(128), nullable=False, default="Catppuccin Mocha")
+    theme_light_name = db.Column(db.String(128), nullable=False, default="Catppuccin Latte")
+    theme_default_scheme = db.Column(db.String(16), nullable=False, default="system")
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod
@@ -360,7 +363,7 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
         return instance
 
     def __repr__(self) -> str:
-        return f"<SiteSettings preset={self.theme_preset!r} syntax={self.syntax_theme!r}>"
+        return f"<SiteSettings preset={self.theme_preset!r} syntax={self.syntax_theme!r} dark={self.theme_dark_name!r} light={self.theme_light_name!r} scheme={self.theme_default_scheme!r}>"
 
 
 THEME_PRESETS = {

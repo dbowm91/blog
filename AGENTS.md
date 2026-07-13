@@ -59,7 +59,7 @@ When an agent operates within a module, it should:
 | Tests | `tests/AGENTS.override.md` | Testing patterns, fixtures |
 | Documentation | `docs/AGENTS.override.md` | Documentation structure |
 | Scripts | `scripts/AGENTS.override.md` | Shell scripts, DevOps |
-| Services | `app/services/AGENTS.override.md` | Backup, slug, serialization, tag services |
+| Services | `app/services/AGENTS.override.md` | Centralized service layer (backup, slug, serialization, tag, theme_settings) |
 | Architecture | `architecture/AGENTS.override.md` | Architecture documentation |
 | Plans | `plans/AGENTS.override.md` | Implementation plans and deferred items |
 
@@ -77,6 +77,8 @@ Important actual file locations (verify before assuming):
 | PostRevision model | `app/models.py` — `PostRevision` class |
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, encryption, search, serialization, slug, tag) |
+| Theme settings service | `app/services/theme_settings.py` — validation, migration, effective name resolution |
+| Theme config | `app/config.py` — `THEME_EXTERNAL_DIR`, `THEME_ALLOW_EXTERNAL`, `THEME_STRICT_VALIDATION`, `THEME_DEFAULT_DARK`, `THEME_DEFAULT_LIGHT`, `THEME_DEFAULT_SCHEME` |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
 | DB Dialect Helpers | `app/db_utils.py` (`get_database_dialect()`, `is_sqlite_database()`) |
 
@@ -275,7 +277,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) are complete with corrective closure and small closure pass. Subsequent phases (runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), and Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section) are complete with corrective closure and small closure pass. Subsequent phases (CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
@@ -288,6 +290,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `app/context_processors.py:67-76` — `theme_vars` injection from preset
 - `app/templates/base.html:42-48` and `app/templates/admin/base.html:17-23` — `theme_vars` CSS custom property injection
 - `app/routes/admin/settings.py` — admin settings page
+- `app/services/theme_settings.py` — `LEGACY_PRESET_MAP`, `validate_theme_settings()`, `migrate_legacy_preset()`, `get_effective_theme_names()`
 
 #### Key files (Phase 01 deliverables)
 

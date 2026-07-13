@@ -68,6 +68,12 @@ __all__ = [
     "SEARCH_PROVIDER",
     "SEARCH_CONFIG",
     "ENABLE_SCHEDULER",
+    "THEME_EXTERNAL_DIR",
+    "THEME_ALLOW_EXTERNAL",
+    "THEME_STRICT_VALIDATION",
+    "THEME_DEFAULT_DARK",
+    "THEME_DEFAULT_LIGHT",
+    "THEME_DEFAULT_SCHEME",
 ]
 
 
@@ -217,6 +223,23 @@ ADMIN_RATE_LIMITS = {
 
 SEARCH_PROVIDER = _config.get("search", {}).get("provider", "sqlite")
 SEARCH_CONFIG = _config.get("search", {}).get("config", {})
+
+THEME_EXTERNAL_DIR = _config.get("themes", {}).get("external_dir", "")
+THEME_ALLOW_EXTERNAL = _env_bool(
+    "THEME_ALLOW_EXTERNAL", _config.get("themes", {}).get("allow_external", True)
+)
+THEME_STRICT_VALIDATION = _env_bool(
+    "THEME_STRICT_VALIDATION", _config.get("themes", {}).get("strict_validation", False)
+)
+THEME_DEFAULT_DARK = _env_str(
+    "THEME_DEFAULT_DARK", _config.get("themes", {}).get("default_dark", "Catppuccin Mocha")
+)
+THEME_DEFAULT_LIGHT = _env_str(
+    "THEME_DEFAULT_LIGHT", _config.get("themes", {}).get("default_light", "Catppuccin Latte")
+)
+THEME_DEFAULT_SCHEME = _env_str(
+    "THEME_DEFAULT_SCHEME", _config.get("themes", {}).get("default_scheme", "system")
+)
 
 
 def _validate_config(config: dict) -> None:

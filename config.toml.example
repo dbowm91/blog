@@ -59,5 +59,9 @@ spam_words = ""
 [themes]
 # Bundled themes require no configuration. To use custom themes,
 # set external_dir to a directory containing .toml theme files.
-# External themes override bundled themes with the same name.
 external_dir = ""
+allow_external = true
+strict_validation = false
+default_dark = "Catppuccin Mocha"
+default_light = "Catppuccin Latte"
+default_scheme = "system"

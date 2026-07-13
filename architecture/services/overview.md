@@ -19,6 +19,7 @@ Business logic layer for the blog application.
 | Theme Registry | `app/themes/registry.py` | Authoritative theme registry: listing, resolution, loading, fallback, `_CatalogEntry` |
 | Theme Resources | `app/themes/resources.py` | `ThemeResource` protocol, `importlib.resources` bundled discovery, external override |
 | Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation |
+| Theme Settings | `app/services/theme_settings.py` | Theme configuration validation, legacy preset migration, effective theme name resolution |
 
 ## See Also
 - [Backup Service](services/backup.md) - Detailed backup documentation

@@ -8,6 +8,7 @@ Centralized service layer for shared logic between CLI, API, and Admin routes.
 - `slug.py` - Slug generation (replaces `app/routes/admin/helpers/slug.py` and `app/models.py`)
 - `serialization.py` - Serialization for CLI export (replaces `app/cli.py` functions)
 - `tag.py` - Tag management service (no update_tag function exists)
+- `theme_settings.py` - Theme configuration validation, legacy preset migration, effective theme name resolution
 
 ## Slug Collision
 Slug generation has a hardcoded limit of 100 tries before falling back to UUID suffix.

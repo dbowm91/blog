@@ -3,10 +3,19 @@ from flask import render_template, redirect, url_for, request, flash
 from flask.typing import ResponseReturnValue
 from sqlalchemy.exc import IntegrityError, OperationalError
 
+from app.config import (  # noqa: F401
+    THEME_DEFAULT_DARK,
+    THEME_DEFAULT_LIGHT,
+    THEME_DEFAULT_SCHEME,
+)
 from app.extensions import db
 from app.models import SiteSettings, THEME_PRESETS
 from app.routes.admin import admin, admin_required
 from app.context_processors import invalidate_settings_cache
+from app.services.theme_settings import (  # noqa: F401
+    validate_theme_settings,
+    migrate_legacy_preset,
+)
 from app.utils import sanitize_css
 
 
@@ -34,6 +43,10 @@ def settings() -> ResponseReturnValue:
         settings=settings_obj,
         theme_presets=THEME_PRESETS,
         syntax_themes=syntax_themes,
+        theme_dark_name=settings_obj.theme_dark_name,
+        theme_light_name=settings_obj.theme_light_name,
+        theme_default_scheme=settings_obj.theme_default_scheme,
+        valid_schemes=["system", "dark", "light"],
     )
 
 
@@ -78,6 +91,19 @@ def settings_theme() -> ResponseReturnValue:
     settings_obj.custom_css_enabled = request.form.get("custom_css_enabled") == "on"
     settings_obj.custom_css = sanitize_css(request.form.get("custom_css", "").strip())
     settings_obj.logo_text = request.form.get("logo_text", "").strip()[:100]
+
+    dark_name = request.form.get("theme_dark_name", settings_obj.theme_dark_name)
+    light_name = request.form.get("theme_light_name", settings_obj.theme_light_name)
+    scheme = request.form.get("theme_default_scheme", settings_obj.theme_default_scheme)
+
+    valid_schemes = ["system", "dark", "light"]
+    if scheme not in valid_schemes:
+        flash("Invalid theme scheme selected.", "error")
+        return redirect(url_for("admin.settings"))
+
+    settings_obj.theme_dark_name = dark_name
+    settings_obj.theme_light_name = light_name
+    settings_obj.theme_default_scheme = scheme
 
     try:
         db.session.commit()
