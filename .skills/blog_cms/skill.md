@@ -246,7 +246,12 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) complete with corrective closure. Runtime still uses `THEME_PRESETS`.
+Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) complete with corrective closure and small closure pass. Runtime still uses `THEME_PRESETS`.
+
+**Small closure pass contracts:**
+- Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
+- Fingerprint: `_compute_fingerprint()` uses `hashlib.sha256()` (64-char hex) for bundled resources
+- CI: `theme-package-verification` job builds wheel/sdist and runs `scripts/verify_theme_package.py` as a gate
 
 ### Theme Source Locations
 
@@ -346,7 +351,7 @@ Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_d
 
 ### Hard Rules for Agents
 
-1. Corrective closure for Phases 01–05 is complete; subsequent phases build on the corrected foundation.
+1. Corrective closure and small closure pass for Phases 01–05 are complete; subsequent phases build on the corrected foundation.
 2. Do NOT delete or modify `THEME_PRESETS` until Phase 14.
 3. Do NOT change `theme_vars` Jinja context shape until Phase 07.
 4. Do NOT move/rename `themes/*.toml` files until Phase 05.

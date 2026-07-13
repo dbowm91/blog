@@ -268,3 +268,67 @@ class TestWheelBuildAndInstall:
         )
         assert result.returncode == 0, f"Override test failed: {result.stderr}"
         assert "OK: external theme override works from wheel" in result.stdout
+
+
+def _build_sdist(tmpdir: Path) -> Path | None:
+    project_root = Path(__file__).resolve().parent.parent.parent
+    dist_dir = tmpdir / "dist"
+    dist_dir.mkdir()
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--sdist", "-o", str(dist_dir)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        cwd=str(project_root),
+    )
+    if result.returncode != 0:
+        return None
+    sdists = list(dist_dir.glob("*.tar.gz"))
+    return sdists[0] if sdists else None
+
+
+def _list_wheel_theme_names(wheel_path: Path) -> list[str]:
+    import zipfile
+
+    names = []
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        for entry in zf.namelist():
+            if entry.startswith("app/themes/bundled/") and entry.endswith(".toml"):
+                stem = Path(entry).stem
+                if not stem.startswith("."):
+                    names.append(stem)
+    return sorted(names)
+
+
+def _list_sdist_theme_names(sdist_path: Path) -> list[str]:
+    import tarfile
+
+    names = []
+    with tarfile.open(sdist_path, "r:gz") as tf:
+        for member in tf.getmembers():
+            if "app/themes/bundled/" in member.name and member.name.endswith(".toml"):
+                stem = Path(member.name).stem
+                if not stem.startswith("."):
+                    names.append(stem)
+    return sorted(names)
+
+
+@pytest.mark.slow
+class TestWheelAndSdistCatalogContents:
+    def test_wheel_contains_all_50_themes(self, tmp_path: Path) -> None:
+        wheel_path = _build_wheel(tmp_path)
+        if wheel_path is None:
+            pytest.skip("build package not available")
+        theme_names = _list_wheel_theme_names(wheel_path)
+        assert len(theme_names) == 50
+        assert "Dracula" in theme_names
+        assert "Catppuccin Mocha" in theme_names
+
+    def test_sdist_contains_all_50_themes(self, tmp_path: Path) -> None:
+        sdist_path = _build_sdist(tmp_path)
+        if sdist_path is None:
+            pytest.skip("build package not available")
+        theme_names = _list_sdist_theme_names(sdist_path)
+        assert len(theme_names) == 50
+        assert "Dracula" in theme_names
+        assert "Catppuccin Mocha" in theme_names

@@ -116,11 +116,13 @@ Deliverables:
 
 ### Phase 04: safe registry and external override model
 
-**Status: Complete (corrective closure complete)**
+**Status: Complete (corrective closure + small closure pass complete)**
 
 Implement theme listing, safe name validation, path containment, bundled-resource lookup, external directory precedence, cache keys, cache invalidation, and fallback semantics. Reject path traversal, absolute paths, separators, and symlink escapes.
 
 Corrective closure (plan: `plans/halloy_theme_phase_04_05_corrective_closure.md`) addressed: catalog entry pairing (`_CatalogEntry` binds `ThemeDescriptor` + `ThemeFileInfo`), cache freshness validation against current source state, named invalidation rebuilding catalog deterministically, canonical-name normalization with case-insensitive lookup, `importlib.resources` as default bundled discovery, and structured exceptions (`ThemeNotFoundError`, `ThemeParseFailure`, `ThemeLoadError`, `ThemeValidationError`).
+
+Small closure pass (plan: `plans/halloy_theme_phase_04_05_small_closure_pass.md`) completed: explicit cache freshness contract (external theme changes require explicit `invalidate()` or `invalidate(name)`), SHA-256 fingerprinting for bundled resources (`_compute_fingerprint()` uses `hashlib.sha256()`), CI gate for theme package verification (`theme-package-verification` job builds wheel/sdist and runs `scripts/verify_theme_package.py`), comprehensive invalidation tests.
 
 Deliverables:
 
@@ -133,11 +135,13 @@ Deliverables:
 
 ### Phase 05: package the Halloy catalog
 
-**Status: Complete (corrective closure complete)**
+**Status: Complete (corrective closure + small closure pass complete)**
 
 Move or mirror the approved top-level theme collection into the Python package, update package-data and container configuration, preserve attribution, and add a wheel-install smoke test proving theme enumeration and loading outside a source checkout.
 
 Corrective closure (plan: `plans/halloy_theme_phase_04_05_corrective_closure.md`) validated: wheel build and isolated install, sdist content verification, `importlib.resources`-based discovery as default path, and external theme override against installed bundled resources.
+
+Small closure pass (plan: `plans/halloy_theme_phase_04_05_small_closure_pass.md`) validated: `TestWheelAndSdistCatalogContents` proves package contents match source catalog, CI `theme-package-verification` job gates on wheel/sdist correctness.
 
 Deliverables:
 

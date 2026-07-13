@@ -143,7 +143,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI Workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 6 jobs: `lint-and-type`, `test`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
+CI configuration is at `.github/workflows/ci.yml`. It includes 7 jobs: `lint-and-type`, `test`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, and `theme-package-verification`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
 
 ### Webhook Delivery Architecture
 
@@ -275,7 +275,12 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) are complete. Subsequent phases (runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) are complete with corrective closure and small closure pass. Subsequent phases (runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+
+**Small closure pass contracts:**
+- Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
+- Fingerprint: `_compute_fingerprint()` uses `hashlib.sha256()` (64-char hex) for bundled resources
+- CI: `theme-package-verification` job builds wheel/sdist and runs `scripts/verify_theme_package.py` as a gate
 
 #### Key files (existing runtime)
 
@@ -310,7 +315,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `tests/themes/test_translation.py` — translation, derivation, foreground selection, catalog-wide tests
 - `tests/themes/test_theme_css.py` — CSS serialization, ordering, selector, legacy vars tests
 
-#### Key files (Phase 04 deliverables — corrective closure complete)
+#### Key files (Phase 04 deliverables — corrective closure + small closure pass complete)
 
 - `app/themes/resources.py` — `ThemeResource` protocol, `_PathResource`/`_TraversableResource` implementations, `normalize_theme_name()`, `ThemeFileInfo.read_bytes()` method; `discover_bundled_package()` attaches `_TraversableResource`
 - `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry` dataclass with `source_fingerprint` field, `invalidate_prefix()` method, `validate_entry()` accepts current metadata from caller
@@ -330,7 +335,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 
 #### Hard rules during migration
 
-- Corrective closure for Phases 01–05 is complete; subsequent phases build on the corrected foundation
+- Corrective closure and small closure pass for Phases 01–05 are complete; subsequent phases build on the corrected foundation
 - Do NOT delete or replace `THEME_PRESETS` until Phase 14
 - Do NOT change `theme_vars` Jinja context shape until Phase 07
 - Do NOT move or rename `themes/*.toml` until Phase 05

@@ -610,7 +610,7 @@ class TestCacheFingerprint:
         from app.themes.resources import ThemeSource
 
         fp = _compute_fingerprint(b"test data", ThemeSource.BUNDLED, 0.0, 9)
-        assert len(fp) == 32
+        assert len(fp) == 64
         assert fp == _compute_fingerprint(b"test data", ThemeSource.BUNDLED, 0.0, 9)
 
     def test_external_uses_mtime_size(self) -> None:
@@ -627,4 +627,190 @@ class TestCacheFingerprint:
         entry = registry._cache.get(cache_key)
         assert entry is not None
         assert entry.source_fingerprint != ""
-        assert len(entry.source_fingerprint) == 32
+        assert len(entry.source_fingerprint) == 64
+
+
+class TestExternalEditFollowedByNamedInvalidation:
+    def test_edit_then_invalidate_name_reloads_fresh(self, tmp_path: Path) -> None:
+        ext = tmp_path / "external"
+        ext.mkdir()
+        _write_theme(ext, "mutable", content=DARK_THEME_CONTENT)
+
+        registry = ThemeRegistry(bundled_root=BUNDLED_DIR, external_root=ext)
+        first = registry.load("mutable")
+        first_css = first.css
+
+        _write_theme(ext, "mutable", content=LIGHT_THEME_CONTENT)
+        registry.invalidate("mutable")
+        second = registry.load("mutable")
+
+        assert first_css != second.css
+        assert second.is_dark is False
+
+
+class TestExternalAdditionFollowedByFullInvalidation:
+    def test_new_theme_appears_after_full_invalidate(self, tmp_path: Path) -> None:
+        ext = tmp_path / "external"
+        ext.mkdir()
+        _write_theme(ext, "original-theme")
+
+        registry = ThemeRegistry(bundled_root=BUNDLED_DIR, external_root=ext)
+        names_before = [t.canonical_name for t in registry.list_themes()]
+        assert "new-theme" not in names_before
+
+        _write_theme(ext, "new-theme", content=LIGHT_THEME_CONTENT)
+        registry.invalidate()
+
+        names_after = [t.canonical_name for t in registry.list_themes()]
+        assert "new-theme" in names_after
+        loaded = registry.load("new-theme")
+        assert loaded.descriptor.source == ThemeSource.EXTERNAL
+
+
+class TestOverrideReplacementAfterInvalidation:
+    def test_replace_override_invalidation_picks_up_new_content(self, tmp_path: Path) -> None:
+        ext = tmp_path / "external"
+        ext.mkdir()
+        override_v1 = (
+            "[general]\n"
+            'background = "#aaaaaa"\n'
+            'border = "#bbbbbb"\n'
+            'horizontal_rule = "#cccccc"\n'
+            'unread_indicator = "#dddddd"\n\n'
+            "[text]\n"
+            'primary = "#111111"\n'
+            'secondary = "#222222"\n'
+            'tertiary = "#333333"\n'
+            'success = "#444444"\n'
+            'error = "#555555"\n\n'
+            "[buffer]\n"
+            'action = "#666666"\n'
+            'background = "#777777"\n'
+            'background_text_input = "#888888"\n'
+            'background_title_bar = "#999999"\n'
+            'border = "#aaaaaa"\n'
+            'border_selected = "#bbbbbb"\n'
+            'code = "#cccccc"\n'
+            'highlight = "#dddddd"\n'
+            'nickname = "#eeeeee"\n'
+            'selection = "#ffffff"\n'
+            'timestamp = "#000000"\n'
+            'topic = "#111111"\n'
+            'url = "#222222"\n\n'
+            "  [buffer.server_messages]\n"
+            '  default = "#333333"\n\n'
+            "[buttons.primary]\n"
+            'background = "#444444"\n'
+            'background_hover = "#555555"\n'
+            'background_selected = "#666666"\n'
+            'background_selected_hover = "#777777"\n\n'
+            "[buttons.secondary]\n"
+            'background = "#888888"\n'
+            'background_hover = "#999999"\n'
+            'background_selected = "#aaaaaa"\n'
+            'background_selected_hover = "#bbbbbb"\n'
+        )
+        override_v2 = (
+            "[general]\n"
+            'background = "#ff00ff"\n'
+            'border = "#00ff00"\n'
+            'horizontal_rule = "#0000ff"\n'
+            'unread_indicator = "#ffff00"\n\n'
+            "[text]\n"
+            'primary = "#ff0000"\n'
+            'secondary = "#00ff00"\n'
+            'tertiary = "#0000ff"\n'
+            'success = "#ffff00"\n'
+            'error = "#ff00ff"\n\n'
+            "[buffer]\n"
+            'action = "#00ffff"\n'
+            'background = "#111111"\n'
+            'background_text_input = "#222222"\n'
+            'background_title_bar = "#333333"\n'
+            'border = "#444444"\n'
+            'border_selected = "#555555"\n'
+            'code = "#666666"\n'
+            'highlight = "#777777"\n'
+            'nickname = "#888888"\n'
+            'selection = "#999999"\n'
+            'timestamp = "#aaaaaa"\n'
+            'topic = "#bbbbbb"\n'
+            'url = "#cccccc"\n\n'
+            "  [buffer.server_messages]\n"
+            '  default = "#dddddd"\n\n'
+            "[buttons.primary]\n"
+            'background = "#eeeeee"\n'
+            'background_hover = "#ffffff"\n'
+            'background_selected = "#000000"\n'
+            'background_selected_hover = "#111111"\n\n'
+            "[buttons.secondary]\n"
+            'background = "#222222"\n'
+            'background_hover = "#333333"\n'
+            'background_selected = "#444444"\n'
+            'background_selected_hover = "#555555"\n'
+        )
+
+        _write_theme(ext, "Dracula", content=override_v1)
+        registry = ThemeRegistry(bundled_root=BUNDLED_DIR, external_root=ext)
+        loaded_v1 = registry.load("Dracula")
+        assert loaded_v1.descriptor.source == ThemeSource.EXTERNAL
+        assert "#aaaaaa" in loaded_v1.css.lower() or "#aaaaaa" in loaded_v1.css
+
+        _write_theme(ext, "Dracula", content=override_v2)
+        registry.invalidate("Dracula")
+        loaded_v2 = registry.load("Dracula")
+        assert loaded_v2.descriptor.source == ThemeSource.EXTERNAL
+        assert "#ff00ff" in loaded_v2.css.lower() or "#ff00ff" in loaded_v2.css
+        assert loaded_v1.css != loaded_v2.css
+
+
+class TestNamedInvalidationClearsBothCacheVariants:
+    def test_bundled_then_external_invalidate_clears_both(self, tmp_path: Path) -> None:
+        registry = ThemeRegistry(bundled_root=BUNDLED_DIR)
+        loaded_bundled = registry.load("Dracula")
+        assert loaded_bundled.descriptor.source == ThemeSource.BUNDLED
+        bundled_key = ThemeCache.make_key("Dracula", "bundled")
+        assert registry._cache.get(bundled_key) is not None
+
+        ext = tmp_path / "external"
+        ext.mkdir()
+        _write_theme(ext, "Dracula")
+
+        registry2 = ThemeRegistry(bundled_root=BUNDLED_DIR, external_root=ext)
+        loaded_external = registry2.load("Dracula")
+        assert loaded_external.descriptor.source == ThemeSource.EXTERNAL
+        external_key = ThemeCache.make_key("Dracula", "external")
+        assert registry2._cache.get(external_key) is not None
+
+        registry2.invalidate("Dracula")
+        assert registry2._cache.get(external_key) is None
+        assert registry2._cache.get(bundled_key) is None
+        assert registry2._catalog is None
+
+        restored = registry2.load("Dracula")
+        assert restored.descriptor.source == ThemeSource.EXTERNAL
+
+
+class TestDefaultAliasAndTomlSuffixResolution:
+    def test_alias_resolves(self) -> None:
+        registry = ThemeRegistry(bundled_root=BUNDLED_DIR)
+        descriptor = registry.resolve("catppuccin-mocha")
+        assert descriptor is not None
+        assert descriptor.canonical_name == "Catppuccin Mocha"
+
+    def test_toml_suffix_stripped(self) -> None:
+        registry = ThemeRegistry(bundled_root=BUNDLED_DIR)
+        descriptor = registry.resolve("Dracula.toml")
+        assert descriptor is not None
+        assert descriptor.canonical_name == "Dracula"
+
+
+class TestEmergencyFallbackCompleteVariableOutput:
+    def test_all_css_vars_present(self) -> None:
+        registry = ThemeRegistry(
+            bundled_root=Path("/nonexistent"),
+            default_theme="nonexistent",
+        )
+        loaded = registry.get_fallback("nope")
+        for key in CSS_VARS.values():
+            assert key in loaded.css_vars, f"missing css_var: {key}"

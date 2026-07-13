@@ -10,11 +10,7 @@ The `.opencode/skills/` directory contains specialized skills:
 |-------|-------------|----------|
 | `blog_cms` | Blog CMS - Flask-based blogging platform | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler |
 | `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
-| `ainews` | AI news pipeline — Flask backend, Celery workers, LLM pipeline | pipeline, celery, newsletter, article, source, subscriber, admin, config, health, metrics |
-| `malu_mesh` | MaluWAF mesh & DHT architecture | mesh, WAF, DHT, upstream routing, service discovery |
-| `nara` | Nara chain CLI agent — wallet, transfer, quest, on-chain skills | NARA, quest, mining, airdrop, wallet, balance, transfer, zkid, agent |
-| `osinit` | OSINIT Dashboard - FastAPI backend with React/TypeScript frontend | build, test, deploy, data source, panel, SSE, synthesis, authentication, rate limiting, cache |
-| `slapper-agent` | Slapper autonomous agent development | agent, constraint, scan, schedule, trigger_event, dispatch, alert, portfolio, memory |
+| `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference |
 
 Load a skill using the `skill` tool with the skill name (e.g., `skill: blog_cms`).
 

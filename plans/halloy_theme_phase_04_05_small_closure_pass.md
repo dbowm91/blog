@@ -1,5 +1,9 @@
 # Halloy Theme Phase 04–05 Small Closure Pass
 
+**Status: Complete**
+
+Completed: $(date +%Y-%m-%d)
+
 ## Objective
 
 Close the remaining narrow gaps in the Halloy backend before beginning persistence and Flask integration. This pass should not redesign the parser, translator, registry, or packaging architecture. It should make their existing contracts precise, testable, and release-verifiable.

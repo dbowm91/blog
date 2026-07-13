@@ -143,7 +143,7 @@ def _emergency_halloy_theme() -> HalloyTheme:
 
 def _compute_fingerprint(data: bytes, source: ThemeSource, mtime: float, size: int) -> str:
     if source == ThemeSource.BUNDLED:
-        return hashlib.md5(data).hexdigest()
+        return hashlib.sha256(data).hexdigest()
     return f"{mtime}:{size}"
 
 
@@ -154,6 +154,20 @@ class _CatalogEntry:
 
 
 class ThemeRegistry:
+    """Central theme catalog and loader with in-process caching.
+
+    Cache freshness contract:
+        The registry builds an in-memory catalog on first access and caches
+        loaded theme results.  External file changes (edits, additions,
+        deletions) are **not** auto-detected after the initial catalog build.
+        To observe external changes you must call ``invalidate()`` (full
+        refresh) or ``invalidate(name)`` (single-theme refresh) before the
+        next ``load()`` call.
+
+    This explicit-invalidation design avoids filesystem polling and keeps the
+    hot path O(1) for repeated loads of the same theme.
+    """
+
     def __init__(
         self,
         bundled_root: Path | None = None,
@@ -272,6 +286,14 @@ class ThemeRegistry:
         return None
 
     def load(self, name: str) -> LoadedTheme:
+        """Load and translate a theme by name, returning a cached result when valid.
+
+        The load checks the existing cache entry against the **current
+        catalog's** file metadata (mtime, size, fingerprint).  The catalog
+        itself is only rebuilt on ``invalidate()`` or when it has not been
+        built yet.  Therefore external file edits are only observed after an
+        explicit invalidation – this is the intended freshness boundary.
+        """
         descriptor = self.resolve(name)
         if descriptor is None:
             raise ThemeNotFoundError(f"theme not found: {name!r}")
@@ -362,6 +384,18 @@ class ThemeRegistry:
         return loaded
 
     def invalidate(self, name: str | None = None) -> None:
+        """Refresh the registry's view of available themes.
+
+        This is the only supported boundary for observing external filesystem
+        changes.  After calling this method the catalog is rebuilt and the
+        affected cache entries are evicted, so the next ``load()`` will read
+        fresh data from disk or package resources.
+
+        Args:
+            name: If provided, evict cache entries for this single theme and
+                  rebuild the catalog.  If ``None``, evict everything and
+                  rebuild from scratch.
+        """
         if name is not None:
             try:
                 normalized = normalize_theme_name(name)
