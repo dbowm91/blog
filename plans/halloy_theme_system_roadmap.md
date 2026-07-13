@@ -86,6 +86,8 @@ Deliverables:
 
 ### Phase 02: Halloy parser and color primitives
 
+**Status: Complete (parser + color primitives)**
+
 Implement typed Halloy models and deterministic color utilities. Parsing should tolerate extra Halloy fields, provide documented defaults for optional fields, reject invalid structures and colors, and distinguish parse failures from resolution failures.
 
 Deliverables:

@@ -246,7 +246,7 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract) complete; runtime still uses `THEME_PRESETS`.
+Phase 01 (catalog inventory + token contract) and Phase 02 (parser + color primitives) complete; runtime still uses `THEME_PRESETS`.
 
 ### Theme Source Locations
 
@@ -259,18 +259,51 @@ Phase 01 (catalog inventory + token contract) complete; runtime still uses `THEM
 
 ### Planned Module Layout
 
-Phases 02-05 will create these modules:
+Phases 03-05 will create these modules:
 
-| Module | Purpose | Phase |
-|--------|---------|-------|
-| `app/themes/halloy.py` | Typed parser models for Halloy TOML schema | 02 |
-| `app/themes/colors.py` | Color primitives (hex parsing, luminance, contrast) | 02 |
+| Module | Purpose | Phase | Status |
+|--------|---------|-------|--------|
+| `app/themes/halloy.py` | Typed parser models for Halloy TOML schema | 02 | Done |
+| `app/themes/colors.py` | Color primitives (hex parsing, luminance, contrast) | 02 | Done |
 | `app/themes/model.py` | `BlogTheme` dataclass | 03 |
 | `app/themes/translate.py` | Halloy-to-BlogTheme translator | 03 |
 | `app/themes/diagnostics.py` | Contrast warnings and WCAG checks | 03 |
 | `app/themes/registry.py` | Bundled + external theme resolution | 04 |
 | `app/themes/resources.py` | `importlib.resources` access for bundled themes | 04 |
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 |
+
+### Phase 02 API
+
+#### Entry Points
+
+- `parse_halloy_theme_bytes(data: bytes, *, source_name: str) -> HalloyTheme`
+- `parse_halloy_theme(source: str | Path | IO[bytes] | bytes) -> HalloyTheme`
+
+#### Dataclass Models
+
+- `HalloyTheme` — top-level container
+- `HalloyGeneral` — general theme settings
+- `HalloyText` — text color settings
+- `HalloyBuffer` — buffer color settings
+- `HalloyBufferServerMessages` — server message colors
+- `HalloyButtons` — button color settings
+
+#### Exception Classes
+
+- `ThemeParseError` — TOML parse failure (has `.source` attribute)
+- `ThemeSchemaError` — structural/schema violation (has `.source` and `.field_path` attributes)
+- `ThemeColorError` — invalid color value (has `.source` and `.field_path` attributes)
+
+#### Color Primitives (`app/themes/colors.py`)
+
+- `RGB`, `RGBA` — immutable color containers
+- `from_hex`, `to_hex`, `to_css` — conversion utilities
+- `alpha_composite` — alpha blending
+- `relative_luminance`, `contrast_ratio`, `wcag_level` — WCAG contrast helpers
+- `is_dark_background`, `is_light_background` — classification
+- `mix`, `adjust_lightness`, `shift_lightness` — color manipulation
+
+**Note:** The parser has zero Flask/SQLAlchemy/templates/registry coupling. It depends only on Python stdlib `tomllib`.
 
 ### Hard Rules for Agents
 

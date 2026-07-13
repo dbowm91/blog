@@ -275,7 +275,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract) is complete. Subsequent phases (parser, translator, registry, packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract) and Phase 02 (parser + color primitives) are complete. Subsequent phases (translator, registry, packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 #### Key files (existing runtime)
 
@@ -292,6 +292,15 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `docs/themes/blog-theme-contract.md` — Phase 03 translator output contract (44 semantic tokens + 26 aliases)
 - `docs/themes/frontend-literal-audit.md` — Phase 09 execution list (128 literals: 34 REPLACE, 85 RETAIN, 9 FALSE_POS)
 - `docs/themes/legacy-compatibility.md` — Phase 06/14 migration rules
+
+#### Key files (Phase 02 deliverables)
+
+- `app/themes/__init__.py` — public API exports
+- `app/themes/colors.py` — color primitives (RGB, RGBA, hex parsing, alpha compositing, luminance, WCAG contrast, dark/light classification, mix, lightness adjustment, HSL shifting)
+- `app/themes/halloy.py` — typed Halloy TOML parser with dataclass models and structured error classes
+- `tests/themes/test_colors.py` — color primitive tests
+- `tests/themes/test_halloy_parser.py` — parser tests including parametrized catalog test (50 files)
+- `tests/themes/fixtures/*.toml` — minimal, full, light, dark, alpha, extra_sections, wrong_type, malformed, invalid_color, injection fixtures
 
 #### Key files (catalog source)
 

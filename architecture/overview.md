@@ -109,6 +109,8 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Backup Integrity | `app/backup_integrity.py` | Checksum verification and SQLite validation for backups |
 | Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption (PBKDF2-HMAC-SHA256 key derivation) |
 | Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption at rest |
+| Theme Primitives | `app/themes/colors.py` | RGB/RGBA color types, hex parsing, WCAG contrast, color mixing (Phase 02) |
+| Theme Parser | `app/themes/halloy.py` | Typed Halloy TOML parser with structured errors (Phase 02) |
 
 **Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
 
@@ -505,6 +507,11 @@ blog/
 │   ├── db_utils.py                  # Database dialect helpers (get_database_dialect, is_sqlite_database)
 │   ├── vite.py                      # Vite integration (content-hashed asset URLs, manifest lookup)
 │   ├── cli.py                       # CLI commands (flask cli)
+│   │
+│   ├── themes/                      # Halloy theme subsystem (Phase 02)
+│   │   ├── __init__.py             # Public API exports
+│   │   ├── colors.py               # RGB/RGBA, hex parsing, WCAG contrast, color mixing
+│   │   └── halloy.py               # Typed Halloy TOML parser with structured errors
 │   │
 │   ├── routes/                      # Route blueprints
 │   │   ├── __init__.py

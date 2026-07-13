@@ -53,6 +53,10 @@ These files have been flagged for exception handling issues (all now fixed):
 
 ## Implemented Features
 
+### Halloy Theme Parser (Phase 02)
+
+Phase 02 of the Halloy theme migration is complete. The `app/themes/` package provides a typed TOML parser (`app/themes/halloy.py`) and color primitives (`app/themes/colors.py`). All 50 catalog themes parse successfully. The parser uses Python stdlib `tomllib` with zero Flask/SQLAlchemy/templates/registry coupling. Errors carry `.source` and `.field_path` attributes for structured context. No raw color string reaches CSS without validation — all colors pass through `from_hex` → RGBA. See `plans/halloy_theme_system_roadmap.md` for the full migration plan.
+
 ### 2FA Implementation
 
 - TOTP secrets are encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
