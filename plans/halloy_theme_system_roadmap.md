@@ -116,29 +116,35 @@ Deliverables:
 
 ### Phase 04: safe registry and external override model
 
-**Status: Complete**
+**Status: Complete (corrective closure complete)**
 
 Implement theme listing, safe name validation, path containment, bundled-resource lookup, external directory precedence, cache keys, cache invalidation, and fallback semantics. Reject path traversal, absolute paths, separators, and symlink escapes.
 
+Corrective closure (plan: `plans/halloy_theme_phase_04_05_corrective_closure.md`) addressed: catalog entry pairing (`_CatalogEntry` binds `ThemeDescriptor` + `ThemeFileInfo`), cache freshness validation against current source state, named invalidation rebuilding catalog deterministically, canonical-name normalization with case-insensitive lookup, `importlib.resources` as default bundled discovery, and structured exceptions (`ThemeNotFoundError`, `ThemeParseFailure`, `ThemeLoadError`, `ThemeValidationError`).
+
 Deliverables:
 
-- `app/themes/resources.py` — `ThemeSource`, `ThemeFileInfo`, `validate_theme_name()`, `discover_bundled()`, `discover_external()`
-- `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry`
-- `app/themes/registry.py` — `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`
+- `app/themes/resources.py` — `ThemeSource`, `ThemeFileInfo`, `ThemeResource` protocol (`read_bytes()`), `validate_theme_name()`, `discover_bundled()`, `discover_external()`
+- `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry` with current-source-state validation
+- `app/themes/registry.py` — `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`, `_CatalogEntry` internal pairing
 - `tests/themes/test_registry.py` — 50 tests: bundled listing, external overrides, invalidation, fallback, cache behavior
 - `tests/themes/test_theme_resolution_security.py` — 44 tests: name validation, symlink escape, traversal attacks, encoded separators
 - 94 new tests passing; all 467 theme tests passing
 
 ### Phase 05: package the Halloy catalog
 
+**Status: Complete (corrective closure complete)**
+
 Move or mirror the approved top-level theme collection into the Python package, update package-data and container configuration, preserve attribution, and add a wheel-install smoke test proving theme enumeration and loading outside a source checkout.
+
+Corrective closure (plan: `plans/halloy_theme_phase_04_05_corrective_closure.md`) validated: wheel build and isolated install, sdist content verification, `importlib.resources`-based discovery as default path, and external theme override against installed bundled resources.
 
 Deliverables:
 
-- packaged resources;
-- package metadata updates;
-- wheel/container verification;
-- source-to-bundled catalog consistency check.
+- `app/themes/bundled/` — packaged Halloy theme files with `__init__.py`, `catalog_manifest.json`, `ATTRIBUTION.md`
+- `pyproject.toml` — `[tool.setuptools.package-data]` for `app.themes.bundled`
+- `MANIFEST.in` — sdist inclusion of bundled theme files
+- wheel and sdist verification
 
 ## Milestone C — Runtime integration and migration
 

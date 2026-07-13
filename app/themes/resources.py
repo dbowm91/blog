@@ -5,8 +5,9 @@ import importlib.resources
 import logging
 import os
 import stat
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Protocol
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +20,26 @@ class ThemeSource(enum.Enum):
     EXTERNAL = "external"
 
 
+class ThemeResource(Protocol):
+    def read_bytes(self) -> bytes: ...
+
+
+@dataclass(frozen=True, slots=True)
+class _PathResource:
+    _path: Path
+
+    def read_bytes(self) -> bytes:
+        return self._path.read_bytes()
+
+
+@dataclass(frozen=True, slots=True)
+class _TraversableResource:
+    _traversable: Any
+
+    def read_bytes(self) -> bytes:
+        return self._traversable.read_bytes()
+
+
 @dataclass(frozen=True, slots=True)
 class ThemeFileInfo:
     canonical_name: str
@@ -27,6 +48,19 @@ class ThemeFileInfo:
     path: Path
     size_bytes: int
     mtime: float
+    resource: ThemeResource | None = field(default=None, repr=False)
+
+    def read_bytes(self) -> bytes:
+        if self.resource is not None:
+            return self.resource.read_bytes()
+        return self.path.read_bytes()
+
+
+def normalize_theme_name(name: str) -> str:
+    if not name:
+        raise ValueError("theme name must not be empty")
+    validated = validate_theme_name(name)
+    return validated
 
 
 def validate_theme_name(name: str) -> str:
@@ -115,6 +149,7 @@ def discover_bundled_package() -> list[ThemeFileInfo]:
                 content = item.read_bytes()
             except (OSError, TypeError):
                 continue
+            resource: ThemeResource = _TraversableResource(item)
             results.append(
                 ThemeFileInfo(
                     canonical_name=Path(item.name).stem,
@@ -123,6 +158,7 @@ def discover_bundled_package() -> list[ThemeFileInfo]:
                     path=Path(str(item)),
                     size_bytes=len(content),
                     mtime=0.0,
+                    resource=resource,
                 )
             )
     except (TypeError, ModuleNotFoundError):
@@ -161,9 +197,11 @@ def discover_external(external_root: Path) -> list[ThemeFileInfo]:
 
 __all__ = [
     "ThemeFileInfo",
+    "ThemeResource",
     "ThemeSource",
     "discover_bundled",
     "discover_bundled_package",
     "discover_external",
+    "normalize_theme_name",
     "validate_theme_name",
 ]

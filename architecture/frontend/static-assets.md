@@ -231,7 +231,7 @@ Dark mode follows OS preference by default via `prefers-color-scheme: dark` in `
 
 ### Design Tokens
 
-`base.css` owns the fallback design tokens used by every theme, including spacing, typography, surfaces, borders, focus colors, and semantic colors. The inline `theme_vars` block in the base templates overrides the color tokens for the selected preset. Keep new component rules on these variables so GitHub Dark, GitHub Light, Solarized, Monokai, and custom themes remain coherent.
+`base.css` owns the fallback design tokens used by every theme, including spacing, typography, surfaces, borders, focus colors, and semantic colors. The inline `theme_vars` block in the base templates overrides the color tokens for the selected Halloy theme (default: "Catppuccin Mocha"). The theme system translates Halloy TOML palettes into the blog's semantic CSS variables via `BlogTheme` and `translate.py`. Keep new component rules on these variables so all bundled Halloy themes remain coherent.
 
 ### Font Self-Hosting
 

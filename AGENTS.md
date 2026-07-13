@@ -310,12 +310,12 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `tests/themes/test_translation.py` — translation, derivation, foreground selection, catalog-wide tests
 - `tests/themes/test_theme_css.py` — CSS serialization, ordering, selector, legacy vars tests
 
-#### Key files (Phase 04 deliverables)
+#### Key files (Phase 04 deliverables — corrective closure complete)
 
-- `app/themes/resources.py` — `ThemeSource` enum, `ThemeFileInfo` dataclass, `validate_theme_name()`, `discover_bundled()`, `discover_external()`
-- `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry` dataclass
-- `app/themes/registry.py` — `ThemeRegistry` class (`list_themes()`, `resolve()`, `load()`, `invalidate()`, `get_fallback()`), `ThemeDescriptor`, `LoadedTheme`
-- `tests/themes/test_registry.py` — 50 tests: bundled listing, external overrides, invalidation, fallback, cache behavior
+- `app/themes/resources.py` — `ThemeResource` protocol, `_PathResource`/`_TraversableResource` implementations, `normalize_theme_name()`, `ThemeFileInfo.read_bytes()` method; `discover_bundled_package()` attaches `_TraversableResource`
+- `app/themes/cache.py` — `ThemeCache` in-process cache, `ThemeCacheEntry` dataclass with `source_fingerprint` field, `invalidate_prefix()` method, `validate_entry()` accepts current metadata from caller
+- `app/themes/registry.py` — `ThemeRegistry` class (`list_themes()`, `resolve()`, `load()`, `invalidate()`, `get_fallback()`), `ThemeDescriptor`, `LoadedTheme`, `_CatalogEntry` (pairs descriptor + file_info), structured exceptions (`ThemeNotFoundError`, `ThemeParseFailure`, `ThemeLoadError`, `ThemeValidationError`), `_THEME_ALIASES` for legacy migration, `_compute_fingerprint()` for cache validation, named invalidation rebuilds catalog. Default `default_theme="Catppuccin Mocha"`
+- `tests/themes/test_registry.py` — Updated for new exception types and default theme name
 - `tests/themes/test_theme_resolution_security.py` — 44 tests: name validation, symlink escape, traversal attacks, encoded separators
 
 #### Key files (Phase 05 deliverables)
@@ -325,9 +325,12 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `app/themes/registry.py` — default `bundled_root` changed to `app/themes/bundled/`
 - `pyproject.toml` — `[tool.setuptools.package-data]` entry for `app.themes.bundled`
 - `MANIFEST.in` — `recursive-include app/themes/bundled *.toml` for sdist inclusion
+- `tests/themes/test_build_artifact.py` — Rewritten with fast archive-content tests + slow wheel-build tests
+- `scripts/verify_theme_package.py` — New manual verification script
 
 #### Hard rules during migration
 
+- Corrective closure for Phases 01–05 is complete; subsequent phases build on the corrected foundation
 - Do NOT delete or replace `THEME_PRESETS` until Phase 14
 - Do NOT change `theme_vars` Jinja context shape until Phase 07
 - Do NOT move or rename `themes/*.toml` until Phase 05

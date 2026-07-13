@@ -23,6 +23,7 @@ class ThemeCacheEntry:
     diagnostics: TranslationDiagnostics
     css_vars: dict[str, str]
     legacy_vars: dict[str, str]
+    source_fingerprint: str
 
 
 class ThemeCache:
@@ -41,6 +42,11 @@ class ThemeCache:
         else:
             self._cache.pop(key, None)
 
+    def invalidate_prefix(self, prefix: str) -> None:
+        keys_to_remove = [k for k in self._cache if k.endswith(":" + prefix)]
+        for key in keys_to_remove:
+            del self._cache[key]
+
     def clear(self) -> None:
         self.invalidate(None)
 
@@ -48,8 +54,16 @@ class ThemeCache:
     def make_key(canonical_name: str, source_type: str) -> str:
         return f"{source_type}:{canonical_name}"
 
-    def validate_entry(self, key: str, file_mtime: float, file_size: int) -> bool:
+    def validate_entry(
+        self,
+        key: str,
+        current_mtime: float,
+        current_size: int,
+        current_fingerprint: str | None = None,
+    ) -> bool:
         entry = self._cache.get(key)
         if entry is None:
             return False
-        return entry.file_mtime == file_mtime and entry.file_size == file_size
+        if current_fingerprint is not None:
+            return entry.source_fingerprint == current_fingerprint
+        return entry.file_mtime == current_mtime and entry.file_size == current_size

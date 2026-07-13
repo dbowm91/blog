@@ -246,7 +246,7 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) complete; runtime still uses `THEME_PRESETS`.
+Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) complete with corrective closure. Runtime still uses `THEME_PRESETS`.
 
 ### Theme Source Locations
 
@@ -269,9 +269,9 @@ Phases 05+ will create these modules:
 | `app/themes/model.py` | `BlogTheme` frozen dataclass (50 fields, CSS_VARS, ALIASES, EMERGENCY_DEFAULT) | 03 | Done |
 | `app/themes/translate.py` | `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()` | 03 | Done |
 | `app/themes/diagnostics.py` | `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics` | 03 | Done |
-| `app/themes/resources.py` | `ThemeSource`, `ThemeFileInfo`, `validate_theme_name()`, `discover_bundled()`, `discover_external()` | 04 | Done |
-| `app/themes/cache.py` | `ThemeCache` in-process cache, `ThemeCacheEntry` | 04 | Done |
-| `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme` | 04 | Done |
+| `app/themes/resources.py` | `ThemeResource` protocol, `_PathResource`/`_TraversableResource`, `normalize_theme_name()`, `ThemeFileInfo.read_bytes()` | 04 | Done |
+| `app/themes/cache.py` | `ThemeCache` in-process cache, `ThemeCacheEntry` with `source_fingerprint`, `invalidate_prefix()`, `validate_entry()` | 04 | Done |
+| `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`, `_CatalogEntry`, structured exceptions, `_THEME_ALIASES`, `_compute_fingerprint()`, default `Catppuccin Mocha` | 04 | Done |
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 | Done |
 
 ### Phase 02 API
@@ -311,12 +311,16 @@ Phases 05+ will create these modules:
 
 #### ThemeRegistry (`app/themes/registry.py`)
 
-- `ThemeRegistry(bundled_root=None, external_root=None, default_theme="catppuccin-mocha")`
+- `ThemeRegistry(bundled_root=None, external_root=None, default_theme="Catppuccin Mocha")`
 - `list_themes()` -> sorted list of `ThemeDescriptor`
 - `resolve(name)` -> `ThemeDescriptor | None`
 - `load(name)` -> `LoadedTheme` (with caching)
 - `invalidate(name=None)` -> clear cache/catalog
 - `get_fallback(configured=None)` -> `LoadedTheme` (emergency fallback chain)
+
+Structured exceptions: `ThemeNotFoundError`, `ThemeParseFailure`, `ThemeLoadError`, `ThemeValidationError`.
+
+`_CatalogEntry` pairs descriptor + file_info internally. `_THEME_ALIASES` maps legacy names to Halloy equivalents. `_compute_fingerprint()` validates cache entries against current source state.
 
 #### ThemeDescriptor (frozen dataclass)
 
@@ -328,23 +332,27 @@ Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_d
 
 #### Resources (`app/themes/resources.py`)
 
-- `validate_theme_name(name)` -> canonical stem or raises ValueError
-- `discover_bundled(root)` -> list of `ThemeFileInfo`
-- `discover_external(root)` -> list of `ThemeFileInfo` (symlink-safe, 1MB limit)
+- `ThemeResource` protocol with `_PathResource` and `_TraversableResource` implementations
+- `normalize_theme_name(name)` -> canonical stem or raises ValueError
+- `discover_bundled_package(root)` -> `_TraversableResource` via `importlib.resources`
+- `ThemeFileInfo.read_bytes()` method for safe content access
 
 #### Cache (`app/themes/cache.py`)
 
-- `ThemeCache` in-process cache with mtime/size validation
-- `ThemeCacheEntry` stores halloy_theme, blog_theme, css, diagnostics, css_vars, legacy_vars
+- `ThemeCache` in-process cache with `source_fingerprint` validation
+- `ThemeCacheEntry` stores halloy_theme, blog_theme, css, diagnostics, css_vars, legacy_vars, `source_fingerprint`
+- `invalidate_prefix()` for bulk invalidation
+- `validate_entry()` accepts current metadata from caller to check freshness
 
 ### Hard Rules for Agents
 
-1. Do NOT delete or modify `THEME_PRESETS` until Phase 14.
-2. Do NOT change `theme_vars` Jinja context shape until Phase 07.
-3. Do NOT move/rename `themes/*.toml` files until Phase 05.
-4. Bundled resources must use `importlib.resources`, not cwd-relative paths.
-5. The 4 legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) remain valid selections throughout migration; see `docs/themes/legacy-compatibility.md` for transition rules.
-6. CSS variables emitted via `theme_vars` are the current API; do not refactor templates to call theme functions directly until Phase 07.
+1. Corrective closure for Phases 01–05 is complete; subsequent phases build on the corrected foundation.
+2. Do NOT delete or modify `THEME_PRESETS` until Phase 14.
+3. Do NOT change `theme_vars` Jinja context shape until Phase 07.
+4. Do NOT move/rename `themes/*.toml` files until Phase 05.
+5. Bundled resources must use `importlib.resources`, not cwd-relative paths.
+6. The 4 legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) remain valid selections throughout migration; see `docs/themes/legacy-compatibility.md` for transition rules.
+7. CSS variables emitted via `theme_vars` are the current API; do not refactor templates to call theme functions directly until Phase 07.
 
 ### Token Contract Summary
 

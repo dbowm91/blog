@@ -1,5 +1,20 @@
 # Halloy Theme Phases 04–05 Corrective Closure Plan
 
+## Completion Status
+
+**Status: COMPLETE** — 2026-07-13
+
+All 10 sections of this corrective closure plan have been implemented and validated:
+
+- 1110 theme tests pass (full test suite)
+- `ruff check .` — clean
+- `ruff format --check .` — clean
+- `mypy app/` — clean
+
+The corrective closure pass addressed: catalog entry precedence binding, cache freshness validation, named invalidation semantics, canonical-name normalization, package-resource abstraction, wheel/sdist verification, end-to-end regression coverage, structured exception types, and documentation reconciliation. Phases 04 and 05 are complete.
+
+---
+
 ## Purpose
 
 Close the correctness and release-verification gaps found after implementation of the Halloy theme registry, external override model, cache, and packaged catalog.

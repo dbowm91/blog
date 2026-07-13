@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 from app.themes.model import CSS_VARS, EMERGENCY_DEFAULT
-from app.themes.registry import LoadedTheme, ThemeRegistry
+from app.themes.registry import (
+    LoadedTheme,
+    ThemeParseFailure,
+    ThemeRegistry,
+    ThemeValidationError,
+)
 from app.themes.resources import ThemeSource, validate_theme_name
 
 CATALOG = Path(__file__).resolve().parent.parent.parent / "themes"
@@ -184,7 +189,7 @@ class TestMalformedExternalIsolation:
         _write_theme(ext, "bad-theme", content=(FIXTURES / "malformed.toml").read_text())
 
         registry = _make_registry(tmp_path, external_root=ext)
-        with pytest.raises(ValueError, match="parse error"):
+        with pytest.raises(ThemeParseFailure, match="parse error"):
             registry.load("bad-theme")
 
 
@@ -223,8 +228,10 @@ class TestTraversalRejection:
 
     def test_registry_resolve_rejects_bad_names(self) -> None:
         registry = _make_registry(Path())
-        assert registry.resolve("../etc/passwd") is None
-        assert registry.resolve("/etc/passwd") is None
+        with pytest.raises(ThemeValidationError):
+            registry.resolve("../etc/passwd")
+        with pytest.raises(ThemeValidationError):
+            registry.resolve("/etc/passwd")
 
 
 class TestCaseCollision:
@@ -289,7 +296,10 @@ class TestInvalidation:
         registry = _make_registry(Path())
         registry.load("Dracula")
         registry.invalidate("Dracula")
-        assert registry.resolve("Dracula") is None
+        assert registry._catalog is None
+        descriptor = registry.resolve("Dracula")
+        assert descriptor is not None
+        assert descriptor.canonical_name == "Dracula"
 
     def test_invalidate_all_forces_reread(self) -> None:
         registry = _make_registry(Path())
@@ -410,7 +420,7 @@ class TestRegistryInitDefaults:
 
     def test_default_theme_name(self) -> None:
         registry = ThemeRegistry()
-        assert registry._default_theme == "catppuccin-mocha"
+        assert registry._default_theme == "Catppuccin Mocha"
 
     def test_custom_default_theme(self) -> None:
         registry = ThemeRegistry(default_theme="Dracula")

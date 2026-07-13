@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,8 +21,9 @@ from app.themes.resources import (
     ThemeFileInfo,
     ThemeSource,
     discover_bundled,
+    discover_bundled_package,
     discover_external,
-    validate_theme_name,
+    normalize_theme_name,
 )
 from app.themes.translate import (
     to_css_variables,
@@ -32,6 +34,46 @@ from app.themes.translate import (
 from app.themes.diagnostics import TranslationDiagnostics
 
 logger = logging.getLogger(__name__)
+
+_THEME_ALIASES: dict[str, str] = {
+    "catppuccin-mocha": "Catppuccin Mocha",
+    "catppuccin-latte": "Catppuccin Latte",
+    "catppuccin-macchiato": "Catppuccin Macchiato",
+    "rose-pine": "Rose Pine",
+    "rose-pine-dawn": "Rose Pine Dawn",
+    "rose-pine-moon": "Rose Pine Moon",
+    "tokyo-night-storm": "Tokyo Night Storm",
+    "one-dark": "One Dark",
+    "solarized-dark": "Solarized Dark",
+    "halcyon-dark": "Halcyon Dark",
+    "macaw-dark": "Macaw Dark",
+    "macaw-light": "Macaw Light",
+    "ferra-light": "Ferra Light",
+    "flexor-dark": "Flexor Dark",
+    "noctis-lilac": "Noctis Lilac",
+    "intellij-light": "IntelliJ Light",
+    "cyber-red": "Cyber Red",
+    "nostromo-terminal": "Nostromo Terminal",
+    "base16-atelier-forest-light": "base16-atelier-forest-light",
+    "black-but-with-important-highlights": "black but with important highlights",
+    "discord-80_-saturation": "Discord (80_ Saturation)",
+}
+
+
+class ThemeNotFoundError(ValueError):
+    """Theme name not found in registry."""
+
+
+class ThemeParseFailure(ValueError):
+    """Theme file exists but cannot be parsed."""
+
+
+class ThemeLoadError(ValueError):
+    """Theme file exists but cannot be read."""
+
+
+class ThemeValidationError(ValueError):
+    """Theme name failed validation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,22 +141,35 @@ def _emergency_halloy_theme() -> HalloyTheme:
     )
 
 
+def _compute_fingerprint(data: bytes, source: ThemeSource, mtime: float, size: int) -> str:
+    if source == ThemeSource.BUNDLED:
+        return hashlib.md5(data).hexdigest()
+    return f"{mtime}:{size}"
+
+
+@dataclass(frozen=True, slots=True)
+class _CatalogEntry:
+    descriptor: ThemeDescriptor
+    file_info: ThemeFileInfo
+
+
 class ThemeRegistry:
     def __init__(
         self,
         bundled_root: Path | None = None,
         external_root: Path | None = None,
-        default_theme: str = "catppuccin-mocha",
+        default_theme: str = "Catppuccin Mocha",
     ) -> None:
-        self._bundled_root = (
-            bundled_root
-            if bundled_root is not None
-            else Path(__file__).resolve().parent / "bundled"
-        )
+        if bundled_root is not None:
+            self._bundled_root = bundled_root
+            self._use_package_resources = False
+        else:
+            self._bundled_root = Path(__file__).resolve().parent / "bundled"
+            self._use_package_resources = True
         self._external_root = external_root
         self._default_theme = default_theme
         self._cache = ThemeCache()
-        self._catalog: dict[str, ThemeDescriptor] | None = None
+        self._catalog: dict[str, _CatalogEntry] | None = None
 
     def _make_descriptor(
         self,
@@ -135,10 +190,13 @@ class ThemeRegistry:
         )
 
     def _rebuild_catalog(self) -> None:
-        merged: dict[str, ThemeDescriptor] = {}
+        merged: dict[str, _CatalogEntry] = {}
         lowercase_seen: dict[str, str] = {}
 
-        bundled = list(discover_bundled(self._bundled_root))
+        if self._use_package_resources:
+            bundled = list(discover_bundled_package())
+        else:
+            bundled = list(discover_bundled(self._bundled_root))
         external = list(discover_external(self._external_root)) if self._external_root else []
 
         for info in bundled:
@@ -154,7 +212,10 @@ class ThemeRegistry:
                 merged.pop(name, None)
                 continue
             lowercase_seen[lower] = name
-            merged[name] = self._make_descriptor(info)
+            merged[name] = _CatalogEntry(
+                descriptor=self._make_descriptor(info),
+                file_info=info,
+            )
 
         for info in external:
             name = info.canonical_name
@@ -171,37 +232,49 @@ class ThemeRegistry:
             existing = merged.get(name)
             overrides_bundled = existing is not None
             lowercase_seen[lower] = name
-            merged[name] = self._make_descriptor(info, overrides_bundled=overrides_bundled)
+            merged[name] = _CatalogEntry(
+                descriptor=self._make_descriptor(info, overrides_bundled=overrides_bundled),
+                file_info=info,
+            )
 
         self._catalog = merged
+
+    def _resolve_alias(self, name: str) -> str:
+        lower = name.lower()
+        if lower in _THEME_ALIASES:
+            return _THEME_ALIASES[lower]
+        return name
 
     def list_themes(self) -> list[ThemeDescriptor]:
         if self._catalog is None:
             self._rebuild_catalog()
         assert self._catalog is not None
-        return sorted(self._catalog.values(), key=lambda d: d.canonical_name)
+        return sorted(
+            (entry.descriptor for entry in self._catalog.values()),
+            key=lambda d: d.canonical_name,
+        )
 
     def resolve(self, name: str) -> ThemeDescriptor | None:
         try:
-            validate_theme_name(name)
-        except ValueError:
-            logger.warning("invalid theme name: %r", name)
-            return None
+            normalized = normalize_theme_name(name)
+        except ValueError as exc:
+            raise ThemeValidationError(str(exc)) from exc
+        resolved_name = self._resolve_alias(normalized)
         if self._catalog is None:
             self._rebuild_catalog()
         assert self._catalog is not None
-        if name in self._catalog:
-            return self._catalog[name]
-        lower = name.lower()
-        for canonical, descriptor in self._catalog.items():
+        if resolved_name in self._catalog:
+            return self._catalog[resolved_name].descriptor
+        lower = resolved_name.lower()
+        for canonical, entry in self._catalog.items():
             if canonical.lower() == lower:
-                return descriptor
+                return entry.descriptor
         return None
 
     def load(self, name: str) -> LoadedTheme:
         descriptor = self.resolve(name)
         if descriptor is None:
-            raise ValueError(f"theme not found: {name!r}")
+            raise ThemeNotFoundError(f"theme not found: {name!r}")
 
         canonical_name = descriptor.canonical_name
         source_type = descriptor.source.value
@@ -209,32 +282,48 @@ class ThemeRegistry:
 
         entry = self._cache.get(cache_key)
         if entry is not None:
-            if self._cache.validate_entry(cache_key, entry.file_mtime, entry.file_size):
-                return LoadedTheme(
-                    descriptor=descriptor,
-                    blog_theme=entry.blog_theme,
-                    halloy_theme=entry.halloy_theme,
-                    css=entry.css,
-                    is_dark=entry.is_dark,
-                    diagnostics=entry.diagnostics,
-                    css_vars=entry.css_vars,
-                    legacy_vars=entry.legacy_vars,
+            if self._catalog is not None and canonical_name in self._catalog:
+                current_info = self._catalog[canonical_name].file_info
+                current_fp = _compute_fingerprint(
+                    current_info.read_bytes(),
+                    current_info.source,
+                    current_info.mtime,
+                    current_info.size_bytes,
                 )
+                if self._cache.validate_entry(
+                    cache_key,
+                    current_info.mtime,
+                    current_info.size_bytes,
+                    current_fp,
+                ):
+                    return LoadedTheme(
+                        descriptor=descriptor,
+                        blog_theme=entry.blog_theme,
+                        halloy_theme=entry.halloy_theme,
+                        css=entry.css,
+                        is_dark=entry.is_dark,
+                        diagnostics=entry.diagnostics,
+                        css_vars=entry.css_vars,
+                        legacy_vars=entry.legacy_vars,
+                    )
 
-        info = self._find_file_info(canonical_name)
-        if info is None:
-            raise ValueError(f"theme file not found: {name!r}")
+        if self._catalog is None or canonical_name not in self._catalog:
+            raise ThemeNotFoundError(f"theme file not found: {name!r}")
+        info = self._catalog[canonical_name].file_info
 
         try:
-            data = info.path.read_bytes()
+            data = info.read_bytes()
         except OSError as exc:
-            raise ValueError(f"cannot read theme file: {name!r}") from exc
+            raise ThemeLoadError(f"cannot read theme file: {name!r}") from exc
 
         try:
             halloy_theme = parse_halloy_theme_bytes(data, source_name=canonical_name)
         except ThemeParseError as exc:
-            logger.warning("parse error for %r: %s", canonical_name, exc)
-            raise ValueError(f"parse error in theme {name!r}: {exc}") from exc
+            if info.source == ThemeSource.BUNDLED:
+                logger.error("malformed bundled theme %r: %s", canonical_name, exc)
+            else:
+                logger.warning("malformed external theme %r: %s", canonical_name, exc)
+            raise ThemeParseFailure(f"parse error in theme {name!r}: {exc}") from exc
 
         result = translate_halloy_theme(halloy_theme)
         css = to_css_variables(result.theme)
@@ -252,6 +341,7 @@ class ThemeRegistry:
             legacy_vars=legacy_vars,
         )
 
+        fingerprint = _compute_fingerprint(data, info.source, info.mtime, info.size_bytes)
         cache_entry = ThemeCacheEntry(
             halloy_theme=halloy_theme,
             blog_theme=result.theme,
@@ -265,29 +355,21 @@ class ThemeRegistry:
             diagnostics=result.diagnostics,
             css_vars=css_vars,
             legacy_vars=legacy_vars,
+            source_fingerprint=fingerprint,
         )
         self._cache.set(cache_key, cache_entry)
 
         return loaded
 
-    def _find_file_info(self, canonical_name: str) -> ThemeFileInfo | None:
-        for info in discover_bundled(self._bundled_root):
-            if info.canonical_name == canonical_name:
-                return info
-        if self._external_root:
-            for info in discover_external(self._external_root):
-                if info.canonical_name == canonical_name:
-                    return info
-        return None
-
     def invalidate(self, name: str | None = None) -> None:
         if name is not None:
-            if self._catalog is not None:
-                descriptor = self._catalog.get(name)
-                if descriptor is not None:
-                    cache_key = ThemeCache.make_key(name, descriptor.source.value)
-                    self._cache.invalidate(cache_key)
-                self._catalog.pop(name, None)
+            try:
+                normalized = normalize_theme_name(name)
+            except ValueError:
+                return
+            resolved_name = self._resolve_alias(normalized)
+            self._cache.invalidate_prefix(resolved_name)
+            self._catalog = None
         else:
             self._cache.clear()
             self._catalog = None
@@ -301,12 +383,20 @@ class ThemeRegistry:
             tried.add(candidate)
             try:
                 return self.load(candidate)
-            except ValueError:
+            except (ThemeNotFoundError, ThemeParseFailure, ThemeLoadError):
                 continue
 
+        logger.warning(
+            "fallback activation: requested=%r default=%r using emergency-default",
+            configured,
+            self._default_theme,
+        )
         emergency = _emergency_halloy_theme()
         result = translate_halloy_theme(emergency)
-        return LoadedTheme(
+        css = to_css_variables(result.theme)
+        css_vars = to_theme_vars(result.theme)
+        legacy_vars = to_legacy_vars(result.theme)
+        loaded = LoadedTheme(
             descriptor=ThemeDescriptor(
                 canonical_name="emergency-default",
                 display_name="Emergency Default",
@@ -318,16 +408,22 @@ class ThemeRegistry:
             ),
             blog_theme=EMERGENCY_DEFAULT,
             halloy_theme=emergency,
-            css="",
+            css=css,
             is_dark=True,
             diagnostics=result.diagnostics,
-            css_vars={},
-            legacy_vars={},
+            css_vars=css_vars,
+            legacy_vars=legacy_vars,
         )
+        return loaded
 
 
 __all__ = [
     "LoadedTheme",
     "ThemeDescriptor",
+    "ThemeLoadError",
+    "ThemeNotFoundError",
+    "ThemeParseFailure",
     "ThemeRegistry",
+    "ThemeValidationError",
+    "_THEME_ALIASES",
 ]
