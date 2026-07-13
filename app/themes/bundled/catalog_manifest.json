@@ -1,0 +1,357 @@
+{
+  "version": 1,
+  "description": "Bundled Halloy-compatible theme catalog for DevLog",
+  "theme_count": 50,
+  "themes": [
+    {
+      "filename": "Booberry.toml",
+      "canonical_name": "Booberry",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Catppuccin Latte.toml",
+      "canonical_name": "Catppuccin Latte",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Catppuccin Macchiato.toml",
+      "canonical_name": "Catppuccin Macchiato",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Catppuccin Mocha.toml",
+      "canonical_name": "Catppuccin Mocha",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Cyber Red.toml",
+      "canonical_name": "Cyber Red",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Cyberpunk.toml",
+      "canonical_name": "Cyberpunk",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Dark Green.toml",
+      "canonical_name": "Dark Green",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Discord (80_ Saturation).toml",
+      "canonical_name": "Discord (80_ Saturation)",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Discord.toml",
+      "canonical_name": "Discord",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Dracula.toml",
+      "canonical_name": "Dracula",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Ferra Light.toml",
+      "canonical_name": "Ferra Light",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Flexor Dark.toml",
+      "canonical_name": "Flexor Dark",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Gruvbox.toml",
+      "canonical_name": "Gruvbox",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Halcyon Dark.toml",
+      "canonical_name": "Halcyon Dark",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "IntelliJ Light.toml",
+      "canonical_name": "IntelliJ Light",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Kanagawa.toml",
+      "canonical_name": "Kanagawa",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Macaw Dark.toml",
+      "canonical_name": "Macaw Dark",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Macaw Light.toml",
+      "canonical_name": "Macaw Light",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Matrix.toml",
+      "canonical_name": "Matrix",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Noctis Lilac.toml",
+      "canonical_name": "Noctis Lilac",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Nord.toml",
+      "canonical_name": "Nord",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Nostromo Terminal.toml",
+      "canonical_name": "Nostromo Terminal",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "One Dark.toml",
+      "canonical_name": "One Dark",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Oxocarbon.toml",
+      "canonical_name": "Oxocarbon",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Rose Pine Dawn.toml",
+      "canonical_name": "Rose Pine Dawn",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Rose Pine Moon.toml",
+      "canonical_name": "Rose Pine Moon",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Rose Pine.toml",
+      "canonical_name": "Rose Pine",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Solarized Dark.toml",
+      "canonical_name": "Solarized Dark",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Sonokai.toml",
+      "canonical_name": "Sonokai",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Tokyo Night Storm.toml",
+      "canonical_name": "Tokyo Night Storm",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "VESPER.toml",
+      "canonical_name": "VESPER",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "Zenburn.toml",
+      "canonical_name": "Zenburn",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "acton.toml",
+      "canonical_name": "acton",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "bam.toml",
+      "canonical_name": "bam",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "base16-atelier-forest-light.toml",
+      "canonical_name": "base16-atelier-forest-light",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "berlin.toml",
+      "canonical_name": "berlin",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "black but with important highlights.toml",
+      "canonical_name": "black but with important highlights",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "broc.toml",
+      "canonical_name": "broc",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "cork.toml",
+      "canonical_name": "cork",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "ferra.toml",
+      "canonical_name": "ferra",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "forest.toml",
+      "canonical_name": "forest",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "lisbon.toml",
+      "canonical_name": "lisbon",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "midnight.toml",
+      "canonical_name": "midnight",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "oslo.toml",
+      "canonical_name": "oslo",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "plum.toml",
+      "canonical_name": "plum",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "portland.toml",
+      "canonical_name": "portland",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "sunset.toml",
+      "canonical_name": "sunset",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "tofino.toml",
+      "canonical_name": "tofino",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "vanimo.toml",
+      "canonical_name": "vanimo",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    },
+    {
+      "filename": "vik.toml",
+      "canonical_name": "vik",
+      "bundled": true,
+      "source": "halloy",
+      "attribution": "Halloy community theme"
+    }
+  ]
+}

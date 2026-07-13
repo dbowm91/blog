@@ -54,6 +54,7 @@ from app.themes.resources import (
     ThemeFileInfo,
     ThemeSource,
     discover_bundled,
+    discover_bundled_package,
     discover_external,
     validate_theme_name,
 )
@@ -104,6 +105,7 @@ __all__ = [
     "contrast_ratio",
     "diagnostics",
     "discover_bundled",
+    "discover_bundled_package",
     "discover_external",
     "from_hex",
     "halloy",

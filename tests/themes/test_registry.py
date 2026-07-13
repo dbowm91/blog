@@ -405,7 +405,8 @@ class TestLoadedThemeStructure:
 class TestRegistryInitDefaults:
     def test_default_bundled_root(self) -> None:
         registry = ThemeRegistry(bundled_root=None, external_root=None)
-        assert registry._bundled_root == CATALOG
+        expected = Path(__file__).resolve().parent.parent.parent / "app" / "themes" / "bundled"
+        assert registry._bundled_root == expected
 
     def test_default_theme_name(self) -> None:
         registry = ThemeRegistry()
@@ -414,3 +415,40 @@ class TestRegistryInitDefaults:
     def test_custom_default_theme(self) -> None:
         registry = ThemeRegistry(default_theme="Dracula")
         assert registry._default_theme == "Dracula"
+
+
+class TestBundledPackageResources:
+    def test_bundled_package_dir_exists(self) -> None:
+        bundled_dir = Path(__file__).resolve().parent.parent.parent / "app" / "themes" / "bundled"
+        assert bundled_dir.is_dir()
+
+    def test_bundled_count_matches_source(self) -> None:
+        source_count = len([p for p in CATALOG.glob("*.toml") if not p.name.startswith("._")])
+        bundled_dir = Path(__file__).resolve().parent.parent.parent / "app" / "themes" / "bundled"
+        bundled_count = len(list(bundled_dir.glob("*.toml")))
+        assert bundled_count == source_count
+
+    def test_all_bundled_files_exist_in_source(self) -> None:
+        bundled_dir = Path(__file__).resolve().parent.parent.parent / "app" / "themes" / "bundled"
+        for f in bundled_dir.glob("*.toml"):
+            source = CATALOG / f.name
+            assert source.exists(), f"bundled theme {f.name} not found in source catalog"
+
+    def test_manifest_exists(self) -> None:
+        bundled_dir = Path(__file__).resolve().parent.parent.parent / "app" / "themes" / "bundled"
+        manifest = bundled_dir / "catalog_manifest.json"
+        assert manifest.exists()
+
+    def test_manifest_theme_count(self) -> None:
+        import json
+
+        bundled_dir = Path(__file__).resolve().parent.parent.parent / "app" / "themes" / "bundled"
+        manifest = json.loads((bundled_dir / "catalog_manifest.json").read_text())
+        assert manifest["theme_count"] == 50
+
+    def test_bundled_package_importlib_resources(self) -> None:
+        from importlib.resources import files
+
+        bundled = files("app.themes").joinpath("bundled")
+        toml_files = [f for f in bundled.iterdir() if f.name.endswith(".toml")]
+        assert len(toml_files) == 50

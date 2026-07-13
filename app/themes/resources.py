@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import importlib.resources
 import logging
 import os
 import stat
@@ -103,6 +104,32 @@ def discover_bundled(bundled_root: Path) -> list[ThemeFileInfo]:
     return results
 
 
+def discover_bundled_package() -> list[ThemeFileInfo]:
+    results: list[ThemeFileInfo] = []
+    try:
+        bundled_dir = importlib.resources.files("app.themes").joinpath("bundled")
+        for item in bundled_dir.iterdir():
+            if not item.name.endswith(".toml") or item.name.startswith("."):
+                continue
+            try:
+                content = item.read_bytes()
+            except (OSError, TypeError):
+                continue
+            results.append(
+                ThemeFileInfo(
+                    canonical_name=Path(item.name).stem,
+                    filename=item.name,
+                    source=ThemeSource.BUNDLED,
+                    path=Path(str(item)),
+                    size_bytes=len(content),
+                    mtime=0.0,
+                )
+            )
+    except (TypeError, ModuleNotFoundError):
+        pass
+    return sorted(results, key=lambda info: info.filename)
+
+
 def discover_external(external_root: Path) -> list[ThemeFileInfo]:
     try:
         resolved_root = external_root.resolve()
@@ -136,6 +163,7 @@ __all__ = [
     "ThemeFileInfo",
     "ThemeSource",
     "discover_bundled",
+    "discover_bundled_package",
     "discover_external",
     "validate_theme_name",
 ]

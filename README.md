@@ -36,7 +36,7 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 - **2FA** — TOTP-based two-factor authentication for admin accounts
 - **Backups** — Encrypted (AES-256-GCM) and compressed backups with restore
 - **Theming** — CSS custom properties with theme presets (GitHub Dark/Light, Solarized, Monokai)
-- **Halloy Themes** — 50 Halloy-compatible TOML themes at `themes/` (parser + color primitives complete; runtime migration in progress)
+- **Halloy Themes** — 50 Halloy-compatible TOML themes bundled in `app/themes/bundled/` (parser, color primitives, translation layer, and registry complete; runtime migration in progress)
 - **Analytics** — Page views, referrers, and share tracking
 - **Media Library** — Upload and manage images with local storage (S3 support is experimental)
 - **Static Pages** — Create standalone pages at custom slugs
@@ -167,7 +167,7 @@ Click **Preview** to see how your post will look with theme styling.
 }
 ```
 
-A broader set of Halloy-compatible TOML themes is being added at the top-level `themes/` directory. See [`plans/halloy_theme_system_roadmap.md`](plans/halloy_theme_system_roadmap.md) for the migration roadmap. Phase 02 (parser + color primitives) is complete; the legacy presets above continue to work throughout the migration and are scheduled for removal in Phase 14.
+50 Halloy-compatible TOML themes are bundled in `app/themes/bundled/`. The top-level `themes/` directory remains the canonical development catalog. See [`plans/halloy_theme_system_roadmap.md`](plans/halloy_theme_system_roadmap.md) for the migration roadmap. Phases 01–05 are complete; the legacy presets above continue to work throughout the migration and are scheduled for removal in Phase 14.
 
 ### Managing Tags
 

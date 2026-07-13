@@ -275,7 +275,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), and Phase 04 (safe registry and external overrides) are complete. Subsequent phases (packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) are complete. Subsequent phases (runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 #### Key files (existing runtime)
 
@@ -318,9 +318,13 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `tests/themes/test_registry.py` — 50 tests: bundled listing, external overrides, invalidation, fallback, cache behavior
 - `tests/themes/test_theme_resolution_security.py` — 44 tests: name validation, symlink escape, traversal attacks, encoded separators
 
-#### Key files (catalog source)
+#### Key files (Phase 05 deliverables)
 
-- `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
+- `app/themes/bundled/` — packaged Halloy theme files shipped with the app (50 `.toml` files + `__init__.py` + `catalog_manifest.json` + `ATTRIBUTION.md`)
+- `app/themes/resources.py` — `discover_bundled_package()` using `importlib.resources` for wheel-safe resource access
+- `app/themes/registry.py` — default `bundled_root` changed to `app/themes/bundled/`
+- `pyproject.toml` — `[tool.setuptools.package-data]` entry for `app.themes.bundled`
+- `MANIFEST.in` — `recursive-include app/themes/bundled *.toml` for sdist inclusion
 
 #### Hard rules during migration
 
@@ -331,9 +335,10 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - Bundled theme resources must use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths
 - Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) must continue to work unchanged through Phase 09
 
-#### Skills note
+#### Key files (catalog source)
 
-The `blog_cms` skill currently describes the 4-preset system. Future skill updates will reflect the new Halloy-based system after later phases complete.
+- `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
+- `app/themes/bundled/` — packaged Halloy theme files shipped with the app (50 `.toml` files + `__init__.py` + `catalog_manifest.json` + `ATTRIBUTION.md`)
 
 ## Architecture Cross-Reference
 

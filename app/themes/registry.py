@@ -109,7 +109,7 @@ class ThemeRegistry:
         self._bundled_root = (
             bundled_root
             if bundled_root is not None
-            else Path(__file__).resolve().parent.parent.parent / "themes"
+            else Path(__file__).resolve().parent / "bundled"
         )
         self._external_root = external_root
         self._default_theme = default_theme

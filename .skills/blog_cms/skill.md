@@ -246,13 +246,14 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), and Phase 04 (safe registry and external overrides) complete; runtime still uses `THEME_PRESETS`.
+Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), and Phase 05 (packaging) complete; runtime still uses `THEME_PRESETS`.
 
 ### Theme Source Locations
 
 | Component | Location | Notes |
 |-----------|----------|-------|
 | Source catalog | `themes/*.toml` | 50 files; ignore macOS `._*.toml` metadata files |
+| Bundled themes | `app/themes/bundled/*.toml` | Packaged copy of source catalog; accessible via `importlib.resources` |
 | Runtime authority | `app/models.py:366-457` | `THEME_PRESETS` dict; remains runtime authority until Phase 14 |
 | Context injection | `app/context_processors.py:67-76` | `inject_theme()` builds `theme_vars` dict |
 | Template consumption | `app/templates/base.html:42-48`, `app/templates/admin/base.html:17-23` | CSS variable injection into `<style>` blocks |
@@ -271,7 +272,7 @@ Phases 05+ will create these modules:
 | `app/themes/resources.py` | `ThemeSource`, `ThemeFileInfo`, `validate_theme_name()`, `discover_bundled()`, `discover_external()` | 04 | Done |
 | `app/themes/cache.py` | `ThemeCache` in-process cache, `ThemeCacheEntry` | 04 | Done |
 | `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme` | 04 | Done |
-| `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 |
+| `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 | Done |
 
 ### Phase 02 API
 

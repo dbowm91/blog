@@ -55,3 +55,9 @@ rate_limit_per_ip = "5 per minute"
 rate_limit_per_post = "3 per minute"
 notify_pending = false
 spam_words = ""
+
+[themes]
+# Bundled themes require no configuration. To use custom themes,
+# set external_dir to a directory containing .toml theme files.
+# External themes override bundled themes with the same name.
+external_dir = ""
