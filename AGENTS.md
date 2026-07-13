@@ -273,6 +273,43 @@ For detailed implementation history, deprecated features, actual route correctio
 
 > [docs/internals/agent-maintainer-notes.md](docs/internals/agent-maintainer-notes.md)
 
+### Halloy Theme Migration (in progress)
+
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract) is complete. Subsequent phases (parser, translator, registry, packaging, runtime integration, CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+
+#### Key files (existing runtime)
+
+- `app/models.py:366-457` — `THEME_PRESETS` dict (runtime authority until Phase 14)
+- `app/context_processors.py:67-76` — `theme_vars` injection from preset
+- `app/templates/base.html:42-48` and `app/templates/admin/base.html:17-23` — `theme_vars` CSS custom property injection
+- `app/routes/admin/settings.py` — admin settings page
+
+#### Key files (Phase 01 deliverables)
+
+- `scripts/theme_inventory.py` — catalog inventory CLI/Python API
+- `tests/themes/` — inventory tests
+- `docs/themes/supported-schema.md` — Phase 02 parser input contract
+- `docs/themes/blog-theme-contract.md` — Phase 03 translator output contract (44 semantic tokens + 26 aliases)
+- `docs/themes/frontend-literal-audit.md` — Phase 09 execution list (128 literals: 34 REPLACE, 85 RETAIN, 9 FALSE_POS)
+- `docs/themes/legacy-compatibility.md` — Phase 06/14 migration rules
+
+#### Key files (catalog source)
+
+- `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
+
+#### Hard rules during migration
+
+- Do NOT delete or replace `THEME_PRESETS` until Phase 14
+- Do NOT change `theme_vars` Jinja context shape until Phase 07
+- Do NOT move or rename `themes/*.toml` until Phase 05
+- Future phases must add new code under `app/themes/` (planned: `halloy.py`, `colors.py`, `registry.py`, `resources.py`, `model.py`, `translate.py`, `diagnostics.py`, `bundled/`); do not scatter migration code across other modules
+- Bundled theme resources must use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths
+- Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) must continue to work unchanged through Phase 09
+
+#### Skills note
+
+The `blog_cms` skill currently describes the 4-preset system. Future skill updates will reflect the new Halloy-based system after later phases complete.
+
 ## Architecture Cross-Reference
 
 For detailed architecture documentation, see the `architecture/` directory:
@@ -291,6 +328,7 @@ For detailed architecture documentation, see the `architecture/` directory:
 | Testing (pytest, E2E, benchmarks) | [architecture/testing/test-suite.md](architecture/testing/test-suite.md) |
 | Security (2FA, CSRF, rate limiting) | [architecture/deployment/security.md](architecture/deployment/security.md) |
 | Deployment (Docker, CI/CD) | [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
+| Theme system (Halloy migration) | [docs/themes/supported-schema.md](docs/themes/supported-schema.md), [docs/themes/blog-theme-contract.md](docs/themes/blog-theme-contract.md) |
 | System overview | [architecture/overview.md](architecture/overview.md) |
 
 ## Skills

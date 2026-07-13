@@ -243,3 +243,52 @@ Slug collision limit hardcoded to 100 tries before UUID suffix fallback (`app/se
 
 Project is in maintenance mode. No active implementation plans.
 - See `docs/internals/agent-maintainer-notes.md` for detailed implementation history
+
+## Halloy Theme Migration
+
+Phase 01 (catalog inventory + token contract) complete; runtime still uses `THEME_PRESETS`.
+
+### Theme Source Locations
+
+| Component | Location | Notes |
+|-----------|----------|-------|
+| Source catalog | `themes/*.toml` | 50 files; ignore macOS `._*.toml` metadata files |
+| Runtime authority | `app/models.py:366-457` | `THEME_PRESETS` dict; remains runtime authority until Phase 14 |
+| Context injection | `app/context_processors.py:67-76` | `inject_theme()` builds `theme_vars` dict |
+| Template consumption | `app/templates/base.html:42-48`, `app/templates/admin/base.html:17-23` | CSS variable injection into `<style>` blocks |
+
+### Planned Module Layout
+
+Phases 02-05 will create these modules:
+
+| Module | Purpose | Phase |
+|--------|---------|-------|
+| `app/themes/halloy.py` | Typed parser models for Halloy TOML schema | 02 |
+| `app/themes/colors.py` | Color primitives (hex parsing, luminance, contrast) | 02 |
+| `app/themes/model.py` | `BlogTheme` dataclass | 03 |
+| `app/themes/translate.py` | Halloy-to-BlogTheme translator | 03 |
+| `app/themes/diagnostics.py` | Contrast warnings and WCAG checks | 03 |
+| `app/themes/registry.py` | Bundled + external theme resolution | 04 |
+| `app/themes/resources.py` | `importlib.resources` access for bundled themes | 04 |
+| `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 |
+
+### Hard Rules for Agents
+
+1. Do NOT delete or modify `THEME_PRESETS` until Phase 14.
+2. Do NOT change `theme_vars` Jinja context shape until Phase 07.
+3. Do NOT move/rename `themes/*.toml` files until Phase 05.
+4. Bundled resources must use `importlib.resources`, not cwd-relative paths.
+5. The 4 legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) remain valid selections throughout migration; see `docs/themes/legacy-compatibility.md` for transition rules.
+6. CSS variables emitted via `theme_vars` are the current API; do not refactor templates to call theme functions directly until Phase 07.
+
+### Token Contract Summary
+
+44 semantic BlogTheme tokens organized into Backgrounds, Borders, Text, Accent, States, Inputs/Code, Navbar/Chrome, and Overlays categories. 26 aliases preserve existing CSS variable names (`--bg`, `--accent`, etc.) for backward compatibility. See `docs/themes/blog-theme-contract.md` for the full matrix.
+
+### Audit Summary
+
+128 frontend color literals audited: 34 REPLACE (semantic token candidates), 85 RETAIN (structural defaults, light-theme palette, print stylesheet, brand colors), 9 FALSE_POS (font-face URLs, `currentColor` SVGs). See `docs/themes/frontend-literal-audit.md` for the line-by-line audit. Phase 08 must address first-paint flashing in `critical.css:46`.
+
+### Phase 02+ Reference
+
+For ongoing work, read `plans/halloy_theme_system_roadmap.md` for the full phased plan. The 14 phases cover parser, translator, registry, packaging, runtime integration, visitor scheme behavior, frontend token completion, admin UX, CLI, accessibility, performance, and cleanup.
