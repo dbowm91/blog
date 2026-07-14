@@ -339,3 +339,152 @@ def register_cli_commands(app: Any) -> None:
         click.echo(f"Created {len(sample_pages)} pages.")
 
         click.echo("Seed complete!")
+
+    @app.cli.group("themes")
+    def themes_group() -> None:
+        """Theme management commands."""
+
+    @themes_group.command("list")
+    @click.option("--source", type=click.Choice(["all", "bundled", "external"]), default="all")
+    def themes_list(source: str) -> None:
+        """List all available themes."""
+        from app.themes.service import get_theme_service
+
+        service = get_theme_service()
+        registry = service.get_registry()
+        all_themes = registry.list_themes()
+
+        if source == "bundled":
+            all_themes = [t for t in all_themes if t.source.value == "bundled"]
+        elif source == "external":
+            all_themes = [t for t in all_themes if t.source.value == "external"]
+
+        if not all_themes:
+            click.echo("No themes found.")
+            return
+
+        click.echo(f"{'Name':<30} {'Source':<10} {'Type':<10} {'Status':<10}")
+        click.echo("-" * 60)
+        for theme in all_themes:
+            theme_type = (
+                "dark" if theme.is_dark else ("light" if theme.is_dark is False else "unknown")
+            )
+            overrides = " (overrides)" if theme.overrides_bundled else ""
+            click.echo(
+                f"{theme.display_name:<30} {theme.source.value:<10} {theme_type:<10} {theme.status}{overrides}"
+            )
+
+        click.echo(f"\nTotal: {len(all_themes)} themes")
+
+    @themes_group.command("validate")
+    @click.argument("name")
+    def themes_validate(name: str) -> None:
+        """Validate a specific theme."""
+        from app.themes.service import get_theme_service
+        from app.themes.registry import ThemeNotFoundError, ThemeParseFailure, ThemeLoadError
+
+        service = get_theme_service()
+        registry = service.get_registry()
+
+        try:
+            loaded = registry.load(name)
+            click.echo(f"Theme '{name}' is valid.")
+            click.echo(f"  Canonical name: {loaded.descriptor.canonical_name}")
+            click.echo(f"  Source: {loaded.descriptor.source.value}")
+            click.echo(f"  Is dark: {loaded.is_dark}")
+            if loaded.descriptor.warnings:
+                click.echo("  Warnings:")
+                for w in loaded.descriptor.warnings:
+                    click.echo(f"    - {w}")
+            if loaded.diagnostics.warnings:
+                click.echo("  Translation warnings:")
+                for w in loaded.diagnostics.warnings:
+                    click.echo(f"    - {w}")
+        except ThemeNotFoundError:
+            click.echo(f"Theme '{name}' not found.", err=True)
+        except ThemeParseFailure as e:
+            click.echo(f"Theme '{name}' failed to parse: {e}", err=True)
+        except ThemeLoadError as e:
+            click.echo(f"Theme '{name}' failed to load: {e}", err=True)
+
+    @themes_group.command("inspect")
+    @click.argument("name")
+    def themes_inspect(name: str) -> None:
+        """Inspect a theme's full details."""
+        from app.themes.service import get_theme_service
+        from app.themes.registry import ThemeNotFoundError
+
+        service = get_theme_service()
+        registry = service.get_registry()
+
+        try:
+            loaded = registry.load(name)
+            click.echo(f"Theme: {loaded.descriptor.display_name}")
+            click.echo(f"Canonical name: {loaded.descriptor.canonical_name}")
+            click.echo(f"Source: {loaded.descriptor.source.value}")
+            click.echo(f"Is dark: {loaded.is_dark}")
+            click.echo(f"Status: {loaded.descriptor.status}")
+            click.echo(f"Overrides bundled: {loaded.descriptor.overrides_bundled}")
+            if loaded.descriptor.warnings:
+                click.echo(f"Descriptor warnings: {loaded.descriptor.warnings}")
+            if loaded.diagnostics.warnings:
+                click.echo("Translation warnings:")
+                for w in loaded.diagnostics.warnings:
+                    click.echo(f"  - {w}")
+            click.echo(f"\nCSS variables ({len(loaded.css_vars)}):")
+            for key, value in sorted(loaded.css_vars.items()):
+                click.echo(f"  {key}: {value}")
+        except ThemeNotFoundError:
+            click.echo(f"Theme '{name}' not found.", err=True)
+
+    @themes_group.command("refresh")
+    def themes_refresh() -> None:
+        """Refresh the theme registry."""
+        from app.themes.service import get_theme_service
+
+        service = get_theme_service()
+        service.refresh_registry()
+        click.echo("Theme registry refreshed.")
+
+    @themes_group.command("accessibility")
+    @click.option("--source", type=click.Choice(["all", "bundled", "external"]), default="all")
+    def themes_accessibility(source: str) -> None:
+        """Run WCAG contrast checks over all themes."""
+        from app.themes.service import get_theme_service
+        from app.themes.diagnostics import check_blog_theme_contrast
+
+        service = get_theme_service()
+        registry = service.get_registry()
+        all_themes = registry.list_themes()
+
+        if source == "bundled":
+            all_themes = [t for t in all_themes if t.source.value == "bundled"]
+        elif source == "external":
+            all_themes = [t for t in all_themes if t.source.value == "external"]
+
+        total_warnings = 0
+        themes_with_warnings = 0
+
+        for descriptor in all_themes:
+            try:
+                loaded = registry.load(descriptor.canonical_name)
+                warnings = check_blog_theme_contrast(loaded.blog_theme)
+                if warnings:
+                    themes_with_warnings += 1
+                    total_warnings += len(warnings)
+                    click.echo(f"\n{descriptor.display_name} ({descriptor.source.value}):")
+                    for w in warnings:
+                        click.echo(f"  FAIL: {w.description} ({w.ratio}:1, WCAG {w.wcag})")
+                        click.echo(f"        fg={w.foreground} bg={w.background}")
+            except Exception as e:
+                click.echo(f"\n{descriptor.display_name}: ERROR - {e}")
+
+        click.echo(f"\n{'=' * 60}")
+        click.echo(f"Checked {len(all_themes)} themes")
+        click.echo(f"Themes with warnings: {themes_with_warnings}")
+        click.echo(f"Total warnings: {total_warnings}")
+
+        if total_warnings == 0:
+            click.echo("All themes pass WCAG contrast checks!")
+        else:
+            click.echo("Some themes have contrast issues.")

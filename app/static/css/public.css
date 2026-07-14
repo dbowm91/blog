@@ -74,7 +74,7 @@
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
 }
 
-[data-theme="light"] .post-card:hover {
+[data-color-scheme="light"] .post-card:hover {
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
@@ -354,7 +354,7 @@
     letter-spacing: -0.02em;
     line-height: 1.2;
     margin-bottom: 12px;
-    color: #fff;
+    color: var(--text-on-accent);
 }
 
 /* --- Share Bar --- */
@@ -445,7 +445,7 @@
 
 .flash-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
 .flash-error { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
-.flash-warning { background: rgba(210, 153, 34, 0.15); border: 1px solid var(--yellow); color: var(--yellow); }
+.flash-warning { background: var(--amber-dim); border: 1px solid var(--yellow); color: var(--yellow); }
 .flash-info { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
 
 .flash-message { flex: 1; font-size: 0.9rem; }
@@ -1201,7 +1201,7 @@
 .search-btn {
     padding: 6px 12px;
     background: var(--accent);
-    color: #fff;
+    color: var(--text-on-accent);
     border: none;
     border-radius: var(--radius);
     font-size: 0.85rem;

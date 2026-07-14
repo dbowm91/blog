@@ -344,3 +344,96 @@ class TestTagCachingPerformance:
 
         per_call = elapsed / 100
         assert per_call < 0.01, f"Tag counts per call took {per_call:.4f}s, expected < 0.01s"
+
+
+class TestThemePerformance:
+    """Benchmark theme operations."""
+
+    def test_theme_registry_list_performance(self, app):
+        """Benchmark listing all themes from registry."""
+        from app.themes.service import get_theme_service
+
+        service = get_theme_service()
+        registry = service.get_registry()
+
+        start = time.perf_counter()
+        for _ in range(10):
+            themes = registry.list_themes()
+        elapsed = (time.perf_counter() - start) / 10
+
+        assert len(themes) >= 50, f"Expected >= 50 themes, got {len(themes)}"
+        assert elapsed < 0.1, f"Theme listing took {elapsed:.4f}s, expected < 0.1s"
+
+    def test_theme_load_performance(self, app):
+        """Benchmark loading a single theme."""
+        from app.themes.service import get_theme_service
+
+        service = get_theme_service()
+        registry = service.get_registry()
+
+        start = time.perf_counter()
+        for _ in range(10):
+            registry.invalidate("catppuccin-mocha")
+            loaded = registry.load("catppuccin-mocha")
+        elapsed = (time.perf_counter() - start) / 10
+
+        assert loaded is not None
+        assert elapsed < 0.5, f"Theme load took {elapsed:.4f}s, expected < 0.5s"
+
+    def test_theme_cache_hit_performance(self, app):
+        """Benchmark cached theme load (should be fast)."""
+        from app.themes.service import get_theme_service
+
+        service = get_theme_service()
+        registry = service.get_registry()
+
+        registry.load("catppuccin-mocha")
+
+        start = time.perf_counter()
+        for _ in range(100):
+            loaded = registry.load("catppuccin-mocha")
+        elapsed = (time.perf_counter() - start) / 100
+
+        assert loaded is not None
+        assert elapsed < 0.01, f"Cached theme load took {elapsed:.4f}s, expected < 0.01s"
+
+    def test_theme_context_performance(self, app, db):
+        """Benchmark theme context generation."""
+        from app.themes.service import get_theme_service
+
+        service = get_theme_service()
+        service.invalidate_settings_cache()
+
+        start = time.perf_counter()
+        for _ in range(10):
+            service.invalidate_settings_cache()
+            ctx = service.get_context()
+        elapsed = (time.perf_counter() - start) / 10
+
+        assert "theme_dark_vars" in ctx
+        assert elapsed < 0.5, f"Theme context took {elapsed:.4f}s, expected < 0.5s"
+
+    def test_malformed_theme_isolation(self, app):
+        """Verify malformed external themes don't crash the registry."""
+        import tempfile
+        from pathlib import Path
+        from app.themes.registry import ThemeRegistry, ThemeParseFailure
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            external_dir = tmpdir_path / "external"
+            external_dir.mkdir()
+
+            bad_file = external_dir / "bad-theme.toml"
+            bad_file.write_text("this is not valid toml {{{")
+
+            registry = ThemeRegistry(
+                external_root=external_dir,
+            )
+
+            themes = registry.list_themes()
+            bad_themes = [t for t in themes if t.canonical_name == "bad-theme"]
+            assert len(bad_themes) == 1
+
+            with pytest.raises(ThemeParseFailure):
+                registry.load("bad-theme")

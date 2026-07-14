@@ -67,6 +67,7 @@ ALIASES: dict[str, str] = {
     "text-dim": "--blog-text-dim",
     "text-dim-strong": "--blog-text-dim",
     "text-secondary": "--blog-text-secondary",
+    "text-on-accent": "--blog-text-on-accent",
     "accent": "--blog-accent",
     "accent-hover": "--blog-accent-hover",
     "accent-dim": "--blog-accent-dim",
@@ -84,6 +85,8 @@ ALIASES: dict[str, str] = {
     "bg-hover": "--blog-surface-hover",
     "noscript-bg": "--blog-noscript-bg",
     "noscript-text": "--blog-noscript-text",
+    "navbar-bg": "--blog-navbar-bg",
+    "overlay-bg": "--blog-overlay-bg",
 }
 
 

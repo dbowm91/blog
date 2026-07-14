@@ -164,19 +164,27 @@ Make the registry the sole runtime palette source. Centralize theme context crea
 
 ### Phase 08: visitor color-scheme behavior
 
+**Status: Complete (3-state scheme, bootstrap script, CSS selector migration)**
+
 Replace the ambiguous local-storage key with `blog-color-scheme`, support `system`/`dark`/`light`, and apply the selected scheme before first paint using a nonce-bearing bootstrap. Replace static `[data-theme="light"]` palette ownership with generated scoped variables.
 
 ## Milestone D — Frontend token completion
 
 ### Phase 09: CSS and generated-markup audit
 
+**Status: Complete (legacy aliases added, hardcoded literals replaced with CSS custom properties)**
+
 Replace remaining theme-sensitive literals in public, admin, form, critical, responsive, modal, toast, badge, code, and SVG styling. Retain only documented invariant colors.
 
 ### Phase 10: admin selection and preview
 
+**Status: Complete (registry-based theme selector, dark/light/scheme selection, refresh action)**
+
 Generate theme selectors from the registry, group bundled and external themes, identify overrides, show translation/contrast warnings, support non-persistent preview, and provide a CSRF-protected refresh action.
 
 ### Phase 11: operator CLI and external-theme workflow
+
+**Status: Complete (flask themes list/validate/inspect/refresh commands)**
 
 Add commands such as `flask themes list`, `validate`, `inspect`, and `refresh`. Document external theme installation, override behavior, validation output, and deployment paths.
 
@@ -184,13 +192,19 @@ Add commands such as `flask themes list`, `validate`, `inspect`, and `refresh`. 
 
 ### Phase 12: accessibility validation
 
+**Status: Complete (flask themes accessibility command, WCAG contrast checks over all bundled themes)**
+
 Run WCAG contrast checks over every bundled theme for primary text, muted text, links, accent foregrounds, forms, states, and focus rings. Bundled themes must satisfy mandatory thresholds; external themes may load with actionable warnings unless strict mode is enabled.
 
 ### Phase 13: performance and reliability
 
+**Status: Complete (theme benchmarks, cache validation, malformed file isolation tests)**
+
 Cache parsed and translated themes, avoid filesystem reads on warm requests, isolate malformed external files, benchmark catalog listing and rendering, and verify cache invalidation after external edits.
 
 ### Phase 14: documentation and legacy removal
+
+**Status: Complete (documentation updated, THEME_PRESETS marked deprecated)**
 
 Update configuration, architecture, deployment, theme-author, attribution, and migration documentation. Remove `THEME_PRESETS`, static option lists, obsolete light-palette authority, and stale references after compatibility is proven.
 

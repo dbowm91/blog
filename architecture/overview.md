@@ -95,7 +95,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Extensions | `app/extensions.py` | SQLAlchemy, LoginManager, Migrate |
 | Filters | `app/filters.py` | Jinja2 template filters |
 | Context Processors | `app/context_processors.py` | Template global variables |
-| CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, create-admin, etc.) |
+| CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, create-admin, themes list/validate/inspect/refresh/accessibility) |
 | Validators | `app/validators.py` | API input validation |
 | Tag Cache | `app/tag_cache.py` | Tag count caching with Flask-Caching TTL |
 | Transactions | `app/transaction.py` | `@transactional` decorator, `db_transaction()` context manager, slug retry |

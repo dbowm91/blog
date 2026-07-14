@@ -246,7 +246,7 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration), and Phase 07 (Flask and Jinja runtime integration) complete with corrective closure and small closure pass. Phase 06 adds `theme_dark_name`, `theme_light_name`, `theme_default_scheme` columns to SiteSettings, Alembic migration, theme settings validation service (`app/services/theme_settings.py`), and config.toml theme section. Phase 07 adds the centralized `ThemeService` class, dual-scheme CSS emission, and context processor overhaul.
+Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration), Phase 07 (Flask and Jinja runtime integration), Phase 08 (visitor color-scheme behavior), Phase 09 (CSS and generated-markup audit), Phase 10 (admin selection and preview), Phase 11 (operator CLI), Phase 12 (accessibility validation), and Phase 13 (performance and reliability) complete. Phase 14 (documentation and legacy removal) is in progress. Phase 06 adds `theme_dark_name`, `theme_light_name`, `theme_default_scheme` columns to SiteSettings, Alembic migration, theme settings validation service (`app/services/theme_settings.py`), and config.toml theme section. Phase 07 adds the centralized `ThemeService` class, dual-scheme CSS emission, and context processor overhaul. Phase 08 introduces 3-state color scheme (system/dark/light), `blog-color-scheme` localStorage key, bootstrap script for first-paint scheme application, and CSS selector migration from `[data-theme]` to `[data-color-scheme]`. Phase 09 replaces hardcoded CSS literals with CSS custom properties. Phase 10 provides registry-based theme selector with dark/light/scheme selection. Phase 11 adds Flask CLI commands for theme management. Phase 12 adds WCAG contrast validation. Phase 13 adds theme performance benchmarks and malformed file isolation tests.
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
@@ -260,8 +260,10 @@ Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitiv
 | Source catalog | `themes/*.toml` | 50 files; ignore macOS `._*.toml` metadata files |
 | Bundled themes | `app/themes/bundled/*.toml` | Packaged copy of source catalog; accessible via `importlib.resources` |
 | Runtime authority | `app/models.py:366-457` | `THEME_PRESETS` dict; remains runtime authority until Phase 14 |
-| Context injection | `app/context_processors.py:67-76` | `inject_theme()` builds `theme_vars` dict |
+| Context injection | `app/context_processors.py:67-76` | `inject_theme()` builds `theme_vars` dict via `ThemeService` |
 | Template consumption | `app/templates/base.html:42-48`, `app/templates/admin/base.html:17-23` | CSS variable injection into `<style>` blocks |
+| Color scheme | `app/static/js/shared/color-scheme.js` | 3-state scheme manager, localStorage key `blog-color-scheme` |
+| CSS selectors | `base.css`, `public.css`, `prism-okaidia.css` | Use `[data-color-scheme="light"]` (not `[data-theme]`) |
 
 ### Planned Module Layout
 
@@ -280,6 +282,8 @@ Phases 05+ will create these modules:
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 | Done |
 | `app/services/theme_settings.py` | Theme validation, legacy migration, effective name resolution | 06 | Done |
 | `app/themes/service.py` | `ThemeService` class, per-process registry owner, context builder (Phase 07) | 07 | Done |
+| `app/static/js/shared/color-scheme.js` | 3-state color scheme manager (system/dark/light), bootstrap, toggle | 08 | Done |
+| `app/static/js/shared/dark-mode.js` | Backward-compatible re-export from color-scheme.js | 08 | Done |
 
 ### Phase 02 API
 

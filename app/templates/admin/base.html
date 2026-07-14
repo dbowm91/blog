@@ -1,6 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-color-scheme="{{ theme_default_scheme or 'dark' }}" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}" data-prism-js-url="{{ vite_asset('js/prism.min.js') }}" data-prism-langs-url="{{ vite_asset('js/prism-languages.js') }}">
+<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}" data-prism-js-url="{{ vite_asset('js/prism.min.js') }}" data-prism-langs-url="{{ vite_asset('js/prism-languages.js') }}">
 <head>
+    <script nonce="{{ csp_nonce }}">
+        (function() {
+            var s = localStorage.getItem('blog-color-scheme');
+            var scheme = (s === 'system' || s === 'dark' || s === 'light') ? s : 'system';
+            var effective = scheme === 'system'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : scheme;
+            document.documentElement.setAttribute('data-color-scheme', effective);
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin | {{ site_title }}</title>

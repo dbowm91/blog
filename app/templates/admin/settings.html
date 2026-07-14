@@ -16,20 +16,39 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             
             <div class="form-group">
-                <label for="preset">Theme Preset</label>
-                <div class="preset-grid">
-                    {% for preset_id, preset in theme_presets.items() %}
-                    <label class="preset-card {% if settings.theme_preset == preset_id %}selected{% endif %}">
-                        <input type="radio" name="preset" value="{{ preset_id }}" {% if settings.theme_preset == preset_id %}checked{% endif %}>
-                        <div class="preset-preview" style="background: {{ preset.bg }}; border-color: {{ preset.border }};">
-                            <div class="preset-swatch" style="background: {{ preset.text }};"></div>
-                            <div class="preset-swatch" style="background: {{ preset['text-muted'] }};"></div>
-                            <div class="preset-swatch" style="background: {{ preset.accent }};"></div>
-                        </div>
-                        <span class="preset-name">{{ preset.name }}</span>
-                    </label>
+                <label for="theme_dark_name">Dark Theme</label>
+                <select id="theme_dark_name" name="theme_dark_name" class="search-input">
+                    {% for theme in bundled_themes %}
+                    <option value="{{ theme.canonical_name }}" {% if theme_dark_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (bundled)</option>
                     {% endfor %}
-                </div>
+                    {% for theme in external_themes %}
+                    <option value="{{ theme.canonical_name }}" {% if theme_dark_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (external{% if theme.overrides_bundled %}, overrides bundled{% endif %})</option>
+                    {% endfor %}
+                </select>
+                <p class="form-help">Select the dark theme for your site.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="theme_light_name">Light Theme</label>
+                <select id="theme_light_name" name="theme_light_name" class="search-input">
+                    {% for theme in bundled_themes %}
+                    <option value="{{ theme.canonical_name }}" {% if theme_light_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (bundled)</option>
+                    {% endfor %}
+                    {% for theme in external_themes %}
+                    <option value="{{ theme.canonical_name }}" {% if theme_light_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (external{% if theme.overrides_bundled %}, overrides bundled{% endif %})</option>
+                    {% endfor %}
+                </select>
+                <p class="form-help">Select the light theme for your site.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="theme_default_scheme">Default Color Scheme</label>
+                <select id="theme_default_scheme" name="theme_default_scheme" class="search-input">
+                    {% for scheme in valid_schemes %}
+                    <option value="{{ scheme }}" {% if theme_default_scheme == scheme %}selected{% endif %}>{{ scheme|capitalize }}</option>
+                    {% endfor %}
+                </select>
+                <p class="form-help">Default color scheme for new visitors. They can override with the theme toggle.</p>
             </div>
 
             <div class="form-group">
@@ -66,18 +85,20 @@
             </div>
         </form>
     </div>
+
+    <div class="settings-section">
+        <h2>Theme Registry</h2>
+        <p style="margin-bottom: 16px; color: var(--text-muted); font-size: 0.9rem;">
+            {{ bundled_themes|length }} bundled themes, {{ external_themes|length }} external themes
+        </p>
+        <form method="POST" action="{{ url_for('admin.settings_theme_refresh') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-ghost">Refresh Theme Registry</button>
+        </form>
+    </div>
 </div>
 
 <script nonce="{{ csp_nonce }}">
-document.querySelectorAll('input[name="preset"]').forEach(function(radio) {
-    radio.addEventListener('change', function() {
-        document.querySelectorAll('.preset-card').forEach(function(card) {
-            card.classList.remove('selected');
-        });
-        this.closest('.preset-card').classList.add('selected');
-    });
-});
-
 document.querySelector('input[name="custom_css_enabled"]').addEventListener('change', function() {
     document.getElementById('custom-css-group').style.display = this.checked ? 'block' : 'none';
 });
