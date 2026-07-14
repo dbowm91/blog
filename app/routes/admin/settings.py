@@ -103,7 +103,7 @@ def settings_theme() -> ResponseReturnValue:
         if registry.resolve(dark_name) is None:
             flash(f"Dark theme '{dark_name}' not found in registry.", "error")
             return redirect(url_for("admin.settings"))
-    except ThemeValidationError as e:
+    except (ThemeValidationError, ThemeParseFailure, ThemeLoadError) as e:
         flash(f"Invalid dark theme name: {e}", "error")
         return redirect(url_for("admin.settings"))
 
@@ -111,7 +111,7 @@ def settings_theme() -> ResponseReturnValue:
         if registry.resolve(light_name) is None:
             flash(f"Light theme '{light_name}' not found in registry.", "error")
             return redirect(url_for("admin.settings"))
-    except ThemeValidationError as e:
+    except (ThemeValidationError, ThemeParseFailure, ThemeLoadError) as e:
         flash(f"Invalid light theme name: {e}", "error")
         return redirect(url_for("admin.settings"))
 
@@ -196,13 +196,13 @@ def settings_theme_preview() -> ResponseReturnValue:
     try:
         if registry.resolve(dark_name) is None:
             errors.append(f"Dark theme '{dark_name}' not found in registry.")
-    except ThemeValidationError as e:
+    except (ThemeValidationError, ThemeParseFailure, ThemeLoadError) as e:
         errors.append(f"Invalid dark theme name: {e}")
 
     try:
         if registry.resolve(light_name) is None:
             errors.append(f"Light theme '{light_name}' not found in registry.")
-    except ThemeValidationError as e:
+    except (ThemeValidationError, ThemeParseFailure, ThemeLoadError) as e:
         errors.append(f"Invalid light theme name: {e}")
 
     if errors:
