@@ -145,7 +145,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI Workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 7 jobs: `lint-and-type`, `test`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, and `theme-package-verification`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
+CI configuration is at `.github/workflows/ci.yml`. It includes 9 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, and `e2e-tests`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
 
 ### Webhook Delivery Architecture
 
@@ -275,9 +275,9 @@ For detailed implementation history, deprecated features, actual route correctio
 
 > [docs/internals/agent-maintainer-notes.md](docs/internals/agent-maintainer-notes.md)
 
-### Halloy Theme Migration (complete)
+### Halloy Theme Migration (complete + final verification pass)
 
-The project migrated from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50 bundled themes. All 15 phases are complete:
+The project migrated from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50 bundled themes. All 15 phases are complete and the final verification pass is done:
 
 - Phase 01: inventory + token contract
 - Phase 02: parser + color primitives
@@ -359,6 +359,10 @@ The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 - `themes/*.toml` source catalog is the canonical development reference
 - Bundled theme resources use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths
 - Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) use CSS custom properties for all theme-sensitive colors
+
+#### Accessibility policy
+
+The accessibility policy uses a three-tier classification system: `recommended`, `compatible-with-exceptions`, and `experimental`. Classification is performed by `classify_theme_eligibility()` in `app/themes/diagnostics.py`. The exception manifest is at `app/themes/ACCESSIBILITY_EXCEPTIONS.json` with `schema_version: 2` and per-theme `policy_class` entries. CI enforces the policy via the `theme-policy` job and the `flask themes accessibility --strict` CLI flag.
 
 #### Key files (catalog source)
 

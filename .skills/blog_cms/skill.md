@@ -246,12 +246,14 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-All 15 phases of the Halloy theme migration are complete: Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration), Phase 07 (Flask and Jinja runtime integration), Phase 08 (visitor color-scheme behavior), Phase 09 (CSS and generated-markup audit), Phase 10 (admin selection and preview), Phase 11 (operator CLI), Phase 12 (accessibility validation), Phase 13 (performance and reliability), Phase 14 (documentation and legacy removal), and Phase 15 (legacy removal and release closure — THEME_PRESETS removed, theme_preset column dropped, emergency fallback uses EMERGENCY_DEFAULT).
+All 15 phases of the Halloy theme migration are complete, plus a final verification pass. Phases: 01 (catalog inventory + token contract), 02 (parser + color primitives), 03 (blog translation layer), 04 (safe registry and external overrides), 05 (packaging), 06 (runtime integration), 07 (Flask and Jinja runtime integration), 08 (visitor color-scheme behavior), 09 (CSS and generated-markup audit), 10 (admin selection and preview), 11 (operator CLI), 12 (accessibility validation), 13 (performance and reliability), 14 (documentation and legacy removal), and 15 (legacy removal and release closure — THEME_PRESETS removed, theme_preset column dropped, emergency fallback uses EMERGENCY_DEFAULT).
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
 - Fingerprint: `_compute_fingerprint()` uses `hashlib.sha256()` (64-char hex) for bundled resources
-- CI: `theme-package-verification` job builds wheel/sdist and runs `scripts/verify_theme_package.py` as a gate
+- CI: 9 jobs including `theme-policy` (accessibility strict check) and `migration-chain` (real Alembic Operations context tests)
+
+**Accessibility policy:** Three-tier classification system — `recommended` (zero failures), `compatible-with-exceptions` (failures covered by manifest), `experimental` (uncovered failures). Exception manifest at `app/themes/ACCESSIBILITY_EXCEPTIONS.json` with `schema_version: 2`. CI enforces via `theme-policy` job and `flask themes accessibility --strict`.
 
 ### Theme Source Locations
 
@@ -357,10 +359,11 @@ Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_d
 
 ### Hard Rules for Agents
 
-1. All 15 phases of the Halloy theme migration are complete.
+1. All 15 phases of the Halloy theme migration are complete, plus final verification pass.
 2. `THEME_PRESETS` has been removed from `app/models.py`; `theme_preset` column dropped from `SiteSettings`.
 3. Bundled resources must use `importlib.resources`, not cwd-relative paths.
 4. CSS variables emitted via `theme_vars` are the current API.
+5. Accessibility policy uses three-tier classification: `recommended`, `compatible-with-exceptions`, `experimental`.
 
 ### Token Contract Summary
 
@@ -372,4 +375,4 @@ Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_d
 
 ### Phase 02+ Reference
 
-All 15 phases are complete. The phased plan is at `plans/halloy_theme_system_roadmap.md`.
+All 15 phases are complete plus final verification pass. The phased plan is at `plans/halloy_theme_system_roadmap.md`.

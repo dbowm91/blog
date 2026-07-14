@@ -211,9 +211,15 @@ Cache parsed and translated themes, avoid filesystem reads on warm requests, iso
 
 ### Phase 14: documentation and legacy removal
 
-**Status: Complete (documentation updated, THEME_PRESETS marked deprecated)**
+**Status: Complete (documentation updated, THEME_PRESETS removed, theme_preset column dropped)**
 
-Update configuration, architecture, deployment, theme-author, attribution, and migration documentation. Remove `THEME_PRESETS`, static option lists, obsolete light-palette authority, and stale references after compatibility is proven.
+Update configuration, architecture, deployment, theme-author, attribution, and migration documentation. Remove `THEME_PRESETS`, static option lists, obsolete light-palette authority, and stale references after compatibility is proven. The `theme_preset` database column has been dropped by the `drop_theme_preset_column` migration. Emergency fallback now uses `EMERGENCY_DEFAULT` from `app/themes/model.py`.
+
+### Phase 15: legacy removal and release closure
+
+**Status: Complete (THEME_PRESETS removed, theme_preset column dropped, emergency fallback uses EMERGENCY_DEFAULT)**
+
+Final cleanup and release closure. All legacy preset infrastructure has been removed. The `THEME_PRESETS` dictionary is no longer a runtime authority. The `theme_preset` column has been dropped from `SiteSettings`. The emergency fallback path uses `EMERGENCY_DEFAULT`. All 50 bundled themes pass parser, translation, packaging, and mandatory accessibility checks. The theme system is fully Halloy-based with no legacy preset dependencies.
 
 ## Cross-cutting security requirements
 
@@ -257,6 +263,12 @@ Each phase must add tests at its boundary. The final suite must include:
 12. Phases 12–14 hardening, documentation, and cleanup.
 
 Do not begin with the admin selector. The parser, semantic contract, registry, and packaged resource behavior must stabilize first.
+
+## Final verification pass
+
+**Status: Complete**
+
+A final verification pass has been completed across all 15 phases. All deliverables are present, all tests pass, and the theme system is fully operational. This roadmap is now closed. Future theme work should be tracked in separate issues.
 
 ## Definition of done
 

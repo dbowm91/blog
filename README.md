@@ -157,13 +157,15 @@ Click **Preview** to see how your post will look with theme styling.
 
 **Custom Themes:** Place Halloy-compatible `.toml` files in the external themes directory (configured via `THEME_EXTERNAL_DIR` or `config.toml` `[themes]` section). External themes override bundled themes with the same name.
 
+**Accessibility:** Themes are classified into three tiers — **recommended** (zero failures), **compatible-with-exceptions** (documented deviations), and **experimental** (unexpected failures). All bundled themes satisfy mandatory accessibility thresholds. Run `flask themes accessibility --strict` to verify. See [docs/themes/operator-guide.md § Accessibility Policy](docs/themes/operator-guide.md#accessibility-policy) for details.
+
 **CLI Management:**
 ```bash
 flask themes list                    # List all available themes
 flask themes validate ./my-theme.toml  # Validate a theme file
 flask themes inspect "Catppuccin Mocha"  # Inspect theme details
 flask themes refresh                 # Refresh theme registry
-flask themes accessibility           # Run WCAG contrast checks
+flask themes accessibility           # Run WCAG contrast checks (--strict for mandatory-only)
 ```
 
 See [docs/themes/operator-guide.md](docs/themes/operator-guide.md) for the full operator guide and [docs/themes/supported-schema.md](docs/themes/supported-schema.md) for the Halloy TOML schema reference.

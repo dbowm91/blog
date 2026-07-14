@@ -8,12 +8,15 @@ from app.themes.colors import RGB, RGBA
 from app.themes.diagnostics import (
     AccessibilityFinding,
     CatalogAccessibilityReport,
+    CatalogEligibility,
     ClassificationAudit,
     Severity,
     ThemeAccessibilityReport,
     _CONTRAST_PAIRS,
     check_blog_theme_contrast,
     check_contrast,
+    classify_catalog_eligibility,
+    classify_theme_eligibility,
     validate_catalog_accessibility,
     validate_theme_accessibility,
 )
@@ -649,3 +652,478 @@ class TestExceptionManifest:
         assert report.passed is False
         assert report.passed_with_exceptions is True
         assert len(report.expected_exceptions) == 1
+
+
+class TestClassifyThemeEligibility:
+    def test_recommended_when_no_failures(self) -> None:
+        report = ThemeAccessibilityReport(
+            theme_name="clean", source="bundled", is_dark=True, findings=[]
+        )
+        assert classify_theme_eligibility(report) == "recommended"
+
+    def test_recommended_when_only_advisory(self) -> None:
+        report = ThemeAccessibilityReport(
+            theme_name="advisory-only",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="advisory-only",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=3.5,
+                    required=3.0,
+                    wcag="AA-large",
+                    severity=Severity.ADVISORY,
+                    remediation="Fix",
+                )
+            ],
+        )
+        assert classify_theme_eligibility(report) == "recommended"
+
+    def test_compatible_with_exceptions_when_all_expected(self) -> None:
+        report = ThemeAccessibilityReport(
+            theme_name="exc",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="exc",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                    exception_reason="Documented exception",
+                )
+            ],
+        )
+        assert classify_theme_eligibility(report) == "compatible-with-exceptions"
+
+    def test_experimental_when_unexpected_mandatory(self) -> None:
+        report = ThemeAccessibilityReport(
+            theme_name="bad",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="bad",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                )
+            ],
+        )
+        assert classify_theme_eligibility(report) == "experimental"
+
+    def test_experimental_with_mixed_expected_and_unexpected(self) -> None:
+        report = ThemeAccessibilityReport(
+            theme_name="mixed",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="mixed",
+                    token="--test1",
+                    description="test1",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                    exception_reason="Documented exception",
+                ),
+                AccessibilityFinding(
+                    theme_name="mixed",
+                    token="--test2",
+                    description="test2",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                ),
+            ],
+        )
+        assert classify_theme_eligibility(report) == "experimental"
+
+    def test_advisory_only_is_recommended_not_compatible(self) -> None:
+        report = ThemeAccessibilityReport(
+            theme_name="adv",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="adv",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=3.5,
+                    required=3.0,
+                    wcag="AA-large",
+                    severity=Severity.ADVISORY,
+                    remediation="Fix",
+                ),
+                AccessibilityFinding(
+                    theme_name="adv",
+                    token="--test2",
+                    description="test2",
+                    foreground="#888",
+                    background="#999",
+                    ratio=2.5,
+                    required=3.0,
+                    wcag="fail",
+                    severity=Severity.ADVISORY,
+                    remediation="Fix",
+                ),
+            ],
+        )
+        assert classify_theme_eligibility(report) == "recommended"
+
+
+class TestCatalogEligibility:
+    def test_dataclass_fields(self) -> None:
+        el = CatalogEligibility(
+            theme_eligibilities={"a": "recommended", "b": "experimental"},
+            recommended_count=1,
+            compatible_count=0,
+            experimental_count=1,
+        )
+        assert el.theme_eligibilities["a"] == "recommended"
+        assert el.recommended_count == 1
+        assert el.experimental_count == 1
+
+    def test_to_dict(self) -> None:
+        el = CatalogEligibility(
+            theme_eligibilities={"a": "recommended"},
+            recommended_count=1,
+            compatible_count=0,
+            experimental_count=0,
+        )
+        d = el.to_dict()
+        assert d["recommended_count"] == 1
+        assert d["total"] == 1
+        assert d["theme_eligibilities"]["a"] == "recommended"
+
+
+class TestClassifyCatalogEligibility:
+    def test_empty_catalog(self) -> None:
+        catalog = CatalogAccessibilityReport(reports=[])
+        result = classify_catalog_eligibility(catalog)
+        assert result.recommended_count == 0
+        assert result.compatible_count == 0
+        assert result.experimental_count == 0
+        assert len(result.theme_eligibilities) == 0
+
+    def test_mixed_eligibilities(self) -> None:
+        clean = ThemeAccessibilityReport(
+            theme_name="clean", source="bundled", is_dark=True, findings=[]
+        )
+        with_exc = ThemeAccessibilityReport(
+            theme_name="with-exc",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="with-exc",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                    exception_reason="Documented exception",
+                )
+            ],
+        )
+        bad = ThemeAccessibilityReport(
+            theme_name="bad",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="bad",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                )
+            ],
+        )
+        catalog = CatalogAccessibilityReport(reports=[clean, with_exc, bad])
+        result = classify_catalog_eligibility(catalog)
+        assert result.recommended_count == 1
+        assert result.compatible_count == 1
+        assert result.experimental_count == 1
+        assert result.theme_eligibilities["clean"] == "recommended"
+        assert result.theme_eligibilities["with-exc"] == "compatible-with-exceptions"
+        assert result.theme_eligibilities["bad"] == "experimental"
+
+    def test_to_dict_summarizes(self) -> None:
+        catalog = CatalogAccessibilityReport(
+            reports=[
+                ThemeAccessibilityReport(
+                    theme_name="t", source="bundled", is_dark=True, findings=[]
+                )
+            ]
+        )
+        result = classify_catalog_eligibility(catalog)
+        d = result.to_dict()
+        assert d["total"] == 1
+        assert d["recommended_count"] == 1
+
+
+class TestBundledThemesEligibility:
+    @pytest.mark.parametrize(
+        "path",
+        [p for p in sorted(CATALOG.glob("*.toml")) if not p.name.startswith("._")],
+        ids=[p.stem for p in sorted(CATALOG.glob("*.toml")) if not p.name.startswith("._")],
+    )
+    def test_bundled_theme_eligibility_valid(self, path: Path) -> None:
+        theme = parse_halloy_theme(path)
+        result = translate_halloy_theme(theme)
+        report = validate_theme_accessibility(
+            result.theme,
+            theme_name=path.stem,
+            filename_dark=result.is_dark,
+        )
+        eligibility = classify_theme_eligibility(report)
+        assert eligibility in ("recommended", "compatible-with-exceptions", "experimental")
+
+    def test_catalog_eligibility_completes(self) -> None:
+        toml_files = [p for p in sorted(CATALOG.glob("*.toml")) if not p.name.startswith("._")]
+        reports = []
+        for path in toml_files:
+            theme = parse_halloy_theme(path)
+            result = translate_halloy_theme(theme)
+            report = validate_theme_accessibility(
+                result.theme,
+                theme_name=path.stem,
+                filename_dark=result.is_dark,
+            )
+            reports.append(report)
+        catalog = CatalogAccessibilityReport(reports=reports)
+        eligibility = classify_catalog_eligibility(catalog)
+        total = (
+            eligibility.recommended_count
+            + eligibility.compatible_count
+            + eligibility.experimental_count
+        )
+        assert total == len(toml_files)
+        for path in toml_files:
+            assert path.stem in eligibility.theme_eligibilities
+
+
+class TestExceptionIntegrity:
+    def test_every_exception_maps_to_active_finding(self) -> None:
+        import json
+
+        manifest_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "app"
+            / "themes"
+            / "ACCESSIBILITY_EXCEPTIONS.json"
+        )
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        validated_descriptions = {pair[2] for pair in _CONTRAST_PAIRS}
+
+        toml_files = [p for p in sorted(CATALOG.glob("*.toml")) if not p.name.startswith("._")]
+        for path in toml_files:
+            if path.stem not in manifest.get("exceptions", {}):
+                continue
+            theme_exc = manifest["exceptions"][path.stem]
+            theme = parse_halloy_theme(path)
+            result = translate_halloy_theme(theme)
+            report = validate_theme_accessibility(
+                result.theme,
+                theme_name=path.stem,
+                filename_dark=result.is_dark,
+            )
+            finding_descriptions = {(f.token, f.description) for f in report.findings}
+            for pair in theme_exc.get("pairs", []):
+                if pair["description"] not in validated_descriptions:
+                    continue
+                key = (pair["token"], pair["description"])
+                assert key in finding_descriptions, (
+                    f"Exception for {path.stem} maps to non-existent finding: "
+                    f"token={pair['token']}, description={pair['description']}"
+                )
+
+    def test_no_orphaned_exceptions(self) -> None:
+        import json
+
+        manifest_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "app"
+            / "themes"
+            / "ACCESSIBILITY_EXCEPTIONS.json"
+        )
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        catalog_names = {p.stem for p in CATALOG.glob("*.toml") if not p.name.startswith("._")}
+        for theme_name in manifest.get("exceptions", {}):
+            assert theme_name in catalog_names, (
+                f"Exception entry '{theme_name}' does not correspond to any catalog theme"
+            )
+
+    def test_no_token_name_only_exceptions(self) -> None:
+        import json
+
+        manifest_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "app"
+            / "themes"
+            / "ACCESSIBILITY_EXCEPTIONS.json"
+        )
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        for theme_name, theme_exc in manifest.get("exceptions", {}).items():
+            for i, pair in enumerate(theme_exc.get("pairs", [])):
+                assert "token" in pair, f"Exception {i} for '{theme_name}' missing 'token' field"
+                assert "description" in pair, (
+                    f"Exception {i} for '{theme_name}' missing 'description' field"
+                )
+                assert pair["token"] and pair["description"], (
+                    f"Exception {i} for '{theme_name}' has empty token or description"
+                )
+
+
+class TestDefaultThemesMandatoryExceptions:
+    def test_default_themes_have_zero_mandatory_exceptions(self) -> None:
+        import json
+
+        manifest_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "app"
+            / "themes"
+            / "ACCESSIBILITY_EXCEPTIONS.json"
+        )
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        for theme_name in ["Catppuccin Mocha", "Catppuccin Latte"]:
+            theme_exc = manifest.get("exceptions", {}).get(theme_name, {})
+            for pair in theme_exc.get("pairs", []):
+                assert pair.get("policy_class") != "mandatory_defect", (
+                    f"Default theme {theme_name} has mandatory_defect exception: "
+                    f"{pair['token']} ({pair['description']})"
+                )
+
+
+class TestStrictModeRejectsMandatoryFailures:
+    def test_strict_mode_rejects_mandatory_failures(self) -> None:
+        theme = BlogTheme(
+            bg_page=_rgb("#ffffff"),
+            surface_default=_rgb("#ffffff"),
+            surface_elevated=_rgb("#ffffff"),
+            surface_hover=_rgb("#ffffff"),
+            surface_active=_rgb("#ffffff"),
+            navbar_bg=RGBA(255, 255, 255, 0.85),
+            overlay_bg=RGBA(0, 0, 0, 0.5),
+            border_primary=_rgb("#cccccc"),
+            border_subtle=_rgb("#dddddd"),
+            border_strong=_rgb("#bbbbbb"),
+            border_focus=_rgb("#cccccc"),
+            navbar_border=_rgb("#cccccc"),
+            text_primary=_rgb("#cccccc"),
+            text_secondary=_rgb("#cccccc"),
+            text_muted=_rgb("#cccccc"),
+            text_dim=_rgb("#cccccc"),
+            text_on_accent=_rgb("#cccccc"),
+            text_on_success=_rgb("#cccccc"),
+            text_on_error=_rgb("#cccccc"),
+            text_on_warning=_rgb("#cccccc"),
+            text_on_info=_rgb("#cccccc"),
+            text_link=_rgb("#cccccc"),
+            text_link_hover=_rgb("#cccccc"),
+            accent=_rgb("#cccccc"),
+            accent_hover=_rgb("#cccccc"),
+            accent_dim=RGBA(204, 204, 204, 0.1),
+            accent_link=_rgb("#cccccc"),
+            accent_focus_ring=_rgb("#cccccc"),
+            success_fg=_rgb("#cccccc"),
+            success_bg=RGBA(204, 204, 204, 0.15),
+            error_fg=_rgb("#cccccc"),
+            error_bg=RGBA(204, 204, 204, 0.15),
+            warning_fg=_rgb("#cccccc"),
+            warning_bg=RGBA(204, 204, 204, 0.15),
+            info_fg=_rgb("#cccccc"),
+            info_bg=RGBA(204, 204, 204, 0.15),
+            input_bg=_rgb("#ffffff"),
+            input_border=_rgb("#cccccc"),
+            input_text=_rgb("#cccccc"),
+            code_bg=_rgb("#ffffff"),
+            code_border=_rgb("#cccccc"),
+            code_text=_rgb("#cccccc"),
+            selection_bg=_rgb("#cccccc"),
+            navbar_text=_rgb("#cccccc"),
+            navbar_text_muted=_rgb("#cccccc"),
+            shadow_color=RGBA(0, 0, 0, 0.1),
+            noscript_bg=_rgb("#ffff00"),
+            noscript_text=_rgb("#000000"),
+            coral=_rgb("#cccccc"),
+            coral_dim=RGBA(204, 204, 204, 0.15),
+        )
+        report = validate_theme_accessibility(theme, theme_name="strict-test")
+        assert len(report.mandatory_failures) > 0
+        assert report.passed is False
+        assert report.passed_with_exceptions is False
+        eligibility = classify_theme_eligibility(report)
+        assert eligibility == "experimental"
+
+    def test_strict_catalog_rejects_if_any_experimental(self) -> None:
+        clean = ThemeAccessibilityReport(
+            theme_name="clean", source="bundled", is_dark=True, findings=[]
+        )
+        bad = ThemeAccessibilityReport(
+            theme_name="bad",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="bad",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                )
+            ],
+        )
+        catalog = CatalogAccessibilityReport(reports=[clean, bad])
+        eligibility = classify_catalog_eligibility(catalog)
+        assert eligibility.experimental_count == 1
+        assert eligibility.theme_eligibilities["bad"] == "experimental"

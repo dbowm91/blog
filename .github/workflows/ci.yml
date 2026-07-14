@@ -73,6 +73,43 @@ jobs:
           SECRET_KEY: test-secret-key-test-secret-key-1234
         run: python -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=80
 
+  theme-policy:
+    name: Theme Policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Theme accessibility strict check
+        run: python scripts/theme_accessibility_report.py --strict
+
+  migration-chain:
+    name: Migration Chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run migration chain tests
+        env:
+          SECRET_KEY: test-secret-key-ci-32-chars-minimum-here
+          ADMIN_PASSWORD: ci-test-password
+        run: python -m pytest tests/test_migration_chain.py tests/test_migration_drop_theme_preset.py -v
+
   theme-package-verification:
     runs-on: ubuntu-latest
     needs: [test]

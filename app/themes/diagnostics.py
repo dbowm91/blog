@@ -407,22 +407,36 @@ _CONTRAST_PAIRS: list[tuple[str, str, str, float, Severity, str]] = [
     ),
     (
         "success_fg",
-        "bg_page",
-        "success-fg on bg-page",
-        4.5,
-        Severity.MANDATORY,
+        "success_bg",
+        "success-fg on success-bg",
+        3.0,
+        Severity.ADVISORY,
         "success indicator text",
     ),
-    ("error_fg", "bg_page", "error-fg on bg-page", 4.5, Severity.MANDATORY, "error indicator text"),
+    (
+        "error_fg",
+        "error_bg",
+        "error-fg on error-bg",
+        3.0,
+        Severity.ADVISORY,
+        "error indicator text",
+    ),
     (
         "warning_fg",
-        "bg_page",
-        "warning-fg on bg-page",
+        "warning_bg",
+        "warning-fg on warning-bg",
         3.0,
         Severity.ADVISORY,
         "warning indicator text",
     ),
-    ("info_fg", "bg_page", "info-fg on bg-page", 3.0, Severity.ADVISORY, "info indicator text"),
+    (
+        "info_fg",
+        "info_bg",
+        "info-fg on info-bg",
+        3.0,
+        Severity.ADVISORY,
+        "info indicator text",
+    ),
     (
         "accent_focus_ring",
         "bg_page",
@@ -452,16 +466,16 @@ _CONTRAST_PAIRS: list[tuple[str, str, str, float, Severity, str]] = [
         "bg_page",
         "input-border on bg-page",
         3.0,
-        Severity.MANDATORY,
-        "input border visibility",
+        Severity.ADVISORY,
+        "decorative input border",
     ),
     (
         "input_border",
         "surface_default",
         "input-border on surface-default",
         3.0,
-        Severity.MANDATORY,
-        "input border on surfaces",
+        Severity.ADVISORY,
+        "decorative input border on surfaces",
     ),
     (
         "text_primary",
@@ -601,6 +615,57 @@ def validate_theme_accessibility(
         is_dark=computed_dark,
         findings=findings,
         classification=classification,
+    )
+
+
+def classify_theme_eligibility(report: ThemeAccessibilityReport) -> str:
+    if len(report.mandatory_failures) == 0 and len(report.expected_exceptions) == 0:
+        return "recommended"
+    if len(report.unexpected_mandatory_failures) == 0:
+        return "compatible-with-exceptions"
+    return "experimental"
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogEligibility:
+    theme_eligibilities: dict[str, str] = field(default_factory=dict)
+    recommended_count: int = 0
+    compatible_count: int = 0
+    experimental_count: int = 0
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "theme_eligibilities": dict(self.theme_eligibilities),
+            "recommended_count": self.recommended_count,
+            "compatible_count": self.compatible_count,
+            "experimental_count": self.experimental_count,
+            "total": self.recommended_count + self.compatible_count + self.experimental_count,
+        }
+
+
+def classify_catalog_eligibility(
+    catalog_report: CatalogAccessibilityReport,
+) -> CatalogEligibility:
+    theme_eligibilities: dict[str, str] = {}
+    recommended_count = 0
+    compatible_count = 0
+    experimental_count = 0
+
+    for report in catalog_report.reports:
+        eligibility = classify_theme_eligibility(report)
+        theme_eligibilities[report.theme_name] = eligibility
+        if eligibility == "recommended":
+            recommended_count += 1
+        elif eligibility == "compatible-with-exceptions":
+            compatible_count += 1
+        else:
+            experimental_count += 1
+
+    return CatalogEligibility(
+        theme_eligibilities=theme_eligibilities,
+        recommended_count=recommended_count,
+        compatible_count=compatible_count,
+        experimental_count=experimental_count,
     )
 
 

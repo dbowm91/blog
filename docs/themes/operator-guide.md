@@ -292,6 +292,81 @@ See `docs/themes/cache-contract.md` for the full cache freshness contract.
 
 **Legacy preset names no longer work**: The `THEME_PRESETS` dict was removed in Phase 14, and the `theme_preset` database column was dropped in Phase 15. Legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) are no longer available. Select a Halloy theme name from the admin settings page instead.
 
+## Accessibility Policy
+
+Every bundled and external theme is classified into one of three eligibility tiers based on WCAG contrast ratio checks:
+
+### Tiers
+
+| Tier | Meaning | Operator guidance |
+|------|---------|-------------------|
+| **recommended** | Zero mandatory failures, zero expected exceptions. All 24 contrast pairs pass WCAG thresholds. | Safe for production use with no caveats. |
+| **compatible-with-exceptions** | Mandatory failures exist but every one is covered by a documented exception in the exception manifest. The theme is usable but has known contrast deviations. | Safe for production. Review the exception reasons to understand the trade-offs (e.g., decorative input borders, composited-pair edge cases). |
+| **experimental** | One or more mandatory failures with no matching exception. The theme has contrast issues that have not been reviewed or accepted. | Not recommended for production. Use at your own risk; run `flask themes accessibility --strict` to identify the specific failures. |
+
+### How themes are classified
+
+Classification is determined by `classify_theme_eligibility()` in `app/themes/diagnostics.py`. The logic is:
+
+1. If a theme has **zero mandatory failures** and **zero expected exceptions**, it is `recommended`.
+2. If a theme has mandatory failures but **every failure matches a documented exception** (unexpected failures = 0), it is `compatible-with-exceptions`.
+3. Otherwise it is `experimental`.
+
+Advisory-only warnings (below recommended thresholds but above mandatory minimums) do not affect classification. A theme with only advisory findings is still `recommended`.
+
+### Exception manifest
+
+Documented exceptions are maintained in `app/themes/ACCESSIBILITY_EXCEPTIONS.json`. The manifest structure:
+
+```json
+{
+  "schema_version": 2,
+  "policy_version": "1.0",
+  "reviewed_date": "2026-07-14",
+  "exceptions": {
+    "Theme Name": {
+      "total_failures": 2,
+      "policy_class": "compatible-with-exceptions",
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.71,
+          "required": 3.0,
+          "policy_class": "advisory_deviation",
+          "rationale": "Explanation of why this deviation is acceptable",
+          "wcag_criteria": ["1.4.11"],
+          "rendered_context": "Where this element appears in the UI"
+        }
+      ]
+    }
+  }
+}
+```
+
+Top-level fields: `schema_version` (integer, bumps on structural changes), `policy_version` (semantic version of the accessibility policy), `reviewed_date` (ISO date of last review). Each theme entry lists its failing contrast pairs with a `policy_class`, `rationale`, applicable WCAG criteria, and rendered context.
+
+### Running accessibility checks
+
+```bash
+flask themes accessibility                   # Check all themes, report results
+flask themes accessibility --strict          # Exit nonzero if any theme has unexpected mandatory failures
+flask themes accessibility --source bundled  # Bundled themes only
+flask themes accessibility --json            # Structured JSON output
+```
+
+The `--strict` flag causes the command to fail if any theme is classified as `experimental`. This is useful for CI gates. Themes classified as `compatible-with-exceptions` pass under `--strict` because all their failures are documented.
+
+### Catalog summary
+
+The `CatalogEligibility` dataclass returned by `classify_catalog_eligibility()` provides aggregate counts:
+
+- `recommended_count` — themes with zero mandatory failures
+- `compatible_count` — themes with only documented exceptions
+- `experimental_count` — themes with unexpected mandatory failures
+
+Run `flask themes accessibility --json` to see per-theme eligibility and catalog-level totals.
+
 ## Migration from Legacy Presets
 
 If upgrading from a version that used `THEME_PRESETS`:
