@@ -19,6 +19,7 @@ Business logic layer for the blog application.
 | Theme Registry | `app/themes/registry.py` | Authoritative theme registry: listing, resolution, loading, fallback, `_CatalogEntry` |
 | Theme Resources | `app/themes/resources.py` | `ThemeResource` protocol, `importlib.resources` bundled discovery, external override |
 | Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation |
+| Theme Service | `app/themes/service.py` | Per-process `ThemeService` singleton: owns the registry, resolves effective theme names from `SiteSettings`, builds Jinja context dict, provides preview (load + CSS without persist) and refresh (rebuild registry from disk) operations |
 | Theme Settings | `app/services/theme_settings.py` | Theme configuration validation, legacy preset migration, effective theme name resolution |
 
 ## See Also
@@ -30,3 +31,4 @@ Business logic layer for the blog application.
 - [Search Provider](services/search.md) - Full-text search abstraction
 - [Theme System](../docs/themes/blog-theme-contract.md) - BlogTheme contract and token definitions
 - [Theme Supported Schema](../docs/themes/supported-schema.md) - Halloy TOML input schema
+- [Theme Service](theme/theme-service.md) - ThemeService singleton, preview, and refresh

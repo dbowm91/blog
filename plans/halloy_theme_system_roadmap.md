@@ -178,9 +178,9 @@ Replace remaining theme-sensitive literals in public, admin, form, critical, res
 
 ### Phase 10: admin selection and preview
 
-**Status: Complete (registry-based theme selector, dark/light/scheme selection, refresh action)**
+**Status: Complete (registry-based theme selector, live preview, enhanced refresh, validation warnings)**
 
-Generate theme selectors from the registry, group bundled and external themes, identify overrides, show translation/contrast warnings, support non-persistent preview, and provide a CSRF-protected refresh action.
+Generate theme selectors from the registry grouped by source (bundled/external), show classification and override badges, live preview via CSS variable injection into a bounded preview container, classification mismatch and WCAG contrast warnings, CSRF-protected refresh with change reporting (added/removed/overrides/disappeared fallback), and syntax theme/custom CSS preservation.
 
 ### Phase 11: operator CLI and external-theme workflow
 

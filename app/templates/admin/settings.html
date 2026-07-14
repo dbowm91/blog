@@ -17,28 +17,80 @@
             
             <div class="form-group">
                 <label for="theme_dark_name">Dark Theme</label>
-                <select id="theme_dark_name" name="theme_dark_name" class="search-input">
+                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                    <select id="theme_dark_name" name="theme_dark_name" class="search-input" style="flex: 1;">
+                        {% if bundled_themes %}
+                        <optgroup label="Bundled Themes">
+                            {% for theme in bundled_themes %}
+                            <option value="{{ theme.canonical_name }}" {% if theme_dark_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }}{% if theme.is_dark %} [dark]{% elif theme.is_dark == false %} [light]{% endif %}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if external_themes %}
+                        <optgroup label="External Themes">
+                            {% for theme in external_themes %}
+                            <option value="{{ theme.canonical_name }}" {% if theme_dark_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }}{% if theme.is_dark %} [dark]{% elif theme.is_dark == false %} [light]{% endif %}{% if theme.overrides_bundled %} (overrides bundled){% endif %}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                    <button type="button" class="btn btn-ghost theme-preview-btn" data-target="dark">Preview</button>
+                </div>
+                <p class="form-help">Select the dark theme for your site.</p>
+                <div class="theme-meta" id="theme_dark_meta">
                     {% for theme in bundled_themes %}
-                    <option value="{{ theme.canonical_name }}" {% if theme_dark_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (bundled)</option>
+                        {% if theme_dark_name == theme.canonical_name %}
+                        <span class="theme-meta-badge source-bundled">bundled</span>
+                        {% if theme.is_dark %}<span class="theme-meta-badge classification-dark">dark</span>{% elif theme.is_dark == false %}<span class="theme-meta-badge classification-light">light</span>{% endif %}
+                        {% endif %}
                     {% endfor %}
                     {% for theme in external_themes %}
-                    <option value="{{ theme.canonical_name }}" {% if theme_dark_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (external{% if theme.overrides_bundled %}, overrides bundled{% endif %})</option>
+                        {% if theme_dark_name == theme.canonical_name %}
+                        <span class="theme-meta-badge source-external">external</span>
+                        {% if theme.is_dark %}<span class="theme-meta-badge classification-dark">dark</span>{% elif theme.is_dark == false %}<span class="theme-meta-badge classification-light">light</span>{% endif %}
+                        {% if theme.overrides_bundled %}<span class="theme-meta-badge overrides-tag">overrides bundled</span>{% endif %}
+                        {% endif %}
                     {% endfor %}
-                </select>
-                <p class="form-help">Select the dark theme for your site.</p>
+                </div>
             </div>
 
             <div class="form-group">
                 <label for="theme_light_name">Light Theme</label>
-                <select id="theme_light_name" name="theme_light_name" class="search-input">
+                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                    <select id="theme_light_name" name="theme_light_name" class="search-input" style="flex: 1;">
+                        {% if bundled_themes %}
+                        <optgroup label="Bundled Themes">
+                            {% for theme in bundled_themes %}
+                            <option value="{{ theme.canonical_name }}" {% if theme_light_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }}{% if theme.is_dark %} [dark]{% elif theme.is_dark == false %} [light]{% endif %}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if external_themes %}
+                        <optgroup label="External Themes">
+                            {% for theme in external_themes %}
+                            <option value="{{ theme.canonical_name }}" {% if theme_light_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }}{% if theme.is_dark %} [dark]{% elif theme.is_dark == false %} [light]{% endif %}{% if theme.overrides_bundled %} (overrides bundled){% endif %}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                    <button type="button" class="btn btn-ghost theme-preview-btn" data-target="light">Preview</button>
+                </div>
+                <p class="form-help">Select the light theme for your site.</p>
+                <div class="theme-meta" id="theme_light_meta">
                     {% for theme in bundled_themes %}
-                    <option value="{{ theme.canonical_name }}" {% if theme_light_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (bundled)</option>
+                        {% if theme_light_name == theme.canonical_name %}
+                        <span class="theme-meta-badge source-bundled">bundled</span>
+                        {% if theme.is_dark %}<span class="theme-meta-badge classification-dark">dark</span>{% elif theme.is_dark == false %}<span class="theme-meta-badge classification-light">light</span>{% endif %}
+                        {% endif %}
                     {% endfor %}
                     {% for theme in external_themes %}
-                    <option value="{{ theme.canonical_name }}" {% if theme_light_name == theme.canonical_name %}selected{% endif %}>{{ theme.display_name }} (external{% if theme.overrides_bundled %}, overrides bundled{% endif %})</option>
+                        {% if theme_light_name == theme.canonical_name %}
+                        <span class="theme-meta-badge source-external">external</span>
+                        {% if theme.is_dark %}<span class="theme-meta-badge classification-dark">dark</span>{% elif theme.is_dark == false %}<span class="theme-meta-badge classification-light">light</span>{% endif %}
+                        {% if theme.overrides_bundled %}<span class="theme-meta-badge overrides-tag">overrides bundled</span>{% endif %}
+                        {% endif %}
                     {% endfor %}
-                </select>
-                <p class="form-help">Select the light theme for your site.</p>
+                </div>
             </div>
 
             <div class="form-group">
@@ -86,6 +138,26 @@
         </form>
     </div>
 
+    <div class="settings-section" id="theme-preview-section" style="display: none;">
+        <h2>Theme Preview</h2>
+        <div id="theme-warnings" class="theme-warnings-container" style="display: none;">
+            <div class="theme-warnings-box">
+                <div class="theme-warnings-header">
+                    <span class="theme-warnings-icon">&#9888;</span>
+                    <strong>Warnings</strong>
+                    <button type="button" class="theme-warnings-dismiss" id="dismiss-warnings">&times;</button>
+                </div>
+                <ul id="theme-warnings-list"></ul>
+            </div>
+        </div>
+        <div id="theme-preview-container" class="theme-preview-container">
+            <div class="theme-preview-loading">Click "Preview" to see theme styling</div>
+        </div>
+        <div style="margin-top: 12px; text-align: right;">
+            <button type="button" class="btn btn-ghost" id="clear-preview">Clear Preview</button>
+        </div>
+    </div>
+
     <div class="settings-section">
         <h2>Theme Registry</h2>
         <p style="margin-bottom: 16px; color: var(--text-muted); font-size: 0.9rem;">
@@ -98,9 +170,354 @@
     </div>
 </div>
 
+<style nonce="{{ csp_nonce }}">
+    .theme-meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    .theme-meta-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+    .source-bundled {
+        background: var(--bg-secondary, #f0f0f0);
+        color: var(--text-secondary, #666);
+        border: 1px solid var(--border-color, #ddd);
+    }
+    .source-external {
+        background: var(--color-accent-bg, #e8f4fd);
+        color: var(--color-accent, #0066cc);
+        border: 1px solid var(--color-accent-border, #b3d9f2);
+    }
+    .classification-dark {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+    .classification-light {
+        background: #f5f5f5;
+        color: #333;
+        border: 1px solid #ddd;
+    }
+    .overrides-tag {
+        background: var(--color-warning-bg, #fff3cd);
+        color: var(--color-warning, #856404);
+        border: 1px solid var(--color-warning-border, #ffeeba);
+    }
+    .theme-warnings-container {
+        margin-bottom: 16px;
+    }
+    .theme-warnings-box {
+        background: var(--color-warning-bg, #fff3cd);
+        border: 1px solid var(--color-warning-border, #ffeeba);
+        border-radius: 6px;
+        padding: 12px 16px;
+    }
+    .theme-warnings-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .theme-warnings-icon {
+        font-size: 1.1rem;
+    }
+    .theme-warnings-dismiss {
+        margin-left: auto;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: inherit;
+        opacity: 0.7;
+        padding: 0 4px;
+    }
+    .theme-warnings-dismiss:hover {
+        opacity: 1;
+    }
+    .theme-warnings-box ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    .theme-warnings-box li {
+        margin-bottom: 4px;
+        font-size: 0.9rem;
+    }
+    .theme-preview-container {
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 8px;
+        max-height: 500px;
+        overflow-y: auto;
+        padding: 24px;
+        background: var(--bg-primary, #fff);
+    }
+    .theme-preview-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .badge-success {
+        background: var(--color-success-bg, #d4edda);
+        color: var(--color-success, #155724);
+    }
+    .badge-error {
+        background: var(--color-error-bg, #f8d7da);
+        color: var(--color-error, #721c24);
+    }
+    .badge-warning {
+        background: var(--color-warning-bg, #fff3cd);
+        color: var(--color-warning, #856404);
+    }
+    .theme-preview-code {
+        margin: 16px 0;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .theme-preview-code pre {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg-secondary, #f5f5f5);
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 6px;
+        overflow-x: auto;
+    }
+    .theme-preview-code code {
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+    .theme-preview-card {
+        margin: 16px 0;
+        padding: 20px;
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 8px;
+        background: var(--bg-primary, #fff);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .theme-preview-card h3 {
+        margin-top: 0;
+    }
+    .theme-preview-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        color: var(--text-muted, #888);
+    }
+</style>
+
 <script nonce="{{ csp_nonce }}">
 document.querySelector('input[name="custom_css_enabled"]').addEventListener('change', function() {
     document.getElementById('custom-css-group').style.display = this.checked ? 'block' : 'none';
 });
+
+(function() {
+    var previewStyleEl = null;
+    var previewSection = document.getElementById('theme-preview-section');
+    var previewContainer = document.getElementById('theme-preview-container');
+    var warningsContainer = document.getElementById('theme-warnings');
+    var warningsList = document.getElementById('theme-warnings-list');
+    var previewBtns = document.querySelectorAll('.theme-preview-btn');
+    var dismissBtn = document.getElementById('dismiss-warnings');
+    var clearBtn = document.getElementById('clear-preview');
+    var darkSelect = document.getElementById('theme_dark_name');
+    var lightSelect = document.getElementById('theme_light_name');
+    var themeDarkMeta = document.getElementById('theme_dark_meta');
+    var themeLightMeta = document.getElementById('theme_light_meta');
+
+    var allThemes = [
+        {% for theme in bundled_themes %}
+        {
+            canonical_name: {{ theme.canonical_name | tojson }},
+            display_name: {{ theme.display_name | tojson }},
+            source: {{ theme.source.value | tojson }},
+            is_dark: {{ theme.is_dark | tojson }},
+            overrides_bundled: {{ theme.overrides_bundled | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+        {% for theme in external_themes %}
+        ,
+        {
+            canonical_name: {{ theme.canonical_name | tojson }},
+            display_name: {{ theme.display_name | tojson }},
+            source: {{ theme.source.value | tojson }},
+            is_dark: {{ theme.is_dark | tojson }},
+            overrides_bundled: {{ theme.overrides_bundled | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function updateMetaBadges(selectEl, metaEl) {
+        var val = selectEl.value;
+        var theme = allThemes.find(function(t) { return t.canonical_name === val; });
+        if (!theme) {
+            metaEl.innerHTML = '';
+            return;
+        }
+        var html = '';
+        if (theme.source === 'bundled') {
+            html += '<span class="theme-meta-badge source-bundled">bundled</span>';
+        } else {
+            html += '<span class="theme-meta-badge source-external">external</span>';
+        }
+        if (theme.is_dark === true) {
+            html += '<span class="theme-meta-badge classification-dark">dark</span>';
+        } else if (theme.is_dark === false) {
+            html += '<span class="theme-meta-badge classification-light">light</span>';
+        }
+        if (theme.overrides_bundled) {
+            html += '<span class="theme-meta-badge overrides-tag">overrides bundled</span>';
+        }
+        metaEl.innerHTML = html;
+    }
+
+    darkSelect.addEventListener('change', function() { updateMetaBadges(darkSelect, themeDarkMeta); });
+    lightSelect.addEventListener('change', function() { updateMetaBadges(lightSelect, themeLightMeta); });
+
+    function showLoading() {
+        previewContainer.innerHTML = '<div class="theme-preview-loading">Loading preview...</div>';
+        previewSection.style.display = 'block';
+    }
+
+    function renderWarnings(warnings, darkWarnings, lightWarnings) {
+        var all = [];
+        if (warnings && warnings.length) all = all.concat(warnings);
+        if (darkWarnings && darkWarnings.length) {
+            darkWarnings.forEach(function(w) { all.push('[Dark] ' + w); });
+        }
+        if (lightWarnings && lightWarnings.length) {
+            lightWarnings.forEach(function(w) { all.push('[Light] ' + w); });
+        }
+        if (all.length === 0) {
+            warningsContainer.style.display = 'none';
+            return;
+        }
+        warningsList.innerHTML = '';
+        all.forEach(function(w) {
+            var li = document.createElement('li');
+            li.textContent = w;
+            warningsList.appendChild(li);
+        });
+        warningsContainer.style.display = 'block';
+    }
+
+    function applyPreviewCss(darkCss, lightCss) {
+        if (previewStyleEl) {
+            previewStyleEl.remove();
+        }
+        previewStyleEl = document.createElement('style');
+        previewStyleEl.setAttribute('nonce', '{{ csp_nonce }}');
+        var cssText = '[data-color-scheme="dark"] { ' + darkCss + ' }\n';
+        cssText += '[data-color-scheme="light"] { ' + lightCss + ' }\n';
+        cssText += ':root { ' + darkCss + ' }';
+        previewStyleEl.textContent = cssText;
+        document.head.appendChild(previewStyleEl);
+    }
+
+    function fetchPreview() {
+        var darkName = darkSelect.value;
+        var lightName = lightSelect.value;
+        if (!darkName || !lightName) return;
+
+        showLoading();
+
+        var formData = new FormData();
+        formData.append('theme_dark_name', darkName);
+        formData.append('theme_light_name', lightName);
+
+        fetch('{{ url_for("admin.settings_theme_preview") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('Preview request failed');
+            return resp.json();
+        })
+        .then(function(data) {
+            if (data.error) {
+                previewContainer.innerHTML = '<div class="theme-preview-loading" style="color: var(--color-error);">Error: ' + data.error + '</div>';
+                previewSection.style.display = 'block';
+                warningsContainer.style.display = 'none';
+                return;
+            }
+
+            applyPreviewCss(data.dark_css, data.light_css);
+
+            var scheme = localStorage.getItem('blog-color-scheme') || 'system';
+            var effective = scheme === 'system'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : scheme;
+            previewContainer.setAttribute('data-color-scheme', effective);
+
+            previewContainer.innerHTML = document.getElementById('theme-preview-content-restore').innerHTML;
+            previewSection.style.display = 'block';
+
+            renderWarnings(data.warnings, data.dark_warnings, data.light_warnings);
+        })
+        .catch(function(err) {
+            previewContainer.innerHTML = '<div class="theme-preview-loading" style="color: var(--color-error);">Failed to load preview. Please try again.</div>';
+            previewSection.style.display = 'block';
+            warningsContainer.style.display = 'none';
+        });
+    }
+
+    previewBtns.forEach(function(btn) {
+        btn.addEventListener('click', fetchPreview);
+    });
+
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            warningsContainer.style.display = 'none';
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            if (previewStyleEl) {
+                previewStyleEl.remove();
+                previewStyleEl = null;
+            }
+            previewSection.style.display = 'none';
+            warningsContainer.style.display = 'none';
+        });
+    }
+})();
 </script>
+
+<template id="theme-preview-content-restore">
+    <h2>Sample Heading</h2>
+    <p>This is a paragraph of sample text to preview the selected theme. It demonstrates how body text will appear on your site with the current color scheme applied.</p>
+    <p><a href="#">This is a sample link</a> to show link styling.</p>
+    <div style="display: flex; gap: 8px; margin: 16px 0;">
+        <button type="button" class="btn btn-primary">Primary Button</button>
+        <button type="button" class="btn btn-ghost">Secondary Button</button>
+    </div>
+    <div class="form-group" style="margin: 16px 0;">
+        <label for="preview-input">Sample Input</label>
+        <input type="text" id="preview-input" class="search-input" placeholder="Type something here..." value="Sample input text">
+    </div>
+    <div style="display: flex; gap: 8px; margin: 16px 0;">
+        <span class="theme-preview-badge badge-success">Success</span>
+        <span class="theme-preview-badge badge-error">Error</span>
+        <span class="theme-preview-badge badge-warning">Warning</span>
+    </div>
+    <div class="theme-preview-code">
+        <pre><code>function greet(name) {
+    return `Hello, ${name}!`;
+}</code></pre>
+    </div>
+    <div class="theme-preview-card">
+        <h3>Card Component</h3>
+        <p>This card demonstrates elevated surfaces with borders and shadows using the theme colors.</p>
+    </div>
+</template>
 {% endblock %}

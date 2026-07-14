@@ -226,9 +226,40 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 
 - **Route**: `GET /admin/settings`
 - **Route**: `POST /admin/settings/theme`
+- **Route**: `POST /admin/settings/theme/preview`
+- **Route**: `POST /admin/settings/theme/refresh`
 - **Purpose**: View and update theme, syntax theme, custom CSS
 - **Theme Presets (CSS color schemes)**: `github-dark`, `github-light`, `solarized-dark`, `monokai` — defined in `app/models.py:366-457` as `THEME_PRESETS`
 - **Syntax Themes (Prism-based)**: `prism`, `prism-coy`, `prism-dark`, `prism-funky`, `prism-okaidia`, `prism-tomorrow` — defined in `app/routes/admin/settings.py:24-36`
+
+### Theme Preview (`settings.py`)
+- **Route**: `POST /admin/settings/theme/preview`
+- **Purpose**: Preview theme CSS variables without persisting changes (AJAX endpoint)
+- **Auth**: Admin authentication required
+- **Form params**:
+  - `theme_dark_name`: Dark theme name (must exist in registry)
+  - `theme_light_name`: Light theme name (must exist in registry)
+- **Returns**: JSON with:
+  - `dark_css` / `light_css`: CSS variable declarations for each theme
+  - `dark_name` / `light_name`: Canonical resolved theme names
+  - `dark_is_dark` / `light_is_dark`: Boolean classification of each theme
+  - `warnings`: Global warnings (e.g., both themes same classification)
+  - `dark_warnings` / `light_warnings`: Per-theme WCAG contrast warnings with ratios
+- **Limits**: CSS output is truncated at 50KB per theme
+- **Non-persistent**: No database changes; validates against the live registry only
+
+### Theme Refresh (`settings.py`)
+- **Route**: `POST /admin/settings/theme/refresh`
+- **Purpose**: Invalidate and rebuild the theme registry, report changes
+- **Auth**: Admin authentication required
+- **Behavior**:
+  1. Snapshots current registry theme names
+  2. Calls `ThemeService.refresh_registry()` to rebuild from disk
+  3. Diffs old vs new theme sets and reports added/removed themes via flash messages
+  4. Counts external themes that override bundled themes
+  5. Warns if the currently selected dark or light theme disappeared, showing the effective fallback name
+  6. Invalidates the settings cache so subsequent page loads reflect the new registry
+- **Returns**: Redirect to settings page with flash messages summarizing changes
 
 ## Audit Log (`audit.py`)
 
