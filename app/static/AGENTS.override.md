@@ -89,7 +89,7 @@ For `backdrop-filter: blur()`, use `will-change: backdrop-filter` in CSS:
 
 ## CSS Architecture
 
-- Dark mode is default; light theme toggled via `data-theme` attribute
+- Dark mode is default; light theme toggled via `data-color-scheme` attribute (migrated from `data-theme` in Phase 08)
 - Self-hosted fonts (Inter, JetBrains Mono) via `@font-face`
 - No external font CDNs
 

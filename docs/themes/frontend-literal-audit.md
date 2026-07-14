@@ -13,6 +13,7 @@
 |------|-----------|
 | **REPLACE** | Literal should become a semantic theme token. Phase 09 will replace it with a CSS custom property. |
 | **RETAIN** | Invariant brand or structural value that cannot or should not be themed. Includes print stylesheet forced colors, light-theme hardcoded palette (which is itself a structural fallback), and values that are the exact equivalent of a token but exist in a context where the token is already applied. |
+| **REMOVED** | Block or literal removed during migration (e.g., static light palette moved to inline theme injection in Phase 08). |
 | **SYNTAX** | Belongs to Prism syntax highlighting; separate system. Not in scope. |
 | **COMPAT** | Temporary compatibility value kept during migration; will be removed in Phase 09/14. |
 | **FALSE_POSITIVE** | Not actually a color (e.g., URL fragments, font-face metadata, `currentColor` SVGs, brightness filter values, ID selectors). |
@@ -25,7 +26,7 @@
 
 The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #161b22`, `--border: #30363d`, `--text: #e6edf3`, `--text-muted: #8b949e`, `--accent: #58a6ff`, `--accent-hover: #79c0ff`) are themselves structural fallbacks — identical to the `base.css :root` defaults. The navbar background (`rgba(13, 17, 23, 0.85)`) is a hardcoded dark-theme semi-transparent value.
 
-**Phase 08 must address the no-flash problem**: when a visitor has a light theme preference, `critical.css` renders dark-theme colors for ~100ms until the inline `<style>` with `theme_vars` applies. The Phase 08 bootstrap script must set `data-theme` before first paint, or `critical.css` must emit both light and dark palettes keyed to `data-theme` to prevent visible flash.
+**Phase 08 has addressed the no-flash problem**: the bootstrap IIFE reads `blog-color-scheme` from localStorage, resolves `system` via `matchMedia`, and sets `data-color-scheme` on `<html>` before first paint. The static `[data-color-scheme="light"]` palette block has been removed; light-theme variables are provided by inline `<style>` from Halloy themes.
 
 ---
 
@@ -33,9 +34,9 @@ The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #1
 
 | Metric | Count |
 |--------|-------|
-| **Total color literals audited** | 128 |
+| **Total color literals audited** | 105 (128 originally; 23 removed in Phase 08) |
 | REPLACE | 34 |
-| RETAIN | 85 |
+| RETAIN | 62 (was 85; 23 light palette literals removed) |
 | FALSE_POSITIVE | 9 |
 | SYNTAX | 0 |
 | COMPAT | 0 |
@@ -44,7 +45,7 @@ The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #1
 
 | File | Total | REPLACE | RETAIN | FALSE_POS |
 |------|-------|---------|--------|-----------|
-| `app/static/css/base.css` | 76 | 14 | 55 | 7 |
+| `app/static/css/base.css` | 53 (was 76; 23 light palette removed) | 14 | 32 (was 55) | 7 |
 | `app/static/css/critical.css` | 8 | 1 | 7 | 0 |
 | `app/static/css/layout.css` | 3 | 1 | 2 | 0 |
 | `app/static/css/public.css` | 25 | 10 | 13 | 2 |
@@ -57,7 +58,7 @@ The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #1
 
 ### Top 5 Files by Literal Count
 
-1. `app/static/css/base.css` — 77
+1. `app/static/css/base.css` — 54
 2. `app/static/css/public.css` — 25
 3. `app/static/css/admin.css` — 16
 4. `app/static/css/critical.css` — 8
@@ -134,46 +135,20 @@ These 25 literals define the CSS custom property fallback values. They are overw
 |------|---------|-------------|----------------|----------------|-------|
 | `base.css:355` | `rgba(210, 153, 34, 0.15)` | `.noscript-warning` `background` | REPLACE | `--yellow-dim` | Yellow tint; should be `--yellow-dim` |
 
-#### `[data-theme="light"]` Block (lines 218–242)
+#### `[data-color-scheme="light"]` Static Palette Block — REMOVED (Phase 08)
 
-These 23 literals define the light-theme CSS custom property overrides. They are the structural fallback for the light theme — equivalent to what `theme_vars` injects at runtime. Classified as RETAIN.
+The 23-literal static `[data-theme="light"]` palette block (formerly lines 218–242) has been **removed**. The light-theme CSS custom property overrides are now provided entirely by the inline `<style>` from Halloy themes (emitted via `theme_vars` / `theme_light_vars` in `base.html` and `admin/base.html`). Component-specific light overrides (navbar, post-hero-overlay, prose code/pre) remain in `base.css` under `[data-color-scheme="light"]`.
 
-| Line | Literal | CSS Context | Classification | Proposed Token | Notes |
-|------|---------|-------------|----------------|----------------|-------|
-| `base.css:219` | `#f6f8fa` | `[data-theme="light"]` `--bg` | RETAIN | — | Light background |
-| `base.css:220` | `#ffffff` | `[data-theme="light"]` `--bg-surface` | RETAIN | — | Light surface |
-| `base.css:221` | `#f0f2f5` | `[data-theme="light"]` `--bg-elevated` | RETAIN | — | Light elevated |
-| `base.css:222` | `#d0d7de` | `[data-theme="light"]` `--border` | RETAIN | — | Light border |
-| `base.css:223` | `#1f2328` | `[data-theme="light"]` `--text` | RETAIN | — | Light text |
-| `base.css:224` | `#57606a` | `[data-theme="light"]` `--text-muted` | RETAIN | — | Light muted text |
-| `base.css:225` | `#6e7781` | `[data-theme="light"]` `--text-dim` | RETAIN | — | Light dim text |
-| `base.css:226` | `#6e7781` | `[data-theme="light"]` `--text-secondary` | RETAIN | — | Light secondary text |
-| `base.css:227` | `#eaeef2` | `[data-theme="light"]` `--bg-hover` | RETAIN | — | Light hover bg |
-| `base.css:228` | `#0969da` | `[data-theme="light"]` `--accent` | RETAIN | — | Light accent |
-| `base.css:229` | `#0550ae` | `[data-theme="light"]` `--accent-hover` | RETAIN | — | Light accent hover |
-| `base.css:230` | `rgba(9, 105, 218, 0.1)` | `[data-theme="light"]` `--accent-dim` | RETAIN | — | Light accent dim |
-| `base.css:231` | `#1a7f37` | `[data-theme="light"]` `--green` | RETAIN | — | Light green |
-| `base.css:232` | `rgba(26, 127, 55, 0.15)` | `[data-theme="light"]` `--green-dim` | RETAIN | — | Light green dim |
-| `base.css:233` | `#cf222e` | `[data-theme="light"]` `--red` | RETAIN | — | Light red |
-| `base.css:234` | `rgba(207, 34, 46, 0.15)` | `[data-theme="light"]` `--red-dim` | RETAIN | — | Light red dim |
-| `base.css:235` | `#9a6700` | `[data-theme="light"]` `--yellow` | RETAIN | — | Light yellow |
-| `base.css:236` | `#8250df` | `[data-theme="light"]` `--purple` | RETAIN | — | Light purple |
-| `base.css:237` | `rgba(130, 80, 223, 0.15)` | `[data-theme="light"]` `--purple-dim` | RETAIN | — | Light purple dim |
-| `base.css:238` | `#d4513d` | `[data-theme="light"]` `--coral` | RETAIN | — | Light coral |
-| `base.css:239` | `rgba(212, 81, 61, 0.15)` | `[data-theme="light"]` `--coral-dim` | RETAIN | — | Light coral dim |
-| `base.css:240` | `#9a6700` | `[data-theme="light"]` `--amber` | RETAIN | — | Light amber |
-| `base.css:241` | `rgba(154, 103, 0, 0.15)` | `[data-theme="light"]` `--amber-dim` | RETAIN | — | Light amber dim |
-
-#### Light Theme Overrides (component-level)
+#### Light Theme Overrides (component-level, retained under `[data-color-scheme="light"]`)
 
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `base.css:245` | `rgba(246, 248, 250, 0.85)` | `[data-theme="light"] .navbar` `background` | RETAIN | — | Light navbar; matches `--bg` (#f6f8fa) at 0.85 opacity |
-| `base.css:249` | `rgba(246, 248, 250, 0.95)` | `[data-theme="light"] .post-hero-overlay` gradient | RETAIN | — | Light hero overlay top |
-| `base.css:249` | `rgba(246, 248, 250, 0.4)` | `[data-theme="light"] .post-hero-overlay` gradient | RETAIN | — | Light hero overlay bottom |
-| `base.css:253` | `#1f2328` | `[data-theme="light"] .post-hero-title` `color` | RETAIN | — | Matches `--text` in light theme |
-| `base.css:257` | `#eff1f3` | `[data-theme="light"] .prose code` `background` | RETAIN | — | Light inline code bg |
-| `base.css:261` | `#f6f8fa` | `[data-theme="light"] .prose pre` `background` | RETAIN | — | Matches `--bg` in light theme |
+| `base.css:219` | `rgba(246, 248, 250, 0.85)` | `[data-color-scheme="light"] .navbar` `background` | RETAIN | — | Light navbar; matches `--bg` (#f6f8fa) at 0.85 opacity |
+| `base.css:223` | `rgba(246, 248, 250, 0.95)` | `[data-color-scheme="light"] .post-hero-overlay` gradient | RETAIN | — | Light hero overlay top |
+| `base.css:223` | `rgba(246, 248, 250, 0.4)` | `[data-color-scheme="light"] .post-hero-overlay` gradient | RETAIN | — | Light hero overlay bottom |
+| `base.css:227` | `#1f2328` | `[data-color-scheme="light"] .post-hero-title` `color` | RETAIN | — | Matches `--text` in light theme |
+| `base.css:231` | `#eff1f3` | `[data-color-scheme="light"] .prose code` `background` | RETAIN | — | Light inline code bg |
+| `base.css:235` | `#f6f8fa` | `[data-color-scheme="light"] .prose pre` `background` | RETAIN | — | Matches `--bg` in light theme |
 
 #### Print Stylesheet (lines 699–803)
 
@@ -338,14 +313,6 @@ The following new CSS variable names are introduced by REPLACE entries in this a
 
 ---
 
-## Phase 08 First-Paint Attention Required
+## Phase 08 First-Paint — Resolved
 
-The following items need Phase 08 attention:
-
-1. **`critical.css` navbar background** (`critical.css:46`): `rgba(13, 17, 23, 0.85)` is a dark-theme-specific value. If the visitor prefers light theme, this will flash dark before the inline `theme_vars` style applies. Phase 08 must either:
-   - Emit a `data-theme`-keyed navbar background in `critical.css`, or
-   - Ensure the bootstrap script sets `data-theme` before the first frame.
-
-2. **`critical.css :root` defaults** (`critical.css:3–9`): These are dark-theme fallbacks. The first-paint bootstrap must apply `data-theme="light"` before CSS parses if the visitor's preference is light, or `critical.css` must include a `[data-theme="light"]` override block.
-
-3. **`layout.css` navbar** (`layout.css:16`): Same `rgba(13, 17, 23, 0.85)` issue — will be overridden by `base.css` but `layout.css` loads async. The first-paint sequence is: `critical.css` → inline `theme_vars` → `base.css` → `layout.css`. If `layout.css` applies before `theme_vars`, it will flash the dark navbar.
+Phase 08 is complete. The bootstrap IIFE in `<head>` reads `blog-color-scheme` from localStorage, resolves `system` via `matchMedia`, and sets `data-color-scheme` on `<html>` before first paint. The static `[data-theme="light"]` palette block has been removed; light-theme variables are now provided entirely by inline `<style>` from Halloy themes. Component-specific light overrides (navbar, post-hero-overlay, prose code/pre) remain under `[data-color-scheme="light"]` in `base.css`.

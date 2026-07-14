@@ -164,9 +164,9 @@ Make the registry the sole runtime palette source. Centralize theme context crea
 
 ### Phase 08: visitor color-scheme behavior
 
-**Status: Complete (3-state scheme, bootstrap script, CSS selector migration)**
+**Status: Complete (3-state scheme, bootstrap script, CSS selector migration, static light palette removed)**
 
-Replace the ambiguous local-storage key with `blog-color-scheme`, support `system`/`dark`/`light`, and apply the selected scheme before first paint using a nonce-bearing bootstrap. Replace static `[data-theme="light"]` palette ownership with generated scoped variables.
+Replace the ambiguous local-storage key with `blog-color-scheme`, support `system`/`dark`/`light`, and apply the selected scheme before first paint using a nonce-bearing bootstrap. Replace static `[data-theme="light"]` palette ownership with generated scoped variables. The static 23-literal `[data-color-scheme="light"]` palette block in `base.css` has been removed; light-theme variables are now provided entirely by inline `<style>` from Halloy themes.
 
 ## Milestone D — Frontend token completion
 

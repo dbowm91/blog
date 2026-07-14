@@ -30,7 +30,7 @@ This document maps the four existing hardcoded `THEME_PRESETS` (defined in `app/
 
 ### Visitor dark/light preference
 
-The visitor dark/light toggle (`localStorage.theme` in `app/static/js/shared/dark-mode.js`) remains in place until Phase 08 migrates it to a new `blog-color-scheme` key with `system`/`dark`/`light` semantics. The existing `[data-theme="light"]` selector and `dark-mode.js` behavior are unchanged by this phase.
+The visitor dark/light toggle was migrated in Phase 08 to a `blog-color-scheme` localStorage key with `system`/`dark`/`light` semantics. The CSS selector was updated from `[data-theme]` to `[data-color-scheme]`. The `dark-mode.js` module now re-exports from `color-scheme.js` for backward compatibility.
 
 ## Section C: Phase 06/14 Migration Path
 
