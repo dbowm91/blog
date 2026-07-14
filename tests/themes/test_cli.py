@@ -208,6 +208,143 @@ class TestThemesPaths:
         assert "Bundled themes:" in result.output
 
 
+class TestThemesListVerbose:
+    def test_verbose_shows_path_column(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "list", "--verbose"])
+        assert result.exit_code == 0
+        assert "Path" in result.output
+
+    def test_verbose_bundled_path(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "list", "--verbose"])
+        assert result.exit_code == 0
+        assert "app/themes/bundled/" in result.output
+
+    def test_json_includes_path(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "list", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "path" in data[0]
+
+
+class TestThemesListWarningCount:
+    def test_warns_column_present(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "list"])
+        assert result.exit_code == 0
+        assert "Warns" in result.output
+
+
+class TestThemesValidateTokens:
+    def test_validate_shows_translated_tokens(self, runner, cli_app, tmp_path):
+        theme_file = tmp_path / "test-theme.toml"
+        theme_file.write_text(_sample_theme_toml())
+        result = runner.invoke(cli_app.cli, ["themes", "validate", str(theme_file)])
+        assert result.exit_code == 0
+        assert "Translated tokens:" in result.output
+        assert "--blog-" in result.output
+
+
+class TestThemesInspectMetadata:
+    def test_inspect_shows_file_path(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "inspect", "Catppuccin Mocha"])
+        assert result.exit_code == 0
+        assert "File path:" in result.output
+
+    def test_inspect_shows_source_detail(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "inspect", "Catppuccin Mocha"])
+        assert result.exit_code == 0
+        assert "Source detail:" in result.output
+
+    def test_inspect_shows_translation_provenance(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "inspect", "Catppuccin Mocha"])
+        assert result.exit_code == 0
+        assert "Translation provenance:" in result.output
+
+
+class TestThemesInspectFallback:
+    def test_inspect_shows_active_status(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "inspect", "Catppuccin Mocha"])
+        assert result.exit_code == 0
+        assert "Active as:" in result.output
+
+    def test_inspect_shows_fallback_status(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "inspect", "Catppuccin Mocha"])
+        assert result.exit_code == 0
+        assert "Fallback for:" in result.output
+
+
+class TestThemesRefreshConfiguredThemes:
+    def test_refresh_shows_fallback(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "refresh"])
+        assert result.exit_code == 0
+        assert "Fallback:" in result.output
+
+    def test_refresh_warns_disappeared_dark(self, runner, cli_app, monkeypatch):
+        from app.models import SiteSettings
+
+        settings = SiteSettings.get_instance()
+        settings.theme_dark_name = "Nonexistent Theme"
+
+        result = runner.invoke(cli_app.cli, ["themes", "refresh"])
+        assert result.exit_code == 0
+        assert "no longer available" in result.output.lower()
+
+
+class TestThemesOverrideDetection:
+    def test_validate_file_override_warning(self, runner, cli_app, tmp_path):
+        theme_file = tmp_path / "Catppuccin Mocha.toml"
+        theme_file.write_text(_sample_theme_toml())
+        result = runner.invoke(cli_app.cli, ["themes", "validate", str(theme_file)])
+        assert result.exit_code == 0
+        assert "overrides bundled" in result.output.lower()
+
+    def test_validate_json_override_warning(self, runner, cli_app, tmp_path):
+        theme_file = tmp_path / "Catppuccin Mocha.toml"
+        theme_file.write_text(_sample_theme_toml())
+        result = runner.invoke(cli_app.cli, ["themes", "validate", str(theme_file), "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert any("overrides bundled" in w.lower() for w in data.get("warnings", []))
+
+
+class TestThemesMissingExternalDir:
+    def test_paths_missing_external_dir(self, runner, cli_app, monkeypatch):
+        monkeypatch.setattr("app.config.THEME_EXTERNAL_DIR", "/nonexistent/external/dir")
+        result = runner.invoke(cli_app.cli, ["themes", "paths"])
+        assert result.exit_code == 0
+        assert "Exists: no" in result.output or "no" in result.output.lower()
+
+
+class TestThemesMaliciousFiles:
+    def test_validate_symlink_rejected(self, runner, cli_app, tmp_path):
+        target = tmp_path / "target.toml"
+        target.write_text(_sample_theme_toml())
+        link = tmp_path / "link-theme.toml"
+        link.symlink_to(target)
+        result = runner.invoke(cli_app.cli, ["themes", "validate", str(link)])
+        assert result.exit_code == 0 or result.exit_code == 1
+
+    def test_validate_directory_rejected(self, runner, cli_app, tmp_path):
+        d = tmp_path / "not-a-file"
+        d.mkdir()
+        result = runner.invoke(cli_app.cli, ["themes", "validate", str(d)])
+        assert result.exit_code != 0
+
+    def test_validate_nonexistent_path(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "validate", "/no/such/file.toml"])
+        assert result.exit_code != 0
+
+
+class TestThemesAppIsolation:
+    def test_list_returns_themes(self, runner, cli_app):
+        result = runner.invoke(cli_app.cli, ["themes", "list"])
+        assert result.exit_code == 0
+        assert "Total:" in result.output
+        data_result = runner.invoke(cli_app.cli, ["themes", "list", "--json"])
+        assert data_result.exit_code == 0
+        data = json.loads(data_result.output)
+        assert len(data) > 0
+
+
 class TestThemesAccessibility:
     def test_accessibility_default(self, runner, cli_app):
         result = runner.invoke(cli_app.cli, ["themes", "accessibility"])

@@ -68,6 +68,75 @@ flask themes paths
 
 Shows bundled package identity, external directory configuration, file counts, and precedence rules.
 
+### Path Reference
+
+#### Development (local venv)
+
+- **Bundled themes**: `app/themes/bundled/` relative to the project root. Read-only, shipped with DevLog.
+- **External themes**: Set `external_dir` in `config.toml` under `[themes]`, or via the `THEME_EXTERNAL_DIR` environment variable. When unset (empty string), external themes are disabled.
+
+Example `config.toml`:
+
+```toml
+[themes]
+external_dir = "themes/external"
+allow_external = true
+```
+
+A relative path like `"themes/external"` resolves from the project root. Use an absolute path for a location outside the project tree.
+
+#### Docker / Container
+
+The container WORKDIR is `/home/blog`. Bundled themes are baked into the image at `/home/blog/app/themes/bundled/` and are read-only.
+
+To use external themes in Docker, mount a host directory into the container and set `THEME_EXTERNAL_DIR` to the container path:
+
+```yaml
+services:
+  blog:
+    volumes:
+      - ./themes/external:/home/blog/themes/external
+    environment:
+      - THEME_EXTERNAL_DIR=/home/blog/themes/external
+```
+
+Or set it in `config.toml` mounted into the container:
+
+```yaml
+services:
+  blog:
+    volumes:
+      - ./config.toml:/home/blog/config.toml:ro
+      - ./themes/external:/home/blog/themes/external
+```
+
+Ensure the mounted directory exists on the host and contains `.toml` theme files before starting the container.
+
+#### XDG-Style Paths
+
+Operators who follow XDG conventions can store external themes under the data directory:
+
+```toml
+[themes]
+external_dir = "/home/user/.local/share/devlog/themes"
+```
+
+Or via environment variable:
+
+```bash
+export THEME_EXTERNAL_DIR="$XDG_DATA_HOME/devlog/themes"
+```
+
+The path must be absolute or relative to the project root. The directory is created automatically only if managed externally; DevLog does not create it.
+
+#### Precedence
+
+- External themes override bundled themes with the same canonical name.
+- If multiple external files share a canonical name, the last one discovered wins (filesystem order).
+- The admin selector labels overrides with `(overrides bundled)` for clarity.
+
+Run `flask themes paths` at any time to confirm the effective configuration.
+
 ### Accessibility Checks
 
 ```bash

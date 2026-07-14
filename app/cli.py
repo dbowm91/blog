@@ -366,8 +366,16 @@ def register_cli_commands(app: Any) -> None:
         if as_json:
             import json as json_mod
 
+            from app.config import THEME_EXTERNAL_DIR
+
             rows = []
             for theme in all_themes:
+                if theme.source.value == "bundled":
+                    theme_path = f"app/themes/bundled/{theme.canonical_name}.toml"
+                elif THEME_EXTERNAL_DIR:
+                    theme_path = f"{THEME_EXTERNAL_DIR}/{theme.canonical_name}.toml"
+                else:
+                    theme_path = ""
                 row: dict[str, Any] = {
                     "canonical_name": theme.canonical_name,
                     "display_name": theme.display_name,
@@ -375,6 +383,7 @@ def register_cli_commands(app: Any) -> None:
                     "overrides_bundled": theme.overrides_bundled,
                     "is_dark": theme.is_dark,
                     "status": theme.status,
+                    "path": theme_path,
                 }
                 if show_warnings and theme.warnings:
                     row["warnings"] = list(theme.warnings)
@@ -386,16 +395,34 @@ def register_cli_commands(app: Any) -> None:
             click.echo("No themes found.")
             return
 
-        click.echo(f"{'Name':<30} {'Source':<10} {'Type':<10} {'Status':<10}")
-        click.echo("-" * 60)
+        external_dir = ""
+        if verbose:
+            from app.config import THEME_EXTERNAL_DIR
+
+            external_dir = THEME_EXTERNAL_DIR or ""
+
+        header = f"{'Name':<30} {'Source':<10} {'Type':<10} {'Status':<10} {'Warns':<7}"
+        if verbose:
+            header += f" {'Path':<50}"
+        click.echo(header)
+        click.echo("-" * len(header))
         for theme in all_themes:
             theme_type = (
                 "dark" if theme.is_dark else ("light" if theme.is_dark is False else "unknown")
             )
             overrides = " (overrides)" if theme.overrides_bundled else ""
-            click.echo(
-                f"{theme.display_name:<30} {theme.source.value:<10} {theme_type:<10} {theme.status}{overrides}"
+            warns = str(len(theme.warnings)) if theme.warnings else "-"
+            row = (
+                f"{theme.display_name:<30} {theme.source.value:<10} {theme_type:<10} "
+                f"{theme.status}{overrides} {warns:<7}"
             )
+            if verbose:
+                if theme.source.value == "bundled":
+                    path = f"app/themes/bundled/{theme.canonical_name}.toml"
+                else:
+                    path = f"{external_dir}/{theme.canonical_name}.toml" if external_dir else "-"
+                row += f" {path}"
+            click.echo(row)
             if show_warnings and theme.warnings:
                 for w in theme.warnings:
                     click.echo(f"  WARNING: {w}")
@@ -484,6 +511,58 @@ def register_cli_commands(app: Any) -> None:
             click.echo("Translation warnings:")
             for w in loaded.diagnostics.warnings:
                 click.echo(f"  - {w}")
+
+        from app.config import THEME_EXTERNAL_DIR
+
+        if loaded.descriptor.source.value == "bundled":
+            file_path = f"app/themes/bundled/{loaded.descriptor.canonical_name}.toml"
+            source_detail = "app/themes/bundled/"
+        elif THEME_EXTERNAL_DIR:
+            file_path = f"{THEME_EXTERNAL_DIR}/{loaded.descriptor.canonical_name}.toml"
+            source_detail = f"{THEME_EXTERNAL_DIR}/"
+        else:
+            file_path = ""
+            source_detail = ""
+        if file_path:
+            click.echo(f"File path: {file_path}")
+        click.echo(f"Source detail: {source_detail}")
+
+        if loaded.descriptor.source.value == "bundled":
+            provenance = f"bundled ({source_detail})"
+        else:
+            provenance = f"external ({source_detail})"
+        click.echo(f"Translation provenance: {provenance}")
+
+        try:
+            from app.models import SiteSettings
+
+            settings = SiteSettings.get_instance()
+            dark_name = settings.theme_dark_name
+            light_name = settings.theme_light_name
+            canonical = loaded.descriptor.canonical_name
+            active_as = []
+            if canonical == dark_name:
+                active_as.append("dark")
+            if canonical == light_name:
+                active_as.append("light")
+            if active_as:
+                click.echo(f"Active as: {'/'.join(active_as)}")
+            else:
+                click.echo("Active as: neither")
+            fallback_registry = service.get_registry()
+            fallback_theme = fallback_registry.get_fallback()
+            fb_name = fallback_theme.descriptor.canonical_name
+            fb_roles = []
+            if fb_name == dark_name:
+                fb_roles.append("dark")
+            if fb_name == light_name:
+                fb_roles.append("light")
+            if fb_roles:
+                click.echo(f"Fallback for: {'/'.join(fb_roles)}")
+            else:
+                click.echo("Fallback for: neither")
+        except Exception:
+            pass
         click.echo(f"\nCSS variables ({len(loaded.css_vars)}):")
         for key, value in sorted(loaded.css_vars.items()):
             click.echo(f"  {key}: {value}")
@@ -523,6 +602,21 @@ def register_cli_commands(app: Any) -> None:
         if external:
             click.echo(f"  External overrides: {len(external)}")
 
+        try:
+            from app.models import SiteSettings
+
+            settings = SiteSettings.get_instance()
+            dark_name = settings.theme_dark_name
+            light_name = settings.theme_light_name
+            if dark_name and dark_name not in new_themes:
+                click.echo(f"  WARNING: Dark theme '{dark_name}' no longer available.")
+            if light_name and light_name not in new_themes:
+                click.echo(f"  WARNING: Light theme '{light_name}' no longer available.")
+            fallback = new_registry.get_fallback()
+            click.echo(f"  Fallback: {fallback.descriptor.canonical_name}")
+        except Exception:
+            pass
+
     @themes_group.command("paths")
     def themes_paths() -> None:
         """Display theme resource paths and configuration."""
@@ -533,7 +627,20 @@ def register_cli_commands(app: Any) -> None:
         bundled_exists = bundled_dir.is_dir()
 
         click.echo("Theme paths:")
-        click.echo("  Bundled package: app/themes/bundled/")
+        manifest_path = bundled_dir / "catalog_manifest.json"
+        if manifest_path.is_file():
+            try:
+                import json as json_mod
+
+                manifest = json_mod.loads(manifest_path.read_text(encoding="utf-8"))
+                pkg_name = manifest.get("name", "devlog-themes")
+                pkg_version = manifest.get("version", "unknown")
+                pkg_count = manifest.get("theme_count", "?")
+                click.echo(f"  Bundled package: {pkg_name} v{pkg_version} ({pkg_count} themes)")
+            except (OSError, ValueError):
+                click.echo("  Bundled package: app/themes/bundled/ (manifest unreadable)")
+        else:
+            click.echo("  Bundled package: app/themes/bundled/")
         if bundled_exists:
             toml_count = len(list(bundled_dir.glob("*.toml")))
             click.echo(f"  Bundled themes: {toml_count} files")
@@ -563,6 +670,10 @@ def register_cli_commands(app: Any) -> None:
         click.echo("Configuration:")
         click.echo(f"  THEME_ALLOW_EXTERNAL: {THEME_ALLOW_EXTERNAL}")
         click.echo(f"  THEME_STRICT_VALIDATION: {THEME_STRICT_VALIDATION}")
+        from app.themes.resources import _MAX_EXTERNAL_FILE_SIZE
+
+        size_mb = _MAX_EXTERNAL_FILE_SIZE / (1024 * 1024)
+        click.echo(f"  Maximum file size: {_MAX_EXTERNAL_FILE_SIZE} bytes ({size_mb:.1f} MB)")
         click.echo("")
         click.echo("Precedence: external themes override bundled themes with the same name.")
 
@@ -759,7 +870,9 @@ def _validate_theme_file(file_path: Any, as_json: bool) -> None:
             click.echo("  Warnings:")
             for w in warnings_list:
                 click.echo(f"    - {w}")
-        click.echo(f"  CSS variables: {len(translation.theme.__dataclass_fields__)}")
+        field_names = list(translation.theme.__dataclass_fields__)
+        token_list = ", ".join(f"--blog-{f.replace('_', '-')}" for f in field_names)
+        click.echo(f"  Translated tokens: {token_list} ({len(field_names)} total)")
 
 
 def _validate_theme_name(name: str, as_json: bool) -> None:
