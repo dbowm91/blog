@@ -28,12 +28,19 @@ from app.themes.colors import (
     wcag_level,
 )
 from app.themes.diagnostics import (
+    AccessibilityFinding,
+    CatalogAccessibilityReport,
+    ClassificationAudit,
     ContrastWarning,
     ProvenanceEntry,
+    Severity,
+    ThemeAccessibilityReport,
     TranslationDiagnostics,
     build_provenance,
     check_blog_theme_contrast,
     check_contrast,
+    validate_catalog_accessibility,
+    validate_theme_accessibility,
 )
 from app.themes.halloy import (
     SCHEMA_VERSION,
@@ -85,8 +92,11 @@ from app.themes.translate import (
 
 __all__ = [
     "ALIASES",
+    "AccessibilityFinding",
     "BlogTheme",
     "CSS_VARS",
+    "CatalogAccessibilityReport",
+    "ClassificationAudit",
     "ContrastWarning",
     "EMERGENCY_DEFAULT",
     "HalloyBuffer",
@@ -117,6 +127,8 @@ __all__ = [
     "ThemeTranslationResult",
     "ThemeValidationError",
     "TranslationDiagnostics",
+    "Severity",
+    "ThemeAccessibilityReport",
     "adjust_lightness",
     "alpha_composite",
     "build_provenance",
@@ -153,6 +165,8 @@ __all__ = [
     "to_theme_vars",
     "translate",
     "translate_halloy_theme",
+    "validate_theme_accessibility",
+    "validate_catalog_accessibility",
     "validate_theme_name",
     "wcag_level",
 ]

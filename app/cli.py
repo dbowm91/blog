@@ -496,6 +496,29 @@ def register_cli_commands(app: Any) -> None:
                     }
                     for w in loaded.diagnostics.warnings
                 ]
+            from app.themes.diagnostics import validate_theme_accessibility
+
+            filename_dark = None
+            if loaded.descriptor.is_dark is not None:
+                filename_dark = loaded.descriptor.is_dark
+            acc_report = validate_theme_accessibility(
+                loaded.blog_theme,
+                theme_name=loaded.descriptor.canonical_name,
+                filename_dark=filename_dark,
+            )
+            data["accessibility"] = {
+                "passed": acc_report.passed,
+                "mandatory_failures": len(acc_report.mandatory_failures),
+                "advisory_warnings": len(acc_report.advisory_warnings),
+                "findings": [f.to_dict() for f in acc_report.findings],
+            }
+            if acc_report.classification:
+                data["classification"] = {
+                    "filename_dark": acc_report.classification.filename_dark,
+                    "computed_dark": acc_report.classification.computed_dark,
+                    "page_luminance": acc_report.classification.page_luminance,
+                    "mismatch": acc_report.classification.mismatch,
+                }
             click.echo(json_mod.dumps(data, indent=2))
             return
 
@@ -511,6 +534,33 @@ def register_cli_commands(app: Any) -> None:
             click.echo("Translation warnings:")
             for w in loaded.diagnostics.warnings:
                 click.echo(f"  - {w}")
+
+        from app.themes.diagnostics import validate_theme_accessibility
+
+        filename_dark = None
+        if loaded.descriptor.is_dark is not None:
+            filename_dark = loaded.descriptor.is_dark
+        acc_report = validate_theme_accessibility(
+            loaded.blog_theme,
+            theme_name=loaded.descriptor.canonical_name,
+            filename_dark=filename_dark,
+        )
+        if acc_report.findings:
+            click.echo("Accessibility findings:")
+            for f in acc_report.findings:
+                severity_tag = "FAIL" if f.severity.value == "mandatory" else "WARN"
+                click.echo(
+                    f"  [{severity_tag}] {f.description} ({f.ratio}:1, required {f.required}:1, WCAG {f.wcag})"
+                )
+        if acc_report.classification:
+            c = acc_report.classification
+            click.echo(
+                f"Classification: computed_luminance={c.page_luminance} computed_dark={c.computed_dark}"
+            )
+            if c.mismatch:
+                click.echo(
+                    f"  WARNING: Filename dark={c.filename_dark} disagrees with computed dark={c.computed_dark}"
+                )
 
         from app.config import THEME_EXTERNAL_DIR
 
@@ -679,10 +729,16 @@ def register_cli_commands(app: Any) -> None:
 
     @themes_group.command("accessibility")
     @click.option("--source", type=click.Choice(["all", "bundled", "external"]), default="all")
-    def themes_accessibility(source: str) -> None:
-        """Run WCAG contrast checks over all themes."""
+    @click.option("--strict", is_flag=True, help="Reject external themes with mandatory failures.")
+    @click.option("--json", "as_json", is_flag=True, help="Output as JSON for automation.")
+    def themes_accessibility(source: str, strict: bool, as_json: bool) -> None:
+        """Run WCAG contrast checks over all themes with severity classification."""
+        import json as json_mod
         from app.themes.service import get_theme_service
-        from app.themes.diagnostics import check_blog_theme_contrast
+        from app.themes.diagnostics import (
+            validate_theme_accessibility,
+            validate_catalog_accessibility,
+        )
 
         service = get_theme_service()
         registry = service.get_registry()
@@ -693,32 +749,78 @@ def register_cli_commands(app: Any) -> None:
         elif source == "external":
             all_themes = [t for t in all_themes if t.source.value == "external"]
 
-        total_warnings = 0
-        themes_with_warnings = 0
-
+        reports = []
         for descriptor in all_themes:
             try:
                 loaded = registry.load(descriptor.canonical_name)
-                warnings = check_blog_theme_contrast(loaded.blog_theme)
-                if warnings:
-                    themes_with_warnings += 1
-                    total_warnings += len(warnings)
-                    click.echo(f"\n{descriptor.display_name} ({descriptor.source.value}):")
-                    for w in warnings:
-                        click.echo(f"  FAIL: {w.description} ({w.ratio}:1, WCAG {w.wcag})")
-                        click.echo(f"        fg={w.foreground} bg={w.background}")
+                filename_dark = None
+                if descriptor.is_dark is not None:
+                    filename_dark = descriptor.is_dark
+                report = validate_theme_accessibility(
+                    loaded.blog_theme,
+                    theme_name=descriptor.canonical_name,
+                    filename_dark=filename_dark,
+                )
+                report = report.__class__(
+                    theme_name=report.theme_name,
+                    source=descriptor.source.value,
+                    is_dark=report.is_dark,
+                    findings=report.findings,
+                    classification=report.classification,
+                )
+                reports.append(report)
             except Exception as e:
-                click.echo(f"\n{descriptor.display_name}: ERROR - {e}")
+                click.echo(f"\n{descriptor.display_name}: ERROR - {e}", err=True)
+
+        catalog_report = validate_catalog_accessibility(reports)
+
+        if as_json:
+            click.echo(json_mod.dumps(catalog_report.to_dict(), indent=2))
+            return
+
+        for report in reports:
+            if report.findings:
+                click.echo(f"\n{report.theme_name} ({report.source}):")
+                for f in report.findings:
+                    severity_tag = "FAIL" if f.severity.value == "mandatory" else "WARN"
+                    click.echo(
+                        f"  [{severity_tag}] {f.description} ({f.ratio}:1, required {f.required}:1, WCAG {f.wcag})"
+                    )
+                    click.echo(f"          fg={f.foreground} bg={f.background}")
+            if report.classification and report.classification.mismatch:
+                click.echo(
+                    f"  [CLASS] Classification mismatch: filename_dark={report.classification.filename_dark} computed_dark={report.classification.computed_dark}"
+                )
 
         click.echo(f"\n{'=' * 60}")
-        click.echo(f"Checked {len(all_themes)} themes")
-        click.echo(f"Themes with warnings: {themes_with_warnings}")
-        click.echo(f"Total warnings: {total_warnings}")
+        click.echo(f"Checked {catalog_report.total_themes} themes")
+        click.echo(f"Passed: {catalog_report.passed_count}")
+        click.echo(f"Failed: {catalog_report.failed_count}")
+        click.echo(f"Mandatory failures: {catalog_report.total_mandatory}")
+        click.echo(f"Advisory warnings: {catalog_report.total_advisory}")
+        if catalog_report.classification_mismatches:
+            click.echo(
+                f"Classification mismatches: {len(catalog_report.classification_mismatches)}"
+            )
 
-        if total_warnings == 0:
-            click.echo("All themes pass WCAG contrast checks!")
+        if strict:
+            external_failed = [r for r in reports if r.source == "external" and not r.passed]
+            if external_failed:
+                click.echo(
+                    f"\nStrict mode: {len(external_failed)} external theme(s) rejected due to mandatory failures."
+                )
+                for r in external_failed:
+                    click.echo(
+                        f"  REJECTED: {r.theme_name} ({len(r.mandatory_failures)} mandatory failures)"
+                    )
+                raise SystemExit(1)
+
+        if catalog_report.failed_count == 0:
+            click.echo("\nAll themes pass mandatory accessibility gates!")
         else:
-            click.echo("Some themes have contrast issues.")
+            click.echo(
+                f"\n{catalog_report.failed_count} theme(s) have mandatory accessibility failures."
+            )
 
 
 def _validate_theme_file(file_path: Any, as_json: bool) -> None:

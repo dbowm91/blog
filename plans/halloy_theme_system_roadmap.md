@@ -199,9 +199,9 @@ Add commands such as `flask themes list`, `validate`, `inspect`, and `refresh`. 
 
 ### Phase 12: accessibility validation
 
-**Status: Complete (flask themes accessibility command, WCAG contrast checks over all bundled themes)**
+**Status: Complete (WCAG contrast checks with mandatory/advisory severity classification, 24 contrast pairs, catalog-wide validation, classification audit, 135 accessibility tests including all 50 bundled themes)**
 
-Run WCAG contrast checks over every bundled theme for primary text, muted text, links, accent foregrounds, forms, states, and focus rings. Bundled themes must satisfy mandatory thresholds; external themes may load with actionable warnings unless strict mode is enabled.
+WCAG contrast checks with mandatory/advisory severity classification over every bundled theme. 24 contrast pair checks covering text, links, inputs, code, focus indicators, state backgrounds. Structured `AccessibilityFinding` dataclass with remediation guidance. `ThemeAccessibilityReport` and `CatalogAccessibilityReport` for per-theme and catalog-wide results. `ClassificationAudit` for dark/light mismatch detection. CLI integration with `--strict` and `--json` flags. Catalog quality report generator script (`scripts/theme_accessibility_report.py`). Bundled themes must satisfy mandatory thresholds; external themes may load with actionable warnings unless strict mode is enabled.
 
 ### Phase 13: performance and reliability
 

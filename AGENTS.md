@@ -277,7 +277,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section), Phase 07 (Flask and Jinja runtime integration — centralized ThemeService, dual-scheme CSS emission, context processor overhaul), Phase 08 (visitor color-scheme behavior — 3-state system/dark/light, bootstrap script, CSS selector migration, static light palette block removed), Phase 09 (CSS and generated-markup audit — hardcoded literals replaced with CSS custom properties, 34 REPLACE converted, 35 legacy vars emitted), Phase 10 (admin selection and preview — registry-based theme selector), Phase 11 (operator CLI — flask themes list/validate/inspect/refresh/accessibility), Phase 12 (accessibility validation — WCAG contrast checks), and Phase 13 (performance and reliability — benchmarks, cache validation, malformed file isolation) are complete. Phase 14 (documentation and legacy removal) is in progress. Phase 06-10 corrective pass is complete: persisted default scheme applies to first-time visitors, admin validation errors are typed and never produce 500s, legacy migration preserves visual mode, theme service is app-scoped via `app.extensions`, and legacy THEME_PRESETS fallback is bounded. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section), Phase 07 (Flask and Jinja runtime integration — centralized ThemeService, dual-scheme CSS emission, context processor overhaul), Phase 08 (visitor color-scheme behavior — 3-state system/dark/light, bootstrap script, CSS selector migration, static light palette block removed), Phase 09 (CSS and generated-markup audit — hardcoded literals replaced with CSS custom properties, 34 REPLACE converted, 35 legacy vars emitted), Phase 10 (admin selection and preview — registry-based theme selector), Phase 11 (operator CLI — flask themes list/validate/inspect/refresh/accessibility), Phase 12 (accessibility validation — WCAG contrast checks with severity classification, catalog-wide validation, classification audit), and Phase 13 (performance and reliability — benchmarks, cache validation, malformed file isolation) are complete. Phase 14 (documentation and legacy removal) is in progress. Phase 06-10 corrective pass is complete: persisted default scheme applies to first-time visitors, admin validation errors are typed and never produce 500s, legacy migration preserves visual mode, theme service is app-scoped via `app.extensions`, and legacy THEME_PRESETS fallback is bounded. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
@@ -316,9 +316,11 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 
 - `app/themes/model.py` — `BlogTheme` frozen dataclass (50 fields: 44 semantic tokens + 6 RGBA fields), `CSS_VARS` mapping, `ALIASES` backward-compat mapping, `EMERGENCY_DEFAULT` constant
 - `app/themes/translate.py` — `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()`
-- `app/themes/diagnostics.py` — `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics`
+- `app/themes/diagnostics.py` — expanded accessibility validation with severity categories, structured findings, catalog-wide validation
 - `tests/themes/test_translation.py` — translation, derivation, foreground selection, catalog-wide tests
 - `tests/themes/test_theme_css.py` — CSS serialization, ordering, selector, legacy vars tests
+- `scripts/theme_accessibility_report.py` — catalog quality report generator
+- `tests/themes/test_accessibility.py` — comprehensive accessibility tests
 
 #### Key files (Phase 04 deliverables — corrective closure + small closure pass complete)
 
@@ -371,7 +373,7 @@ For detailed architecture documentation, see the `architecture/` directory:
 | Testing (pytest, E2E, benchmarks) | [architecture/testing/test-suite.md](architecture/testing/test-suite.md) |
 | Security (2FA, CSRF, rate limiting) | [architecture/deployment/security.md](architecture/deployment/security.md) |
 | Deployment (Docker, CI/CD) | [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
-| Theme system (Halloy migration) | [docs/themes/supported-schema.md](docs/themes/supported-schema.md), [docs/themes/blog-theme-contract.md](docs/themes/blog-theme-contract.md) |
+| Theme system (Halloy migration) | [docs/themes/supported-schema.md](docs/themes/supported-schema.md), [docs/themes/blog-theme-contract.md](docs/themes/blog-theme-contract.md), [docs/themes/operator-guide.md](docs/themes/operator-guide.md) |
 | System overview | [architecture/overview.md](architecture/overview.md) |
 
 ## Skills

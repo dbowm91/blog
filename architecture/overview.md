@@ -113,7 +113,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Theme Parser | `app/themes/halloy.py` | Typed Halloy TOML parser with structured errors (Phase 02) |
 | Theme Model | `app/themes/model.py` | `BlogTheme` frozen dataclass, `CSS_VARS`, `ALIASES`, `EMERGENCY_DEFAULT` (Phase 03) |
 | Theme Translator | `app/themes/translate.py` | Halloy-to-BlogTheme translation, CSS variable generation (Phase 03) |
-| Theme Diagnostics | `app/themes/diagnostics.py` | Contrast checking, provenance tracking (Phase 03) |
+| Theme Diagnostics | `app/themes/diagnostics.py` | Contrast checking, provenance tracking (Phase 03); expanded accessibility validation with severity classification, structured findings, catalog-wide validation (Phase 12) |
 | Theme Resources | `app/themes/resources.py` | `ThemeResource` protocol, `ThemeFileInfo`, bundled/external discovery via `importlib.resources`, name validation (Phase 04) |
 | Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation (Phase 04) |
 | Theme Registry | `app/themes/registry.py` | Authoritative theme registry: `_CatalogEntry` binding descriptor + source, listing, resolution, loading, fallback, structured exceptions (Phase 04) |
