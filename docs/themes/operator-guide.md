@@ -290,14 +290,15 @@ See `docs/themes/cache-contract.md` for the full cache freshness contract.
 
 **Emergency fallback activated**: If the theme service encounters an error, the site falls back to `EMERGENCY_DEFAULT` (same palette as the former `github-dark` preset). Check logs for the specific error and run `flask themes refresh` to reinitialize.
 
-**Legacy preset names no longer work**: The `THEME_PRESETS` dict was removed in Phase 14. Legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) are mapped to Halloy equivalents via `LEGACY_PRESET_MAP` in `app/services/theme_settings.py`. Select the mapped Halloy theme name instead.
+**Legacy preset names no longer work**: The `THEME_PRESETS` dict was removed in Phase 14, and the `theme_preset` database column was dropped in Phase 15. Legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) are no longer available. Select a Halloy theme name from the admin settings page instead.
 
 ## Migration from Legacy Presets
 
 If upgrading from a version that used `THEME_PRESETS`:
 
 1. The database migration `preserve_legacy_scheme` preserves your visual mode setting
-2. Legacy preset names are mapped to Halloy equivalents automatically:
+2. The `theme_preset` column is dropped by the `drop_theme_preset_column` migration
+3. Legacy preset names are mapped to Halloy equivalents:
    - `github-dark` → `Catppuccin Mocha`
    - `github-light` → `Catppuccin Latte`
    - `solarized-dark` → `Solarized Dark`
