@@ -3,8 +3,12 @@ const VALID_SCHEMES = ['system', 'dark', 'light'];
 const SCHEME_ATTR = 'data-color-scheme';
 
 function getStoredScheme() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return VALID_SCHEMES.includes(stored) ? stored : 'system';
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return VALID_SCHEMES.includes(stored) ? stored : 'system';
+    } catch {
+        return 'system';
+    }
 }
 
 function resolveEffectiveScheme(stored) {
@@ -58,7 +62,11 @@ export function initColorScheme() {
     toggle.addEventListener('click', () => {
         const current = getStoredScheme();
         const next = cycleScheme(current);
-        localStorage.setItem(STORAGE_KEY, next);
+        try {
+            localStorage.setItem(STORAGE_KEY, next);
+        } catch {
+            // storage unavailable — apply without persisting
+        }
         const nextEffective = resolveEffectiveScheme(next);
         applyScheme(nextEffective);
         toggle.setAttribute('aria-label', `Color scheme: ${getSchemeLabel(next)}`);
@@ -87,7 +95,11 @@ export function getInitialColorScheme() {
 
 export function setColorScheme(scheme) {
     if (VALID_SCHEMES.includes(scheme)) {
-        localStorage.setItem(STORAGE_KEY, scheme);
+        try {
+            localStorage.setItem(STORAGE_KEY, scheme);
+        } catch {
+            // storage unavailable — apply without persisting
+        }
         applyScheme(resolveEffectiveScheme(scheme));
     }
 }
