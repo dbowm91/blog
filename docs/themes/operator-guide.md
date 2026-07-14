@@ -381,3 +381,10 @@ If upgrading from a version that used `THEME_PRESETS`:
 3. Navigate to **Settings > Theme** to select different themes if desired
 4. Custom CSS is preserved unchanged
 5. Syntax highlighting theme is preserved unchanged
+
+## Database Support
+
+- **SQLite** (recommended): Fully supported. All migrations use `batch_alter_table` for SQLite-safe DDL. FTS5 search and WAL mode are production-ready.
+- **PostgreSQL**: Not currently supported. The `PostgreSQLSearchProvider` is a stub for future use. While Alembic migrations are dialect-neutral, the application has not been tested or documented for PostgreSQL. Do not use PostgreSQL in production without first validating FTS5 search compatibility and deployment configuration.
+
+For full migration details, rollback procedures, and recovery steps, see [docs/themes/migration-boundary.md](migration-boundary.md).

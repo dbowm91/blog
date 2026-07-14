@@ -247,3 +247,57 @@ def test_full_chain_round_trip(app):
 
         with engine.begin() as conn:
             conn.execute(sa.text("DROP TABLE site_settings"))
+
+
+def test_fresh_install_creates_correct_schema(app):
+    """Fresh database gets correct defaults without any legacy data."""
+    with app.app_context():
+        from app.extensions import db
+
+        engine = db.engine
+        with engine.begin() as conn:
+            conn.execute(sa.text("DROP TABLE IF EXISTS site_settings"))
+            conn.execute(
+                sa.text(
+                    "CREATE TABLE site_settings ("
+                    " id INTEGER PRIMARY KEY,"
+                    " theme_preset TEXT NOT NULL DEFAULT 'github-dark',"
+                    " custom_css_enabled BOOLEAN NOT NULL DEFAULT 0,"
+                    " custom_css TEXT DEFAULT '',"
+                    " logo_text TEXT DEFAULT '',"
+                    " updated_at DATETIME DEFAULT NULL,"
+                    " syntax_theme TEXT NOT NULL DEFAULT 'prism'"
+                    ")"
+                )
+            )
+
+        from migrations.versions.add_theme_config_to_sitesettings import upgrade as upgrade_add
+        from migrations.versions.preserve_legacy_scheme import upgrade as upgrade_preserve
+        from migrations.versions.drop_theme_preset_column import upgrade as upgrade_drop
+
+        _run_migrations(engine, upgrade_add, upgrade_preserve, upgrade_drop)
+
+        columns = _get_columns(engine, "site_settings")
+        assert "theme_dark_name" in columns
+        assert "theme_light_name" in columns
+        assert "theme_default_scheme" in columns
+        assert "theme_preset" not in columns
+
+        rows = _get_all_rows(engine, "site_settings")
+        assert len(rows) == 0
+
+        with engine.begin() as conn:
+            conn.execute(sa.text("INSERT INTO site_settings DEFAULT VALUES"))
+
+        rows = _get_all_rows(engine, "site_settings")
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["theme_dark_name"] == "Catppuccin Mocha"
+        assert row["theme_light_name"] == "Catppuccin Latte"
+        assert row["theme_default_scheme"] == "system"
+        assert row["syntax_theme"] == "prism"
+        assert row["custom_css_enabled"] == 0
+        assert row["custom_css"] == ""
+
+        with engine.begin() as conn:
+            conn.execute(sa.text("DROP TABLE site_settings"))
