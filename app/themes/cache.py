@@ -29,9 +29,16 @@ class ThemeCacheEntry:
 class ThemeCache:
     def __init__(self) -> None:
         self._cache: dict[str, ThemeCacheEntry] = {}
+        self._hits: int = 0
+        self._misses: int = 0
 
     def get(self, key: str) -> ThemeCacheEntry | None:
-        return self._cache.get(key)
+        entry = self._cache.get(key)
+        if entry is not None:
+            self._hits += 1
+        else:
+            self._misses += 1
+        return entry
 
     def set(self, key: str, entry: ThemeCacheEntry) -> None:
         self._cache[key] = entry
@@ -49,6 +56,18 @@ class ThemeCache:
 
     def clear(self) -> None:
         self.invalidate(None)
+
+    @property
+    def hits(self) -> int:
+        return self._hits
+
+    @property
+    def misses(self) -> int:
+        return self._misses
+
+    def reset_counters(self) -> None:
+        self._hits = 0
+        self._misses = 0
 
     @staticmethod
     def make_key(canonical_name: str, source_type: str) -> str:

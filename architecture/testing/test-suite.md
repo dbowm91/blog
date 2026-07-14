@@ -229,3 +229,58 @@ post = db.session.get(Post, post_id)
 
 ## See Also
 - [CI/CD](../deployment/cicd.md) - CI test execution
+
+## CI and Benchmark Policy
+
+### Correctness vs. Performance
+
+Correctness tests (unit, integration, theme reliability) are **mandatory** and must pass on every commit. Performance benchmarks use generous thresholds designed to tolerate normal CI variance while catching order-of-magnitude regressions.
+
+### Benchmark Threshold Design
+
+Theme performance benchmarks in `tests/benchmarks/test_theme_performance.py` use thresholds calibrated for typical CI hardware:
+
+| Benchmark | Threshold | Rationale |
+|-----------|-----------|-----------|
+| Cold registry (bundled) | < 0.5s | Includes 5 iterations averaged |
+| Cold registry (50 external) | < 1.0s | 3 iterations averaged |
+| Bundled catalog enumeration | < 0.1s | 20 iterations averaged |
+| Warm list_themes() | < 0.01s | 100 iterations averaged, O(1) expected |
+| Cold parse/translate/serialize | < 0.25s | Single theme, 5 iterations averaged |
+| Warm theme load | < 0.01s | 200 iterations averaged, O(1) expected |
+| Warm get_context() | < 0.01s | 50 iterations averaged, O(1) expected |
+| Context after invalidation | < 0.5s | 10 iterations averaged |
+| Template render | < 0.005s | 200 iterations averaged |
+| Full registry invalidation | < 0.5s | 10 iterations averaged |
+| Single theme invalidation | < 0.15s | 20 iterations averaged |
+| E2E pipeline (10 themes) | < 2.0s | Scan + load all |
+
+### Interpreting Failures
+
+- **Threshold exceeded by < 2x**: Likely CI variance. Re-run the test. If it passes on retry, the threshold may need adjustment.
+- **Threshold exceeded by > 5x**: Investigate for real regression. Check if a new dependency or code path was introduced.
+- **Consistent failure across runs**: Indicates a real performance regression. Profile and optimize before merging.
+
+### Adding New Benchmarks
+
+When adding new benchmarks:
+
+1. Set thresholds generously (at least 2x the measured typical time on CI hardware).
+2. Use multiple iterations with `time.perf_counter()` averaging for stable measurements.
+3. Focus on end-to-end operations, not microbenchmarks of individual lines.
+4. Benchmark correctness tests must also pass (the benchmark file includes assertions about output validity).
+
+### Diagnostic Counters
+
+The `ThemeRegistry` and `ThemeCache` classes expose diagnostic counters via read-only properties:
+
+| Counter | Property | Description |
+|---------|----------|-------------|
+| Cache hits | `registry.cache_hits` | Number of cache lookups that returned a valid entry |
+| Cache misses | `registry.cache_misses` | Number of cache lookups that returned None |
+| Refresh count | `registry.refresh_count` | Number of successful catalog rebuilds |
+| Refresh failures | `registry.refresh_failure_count` | Number of failed catalog rebuilds |
+| Fallback count | `registry.fallback_count` | Number of emergency fallback activations |
+| External overrides | `registry.external_override_count` | Number of external themes overriding bundled themes |
+
+These counters are reset via `registry.reset_refresh_counters()` and `registry._cache.reset_counters()`. They are intended for diagnostics and testing, not for production metrics export.

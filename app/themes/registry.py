@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -184,6 +185,40 @@ class ThemeRegistry:
         self._default_theme = default_theme
         self._cache = ThemeCache()
         self._catalog: dict[str, _CatalogEntry] | None = None
+        self._refresh_count: int = 0
+        self._refresh_failure_count: int = 0
+        self._fallback_count: int = 0
+
+    @property
+    def cache_hits(self) -> int:
+        return self._cache.hits
+
+    @property
+    def cache_misses(self) -> int:
+        return self._cache.misses
+
+    @property
+    def refresh_count(self) -> int:
+        return self._refresh_count
+
+    @property
+    def refresh_failure_count(self) -> int:
+        return self._refresh_failure_count
+
+    @property
+    def fallback_count(self) -> int:
+        return self._fallback_count
+
+    @property
+    def external_override_count(self) -> int:
+        if self._catalog is None:
+            return 0
+        return sum(1 for entry in self._catalog.values() if entry.descriptor.overrides_bundled)
+
+    def reset_refresh_counters(self) -> None:
+        self._refresh_count = 0
+        self._refresh_failure_count = 0
+        self._fallback_count = 0
 
     def _make_descriptor(
         self,
@@ -252,6 +287,12 @@ class ThemeRegistry:
             )
 
         self._catalog = merged
+        logger.debug(
+            "catalog rebuilt: %d themes (%d bundled, %d external)",
+            len(merged),
+            len(bundled),
+            len(external),
+        )
 
     def _resolve_alias(self, name: str) -> str:
         lower = name.lower()
@@ -261,7 +302,20 @@ class ThemeRegistry:
 
     def list_themes(self) -> list[ThemeDescriptor]:
         if self._catalog is None:
-            self._rebuild_catalog()
+            start = time.monotonic()
+            try:
+                self._rebuild_catalog()
+            except Exception:
+                self._refresh_failure_count += 1
+                raise
+            elapsed = time.monotonic() - start
+            self._refresh_count += 1
+            logger.info(
+                "theme refresh #%d completed in %.3fs: %d themes",
+                self._refresh_count,
+                elapsed,
+                len(self._catalog) if self._catalog is not None else 0,
+            )
         assert self._catalog is not None
         return sorted(
             (entry.descriptor for entry in self._catalog.values()),
@@ -306,17 +360,9 @@ class ThemeRegistry:
         if entry is not None:
             if self._catalog is not None and canonical_name in self._catalog:
                 current_info = self._catalog[canonical_name].file_info
-                current_fp = _compute_fingerprint(
-                    current_info.read_bytes(),
-                    current_info.source,
-                    current_info.mtime,
-                    current_info.size_bytes,
-                )
-                if self._cache.validate_entry(
-                    cache_key,
-                    current_info.mtime,
-                    current_info.size_bytes,
-                    current_fp,
+                if (
+                    entry.file_mtime == current_info.mtime
+                    and entry.file_size == current_info.size_bytes
                 ):
                     return LoadedTheme(
                         descriptor=descriptor,
@@ -404,9 +450,11 @@ class ThemeRegistry:
             resolved_name = self._resolve_alias(normalized)
             self._cache.invalidate_prefix(resolved_name)
             self._catalog = None
+            logger.debug("cache invalidated for theme %r", resolved_name)
         else:
             self._cache.clear()
             self._catalog = None
+            logger.debug("cache invalidated (full refresh)")
 
     def get_fallback(self, configured: str | None = None) -> LoadedTheme:
         tried: set[str] = set()
@@ -425,6 +473,7 @@ class ThemeRegistry:
             configured,
             self._default_theme,
         )
+        self._fallback_count += 1
         emergency = _emergency_halloy_theme()
         result = translate_halloy_theme(emergency)
         css = to_css_variables(result.theme)

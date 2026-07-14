@@ -1475,3 +1475,249 @@ class TestDiagnosticCounters:
         themes = registry.list_themes()
         bundled_files = [p for p in CATALOG.glob("*.toml") if not p.name.startswith("._")]
         assert len(themes) == len(bundled_files)
+
+
+class TestRefreshSummaryLogging:
+    def test_refresh_summary_logs_info(self, caplog) -> None:
+        registry = _make_registry(Path())
+        with caplog.at_level("INFO", logger="app.themes.registry"):
+            registry.list_themes()
+        assert "theme refresh #1 completed in" in caplog.text
+        assert "themes" in caplog.text
+
+    def test_refresh_summary_includes_count(self, caplog) -> None:
+        registry = _make_registry(Path())
+        with caplog.at_level("INFO", logger="app.themes.registry"):
+            registry.list_themes()
+        assert "#1" in caplog.text
+
+    def test_refresh_summary_includes_theme_count(self, caplog) -> None:
+        registry = _make_registry(Path())
+        with caplog.at_level("INFO", logger="app.themes.registry"):
+            registry.list_themes()
+        themes = registry.list_themes()
+        assert str(len(themes)) in caplog.text
+
+    def test_second_refresh_increments_count(self, caplog) -> None:
+        registry = _make_registry(Path())
+        with caplog.at_level("INFO", logger="app.themes.registry"):
+            registry.list_themes()
+            registry.invalidate()
+            registry.list_themes()
+        assert "#2" in caplog.text
+
+    def test_no_refresh_log_when_catalog_already_built(self, caplog) -> None:
+        registry = _make_registry(Path())
+        registry.list_themes()
+        caplog.clear()
+        with caplog.at_level("INFO", logger="app.themes.registry"):
+            registry.list_themes()
+        assert "theme refresh" not in caplog.text
+
+    def test_refresh_failure_increments_failure_count(self, tmp_path: Path) -> None:
+        registry = _make_registry(tmp_path)
+        with patch.object(registry, "_rebuild_catalog", side_effect=RuntimeError("disk error")):
+            try:
+                registry.list_themes()
+            except RuntimeError:
+                pass
+        assert registry.refresh_failure_count == 1
+
+    def test_refresh_success_does_not_increment_failure_count(self) -> None:
+        registry = _make_registry(Path())
+        registry.list_themes()
+        assert registry.refresh_failure_count == 0
+
+    def test_catalog_rebuild_logs_debug(self, caplog) -> None:
+        registry = _make_registry(Path())
+        with caplog.at_level("DEBUG", logger="app.themes.registry"):
+            registry.list_themes()
+        assert "catalog rebuilt:" in caplog.text
+
+
+class TestCacheInvalidationLogging:
+    def test_full_invalidation_logs_debug(self, caplog) -> None:
+        registry = _make_registry(Path())
+        registry.list_themes()
+        with caplog.at_level("DEBUG", logger="app.themes.registry"):
+            registry.invalidate()
+        assert "cache invalidated (full refresh)" in caplog.text
+
+    def test_single_theme_invalidation_logs_debug(self, caplog) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        with caplog.at_level("DEBUG", logger="app.themes.registry"):
+            registry.invalidate("Dracula")
+        assert "cache invalidated for theme" in caplog.text
+        assert "Dracula" in caplog.text
+
+    def test_invalidation_logs_theme_name_in_message(self, caplog) -> None:
+        registry = _make_registry(Path())
+        registry.load("Catppuccin Mocha")
+        with caplog.at_level("DEBUG", logger="app.themes.registry"):
+            registry.invalidate("Catppuccin Mocha")
+        assert "Catppuccin Mocha" in caplog.text
+
+
+class TestDiagnosticCountersProperties:
+    def test_cache_hits_zero_initially(self) -> None:
+        registry = _make_registry(Path())
+        assert registry.cache_hits == 0
+
+    def test_cache_misses_zero_initially(self) -> None:
+        registry = _make_registry(Path())
+        assert registry.cache_misses == 0
+
+    def test_cache_hits_increment_on_load(self) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        first_hits = registry.cache_hits
+        registry.load("Dracula")
+        assert registry.cache_hits > first_hits
+
+    def test_cache_misses_increment_on_cold_load(self) -> None:
+        registry = _make_registry(Path())
+        assert registry.cache_misses == 0
+        registry.load("Dracula")
+        assert registry.cache_misses >= 1
+
+    def test_refresh_count_zero_initially(self) -> None:
+        registry = _make_registry(Path())
+        assert registry.refresh_count == 0
+
+    def test_refresh_count_increments_on_list_themes(self) -> None:
+        registry = _make_registry(Path())
+        registry.list_themes()
+        assert registry.refresh_count == 1
+
+    def test_refresh_count_increments_on_invalidate_plus_list(self) -> None:
+        registry = _make_registry(Path())
+        registry.list_themes()
+        registry.invalidate()
+        registry.list_themes()
+        assert registry.refresh_count == 2
+
+    def test_fallback_count_zero_initially(self) -> None:
+        registry = _make_registry(Path())
+        assert registry.fallback_count == 0
+
+    def test_fallback_count_increments_on_emergency(self) -> None:
+        registry = _make_registry(
+            Path(),
+            bundled_root=Path("/nonexistent"),
+            default_theme="nonexistent-default",
+        )
+        registry.get_fallback("missing")
+        assert registry.fallback_count == 1
+
+    def test_fallback_count_increments_on_each_emergency(self) -> None:
+        registry = _make_registry(
+            Path(),
+            bundled_root=Path("/nonexistent"),
+            default_theme="nonexistent-default",
+        )
+        registry.get_fallback("missing1")
+        registry.get_fallback("missing2")
+        assert registry.fallback_count == 2
+
+    def test_fallback_count_does_not_increment_on_success(self) -> None:
+        registry = _make_registry(Path())
+        registry.get_fallback("Dracula")
+        assert registry.fallback_count == 0
+
+    def test_external_override_count_zero_with_no_external(self) -> None:
+        registry = _make_registry(Path())
+        registry.list_themes()
+        assert registry.external_override_count == 0
+
+    def test_external_override_count_with_override(self, tmp_path: Path) -> None:
+        ext = tmp_path / "external"
+        ext.mkdir()
+        _write_theme(ext, "Dracula")
+
+        registry = _make_registry(tmp_path, external_root=ext)
+        registry.list_themes()
+        assert registry.external_override_count == 1
+
+    def test_external_override_count_without_override(self, tmp_path: Path) -> None:
+        ext = tmp_path / "external"
+        ext.mkdir()
+        _write_theme(ext, "unique-theme")
+
+        registry = _make_registry(tmp_path, external_root=ext)
+        registry.list_themes()
+        assert registry.external_override_count == 0
+
+    def test_external_override_count_zero_before_catalog_built(self) -> None:
+        registry = _make_registry(Path())
+        assert registry.external_override_count == 0
+
+    def test_cache_hit_miss_ratio_after_loads(self) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        registry.load("Dracula")
+        registry.load("Dracula")
+        assert registry.cache_hits >= 2
+        assert registry.cache_misses >= 1
+
+
+class TestWarmPathZeroIO:
+    def test_cache_hit_does_not_call_read_bytes(self) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        registry._cache.reset_counters()
+
+        with patch("app.themes.registry._compute_fingerprint") as mock_fp:
+            mock_fp.return_value = "cached-fingerprint"
+            result = registry.load("Dracula")
+            assert result is not None
+            assert result.descriptor.canonical_name == "Dracula"
+            mock_fp.assert_not_called()
+
+    def test_cache_hit_does_not_call_parse(self) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        registry._cache.reset_counters()
+
+        with patch("app.themes.halloy.parse_halloy_theme_bytes") as mock_parse:
+            loaded = registry.load("Dracula")
+            assert loaded is not None
+            mock_parse.assert_not_called()
+
+    def test_cache_hit_does_not_call_translate(self) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        registry._cache.reset_counters()
+
+        with patch("app.themes.translate.translate_halloy_theme") as mock_translate:
+            loaded = registry.load("Dracula")
+            assert loaded is not None
+            mock_translate.assert_not_called()
+
+    def test_multiple_cache_hits_no_io(self) -> None:
+        registry = _make_registry(Path())
+        registry.load("Dracula")
+        registry.load("Catppuccin Mocha")
+        registry._cache.reset_counters()
+
+        with (
+            patch("app.themes.registry._compute_fingerprint") as mock_fp,
+            patch("app.themes.halloy.parse_halloy_theme_bytes") as mock_parse,
+        ):
+            mock_fp.return_value = "cached-fingerprint"
+            for _ in range(10):
+                registry.load("Dracula")
+                registry.load("Catppuccin Mocha")
+            mock_fp.assert_not_called()
+            mock_parse.assert_not_called()
+
+    def test_cache_hit_returns_same_data_without_reparse(self) -> None:
+        registry = _make_registry(Path())
+        first = registry.load("Dracula")
+        registry._cache.reset_counters()
+
+        with patch("app.themes.halloy.parse_halloy_theme_bytes") as mock_parse:
+            second = registry.load("Dracula")
+            assert first.css == second.css
+            assert first.blog_theme == second.blog_theme
+            mock_parse.assert_not_called()

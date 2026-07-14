@@ -23,11 +23,11 @@ The theme system uses two in-process caches: a **catalog cache** (registry-level
 
 | Operation | Cost |
 |-----------|------|
-| Warm request (cache hit) | O(1) dict lookup, no filesystem reads, no TOML parsing |
+| Warm request (cache hit) | O(1) dict lookup + mtime/size comparison, no filesystem reads, no TOML parsing |
 | Cache miss | `read_bytes()` → `parse_halloy_theme_bytes()` → `translate_halloy_theme()` → `to_css_variables()` → cache store |
 | Catalog build (first `list_themes()` or `resolve()`) | `scandir` + `stat` for each candidate file, no TOML parsing |
 
-Ordinary warm requests for an already-loaded theme perform no I/O. The cache entry is returned immediately. The only way to reach the filesystem on a warm path is if the catalog was just rebuilt and the entry was evicted, or if fingerprint validation fails.
+Ordinary warm requests for an already-loaded theme perform no I/O. The cache entry is validated by comparing stored mtime/size against the catalog's current metadata (no disk read required). If both match, the cached result is returned immediately. A mismatch (e.g., after an external file edit followed by invalidation and catalog rebuild) causes a cache miss and re-parse from disk.
 
 ## Settings Cache
 
@@ -94,6 +94,7 @@ Cache behavior should be verified by the following test patterns:
 | Behavior | How to verify |
 |----------|---------------|
 | **Cache hit** | Load the same theme twice. Second `load()` returns the same `LoadedTheme` object (identity check via `is`). |
+| **Warm path does no I/O** | Load a theme, then mock `_compute_fingerprint` and `parse_halloy_theme_bytes`. Load again. Mocks are not called — no bytes are read and no parsing occurs. |
 | **Invalidation forces re-read** | Load a theme, call `invalidate(name)`, load again. The second load reads bytes from disk (mock `read_bytes` to assert call count). |
 | **Fingerprint mismatch triggers re-parse** | Load a theme, modify the file's mtime/size, call `invalidate(name)`, load again. The cache entry is rebuilt. |
 | **Fallback chain** | Configure a nonexistent theme name. Verify `get_fallback()` returns the default, then emergency if the default is also broken. |
