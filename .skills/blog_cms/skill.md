@@ -281,7 +281,7 @@ Phases 05+ will create these modules:
 | `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`, `_CatalogEntry`, structured exceptions, `_THEME_ALIASES`, `_compute_fingerprint()`, default `Catppuccin Mocha` | 04 | Done |
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 | Done |
 | `app/services/theme_settings.py` | Theme validation, legacy migration, effective name resolution | 06 | Done |
-| `app/themes/service.py` | `ThemeService` class, per-process registry owner, context builder (Phase 07) | 07 | Done |
+| `app/themes/service.py` | `ThemeService` class, app-scoped via `app.extensions["theme_service"]`, context builder (Phase 07) | 07 | Done |
 | `app/static/js/shared/color-scheme.js` | 3-state color scheme manager (system/dark/light), bootstrap, toggle | 08 | Done |
 | `app/static/js/shared/dark-mode.js` | Backward-compatible re-export from color-scheme.js | 08 | Done |
 

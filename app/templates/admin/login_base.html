@@ -3,8 +3,12 @@
 <head>
     <script nonce="{{ csp_nonce }}">
         (function() {
+            var defaultScheme = '{{ theme_default_scheme | e }}';
+            if (defaultScheme !== 'system' && defaultScheme !== 'dark' && defaultScheme !== 'light') {
+                defaultScheme = 'system';
+            }
             var s = localStorage.getItem('blog-color-scheme');
-            var scheme = (s === 'system' || s === 'dark' || s === 'light') ? s : 'system';
+            var scheme = (s === 'system' || s === 'dark' || s === 'light') ? s : defaultScheme;
             var effective = scheme === 'system'
                 ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                 : scheme;

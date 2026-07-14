@@ -156,6 +156,13 @@ Deliverables:
 
 Expand or replace `SiteSettings.theme_preset` with sufficiently long named-theme fields, migrate legacy names, add dark/light theme pair settings, add an external directory configuration key, and validate configured names with safe fallbacks.
 
+**Corrective pass (Plan: `plans/halloy_theme_phase_06_10_corrective_pass.md`) — Complete:**
+
+- Follow-up migration `preserve_legacy_scheme` preserves visual mode from old preset names
+- Theme service scoped to Flask app via `app.extensions["theme_service"]` (no module-global singleton)
+- Admin validation errors handled with typed exceptions (`ThemeValidationError`, `ThemeNotFoundError`, `ThemeParseFailure`, `ThemeLoadError`)
+- Legacy `THEME_PRESETS` fallback bounded with clear documentation and emergency-only semantics
+
 ### Phase 07: Flask and Jinja integration
 
 **Status: Complete (centralized ThemeService, dual-scheme CSS emission, context processor overhaul)**

@@ -663,7 +663,10 @@ def test_settings_theme_update(authenticated_client, db):
     response = authenticated_client.post(
         "/admin/settings/theme",
         data={
-            "preset": "github-light",
+            "theme_dark_name": "Catppuccin Mocha",
+            "theme_light_name": "Catppuccin Latte",
+            "theme_default_scheme": "light",
+            "syntax_theme": "prism",
             "custom_css_enabled": "on",
             "custom_css": "body { color: red; }",
             "logo_text": "Test Logo",
@@ -673,22 +676,25 @@ def test_settings_theme_update(authenticated_client, db):
     assert response.status_code == 200
     assert b"Theme settings saved" in response.data
     settings = db.session.execute(db.select(SiteSettings).limit(1)).scalar_one()
-    assert settings.theme_preset == "github-light"
+    assert settings.theme_default_scheme == "light"
     assert settings.custom_css_enabled is True
     assert settings.logo_text == "Test Logo"
 
 
-def test_settings_invalid_preset(authenticated_client, db):
-    """Test settings rejects invalid theme preset."""
+def test_settings_invalid_theme_name(authenticated_client, db):
+    """Test settings rejects invalid theme name."""
     response = authenticated_client.post(
         "/admin/settings/theme",
         data={
-            "preset": "invalid-preset",
+            "theme_dark_name": "Nonexistent Theme XYZ",
+            "theme_light_name": "Catppuccin Latte",
+            "theme_default_scheme": "system",
+            "syntax_theme": "prism",
         },
         follow_redirects=True,
     )
     assert response.status_code == 200
-    assert b"Invalid theme preset" in response.data
+    assert b"not found" in response.data.lower()
 
 
 # Pages tests

@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import logging
+
 from flask import jsonify, render_template, redirect, url_for, request, flash
 from flask.typing import ResponseReturnValue
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -16,8 +19,16 @@ from app.services.theme_settings import (  # noqa: F401
     validate_theme_settings,
     migrate_legacy_preset,
 )
+from app.themes.registry import (
+    ThemeValidationError,
+    ThemeNotFoundError,
+    ThemeParseFailure,
+    ThemeLoadError,
+)
 from app.themes.service import get_theme_service
 from app.utils import sanitize_css
+
+logger = logging.getLogger(__name__)
 
 
 @admin.route("/settings", methods=["GET"])
@@ -88,12 +99,20 @@ def settings_theme() -> ResponseReturnValue:
     light_name = request.form.get("theme_light_name", settings_obj.theme_light_name)
     scheme = request.form.get("theme_default_scheme", settings_obj.theme_default_scheme)
 
-    if registry.resolve(dark_name) is None:
-        flash(f"Dark theme '{dark_name}' not found in registry.", "error")
+    try:
+        if registry.resolve(dark_name) is None:
+            flash(f"Dark theme '{dark_name}' not found in registry.", "error")
+            return redirect(url_for("admin.settings"))
+    except ThemeValidationError as e:
+        flash(f"Invalid dark theme name: {e}", "error")
         return redirect(url_for("admin.settings"))
 
-    if registry.resolve(light_name) is None:
-        flash(f"Light theme '{light_name}' not found in registry.", "error")
+    try:
+        if registry.resolve(light_name) is None:
+            flash(f"Light theme '{light_name}' not found in registry.", "error")
+            return redirect(url_for("admin.settings"))
+    except ThemeValidationError as e:
+        flash(f"Invalid light theme name: {e}", "error")
         return redirect(url_for("admin.settings"))
 
     valid_schemes = ["system", "dark", "light"]
@@ -174,11 +193,17 @@ def settings_theme_preview() -> ResponseReturnValue:
     light_warnings: list[str] = []
     warnings: list[str] = []
 
-    if registry.resolve(dark_name) is None:
-        errors.append(f"Dark theme '{dark_name}' not found in registry.")
+    try:
+        if registry.resolve(dark_name) is None:
+            errors.append(f"Dark theme '{dark_name}' not found in registry.")
+    except ThemeValidationError as e:
+        errors.append(f"Invalid dark theme name: {e}")
 
-    if registry.resolve(light_name) is None:
-        errors.append(f"Light theme '{light_name}' not found in registry.")
+    try:
+        if registry.resolve(light_name) is None:
+            errors.append(f"Light theme '{light_name}' not found in registry.")
+    except ThemeValidationError as e:
+        errors.append(f"Invalid light theme name: {e}")
 
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
@@ -192,8 +217,12 @@ def settings_theme_preview() -> ResponseReturnValue:
             f"{w.token}: {w.description} ({w.ratio:.2f}:1, WCAG {w.wcag})"
             for w in loaded_dark.diagnostics.warnings
         ]
-    except Exception as exc:
-        errors.append(f"Failed to load dark theme: {exc}")
+    except ThemeNotFoundError:
+        errors.append(f"Dark theme '{dark_name}' not found.")
+    except (ThemeParseFailure, ThemeLoadError) as e:
+        errors.append(f"Failed to load dark theme: {e}")
+    except ThemeValidationError as e:
+        errors.append(f"Invalid dark theme name: {e}")
 
     try:
         loaded_light = registry.load(light_name)
@@ -204,8 +233,12 @@ def settings_theme_preview() -> ResponseReturnValue:
             f"{w.token}: {w.description} ({w.ratio:.2f}:1, WCAG {w.wcag})"
             for w in loaded_light.diagnostics.warnings
         ]
-    except Exception as exc:
-        errors.append(f"Failed to load light theme: {exc}")
+    except ThemeNotFoundError:
+        errors.append(f"Light theme '{light_name}' not found.")
+    except (ThemeParseFailure, ThemeLoadError) as e:
+        errors.append(f"Failed to load light theme: {e}")
+    except ThemeValidationError as e:
+        errors.append(f"Invalid light theme name: {e}")
 
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
@@ -302,7 +335,11 @@ def settings_theme_refresh() -> ResponseReturnValue:
         if not added and not removed:
             flash("Theme registry refreshed. No changes detected.", "success")
 
+    except (ThemeNotFoundError, ThemeParseFailure, ThemeLoadError, ThemeValidationError) as e:
+        logger.warning("theme refresh failed: %s", e)
+        flash("Failed to refresh theme registry.", "error")
     except Exception:
+        logger.exception("unexpected error during theme refresh")
         flash("Failed to refresh theme registry.", "error")
 
     return redirect(url_for("admin.settings"))

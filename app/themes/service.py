@@ -234,35 +234,32 @@ class ThemeService:
         return "\n".join(lines)
 
 
-_service: ThemeService | None = None
-_service_lock = threading.Lock()
-
-
 def init_theme_service(
     default_dark: str = "Catppuccin Mocha",
     default_light: str = "Catppuccin Latte",
     default_scheme: str = "system",
     external_root: Path | None = None,
+    app: Any = None,
 ) -> ThemeService:
-    global _service
-    with _service_lock:
-        if _service is None:
-            _service = ThemeService(
-                default_dark=default_dark,
-                default_light=default_light,
-                default_scheme=default_scheme,
-                external_root=external_root,
-            )
-    return _service
+    service = ThemeService(
+        default_dark=default_dark,
+        default_light=default_light,
+        default_scheme=default_scheme,
+        external_root=external_root,
+    )
+    if app is not None:
+        app.extensions["theme_service"] = service
+    return service
 
 
 def get_theme_service() -> ThemeService:
-    global _service
-    if _service is None:
-        with _service_lock:
-            if _service is None:
-                _service = ThemeService()
-    return _service
+    from flask import current_app
+
+    try:
+        return current_app.extensions["theme_service"]
+    except (RuntimeError, KeyError):
+        pass
+    return ThemeService()
 
 
 __all__ = [

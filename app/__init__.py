@@ -523,6 +523,7 @@ def create_app() -> Flask:
         default_light=THEME_DEFAULT_LIGHT,
         default_scheme=THEME_DEFAULT_SCHEME,
         external_root=external_root,
+        app=app,
     )
 
     if ENABLE_SCHEDULER:

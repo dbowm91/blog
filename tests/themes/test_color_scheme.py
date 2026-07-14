@@ -48,7 +48,12 @@ class TestBootstrapScriptPresence:
     def test_bootstrap_script_defaults_to_system(self, client, db):
         resp = client.get("/")
         html = resp.data.decode()
-        assert "? s : 'system'" in html or "scheme = (s === 'system'" in html
+        assert "var defaultScheme" in html
+
+    def test_bootstrap_includes_server_default(self, client, db):
+        resp = client.get("/")
+        html = resp.data.decode()
+        assert "var defaultScheme = 'system'" in html
 
 
 class TestNoStaticDataColorScheme:
@@ -79,6 +84,48 @@ class TestCSSSelectorsUpdated:
         html = resp.data.decode()
         assert '[data-color-scheme="dark"]' in html
         assert '[data-color-scheme="light"]' in html
+
+
+class TestBootstrapUsesServerDefault:
+    def test_bootstrap_includes_server_default(self, client, db):
+        resp = client.get("/")
+        html = resp.data.decode()
+        assert "var defaultScheme" in html
+
+    def test_bootstrap_default_scheme_is_dynamic(self, client, db):
+        from app.models import SiteSettings
+        from app.extensions import db as db_session
+
+        settings = SiteSettings.get_instance()
+        settings.theme_default_scheme = "dark"
+        db_session.session.commit()
+        from app.context_processors import invalidate_settings_cache
+
+        invalidate_settings_cache()
+        resp = client.get("/")
+        html = resp.data.decode()
+        assert "'dark'" in html and "defaultScheme" in html
+
+    def test_bootstrap_validates_server_default(self, client, db):
+        from app.models import SiteSettings
+        from app.extensions import db as db_session
+
+        settings = SiteSettings.get_instance()
+        settings.theme_default_scheme = "invalid-value"
+        db_session.session.commit()
+        from app.context_processors import invalidate_settings_cache
+
+        invalidate_settings_cache()
+        resp = client.get("/")
+        html = resp.data.decode()
+        assert "defaultScheme !== 'system'" in html
+        assert "defaultScheme !== 'dark'" in html
+        assert "defaultScheme !== 'light'" in html
+
+    def test_admin_bootstrap_includes_server_default(self, client, db):
+        resp = client.get("/admin/login")
+        html = resp.data.decode()
+        assert "var defaultScheme" in html
 
 
 class TestDarkModeJSBackwardCompat:

@@ -21,10 +21,14 @@ from app.themes.service import ThemeService, get_theme_service
 
 
 class TestThemeServiceConstruction:
-    def test_service_singleton_per_process(self, app):
+    def test_service_singleton_per_process(self, app, db):
         s1 = get_theme_service()
         s2 = get_theme_service()
         assert s1 is s2
+
+    def test_service_stored_in_app_extensions(self, app, db):
+        assert "theme_service" in app.extensions
+        assert app.extensions["theme_service"] is get_theme_service()
 
     def test_registry_lazily_initialized(self, app):
         service = ThemeService()

@@ -2,12 +2,13 @@ const STORAGE_KEY = 'blog-color-scheme';
 const VALID_SCHEMES = ['system', 'dark', 'light'];
 const SCHEME_ATTR = 'data-color-scheme';
 
-function getStoredScheme() {
+function getStoredScheme(defaultScheme) {
+    var fallback = defaultScheme || 'system';
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        return VALID_SCHEMES.includes(stored) ? stored : 'system';
+        return VALID_SCHEMES.includes(stored) ? stored : fallback;
     } catch {
-        return 'system';
+        return fallback;
     }
 }
 
@@ -46,8 +47,9 @@ function cycleScheme(current) {
     return VALID_SCHEMES[(idx + 1) % VALID_SCHEMES.length];
 }
 
-export function initColorScheme() {
-    const stored = getStoredScheme();
+export function initColorScheme(options) {
+    var defaultScheme = (options && options.defaultScheme) || 'system';
+    const stored = getStoredScheme(defaultScheme);
     const effective = resolveEffectiveScheme(stored);
 
     applyScheme(effective);
@@ -89,8 +91,8 @@ export function initColorScheme() {
     });
 }
 
-export function getInitialColorScheme() {
-    return resolveEffectiveScheme(getStoredScheme());
+export function getInitialColorScheme(defaultScheme) {
+    return resolveEffectiveScheme(getStoredScheme(defaultScheme));
 }
 
 export function setColorScheme(scheme) {

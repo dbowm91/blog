@@ -49,7 +49,13 @@ def _get_settings_cache_key() -> str:
 
 @flask_cache.cached(timeout=300, key_prefix=_get_settings_cache_key)  # type: ignore[arg-type]
 def _get_cached_settings() -> dict[str, Any]:
-    """Get cached site settings."""
+    """Emergency fallback when ThemeService is unavailable.
+
+    This path is only reached when ``inject_theme`` catches an exception
+    from the theme service. It preserves backward compatibility with the
+    legacy THEME_PRESETS system until Phase 14 removes them entirely.
+    Normal rendering should never depend on this function.
+    """
     from app.models import THEME_PRESETS
 
     try:
@@ -60,6 +66,7 @@ def _get_cached_settings() -> dict[str, Any]:
         ).scalar_one_or_none()
 
         if not settings:
+            # Emergency: no SiteSettings row and theme service unavailable
             return {
                 "theme_preset": "github-dark",
                 "theme_vars": THEME_PRESETS["github-dark"],
@@ -85,6 +92,7 @@ def _get_cached_settings() -> dict[str, Any]:
         invalidate_settings_cache()
         from app.models import THEME_PRESETS
 
+        # Emergency: database unavailable and theme service unavailable
         return {
             "theme_preset": "github-dark",
             "theme_vars": THEME_PRESETS["github-dark"],
@@ -165,7 +173,10 @@ def register_context_processors(app: Any) -> None:
 
             return get_theme_service().get_context()
         except Exception:
-            logger.exception("theme service unavailable, falling back to legacy")
+            logger.warning(
+                "theme service unavailable, falling back to legacy THEME_PRESETS "
+                "(this should not happen in normal operation)"
+            )
             return _get_cached_settings()
 
     @app.context_processor

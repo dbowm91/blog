@@ -19,7 +19,7 @@ Business logic layer for the blog application.
 | Theme Registry | `app/themes/registry.py` | Authoritative theme registry: listing, resolution, loading, fallback, `_CatalogEntry` |
 | Theme Resources | `app/themes/resources.py` | `ThemeResource` protocol, `importlib.resources` bundled discovery, external override |
 | Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation |
-| Theme Service | `app/themes/service.py` | Per-process `ThemeService` singleton: owns the registry, resolves effective theme names from `SiteSettings`, builds Jinja context dict, provides preview (load + CSS without persist) and refresh (rebuild registry from disk) operations |
+| Theme Service | `app/themes/service.py` | App-scoped `ThemeService`: owns the registry, resolves effective theme names from `SiteSettings`, builds Jinja context dict, stored on `app.extensions["theme_service"]`. Provides preview (load + CSS without persist) and refresh (rebuild registry from disk) operations |
 | Theme Settings | `app/services/theme_settings.py` | Theme configuration validation, legacy preset migration, effective theme name resolution |
 
 ## See Also
