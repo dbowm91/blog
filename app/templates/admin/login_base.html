@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}">
+<html lang="en" data-color-scheme="{{ theme_default_scheme or 'dark' }}" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +12,23 @@
     <link rel="stylesheet" href="{{ vite_asset('css/forms.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}">
     <style nonce="{{ csp_nonce }}">
-        :root {
-            {% for key, value in theme_vars.items() %}
+        :root,
+        [data-color-scheme="dark"] {
+            {% for key, value in theme_dark_vars.items() %}
             {% if key != 'name' %}
             --{{ key }}: {{ value }};
             {% endif %}
             {% endfor %}
         }
+
+        [data-color-scheme="light"] {
+            {% for key, value in theme_light_vars.items() %}
+            {% if key != 'name' %}
+            --{{ key }}: {{ value }};
+            {% endif %}
+            {% endfor %}
+        }
+
         {% if custom_css_enabled and custom_css %}
         {{ custom_css | sanitize_css | safe }}
         {% endif %}

@@ -277,7 +277,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), and Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section) are complete with corrective closure and small closure pass. Subsequent phases (CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section), and Phase 07 (Flask and Jinja runtime integration — centralized ThemeService, dual-scheme CSS emission, context processor overhaul) are complete with corrective closure and small closure pass. Subsequent phases (CSS completion, admin UX, accessibility, docs/cleanup) are planned but not yet implemented. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
@@ -291,6 +291,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `app/templates/base.html:42-48` and `app/templates/admin/base.html:17-23` — `theme_vars` CSS custom property injection
 - `app/routes/admin/settings.py` — admin settings page
 - `app/services/theme_settings.py` — `LEGACY_PRESET_MAP`, `validate_theme_settings()`, `migrate_legacy_preset()`, `get_effective_theme_names()`
+- `app/themes/service.py` — `ThemeService` class, `init_theme_service()`, `get_theme_service()` (Phase 07)
 
 #### Key files (Phase 01 deliverables)
 

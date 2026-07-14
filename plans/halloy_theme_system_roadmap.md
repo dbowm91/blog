@@ -158,6 +158,8 @@ Expand or replace `SiteSettings.theme_preset` with sufficiently long named-theme
 
 ### Phase 07: Flask and Jinja integration
 
+**Status: Complete (centralized ThemeService, dual-scheme CSS emission, context processor overhaul)**
+
 Make the registry the sole runtime palette source. Centralize theme context creation, preserve CSP nonces, emit generated variables before custom CSS, and remove route-level duplicate loading.
 
 ### Phase 08: visitor color-scheme behavior

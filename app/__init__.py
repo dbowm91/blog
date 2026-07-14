@@ -1,6 +1,7 @@
 import os
 import time
 import json
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 import sqlite3
@@ -505,8 +506,24 @@ def create_app() -> Flask:
                 dialect,
             )
 
-    from app.config import ENABLE_SCHEDULER  # noqa: E402
+    from app.config import (  # noqa: E402
+        ENABLE_SCHEDULER,
+        THEME_DEFAULT_DARK,
+        THEME_DEFAULT_LIGHT,
+        THEME_DEFAULT_SCHEME,
+        THEME_EXTERNAL_DIR,
+    )
     from app.scheduler import init_scheduler  # noqa: E402
+
+    external_root = Path(THEME_EXTERNAL_DIR) if THEME_EXTERNAL_DIR else None
+    from app.themes.service import init_theme_service  # noqa: E402
+
+    init_theme_service(
+        default_dark=THEME_DEFAULT_DARK,
+        default_light=THEME_DEFAULT_LIGHT,
+        default_scheme=THEME_DEFAULT_SCHEME,
+        external_root=external_root,
+    )
 
     if ENABLE_SCHEDULER:
         init_scheduler(app)

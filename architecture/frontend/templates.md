@@ -119,7 +119,7 @@ From `app/context_processors.py`:
   - `site_description` (not site_tagline)
   - `author_name`, `author_role`, `author_avatar`
   - `base_url`, `current_year`, `canonical_url`
-- `inject_theme()` - Theme settings and `custom_css` variable
+- `inject_theme()` - Theme settings via centralized `ThemeService` (dark/light CSS variables, scheme, syntax theme, custom CSS)
 - `inject_footer_data()` - Footer links and data
 - `inject_show_footer_posts()` - `show_footer_posts` boolean (hides footer posts on search/tag pages)
 

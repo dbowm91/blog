@@ -1,4 +1,14 @@
-from app.themes import cache, colors, diagnostics, halloy, model, registry, resources, translate
+from app.themes import (
+    cache,
+    colors,
+    diagnostics,
+    halloy,
+    model,
+    registry,
+    resources,
+    service,
+    translate,
+)
 from app.themes.cache import ThemeCache, ThemeCacheEntry
 from app.themes.colors import (
     RGB,
@@ -64,6 +74,7 @@ from app.themes.resources import (
     normalize_theme_name,
     validate_theme_name,
 )
+from app.themes.service import ThemeService, get_theme_service, init_theme_service
 from app.themes.translate import (
     ThemeTranslationResult,
     to_css_variables,
@@ -101,6 +112,7 @@ __all__ = [
     "ThemeRegistry",
     "ThemeResource",
     "ThemeSchemaError",
+    "ThemeService",
     "ThemeSource",
     "ThemeTranslationResult",
     "ThemeValidationError",
@@ -119,7 +131,9 @@ __all__ = [
     "discover_bundled_package",
     "discover_external",
     "from_hex",
+    "get_theme_service",
     "halloy",
+    "init_theme_service",
     "is_dark_background",
     "is_light_background",
     "mix",
@@ -130,6 +144,7 @@ __all__ = [
     "registry",
     "resources",
     "relative_luminance",
+    "service",
     "shift_lightness",
     "to_css",
     "to_css_variables",

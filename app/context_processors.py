@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 def invalidate_settings_cache() -> None:
     """Invalidate the SiteSettings cache."""
     flask_cache.delete("site_settings")
+    try:
+        from app.themes.service import get_theme_service
+
+        get_theme_service().invalidate_settings_cache()
+    except Exception:
+        pass
 
 
 def invalidate_footer_cache() -> None:
@@ -154,7 +160,13 @@ def register_context_processors(app: Any) -> None:
 
     @app.context_processor
     def inject_theme() -> dict[str, Any]:
-        return _get_cached_settings()
+        try:
+            from app.themes.service import get_theme_service
+
+            return get_theme_service().get_context()
+        except Exception:
+            logger.exception("theme service unavailable, falling back to legacy")
+            return _get_cached_settings()
 
     @app.context_processor
     def inject_footer_data() -> dict[str, Any]:
