@@ -290,6 +290,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `app/context_processors.py:67-76` — `theme_vars` injection from preset
 - `app/templates/base.html:42-48` and `app/templates/admin/base.html:17-23` — `theme_vars` CSS custom property injection
 - `app/routes/admin/settings.py` — admin settings page
+- `app/cli.py:343-610` — theme CLI commands (list, validate, inspect, refresh, paths, accessibility)
 - `app/services/theme_settings.py` — `LEGACY_PRESET_MAP`, `validate_theme_settings()`, `migrate_legacy_preset()`, `get_effective_theme_names()`
 - `app/themes/service.py` — `ThemeService` class, `init_theme_service()`, `get_theme_service()` (Phase 07, app-scoped via `app.extensions["theme_service"]` since corrective pass)
 

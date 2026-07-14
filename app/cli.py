@@ -1,6 +1,7 @@
 """CLI commands for the Flask application."""
 
 import json
+import os
 import uuid
 from datetime import datetime
 from typing import Any
@@ -346,7 +347,10 @@ def register_cli_commands(app: Any) -> None:
 
     @themes_group.command("list")
     @click.option("--source", type=click.Choice(["all", "bundled", "external"]), default="all")
-    def themes_list(source: str) -> None:
+    @click.option("--json", "as_json", is_flag=True, help="Output as JSON for automation.")
+    @click.option("--warnings", "show_warnings", is_flag=True, help="Include diagnostic summaries.")
+    @click.option("--verbose", is_flag=True, help="Show absolute paths (operator only).")
+    def themes_list(source: str, as_json: bool, show_warnings: bool, verbose: bool) -> None:
         """List all available themes."""
         from app.themes.service import get_theme_service
 
@@ -358,6 +362,25 @@ def register_cli_commands(app: Any) -> None:
             all_themes = [t for t in all_themes if t.source.value == "bundled"]
         elif source == "external":
             all_themes = [t for t in all_themes if t.source.value == "external"]
+
+        if as_json:
+            import json as json_mod
+
+            rows = []
+            for theme in all_themes:
+                row: dict[str, Any] = {
+                    "canonical_name": theme.canonical_name,
+                    "display_name": theme.display_name,
+                    "source": theme.source.value,
+                    "overrides_bundled": theme.overrides_bundled,
+                    "is_dark": theme.is_dark,
+                    "status": theme.status,
+                }
+                if show_warnings and theme.warnings:
+                    row["warnings"] = list(theme.warnings)
+                rows.append(row)
+            click.echo(json_mod.dumps(rows, indent=2))
+            return
 
         if not all_themes:
             click.echo("No themes found.")
@@ -373,43 +396,36 @@ def register_cli_commands(app: Any) -> None:
             click.echo(
                 f"{theme.display_name:<30} {theme.source.value:<10} {theme_type:<10} {theme.status}{overrides}"
             )
+            if show_warnings and theme.warnings:
+                for w in theme.warnings:
+                    click.echo(f"  WARNING: {w}")
 
         click.echo(f"\nTotal: {len(all_themes)} themes")
 
     @themes_group.command("validate")
-    @click.argument("name")
-    def themes_validate(name: str) -> None:
-        """Validate a specific theme."""
-        from app.themes.service import get_theme_service
-        from app.themes.registry import ThemeNotFoundError, ThemeParseFailure, ThemeLoadError
+    @click.argument("path")
+    @click.option("--json", "as_json", is_flag=True, help="Output as JSON for automation.")
+    def themes_validate(path: str, as_json: bool) -> None:
+        """Validate a Halloy TOML theme file or a registered theme name.
 
-        service = get_theme_service()
-        registry = service.get_registry()
+        When PATH is a file on disk, validates the file directly (for pre-installation checks).
+        When PATH is a registered theme name, loads and validates via the registry.
+        """
+        from pathlib import Path as P
 
-        try:
-            loaded = registry.load(name)
-            click.echo(f"Theme '{name}' is valid.")
-            click.echo(f"  Canonical name: {loaded.descriptor.canonical_name}")
-            click.echo(f"  Source: {loaded.descriptor.source.value}")
-            click.echo(f"  Is dark: {loaded.is_dark}")
-            if loaded.descriptor.warnings:
-                click.echo("  Warnings:")
-                for w in loaded.descriptor.warnings:
-                    click.echo(f"    - {w}")
-            if loaded.diagnostics.warnings:
-                click.echo("  Translation warnings:")
-                for w in loaded.diagnostics.warnings:
-                    click.echo(f"    - {w}")
-        except ThemeNotFoundError:
-            click.echo(f"Theme '{name}' not found.", err=True)
-        except ThemeParseFailure as e:
-            click.echo(f"Theme '{name}' failed to parse: {e}", err=True)
-        except ThemeLoadError as e:
-            click.echo(f"Theme '{name}' failed to load: {e}", err=True)
+        file_path = P(path)
+        is_file = file_path.is_file()
+
+        if is_file:
+            _validate_theme_file(file_path, as_json)
+        else:
+            _validate_theme_name(path, as_json)
 
     @themes_group.command("inspect")
     @click.argument("name")
-    def themes_inspect(name: str) -> None:
+    @click.option("--json", "as_json", is_flag=True, help="Output as JSON for automation.")
+    @click.option("--css", "as_css", is_flag=True, help="Output generated CSS variables.")
+    def themes_inspect(name: str, as_json: bool, as_css: bool) -> None:
         """Inspect a theme's full details."""
         from app.themes.service import get_theme_service
         from app.themes.registry import ThemeNotFoundError
@@ -419,32 +435,136 @@ def register_cli_commands(app: Any) -> None:
 
         try:
             loaded = registry.load(name)
-            click.echo(f"Theme: {loaded.descriptor.display_name}")
-            click.echo(f"Canonical name: {loaded.descriptor.canonical_name}")
-            click.echo(f"Source: {loaded.descriptor.source.value}")
-            click.echo(f"Is dark: {loaded.is_dark}")
-            click.echo(f"Status: {loaded.descriptor.status}")
-            click.echo(f"Overrides bundled: {loaded.descriptor.overrides_bundled}")
-            if loaded.descriptor.warnings:
-                click.echo(f"Descriptor warnings: {loaded.descriptor.warnings}")
-            if loaded.diagnostics.warnings:
-                click.echo("Translation warnings:")
-                for w in loaded.diagnostics.warnings:
-                    click.echo(f"  - {w}")
-            click.echo(f"\nCSS variables ({len(loaded.css_vars)}):")
-            for key, value in sorted(loaded.css_vars.items()):
-                click.echo(f"  {key}: {value}")
         except ThemeNotFoundError:
             click.echo(f"Theme '{name}' not found.", err=True)
+            raise SystemExit(1)
+
+        if as_css:
+            click.echo(loaded.css)
+            return
+
+        if as_json:
+            import json as json_mod
+
+            data: dict[str, Any] = {
+                "canonical_name": loaded.descriptor.canonical_name,
+                "display_name": loaded.descriptor.display_name,
+                "source": loaded.descriptor.source.value,
+                "is_dark": loaded.is_dark,
+                "status": loaded.descriptor.status,
+                "overrides_bundled": loaded.descriptor.overrides_bundled,
+                "css_vars": loaded.css_vars,
+            }
+            if loaded.descriptor.warnings:
+                data["descriptor_warnings"] = list(loaded.descriptor.warnings)
+            if loaded.diagnostics.warnings:
+                data["contrast_warnings"] = [
+                    {
+                        "token": w.token,
+                        "description": w.description,
+                        "foreground": w.foreground,
+                        "background": w.background,
+                        "ratio": w.ratio,
+                        "wcag": w.wcag,
+                    }
+                    for w in loaded.diagnostics.warnings
+                ]
+            click.echo(json_mod.dumps(data, indent=2))
+            return
+
+        click.echo(f"Theme: {loaded.descriptor.display_name}")
+        click.echo(f"Canonical name: {loaded.descriptor.canonical_name}")
+        click.echo(f"Source: {loaded.descriptor.source.value}")
+        click.echo(f"Is dark: {loaded.is_dark}")
+        click.echo(f"Status: {loaded.descriptor.status}")
+        click.echo(f"Overrides bundled: {loaded.descriptor.overrides_bundled}")
+        if loaded.descriptor.warnings:
+            click.echo(f"Descriptor warnings: {loaded.descriptor.warnings}")
+        if loaded.diagnostics.warnings:
+            click.echo("Translation warnings:")
+            for w in loaded.diagnostics.warnings:
+                click.echo(f"  - {w}")
+        click.echo(f"\nCSS variables ({len(loaded.css_vars)}):")
+        for key, value in sorted(loaded.css_vars.items()):
+            click.echo(f"  {key}: {value}")
 
     @themes_group.command("refresh")
     def themes_refresh() -> None:
-        """Refresh the theme registry."""
+        """Refresh the theme registry.
+
+        Invalidates the cache, rebuilds the catalog, and reports changes.
+        """
         from app.themes.service import get_theme_service
 
         service = get_theme_service()
+        registry = service.get_registry()
+
+        old_themes = {t.canonical_name for t in registry.list_themes()}
+        old_count = len(old_themes)
+
         service.refresh_registry()
+
+        new_registry = service.get_registry()
+        new_themes = {t.canonical_name for t in new_registry.list_themes()}
+        new_count = len(new_themes)
+
+        added = sorted(new_themes - old_themes)
+        removed = sorted(old_themes - new_themes)
+
         click.echo("Theme registry refreshed.")
+        click.echo(f"  Catalog: {old_count} -> {new_count} themes")
+
+        if added:
+            click.echo(f"  Added: {', '.join(added)}")
+        if removed:
+            click.echo(f"  Removed: {', '.join(removed)}")
+
+        external = [t for t in new_registry.list_themes() if t.source.value == "external"]
+        if external:
+            click.echo(f"  External overrides: {len(external)}")
+
+    @themes_group.command("paths")
+    def themes_paths() -> None:
+        """Display theme resource paths and configuration."""
+        from pathlib import Path as P
+        from app.config import THEME_EXTERNAL_DIR, THEME_ALLOW_EXTERNAL, THEME_STRICT_VALIDATION
+
+        bundled_dir = P(__file__).resolve().parent / "themes" / "bundled"
+        bundled_exists = bundled_dir.is_dir()
+
+        click.echo("Theme paths:")
+        click.echo("  Bundled package: app/themes/bundled/")
+        if bundled_exists:
+            toml_count = len(list(bundled_dir.glob("*.toml")))
+            click.echo(f"  Bundled themes: {toml_count} files")
+        else:
+            click.echo("  Bundled themes: directory not found")
+
+        click.echo("")
+        click.echo("External theme directory:")
+        if THEME_EXTERNAL_DIR:
+            ext_path = P(THEME_EXTERNAL_DIR)
+            click.echo(f"  Configured: {THEME_EXTERNAL_DIR}")
+            if ext_path.is_dir():
+                click.echo("  Exists: yes")
+                if os.access(ext_path, os.R_OK | os.X_OK):
+                    click.echo("  Readable: yes")
+                    toml_count = len(list(ext_path.glob("*.toml")))
+                    click.echo(f"  Theme files: {toml_count}")
+                else:
+                    click.echo("  Readable: no (permission denied)")
+            else:
+                click.echo("  Exists: no")
+        else:
+            click.echo("  Configured: (none)")
+            click.echo("  External themes are disabled")
+
+        click.echo("")
+        click.echo("Configuration:")
+        click.echo(f"  THEME_ALLOW_EXTERNAL: {THEME_ALLOW_EXTERNAL}")
+        click.echo(f"  THEME_STRICT_VALIDATION: {THEME_STRICT_VALIDATION}")
+        click.echo("")
+        click.echo("Precedence: external themes override bundled themes with the same name.")
 
     @themes_group.command("accessibility")
     @click.option("--source", type=click.Choice(["all", "bundled", "external"]), default="all")
@@ -488,3 +608,215 @@ def register_cli_commands(app: Any) -> None:
             click.echo("All themes pass WCAG contrast checks!")
         else:
             click.echo("Some themes have contrast issues.")
+
+
+def _validate_theme_file(file_path: Any, as_json: bool) -> None:
+    """Validate a Halloy TOML theme file on disk."""
+    from app.themes.halloy import parse_halloy_theme, ThemeParseError, ThemeSchemaError
+    from app.themes.translate import translate_halloy_theme
+    from app.themes.resources import _MAX_EXTERNAL_FILE_SIZE
+    from app.themes.diagnostics import check_blog_theme_contrast
+    from app.themes.registry import _THEME_ALIASES
+
+    errors: list[str] = []
+    warnings_list: list[str] = []
+    result_data: dict[str, Any] = {"path": str(file_path), "valid": False}
+
+    if not file_path.exists():
+        msg = f"File not found: {file_path}"
+        if as_json:
+            result_data["error"] = msg
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(msg, err=True)
+        raise SystemExit(1)
+
+    if not file_path.is_file():
+        msg = f"Not a regular file: {file_path}"
+        if as_json:
+            result_data["error"] = msg
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(msg, err=True)
+        raise SystemExit(1)
+
+    try:
+        size = file_path.stat().st_size
+    except OSError as e:
+        msg = f"Cannot stat file: {e}"
+        if as_json:
+            result_data["error"] = msg
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(msg, err=True)
+        raise SystemExit(1)
+
+    if size > _MAX_EXTERNAL_FILE_SIZE:
+        msg = f"File too large: {size} bytes (max {_MAX_EXTERNAL_FILE_SIZE})"
+        if as_json:
+            result_data["error"] = msg
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(msg, err=True)
+        raise SystemExit(1)
+
+    if size == 0:
+        msg = "File is empty"
+        if as_json:
+            result_data["error"] = msg
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(msg, err=True)
+        raise SystemExit(1)
+
+    try:
+        data = file_path.read_bytes()
+    except OSError as e:
+        msg = f"Cannot read file: {e}"
+        if as_json:
+            result_data["error"] = msg
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(msg, err=True)
+        raise SystemExit(1)
+
+    try:
+        halloy_theme = parse_halloy_theme(data)
+    except ThemeParseError as e:
+        errors.append(str(e))
+        if as_json:
+            result_data["errors"] = errors
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(f"Parse error: {e}", err=True)
+        raise SystemExit(1)
+    except ThemeSchemaError as e:
+        errors.append(str(e))
+        if as_json:
+            result_data["errors"] = errors
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(f"Schema error: {e}", err=True)
+        raise SystemExit(1)
+
+    result_data["normalized_name"] = file_path.stem
+    result_data["schema_version"] = halloy_theme.schema_version
+    result_data["extra_sections"] = (
+        list(halloy_theme.extra_top_sections.keys())
+        if hasattr(halloy_theme, "extra_top_sections")
+        else []
+    )
+
+    try:
+        translation = translate_halloy_theme(halloy_theme)
+    except Exception as e:
+        errors.append(f"Translation failed: {e}")
+        if as_json:
+            result_data["errors"] = errors
+            click.echo(json.dumps(result_data, indent=2))
+        else:
+            click.echo(f"Translation error: {e}", err=True)
+        raise SystemExit(1)
+
+    result_data["valid"] = True
+    result_data["is_dark"] = translation.is_dark
+    result_data["warnings"] = warnings_list
+
+    canonical_lower = file_path.stem.lower()
+    alias_match = None
+    for alias, canonical in _THEME_ALIASES.items():
+        if canonical.lower() == canonical_lower or alias == canonical_lower:
+            alias_match = canonical
+            break
+    if alias_match:
+        warnings_list.append(f"Filename overrides bundled theme: {alias_match}")
+
+    contrast_warnings = check_blog_theme_contrast(translation.theme)
+    if contrast_warnings:
+        result_data["contrast_warnings"] = [
+            {
+                "token": w.token,
+                "description": w.description,
+                "foreground": w.foreground,
+                "background": w.background,
+                "ratio": w.ratio,
+                "wcag": w.wcag,
+            }
+            for w in contrast_warnings
+        ]
+        warnings_list.extend(f"{w.description} ({w.ratio}:1)" for w in contrast_warnings)
+
+    if as_json:
+        click.echo(json.dumps(result_data, indent=2))
+    else:
+        click.echo(f"Theme file is valid: {file_path}")
+        click.echo(f"  Normalized name: {file_path.stem}")
+        click.echo(f"  Schema version: {halloy_theme.schema_version}")
+        click.echo(f"  Is dark: {translation.is_dark}")
+        if result_data.get("extra_sections"):
+            click.echo(f"  Extra sections: {', '.join(result_data['extra_sections'])}")
+        if warnings_list:
+            click.echo("  Warnings:")
+            for w in warnings_list:
+                click.echo(f"    - {w}")
+        click.echo(f"  CSS variables: {len(translation.theme.__dataclass_fields__)}")
+
+
+def _validate_theme_name(name: str, as_json: bool) -> None:
+    """Validate a registered theme name via the registry."""
+    from app.themes.service import get_theme_service
+    from app.themes.registry import ThemeNotFoundError, ThemeParseFailure, ThemeLoadError
+
+    service = get_theme_service()
+    registry = service.get_registry()
+
+    try:
+        loaded = registry.load(name)
+    except ThemeNotFoundError:
+        if as_json:
+            click.echo(json.dumps({"valid": False, "name": name, "error": "not found"}, indent=2))
+        else:
+            click.echo(f"Theme '{name}' not found.", err=True)
+        raise SystemExit(1)
+    except ThemeParseFailure as e:
+        if as_json:
+            click.echo(json.dumps({"valid": False, "name": name, "error": str(e)}, indent=2))
+        else:
+            click.echo(f"Theme '{name}' failed to parse: {e}", err=True)
+        raise SystemExit(1)
+    except ThemeLoadError as e:
+        if as_json:
+            click.echo(json.dumps({"valid": False, "name": name, "error": str(e)}, indent=2))
+        else:
+            click.echo(f"Theme '{name}' failed to load: {e}", err=True)
+        raise SystemExit(1)
+
+    if as_json:
+        data: dict[str, Any] = {
+            "valid": True,
+            "name": name,
+            "canonical_name": loaded.descriptor.canonical_name,
+            "source": loaded.descriptor.source.value,
+            "is_dark": loaded.is_dark,
+        }
+        if loaded.descriptor.warnings:
+            data["warnings"] = list(loaded.descriptor.warnings)
+        if loaded.diagnostics.warnings:
+            data["contrast_warnings"] = [
+                {"token": w.token, "description": w.description, "ratio": w.ratio}
+                for w in loaded.diagnostics.warnings
+            ]
+        click.echo(json.dumps(data, indent=2))
+    else:
+        click.echo(f"Theme '{name}' is valid.")
+        click.echo(f"  Canonical name: {loaded.descriptor.canonical_name}")
+        click.echo(f"  Source: {loaded.descriptor.source.value}")
+        click.echo(f"  Is dark: {loaded.is_dark}")
+        if loaded.descriptor.warnings:
+            click.echo("  Warnings:")
+            for w in loaded.descriptor.warnings:
+                click.echo(f"    - {w}")
+        if loaded.diagnostics.warnings:
+            click.echo("  Translation warnings:")
+            for w in loaded.diagnostics.warnings:
+                click.echo(f"    - {w}")

@@ -31,4 +31,4 @@ Business logic layer for the blog application.
 - [Search Provider](services/search.md) - Full-text search abstraction
 - [Theme System](../docs/themes/blog-theme-contract.md) - BlogTheme contract and token definitions
 - [Theme Supported Schema](../docs/themes/supported-schema.md) - Halloy TOML input schema
-- [Theme Service](theme/theme-service.md) - ThemeService singleton, preview, and refresh
+- [Theme Service](../docs/themes/operator-guide.md) - ThemeService singleton, CLI commands, preview, and refresh

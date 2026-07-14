@@ -256,6 +256,12 @@ flask export-data <file>         # Export data to JSON
 flask import-data <file>        # Import data from JSON
 flask seed                       # Generate sample data
 flask shell                      # Interactive shell
+flask themes list                # List available themes
+flask themes validate <path>     # Validate a theme file or name
+flask themes inspect <name>      # Inspect theme details
+flask themes refresh             # Refresh theme registry
+flask themes paths               # Show theme resource paths
+flask themes accessibility       # Run WCAG contrast checks
 ```
 
 ### API Endpoints
