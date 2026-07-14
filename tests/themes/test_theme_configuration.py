@@ -4,10 +4,8 @@ from unittest.mock import MagicMock
 
 from app.models import SiteSettings
 from app.services.theme_settings import (
-    LEGACY_PRESET_MAP,
     ThemeSettingsValidation,
     get_effective_theme_names,
-    migrate_legacy_preset,
     validate_theme_settings,
 )
 
@@ -27,7 +25,6 @@ class TestFreshDatabaseDefaults:
 
     def test_new_instance_preserves_existing_columns(self, db):
         settings = SiteSettings.get_instance()
-        assert settings.theme_preset == "github-dark"
         assert settings.syntax_theme == "prism"
         assert settings.custom_css_enabled is False
         assert settings.custom_css == ""
@@ -36,39 +33,6 @@ class TestFreshDatabaseDefaults:
         first = SiteSettings.get_instance()
         second = SiteSettings.get_instance()
         assert first.id == second.id
-
-
-class TestLegacyPresetMigration:
-    def test_github_dark_maps_to_catppuccin_mocha(self):
-        assert migrate_legacy_preset("github-dark") == "Catppuccin Mocha"
-
-    def test_github_light_maps_to_catppuccin_latte(self):
-        assert migrate_legacy_preset("github-light") == "Catppuccin Latte"
-
-    def test_solarized_dark_maps_to_solarized_dark(self):
-        assert migrate_legacy_preset("solarized-dark") == "Solarized Dark"
-
-    def test_monokai_maps_to_sonokai(self):
-        assert migrate_legacy_preset("monokai") == "Sonokai"
-
-    def test_all_legacy_keys_are_mapped(self):
-        assert set(LEGACY_PRESET_MAP.keys()) == {
-            "github-dark",
-            "github-light",
-            "solarized-dark",
-            "monokai",
-        }
-
-
-class TestUnknownLegacyValue:
-    def test_unknown_value_passes_through(self):
-        assert migrate_legacy_preset("dracula") == "dracula"
-
-    def test_empty_string_passes_through(self):
-        assert migrate_legacy_preset("") == ""
-
-    def test_new_theme_name_passes_through(self):
-        assert migrate_legacy_preset("Catppuccin Mocha") == "Catppuccin Mocha"
 
 
 class TestNamesWithSpaces:
@@ -310,18 +274,6 @@ class TestCustomCssAndSyntaxPreservation:
         assert reloaded.custom_css_enabled is True
         assert reloaded.syntax_theme == "dracula"
         assert reloaded.theme_dark_name == "Solarized Dark"
-
-    def test_theme_preset_independent_of_theme_names(self, db):
-        settings = SiteSettings.get_instance()
-        settings.theme_preset = "github-dark"
-        settings.theme_dark_name = "Dracula"
-        settings.theme_light_name = "Rose Pine Dawn"
-        db.session.commit()
-
-        reloaded = SiteSettings.get_instance()
-        assert reloaded.theme_preset == "github-dark"
-        assert reloaded.theme_dark_name == "Dracula"
-        assert reloaded.theme_light_name == "Rose Pine Dawn"
 
 
 class TestThemeSettingsValidationDataclass:

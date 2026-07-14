@@ -1,6 +1,6 @@
 # Legacy Theme Preset Compatibility
 
-This document records the historical migration of four hardcoded `THEME_PRESETS` (formerly in `app/models.py`) to Halloy source files in `themes/`, documents expected visual differences, and specifies migration semantics. The `THEME_PRESETS` dict was removed in Phase 14.
+This document records the historical migration of four hardcoded `THEME_PRESETS` (formerly in `app/models.py`) to Halloy source files in `themes/`, documents expected visual differences, and specifies migration semantics. The `THEME_PRESETS` dict was removed in Phase 14, and the `theme_preset` column was dropped in Phase 15.
 
 ## Section A: Legacy Preset Migration Table
 
@@ -13,7 +13,7 @@ This document records the historical migration of four hardcoded `THEME_PRESETS`
 
 ### Legacy preset mapping
 
-The `LEGACY_PRESET_MAP` in `app/services/theme_settings.py` maps old preset keys to Halloy theme names:
+The `LEGACY_PRESET_MAP` was previously in `app/services/theme_settings.py` and mapped old preset keys to Halloy theme names:
 
 ```python
 LEGACY_PRESET_MAP = {
@@ -24,7 +24,7 @@ LEGACY_PRESET_MAP = {
 }
 ```
 
-This mapping is used by `migrate_legacy_preset()` when upgrading from the old system.
+This mapping was used by `migrate_legacy_preset()` when upgrading from the old system. Both `LEGACY_PRESET_MAP` and `migrate_legacy_preset()` have been removed entirely as of Phase 15.
 
 ## Section B: Cross-System Policy
 
@@ -44,11 +44,15 @@ The visitor dark/light toggle was migrated in Phase 08 to a `blog-color-scheme` 
 
 ### Phase 06 — Configuration and database migration
 
-Phase 06 expanded `SiteSettings` with `theme_dark_name`, `theme_light_name`, and `theme_default_scheme` columns. Existing rows with `theme_preset = "github-dark"` were migrated via the `preserve_legacy_scheme` migration. Operators may then switch to a Halloy theme of their choice through the admin UI added in Phase 10.
+Phase 06 expanded `SiteSettings` with `theme_dark_name`, `theme_light_name`, and `theme_default_scheme` columns. Operators may then switch to a Halloy theme of their choice through the admin UI added in Phase 10.
 
 ### Phase 14 — Legacy removal (complete)
 
-The `THEME_PRESETS` dict was removed from `app/models.py` in Phase 14. The emergency fallback in `app/context_processors.py` now uses `EMERGENCY_DEFAULT` from `app/themes/model.py` which provides the same palette as the former `github-dark` preset. The `LEGACY_PRESET_MAP` in `app/services/theme_settings.py` remains for reference but is no longer used at runtime.
+The `THEME_PRESETS` dict was removed from `app/models.py` in Phase 14. The emergency fallback in `app/context_processors.py` now uses `EMERGENCY_DEFAULT` from `app/themes/model.py` which provides the same palette as the former `github-dark` preset.
+
+### Phase 15 — Release closure (complete)
+
+The `theme_preset` column was dropped from `SiteSettings` via Alembic migration. The `LEGACY_PRESET_MAP` and `migrate_legacy_preset()` were removed from `app/services/theme_settings.py`. All legacy preset references have been fully excised from the codebase.
 
 ### Deprecation timeline (complete)
 
@@ -57,6 +61,7 @@ The `THEME_PRESETS` dict was removed from `app/models.py` in Phase 14. The emerg
 | 06 | Legacy presets available as `legacy_kept` entries in registry alongside Halloy themes |
 | 10 | Admin UI shows registry-based theme selector (legacy presets no longer in selector) |
 | 14 | `THEME_PRESETS` dict removed; emergency fallback uses `EMERGENCY_DEFAULT` |
+| 15 | `theme_preset` column dropped; `LEGACY_PRESET_MAP` and `migrate_legacy_preset()` removed |
 
 ## Section D: Identified Visual Differences
 

@@ -218,12 +218,13 @@ Stylesheets in `app/static/css/`:
 
 ### Dark Mode
 
-Dark mode follows OS preference by default via `prefers-color-scheme: dark` in `dark-mode.js:13-14`. If the OS preference is light, `data-theme="light"` is set immediately on page load. When no `data-theme` attribute is present, dark mode is active. The `dark-mode.js` module:
-- Checks `localStorage.getItem('theme')` for persisted preference
+Dark mode follows OS preference by default via `prefers-color-scheme: dark`. The visitor color-scheme system uses a 3-state model (system/dark/light) with the `data-color-scheme` attribute (migrated from `data-theme` in Phase 08). The `color-scheme.js` module:
+- Checks `localStorage.getItem('blog-color-scheme')` for persisted preference
 - Falls back to `prefers-color-scheme: dark` media query
-- Toggles by setting/removing `data-theme="light"` attribute
-- Persists choice to `localStorage`
-- Listens for OS theme changes when no stored preference exists
+- Toggles by setting `data-color-scheme` attribute to `light` or `dark`
+- Persists choice to `localStorage` under the `blog-color-scheme` key
+- Listens for OS theme changes when preference is `system`
+- `dark-mode.js` re-exports from `color-scheme.js` for backward compatibility
 
 ### Critical CSS
 

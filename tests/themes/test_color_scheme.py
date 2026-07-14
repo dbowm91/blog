@@ -126,16 +126,3 @@ class TestBootstrapUsesServerDefault:
         resp = client.get("/admin/login")
         html = resp.data.decode()
         assert "var defaultScheme" in html
-
-
-class TestDarkModeJSBackwardCompat:
-    def test_dark_mode_js_exports_exist(self, app):
-        import os
-
-        js_path = os.path.join(app.root_path, "static", "js", "shared", "dark-mode.js")
-        assert os.path.exists(js_path)
-        content = open(js_path).read()
-        assert "initDarkMode" in content
-        assert "getInitialTheme" in content
-        assert "setTheme" in content
-        assert "color-scheme.js" in content

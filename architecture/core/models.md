@@ -15,7 +15,7 @@ The blog uses SQLAlchemy ORM with the following models:
 | `PageView` | Analytics | post_id, referrer, created_at |
 | `ShareEvent` | Social sharing | post_id, platform |
 | `AdminSession` | Session tracking | user_id, session_id, ip_address |
-| `SiteSettings` | Theme/settings | theme_preset, custom_css, logo_text |
+| `SiteSettings` | Theme/settings | theme_dark_name, theme_light_name, theme_default_scheme, custom_css, logo_text |
 | `AdminAuditLog` | Audit trail | actor_id, action, target_id |
 | `Webhook` | Webhook endpoints | name, url, webhook_secret_encrypted, event_type |
 | `WebhookEvent` | Webhook deliveries | event_type, payload, delivered, delivery_status |
@@ -387,7 +387,6 @@ class Page(db.Model):
 
 ```python
 class SiteSettings(db.Model):
-    theme_preset = db.Column(db.String(32), default="github-dark", nullable=False)  # legacy, retained for backward compat
     theme_dark_name = db.Column(db.String(128), default="Catppuccin Mocha", nullable=False)
     theme_light_name = db.Column(db.String(128), default="Catppuccin Latte", nullable=False)
     theme_default_scheme = db.Column(db.String(16), default="system", nullable=False)

@@ -269,7 +269,7 @@ class TestEmergencyFallback:
         assert len(ctx["theme_light_css"]) > 0
 
 
-class TestNoDirectThemePresetsAccess:
+class TestContextProcessorUsesService:
     def test_context_processor_uses_service(self, app, db):
         with patch("app.themes.service.ThemeService.get_context") as mock_ctx:
             mock_ctx.return_value = {
@@ -285,9 +285,7 @@ class TestNoDirectThemePresetsAccess:
                 "custom_css_enabled": False,
                 "custom_css": "",
                 "logo_text": "",
-                "theme_preset": "test",
                 "theme_vars": {"bg": "#000"},
-                "theme_presets": {},
             }
             from app.themes.service import get_theme_service
 

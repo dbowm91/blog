@@ -376,7 +376,7 @@ class TestBaseTemplateRenderOverhead:
                 tpl = Template(
                     "<style>{{ theme_dark_css }}</style>"
                     "<style>{{ theme_light_css }}</style>"
-                    "<div data-theme='{{ theme_dark_name }}'>{{ theme_preset }}</div>"
+                    "<div data-theme='{{ theme_dark_name }}'>{{ theme_dark_name }}</div>"
                     "<div>{{ theme_default_scheme }}</div>"
                 )
 

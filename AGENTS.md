@@ -277,7 +277,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (complete)
 
-The project migrated from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50 bundled themes. All 14 phases are complete:
+The project migrated from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50 bundled themes. All 15 phases are complete:
 
 - Phase 01: inventory + token contract
 - Phase 02: parser + color primitives
@@ -293,6 +293,7 @@ The project migrated from a 4-preset hardcoded theme system to a Halloy-compatib
 - Phase 12: accessibility validation (WCAG contrast checks with severity classification, catalog-wide validation, classification audit)
 - Phase 13: performance and reliability (benchmarks, cache validation, malformed file isolation)
 - Phase 14: documentation and legacy removal (THEME_PRESETS removed, emergency fallback uses EMERGENCY_DEFAULT)
+- Phase 15: legacy removal and release closure (THEME_PRESETS removed, theme_preset column dropped, emergency fallback uses EMERGENCY_DEFAULT)
 
 The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 
@@ -302,7 +303,7 @@ The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 - `app/templates/base.html:42-48` and `app/templates/admin/base.html:17-23` — `theme_vars` CSS custom property injection
 - `app/routes/admin/settings.py` — admin settings page (registry-based theme selector)
 - `app/cli.py:343-610` — theme CLI commands (list, validate, inspect, refresh, paths, accessibility)
-- `app/services/theme_settings.py` — `LEGACY_PRESET_MAP`, `validate_theme_settings()`, `migrate_legacy_preset()`, `get_effective_theme_names()`
+- `app/services/theme_settings.py` — `validate_theme_settings()`, `get_effective_theme_names()`
 - `app/themes/service.py` — `ThemeService` class, `init_theme_service()`, `get_theme_service()` (app-scoped via `app.extensions["theme_service"]`)
 
 #### Key files (Phase 01 deliverables)
@@ -353,7 +354,7 @@ The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 
 #### Hard rules (post-migration)
 
-- `THEME_PRESETS` has been removed from `app/models.py`; emergency fallback uses `EMERGENCY_DEFAULT` from `app/themes/model.py`
+- `THEME_PRESETS` has been removed from `app/models.py`; `theme_preset` column dropped from `SiteSettings`; emergency fallback uses `EMERGENCY_DEFAULT` from `app/themes/model.py`
 - `theme_vars` Jinja context shape is stable and consumed by templates
 - `themes/*.toml` source catalog is the canonical development reference
 - Bundled theme resources use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths

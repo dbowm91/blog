@@ -3,9 +3,6 @@
 Provides a single per-process ``ThemeRegistry`` and resolves effective
 dark/light theme names from ``SiteSettings``.  Exposes a template-ready
 context dict consumed by the ``inject_theme`` context processor.
-
-Phase 07 deliverable — replaces direct ``THEME_PRESETS`` lookups in the
-rendering pipeline.
 """
 
 from __future__ import annotations
@@ -198,9 +195,7 @@ class ThemeService:
             "custom_css_enabled": custom_css_enabled,
             "custom_css": custom_css,
             "logo_text": logo_text,
-            "theme_preset": dark_name,
             "theme_vars": dark_legacy,
-            "theme_presets": {},
         }
 
     def _emergency_context(self) -> dict[str, Any]:
@@ -219,9 +214,7 @@ class ThemeService:
             "custom_css_enabled": False,
             "custom_css": "",
             "logo_text": "",
-            "theme_preset": "emergency-default",
             "theme_vars": fallback.legacy_vars,
-            "theme_presets": {},
         }
 
     @staticmethod

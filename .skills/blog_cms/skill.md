@@ -246,7 +246,7 @@ Project is in maintenance mode. No active implementation plans.
 
 ## Halloy Theme Migration
 
-Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration), Phase 07 (Flask and Jinja runtime integration), Phase 08 (visitor color-scheme behavior), Phase 09 (CSS and generated-markup audit), Phase 10 (admin selection and preview), Phase 11 (operator CLI), Phase 12 (accessibility validation), and Phase 13 (performance and reliability — benchmarks, cache validation, malformed file isolation) are complete. Phase 14 (documentation and legacy removal) is in progress. Phase 06 adds `theme_dark_name`, `theme_light_name`, `theme_default_scheme` columns to SiteSettings, Alembic migration, theme settings validation service (`app/services/theme_settings.py`), and config.toml theme section. Phase 07 adds the centralized `ThemeService` class, dual-scheme CSS emission, and context processor overhaul. Phase 08 introduces 3-state color scheme (system/dark/light), `blog-color-scheme` localStorage key, bootstrap script for first-paint scheme application, CSS selector migration from `[data-theme]` to `[data-color-scheme]`, and removal of the static `[data-color-scheme="light"]` palette block (palette now provided by inline theme injection). Phase 09 replaces hardcoded CSS literals with CSS custom properties, adds 7 new ALIASES entries, and emits 35 legacy vars. Phase 10 provides registry-based theme selector with dark/light/scheme selection. Phase 11 adds Flask CLI commands for theme management. Phase 12 adds WCAG contrast validation with severity classification, catalog-wide validation, and classification audit. Phase 13 adds theme performance benchmarks and malformed file isolation tests.
+All 15 phases of the Halloy theme migration are complete: Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration), Phase 07 (Flask and Jinja runtime integration), Phase 08 (visitor color-scheme behavior), Phase 09 (CSS and generated-markup audit), Phase 10 (admin selection and preview), Phase 11 (operator CLI), Phase 12 (accessibility validation), Phase 13 (performance and reliability), Phase 14 (documentation and legacy removal), and Phase 15 (legacy removal and release closure — THEME_PRESETS removed, theme_preset column dropped, emergency fallback uses EMERGENCY_DEFAULT).
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
@@ -259,7 +259,7 @@ Phase 01 (catalog inventory + token contract), Phase 02 (parser + color primitiv
 |-----------|----------|-------|
 | Source catalog | `themes/*.toml` | 50 files; ignore macOS `._*.toml` metadata files |
 | Bundled themes | `app/themes/bundled/*.toml` | Packaged copy of source catalog; accessible via `importlib.resources` |
-| Runtime authority | `app/models.py:366-457` | `THEME_PRESETS` dict; remains runtime authority until Phase 14 |
+| Runtime authority | `app/models.py` | Theme configuration via `theme_dark_name`, `theme_light_name`, `theme_default_scheme` columns |
 | Context injection | `app/context_processors.py:67-76` | `inject_theme()` builds `theme_vars` dict via `ThemeService` |
 | Template consumption | `app/templates/base.html:42-48`, `app/templates/admin/base.html:17-23` | CSS variable injection into `<style>` blocks |
 | Color scheme | `app/static/js/shared/color-scheme.js` | 3-state scheme manager, localStorage key `blog-color-scheme` |
@@ -280,7 +280,7 @@ Phases 05+ will create these modules:
 | `app/themes/cache.py` | `ThemeCache` in-process cache, `ThemeCacheEntry` with `source_fingerprint`, `invalidate_prefix()`, `validate_entry()` | 04 | Done |
 | `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`, `_CatalogEntry`, structured exceptions, `_THEME_ALIASES`, `_compute_fingerprint()`, default `Catppuccin Mocha` | 04 | Done |
 | `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 | Done |
-| `app/services/theme_settings.py` | Theme validation, legacy migration, effective name resolution | 06 | Done |
+| `app/services/theme_settings.py` | Theme validation, effective name resolution | 06 | Done |
 | `app/themes/service.py` | `ThemeService` class, app-scoped via `app.extensions["theme_service"]`, context builder (Phase 07) | 07 | Done |
 | `app/static/js/shared/color-scheme.js` | 3-state color scheme manager (system/dark/light), bootstrap, toggle | 08 | Done |
 | `app/static/js/shared/dark-mode.js` | Backward-compatible re-export from color-scheme.js | 08 | Done |
@@ -357,13 +357,10 @@ Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_d
 
 ### Hard Rules for Agents
 
-1. Corrective closure and small closure pass for Phases 01–05 are complete; subsequent phases build on the corrected foundation.
-2. Do NOT delete or modify `THEME_PRESETS` until Phase 14.
-3. Do NOT change `theme_vars` Jinja context shape until Phase 07.
-4. Do NOT move/rename `themes/*.toml` files until Phase 05.
-5. Bundled resources must use `importlib.resources`, not cwd-relative paths.
-6. The 4 legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) remain valid selections throughout migration; see `docs/themes/legacy-compatibility.md` for transition rules.
-7. CSS variables emitted via `theme_vars` are the current API; do not refactor templates to call theme functions directly until Phase 07.
+1. All 15 phases of the Halloy theme migration are complete.
+2. `THEME_PRESETS` has been removed from `app/models.py`; `theme_preset` column dropped from `SiteSettings`.
+3. Bundled resources must use `importlib.resources`, not cwd-relative paths.
+4. CSS variables emitted via `theme_vars` are the current API.
 
 ### Token Contract Summary
 
@@ -375,4 +372,4 @@ Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_d
 
 ### Phase 02+ Reference
 
-For ongoing work, read `plans/halloy_theme_system_roadmap.md` for the full phased plan. The 14 phases cover parser, translator, registry, packaging, runtime integration, visitor scheme behavior, frontend token completion, admin UX, CLI, accessibility, performance, and cleanup.
+All 15 phases are complete. The phased plan is at `plans/halloy_theme_system_roadmap.md`.

@@ -7,13 +7,6 @@ from app.models import SiteSettings
 
 logger = logging.getLogger(__name__)
 
-LEGACY_PRESET_MAP: dict[str, str] = {
-    "github-dark": "Catppuccin Mocha",
-    "github-light": "Catppuccin Latte",
-    "solarized-dark": "Solarized Dark",
-    "monokai": "Sonokai",
-}
-
 VALID_SCHEMES = ("system", "dark", "light")
 
 _DEFAULT_DARK = "Catppuccin Mocha"
@@ -82,10 +75,6 @@ def validate_theme_settings(
         scheme=scheme,
         warnings=warnings,
     )
-
-
-def migrate_legacy_preset(preset_key: str) -> str:
-    return LEGACY_PRESET_MAP.get(preset_key, preset_key)
 
 
 def get_effective_theme_names(

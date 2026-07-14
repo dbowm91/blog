@@ -54,7 +54,7 @@ def _get_cached_settings() -> dict[str, Any]:
     This path is only reached when ``inject_theme`` catches an exception
     from the theme service. Normal rendering should never depend on this
     function. Uses ``EMERGENCY_DEFAULT`` from the theme model which
-    provides the same palette as the former ``github-dark`` preset.
+    provides the same palette as the EMERGENCY_DEFAULT theme.
     """
     from app.themes.model import EMERGENCY_DEFAULT
     from app.themes.translate import to_legacy_vars
@@ -70,7 +70,6 @@ def _get_cached_settings() -> dict[str, Any]:
 
         if not settings:
             return {
-                "theme_preset": "emergency-default",
                 "theme_vars": emergency_vars,
                 "syntax_theme": "prism",
                 "custom_css_enabled": False,
@@ -79,7 +78,6 @@ def _get_cached_settings() -> dict[str, Any]:
             }
 
         return {
-            "theme_preset": settings.theme_preset or "emergency-default",
             "theme_vars": emergency_vars,
             "syntax_theme": settings.syntax_theme,
             "custom_css_enabled": settings.custom_css_enabled,
@@ -90,7 +88,6 @@ def _get_cached_settings() -> dict[str, Any]:
         logger.exception("Database error loading theme settings, using fallback")
         invalidate_settings_cache()
         return {
-            "theme_preset": "emergency-default",
             "theme_vars": emergency_vars,
             "syntax_theme": "prism",
             "custom_css_enabled": False,

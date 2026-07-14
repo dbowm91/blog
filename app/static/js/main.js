@@ -14,7 +14,7 @@ const moduleGlob = import.meta.glob([
     './admin/editor.js',
     './image-preview.js',
     './upload.js',
-    './shared/dark-mode.js',
+    './shared/color-scheme.js',
     './shared/mobile-menu.jsx',
     './shared/lazy-load.js',
     './shared/prefetch.js',
@@ -105,7 +105,7 @@ function getModulesForPath(path) {
     return [
         './shared/utils.js',
         './shared/toast.js',
-        './shared/dark-mode.js',
+        './shared/color-scheme.js',
         './shared/mobile-menu.jsx',
         './shared/lazy-load.js',
         './shared/prefetch.js',
