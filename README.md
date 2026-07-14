@@ -36,7 +36,7 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 - **2FA** — TOTP-based two-factor authentication for admin accounts
 - **Backups** — Encrypted (AES-256-GCM) and compressed backups with restore
 - **Theming** — CSS custom properties with theme presets (GitHub Dark/Light, Solarized, Monokai)
-- **Halloy Themes** — 50 Halloy-compatible TOML themes bundled in `app/themes/bundled/` (Phases 01–13 complete; Phase 14 (documentation/legacy removal) in progress)
+- **Halloy Themes** — 50 Halloy-compatible TOML themes bundled in `app/themes/bundled/` (Phases 01–13 complete (parser, translator, registry, packaging, runtime, visitor scheme, frontend tokens, admin UX, CLI, accessibility, performance/reliability); Phase 14 (documentation/legacy removal) in progress)
 - **Analytics** — Page views, referrers, and share tracking
 - **Media Library** — Upload and manage images with local storage (S3 support is experimental)
 - **Static Pages** — Create standalone pages at custom slugs
@@ -167,7 +167,7 @@ Click **Preview** to see how your post will look with theme styling.
 }
 ```
 
-50 Halloy-compatible TOML themes are bundled in `app/themes/bundled/`. The top-level `themes/` directory remains the canonical development catalog. See [`plans/halloy_theme_system_roadmap.md`](plans/halloy_theme_system_roadmap.md) for the migration roadmap. Phases 01–13 are complete; Phase 14 (documentation/legacy removal) is in progress. The legacy presets above continue to work throughout the migration and are scheduled for removal in Phase 14.
+50 Halloy-compatible TOML themes are bundled in `app/themes/bundled/`. The top-level `themes/` directory remains the canonical development catalog. See [`plans/halloy_theme_system_roadmap.md`](plans/halloy_theme_system_roadmap.md) for the migration roadmap. Phases 01–13 are complete (parser, translator, registry, packaging, runtime, visitor scheme, frontend tokens, admin UX, CLI, accessibility, performance/reliability); Phase 14 (documentation/legacy removal) is in progress. The legacy presets above continue to work throughout the migration and are scheduled for removal in Phase 14.
 
 ### Managing Tags
 

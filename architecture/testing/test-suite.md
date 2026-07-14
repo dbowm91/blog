@@ -8,12 +8,16 @@ Comprehensive testing infrastructure.
 tests/
 ├── benchmarks/          # Benchmark tests
 │   ├── conftest.py      # Benchmark fixtures (session-scoped `app`, `db`)
-│   └── test_benchmarks.py
+│   ├── test_benchmarks.py
+│   └── test_theme_performance.py  # Theme performance benchmarks (Phase 13)
 ├── conftest.py          # Pytest fixtures (session-scoped `app`, `ensure_buffer_disabled` autouse)
 ├── e2e/                 # End-to-end Playwright tests
 │   ├── conftest.py      # E2E fixtures (session-scoped `app`, `app_server`, `browser_type_launch_args`)
 │   └── test_e2e.py      # E2E tests with classes: TestAdminLogin, TestPostCreation, TestNewsletterSubscription, TestMobileResponsiveness
 ├── shared_fixtures.py   # Shared fixtures (`ensure_buffer_disabled` autouse)
+├── themes/              # Theme-specific tests
+│   ├── test_reliability.py  # Theme reliability and resilience tests (Phase 13)
+│   └── ...
 ├── test_*.py            # Unit/integration tests (flat structure, NOT in unit/ or integration/ subdirs)
 └── __init__.py
 ```

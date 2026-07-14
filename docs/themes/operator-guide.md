@@ -259,6 +259,25 @@ Theme names are validated against the registry before save. Invalid names are re
 - Refresh explicitly rebuilds the registry and clears caches
 - No process restart is required for changes to take effect
 
+## Multi-Worker Deployment
+
+When running multiple worker processes (e.g., with Gunicorn or Granian):
+
+- Each worker maintains its own in-process theme registry and cache
+- Theme changes require explicit refresh on each worker, or a restart/reload
+- Use `flask themes refresh` or the admin "Refresh Theme Registry" button on each worker
+- The `ENABLE_SCHEDULER` env var should be set on exactly one container to prevent duplicate jobs
+
+### Cache Freshness
+
+The theme cache follows an explicit-invalidation model:
+- Bundled themes are immutable for the process lifetime
+- External theme changes require explicit `invalidate()` or `invalidate(name)`
+- Admin and CLI refresh are authoritative
+- Warm requests perform no filesystem reads or TOML parsing
+
+See `docs/themes/cache-contract.md` for the full cache freshness contract.
+
 ## Troubleshooting
 
 **Theme not appearing after upload**: Run `flask themes refresh` or click **Refresh Theme Registry** in the admin.
