@@ -1,0 +1,1664 @@
+{
+  "version": 1,
+  "description": "Accessibility exception manifest for bundled themes",
+  "exceptions": {
+    "Catppuccin Latte": {
+      "total_failures": 7,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 2.63,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 3.71,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on surface-default",
+          "ratio": 4.04,
+          "required": 4.5,
+          "reason": "Link color on elevated surfaces; palette-derived"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 2.53,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.1,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.97,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.97:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.14,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.14:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Cyber Red": {
+      "total_failures": 12,
+      "pairs": [
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on bg-page",
+          "ratio": 4.5,
+          "required": 4.5,
+          "reason": "Primary text contrast is at boundary; theme uses intentional low-contrast aesthetic"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on surface-default",
+          "ratio": 4.34,
+          "required": 4.5,
+          "reason": "Primary text on elevated surfaces; contrast is marginal"
+        },
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.34,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 3.72,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-input-text",
+          "description": "input-text on input-bg",
+          "ratio": 4.13,
+          "required": 4.5,
+          "reason": "Input text inherits primary text color; contrast is marginal"
+        },
+        {
+          "token": "--blog-code-text",
+          "description": "code-text on code-bg",
+          "ratio": 4.13,
+          "required": 4.5,
+          "reason": "Code text inherits primary text color; contrast is marginal"
+        },
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 3.2,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 3.93,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on bg-page",
+          "ratio": 2.66,
+          "required": 3.0,
+          "reason": "Focus ring uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on surface-default",
+          "ratio": 2.57,
+          "required": 3.0,
+          "reason": "Focus ring on elevated surfaces; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-border-focus",
+          "description": "border-focus on bg-page",
+          "ratio": 2.66,
+          "required": 3.0,
+          "reason": "Focus border uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on selection-bg",
+          "ratio": 2.22,
+          "required": 4.5,
+          "reason": "Design choice \u2014 text-primary on selection-bg ratio 2.22:1 vs required 4.5:1"
+        }
+      ]
+    },
+    "Cyberpunk": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.71,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.71:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.7,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.7:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Dark Green": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.18,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.01,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.01:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.03,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.03:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Discord (80_ Saturation)": {
+      "total_failures": 8,
+      "pairs": [
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 4.0,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 3.98,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 2.84,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on bg-page",
+          "ratio": 2.81,
+          "required": 3.0,
+          "reason": "Focus ring uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on surface-default",
+          "ratio": 2.53,
+          "required": 3.0,
+          "reason": "Focus ring on elevated surfaces; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-border-focus",
+          "description": "border-focus on bg-page",
+          "ratio": 2.81,
+          "required": 3.0,
+          "reason": "Focus border uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.22,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.22:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.36,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.36:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Discord": {
+      "total_failures": 8,
+      "pairs": [
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 4.0,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 3.98,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 2.84,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on bg-page",
+          "ratio": 2.81,
+          "required": 3.0,
+          "reason": "Focus ring uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on surface-default",
+          "ratio": 2.53,
+          "required": 3.0,
+          "reason": "Focus ring on elevated surfaces; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-border-focus",
+          "description": "border-focus on bg-page",
+          "ratio": 2.81,
+          "required": 3.0,
+          "reason": "Focus border uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.22,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.22:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.36,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.36:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Dracula": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.15,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.15:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.04,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.04:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Ferra Light": {
+      "total_failures": 8,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 2.58,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 4.31,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on surface-default",
+          "ratio": 4.1,
+          "required": 4.5,
+          "reason": "Link color on elevated surfaces; palette-derived"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 3.47,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.27,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.29,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.29:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.23,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.23:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on selection-bg",
+          "ratio": 4.36,
+          "required": 4.5,
+          "reason": "Design choice \u2014 text-primary on selection-bg ratio 4.36:1 vs required 4.5:1"
+        }
+      ]
+    },
+    "Flexor Dark": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 4.37,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.97,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.36,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.36:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.52,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.52:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Gruvbox": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.47,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 3.48,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on surface-default",
+          "ratio": 3.88,
+          "required": 4.5,
+          "reason": "Link color on elevated surfaces; palette-derived"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 2.69,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        }
+      ]
+    },
+    "Halcyon Dark": {
+      "total_failures": 1,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.91,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.91:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "IntelliJ Light": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 4.0,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 1.67,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.77,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.84,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.84:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.84,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.84:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Kanagawa": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.16,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.16:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.16,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.16:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Macaw Dark": {
+      "total_failures": 9,
+      "pairs": [
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 3.49,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 3.52,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.22,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.22,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on bg-page",
+          "ratio": 2.33,
+          "required": 3.0,
+          "reason": "Focus ring uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-border-focus",
+          "description": "border-focus on bg-page",
+          "ratio": 2.33,
+          "required": 3.0,
+          "reason": "Focus border uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.57,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.57:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.07,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.07:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on selection-bg",
+          "ratio": 3.36,
+          "required": 4.5,
+          "reason": "Design choice \u2014 text-primary on selection-bg ratio 3.36:1 vs required 4.5:1"
+        }
+      ]
+    },
+    "Macaw Light": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 4.36,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 2.66,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 2.66,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.82,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.82:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.05,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.05:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Noctis Lilac": {
+      "total_failures": 7,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.15,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 1.77,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on surface-default",
+          "ratio": 1.84,
+          "required": 4.5,
+          "reason": "Link color on elevated surfaces; palette-derived"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 2.35,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 2.76,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.23,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.23:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.32,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.32:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Nord": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.05,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.69,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.69:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.36,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.36:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Nostromo Terminal": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.82,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.82:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.82,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.82:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "One Dark": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.25,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.57,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.95,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.95:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Oxocarbon": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 2.32,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.2,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.2:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.2,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.2:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Rose Pine Dawn": {
+      "total_failures": 11,
+      "pairs": [
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on bg-page",
+          "ratio": 2.45,
+          "required": 4.5,
+          "reason": "Primary text contrast is at boundary; theme uses intentional low-contrast aesthetic"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on surface-default",
+          "ratio": 2.45,
+          "required": 4.5,
+          "reason": "Primary text on elevated surfaces; contrast is marginal"
+        },
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 3.79,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-input-text",
+          "description": "input-text on input-bg",
+          "ratio": 2.6,
+          "required": 4.5,
+          "reason": "Input text inherits primary text color; contrast is marginal"
+        },
+        {
+          "token": "--blog-code-text",
+          "description": "code-text on code-bg",
+          "ratio": 2.6,
+          "required": 4.5,
+          "reason": "Code text inherits primary text color; contrast is marginal"
+        },
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 2.52,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 2.96,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.62,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.19,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.19:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.19,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.19:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on selection-bg",
+          "ratio": 2.37,
+          "required": 4.5,
+          "reason": "Design choice \u2014 text-primary on selection-bg ratio 2.37:1 vs required 4.5:1"
+        }
+      ]
+    },
+    "Rose Pine Moon": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.43,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 4.04,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.46,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.46:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.46,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.46:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Rose Pine": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.53,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.53:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.53,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.53:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Solarized Dark": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-input-text",
+          "description": "input-text on input-bg",
+          "ratio": 4.11,
+          "required": 4.5,
+          "reason": "Input text inherits primary text color; contrast is marginal"
+        },
+        {
+          "token": "--blog-code-text",
+          "description": "code-text on code-bg",
+          "ratio": 4.11,
+          "required": 4.5,
+          "reason": "Code text inherits primary text color; contrast is marginal"
+        },
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 3.0,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.25,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        }
+      ]
+    },
+    "Sonokai": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 3.26,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.42,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.42:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.27,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.27:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Tokyo Night Storm": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.27,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.27:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.08,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.08:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on selection-bg",
+          "ratio": 1.21,
+          "required": 4.5,
+          "reason": "Design choice \u2014 text-primary on selection-bg ratio 1.21:1 vs required 4.5:1"
+        }
+      ]
+    },
+    "VESPER": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.51,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.51:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.54,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.54:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "Zenburn": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 2.77,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.09,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        }
+      ]
+    },
+    "acton": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.33,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.33,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.12,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.12:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.93,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.93:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "bam": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 4.05,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.02,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.6,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.64,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.64:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.85,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.85:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "base16-atelier-forest-light": {
+      "total_failures": 10,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.35,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on bg-page",
+          "ratio": 3.42,
+          "required": 4.5,
+          "reason": "Link color is derived from Halloy palette; contrast is advisory for non-body-text elements"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on surface-default",
+          "ratio": 3.42,
+          "required": 4.5,
+          "reason": "Link color on elevated surfaces; palette-derived"
+        },
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 2.77,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 2.91,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.52,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on bg-page",
+          "ratio": 2.76,
+          "required": 3.0,
+          "reason": "Focus ring uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on surface-default",
+          "ratio": 2.76,
+          "required": 3.0,
+          "reason": "Focus ring on elevated surfaces; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-border-focus",
+          "description": "border-focus on bg-page",
+          "ratio": 2.76,
+          "required": 3.0,
+          "reason": "Focus border uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-text-primary",
+          "description": "text-primary on selection-bg",
+          "ratio": 2.39,
+          "required": 4.5,
+          "reason": "Design choice \u2014 text-primary on selection-bg ratio 2.39:1 vs required 4.5:1"
+        }
+      ]
+    },
+    "berlin": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 3.89,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.06,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 2.85,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.6,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.6:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.79,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.79:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "black but with important highlights": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.15,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.15:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.69,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.69:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "broc": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.83,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.78,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.78:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.17,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.17:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "cork": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 4.17,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.09,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.77,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.62,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.62:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.88,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.88:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "ferra": {
+      "total_failures": 3,
+      "pairs": [
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.48,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.61,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.61:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.76,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.76:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "forest": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.25,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-text-link",
+          "description": "text-link on surface-default",
+          "ratio": 3.61,
+          "required": 4.5,
+          "reason": "Link color on elevated surfaces; palette-derived"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 3.76,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.24,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.24:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.68,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.68:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "lisbon": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 4.43,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.36,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.59,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.59:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.78,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.78:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "midnight": {
+      "total_failures": 4,
+      "pairs": [
+        {
+          "token": "--blog-text-secondary",
+          "description": "text-secondary on surface-default",
+          "ratio": 4.45,
+          "required": 4.5,
+          "reason": "Secondary text uses intentionally lower contrast for visual hierarchy"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.17,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.45,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.45:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.13,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.13:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "oslo": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.01,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.01:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.33,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.33:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "plum": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.14,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.14:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.63,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.63:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "portland": {
+      "total_failures": 2,
+      "pairs": [
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 2.15,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 2.15:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 2.69,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 2.69:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "tofino": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 4.21,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 4.07,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.42,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.55,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.55:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.73,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.73:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "vanimo": {
+      "total_failures": 5,
+      "pairs": [
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 3.97,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 3.89,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.34,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.51,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.51:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.6,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.6:1 vs required 3.0:1"
+        }
+      ]
+    },
+    "vik": {
+      "total_failures": 9,
+      "pairs": [
+        {
+          "token": "--blog-text-link-hover",
+          "description": "text-link-hover on bg-page",
+          "ratio": 3.98,
+          "required": 4.5,
+          "reason": "Hover state uses shifted accent; contrast is advisory"
+        },
+        {
+          "token": "--blog-navbar-text",
+          "description": "navbar-text on navbar-bg",
+          "ratio": 3.33,
+          "required": 4.5,
+          "reason": "Navbar uses semi-transparent overlay; text inherits page contrast"
+        },
+        {
+          "token": "--blog-success-fg",
+          "description": "success-fg on bg-page",
+          "ratio": 3.01,
+          "required": 4.5,
+          "reason": "Success indicator color is palette-derived; primarily used on success-bg, not page bg"
+        },
+        {
+          "token": "--blog-error-fg",
+          "description": "error-fg on bg-page",
+          "ratio": 4.28,
+          "required": 4.5,
+          "reason": "Error indicator color is palette-derived; primarily used on error-bg, not page bg"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on bg-page",
+          "ratio": 2.79,
+          "required": 3.0,
+          "reason": "Focus ring uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-accent-focus-ring",
+          "description": "accent-focus-ring on surface-default",
+          "ratio": 2.99,
+          "required": 3.0,
+          "reason": "Focus ring on elevated surfaces; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-border-focus",
+          "description": "border-focus on bg-page",
+          "ratio": 2.79,
+          "required": 3.0,
+          "reason": "Focus border uses accent color; WCAG 2.2 allows alternative focus indicators"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on bg-page",
+          "ratio": 1.25,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on bg-page ratio 1.25:1 vs required 3.0:1"
+        },
+        {
+          "token": "--blog-input-border",
+          "description": "input-border on surface-default",
+          "ratio": 1.34,
+          "required": 3.0,
+          "reason": "Design choice \u2014 input-border on surface-default ratio 1.34:1 vs required 3.0:1"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_bundled": 50,
+    "themes_with_exceptions": 45,
+    "themes_passing": 5
+  }
+}

@@ -17,7 +17,9 @@ from app.themes.colors import RGBA
 from app.themes.model import ALIASES, CSS_VARS, EMERGENCY_DEFAULT
 from app.themes.translate import to_legacy_vars, to_theme_vars
 
-CRITICAL_CSS = Path(__file__).resolve().parent.parent.parent / "app" / "static" / "css" / "critical.css"
+CRITICAL_CSS = (
+    Path(__file__).resolve().parent.parent.parent / "app" / "static" / "css" / "critical.css"
+)
 
 REQUIRED_LEGACY_KEYS = [
     "bg",
@@ -156,9 +158,9 @@ class TestCriticalCSSMatchesThemeTokens:
             if css_var.startswith("--font") or css_var == "--radius":
                 continue
             if value.startswith("#"):
-                assert value.lower() in {
-                    v.lower() for v in theme_legacy.values()
-                }, f"{css_var}={value} not found in theme tokens"
+                assert value.lower() in {v.lower() for v in theme_legacy.values()}, (
+                    f"{css_var}={value} not found in theme tokens"
+                )
 
 
 class TestCustomCSSOverrideOrdering:

@@ -39,6 +39,7 @@ from app.themes.diagnostics import (
     build_provenance,
     check_blog_theme_contrast,
     check_contrast,
+    is_expected_exception,
     validate_catalog_accessibility,
     validate_theme_accessibility,
 )
@@ -147,6 +148,7 @@ __all__ = [
     "halloy",
     "init_theme_service",
     "is_dark_background",
+    "is_expected_exception",
     "is_light_background",
     "mix",
     "model",

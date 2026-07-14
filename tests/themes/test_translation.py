@@ -170,12 +170,10 @@ class TestDerivations:
         assert isinstance(result.theme.accent_dim, RGBA)
         assert result.theme.accent_dim.alpha == pytest.approx(0.10)
 
-    def test_state_bgs_have_alpha(self) -> None:
+    def test_state_bgs_are_rgb(self) -> None:
         result = _translate("minimal.toml")
-        assert isinstance(result.theme.success_bg, RGBA)
-        assert result.theme.success_bg.alpha == pytest.approx(0.15)
-        assert isinstance(result.theme.error_bg, RGBA)
-        assert result.theme.error_bg.alpha == pytest.approx(0.15)
+        assert isinstance(result.theme.success_bg, RGB)
+        assert isinstance(result.theme.error_bg, RGB)
 
     def test_accent_hover_differs_from_accent(self) -> None:
         result = _translate("minimal.toml")
@@ -218,8 +216,8 @@ class TestForegroundSelection:
 
     def test_text_on_success_contrast(self) -> None:
         result = _translate("minimal.toml")
-        ratio = contrast_ratio(result.theme.text_on_success, result.theme.success_fg)
-        assert ratio >= 3.5
+        ratio = contrast_ratio(result.theme.text_on_success, result.theme.success_bg)
+        assert ratio >= 4.5
 
 
 class TestEmergencyDefault:

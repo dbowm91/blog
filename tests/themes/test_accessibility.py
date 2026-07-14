@@ -171,11 +171,11 @@ class TestValidateThemeAccessibility:
             surface_active=_rgb("#e0e0e0"),
             navbar_bg=RGBA(255, 255, 255, 0.85),
             overlay_bg=RGBA(0, 0, 0, 0.5),
-            border_primary=_rgb("#cccccc"),
-            border_subtle=_rgb("#dddddd"),
-            border_strong=_rgb("#bbbbbb"),
+            border_primary=_rgb("#767676"),
+            border_subtle=_rgb("#999999"),
+            border_strong=_rgb("#555555"),
             border_focus=_rgb("#0000ff"),
-            navbar_border=_rgb("#cccccc"),
+            navbar_border=_rgb("#767676"),
             text_primary=_rgb("#000000"),
             text_secondary=_rgb("#333333"),
             text_muted=_rgb("#666666"),
@@ -201,12 +201,12 @@ class TestValidateThemeAccessibility:
             info_fg=_rgb("#000099"),
             info_bg=RGB(0, 0, 80),
             input_bg=_rgb("#ffffff"),
-            input_border=_rgb("#cccccc"),
+            input_border=_rgb("#767676"),
             input_text=_rgb("#000000"),
             code_bg=_rgb("#f0f0f0"),
-            code_border=_rgb("#dddddd"),
+            code_border=_rgb("#767676"),
             code_text=_rgb("#000000"),
-            selection_bg=_rgb("#b0d4ff"),
+            selection_bg=_rgb("#3399ff"),
             navbar_text=_rgb("#000000"),
             navbar_text_muted=_rgb("#666666"),
             shadow_color=RGBA(0, 0, 0, 0.1),
@@ -553,3 +553,99 @@ class TestClassificationAudit:
         )
         assert audit.theme_name == "test"
         assert audit.mismatch is True
+
+
+class TestExceptionManifest:
+    def test_manifest_exists(self) -> None:
+        from pathlib import Path
+
+        manifest_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "app"
+            / "themes"
+            / "ACCESSIBILITY_EXCEPTIONS.json"
+        )
+        assert manifest_path.exists()
+
+    def test_manifest_has_required_fields(self) -> None:
+        import json
+        from pathlib import Path
+
+        manifest_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "app"
+            / "themes"
+            / "ACCESSIBILITY_EXCEPTIONS.json"
+        )
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        assert "exceptions" in manifest
+        assert "summary" in manifest
+        assert "total_bundled" in manifest["summary"]
+
+    def test_finding_exception_reason(self) -> None:
+        from app.themes.diagnostics import AccessibilityFinding, Severity
+
+        finding = AccessibilityFinding(
+            theme_name="test",
+            token="--test",
+            description="test",
+            foreground="#000",
+            background="#fff",
+            ratio=2.0,
+            required=4.5,
+            wcag="fail",
+            severity=Severity.MANDATORY,
+            remediation="Fix",
+            exception_reason="Design choice",
+        )
+        assert finding.is_expected is True
+        assert finding.exception_reason == "Design choice"
+
+    def test_finding_no_exception(self) -> None:
+        from app.themes.diagnostics import AccessibilityFinding, Severity
+
+        finding = AccessibilityFinding(
+            theme_name="test",
+            token="--test",
+            description="test",
+            foreground="#000",
+            background="#fff",
+            ratio=2.0,
+            required=4.5,
+            wcag="fail",
+            severity=Severity.MANDATORY,
+            remediation="Fix",
+        )
+        assert finding.is_expected is False
+
+    def test_report_passed_with_exceptions(self) -> None:
+        from app.themes.diagnostics import (
+            AccessibilityFinding,
+            ThemeAccessibilityReport,
+            Severity,
+        )
+
+        report = ThemeAccessibilityReport(
+            theme_name="test",
+            source="bundled",
+            is_dark=True,
+            findings=[
+                AccessibilityFinding(
+                    theme_name="test",
+                    token="--test",
+                    description="test",
+                    foreground="#888",
+                    background="#999",
+                    ratio=1.5,
+                    required=4.5,
+                    wcag="fail",
+                    severity=Severity.MANDATORY,
+                    remediation="Fix",
+                    exception_reason="Documented exception",
+                )
+            ],
+        )
+        assert report.passed is False
+        assert report.passed_with_exceptions is True
+        assert len(report.expected_exceptions) == 1

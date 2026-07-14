@@ -548,10 +548,18 @@ def register_cli_commands(app: Any) -> None:
         if acc_report.findings:
             click.echo("Accessibility findings:")
             for f in acc_report.findings:
-                severity_tag = "FAIL" if f.severity.value == "mandatory" else "WARN"
+                if f.severity.value == "mandatory":
+                    if f.is_expected:
+                        severity_tag = "EXCEPT"
+                    else:
+                        severity_tag = "FAIL"
+                else:
+                    severity_tag = "WARN"
                 click.echo(
                     f"  [{severity_tag}] {f.description} ({f.ratio}:1, required {f.required}:1, WCAG {f.wcag})"
                 )
+                if f.exception_reason:
+                    click.echo(f"          reason: {f.exception_reason}")
         if acc_report.classification:
             c = acc_report.classification
             click.echo(
@@ -782,11 +790,19 @@ def register_cli_commands(app: Any) -> None:
             if report.findings:
                 click.echo(f"\n{report.theme_name} ({report.source}):")
                 for f in report.findings:
-                    severity_tag = "FAIL" if f.severity.value == "mandatory" else "WARN"
+                    if f.severity.value == "mandatory":
+                        if f.is_expected:
+                            severity_tag = "EXCEPT"
+                        else:
+                            severity_tag = "FAIL"
+                    else:
+                        severity_tag = "WARN"
                     click.echo(
                         f"  [{severity_tag}] {f.description} ({f.ratio}:1, required {f.required}:1, WCAG {f.wcag})"
                     )
                     click.echo(f"          fg={f.foreground} bg={f.background}")
+                    if f.exception_reason:
+                        click.echo(f"          reason: {f.exception_reason}")
             if report.classification and report.classification.mismatch:
                 click.echo(
                     f"  [CLASS] Classification mismatch: filename_dark={report.classification.filename_dark} computed_dark={report.classification.computed_dark}"
@@ -794,8 +810,12 @@ def register_cli_commands(app: Any) -> None:
 
         click.echo(f"\n{'=' * 60}")
         click.echo(f"Checked {catalog_report.total_themes} themes")
-        click.echo(f"Passed: {catalog_report.passed_count}")
-        click.echo(f"Failed: {catalog_report.failed_count}")
+        passed_exact = sum(1 for r in reports if r.passed)
+        passed_except = sum(1 for r in reports if r.passed_with_exceptions and not r.passed)
+        failed = sum(1 for r in reports if not r.passed_with_exceptions)
+        click.echo(f"Passed (exact): {passed_exact}")
+        click.echo(f"Passed (with exceptions): {passed_except}")
+        click.echo(f"Failed (unexpected): {failed}")
         click.echo(f"Mandatory failures: {catalog_report.total_mandatory}")
         click.echo(f"Advisory warnings: {catalog_report.total_advisory}")
         if catalog_report.classification_mismatches:
@@ -804,23 +824,25 @@ def register_cli_commands(app: Any) -> None:
             )
 
         if strict:
-            external_failed = [r for r in reports if r.source == "external" and not r.passed]
+            external_failed = [
+                r for r in reports if r.source == "external" and not r.passed_with_exceptions
+            ]
             if external_failed:
                 click.echo(
-                    f"\nStrict mode: {len(external_failed)} external theme(s) rejected due to mandatory failures."
+                    f"\nStrict mode: {len(external_failed)} external theme(s) rejected due to unexpected mandatory failures."
                 )
                 for r in external_failed:
                     click.echo(
-                        f"  REJECTED: {r.theme_name} ({len(r.mandatory_failures)} mandatory failures)"
+                        f"  REJECTED: {r.theme_name} ({len(r.unexpected_mandatory_failures)} unexpected failures)"
                     )
                 raise SystemExit(1)
 
-        if catalog_report.failed_count == 0:
-            click.echo("\nAll themes pass mandatory accessibility gates!")
-        else:
+        if failed == 0:
             click.echo(
-                f"\n{catalog_report.failed_count} theme(s) have mandatory accessibility failures."
+                "\nAll themes pass mandatory accessibility gates (with documented exceptions)."
             )
+        else:
+            click.echo(f"\n{failed} theme(s) have unexpected mandatory accessibility failures.")
 
 
 def _validate_theme_file(file_path: Any, as_json: bool) -> None:

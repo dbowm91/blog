@@ -29,6 +29,7 @@ Issues = "https://github.com/dbowm91/blog/issues"
 
 [tool.setuptools.package-data]
 "app.themes.bundled" = ["*.toml", "catalog_manifest.json", "ATTRIBUTION.md"]
+"app.themes" = ["ACCESSIBILITY_EXCEPTIONS.json"]
 
 [tool.ruff]
 line-length = 100

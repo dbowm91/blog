@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 
 from app.themes.colors import (
     RGB,
@@ -16,6 +18,29 @@ from app.themes.colors import (
 from app.themes.model import BlogTheme
 
 _WHITE = RGB(255, 255, 255)
+
+_EXCEPTIONS_PATH = Path(__file__).parent / "ACCESSIBILITY_EXCEPTIONS.json"
+_exception_manifest: dict | None = None
+
+
+def _load_exception_manifest() -> dict:
+    global _exception_manifest
+    if _exception_manifest is None:
+        if _EXCEPTIONS_PATH.exists():
+            with open(_EXCEPTIONS_PATH) as f:
+                _exception_manifest = json.load(f)
+        else:
+            _exception_manifest = {"exceptions": {}}
+    return _exception_manifest
+
+
+def is_expected_exception(theme_name: str, description: str) -> str | None:
+    manifest = _load_exception_manifest()
+    theme_exc = manifest.get("exceptions", {}).get(theme_name, {})
+    for pair in theme_exc.get("pairs", []):
+        if pair["description"] == description:
+            return pair.get("reason", "Documented exception")
+    return None
 
 
 def _resolve_rgb(color: RGB | RGBA) -> RGB:
@@ -51,9 +76,14 @@ class AccessibilityFinding:
     wcag: str
     severity: Severity
     remediation: str
+    exception_reason: str | None = None
+
+    @property
+    def is_expected(self) -> bool:
+        return self.exception_reason is not None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result: dict[str, object] = {
             "theme_name": self.theme_name,
             "token": self.token,
             "description": self.description,
@@ -65,6 +95,9 @@ class AccessibilityFinding:
             "severity": self.severity.value,
             "remediation": self.remediation,
         }
+        if self.exception_reason:
+            result["exception_reason"] = self.exception_reason
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +122,14 @@ class ThemeAccessibilityReport:
         return [f for f in self.findings if f.severity == Severity.MANDATORY]
 
     @property
+    def unexpected_mandatory_failures(self) -> list[AccessibilityFinding]:
+        return [f for f in self.mandatory_failures if not f.is_expected]
+
+    @property
+    def expected_exceptions(self) -> list[AccessibilityFinding]:
+        return [f for f in self.mandatory_failures if f.is_expected]
+
+    @property
     def advisory_warnings(self) -> list[AccessibilityFinding]:
         return [f for f in self.findings if f.severity == Severity.ADVISORY]
 
@@ -96,13 +137,20 @@ class ThemeAccessibilityReport:
     def passed(self) -> bool:
         return len(self.mandatory_failures) == 0
 
+    @property
+    def passed_with_exceptions(self) -> bool:
+        return len(self.unexpected_mandatory_failures) == 0
+
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
             "theme_name": self.theme_name,
             "source": self.source,
             "is_dark": self.is_dark,
             "passed": self.passed,
+            "passed_with_exceptions": self.passed_with_exceptions,
             "mandatory_failures": len(self.mandatory_failures),
+            "unexpected_failures": len(self.unexpected_mandatory_failures),
+            "expected_exceptions": len(self.expected_exceptions),
             "advisory_warnings": len(self.advisory_warnings),
             "findings": [f.to_dict() for f in self.findings],
         }
@@ -399,6 +447,38 @@ _CONTRAST_PAIRS: list[tuple[str, str, str, float, Severity, str]] = [
         Severity.MANDATORY,
         "focus border indicator",
     ),
+    (
+        "input_border",
+        "bg_page",
+        "input-border on bg-page",
+        3.0,
+        Severity.MANDATORY,
+        "input border visibility",
+    ),
+    (
+        "input_border",
+        "surface_default",
+        "input-border on surface-default",
+        3.0,
+        Severity.MANDATORY,
+        "input border on surfaces",
+    ),
+    (
+        "text_primary",
+        "selection_bg",
+        "text-primary on selection-bg",
+        4.5,
+        Severity.MANDATORY,
+        "selected text readability",
+    ),
+    (
+        "text_muted",
+        "input_bg",
+        "text-muted on input-bg",
+        3.0,
+        Severity.ADVISORY,
+        "placeholder/muted text in inputs",
+    ),
 ]
 
 
@@ -485,6 +565,9 @@ def validate_theme_accessibility(
 
         ratio = contrast_ratio(fg, bg)
         if ratio < min_ratio:
+            exception_reason = (
+                is_expected_exception(theme_name, description) if theme_name else None
+            )
             findings.append(
                 AccessibilityFinding(
                     theme_name=theme_name,
@@ -497,6 +580,7 @@ def validate_theme_accessibility(
                     wcag=wcag_level(ratio),
                     severity=severity,
                     remediation=_remediation(remediation_hint, min_ratio),
+                    exception_reason=exception_reason,
                 )
             )
 

@@ -81,8 +81,10 @@ def _select_foreground_on_accent(accent: RGB) -> RGB:
     return black
 
 
-def _select_foreground_on_state(state_fg: RGB) -> RGB:
-    return _select_foreground_on_accent(state_fg)
+def _select_foreground_on_state(state_fg: RGB, page_bg: RGB) -> RGB:
+    state_bg_rgba = _derive_state_bg(state_fg, page_bg)
+    composited = alpha_composite(state_bg_rgba, page_bg)
+    return _select_foreground_on_accent(composited)
 
 
 def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
@@ -115,11 +117,19 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
     border_subtle = _resolve_bg(general.horizontal_rule)
 
     text_on_accent = _select_foreground_on_accent(accent)
-    text_on_success = _select_foreground_on_state(success_fg)
-    text_on_error = _select_foreground_on_state(error_fg)
+    text_on_success = _select_foreground_on_accent(
+        alpha_composite(_derive_state_bg(success_fg, bg_page), bg_page)
+    )
+    text_on_error = _select_foreground_on_accent(
+        alpha_composite(_derive_state_bg(error_fg, bg_page), bg_page)
+    )
 
-    warning_fg = RGB(0xD2, 0x99, 0x22)
-    info_fg = RGB(0xA3, 0x71, 0xF7)
+    warning_bg_rgb = alpha_composite(RGBA(210, 153, 34, 0.15), bg_page)
+    info_bg_rgb = alpha_composite(RGBA(163, 113, 247, 0.15), bg_page)
+    warning_fg = _select_foreground_on_accent(warning_bg_rgb)
+    info_fg = _select_foreground_on_accent(info_bg_rgb)
+    text_on_warning = _select_foreground_on_accent(warning_bg_rgb)
+    text_on_info = _select_foreground_on_accent(info_bg_rgb)
 
     blog_theme = BlogTheme(
         bg_page=bg_page,
@@ -141,8 +151,8 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
         text_on_accent=text_on_accent,
         text_on_success=text_on_success,
         text_on_error=text_on_error,
-        text_on_warning=RGB(0, 0, 0),
-        text_on_info=RGB(0, 0, 0),
+        text_on_warning=text_on_warning,
+        text_on_info=text_on_info,
         text_link=text_link,
         text_link_hover=_derive_accent_hover(accent, is_dark),
         accent=accent,
@@ -151,13 +161,13 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
         accent_link=accent,
         accent_focus_ring=accent,
         success_fg=success_fg,
-        success_bg=_derive_state_bg(success_fg, surface_default),
+        success_bg=alpha_composite(_derive_state_bg(success_fg, bg_page), bg_page),
         error_fg=error_fg,
-        error_bg=_derive_state_bg(error_fg, surface_default),
+        error_bg=alpha_composite(_derive_state_bg(error_fg, bg_page), bg_page),
         warning_fg=warning_fg,
-        warning_bg=RGBA(210, 153, 34, 0.15),
+        warning_bg=warning_bg_rgb,
         info_fg=info_fg,
-        info_bg=RGBA(163, 113, 247, 0.15),
+        info_bg=info_bg_rgb,
         input_bg=input_bg,
         input_border=border_primary,
         input_text=text_primary,
