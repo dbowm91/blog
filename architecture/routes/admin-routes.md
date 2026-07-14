@@ -229,7 +229,7 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `POST /admin/settings/theme/preview`
 - **Route**: `POST /admin/settings/theme/refresh`
 - **Purpose**: View and update theme, syntax theme, custom CSS
-- **Theme Presets (CSS color schemes)**: `github-dark`, `github-light`, `solarized-dark`, `monokai` — defined in `app/models.py:366-457` as `THEME_PRESETS`
+- **Theme Selection**: Registry-based dark/light theme pair from 50+ bundled Halloy themes; external themes override bundled with same name
 - **Syntax Themes (Prism-based)**: `prism`, `prism-coy`, `prism-dark`, `prism-funky`, `prism-okaidia`, `prism-tomorrow` — defined in `app/routes/admin/settings.py:24-36`
 
 ### Theme Preview (`settings.py`)

@@ -287,3 +287,21 @@ See `docs/themes/cache-contract.md` for the full cache freshness contract.
 **Selected theme shows as fallback**: The theme file may have been removed or renamed. Check the external directory and refresh.
 
 **Contrast warnings**: These are advisory. The theme may still be usable, but consider choosing a theme with better accessibility. Run `flask themes accessibility` to check all themes.
+
+**Emergency fallback activated**: If the theme service encounters an error, the site falls back to `EMERGENCY_DEFAULT` (same palette as the former `github-dark` preset). Check logs for the specific error and run `flask themes refresh` to reinitialize.
+
+**Legacy preset names no longer work**: The `THEME_PRESETS` dict was removed in Phase 14. Legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) are mapped to Halloy equivalents via `LEGACY_PRESET_MAP` in `app/services/theme_settings.py`. Select the mapped Halloy theme name instead.
+
+## Migration from Legacy Presets
+
+If upgrading from a version that used `THEME_PRESETS`:
+
+1. The database migration `preserve_legacy_scheme` preserves your visual mode setting
+2. Legacy preset names are mapped to Halloy equivalents automatically:
+   - `github-dark` → `Catppuccin Mocha`
+   - `github-light` → `Catppuccin Latte`
+   - `solarized-dark` → `Solarized Dark`
+   - `monokai` → `Sonokai`
+3. Navigate to **Settings > Theme** to select different themes if desired
+4. Custom CSS is preserved unchanged
+5. Syntax highlighting theme is preserved unchanged

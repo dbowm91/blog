@@ -140,7 +140,7 @@ accent-dim = composite(accent, alpha=0.10, over=surface-default)
 In CSS: `rgba(R, G, B, 0.10)` where R/G/B are the accent color channels. For
 light themes, composite is performed over the surface background to ensure the
 dim fill is visible. The alpha value of 0.10 matches the current `accent-dim`
-behavior across all four THEME_PRESETS.
+behavior across legacy theme presets.
 
 ### state-bg (success-bg, error-bg, warning-bg, info-bg)
 
@@ -150,7 +150,7 @@ state-bg = composite(state-fg, alpha=0.15, over=surface-default)
 
 Uses the corresponding foreground color (`success-fg`, `error-fg`, etc.) at
 0.15 alpha composited over the surface background. This matches the current
-`-dim` token pattern in THEME_PRESETS (e.g., `green-dim` = `rgba(63,185,80,0.15)`).
+`-dim` token pattern in legacy presets (e.g., `green-dim` = `rgba(63,185,80,0.15)`).
 
 ### surface-hover
 
@@ -342,23 +342,21 @@ def list_bundled_themes():
 
 ---
 
-## Section E: Migration Compatibility Aliases
+## Section E: Migration Compatibility Aliases (completed)
 
-Every key currently emitted by `THEME_PRESETS` in `app/models.py` lines
-366-457 must have a backward-compatible alias until Phase 14 cleanup. The
-`name` key is metadata and is not a CSS variable.
+The following legacy CSS variable names are preserved as aliases via the `ALIASES` dict in `app/themes/model.py`. The `to_legacy_vars()` function in `app/themes/translate.py` generates these from `BlogTheme` instances. The `THEME_PRESETS` dict was removed in Phase 14.
 
-| Current key | Default fallback (github-dark) | New semantic token | Rename or alias | Removal target |
-|---|---|---|---|---|
-| `bg` | `#0d1117` | `--blog-bg-page` | Direct rename | Phase 14 |
-| `bg-surface` | `#161b22` | `--blog-surface-default` | Direct rename | Phase 14 |
-| `bg-elevated` | `#1c2128` | `--blog-surface-elevated` | Direct rename | Phase 14 |
-| `border` | `#30363d` | `--blog-border-primary` | Direct rename | Phase 14 |
-| `text` | `#e6edf3` | `--blog-text-primary` | Direct rename | Phase 14 |
-| `text-muted` | `#8b949e` | `--blog-text-muted` | Direct rename | Phase 14 |
-| `text-dim` | `#7d8590` | `--blog-text-dim` | Direct rename | Phase 14 |
-| `text-dim-strong` | `#9ca3af` | `--blog-text-dim` | Alias (same target as text-dim) | Phase 14 |
-| `text-secondary` | `#c9d1d9` | `--blog-text-secondary` | Direct rename | Phase 14 |
+| Legacy key | Semantic token | Notes |
+|---|---|---|
+| `bg` | `--blog-bg-page` | |
+| `bg-surface` | `--blog-surface-default` | |
+| `bg-elevated` | `--blog-surface-elevated` | |
+| `border` | `--blog-border-primary` | |
+| `text` | `--blog-text-primary` | |
+| `text-muted` | `--blog-text-muted` | |
+| `text-dim` | `--blog-text-dim` | |
+| `text-dim-strong` | `--blog-text-dim` | Alias (same target as text-dim) |
+| `text-secondary` | `--blog-text-secondary` | |
 | `accent` | `#58a6ff` | `--blog-accent` | Direct rename | Phase 14 |
 | `accent-hover` | `#79c0ff` | `--blog-accent-hover` | Direct rename | Phase 14 |
 | `accent-dim` | `rgba(88,166,255,0.1)` | `--blog-accent-dim` | Direct rename | Phase 14 |
@@ -393,10 +391,9 @@ existing presets.
 
 ## Section F: Token Coverage Check
 
-Every token key emitted by `THEME_PRESETS` in `app/models.py` (lines 366-457)
-is accounted for:
+Every legacy CSS variable key is accounted for in the `BlogTheme` model:
 
-| THEME_PRESETS key | BlogTheme mapping |
+| Legacy CSS variable key | BlogTheme mapping |
 |---|---|
 | `bg` | `--blog-bg-page` |
 | `bg-surface` | `--blog-surface-default` |
@@ -426,7 +423,7 @@ is accounted for:
 | `name` | (metadata, not a CSS variable) |
 
 No current CSS variable is left without a semantic replacement. Every
-`THEME_PRESETS` key maps to exactly one `BlogTheme` token.
+legacy key maps to exactly one `BlogTheme` token.
 
 ---
 
@@ -441,7 +438,7 @@ No current CSS variable is left without a semantic replacement. Every
    amber is closer to warning semantics (golden/caution) than to info
    (purple). `amber-dim` therefore maps to `--blog-warning-bg`.
 
-3. **`text-dim-strong` maps to `text-dim`:** This key exists in `THEME_PRESETS`
+3. **`text-dim-strong` maps to `text-dim`:** This key exists in legacy presets
    but not in `base.css` CSS variables. It is treated as an alias for
    `--blog-text-dim`. The translator uses `text-dim` as the canonical source;
    `text-dim-strong` is ignored if present in Halloy themes.

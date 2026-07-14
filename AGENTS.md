@@ -275,24 +275,35 @@ For detailed implementation history, deprecated features, actual route correctio
 
 > [docs/internals/agent-maintainer-notes.md](docs/internals/agent-maintainer-notes.md)
 
-### Halloy Theme Migration (in progress)
+### Halloy Theme Migration (complete)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section), Phase 07 (Flask and Jinja runtime integration — centralized ThemeService, dual-scheme CSS emission, context processor overhaul), Phase 08 (visitor color-scheme behavior — 3-state system/dark/light, bootstrap script, CSS selector migration, static light palette block removed), Phase 09 (CSS and generated-markup audit — hardcoded literals replaced with CSS custom properties, 34 REPLACE converted, 35 legacy vars emitted), Phase 10 (admin selection and preview — registry-based theme selector), Phase 11 (operator CLI — flask themes list/validate/inspect/refresh/accessibility), Phase 12 (accessibility validation — WCAG contrast checks with severity classification, catalog-wide validation, classification audit), and Phase 13 (performance and reliability — benchmarks, cache validation, malformed file isolation) are complete. Phase 14 (documentation and legacy removal) is in progress. Phase 13 deliverables include theme performance benchmarks, cache validation tests, and malformed file isolation tests. Phase 06-10 corrective pass is complete: persisted default scheme applies to first-time visitors, admin validation errors are typed and never produce 500s, legacy migration preserves visual mode, theme service is app-scoped via `app.extensions`, and legacy THEME_PRESETS fallback is bounded. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project migrated from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50 bundled themes. All 14 phases are complete:
 
-**Small closure pass contracts:**
-- Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
-- Fingerprint: `_compute_fingerprint()` uses `hashlib.sha256()` (64-char hex) for bundled resources
-- CI: `theme-package-verification` job builds wheel/sdist and runs `scripts/verify_theme_package.py` as a gate
+- Phase 01: inventory + token contract
+- Phase 02: parser + color primitives
+- Phase 03: blog translation layer
+- Phase 04: safe registry and external overrides
+- Phase 05: packaging
+- Phase 06: runtime integration (SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section)
+- Phase 07: Flask and Jinja runtime integration (centralized ThemeService, dual-scheme CSS emission, context processor overhaul)
+- Phase 08: visitor color-scheme behavior (3-state system/dark/light, bootstrap script, CSS selector migration, static light palette block removed)
+- Phase 09: CSS and generated-markup audit (hardcoded literals replaced with CSS custom properties, 34 REPLACE converted, 35 legacy vars emitted)
+- Phase 10: admin selection and preview (registry-based theme selector)
+- Phase 11: operator CLI (flask themes list/validate/inspect/refresh/accessibility)
+- Phase 12: accessibility validation (WCAG contrast checks with severity classification, catalog-wide validation, classification audit)
+- Phase 13: performance and reliability (benchmarks, cache validation, malformed file isolation)
+- Phase 14: documentation and legacy removal (THEME_PRESETS removed, emergency fallback uses EMERGENCY_DEFAULT)
 
-#### Key files (existing runtime)
+The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 
-- `app/models.py:366-457` — `THEME_PRESETS` dict (runtime authority until Phase 14)
-- `app/context_processors.py:67-76` — `theme_vars` injection from preset
+#### Key files (runtime)
+
+- `app/context_processors.py` — `theme_vars` injection from ThemeService
 - `app/templates/base.html:42-48` and `app/templates/admin/base.html:17-23` — `theme_vars` CSS custom property injection
-- `app/routes/admin/settings.py` — admin settings page
+- `app/routes/admin/settings.py` — admin settings page (registry-based theme selector)
 - `app/cli.py:343-610` — theme CLI commands (list, validate, inspect, refresh, paths, accessibility)
 - `app/services/theme_settings.py` — `LEGACY_PRESET_MAP`, `validate_theme_settings()`, `migrate_legacy_preset()`, `get_effective_theme_names()`
-- `app/themes/service.py` — `ThemeService` class, `init_theme_service()`, `get_theme_service()` (Phase 07, app-scoped via `app.extensions["theme_service"]` since corrective pass)
+- `app/themes/service.py` — `ThemeService` class, `init_theme_service()`, `get_theme_service()` (app-scoped via `app.extensions["theme_service"]`)
 
 #### Key files (Phase 01 deliverables)
 
@@ -340,15 +351,13 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `tests/themes/test_build_artifact.py` — Rewritten with fast archive-content tests + slow wheel-build tests
 - `scripts/verify_theme_package.py` — New manual verification script
 
-#### Hard rules during migration
+#### Hard rules (post-migration)
 
-- Corrective closure and small closure pass for Phases 01–05 are complete; subsequent phases build on the corrected foundation
-- Do NOT delete or replace `THEME_PRESETS` until Phase 14
-- Do NOT change `theme_vars` Jinja context shape until Phase 07
-- Do NOT move or rename `themes/*.toml` until Phase 05
-- Future phases must add new code under `app/themes/` (planned: `halloy.py`, `colors.py`, `registry.py`, `resources.py`, `model.py`, `translate.py`, `diagnostics.py`, `bundled/`); do not scatter migration code across other modules
-- Bundled theme resources must use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths
-- Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) must continue to work unchanged through Phase 09 (complete)
+- `THEME_PRESETS` has been removed from `app/models.py`; emergency fallback uses `EMERGENCY_DEFAULT` from `app/themes/model.py`
+- `theme_vars` Jinja context shape is stable and consumed by templates
+- `themes/*.toml` source catalog is the canonical development reference
+- Bundled theme resources use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths
+- Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) use CSS custom properties for all theme-sensitive colors
 
 #### Key files (catalog source)
 

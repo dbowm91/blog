@@ -35,8 +35,7 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 - **REST API** — Manage posts, pages, tags, subscribers, and series via API
 - **2FA** — TOTP-based two-factor authentication for admin accounts
 - **Backups** — Encrypted (AES-256-GCM) and compressed backups with restore
-- **Theming** — CSS custom properties with theme presets (GitHub Dark/Light, Solarized, Monokai)
-- **Halloy Themes** — 50 Halloy-compatible TOML themes bundled in `app/themes/bundled/` (Phases 01–13 complete (parser, translator, registry, packaging, runtime, visitor scheme, frontend tokens, admin UX, CLI, accessibility, performance/reliability); Phase 14 (documentation/legacy removal) in progress)
+- **Theming** — Halloy-compatible TOML theme system with 50 bundled themes, admin selector with live preview, dark/light scheme support, and custom CSS
 - **Analytics** — Page views, referrers, and share tracking
 - **Media Library** — Upload and manage images with local storage (S3 support is experimental)
 - **Static Pages** — Create standalone pages at custom slugs
@@ -151,23 +150,23 @@ Click **Preview** to see how your post will look with theme styling.
 ### Customizing Appearance
 
 1. Go to `/admin/settings`
-2. Choose a **Theme Preset** (GitHub Dark, GitHub Light, Solarized Dark, Monokai)
-3. Optionally enable **Custom CSS**
-4. Set **Logo Text** or leave blank to use site title
+2. Choose a **Dark Theme** and **Light Theme** from 50+ bundled Halloy themes
+3. Set **Default Color Scheme** (`system` respects OS preference, `dark`, or `light`)
+4. Optionally enable **Custom CSS**
+5. Set **Logo Text** or leave blank to use site title
 
-**CSS Custom Properties:**
-```css
-:root {
-    --accent: #ff6600;
-    --bg: #1a1a2e;
-    --bg-surface: #252542;
-    --text: #e0e0e0;
-    --text-muted: #888;
-    --border: #3a3a5c;
-}
+**Custom Themes:** Place Halloy-compatible `.toml` files in the external themes directory (configured via `THEME_EXTERNAL_DIR` or `config.toml` `[themes]` section). External themes override bundled themes with the same name.
+
+**CLI Management:**
+```bash
+flask themes list                    # List all available themes
+flask themes validate ./my-theme.toml  # Validate a theme file
+flask themes inspect "Catppuccin Mocha"  # Inspect theme details
+flask themes refresh                 # Refresh theme registry
+flask themes accessibility           # Run WCAG contrast checks
 ```
 
-50 Halloy-compatible TOML themes are bundled in `app/themes/bundled/`. The top-level `themes/` directory remains the canonical development catalog. See [`plans/halloy_theme_system_roadmap.md`](plans/halloy_theme_system_roadmap.md) for the migration roadmap. Phases 01–13 are complete (parser, translator, registry, packaging, runtime, visitor scheme, frontend tokens, admin UX, CLI, accessibility, performance/reliability); Phase 14 (documentation/legacy removal) is in progress. The legacy presets above continue to work throughout the migration and are scheduled for removal in Phase 14.
+See [docs/themes/operator-guide.md](docs/themes/operator-guide.md) for the full operator guide and [docs/themes/supported-schema.md](docs/themes/supported-schema.md) for the Halloy TOML schema reference.
 
 ### Managing Tags
 
@@ -378,3 +377,7 @@ python run.py
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Developer setup and contribution guidelines
 - [SECURITY.md](SECURITY.md) — Security features and vulnerability reporting
 - [AGENTS.md](AGENTS.md) — Developer/contributor guidelines
+- [Theme Operator Guide](docs/themes/operator-guide.md) — Theme selection, external themes, CLI commands
+- [Theme Schema Reference](docs/themes/supported-schema.md) — Halloy TOML schema for theme authors
+- [Theme Token Contract](docs/themes/blog-theme-contract.md) — BlogTheme semantic token matrix
+- [Legacy Compatibility](docs/themes/legacy-compatibility.md) — Migration from legacy presets

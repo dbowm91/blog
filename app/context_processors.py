@@ -52,11 +52,14 @@ def _get_cached_settings() -> dict[str, Any]:
     """Emergency fallback when ThemeService is unavailable.
 
     This path is only reached when ``inject_theme`` catches an exception
-    from the theme service. It preserves backward compatibility with the
-    legacy THEME_PRESETS system until Phase 14 removes them entirely.
-    Normal rendering should never depend on this function.
+    from the theme service. Normal rendering should never depend on this
+    function. Uses ``EMERGENCY_DEFAULT`` from the theme model which
+    provides the same palette as the former ``github-dark`` preset.
     """
-    from app.models import THEME_PRESETS
+    from app.themes.model import EMERGENCY_DEFAULT
+    from app.themes.translate import to_legacy_vars
+
+    emergency_vars = to_legacy_vars(EMERGENCY_DEFAULT)
 
     try:
         from app.models import SiteSettings
@@ -66,41 +69,33 @@ def _get_cached_settings() -> dict[str, Any]:
         ).scalar_one_or_none()
 
         if not settings:
-            # Emergency: no SiteSettings row and theme service unavailable
             return {
-                "theme_preset": "github-dark",
-                "theme_vars": THEME_PRESETS["github-dark"],
+                "theme_preset": "emergency-default",
+                "theme_vars": emergency_vars,
                 "syntax_theme": "prism",
                 "custom_css_enabled": False,
                 "custom_css": "",
                 "logo_text": "",
-                "theme_presets": THEME_PRESETS,
             }
 
-        preset = THEME_PRESETS.get(settings.theme_preset, THEME_PRESETS["github-dark"])
         return {
-            "theme_preset": settings.theme_preset,
-            "theme_vars": preset,
+            "theme_preset": settings.theme_preset or "emergency-default",
+            "theme_vars": emergency_vars,
             "syntax_theme": settings.syntax_theme,
             "custom_css_enabled": settings.custom_css_enabled,
             "custom_css": settings.custom_css if settings.custom_css_enabled else "",
             "logo_text": settings.logo_text,
-            "theme_presets": THEME_PRESETS,
         }
     except OperationalError:
         logger.exception("Database error loading theme settings, using fallback")
         invalidate_settings_cache()
-        from app.models import THEME_PRESETS
-
-        # Emergency: database unavailable and theme service unavailable
         return {
-            "theme_preset": "github-dark",
-            "theme_vars": THEME_PRESETS["github-dark"],
+            "theme_preset": "emergency-default",
+            "theme_vars": emergency_vars,
             "syntax_theme": "prism",
             "custom_css_enabled": False,
             "custom_css": "",
             "logo_text": "",
-            "theme_presets": THEME_PRESETS,
         }
 
 
@@ -174,7 +169,7 @@ def register_context_processors(app: Any) -> None:
             return get_theme_service().get_context()
         except Exception:
             logger.warning(
-                "theme service unavailable, falling back to legacy THEME_PRESETS "
+                "theme service unavailable, using emergency fallback "
                 "(this should not happen in normal operation)"
             )
             return _get_cached_settings()

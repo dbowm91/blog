@@ -117,6 +117,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Theme Resources | `app/themes/resources.py` | `ThemeResource` protocol, `ThemeFileInfo`, bundled/external discovery via `importlib.resources`, name validation (Phase 04) |
 | Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation (Phase 04) |
 | Theme Registry | `app/themes/registry.py` | Authoritative theme registry: `_CatalogEntry` binding descriptor + source, listing, resolution, loading, fallback, structured exceptions (Phase 04) |
+| Theme Service | `app/themes/service.py` | Per-process `ThemeService` owning registry and fallback logic, `init_theme_service()`, `get_theme_service()` (Phase 07) |
 
 **Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
 
@@ -514,7 +515,7 @@ blog/
 │   ├── vite.py                      # Vite integration (content-hashed asset URLs, manifest lookup)
 │   ├── cli.py                       # CLI commands (flask cli)
 │   │
-│   ├── themes/                      # Halloy theme subsystem (Phases 04–05 complete)
+│   ├── themes/                      # Halloy theme subsystem (all phases complete)
 │   │   ├── __init__.py             # Public API exports
 │   │   ├── colors.py               # RGB/RGBA, hex parsing, WCAG contrast, color mixing
 │   │   ├── halloy.py               # Typed Halloy TOML parser with structured errors
@@ -524,6 +525,7 @@ blog/
 │   │   ├── resources.py            # ThemeResource protocol, bundled/external discovery via importlib.resources
 │   │   ├── cache.py                # In-process theme caching with source-state validation
 │   │   ├── registry.py             # Authoritative theme registry with _CatalogEntry, structured exceptions
+│   │   ├── service.py              # Per-process ThemeService, init/get helpers
 │   │   └── bundled/                # Packaged Halloy themes (50 .toml files, catalog_manifest.json)
 │   │
 │   ├── routes/                      # Route blueprints

@@ -12,13 +12,9 @@ from app.config import (  # noqa: F401
     THEME_DEFAULT_SCHEME,
 )
 from app.extensions import db
-from app.models import SiteSettings, THEME_PRESETS
+from app.models import SiteSettings
 from app.routes.admin import admin, admin_required
 from app.context_processors import invalidate_settings_cache
-from app.services.theme_settings import (  # noqa: F401
-    validate_theme_settings,
-    migrate_legacy_preset,
-)
 from app.themes.registry import (
     ThemeValidationError,
     ThemeNotFoundError,
@@ -61,7 +57,6 @@ def settings() -> ResponseReturnValue:
     return render_template(
         "admin/settings.html",
         settings=settings_obj,
-        theme_presets=THEME_PRESETS,
         syntax_themes=syntax_themes,
         theme_dark_name=settings_obj.theme_dark_name,
         theme_light_name=settings_obj.theme_light_name,

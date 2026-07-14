@@ -1,22 +1,30 @@
 # Legacy Theme Preset Compatibility
 
-This document maps the four existing hardcoded `THEME_PRESETS` (defined in `app/models.py:366-457`) to Halloy source files in `themes/`, records expected visual differences, and specifies migration semantics. This is a Phase 01 deliverable — no code changes.
+This document records the historical migration of four hardcoded `THEME_PRESETS` (formerly in `app/models.py`) to Halloy source files in `themes/`, documents expected visual differences, and specifies migration semantics. The `THEME_PRESETS` dict was removed in Phase 14.
 
 ## Section A: Legacy Preset Migration Table
 
-| Preset key | Display name | Halloy equivalent? | File | Expected visual differences | Migration mode |
-|---|---|---|---|---|---|
-| `github-dark` | GitHub Dark | No exact match | — | Full palette differs; closest dark theme is `Catppuccin Mocha.toml` but uses `#11111B` bg vs `#0d1117`, `#CDD6F4` text vs `#e6edf3`, `#89B4FA` accent vs `#58a6ff` | `legacy_kept` |
-| `github-light` | GitHub Light | No exact match | — | Full palette differs; closest light themes are `Catppuccin Latte.toml` (`#DCE0E8` bg) and `Noctis Lilac.toml` (`#EDECF8` bg) vs `#f6f8fa` | `legacy_kept` |
-| `solarized-dark` | Solarized Dark | Near match | `"Solarized Dark.toml"` | Accent shifts from `#268BD2` (blue) to `#2AA198` (teal); surface bg `#073642` mapped from `[buffer].background_text_input` not `[buffer].background` | `near_match` |
-| `monokai` | Monokai | No exact match | — | Closest is `Sonokai.toml` (Monokai variant) but bg `#2C2E34` vs `#272822`, accent `#76CCE0` vs `#66d9ef`, green `#9ED072` vs `#a6e22e` | `legacy_kept` |
+| Preset key | Display name | Halloy equivalent | Expected visual differences |
+|---|---|---|---|
+| `github-dark` | GitHub Dark | `Catppuccin Mocha` (mapped) | Full palette differs; closest dark theme uses `#11111B` bg vs `#0d1117`, `#CDD6F4` text vs `#e6edf3`, `#89B4FA` accent vs `#58a6ff` |
+| `github-light` | GitHub Light | `Catppuccin Latte` (mapped) | Full palette differs; closest light themes use `#DCE0E8` bg vs `#f6f8fa` |
+| `solarized-dark` | Solarized Dark | `Solarized Dark` (near match) | Accent shifts from `#268BD2` (blue) to `#2AA198` (teal); surface bg matches |
+| `monokai` | Monokai | `Sonokai` (mapped) | Closest is Sonokai (Monokai variant) but bg `#2C2E34` vs `#272822`, accent `#76CCE0` vs `#66d9ef` |
 
-### Migration mode definitions
+### Legacy preset mapping
 
-- **`direct_alias`** — Halloy file's translated tokens are visually equivalent to the legacy preset. No visual change on migration.
-- **`near_match`** — Close match with documented specific token differences. Operator should review before switching.
-- **`legacy_kept`** — No Halloy equivalent exists. Legacy hex values are preserved as a special-case source in the registry.
-- **`renamed`** — Halloy file is the canonical source; legacy display name is preserved as an alias.
+The `LEGACY_PRESET_MAP` in `app/services/theme_settings.py` maps old preset keys to Halloy theme names:
+
+```python
+LEGACY_PRESET_MAP = {
+    "github-dark": "Catppuccin Mocha",
+    "github-light": "Catppuccin Latte",
+    "solarized-dark": "Solarized Dark",
+    "monokai": "Sonokai",
+}
+```
+
+This mapping is used by `migrate_legacy_preset()` when upgrading from the old system.
 
 ## Section B: Cross-System Policy
 
@@ -32,29 +40,23 @@ This document maps the four existing hardcoded `THEME_PRESETS` (defined in `app/
 
 The visitor dark/light toggle was migrated in Phase 08 to a `blog-color-scheme` localStorage key with `system`/`dark`/`light` semantics. The CSS selector was updated from `[data-theme]` to `[data-color-scheme]`. The `dark-mode.js` module now re-exports from `color-scheme.js` for backward compatibility.
 
-## Section C: Phase 06/14 Migration Path
+## Section C: Migration Path (Completed)
 
 ### Phase 06 — Configuration and database migration
 
-Phase 06 will expand or replace `SiteSettings.theme_preset` with:
+Phase 06 expanded `SiteSettings` with `theme_dark_name`, `theme_light_name`, and `theme_default_scheme` columns. Existing rows with `theme_preset = "github-dark"` were migrated via the `preserve_legacy_scheme` migration. Operators may then switch to a Halloy theme of their choice through the admin UI added in Phase 10.
 
-- `dark_theme` — name of the active dark Halloy theme (or legacy preset key)
-- `light_theme` — name of the active light Halloy theme (or legacy preset key)
-- visitor preference: `system`, `dark`, or `light`
+### Phase 14 — Legacy removal (complete)
 
-Existing rows with `theme_preset = "github-dark"` will be migrated to `dark_theme = "github-dark"` (using the `legacy_kept` palette). Operators may then switch to a Halloy theme of their choice through the admin UI added in Phase 10.
+The `THEME_PRESETS` dict was removed from `app/models.py` in Phase 14. The emergency fallback in `app/context_processors.py` now uses `EMERGENCY_DEFAULT` from `app/themes/model.py` which provides the same palette as the former `github-dark` preset. The `LEGACY_PRESET_MAP` in `app/services/theme_settings.py` remains for reference but is no longer used at runtime.
 
-### Phase 14 — Legacy removal
-
-The `THEME_PRESETS` dict in `app/models.py` will be removed in Phase 14 after all migration paths are validated and operators have had time to transition. Until Phase 14, the four legacy names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) are kept as a "known-good" emergency fallback in the theme registry.
-
-### Deprecation timeline
+### Deprecation timeline (complete)
 
 | Phase | Action |
 |---|---|
 | 06 | Legacy presets available as `legacy_kept` entries in registry alongside Halloy themes |
-| 10 | Admin UI shows deprecation notice on legacy preset selection |
-| 14 | `THEME_PRESETS` dict removed; legacy names no longer recognized |
+| 10 | Admin UI shows registry-based theme selector (legacy presets no longer in selector) |
+| 14 | `THEME_PRESETS` dict removed; emergency fallback uses `EMERGENCY_DEFAULT` |
 
 ## Section D: Identified Visual Differences
 
@@ -125,9 +127,9 @@ Key palette reference for future authoring:
 
 ## Section E: Compatibility Aliases Summary
 
-All 22+ CSS custom properties currently emitted by `THEME_PRESETS` (via the `theme_vars` Jinja context in `app/templates/base.html:43`) have direct equivalents in the planned `BlogTheme` semantic token contract. The mapping is 1:1 for existing tokens — no CSS variable names are changed in this phase. The `BlogTheme` model (Phase 03) will extend the set with additional derived tokens (e.g., `text-on-accent`, `overlay`, `shadow`) but all current `theme_vars` keys are preserved as compatibility aliases.
+All 22+ CSS custom properties previously emitted by `THEME_PRESETS` have direct equivalents in the `BlogTheme` semantic token contract. The mapping is 1:1 for existing tokens — no CSS variable names are changed. The `BlogTheme` model extends the set with additional derived tokens (e.g., `text-on-accent`, `overlay`, `shadow`) but all legacy `theme_vars` keys are preserved as compatibility aliases via the `ALIASES` dict in `app/themes/model.py`.
 
-Refer to the token contract defined in `plans/halloy_theme_phase_01_inventory_and_token_contract.md` (section 4, "Define `BlogTheme`") and the Phase 03 translation layer plan (`plans/halloy_theme_phase_03_blog_translation_layer.md`) for the complete token matrix and derivation rules.
+Refer to the token contract defined in `docs/themes/blog-theme-contract.md` for the complete token matrix and derivation rules.
 
 ## Appendix: Halloy Theme Files Referenced
 
