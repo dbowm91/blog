@@ -217,23 +217,23 @@ textarea {
 /* --- Light mode palette: provided by inline <style> from Halloy themes --- */
 
 [data-color-scheme="light"] .navbar {
-    background: rgba(246, 248, 250, 0.85);
+    background: var(--navbar-bg);
 }
 
 [data-color-scheme="light"] .post-hero-overlay {
-    background: linear-gradient(to top, rgba(246, 248, 250, 0.95) 0%, rgba(246, 248, 250, 0.4) 100%);
+    background: linear-gradient(to top, var(--bg) 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 [data-color-scheme="light"] .post-hero-title {
-    color: #1f2328;
+    color: var(--text);
 }
 
 [data-color-scheme="light"] .prose code {
-    background: #eff1f3;
+    background: var(--code-bg);
 }
 
 [data-color-scheme="light"] .prose pre {
-    background: #f6f8fa;
+    background: var(--bg-surface);
 }
 
 .theme-toggle {

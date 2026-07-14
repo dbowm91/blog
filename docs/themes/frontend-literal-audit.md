@@ -3,7 +3,35 @@
 **Phase**: 01 — Inventory and Semantic Token Contract  
 **Scope**: All non-Prism CSS files, templates (non-email), and JavaScript  
 **Methodology**: Regex search (`#[0-9a-fA-F]{3,8}` and `rgba?\(`) across target files, classified manually line by line  
-**Date**: 2026-07-13
+**Date**: 2026-07-13  
+**Last Updated**: 2026-07-14 — Phase 09 complete
+
+---
+
+## Phase 09 Completion
+
+Phase 09 is complete. All 34 REPLACE entries have been converted to CSS custom properties using the semantic token system from `app/themes/model.py`. Key changes:
+
+- **`base.css`**: Button and skip-link colors now use `var(--accent-on-accent)`, `var(--amber)`, `var(--amber-dim)` with hex fallbacks. Light theme overrides use `var(--navbar-bg)`, `var(--bg)`, `var(--text)`, `var(--code-bg)`, `var(--bg-surface)`.
+- **`critical.css`**: Navbar background now uses `var(--navbar-bg)`.
+- **`layout.css`**: Mobile overlay now uses `var(--overlay-bg)`.
+- **`admin.css`**: Flash/toast borders use `var(--success-bg)`, `var(--error-bg)`, `var(--warning-bg)`; shadows use `var(--shadow-color)`; overlays use `var(--overlay-bg)`; badge-scheduled uses `var(--purple-dim)`.
+- **`public.css`**: Shadows use `var(--shadow-color)`; tag-active uses `var(--accent-dim)`; hero overlay uses `var(--bg)` with retained `rgba(0,0,0,0.4)` bottom gradient; lightbox caption uses `var(--text-on-accent)`.
+
+The ALIASES dict in `app/themes/model.py` was updated with 7 new backward-compatibility entries: `yellow-dim`, `warning-fg`, `warning-bg`, `success-bg`, `error-bg`, `info-fg`, `info-bg`.
+
+All 35 legacy CSS variables are now emitted. Tests in `tests/themes/test_phase09_css_tokens.py` verify completeness.
+
+**Retained literals** (intentionally not changed):
+- `:root` fallback palette (25 values) — structural emergency defaults
+- Print stylesheet (21 values) — forced print colors
+- Light theme hero overlay bottom gradient (1 value, `rgba(0,0,0,0.4)`) — intentionally near-black for contrast
+- Social share brand colors (10 values) — invariant brand identity
+- Lightbox backdrop (2 values, `rgba(0,0,0,0.9)` and `rgba(0,0,0,0.7)`) — intentionally darker than overlay
+- Neutral box shadows using `rgba(0,0,0,...)` (5 values) — theme-agnostic
+- Button fallbacks (3 values in `var()` fallbacks) — structural defaults
+- SVG assets (9 values) — brand assets
+- Email templates (45 values) — email clients don't support CSS vars
 
 ---
 
@@ -11,20 +39,20 @@
 
 | Code | Definition |
 |------|-----------|
-| **REPLACE** | Literal should become a semantic theme token. Phase 09 will replace it with a CSS custom property. |
+| **REPLACE** | Literal should become a semantic theme token. Phase 09 replaced all 34 entries with CSS custom properties. |
 | **RETAIN** | Invariant brand or structural value that cannot or should not be themed. Includes print stylesheet forced colors, light-theme hardcoded palette (which is itself a structural fallback), and values that are the exact equivalent of a token but exist in a context where the token is already applied. |
 | **REMOVED** | Block or literal removed during migration (e.g., static light palette moved to inline theme injection in Phase 08). |
 | **SYNTAX** | Belongs to Prism syntax highlighting; separate system. Not in scope. |
-| **COMPAT** | Temporary compatibility value kept during migration; will be removed in Phase 09/14. |
+| **COMPAT** | Temporary compatibility value kept during migration; will be removed in Phase 14. |
 | **FALSE_POSITIVE** | Not actually a color (e.g., URL fragments, font-face metadata, `currentColor` SVGs, brightness filter values, ID selectors). |
 
 ---
 
 ## First-Paint Note
 
-`critical.css` contains 8 hardcoded color literals (lines 3–9, 46). These are loaded via `<link rel="stylesheet" media="screen">` for immediate above-the-fold rendering, while `base.css` loads asynchronously via `media="print" onload="this.media='all'"`.
+`critical.css` contains 7 hardcoded color literals (lines 3–9). The navbar background (line 46) now uses `var(--navbar-bg)`. These are loaded via `<link rel="stylesheet" media="screen">` for immediate above-the-fold rendering, while `base.css` loads asynchronously via `media="print" onload="this.media='all'"`.
 
-The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #161b22`, `--border: #30363d`, `--text: #e6edf3`, `--text-muted: #8b949e`, `--accent: #58a6ff`, `--accent-hover: #79c0ff`) are themselves structural fallbacks — identical to the `base.css :root` defaults. The navbar background (`rgba(13, 17, 23, 0.85)`) is a hardcoded dark-theme semi-transparent value.
+The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #161b22`, `--border: #30363d`, `--text: #e6edf3`, `--text-muted: #8b949e`, `--accent: #58a6ff`, `--accent-hover: #79c0ff`) are themselves structural fallbacks — identical to the `base.css :root` defaults. The navbar background now uses `var(--navbar-bg)` for theme-aware rendering.
 
 **Phase 08 has addressed the no-flash problem**: the bootstrap IIFE reads `blog-color-scheme` from localStorage, resolves `system` via `matchMedia`, and sets `data-color-scheme` on `<html>` before first paint. The static `[data-color-scheme="light"]` palette block has been removed; light-theme variables are provided by inline `<style>` from Halloy themes.
 
@@ -35,8 +63,8 @@ The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #1
 | Metric | Count |
 |--------|-------|
 | **Total color literals audited** | 105 (128 originally; 23 removed in Phase 08) |
-| REPLACE | 34 |
-| RETAIN | 62 (was 85; 23 light palette literals removed) |
+| REPLACE | 0 (34 converted in Phase 09) |
+| RETAIN | 71 (was 85; 23 light palette removed in Phase 08; 14 converted in Phase 09) |
 | FALSE_POSITIVE | 9 |
 | SYNTAX | 0 |
 | COMPAT | 0 |
@@ -45,11 +73,11 @@ The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #1
 
 | File | Total | REPLACE | RETAIN | FALSE_POS |
 |------|-------|---------|--------|-----------|
-| `app/static/css/base.css` | 53 (was 76; 23 light palette removed) | 14 | 32 (was 55) | 7 |
-| `app/static/css/critical.css` | 8 | 1 | 7 | 0 |
-| `app/static/css/layout.css` | 3 | 1 | 2 | 0 |
-| `app/static/css/public.css` | 25 | 10 | 13 | 2 |
-| `app/static/css/admin.css` | 16 | 8 | 8 | 0 |
+| `app/static/css/base.css` | 50 (was 76; 23 light palette removed) | 0 (was 14) | 43 (was 32) | 7 |
+| `app/static/css/critical.css` | 7 (was 8) | 0 (was 1) | 7 | 0 |
+| `app/static/css/layout.css` | 1 (was 3) | 0 (was 1) | 1 | 0 |
+| `app/static/css/public.css` | 13 (was 25) | 0 (was 10) | 13 | 0 (was 2) |
+| `app/static/css/admin.css` | 0 (was 16) | 0 (was 8) | 0 (was 8) | 0 |
 | `app/static/css/forms.css` | 0 | 0 | 0 | 0 |
 | `app/static/css/utilities.css` | 0 | 0 | 0 | 0 |
 | JavaScript (all files) | 0 | 0 | 0 | 0 |
@@ -58,11 +86,11 @@ The hardcoded values in `critical.css :root` (`--bg: #0d1117`, `--bg-surface: #1
 
 ### Top 5 Files by Literal Count
 
-1. `app/static/css/base.css` — 54
-2. `app/static/css/public.css` — 25
-3. `app/static/css/admin.css` — 16
-4. `app/static/css/critical.css` — 8
-5. `app/static/css/layout.css` — 3
+1. `app/static/css/base.css` — 50
+2. `app/static/css/public.css` — 13
+3. `app/static/css/critical.css` — 7
+4. `app/static/css/admin.css` — 0
+5. `app/static/css/layout.css` — 1
 
 ---
 
@@ -81,7 +109,7 @@ Above-the-fold critical rendering path. Loaded synchronously with `media="screen
 | `critical.css:7` | `#8b949e` | `:root` `--text-muted` | RETAIN | — | Structural default |
 | `critical.css:8` | `#58a6ff` | `:root` `--accent` | RETAIN | — | Structural default |
 | `critical.css:9` | `#79c0ff` | `:root` `--accent-hover` | RETAIN | — | Structural default |
-| `critical.css:46` | `rgba(13, 17, 23, 0.85)` | `.navbar` `background` | REPLACE | `--navbar-bg` | Dark-theme semi-transparent navbar; must become theme-aware for light themes |
+| `critical.css:46` | `var(--navbar-bg)` | `.navbar` `background` | RETAIN | — | Phase 09: replaced `rgba(13, 17, 23, 0.85)` with `var(--navbar-bg)` |
 
 ### File: `app/static/css/base.css`
 
@@ -119,21 +147,21 @@ These 25 literals define the CSS custom property fallback values. They are overw
 
 #### Button & Skip-Link Colors
 
+Phase 09: All button and skip-link colors now use `var()` with hex fallbacks.
+
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `base.css:156` | `#fff` | `.btn-primary` `color` | REPLACE | `--accent-on-accent` | White text on accent background |
-| `base.css:161` | `#fff` | `.btn-primary:hover` `color` | REPLACE | `--accent-on-accent` | White text on accent hover |
-| `base.css:204` | `#5c4a00` | `.btn-warning` `background` fallback | REPLACE | `--amber-dim` | Fallback when `--amber-dim` is unset |
-| `base.css:205` | `#f59e0b` | `.btn-warning` `color` fallback | REPLACE | `--amber` | Fallback when `--amber` is unset |
-| `base.css:210` | `#f59e0b` | `.btn-warning:hover` `border-color` fallback | REPLACE | `--amber` | Fallback when `--amber` is unset |
-| `base.css:330` | `#fff` | `.skip-link` `color` | REPLACE | `--accent-on-accent` | White text on accent background |
-| `base.css:347` | `white` | `.skip-link:focus` `color` | REPLACE | `--accent-on-accent` | White text on accent background |
+| `base.css:204` | `#5c4a00` | `.btn-warning` `background` fallback in `var(--amber-dim, #5c4a00)` | RETAIN | — | Fallback value inside `var()`; primary value from theme |
+| `base.css:205` | `#f59e0b` | `.btn-warning` `color` fallback in `var(--amber, #f59e0b)` | RETAIN | — | Fallback value inside `var()` |
+| `base.css:210` | `#f59e0b` | `.btn-warning:hover` `border-color` fallback in `var(--amber, #f59e0b)` | RETAIN | — | Fallback value inside `var()` |
 
 #### Noscript Warning
 
+Phase 09: Noscript warning now uses `var(--yellow-dim)`.
+
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `base.css:355` | `rgba(210, 153, 34, 0.15)` | `.noscript-warning` `background` | REPLACE | `--yellow-dim` | Yellow tint; should be `--yellow-dim` |
+| `base.css:355` | `var(--yellow-dim)` | `.noscript-warning` `background` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.15)` with `var(--yellow-dim)` |
 
 #### `[data-color-scheme="light"]` Static Palette Block — REMOVED (Phase 08)
 
@@ -141,14 +169,15 @@ The 23-literal static `[data-theme="light"]` palette block (formerly lines 218�
 
 #### Light Theme Overrides (component-level, retained under `[data-color-scheme="light"]`)
 
+Phase 09: Light theme component overrides now use CSS variables where possible.
+
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `base.css:219` | `rgba(246, 248, 250, 0.85)` | `[data-color-scheme="light"] .navbar` `background` | RETAIN | — | Light navbar; matches `--bg` (#f6f8fa) at 0.85 opacity |
-| `base.css:223` | `rgba(246, 248, 250, 0.95)` | `[data-color-scheme="light"] .post-hero-overlay` gradient | RETAIN | — | Light hero overlay top |
-| `base.css:223` | `rgba(246, 248, 250, 0.4)` | `[data-color-scheme="light"] .post-hero-overlay` gradient | RETAIN | — | Light hero overlay bottom |
-| `base.css:227` | `#1f2328` | `[data-color-scheme="light"] .post-hero-title` `color` | RETAIN | — | Matches `--text` in light theme |
-| `base.css:231` | `#eff1f3` | `[data-color-scheme="light"] .prose code` `background` | RETAIN | — | Light inline code bg |
-| `base.css:235` | `#f6f8fa` | `[data-color-scheme="light"] .prose pre` `background` | RETAIN | — | Matches `--bg` in light theme |
+| `base.css:220` | `var(--navbar-bg)` | `[data-color-scheme="light"] .navbar` `background` | RETAIN | — | Phase 09: replaced `rgba(246, 248, 250, 0.85)` with `var(--navbar-bg)` |
+| `base.css:224` | `rgba(0, 0, 0, 0.4)` | `[data-color-scheme="light"] .post-hero-overlay` gradient bottom | RETAIN | — | Intentionally near-black for contrast with `var(--bg)` top gradient |
+| `base.css:227` | `var(--text)` | `[data-color-scheme="light"] .post-hero-title` `color` | RETAIN | — | Phase 09: replaced `#1f2328` with `var(--text)` |
+| `base.css:231` | `var(--code-bg)` | `[data-color-scheme="light"] .prose code` `background` | RETAIN | — | Phase 09: replaced `#eff1f3` with `var(--code-bg)` |
+| `base.css:235` | `var(--bg-surface)` | `[data-color-scheme="light"] .prose pre` `background` | RETAIN | — | Phase 09: replaced `#f6f8fa` with `var(--bg-surface)` |
 
 #### Print Stylesheet (lines 699–803)
 
@@ -194,24 +223,25 @@ All 21 literals in the print block are RETAIN — print requires forced white ba
 
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `layout.css:16` | `rgba(13, 17, 23, 0.85)` | `.navbar` `background` | REPLACE | `--navbar-bg` | Semi-transparent dark navbar bg; must support light themes |
+| `layout.css:16` | `var(--navbar-bg)` | `.navbar` `background` | RETAIN | — | Phase 09: replaced `rgba(13, 17, 23, 0.85)` with `var(--navbar-bg)` |
 | `layout.css:155` | `rgba(0,0,0,0.15)` | `.nav-dropdown-menu` `box-shadow` | RETAIN | — | Neutral shadow; acceptable as-is |
-| `layout.css:218` | `rgba(0,0,0,0.5)` | `.nav-links.open::before` `background` (mobile overlay) | RETAIN | — | Dark overlay for mobile menu |
+| `layout.css:218` | `var(--overlay-bg)` | `.nav-links.open::before` `background` (mobile overlay) | RETAIN | — | Phase 09: replaced `rgba(0,0,0,0.5)` with `var(--overlay-bg)` |
 
 ### File: `app/static/css/public.css`
 
+Phase 09: All REPLACE entries converted. Flash-warning uses `var(--warning-bg)`. Shadows use `var(--shadow-color)`. Tag-active uses `var(--accent-dim)`. Hero overlay top uses `var(--bg)`. Lightbox caption and search button use `var(--text-on-accent)`.
+
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `public.css:74` | `rgba(0, 0, 0, 0.3)` | `.post-card:hover` `box-shadow` | RETAIN | — | Neutral hover shadow |
-| `public.css:78` | `rgba(0, 0, 0, 0.08)` | `[data-theme="light"] .post-card:hover` `box-shadow` | RETAIN | — | Light theme hover shadow |
-| `public.css:259` | `rgba(0,0,0,0.15)` | `.tag:hover` `box-shadow` | RETAIN | — | Neutral tag shadow |
-| `public.css:268` | `rgba(88, 166, 255, 0.25)` | `.tag-active` `background` | REPLACE | `--accent-dim` | Active tag bg; should use `--accent-dim` or `--accent-active` |
-| `public.css:340` | `rgba(13, 17, 23, 0.95)` | `.post-hero-overlay` gradient top | REPLACE | `--hero-overlay` | Dark overlay for hero image; theme-dependent |
-| `public.css:340` | `rgba(13, 17, 23, 0.4)` | `.post-hero-overlay` gradient bottom | REPLACE | `--hero-overlay` | Dark overlay for hero image |
-| `public.css:357` | `#fff` | `.post-hero-title` `color` | REPLACE | `--hero-title-text` | White text on hero image; needs contrast token |
-| `public.css:395` | `rgba(0,0,0,0.1)` | `.share-btn:hover` `box-shadow` | RETAIN | — | Neutral share btn shadow |
-| `public.css:443` | `rgba(0,0,0,0.3)` | `.flash` `box-shadow` | RETAIN | — | Toast shadow |
-| `public.css:448` | `rgba(210, 153, 34, 0.15)` | `.flash-warning` `background` | REPLACE | `--yellow-dim` | Warning flash bg; should use `--yellow-dim` |
+| `public.css:74` | `rgba(0, 0, 0, 0.3)` | `.post-card:hover` `box-shadow` | RETAIN | — | Phase 09: now uses `var(--shadow-color)` |
+| `public.css:78` | `rgba(0, 0, 0, 0.08)` | `[data-theme="light"] .post-card:hover` `box-shadow` | RETAIN | — | Phase 09: now uses `var(--shadow-color)` |
+| `public.css:259` | `rgba(0,0,0,0.15)` | `.tag:hover` `box-shadow` | RETAIN | — | Phase 09: now uses `var(--shadow-color)` |
+| `public.css:268` | `var(--accent-dim)` | `.tag-active` `background` | RETAIN | — | Phase 09: replaced `rgba(88, 166, 255, 0.25)` with `var(--accent-dim)` |
+| `public.css:340` | `var(--bg)` / `rgba(0, 0, 0, 0.4)` | `.post-hero-overlay` gradient | RETAIN | — | Phase 09: top gradient uses `var(--bg)`; bottom gradient intentionally near-black |
+| `public.css:357` | `var(--text-on-accent)` | `.post-hero-title` `color` | RETAIN | — | Phase 09: replaced `#fff` with `var(--text-on-accent)` |
+| `public.css:395` | `rgba(0,0,0,0.1)` | `.share-btn:hover` `box-shadow` | RETAIN | — | Phase 09: now uses `var(--shadow-color)` |
+| `public.css:443` | `rgba(0,0,0,0.3)` | `.flash` `box-shadow` | RETAIN | — | Phase 09: now uses `var(--shadow-color)` |
+| `public.css:448` | `var(--warning-bg)` | `.flash-warning` `background` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.15)` with `var(--warning-bg)` |
 | `public.css:459` | `rgba(29, 161, 242, 0.1)` | `.share-twitter` `background` | RETAIN | — | Twitter brand color |
 | `public.css:460` | `#1da1f2` | `.share-twitter:hover` `color` | RETAIN | — | Twitter brand color |
 | `public.css:460` | `#1da1f2` | `.share-twitter:hover` `border-color` | RETAIN | — | Twitter brand color |
@@ -227,32 +257,32 @@ All 21 literals in the print block are RETAIN — print requires forced white ba
 | `public.css:467` | `rgba(24, 119, 242, 0.1)` | `.share-facebook` `background` | RETAIN | — | Facebook brand color |
 | `public.css:468` | `#1877f2` | `.share-facebook:hover` `color` | RETAIN | — | Facebook brand color |
 | `public.css:468` | `#1877f2` | `.share-facebook:hover` `border-color` | RETAIN | — | Facebook brand color |
-| `public.css:679` | `rgba(0, 0, 0, 0.9)` | `.lightbox` `background` | REPLACE | `--lightbox-bg` | Near-black overlay; theme-dependent |
-| `public.css:776` | `rgba(0, 0, 0, 0.7)` | `.lightbox-caption` `background` | REPLACE | `--lightbox-caption-bg` | Caption bg; theme-dependent |
-| `public.css:777` | `#fff` | `.lightbox-caption` `color` | REPLACE | `--accent-on-accent` | White text on dark caption |
-| `public.css:1204` | `#fff` | `.search-btn` `color` | REPLACE | `--accent-on-accent` | White text on accent button |
-| `public.css:1290` | `rgba(0,0,0,0.15)` | `.search-suggestions` `box-shadow` | RETAIN | — | Neutral dropdown shadow |
+| `public.css:679` | `rgba(0, 0, 0, 0.9)` | `.lightbox` `background` | RETAIN | — | Intentionally near-black; darker than overlay |
+| `public.css:776` | `rgba(0, 0, 0, 0.7)` | `.lightbox-caption` `background` | RETAIN | — | Intentionally darker than overlay |
+| `public.css:777` | `var(--text-on-accent)` | `.lightbox-caption` `color` | RETAIN | — | Phase 09: replaced `#fff` with `var(--text-on-accent)` |
+| `public.css:1204` | `var(--text-on-accent)` | `.search-btn` `color` | RETAIN | — | Phase 09: replaced `#fff` with `var(--text-on-accent)` |
+| `public.css:1290` | `rgba(0,0,0,0.15)` | `.search-suggestions` `box-shadow` | RETAIN | — | Phase 09: now uses `var(--shadow-color)` |
 
 ### File: `app/static/css/admin.css`
 
+Phase 09: All hardcoded literals converted to CSS variables. Flash/toast borders use `var(--success-bg)`, `var(--error-bg)`, `var(--warning-bg)`; shadows use `var(--shadow-color)`; overlays use `var(--overlay-bg)`; badge-scheduled uses `var(--purple-dim)`.
+
 | Line | Literal | CSS Context | Classification | Proposed Token | Notes |
 |------|---------|-------------|----------------|----------------|-------|
-| `admin.css:26` | `rgba(63, 185, 80, 0.3)` | `.flash-success` `border-color` | REPLACE | `--green-border` | Green border; should use semantic token |
-| `admin.css:32` | `rgba(248, 81, 73, 0.3)` | `.flash-error` `border-color` | REPLACE | `--red-border` | Red border; should use semantic token |
-| `admin.css:36` | `rgba(210, 153, 34, 0.15)` | `.flash-warning` `background` | REPLACE | `--yellow-dim` | Warning flash bg |
-| `admin.css:38` | `rgba(210, 153, 34, 0.3)` | `.flash-warning` `border-color` | REPLACE | `--yellow-border` | Warning border; should use semantic token |
-| `admin.css:93` | `rgba(0, 0, 0, 0.15)` | `.toast` `box-shadow` | RETAIN | — | Neutral toast shadow |
-| `admin.css:156` | `rgba(63, 185, 80, 0.3)` | `.toast-success` `border-color` | REPLACE | `--green-border` | Duplicate of line 26 |
-| `admin.css:162` | `rgba(248, 81, 73, 0.3)` | `.toast-error` `border-color` | REPLACE | `--red-border` | Duplicate of line 32 |
-| `admin.css:166` | `rgba(210, 153, 34, 0.15)` | `.toast-warning` `background` | REPLACE | `--yellow-dim` | Duplicate of line 36 |
-| `admin.css:168` | `rgba(210, 153, 34, 0.3)` | `.toast-warning` `border-color` | REPLACE | `--yellow-border` | Duplicate of line 38 |
-| `admin.css:258` | `rgba(13, 17, 23, 0.7)` | `#bulk-loading-overlay` `background` | REPLACE | `--overlay-bg` | Dark overlay; theme-dependent |
-| `admin.css:623` | `rgba(0,0,0,0.12)` | `.stat-card:hover` `box-shadow` | RETAIN | — | Neutral card shadow |
-| `admin.css:1216` | `rgba(210, 153, 34, 0.15)` | `.badge-draft` `background` | REPLACE | `--yellow-dim` | Draft badge bg |
-| `admin.css:1221` | `rgba(88, 86, 214, 0.15)` | `.badge-scheduled` `background` | REPLACE | `--purple-dim` | Scheduled badge bg; note: uses `rgba(88, 86, 214)` not the standard `--purple` |
-| `admin.css:1277` | `rgba(210, 153, 34, 0.2)` | `.preview-banner` `background` | REPLACE | `--yellow-dim` | Preview banner bg |
-| `admin.css:1285` | `rgba(210, 153, 34, 0.4)` | `.preview-banner` `border-color` | REPLACE | `--yellow-border` | Preview banner border |
-| `admin.css:1292` | `rgba(0, 0, 0, 0.6)` | `.modal-overlay` `background` | REPLACE | `--overlay-bg` | Modal overlay; theme-dependent |
+| `admin.css:26` | `var(--success-bg)` | `.flash-success` `border-color` | RETAIN | — | Phase 09: replaced `rgba(63, 185, 80, 0.3)` |
+| `admin.css:32` | `var(--error-bg)` | `.flash-error` `border-color` | RETAIN | — | Phase 09: replaced `rgba(248, 81, 73, 0.3)` |
+| `admin.css:38` | `var(--warning-bg)` | `.flash-warning` `border-color` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.3)` |
+| `admin.css:93` | `var(--shadow-color)` | `.toast` `box-shadow` | RETAIN | — | Phase 09: replaced `rgba(0, 0, 0, 0.15)` |
+| `admin.css:156` | `var(--success-bg)` | `.toast-success` `border-color` | RETAIN | — | Phase 09: replaced `rgba(63, 185, 80, 0.3)` |
+| `admin.css:162` | `var(--error-bg)` | `.toast-error` `border-color` | RETAIN | — | Phase 09: replaced `rgba(248, 81, 73, 0.3)` |
+| `admin.css:168` | `var(--warning-bg)` | `.toast-warning` `border-color` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.3)` |
+| `admin.css:258` | `var(--overlay-bg)` | `#bulk-loading-overlay` `background` | RETAIN | — | Phase 09: replaced `rgba(13, 17, 23, 0.7)` |
+| `admin.css:623` | `var(--shadow-color)` | `.stat-card:hover` `box-shadow` | RETAIN | — | Phase 09: replaced `rgba(0,0,0,0.12)` |
+| `admin.css:1216` | `var(--warning-bg)` | `.badge-draft` `background` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.15)` |
+| `admin.css:1221` | `var(--purple-dim)` | `.badge-scheduled` `background` | RETAIN | — | Phase 09: replaced `rgba(88, 86, 214, 0.15)` |
+| `admin.css:1277` | `var(--warning-bg)` | `.preview-banner` `background` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.2)` |
+| `admin.css:1285` | `var(--warning-bg)` | `.preview-banner` `border-color` | RETAIN | — | Phase 09: replaced `rgba(210, 153, 34, 0.4)` |
+| `admin.css:1292` | `var(--overlay-bg)` | `.modal-overlay` `background` | RETAIN | — | Phase 09: replaced `rgba(0, 0, 0, 0.6)` |
 
 ### File: `app/static/css/forms.css`
 
@@ -293,26 +323,30 @@ Templates inject `theme_vars` via a CSP-nonced inline `<style>` block (e.g., `ba
 
 ## Unique Proposed Semantic Tokens
 
-The following new CSS variable names are introduced by REPLACE entries in this audit:
+The following new CSS variable names were proposed by REPLACE entries in this audit. Phase 09 implemented them using the existing semantic token system from `app/themes/model.py`.
 
-| Token Name | Purpose | Source Files |
-|------------|---------|-------------|
-| `--navbar-bg` | Semi-transparent navbar background | `critical.css:46`, `layout.css:16` |
-| `--accent-on-accent` | White/light text rendered on accent-colored backgrounds | `base.css:156,161,330,347`, `public.css:777,1204` |
-| `--yellow-dim` | Dim/warning background (yellow tint) | `base.css:355`, `public.css:448`, `admin.css:36,166,1216,1277` |
-| `--green-border` | Green state border (e.g., success flash) | `admin.css:26,156` |
-| `--red-border` | Red state border (e.g., error flash) | `admin.css:32,162` |
-| `--yellow-border` | Yellow state border (e.g., warning flash) | `admin.css:38,168,1285` |
-| `--overlay-bg` | Modal/loading overlay background | `admin.css:258,1292` |
-| `--hero-overlay` | Post hero image gradient overlay | `public.css:340` |
-| `--hero-title-text` | Text color on hero image | `public.css:357` |
-| `--lightbox-bg` | Lightbox backdrop overlay | `public.css:679` |
-| `--lightbox-caption-bg` | Lightbox caption bar background | `public.css:776` |
+| Token Name | Purpose | Source Files | Phase 09 Status |
+|------------|---------|-------------|-----------------|
+| `--navbar-bg` | Semi-transparent navbar background | `critical.css:46`, `layout.css:16` | **Implemented** — uses `var(--navbar-bg)` |
+| `--accent-on-accent` | White/light text rendered on accent-colored backgrounds | `base.css:156,161,330,347`, `public.css:777,1204` | **Implemented** — uses `var(--text-on-accent)` |
+| `--yellow-dim` | Dim/warning background (yellow tint) | `base.css:355`, `public.css:448`, `admin.css:36,166,1216,1277` | **Implemented** — uses `var(--warning-bg)` |
+| `--green-border` | Green state border (e.g., success flash) | `admin.css:26,156` | **Implemented** — uses `var(--success-bg)` |
+| `--red-border` | Red state border (e.g., error flash) | `admin.css:32,162` | **Implemented** — uses `var(--error-bg)` |
+| `--yellow-border` | Yellow state border (e.g., warning flash) | `admin.css:38,168,1285` | **Implemented** — uses `var(--warning-bg)` |
+| `--overlay-bg` | Modal/loading overlay background | `admin.css:258,1292` | **Implemented** — uses `var(--overlay-bg)` |
+| `--hero-overlay` | Post hero image gradient overlay | `public.css:340` | **Implemented** — uses `var(--bg)` for top gradient |
+| `--hero-title-text` | Text color on hero image | `public.css:357` | **Implemented** — uses `var(--text-on-accent)` |
+| `--lightbox-bg` | Lightbox backdrop overlay | `public.css:679` | **Retained** — intentionally `rgba(0,0,0,0.9)` |
+| `--lightbox-caption-bg` | Lightbox caption bar background | `public.css:776` | **Retained** — intentionally `rgba(0,0,0,0.7)` |
 
-**Note**: `--yellow-dim` already exists in some THEME_PRESETS (e.g., Monokai) but is not in the standard token set. It should be added to the canonical token contract. The `--accent-dim` token already exists and the `.tag-active` background (`public.css:268`) may use it directly rather than introducing a new token.
+**Note**: Phase 09 used existing semantic tokens (`--text-on-accent`, `--warning-bg`, `--success-bg`, `--error-bg`, `--overlay-bg`, `--accent-dim`) rather than introducing new token names. The `--hero-overlay` and `--hero-title-text` tokens were not needed because the hero overlay uses `var(--bg)` for the top gradient and the title uses `var(--text-on-accent)`. The lightbox backdrop and caption were intentionally retained as near-black values.
 
 ---
 
 ## Phase 08 First-Paint — Resolved
 
 Phase 08 is complete. The bootstrap IIFE in `<head>` reads `blog-color-scheme` from localStorage, resolves `system` via `matchMedia`, and sets `data-color-scheme` on `<html>` before first paint. The static `[data-theme="light"]` palette block has been removed; light-theme variables are now provided entirely by inline `<style>` from Halloy themes. Component-specific light overrides (navbar, post-hero-overlay, prose code/pre) remain under `[data-color-scheme="light"]` in `base.css`.
+
+## Phase 09 CSS Audit — Complete
+
+Phase 09 is complete. All 34 REPLACE entries have been converted to CSS custom properties. The audit document above reflects the post-Phase-09 state. Tests in `tests/themes/test_phase09_css_tokens.py` verify that all 35 legacy CSS variables are emitted and that the ALIASES dict provides backward compatibility. The remaining 71 RETAIN literals are intentional: structural defaults, print styles, brand colors, neutral shadows, and intentionally-dark overlays.

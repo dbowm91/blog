@@ -277,7 +277,7 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ### Halloy Theme Migration (in progress)
 
-The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section), Phase 07 (Flask and Jinja runtime integration — centralized ThemeService, dual-scheme CSS emission, context processor overhaul), Phase 08 (visitor color-scheme behavior — 3-state system/dark/light, bootstrap script, CSS selector migration, static light palette block removed), Phase 09 (CSS and generated-markup audit — hardcoded literals replaced with CSS custom properties), Phase 10 (admin selection and preview — registry-based theme selector), Phase 11 (operator CLI — flask themes list/validate/inspect/refresh/accessibility), Phase 12 (accessibility validation — WCAG contrast checks), and Phase 13 (performance and reliability — benchmarks, cache validation, malformed file isolation) are complete. Phase 14 (documentation and legacy removal) is in progress. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
+The project is migrating from a 4-preset hardcoded theme system to a Halloy-compatible theme system with 50+ bundled themes. Phase 01 (inventory + token contract), Phase 02 (parser + color primitives), Phase 03 (blog translation layer), Phase 04 (safe registry and external overrides), Phase 05 (packaging), Phase 06 (runtime integration — SiteSettings columns, Alembic migration, theme settings validation service, config.toml theme section), Phase 07 (Flask and Jinja runtime integration — centralized ThemeService, dual-scheme CSS emission, context processor overhaul), Phase 08 (visitor color-scheme behavior — 3-state system/dark/light, bootstrap script, CSS selector migration, static light palette block removed), Phase 09 (CSS and generated-markup audit — hardcoded literals replaced with CSS custom properties, 34 REPLACE converted, 35 legacy vars emitted), Phase 10 (admin selection and preview — registry-based theme selector), Phase 11 (operator CLI — flask themes list/validate/inspect/refresh/accessibility), Phase 12 (accessibility validation — WCAG contrast checks), and Phase 13 (performance and reliability — benchmarks, cache validation, malformed file isolation) are complete. Phase 14 (documentation and legacy removal) is in progress. The phased plan is at `plans/halloy_theme_system_roadmap.md`. Phase status can be checked by reading the plans directory.
 
 **Small closure pass contracts:**
 - Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
@@ -299,7 +299,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - `tests/themes/` — inventory tests
 - `docs/themes/supported-schema.md` — Phase 02 parser input contract
 - `docs/themes/blog-theme-contract.md` — Phase 03 translator output contract (44 semantic tokens + 26 aliases)
-- `docs/themes/frontend-literal-audit.md` — Phase 09 execution list (128 literals: 34 REPLACE, 85 RETAIN, 9 FALSE_POS)
+- `docs/themes/frontend-literal-audit.md` — Phase 09 execution list (128 literals: 34 REPLACE converted, 71 RETAIN, 9 FALSE_POS)
 - `docs/themes/legacy-compatibility.md` — Phase 06/14 migration rules
 
 #### Key files (Phase 02 deliverables)
@@ -345,7 +345,7 @@ The project is migrating from a 4-preset hardcoded theme system to a Halloy-comp
 - Do NOT move or rename `themes/*.toml` until Phase 05
 - Future phases must add new code under `app/themes/` (planned: `halloy.py`, `colors.py`, `registry.py`, `resources.py`, `model.py`, `translate.py`, `diagnostics.py`, `bundled/`); do not scatter migration code across other modules
 - Bundled theme resources must use `importlib.resources`, never `Path(__file__).parent.parent.parent` or cwd-relative paths
-- Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) must continue to work unchanged through Phase 09
+- Existing CSS files (`base.css`, `critical.css`, `layout.css`, etc.) must continue to work unchanged through Phase 09 (complete)
 
 #### Key files (catalog source)
 

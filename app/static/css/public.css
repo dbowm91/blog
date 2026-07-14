@@ -71,11 +71,11 @@
 .post-card:hover {
     transform: translateY(-4px);
     border-color: var(--text-dim);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 12px 24px var(--shadow-color);
 }
 
 [data-color-scheme="light"] .post-card:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 24px var(--shadow-color);
 }
 
 .post-card:focus-visible {
@@ -256,7 +256,7 @@
 
 .tag:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .tag-count {
@@ -265,7 +265,7 @@
 }
 
 .tag-active {
-    background: rgba(88, 166, 255, 0.25);
+    background: var(--accent-dim);
     border: 1px solid var(--accent);
 }
 
@@ -337,7 +337,7 @@
 .post-hero-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(13, 17, 23, 0.95) 0%, rgba(13, 17, 23, 0.4) 100%);
+    background: linear-gradient(to top, var(--bg) 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 .post-hero-content {
@@ -392,7 +392,7 @@
 
 .share-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px var(--shadow-color);
 }
 
 .share-btn:active {
@@ -440,7 +440,7 @@
     justify-content: space-between;
     gap: 12px;
     animation: slideInRight 0.3s ease forwards;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 24px var(--shadow-color);
 }
 
 .flash-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
@@ -774,7 +774,7 @@
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.7);
-    color: #fff;
+    color: var(--text-on-accent);
     padding: 8px 16px;
     border-radius: var(--radius);
     font-size: 14px;
@@ -1287,7 +1287,7 @@
     overflow-y: auto;
     z-index: 100;
     display: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .search-suggestions .suggestion-item {
