@@ -213,12 +213,17 @@ The codebase has a typed configuration system at `app/config/` that replaces the
 
 `app/config/__init__.py` re-exports legacy globals for backward compat. The CLI provides `devlog config check/show/explain/paths/init/migrate` commands. Tests are in `tests/config/` (235 tests).
 
+**The typed config system (`app/config/model.py`) is the canonical source of truth for all configuration fields and their defaults.** `config.toml.example` mirrors these defaults. When adding or modifying config fields, update the dataclass in `model.py` first — the loader and example file follow from it.
+
 ### Env Var Fallback Chains
 
 Database URI: `SQLALCHEMY_DATABASE_URI` → `DATABASE_URL` → SQLite default.
 Cache Redis: `CACHE_REDIS_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
+Rate limit Redis: `RATE_LIMIT_STORAGE_URI` → `redis_url` → `redis://localhost:6379/0`.
 Celery broker: `CELERY_BROKER_URL` → `REDIS_URL` → `redis://localhost:6379/0`.
 Metrics: `ENABLE_METRICS=true` + `METRICS_SECRET` required in production.
+
+These chains are defined in `app/config/loader.py` (`_resolve_database_uri`, `_resolve_cache_redis_url`, `_resolve_celery_broker_url`). The full env var → config field mapping is in `_ENV_OVERRIDE_MAP`.
 
 ### Health Endpoint Split
 

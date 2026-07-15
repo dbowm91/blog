@@ -228,6 +228,72 @@ class TestValidateSchema:
         time_findings = [f for f in findings if f.code == "schema.invalid_send_time"]
         assert time_findings == []
 
+    def test_unknown_section_warning(self) -> None:
+        raw = {
+            "app": {},
+            "admin": {},
+            "server": {},
+            "author": {},
+            "site": {},
+            "email": {},
+            "newsletter": {},
+            "themes": {},
+            "typo_section": {"key": "value"},
+        }
+        findings = validate_schema(raw)
+        section_findings = [f for f in findings if f.code == "schema.unknown_section"]
+        assert len(section_findings) == 1
+        assert section_findings[0].field == "typo_section"
+        assert section_findings[0].severity == Severity.WARNING
+
+    def test_unknown_field_warning(self) -> None:
+        raw = {
+            "app": {"title": "test", "mispeled_key": "oops"},
+            "admin": {},
+            "server": {},
+            "author": {},
+            "site": {},
+            "email": {},
+            "newsletter": {},
+            "themes": {},
+        }
+        findings = validate_schema(raw)
+        field_findings = [f for f in findings if f.code == "schema.unknown_field"]
+        assert len(field_findings) == 1
+        assert field_findings[0].field == "app.mispeled_key"
+        assert field_findings[0].severity == Severity.WARNING
+
+    def test_known_section_no_unknown_warnings(self) -> None:
+        raw = {
+            "app": {"title": "test"},
+            "admin": {},
+            "server": {},
+            "author": {},
+            "site": {},
+            "email": {},
+            "newsletter": {},
+            "themes": {},
+        }
+        findings = validate_schema(raw)
+        unknown = [f for f in findings if f.code in ("schema.unknown_field", "schema.unknown_section", "schema.unknown_top_level_key")]
+        assert unknown == []
+
+    def test_version_top_level_not_flagged(self) -> None:
+        raw = {
+            "version": 1,
+            "app": {},
+            "admin": {},
+            "server": {},
+            "author": {},
+            "site": {},
+            "email": {},
+            "newsletter": {},
+            "themes": {},
+        }
+        findings = validate_schema(raw)
+        top_level = [f for f in findings if f.code == "schema.unknown_top_level_key"]
+        assert top_level == []
+
 
 class TestValidateSecurity:
     def test_missing_secret_key(self) -> None:

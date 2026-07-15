@@ -519,6 +519,7 @@ def config_check(
         )
 
     render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
 
 
 @config.command("show")
@@ -570,6 +571,7 @@ def config_show(ctx: click.Context, effective: bool, json_mode: bool) -> None:
         )
 
     render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
 
 
 @config.command("explain")
@@ -589,7 +591,7 @@ def config_explain(ctx: click.Context, field: str) -> None:
             exit_code=ExitCode.INVALID_USAGE,
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     meta = _get_field_meta(field)
     if meta is None:
@@ -599,7 +601,7 @@ def config_explain(ctx: click.Context, field: str) -> None:
             exit_code=ExitCode.INVALID_USAGE,
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     cfg = load_effective_config(config_path=cli_ctx.config_path, env_file=cli_ctx.env_file)
     config_dict = config_to_dict(cfg, redact_secrets=True)
@@ -628,6 +630,7 @@ def config_explain(ctx: click.Context, field: str) -> None:
         details=details,
     )
     render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
 
 
 @config.command("paths")
@@ -689,6 +692,7 @@ def config_paths(ctx: click.Context, json_mode: bool) -> None:
         details=details,
     )
     render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
 
 
 @config.command("init")
@@ -719,7 +723,7 @@ def config_init(ctx: click.Context, profile: str, force: bool, output_path: Path
             exit_code=ExitCode.INVALID_USAGE,
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     target = output_path or Path("config.toml")
 
@@ -731,7 +735,7 @@ def config_init(ctx: click.Context, profile: str, force: bool, output_path: Path
             remediation="Use --force to overwrite (existing file will be backed up), or specify --output PATH",
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     backup_path = None
     if target.exists() and force:
@@ -756,6 +760,7 @@ def config_init(ctx: click.Context, profile: str, force: bool, output_path: Path
         details=details,
     )
     render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
 
 
 @config.command("migrate")
@@ -780,7 +785,7 @@ def config_migrate(ctx: click.Context, dry_run: bool, config_path: Path | None) 
             exit_code=ExitCode.INVALID_USAGE,
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     if not config_path.exists():
         r = Result.failure(
@@ -789,7 +794,7 @@ def config_migrate(ctx: click.Context, dry_run: bool, config_path: Path | None) 
             exit_code=ExitCode.INVALID_CONFIG,
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     with open(config_path, "rb") as f:
         raw = tomllib.load(f)
@@ -807,7 +812,7 @@ def config_migrate(ctx: click.Context, dry_run: bool, config_path: Path | None) 
             summary=f"Config is already at version {raw.get('config_version', '?')}; no migration needed",
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     plan = dry_run_migration(raw)
 
@@ -822,7 +827,7 @@ def config_migrate(ctx: click.Context, dry_run: bool, config_path: Path | None) 
             details=plan,
         )
         render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-        return
+        raise SystemExit(r.exit_code)
 
     backup_path = backup_config(config_path)
     updated = apply_migration(raw, config_path)
@@ -863,6 +868,7 @@ def config_migrate(ctx: click.Context, dry_run: bool, config_path: Path | None) 
         details=details,
     )
     render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
 
 
 def register_config_commands(config_group: click.Group) -> None:

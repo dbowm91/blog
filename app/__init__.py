@@ -29,15 +29,7 @@ from flask_login import current_user, logout_user
 from sqlalchemy import event, text, delete
 from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db, login_manager, migrate
-from app.config import (
-    SECRET_KEY,
-    ADMIN_USERNAME,
-    ADMIN_PASSWORD,
-    SESSION_LIFETIME_HOURS,
-    MAX_UPLOAD_SIZE,
-    CDN_URL,
-    _env_str,
-)
+
 from app.csrf import validate_csrf_token, should_skip_csrf
 from app.utils import utc_now
 
@@ -153,42 +145,40 @@ def configure_logging(app: Flask) -> None:
 
 
 def create_app() -> Flask:
-    if not SECRET_KEY:
+    from app.config.loader import load_effective_config
+
+    cfg = load_effective_config()
+    if not cfg.secret_key:
         raise RuntimeError(
             "SECRET_KEY is required. Set it via the SECRET_KEY environment variable."
         )
-    if len(SECRET_KEY) < 32:
+    if len(cfg.secret_key) < 32:
         raise RuntimeError(
             "SECRET_KEY must be at least 32 characters long for security. "
-            "Current length: {}.".format(len(SECRET_KEY))
+            "Current length: {}.".format(len(cfg.secret_key))
         )
-    if not ADMIN_PASSWORD:
+    if not cfg.admin_password:
         raise RuntimeError(
             "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
         )
-    from app.config import _validate_config, _config as _raw_config  # noqa: E402
-
-    _validate_config(_raw_config)
-
     app = Flask(__name__, instance_relative_config=True)
-    app.config["SECRET_KEY"] = SECRET_KEY
+    app.devlog_config = cfg  # type: ignore[attr-defined]
+    app.config["SECRET_KEY"] = cfg.secret_key
     app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "static", "uploads")
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    db_uri = _env_str("SQLALCHEMY_DATABASE_URI") or _env_str("DATABASE_URL")
+    db_uri = cfg.database.uri
     if db_uri:
         app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     else:
         db_path = os.path.join(app.instance_path, "blog.db")
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1024 * 1024
-    app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
-        "SESSION_COOKIE_SECURE", "true"
-    ).lower() in ("true", "1", "yes")
+    app.config["MAX_CONTENT_LENGTH"] = cfg.app.max_upload_size + 1024 * 1024
+    app.config["SESSION_COOKIE_SECURE"] = cfg.session_cookie_secure
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
-    proxy_count = int(os.environ.get("PROXY_COUNT", 1))
+    proxy_count = cfg.proxy_count
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=1, x_host=1)  # type: ignore[method-assign]
 
     if not app.debug and not app.testing:
@@ -218,16 +208,12 @@ def create_app() -> Flask:
                 "pool_timeout": 30,
             }
 
-    from app.config import RATE_LIMIT_STORAGE_URI  # noqa: E402
-
-    app.config["RATELIMIT_STORAGE_URI"] = RATE_LIMIT_STORAGE_URI
+    app.config["RATELIMIT_STORAGE_URI"] = cfg.redis.rate_limit_url
     app.config["RATELIMIT_HEADERS_ENABLED"] = False
 
     limiter.init_app(app)
     if os.environ.get("FLASK_ENV") == "production":
-        cache_redis_url = _env_str("CACHE_REDIS_URL") or _env_str(
-            "REDIS_URL", "redis://localhost:6379/0"
-        )
+        cache_redis_url = cfg.redis.cache_url or cfg.redis.url
         cache_config = {
             "CACHE_TYPE": "RedisCache",
             "CACHE_REDIS_URL": cache_redis_url,
@@ -297,7 +283,7 @@ def create_app() -> Flask:
 
     register_filters(app)
 
-    SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 3600
+    SESSION_LIFETIME_SECONDS = cfg.app.session_lifetime_hours * 3600
 
     @app.before_request
     def before_request_handler() -> Response | None:
@@ -371,9 +357,9 @@ def create_app() -> Flask:
         if not current_app.debug:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         cdn_src = ""
-        if CDN_URL:
+        if cfg.site.cdn_url:
             try:
-                parsed = urlparse(CDN_URL)
+                parsed = urlparse(cfg.site.cdn_url)
                 cdn_src = f" {parsed.scheme}://{parsed.netloc}"
             except (ValueError, AttributeError):
                 pass
@@ -434,8 +420,8 @@ def create_app() -> Flask:
                 db.select(User).order_by(User.id).limit(1)
             ).scalar_one_or_none()
             if not existing_user:
-                user = User(username=ADMIN_USERNAME, is_admin=True)
-                user.set_password(ADMIN_PASSWORD)
+                user = User(username=cfg.admin.username, is_admin=True)
+                user.set_password(cfg.admin_password)
                 db.session.add(user)
                 try:
                     db.session.commit()
@@ -506,34 +492,27 @@ def create_app() -> Flask:
                 dialect,
             )
 
-    from app.config import (  # noqa: E402
-        ENABLE_SCHEDULER,
-        THEME_DEFAULT_DARK,
-        THEME_DEFAULT_LIGHT,
-        THEME_DEFAULT_SCHEME,
-        THEME_EXTERNAL_DIR,
-    )
     from app.scheduler import init_scheduler  # noqa: E402
 
-    external_root = Path(THEME_EXTERNAL_DIR) if THEME_EXTERNAL_DIR else None
+    external_root = Path(cfg.themes.external_dir) if cfg.themes.external_dir else None
     from app.themes.service import init_theme_service  # noqa: E402
 
     init_theme_service(
-        default_dark=THEME_DEFAULT_DARK,
-        default_light=THEME_DEFAULT_LIGHT,
-        default_scheme=THEME_DEFAULT_SCHEME,
+        default_dark=cfg.themes.default_dark,
+        default_light=cfg.themes.default_light,
+        default_scheme=cfg.themes.default_scheme,
         external_root=external_root,
         app=app,
     )
 
-    if ENABLE_SCHEDULER:
+    if cfg.scheduler.enabled:
         init_scheduler(app)
     else:
         app.logger.info("APScheduler disabled; set ENABLE_SCHEDULER=true to run scheduled jobs")
 
-    from app.config import ENABLE_METRICS, METRICS_SECRET, is_production  # noqa: E402
-
-    if ENABLE_METRICS and is_production() and not METRICS_SECRET:
+    metrics_enabled = cfg.metrics.enabled
+    metrics_secret = cfg.metrics.secret
+    if metrics_enabled and cfg.is_production() and not metrics_secret:
         raise RuntimeError(
             "METRICS_SECRET must be set when ENABLE_METRICS=true in production. "
             "Generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'"

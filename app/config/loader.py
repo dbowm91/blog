@@ -22,6 +22,7 @@ from app.config.model import (
     MetricsConfig,
     NewsletterConfig,
     RedisConfig,
+    SchedulerConfig,
     SearchConfig,
     SecurityConfig,
     ServerConfig,
@@ -48,7 +49,7 @@ _TOML_SECTION_MAP: dict[str, type] = {
     "database": DatabaseConfig,
     "redis": RedisConfig,
     "celery": CeleryConfig,
-    "scheduler": type(None),
+    "scheduler": SchedulerConfig,
     "storage": StorageConfig,
     "health": HealthConfig,
     "metrics": MetricsConfig,
@@ -127,6 +128,7 @@ _TOML_TO_DATACLASS_FIELD: dict[str, dict[str, str]] = {
     },
     "redis": {"url": "url", "cache_url": "cache_url", "rate_limit_url": "rate_limit_url"},
     "celery": {"broker_url": "broker_url"},
+    "scheduler": {"enabled": "enabled"},
     "storage": {
         "backend": "backend",
         "s3_bucket": "s3_bucket",
@@ -431,12 +433,11 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
 
     celery_section = CeleryConfig(broker_url=celery_url)
 
-    scheduler_enabled = False
-    if "scheduler_enabled" in raw:
-        scheduler_enabled = _coerce_value(str(raw["scheduler_enabled"]), bool)
-    elif "ENABLE_SCHEDULER" in raw:
-        scheduler_enabled = _coerce_value(str(raw["ENABLE_SCHEDULER"]), bool)
-    scheduler_section = type("SchedulerConfig", (), {"enabled": scheduler_enabled})()
+    scheduler_section = _build_section(SchedulerConfig, _TOML_TO_DATACLASS_FIELD["scheduler"], raw)
+    if not scheduler_section.enabled and "scheduler_enabled" in raw:
+        scheduler_section = SchedulerConfig(
+            enabled=_coerce_value(str(raw["scheduler_enabled"]), bool)
+        )
 
     secret_key = secrets.get("SECRET_KEY", raw.get("secret_key", ""))
     admin_password = secrets.get("ADMIN_PASSWORD", raw.get("admin_password", ""))

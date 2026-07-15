@@ -1,21 +1,41 @@
+config_version = 1
+
+# =============================================================================
+# DevLog Configuration Reference
+# =============================================================================
+#
+# This file is a template. setup.sh copies it to config.toml if absent.
+# config.toml is gitignored — only this file is committed.
+#
+# Precedence chain (highest wins):
+#   1. Environment variables (e.g. SECRET_KEY, ADMIN_PASSWORD)
+#   2. config.toml
+#   3. Defaults below (which match the dataclass defaults in app/config/model.py)
+#
+# Secret fields MUST be set via environment variables, not this file.
+# See .env.example for required variables.
+
 [app]
 title = "DevLog"
 description = "A place for thoughts on code"
 posts_per_page = 10
 max_viewed_posts = 100
 session_lifetime_hours = 24
+session_ip_binding = "warn"       # "warn", "enforce", or "off"
 tag_cache_ttl_seconds = 60
 dashboard_per_page = 20
 subscribers_per_page = 50
 media_per_page = 50
 media_max_files = 1000
-max_upload_size = 10485760  # 10MB in bytes
+max_upload_size = 10485760        # bytes (default: 10 MB)
 export_batch_size = 500
 fts_result_limit = 100
-page_view_buffer_size = 100
-token_enumeration_delay = 0.1  # seconds
-# secret_key, admin credentials, and SMTP creds are read from environment variables.
-# See .env.example for required variables.
+page_view_buffer_size = 0
+token_enumeration_delay = 0.1    # seconds
+login_failure_delay = 0.05       # seconds (minimum 0.1 enforced at runtime)
+preview_token_expiry_days = 7
+analytics_days_min = 7
+analytics_days_max = 365
 
 [admin]
 username = "admin"
@@ -33,15 +53,16 @@ avatar = ""
 
 [site]
 base_url = "http://localhost:5000"
+cdn_url = ""
 related_posts_count = 3
 
 [email]
 smtp_host = ""
 smtp_port = 587
-smtp_user = ""
-smtp_password = ""
+smtp_user = ""                   # read from environment variables
+smtp_password = ""               # read from environment variables
 from_address = "blog@example.com"
-smtp_timeout = 30  # seconds
+smtp_timeout = 30                # seconds
 
 [newsletter]
 send_time = "08:00"
@@ -64,4 +85,80 @@ allow_external = true
 strict_validation = false
 default_dark = "Catppuccin Mocha"
 default_light = "Catppuccin Latte"
-default_scheme = "system"
+default_scheme = "system"        # "system", "dark", or "light"
+
+# =============================================================================
+# Infrastructure
+# =============================================================================
+
+[database]
+# Default: SQLite at instance/blog.db. Override with SQLALCHEMY_DATABASE_URI
+# env var or set uri here for PostgreSQL/MySQL.
+uri = ""
+pool_size = 10
+max_overflow = 20
+pool_recycle = 3600              # seconds
+
+[redis]
+# CACHE_REDIS_URL and RATE_LIMIT_URL fall back to this url if not set.
+url = "redis://localhost:6379/0"
+# Override individually (fall back to url above):
+cache_url = ""
+rate_limit_url = ""
+
+[celery]
+# Broker falls back to Redis url if not set.
+broker_url = ""
+
+[scheduler]
+# Enable APScheduler on exactly ONE container. Disabled by default to avoid
+# duplicate jobs in multi-replica deployments.
+enabled = false
+
+[storage]
+backend = "local"                # "local" or "s3"
+s3_bucket = ""
+s3_region = ""
+s3_access_key = ""               # read from environment variables
+s3_secret_key = ""               # read from environment variables
+s3_endpoint = ""
+s3_public_url = ""
+
+# =============================================================================
+# Security & Observability
+# =============================================================================
+
+[health]
+# Required in production for detailed health checks. Set via
+# HEALTH_CHECK_SECRET environment variable.
+check_secret = ""
+
+[metrics]
+enabled = false
+# Required in production when enabled. Set via METRICS_SECRET environment
+# variable.
+secret = ""
+
+[backup]
+data_backup_dir = "backups"
+# Set via BACKUP_ENCRYPTION_KEY environment variable for encrypted backups.
+encryption_key = ""
+
+[security]
+max_failed_attempts = 5
+lockout_duration_minutes = 15
+
+[webhook]
+timeout = 10                    # seconds
+# Set via WEBHOOK_ENCRYPTION_KEY environment variable.
+encryption_key = ""
+
+[logging]
+level = "INFO"
+
+[search]
+provider = "sqlite"
+# provider-specific config as a TOML table, e.g.:
+# [search.config]
+# index_path = "search_index"
+config = {}

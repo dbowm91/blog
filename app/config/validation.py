@@ -287,10 +287,45 @@ def validate_schema(raw_toml: dict) -> list[Finding]:
                 )
             )
 
+    known_top_level = set(SECTION_FIELD_TYPES) | {"version", "config_version"}
+    for key in raw_toml:
+        if key not in known_top_level:
+            findings.append(
+                Finding(
+                    severity=Severity.WARNING,
+                    code="schema.unknown_top_level_key",
+                    field=key,
+                    message=f"Unrecognized top-level key: {key!r}",
+                )
+            )
+
+    for section_name in raw_toml:
+        if not isinstance(raw_toml[section_name], dict):
+            continue
+        if section_name not in SECTION_FIELD_TYPES:
+            findings.append(
+                Finding(
+                    severity=Severity.WARNING,
+                    code="schema.unknown_section",
+                    field=section_name,
+                    message=f"Unrecognized config section: [{section_name}]",
+                )
+            )
+
     for section_name, field_types in SECTION_FIELD_TYPES.items():
         section = raw_toml.get(section_name)
         if not isinstance(section, dict):
             continue
+        for field_name in section:
+            if field_name not in field_types:
+                findings.append(
+                    Finding(
+                        severity=Severity.WARNING,
+                        code="schema.unknown_field",
+                        field=f"{section_name}.{field_name}",
+                        message=f"Unrecognized field in [{section_name}]: {field_name!r}",
+                    )
+                )
         for field_name, expected in field_types.items():
             value = section.get(field_name)
             if value is None:
@@ -753,6 +788,56 @@ def _is_plausible_theme_name(name: str) -> bool:
     return True
 
 
+_PLACEHOLDER_PATTERNS = (
+    "replace-with",
+    "your-",
+    "change-me",
+    "example",
+    "placeholder",
+    "changeme",
+    "password123",
+    "admin123",
+    "secret123",
+)
+
+
+def _is_placeholder_secret(value: str) -> bool:
+    if not value:
+        return False
+    lower = value.lower().strip()
+    for pattern in _PLACEHOLDER_PATTERNS:
+        if pattern in lower:
+            return True
+    if len(value) < 8:
+        return True
+    return False
+
+
+def validate_secret_values(config: DevLogConfig) -> list[Finding]:
+    findings: list[Finding] = []
+    secret_checks = [
+        ("secret_key", config.secret_key),
+        ("admin_password", config.admin_password),
+        ("email.smtp_password", config.email.smtp_password),
+        ("health.check_secret", config.health.check_secret),
+        ("metrics.secret", config.metrics.secret),
+        ("webhook.encryption_key", config.webhook.encryption_key),
+        ("backup.encryption_key", config.backup.encryption_key),
+    ]
+    for field_path, value in secret_checks:
+        if value and _is_placeholder_secret(value):
+            findings.append(
+                Finding(
+                    severity=Severity.WARNING,
+                    code="security.placeholder_secret",
+                    field=field_path,
+                    message=f"{field_path} appears to be a placeholder or weak value",
+                    remediation=f"Set a strong, randomly generated value for {field_path}",
+                )
+            )
+    return findings
+
+
 def validate_all(
     config: DevLogConfig,
     *,
@@ -770,6 +855,7 @@ def validate_all(
         all_findings.extend(validate_filesystem(config, config_path=config_path))
     all_findings.extend(validate_dependencies(config))
     all_findings.extend(validate_compatibility(config))
+    all_findings.extend(validate_secret_values(config))
 
     if production:
         elevated: list[Finding] = []
