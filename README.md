@@ -287,7 +287,7 @@ See [DEPLOY.md § Support Matrix](DEPLOY.md#support-matrix) for details.
 flask create-admin <username>     # Create admin user
 flask promote-admin <username>    # Promote to admin
 flask rebuild-search              # Rebuild FTS5 index
-flask cleanup-orphaned-images     # Remove unused images
+flask cleanup-orphaned-images     # Remove unused images (equivalent to devlog media cleanup)
 flask check-integrity            # Verify database integrity
 flask export-data <file>         # Export data to JSON
 flask import-data <file>        # Import data from JSON
@@ -330,6 +330,8 @@ devlog themes accessibility      # Run WCAG contrast checks (--strict for mandat
 devlog backup create             # Create a backup
 devlog backup verify <filename>  # Verify backup integrity
 ```
+
+> **Note:** Flask commands (`flask ...`) delegate to the same service layer as the standalone `devlog` CLI. The `devlog` CLI is the recommended interface for scripting and automation.
 
 ### API Endpoints
 

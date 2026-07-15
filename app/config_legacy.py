@@ -124,57 +124,61 @@ def load_config() -> dict[str, Any]:
     )
 
 
-_config = load_config()
+try:
+    _config = load_config()
+except RuntimeError:
+    _config = {}
 
-APP_TITLE = _config["app"]["title"]
-APP_DESCRIPTION = _config["app"]["description"]
-POSTS_PER_PAGE = _config["app"]["posts_per_page"]
+
+APP_TITLE = _config.get("app", {}).get("title", "DevLog")
+APP_DESCRIPTION = _config.get("app", {}).get("description", "A developer blog")
+POSTS_PER_PAGE = int(_config.get("app", {}).get("posts_per_page", 10))
 SECRET_KEY = _env("SECRET_KEY")
-MAX_VIEWED_POSTS = int(_config["app"].get("max_viewed_posts", 100))
-SESSION_LIFETIME_HOURS = int(_config["app"].get("session_lifetime_hours", 24))
-SESSION_IP_BINDING = _config["app"].get("session_ip_binding", "warn")
+MAX_VIEWED_POSTS = int(_config.get("app", {}).get("max_viewed_posts", 100))
+SESSION_LIFETIME_HOURS = int(_config.get("app", {}).get("session_lifetime_hours", 24))
+SESSION_IP_BINDING = _config.get("app", {}).get("session_ip_binding", "warn")
 
-ADMIN_USERNAME = _env("ADMIN_USERNAME", _config["admin"]["username"])
+ADMIN_USERNAME = _env("ADMIN_USERNAME", _config.get("admin", {}).get("username", "admin"))
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD")
 
-SERVER_HOST = _config["server"]["host"]
-SERVER_PORT = int(_config["server"]["port"])
-DEBUG = _config["server"].get("debug", False)
+SERVER_HOST = _config.get("server", {}).get("host", "127.0.0.1")
+SERVER_PORT = int(_config.get("server", {}).get("port", 5000))
+DEBUG = _config.get("server", {}).get("debug", False)
 
-AUTHOR_NAME = _config["author"]["name"]
-AUTHOR_ROLE = _config["author"]["role"]
-AUTHOR_AVATAR = _config["author"].get("avatar", "")
+AUTHOR_NAME = _config.get("author", {}).get("name", "Author")
+AUTHOR_ROLE = _config.get("author", {}).get("role", "writer")
+AUTHOR_AVATAR = _config.get("author", {}).get("avatar", "")
 
 BASE_URL = _config.get("site", {}).get("base_url", "http://localhost:5000").rstrip("/")
 CDN_URL = _env("CDN_URL", _config.get("site", {}).get("cdn_url", "")).rstrip("/") or ""
-RELATED_POSTS_COUNT = _config["site"]["related_posts_count"]
+RELATED_POSTS_COUNT = int(_config.get("site", {}).get("related_posts_count", 5))
 
-SMTP_HOST = _config["email"]["smtp_host"]
-SMTP_PORT = int(_config["email"]["smtp_port"])
-SMTP_USER = _env("SMTP_USER", _config["email"].get("smtp_user", ""))
-SMTP_PASSWORD = _env("SMTP_PASSWORD", _config["email"].get("smtp_password", ""))
-FROM_ADDRESS = _config["email"]["from_address"]
+SMTP_HOST = _config.get("email", {}).get("smtp_host", "")
+SMTP_PORT = int(_config.get("email", {}).get("smtp_port", 587))
+SMTP_USER = _env("SMTP_USER", _config.get("email", {}).get("smtp_user", ""))
+SMTP_PASSWORD = _env("SMTP_PASSWORD", _config.get("email", {}).get("smtp_password", ""))
+FROM_ADDRESS = _config.get("email", {}).get("from_address", "")
 
-NEWSLETTER_SEND_TIME = _config["newsletter"]["send_time"]
-CONFIRMATION_EXPIRY_HOURS = int(_config["newsletter"].get("confirmation_expiry_hours", 1))
-NEWSLETTER_MAX_RETRY_ATTEMPTS = int(_config["newsletter"].get("max_retry_attempts", 5))
+NEWSLETTER_SEND_TIME = _config.get("newsletter", {}).get("send_time", "08:00")
+CONFIRMATION_EXPIRY_HOURS = int(_config.get("newsletter", {}).get("confirmation_expiry_hours", 1))
+NEWSLETTER_MAX_RETRY_ATTEMPTS = int(_config.get("newsletter", {}).get("max_retry_attempts", 5))
 ENABLE_SCHEDULER = _env_bool("ENABLE_SCHEDULER", default=False)
-TAG_CACHE_TTL_SECONDS = int(_config["app"].get("tag_cache_ttl_seconds", 60))
+TAG_CACHE_TTL_SECONDS = int(_config.get("app", {}).get("tag_cache_ttl_seconds", 60))
 
-DASHBOARD_PER_PAGE = int(_config["app"].get("dashboard_per_page", 20))
-SUBSCRIBERS_PER_PAGE = int(_config["app"].get("subscribers_per_page", 50))
-MEDIA_PER_PAGE = int(_config["app"].get("media_per_page", 50))
-MEDIA_MAX_FILES = int(_config["app"].get("media_max_files", 1000))
-MAX_UPLOAD_SIZE = int(_config["app"].get("max_upload_size", 10485760))
-EXPORT_BATCH_SIZE = int(_config["app"].get("export_batch_size", 500))
-FTS_RESULT_LIMIT = int(_config["app"].get("fts_result_limit", 100))
-ANALYTICS_DAYS_MIN = int(_config["app"].get("analytics_days_min", 7))
-ANALYTICS_DAYS_MAX = int(_config["app"].get("analytics_days_max", 365))
+DASHBOARD_PER_PAGE = int(_config.get("app", {}).get("dashboard_per_page", 20))
+SUBSCRIBERS_PER_PAGE = int(_config.get("app", {}).get("subscribers_per_page", 50))
+MEDIA_PER_PAGE = int(_config.get("app", {}).get("media_per_page", 50))
+MEDIA_MAX_FILES = int(_config.get("app", {}).get("media_max_files", 1000))
+MAX_UPLOAD_SIZE = int(_config.get("app", {}).get("max_upload_size", 10485760))
+EXPORT_BATCH_SIZE = int(_config.get("app", {}).get("export_batch_size", 500))
+FTS_RESULT_LIMIT = int(_config.get("app", {}).get("fts_result_limit", 100))
+ANALYTICS_DAYS_MIN = int(_config.get("app", {}).get("analytics_days_min", 7))
+ANALYTICS_DAYS_MAX = int(_config.get("app", {}).get("analytics_days_max", 365))
 PAGE_VIEW_BUFFER_SIZE = int(
-    os.environ.get("PAGE_VIEW_BUFFER_SIZE", _config["app"].get("page_view_buffer_size", 0))
+    os.environ.get("PAGE_VIEW_BUFFER_SIZE", _config.get("app", {}).get("page_view_buffer_size", 0))
 )
-TOKEN_ENUMERATION_DELAY = float(_config["app"].get("token_enumeration_delay", 0.1))
-PREVIEW_TOKEN_EXPIRY_DAYS = int(_config["app"].get("preview_token_expiry_days", 7))
+TOKEN_ENUMERATION_DELAY = float(_config.get("app", {}).get("token_enumeration_delay", 0.1))
+PREVIEW_TOKEN_EXPIRY_DAYS = int(_config.get("app", {}).get("preview_token_expiry_days", 7))
 
 COMMENT_MIN_LENGTH = int(_config.get("comments", {}).get("min_length", 3))
 COMMENT_MAX_LENGTH = int(_config.get("comments", {}).get("max_length", 5000))
@@ -193,7 +197,7 @@ def is_production() -> bool:
 
 
 LOGIN_FAILURE_DELAY = float(
-    _env("LOGIN_FAILURE_DELAY", _config["app"].get("login_failure_delay", 0.05))
+    _env("LOGIN_FAILURE_DELAY", _config.get("app", {}).get("login_failure_delay", 0.05))
 )
 LOGIN_FAILURE_DELAY = max(LOGIN_FAILURE_DELAY, 0.1)
 RATE_LIMIT_STORAGE_URI = _env(
@@ -207,7 +211,7 @@ WEBHOOK_TIMEOUT = int(_config.get("webhook", {}).get("timeout", 10))
 WEBHOOK_ENCRYPTION_KEY = _env("WEBHOOK_ENCRYPTION_KEY", "")
 COMPRESS_ALGORITHM = ["zstd", "br", "gzip"]
 
-SMTP_TIMEOUT = int(_config["email"].get("smtp_timeout", 30))
+SMTP_TIMEOUT = int(_config.get("email", {}).get("smtp_timeout", 30))
 
 MAX_FAILED_ATTEMPTS = int(_config.get("security", {}).get("max_failed_attempts", 5))
 LOCKOUT_DURATION_MINUTES = int(_config.get("security", {}).get("lockout_duration_minutes", 15))
