@@ -91,7 +91,7 @@ devlog --verbose config     # Verbose help
 devlog --quiet db           # Minimal output
 ```
 
-Command groups: `config`, `admin`, `db`, `themes`, `backup`, `deploy`. Actual commands arrive in future phases; current groups show help-only stubs.
+Command groups: `config`, `admin`, `db`, `themes`, `backup`, `deploy`. The `config` group provides typed configuration management commands.
 
 ### Access Your Blog
 
@@ -113,6 +113,17 @@ Visit `http://localhost:5000`. Admin panel at `http://localhost:5000/admin/login
 4. Send newsletters from `/admin/subscribers`
 
 For production deployment, see [DEPLOY.md](DEPLOY.md).
+
+### Configuration Management
+
+DevLog includes a typed configuration system at `app/config/` with 20 frozen dataclasses, multi-layer validation, and deployment profiles. Use the `devlog` CLI for configuration management:
+
+```bash
+devlog config check              # Validate configuration
+devlog config show --effective   # Show resolved values with sources
+devlog config explain email.smtp_host  # Explain a specific field
+devlog config init --profile development  # Generate config from profile
+```
 
 ---
 
@@ -240,6 +251,7 @@ See [docs/themes/operator-guide.md](docs/themes/operator-guide.md) for the full 
 | Included nginx profile | Optional/advanced | Requires `--profile reverse-proxy` and certificate configuration |
 | Metrics endpoint | Supported when enabled | Disabled by default; secret required in production |
 | Detailed health | Supported when protected | Basic health remains public; detailed health requires secret in production |
+| Typed configuration | Supported | 20 frozen dataclasses, multi-layer validation, deployment profiles, CLI management |
 
 See [DEPLOY.md § Support Matrix](DEPLOY.md#support-matrix) for details.
 
@@ -265,6 +277,8 @@ See [DEPLOY.md § Support Matrix](DEPLOY.md#support-matrix) for details.
 | `METRICS_SECRET` | No | Secret for `/metrics` endpoint (no fallback; must be set with `ENABLE_METRICS`) |
 | `ENABLE_METRICS` | No | Enable `/metrics` endpoint (default: `false`; set `true` with `METRICS_SECRET` in production) |
 
+**Note:** The typed configuration system (`app/config/`) supports all these environment variables with precedence: env vars > config.toml > defaults. Use `devlog config explain <field>` to see the full mapping for any config field.
+
 ### CLI Commands
 
 ```bash
@@ -283,6 +297,14 @@ flask themes inspect <name>      # Inspect theme details
 flask themes refresh             # Refresh theme registry
 flask themes paths               # Show theme resource paths
 flask themes accessibility       # Run WCAG contrast checks (--strict for mandatory-only, --json for structured output)
+
+# Typed configuration management (via devlog CLI)
+devlog config check              # Validate configuration with multi-layer checks
+devlog config show               # Display current config (secrets redacted)
+devlog config explain <field>    # Explain a specific config field
+devlog config paths              # Show config file resolution paths
+devlog config init --profile <name>  # Generate config from deployment profile
+devlog config migrate            # Migrate config to current version
 ```
 
 ### API Endpoints

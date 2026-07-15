@@ -78,11 +78,13 @@ Important actual file locations (verify before assuming):
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, encryption, search, serialization, slug, tag) |
 | Theme settings service | `app/services/theme_settings.py` — validation, migration, effective name resolution |
-| Theme config | `app/config.py` — `THEME_EXTERNAL_DIR`, `THEME_ALLOW_EXTERNAL`, `THEME_STRICT_VALIDATION`, `THEME_DEFAULT_DARK`, `THEME_DEFAULT_LIGHT`, `THEME_DEFAULT_SCHEME` |
+| Typed config package | `app/config/` — typed config model, loader, validation, provenance, secrets, profiles, serialization, migration |
+| Theme config | `app/config.py` → `app/config_legacy.py` — legacy globals re-exported via `app/config/__init__.py` for backward compat |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
 | DB Dialect Helpers | `app/db_utils.py` (`get_database_dialect()`, `is_sqlite_database()`) |
 | CLI package | `devlog_cli/` — standalone Click CLI (main, context, output, errors, exit_codes, result) |
 | CLI entry point | `devlog_cli.main:main` — registered as `devlog` in `pyproject.toml [project.scripts]` |
+| CLI config commands | `devlog_cli/commands/config.py` — `config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate` |
 
 ## Security & Privacy Rules
 
@@ -193,7 +195,23 @@ CSRF validation is enforced globally for all POST requests in `app/__init__.py`,
 
 ### _env_str Helper
 
-`app/config.py:_env_str(key, default="")` reads env vars and treats empty strings as unset (returns default). Use this instead of `os.environ.get()` when empty-string-means-unset is desired.
+`app/config_legacy.py:_env_str(key, default="")` reads env vars and treats empty strings as unset (returns default). Use this instead of `os.environ.get()` when empty-string-means-unset is desired.
+
+### Typed Configuration System
+
+The codebase has a typed configuration system at `app/config/` that replaces the legacy `app/config.py` (now `app/config_legacy.py`). The package provides:
+
+- `app/config/model.py` — 20 frozen dataclasses (`DevLogConfig` + 19 section classes)
+- `app/config/loader.py` — `load_effective_config()` with precedence chain (env vars > config.toml > defaults)
+- `app/config/paths.py` — path resolution with source tracking
+- `app/config/validation.py` — multi-layer validation (schema, security, filesystem, dependencies, compatibility)
+- `app/config/provenance.py` — source tracking for config values
+- `app/config/secrets.py` — secret field identification and redaction
+- `app/config/profiles.py` — deployment profiles (development, native-production, docker-production, minimal, full)
+- `app/config/serialization.py` — TOML/JSON output with redaction
+- `app/config/migration.py` — config version migration support
+
+`app/config/__init__.py` re-exports legacy globals for backward compat. The CLI provides `devlog config check/show/explain/paths/init/migrate` commands. Tests are in `tests/config/` (235 tests).
 
 ### Env Var Fallback Chains
 
@@ -229,11 +247,11 @@ See [architecture/infrastructure/storage.md](architecture/infrastructure/storage
 
 ### config.toml.example
 
-`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed. If `config.toml` is missing, `app/config.py` falls back to `config.toml.example` with a warning.
+`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed. If `config.toml` is missing, `app/config_legacy.py` falls back to `config.toml.example` with a warning. The typed config system (`app/config/loader.py`) resolves the same precedence chain: env vars > config.toml > defaults.
 
 ### python-dotenv Auto-Loading
 
-`python-dotenv` is included in `requirements.txt` and called via `load_dotenv()` in both `run.py` and `app/config.py`. The app auto-loads `.env` without requiring manual `source` commands.
+`python-dotenv` is included in `requirements.txt` and called via `load_dotenv()` in both `run.py` and `app/config/__init__.py`. The app auto-loads `.env` without requiring manual `source` commands.
 
 ### setup.sh Behavior
 

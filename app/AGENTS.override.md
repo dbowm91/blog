@@ -5,7 +5,8 @@ Specialized handling for the Flask application core.
 ## Key Files
 
 - `__init__.py` - App factory (`create_app()`), middleware, logging setup
-- `config.py` - All config loaded from `config.toml` + env vars + validation
+- `config.py` → `config_legacy.py` - Legacy config globals (re-exported via `app/config/__init__.py`)
+- `config/` - Typed config package: model (20 frozen dataclasses), loader, validation, provenance, secrets, profiles, serialization, migration
 - `models.py` - SQLAlchemy models (User, Post, Tag, Subscriber, PageView, ShareEvent, AdminSession, SiteSettings, Page, PostRevision)
 - `extensions.py` - Flask extensions (db, login_manager, migrate)
 - `utils.py` - Slug generation, email validation, XML escaping, UTCDateTime type
@@ -30,6 +31,8 @@ Specialized handling for the Flask application core.
 ## Configuration
 
 - `config.toml` for site settings (title, author, email, etc.)
+- Typed config system at `app/config/` with 20 frozen dataclasses and multi-layer validation
+- `load_effective_config()` resolves precedence: env vars > config.toml > defaults
 - Config validation deferred to `create_app()` (not import time)
 - `SECRET_KEY` must be at least 32 characters
 - `ADMIN_PASSWORD` required; `RuntimeError` in `create_app()` if missing

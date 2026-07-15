@@ -1,6 +1,42 @@
-# Configuration (`app/config.py`)
+# Configuration
 
 Configuration is centralized in `config.toml` with environment variable overrides.
+
+## Typed Configuration System
+
+The codebase has a typed configuration system at `app/config/` that provides structured, validated configuration management. The legacy `app/config.py` (now `app/config_legacy.py`) is re-exported via `app/config/__init__.py` for backward compatibility.
+
+### Package Structure
+
+| Module | Purpose |
+|--------|---------|
+| `app/config/model.py` | 20 frozen dataclasses (`DevLogConfig` + 19 section classes) |
+| `app/config/loader.py` | `load_effective_config()` with precedence chain |
+| `app/config/paths.py` | Path resolution with source tracking |
+| `app/config/validation.py` | Multi-layer validation (schema, security, filesystem, dependencies, compatibility) |
+| `app/config/provenance.py` | Source tracking for config values |
+| `app/config/secrets.py` | Secret field identification and redaction |
+| `app/config/profiles.py` | Deployment profiles (development, native-production, docker-production, minimal, full) |
+| `app/config/serialization.py` | TOML/JSON output with redaction |
+| `app/config/migration.py` | Config version migration support |
+
+### CLI Commands
+
+The `devlog` CLI provides config management commands:
+- `devlog config check` — Validate configuration with multi-layer checks
+- `devlog config show` — Display current config (secrets redacted)
+- `devlog config explain <field>` — Explain a specific config field
+- `devlog config paths` — Show config file resolution paths
+- `devlog config init --profile <name>` — Generate config from deployment profile
+- `devlog config migrate` — Migrate config to current version
+
+### Configuration Priority
+
+| Priority | Source | Example |
+|----------|--------|---------|
+| 1 (highest) | Environment variable | `SECRET_KEY=abc123...` |
+| 2 | config.toml | `posts_per_page = 10` |
+| 3 | Default value | `SESSION_LIFETIME_HOURS = 24` |
 
 ## Configuration File: `config.toml`
 
@@ -57,7 +93,7 @@ config = {}
 
 ### _env_str Helper
 
-`app/config.py:_env_str(key, default="")` reads environment variables and treats empty strings as unset (returns default). Used for env vars where an empty value should fall through to the next option.
+`app/config_legacy.py:_env_str(key, default="")` reads environment variables and treats empty strings as unset (returns default). Used for env vars where an empty value should fall through to the next option.
 
 ### Env Var Fallback Chains
 
@@ -200,7 +236,14 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 
 ## Validation
 
-The `_validate_config()` function validates:
+The typed config system provides multi-layer validation via `app/config/validation.py`:
+- Schema validation (type checking, required fields)
+- Security validation (secret strength, production checks)
+- Filesystem validation (directory existence, permissions)
+- Dependency validation (cross-field requirements)
+- Compatibility validation (deprecated settings, migration paths)
+
+The legacy `_validate_config()` function in `app/config_legacy.py` validates:
 - `send_time` is valid HH:MM format
 - `posts_per_page` is 1-100
 - `confirmation_expiry_hours` is positive integer
@@ -220,3 +263,4 @@ The `_validate_config()` function validates:
 - [App Factory](core/app-factory.md) - How config is used
 - [Email Infrastructure](../infrastructure/email.md) - Email configuration
 - [Storage Infrastructure](../infrastructure/storage.md) - Storage backends
+- `tests/config/` - 235 tests for the typed config system

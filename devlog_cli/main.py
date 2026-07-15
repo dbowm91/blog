@@ -79,6 +79,11 @@ def config() -> None:
     """Manage DevLog configuration."""
 
 
+from devlog_cli.commands.config import register_config_commands  # noqa: E402
+
+register_config_commands(config)
+
+
 @main.group()
 def admin() -> None:
     """Manage admin users."""

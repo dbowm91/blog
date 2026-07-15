@@ -24,6 +24,8 @@ This is a Flask-based blog CMS with:
 | Component | Location |
 |-----------|----------|
 | App factory | `app/__init__.py` |
+| Typed config | `app/config/` (model, loader, validation, provenance, secrets, profiles, serialization, migration) |
+| Legacy config | `app/config_legacy.py` (re-exported via `app/config/__init__.py`) |
 | Models | `app/models.py` |
 | Routes (API) | `app/routes/api/` |
 | Routes (Admin) | `app/routes/admin/` |
@@ -101,6 +103,20 @@ for i in range(0, len(post_ids), chunk_size):
 ### Configuration Priority
 env vars > config.toml > defaults
 
+### Typed Configuration System
+
+The codebase has a typed configuration system at `app/config/`:
+- `app/config/model.py` — 20 frozen dataclasses (`DevLogConfig` + 19 section classes)
+- `app/config/loader.py` — `load_effective_config()` with precedence chain
+- `app/config/validation.py` — Multi-layer validation (schema, security, filesystem, dependencies, compatibility)
+- `app/config/provenance.py` — Source tracking for config values
+- `app/config/secrets.py` — Secret field identification and redaction
+- `app/config/profiles.py` — Deployment profiles (development, native-production, docker-production, minimal, full)
+- `app/config/serialization.py` — TOML/JSON output with redaction
+- `app/config/migration.py` — Config version migration support
+
+CLI commands: `devlog config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate`
+
 ### Newsletter Retry Count
 Default is 5 (not 3)
 
@@ -174,6 +190,20 @@ Minimum enforced at 0.1s in `app/config.py` to prevent brute force.
   - `settings`: 50 per 60 seconds
 - `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
 - Flask-Limiter already integrated with `key_func=get_client_ip`
+
+## Typed Config Package
+
+The `app/config/` package provides structured configuration management:
+- **Model**: 20 frozen dataclasses in `app/config/model.py` (`DevLogConfig` + 19 section classes)
+- **Loader**: `load_effective_config()` in `app/config/loader.py` with precedence chain (env vars > config.toml > defaults)
+- **Validation**: Multi-layer validation in `app/config/validation.py` (schema, security, filesystem, dependencies, compatibility)
+- **Provenance**: Source tracking for config values in `app/config/provenance.py`
+- **Secrets**: Secret field identification and redaction in `app/config/secrets.py`
+- **Profiles**: Deployment profiles in `app/config/profiles.py` (development, native-production, docker-production, minimal, full)
+- **Serialization**: TOML/JSON output with redaction in `app/config/serialization.py`
+- **Migration**: Config version migration support in `app/config/migration.py`
+
+CLI commands: `devlog config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate`
 
 ## Testing Fixtures
 
