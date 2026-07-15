@@ -39,7 +39,41 @@ This is a Flask-based blog CMS with:
 | Storage | `app/storage.py` |
 | Templates | `app/templates/` |
 | Static CSS | `app/static/css/` |
-| CLI package | `devlog_cli/` — standalone Click CLI (entry point: `devlog_cli.main:main`) |
+| CLI package | `devlog_cli/` — standalone Click CLI (entry point: `devlog_cli.main:main`, registered as `devlog` in `pyproject.toml`) |
+| Operations services | `app/services/operations/` — business logic for CLI commands |
+
+## Operations Service Layer
+
+Business logic for CLI commands lives in `app/services/operations/`:
+
+- `admin.py` — create_admin, promote_admin, reset_admin_password, list_admins
+- `database.py` — check_database_integrity, rebuild_search_index
+- `media.py` — scan_orphaned_media, apply_orphaned_media_cleanup
+- `transfer.py` — export_site_data, validate_import, import_site_data
+- `themes.py` — list_theme_descriptors, validate_theme, inspect_theme, refresh_theme_registry, get_theme_paths, run_accessibility_check
+- `backup.py` — create_backup_operation, verify_backup
+
+Service functions:
+- Never depend on Click or terminal output
+- Return typed OperationResult subclasses
+- Require Flask application context
+- Use commit_with_rollback() for transactions
+
+Standalone CLI commands in `devlog_cli/commands/` call these services.
+Flask commands in `app/cli.py` are compatibility wrappers.
+
+### CLI Commands (`devlog`)
+
+Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [project.scripts]`.
+
+| Command group | Module | Purpose |
+|---------------|--------|---------|
+| `devlog config` | `devlog_cli/commands/config.py` | check, show, explain, paths, init, migrate |
+| `devlog admin` | `devlog_cli/commands/admin.py` | Admin user management |
+| `devlog db` | `devlog_cli/commands/db.py` | Database operations |
+| `devlog data` | `devlog_cli/commands/data.py` | Import/export |
+| `devlog themes` | `devlog_cli/commands/themes.py` | Theme operations |
+| `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
 
 ## Verified Routes
 

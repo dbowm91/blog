@@ -89,9 +89,19 @@ def admin() -> None:
     """Manage admin users."""
 
 
+from devlog_cli.commands.admin import register_admin_commands  # noqa: E402
+
+register_admin_commands(admin)
+
+
 @main.group()
 def db() -> None:
     """Database operations."""
+
+
+from devlog_cli.commands.db import register_db_commands  # noqa: E402
+
+register_db_commands(db)
 
 
 @main.group()
@@ -99,9 +109,29 @@ def themes() -> None:
     """Theme management."""
 
 
+from devlog_cli.commands.themes import register_theme_commands  # noqa: E402
+
+register_theme_commands(themes)
+
+
 @main.group()
 def backup() -> None:
     """Backup and restore."""
+
+
+from devlog_cli.commands.backup import register_backup_commands  # noqa: E402
+
+register_backup_commands(backup)
+
+
+@main.group()
+def data() -> None:
+    """Import and export site data."""
+
+
+from devlog_cli.commands.data import register_data_commands  # noqa: E402
+
+register_data_commands(data)
 
 
 @main.group()

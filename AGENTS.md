@@ -85,6 +85,13 @@ Important actual file locations (verify before assuming):
 | CLI package | `devlog_cli/` — standalone Click CLI (main, context, output, errors, exit_codes, result) |
 | CLI entry point | `devlog_cli.main:main` — registered as `devlog` in `pyproject.toml [project.scripts]` |
 | CLI config commands | `devlog_cli/commands/config.py` — `config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate` |
+| CLI admin commands | `devlog_cli/commands/admin.py` |
+| CLI db commands | `devlog_cli/commands/db.py` |
+| CLI data commands | `devlog_cli/commands/data.py` |
+| CLI theme commands | `devlog_cli/commands/themes.py` |
+| CLI backup commands | `devlog_cli/commands/backup.py` |
+| Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Operations tests | `tests/services/` |
 
 ## Security & Privacy Rules
 
@@ -161,9 +168,29 @@ See [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhoo
 
 ### Model Count
 
-There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated.
+There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated. Note: `OperationResult` and its subclasses in `app/services/operations/results.py` are plain dataclasses, not SQLAlchemy models.
 
 See [architecture/core/models.md](architecture/core/models.md) for model details.
+
+### Service Extraction (Phase C)
+
+Operational business logic has been extracted from `app/cli.py` into `app/services/operations/`. The standalone `devlog` CLI commands in `devlog_cli/commands/` call these services. Flask commands in `app/cli.py` remain as compatibility wrappers.
+
+Service functions:
+- Never depend on Click, terminal output, or process exit
+- Return typed `OperationResult` subclasses from `app/services/operations/results.py`
+- Require application context (use `from flask import current_app`)
+- Use `commit_with_rollback()` for transaction boundaries
+
+CLI command flow:
+```
+CLI handler -> CliContext.ensure_app_context() -> call service function -> render Result
+```
+
+Flask compatibility flow:
+```
+Flask command wrapper -> call same service function -> render compatibility output
+```
 
 ### Thread-Safe Storage Singleton
 
@@ -405,6 +432,7 @@ For detailed architecture documentation, see the `architecture/` directory:
 | Routes (admin, public, API, RSS) | [architecture/routes/admin-routes.md](architecture/routes/admin-routes.md), [architecture/routes/public-routes.md](architecture/routes/public-routes.md), [architecture/routes/api-routes.md](architecture/routes/api-routes.md), [architecture/routes/rss-feeds.md](architecture/routes/rss-feeds.md) |
 | Services (overview) | [architecture/services/overview.md](architecture/services/overview.md) |
 | Services (individual) | [architecture/services/backup.md](architecture/services/backup.md), [architecture/services/encryption.md](architecture/services/encryption.md), [architecture/services/search.md](architecture/services/search.md), [architecture/services/serialization.md](architecture/services/serialization.md), [architecture/services/slug.md](architecture/services/slug.md), [architecture/services/tag.md](architecture/services/tag.md), [architecture/services/tag_cache.md](architecture/services/tag_cache.md) |
+| Operations services | `app/services/operations/` — admin, database, media, transfer, themes, backup, results |
 | Celery tasks, APScheduler | [architecture/tasks/celery-tasks.md](architecture/tasks/celery-tasks.md), [architecture/tasks/scheduler.md](architecture/tasks/scheduler.md) |
 | Infrastructure (overview) | [architecture/infrastructure/overview.md](architecture/infrastructure/overview.md) |
 | Infrastructure (individual) | [architecture/infrastructure/search.md](architecture/infrastructure/search.md), [architecture/infrastructure/email.md](architecture/infrastructure/email.md), [architecture/infrastructure/storage.md](architecture/infrastructure/storage.md), [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhooks.md) |
@@ -421,7 +449,7 @@ Load specialized skills using the `skill` tool with the skill name.
 
 | Skill | Description | Triggers |
 |-------|-------------|----------|
-| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log |
+| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, operations services |
 | `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference, architecture review plan |
 
 ## Skills Directory Note

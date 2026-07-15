@@ -194,6 +194,7 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `POST /admin/media/delete/<filename>`
 - **Purpose**: Upload and manage images
 - **Features**: Responsive variant generation
+- **Orphan cleanup**: `cleanup_orphaned_images` delegates to `app.services.operations.media` (Phase C service extraction)
 
 ## Backup Management (`backup.py`)
 

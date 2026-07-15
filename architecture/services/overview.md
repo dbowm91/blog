@@ -23,6 +23,24 @@ Business logic layer for the blog application.
 | Theme Settings | `app/services/theme_settings.py` | Theme configuration validation, legacy preset migration, effective theme name resolution |
 | Cache Contract | `docs/themes/cache-contract.md` | Cache freshness model, invalidation API, multi-worker deployment notes |
 
+## Operations Service Layer
+
+Extracted from CLI handlers into reusable, testable services at `app/services/operations/`.
+
+| Module | Purpose |
+|--------|---------|
+| `results.py` | Typed `OperationResult` dataclasses with stable operation codes |
+| `admin.py` | Admin user create/promote/reset-password/list |
+| `database.py` | SQLite integrity check, FTS rebuild |
+| `media.py` | Orphaned media scan and cleanup |
+| `transfer.py` | Site data export/import with atomic writes |
+| `themes.py` | Theme list/validate/inspect/refresh/paths/accessibility facade |
+| `backup.py` | Backup creation and verification with structured results |
+
+Service functions never depend on Click, terminal output, or process exit. They require Flask application context, return typed `OperationResult` subclasses, and use `commit_with_rollback()` for transaction boundaries.
+
+The standalone `devlog` CLI commands (`devlog_cli/commands/`) call these services. Flask commands (`app/cli.py`) remain as compatibility wrappers calling the same services.
+
 ## See Also
 - [Backup Service](services/backup.md) - Detailed backup documentation
 - [Serialization](services/serialization.md) - Data export/import

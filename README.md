@@ -91,7 +91,7 @@ devlog --verbose config     # Verbose help
 devlog --quiet db           # Minimal output
 ```
 
-Command groups: `config`, `admin`, `db`, `themes`, `backup`, `deploy`. The `config` group provides typed configuration management commands.
+Command groups: `config`, `admin`, `db`, `data`, `themes`, `backup`. The `config` group provides typed configuration management commands.
 
 ### Access Your Blog
 
@@ -192,11 +192,13 @@ Click **Preview** to see how your post will look with theme styling.
 
 **CLI Management:**
 ```bash
-flask themes list                    # List all available themes
-flask themes validate ./my-theme.toml  # Validate a theme file
-flask themes inspect "Catppuccin Mocha"  # Inspect theme details
-flask themes refresh                 # Refresh theme registry
-flask themes accessibility           # Run WCAG contrast checks (--strict for mandatory-only)
+devlog themes list                    # List all available themes
+devlog themes validate ./my-theme.toml  # Validate a theme file
+devlog themes inspect "Catppuccin Mocha"  # Inspect theme details
+devlog themes refresh                 # Refresh theme registry
+devlog themes accessibility           # Run WCAG contrast checks (--strict for mandatory-only)
+# Flask commands remain as compatibility wrappers:
+# flask themes list, flask themes validate, etc.
 ```
 
 See [docs/themes/operator-guide.md](docs/themes/operator-guide.md) for the full operator guide and [docs/themes/supported-schema.md](docs/themes/supported-schema.md) for the Halloy TOML schema reference.
@@ -217,11 +219,11 @@ See [docs/themes/operator-guide.md](docs/themes/operator-guide.md) for the full 
 
 ### User Management
 
-- **Create admin:** `flask create-admin <username>`
-- **Promote user:** `POST /admin/users/<id>/promote`
+- **Create admin:** `devlog admin create <username>` (or `flask create-admin <username>`)
+- **Promote user:** `devlog admin promote <username>` (or `POST /admin/users/<id>/promote`)
 - **Demote admin:** `POST /admin/users/<id>/demote`
 - **Transfer ownership:** `POST /admin/users/<id>/make-owner`
-- **Password reset:** Visit `/admin/forgot-password`
+- **Password reset:** `devlog admin reset-password <username>` or visit `/admin/forgot-password`
 
 ### Media Library
 
@@ -305,6 +307,24 @@ devlog config explain <field>    # Explain a specific config field
 devlog config paths              # Show config file resolution paths
 devlog config init --profile <name>  # Generate config from deployment profile
 devlog config migrate            # Migrate config to current version
+
+# Operations (via devlog CLI)
+devlog admin create <username>   # Create admin user
+devlog admin promote <username>  # Promote to admin
+devlog admin reset-password <username>  # Reset admin password
+devlog admin list                # List admin users
+devlog db check                  # Check SQLite integrity
+devlog db rebuild-search         # Rebuild FTS5 index
+devlog data export <file>        # Export data to JSON
+devlog data import <file>        # Import data from JSON
+devlog themes list               # List available themes
+devlog themes validate <path>    # Validate a theme file or name
+devlog themes inspect <name>     # Inspect theme details
+devlog themes refresh            # Refresh theme registry
+devlog themes paths              # Show theme resource paths
+devlog themes accessibility      # Run WCAG contrast checks (--strict for mandatory-only)
+devlog backup create             # Create a backup
+devlog backup verify <filename>  # Verify backup integrity
 ```
 
 ### API Endpoints

@@ -9,14 +9,11 @@ from datetime import datetime, timezone
 from flask import render_template, redirect, url_for, request, flash, abort, current_app
 from flask.typing import ResponseReturnValue
 from typing import Any
-from sqlalchemy import select
 
-from app.extensions import db
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _save_image
 from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
 from werkzeug.utils import secure_filename
-from app.models import Post
 
 
 logger = logging.getLogger(__name__)
@@ -178,55 +175,13 @@ def delete_media(filename: str) -> ResponseReturnValue:
 def cleanup_orphaned_images(app) -> tuple[int, int]:
     """Clean up image files that are not associated with any post.
 
+    Delegates to app.services.operations.media.apply_orphaned_media_cleanup().
+
     Returns (orphaned_count, missing_count) tuple:
         - orphaned_count: number of files deleted that weren't in DB
         - missing_count: number of DB entries pointing to missing files (cleared)
     """
-    from app.storage import get_storage
+    from app.services.operations.media import apply_orphaned_media_cleanup
 
-    storage = get_storage()
-    db_images = set()
-    missing_db_entries = []
-    posts_with_missing_images = []
-
-    posts = db.session.execute(select(Post.image).where(Post.image.isnot(None))).scalars().all()
-
-    for img in posts:
-        if img:
-            db_images.add(img)
-            if not storage.exists(img):
-                missing_db_entries.append(img)
-                missing_posts = (
-                    db.session.execute(select(Post).filter_by(image=img)).scalars().all()
-                )
-                for post in missing_posts:
-                    posts_with_missing_images.append(post)
-
-    orphaned_count = 0
-    missing_count = 0
-
-    try:
-        for name in storage.list_files():
-            if name not in db_images:
-                if storage.delete(name):
-                    orphaned_count += 1
-                    logger.info("Deleted orphaned image: %s", name)
-                else:
-                    logger.warning("Failed to delete orphaned image: %s", name)
-    except (OSError, AttributeError) as e:
-        logger.error("Error scanning upload directory: %s", e)
-
-    for post in posts_with_missing_images:
-        post.image = None
-        missing_count += 1
-        logger.info("Cleared missing image reference from post id=%d", post.id)
-
-    if missing_count > 0:
-        db.session.commit()
-
-    logger.info(
-        "Orphaned image cleanup complete: %d orphaned files deleted, %d missing DB entries cleared",
-        orphaned_count,
-        missing_count,
-    )
-    return orphaned_count, missing_count
+    result = apply_orphaned_media_cleanup()
+    return result.orphaned_deleted, result.missing_cleared

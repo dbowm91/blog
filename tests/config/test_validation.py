@@ -275,7 +275,12 @@ class TestValidateSchema:
             "themes": {},
         }
         findings = validate_schema(raw)
-        unknown = [f for f in findings if f.code in ("schema.unknown_field", "schema.unknown_section", "schema.unknown_top_level_key")]
+        unknown = [
+            f
+            for f in findings
+            if f.code
+            in ("schema.unknown_field", "schema.unknown_section", "schema.unknown_top_level_key")
+        ]
         assert unknown == []
 
     def test_version_top_level_not_flagged(self) -> None:
