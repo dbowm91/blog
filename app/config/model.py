@@ -57,6 +57,33 @@ SECRET_FIELDS = frozenset(
 )
 
 
+def _redacted_repr(value: str) -> str:
+    if not value:
+        return '""'
+    if len(value) <= 4:
+        return '"****"'
+    return f'"{value[:2]}****{value[-2:]}"'
+
+
+def _safe_repr(obj: object, redact_fields: frozenset[str]) -> str:
+    parts: list[str] = []
+    for f in obj.__dataclass_fields__.values():
+        value = getattr(obj, f.name)
+        if f.name in redact_fields:
+            parts.append(f"{f.name}={_redacted_repr(str(value))}")
+        elif isinstance(value, str):
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            parts.append(f'{f.name}="{escaped}"')
+        elif isinstance(value, bool):
+            parts.append(f"{f.name}={'True' if value else 'False'}")
+        elif isinstance(value, dict):
+            parts.append(f"{f.name}={value!r}")
+        else:
+            parts.append(f"{f.name}={value!r}")
+    cls = type(obj).__name__
+    return f"{cls}({', '.join(parts)})"
+
+
 @dataclass(frozen=True)
 class AppConfig:
     title: str = "DevLog"
@@ -115,6 +142,9 @@ class EmailConfig:
     smtp_password: str = ""
     from_address: str = "blog@example.com"
     smtp_timeout: int = 30
+
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"smtp_password"}))
 
 
 @dataclass(frozen=True)
@@ -179,10 +209,16 @@ class StorageConfig:
     s3_endpoint: str = ""
     s3_public_url: str = ""
 
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"s3_access_key", "s3_secret_key"}))
+
 
 @dataclass(frozen=True)
 class HealthConfig:
     check_secret: str = ""
+
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"check_secret"}))
 
 
 @dataclass(frozen=True)
@@ -190,11 +226,17 @@ class MetricsConfig:
     enabled: bool = False
     secret: str = ""
 
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"secret"}))
+
 
 @dataclass(frozen=True)
 class BackupConfig:
     data_backup_dir: str = "backups"
     encryption_key: str = ""
+
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"encryption_key"}))
 
 
 @dataclass(frozen=True)
@@ -207,6 +249,9 @@ class SecurityConfig:
 class WebhookConfig:
     timeout: int = 10
     encryption_key: str = ""
+
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"encryption_key"}))
 
 
 @dataclass(frozen=True)
@@ -253,6 +298,9 @@ class DevLogConfig:
     proxy_count: int = 1
     flask_env: str = ""
     testing: bool = False
+
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"secret_key", "admin_password"}))
 
     def is_production(self) -> bool:
         return self.flask_env == "production"

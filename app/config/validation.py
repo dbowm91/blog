@@ -246,15 +246,15 @@ def validate_toml_string(toml_content: str) -> tuple[dict | None, list[Finding]]
 def validate_schema(raw_toml: dict) -> list[Finding]:
     findings: list[Finding] = []
 
-    version = raw_toml.get("version")
+    version = raw_toml.get("config_version")
     if version is None:
         findings.append(
             Finding(
                 severity=Severity.WARNING,
                 code="schema.missing_version",
-                field="version",
+                field="config_version",
                 message="config_version not set; assuming version 1",
-                remediation=f"Add 'version = {CONFIG_VERSION}' to the top of config.toml",
+                remediation=f"Add 'config_version = {CONFIG_VERSION}' to the top of config.toml",
             )
         )
     elif not isinstance(version, int):
@@ -844,11 +844,15 @@ def validate_all(
     production: bool = False,
     config_path: Path | None = None,
     check_filesystem: bool = True,
+    raw_toml: dict | None = None,
 ) -> ValidationResult:
     all_findings: list[Finding] = []
 
     if config_path is None and hasattr(config, "_config_path"):
         config_path = config._config_path
+
+    if raw_toml is not None:
+        all_findings.extend(validate_schema(raw_toml))
 
     all_findings.extend(validate_security(config))
     if check_filesystem:

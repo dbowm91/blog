@@ -456,14 +456,26 @@ def config_check(
     json_mode = json_mode or cli_ctx.json_mode
 
     from app.config.loader import load_effective_config
+    from app.config.paths import resolve_config_path
     from app.config.validation import Severity, validate_all
 
     effective = load_effective_config(config_path=config_path, env_file=env_file)
+
+    raw_toml: dict | None = None
+    resolved = resolve_config_path(config_path)
+    if resolved.selected and resolved.selected.exists:
+        try:
+            with open(resolved.selected.path, "rb") as f:
+                raw_toml = tomllib.load(f)
+        except (OSError, tomllib.TOMLDecodeError):
+            raw_toml = None
+
     result = validate_all(
         effective,
         production=production,
         config_path=config_path,
         check_filesystem=not no_filesystem,
+        raw_toml=raw_toml,
     )
 
     errors = [f for f in result.findings if f.severity == Severity.ERROR]
