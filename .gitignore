@@ -22,3 +22,6 @@ app/static/dist/
 .pytest_cache/
 *.log
 .coverage
+build/
+dist/
+*.egg-info/

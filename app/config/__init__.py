@@ -2,6 +2,10 @@
 
 Provides both the legacy module-level globals (for backward compatibility)
 and the new typed DevLogConfig API.
+
+The legacy globals below are re-exported from app.config_legacy for backward
+compatibility only. New code should import from app.config.model or
+app.config.loader instead.
 """
 
 from __future__ import annotations

@@ -83,6 +83,12 @@ devlog --help
 devlog --version
 ```
 
+For development (editable install with dev dependencies):
+
+```bash
+pip install -e '.[dev]'
+```
+
 The CLI does not require Flask app context for `--help` and `--version`. Global options:
 
 ```bash

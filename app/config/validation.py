@@ -243,10 +243,19 @@ def validate_toml_string(toml_content: str) -> tuple[dict | None, list[Finding]]
         ]
 
 
-def validate_schema(raw_toml: dict) -> list[Finding]:
+def validate_schema(raw_toml: dict, *, strict: bool = False) -> list[Finding]:
     findings: list[Finding] = []
 
     version = raw_toml.get("config_version")
+    is_versioned = (
+        version is not None and isinstance(version, int) and version in SUPPORTED_VERSIONS
+    )
+
+    if strict or is_versioned:
+        unknown_severity = Severity.ERROR
+    else:
+        unknown_severity = Severity.WARNING
+
     if version is None:
         findings.append(
             Finding(
@@ -292,7 +301,7 @@ def validate_schema(raw_toml: dict) -> list[Finding]:
         if key not in known_top_level:
             findings.append(
                 Finding(
-                    severity=Severity.WARNING,
+                    severity=unknown_severity,
                     code="schema.unknown_top_level_key",
                     field=key,
                     message=f"Unrecognized top-level key: {key!r}",
@@ -305,7 +314,7 @@ def validate_schema(raw_toml: dict) -> list[Finding]:
         if section_name not in SECTION_FIELD_TYPES:
             findings.append(
                 Finding(
-                    severity=Severity.WARNING,
+                    severity=unknown_severity,
                     code="schema.unknown_section",
                     field=section_name,
                     message=f"Unrecognized config section: [{section_name}]",
@@ -320,7 +329,7 @@ def validate_schema(raw_toml: dict) -> list[Finding]:
             if field_name not in field_types:
                 findings.append(
                     Finding(
-                        severity=Severity.WARNING,
+                        severity=unknown_severity,
                         code="schema.unknown_field",
                         field=f"{section_name}.{field_name}",
                         message=f"Unrecognized field in [{section_name}]: {field_name!r}",
@@ -852,7 +861,7 @@ def validate_all(
         config_path = config._config_path
 
     if raw_toml is not None:
-        all_findings.extend(validate_schema(raw_toml))
+        all_findings.extend(validate_schema(raw_toml, strict=production))
 
     all_findings.extend(validate_security(config))
     if check_filesystem:
@@ -885,6 +894,20 @@ def validate_all(
                     )
                 )
             elif f.code == "security.metrics_no_secret" and f.severity == Severity.WARNING:
+                elevated.append(
+                    Finding(
+                        severity=Severity.ERROR,
+                        code=f.code,
+                        field=f.field,
+                        message=f.message,
+                        remediation=f.remediation,
+                    )
+                )
+            elif f.severity == Severity.WARNING and f.code in (
+                "schema.unknown_section",
+                "schema.unknown_field",
+                "schema.unknown_top_level_key",
+            ):
                 elevated.append(
                     Finding(
                         severity=Severity.ERROR,

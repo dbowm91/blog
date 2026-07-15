@@ -1,3 +1,21 @@
+"""Legacy configuration compatibility layer.
+
+DEPRECATED: This module exists only for backward compatibility with code that
+imports legacy configuration globals directly. New code should use the typed
+configuration system in app.config.loader and app.config.model.
+
+All remaining consumers:
+- app/config/__init__.py — re-exports legacy globals for backward compat
+- app/__init__.py — may use legacy globals during init transition
+- tests/test_config.py — tests legacy helper functions
+
+This module does NOT independently parse configuration for new consumers.
+It is projected from the typed loader through app/config/__init__.py.
+
+Removal condition: When all legacy global imports are migrated to typed config,
+this module can be deleted. Target: Release 2.
+"""
+
 from dotenv import load_dotenv
 
 load_dotenv()

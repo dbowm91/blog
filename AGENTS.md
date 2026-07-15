@@ -31,7 +31,10 @@ ruff check .
 ruff format --check .
 
 # Type check
-mypy app/
+mypy app/ devlog_cli/
+
+# Check dependency manifest consistency
+python scripts/check_dependency_manifest_consistency.py
 
 # Release validation (lint + type + tests + build + Docker + Compose config)
 ./scripts/release_check.sh
@@ -92,6 +95,7 @@ Important actual file locations (verify before assuming):
 | CLI backup commands | `devlog_cli/commands/backup.py` |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Operations tests | `tests/services/` |
+| Dependency consistency | `scripts/check_dependency_manifest_consistency.py` |
 
 ## Security & Privacy Rules
 
@@ -102,7 +106,7 @@ Important actual file locations (verify before assuming):
 ## Code Style
 
 - **Linting**: `ruff check .` and `ruff format --check .`
-- **Type checking**: `mypy app/`
+- **Type checking**: `mypy app/ devlog_cli/`
 - **SQLAlchemy**: Use SQLAlchemy 2.0 style (`db.session.execute(select(...))` pattern)
 - **No comments**: Do not add comments unless explicitly requested
 - **Security**: Never commit secrets, keys, or credentials
@@ -156,7 +160,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI Workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 9 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, and `e2e-tests`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
+CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
 
 ### Webhook Delivery Architecture
 
@@ -169,6 +173,8 @@ See [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhoo
 ### Model Count
 
 There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated. Note: `OperationResult` and its subclasses in `app/services/operations/results.py` are plain dataclasses, not SQLAlchemy models.
+
+Type-check coverage includes both `app/` and `devlog_cli/`.
 
 See [architecture/core/models.md](architecture/core/models.md) for model details.
 

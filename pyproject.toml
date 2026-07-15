@@ -81,6 +81,7 @@ include = ["app*", "devlog_cli*"]
 "app.themes.bundled" = ["*.toml", "catalog_manifest.json", "ATTRIBUTION.md"]
 "app.themes" = ["ACCESSIBILITY_EXCEPTIONS.json"]
 "app" = ["templates/**/*", "static/css/**/*", "static/js/**/*"]
+"migrations" = ["**/*.py", "alembic.ini"]
 
 [tool.ruff]
 line-length = 100
@@ -92,6 +93,7 @@ warn_return_any = false
 warn_unused_ignores = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
+files = ["app", "devlog_cli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

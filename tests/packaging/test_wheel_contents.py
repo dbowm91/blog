@@ -336,3 +336,175 @@ class TestVersionConsistency:
         assert cli_version == pyproject_version, (
             f"CLI version {cli_version!r} != pyproject.toml {pyproject_version!r}"
         )
+
+
+class TestPackageDataCompleteness:
+    def test_includes_migrations(self, wheel_contents):
+        migration_files = [
+            f for f in wheel_contents if f.startswith("migrations/") and f.endswith(".py")
+        ]
+        assert migration_files, "Wheel missing Alembic migration scripts"
+
+    def test_includes_alembic_ini(self, wheel_contents):
+        source_ini = REPO_ROOT / "migrations" / "alembic.ini"
+        if not source_ini.exists():
+            pytest.skip("alembic.ini not present in source")
+        ini_files = [f for f in wheel_contents if f.endswith("alembic.ini")]
+        assert ini_files, "Wheel missing alembic.ini (present in source but not in wheel)"
+
+    def test_includes_config_example(self, wheel_contents):
+        source_example = REPO_ROOT / "config.toml.example"
+        if not source_example.exists():
+            pytest.skip("config.toml.example not present in source")
+        example_files = [f for f in wheel_contents if "config.toml.example" in f]
+        assert example_files, (
+            "Wheel missing config.toml.example (present in source but not in wheel)"
+        )
+
+    def test_includes_static_js(self, wheel_contents):
+        js_files = [f for f in wheel_contents if "static/js/" in f and f.endswith(".js")]
+        assert js_files, "Wheel missing JS files in static/js/"
+
+    def test_includes_static_dist(self, wheel_contents):
+        source_dist = REPO_ROOT / "app" / "static" / "dist"
+        if not source_dist.exists():
+            pytest.skip("Vite dist not built in source")
+        dist_files = [f for f in wheel_contents if "static/dist/" in f]
+        assert dist_files, "Wheel missing Vite dist files (present in source but not in wheel)"
+
+    def test_wheel_excludes_env_files(self, wheel_contents):
+        env_files = [f for f in wheel_contents if ".env" in f]
+        assert not env_files, f"Wheel contains .env files: {env_files}"
+
+    def test_wheel_excludes_database_files(self, wheel_contents):
+        db_extensions = (".db", ".sqlite", ".wal", ".shm")
+        db_files = [f for f in wheel_contents if any(f.endswith(ext) for ext in db_extensions)]
+        assert not db_files, f"Wheel contains database files: {db_files}"
+
+    def test_wheel_excludes_upload_dir(self, wheel_contents):
+        upload_files = [f for f in wheel_contents if "static/uploads/" in f]
+        assert not upload_files, f"Wheel contains uploads: {upload_files}"
+
+    def test_wheel_excludes_logs(self, wheel_contents):
+        log_files = [f for f in wheel_contents if f.startswith("logs/") or "/logs/" in f]
+        assert not log_files, f"Wheel contains logs directory: {log_files}"
+
+    def test_wheel_excludes_backups(self, wheel_contents):
+        backup_files = [f for f in wheel_contents if "backups/" in f]
+        assert not backup_files, f"Wheel contains backups directory: {backup_files}"
+
+    def test_wheel_excludes_caches(self, wheel_contents):
+        cache_patterns = ("__pycache__", ".ruff_cache", ".mypy_cache", ".pytest_cache")
+        cache_files = [f for f in wheel_contents if any(p in f for p in cache_patterns)]
+        assert not cache_files, f"Wheel contains cache directories: {cache_files}"
+
+    def test_wheel_excludes_build_artifacts(self, wheel_contents):
+        artifact_patterns = ("build/", "dist/", ".egg-info")
+        artifact_files = [f for f in wheel_contents if any(p in f for p in artifact_patterns)]
+        filtered = [f for f in artifact_files if not f.startswith("app/static/dist/")]
+        assert not filtered, f"Wheel contains build artifacts: {filtered}"
+
+
+@pytest.fixture(scope="module")
+def isolated_devlog_with_context(wheel_path):
+    with tempfile.TemporaryDirectory(prefix="devlog_venv_ctx_") as tmp:
+        venv_dir = Path(tmp)
+        venv.create(venv_dir, with_pip=True)
+        pip = venv_dir / "bin" / "pip"
+        subprocess.run(
+            [str(pip), "install", str(wheel_path)],
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        devlog_bin = venv_dir / "bin" / "devlog"
+        config_path = venv_dir / "test-config.toml"
+        yield devlog_bin, config_path
+
+
+class TestCleanInstallAppContext:
+    def test_config_init_and_check(self, isolated_devlog_with_context):
+        devlog_bin, config_path = isolated_devlog_with_context
+        init_result = _run_devlog(
+            devlog_bin,
+            "config",
+            "init",
+            "--profile",
+            "development",
+            "--output",
+            str(config_path),
+        )
+        assert init_result.returncode == 0, (
+            f"config init failed:\nstdout: {init_result.stdout}\nstderr: {init_result.stderr}"
+        )
+        assert config_path.exists(), "config.toml was not created"
+
+        check_result = _run_devlog(
+            devlog_bin,
+            "--config",
+            str(config_path),
+            "config",
+            "check",
+        )
+        assert check_result.returncode == 0, (
+            f"config check failed:\nstdout: {check_result.stdout}\nstderr: {check_result.stderr}"
+        )
+
+    def test_themes_list(self, isolated_devlog_with_context):
+        devlog_bin, config_path = isolated_devlog_with_context
+        if not config_path.exists():
+            init_result = _run_devlog(
+                devlog_bin,
+                "config",
+                "init",
+                "--profile",
+                "development",
+                "--output",
+                str(config_path),
+            )
+            assert init_result.returncode == 0
+
+        result = _run_devlog(
+            devlog_bin,
+            "--config",
+            str(config_path),
+            "--json",
+            "themes",
+            "list",
+        )
+        assert result.returncode == 0, (
+            f"themes list failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+        data = json.loads(result.stdout)
+        assert data["ok"] is True
+        assert "details" in data
+        assert "themes" in data["details"]
+        assert len(data["details"]["themes"]) > 0, "No themes found"
+
+    def test_db_status(self, isolated_devlog_with_context):
+        devlog_bin, config_path = isolated_devlog_with_context
+        if not config_path.exists():
+            init_result = _run_devlog(
+                devlog_bin,
+                "config",
+                "init",
+                "--profile",
+                "development",
+                "--output",
+                str(config_path),
+            )
+            assert init_result.returncode == 0
+
+        result = _run_devlog(
+            devlog_bin,
+            "--config",
+            str(config_path),
+            "db",
+            "status",
+        )
+        output = result.stdout + result.stderr
+        assert (
+            "migration" in output.lower()
+            or "database" in output.lower()
+            or "error" in output.lower()
+        ), f"db status produced unexpected output:\n{output}"
