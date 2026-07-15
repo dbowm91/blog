@@ -37,6 +37,7 @@ This is a Flask-based blog CMS with:
 | Storage | `app/storage.py` |
 | Templates | `app/templates/` |
 | Static CSS | `app/static/css/` |
+| CLI package | `devlog_cli/` — standalone Click CLI (entry point: `devlog_cli.main:main`) |
 
 ## Verified Routes
 

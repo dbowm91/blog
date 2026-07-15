@@ -73,6 +73,26 @@ venv/bin/python run.py
 
 This creates a virtual environment, generates secure credentials, and loads the `.env` file.
 
+### CLI Installation
+
+DevLog provides a standalone `devlog` CLI for operator tasks:
+
+```bash
+pip install .
+devlog --help
+devlog --version
+```
+
+The CLI does not require Flask app context for `--help` and `--version`. Global options:
+
+```bash
+devlog --json version       # JSON output
+devlog --verbose config     # Verbose help
+devlog --quiet db           # Minimal output
+```
+
+Command groups: `config`, `admin`, `db`, `themes`, `backup`, `deploy`. Actual commands arrive in future phases; current groups show help-only stubs.
+
 ### Access Your Blog
 
 Visit `http://localhost:5000`. Admin panel at `http://localhost:5000/admin/login`.

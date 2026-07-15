@@ -96,6 +96,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Filters | `app/filters.py` | Jinja2 template filters |
 | Context Processors | `app/context_processors.py` | Template global variables |
 | CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, create-admin, themes list/validate/inspect/refresh/accessibility) |
+| Standalone CLI | `devlog_cli/` | `devlog` entry point — Click CLI with result/error/output models, command groups (config, admin, db, themes, backup, deploy) |
 | Validators | `app/validators.py` | API input validation |
 | Tag Cache | `app/tag_cache.py` | Tag count caching with Flask-Caching TTL |
 | Transactions | `app/transaction.py` | `@transactional` decorator, `db_transaction()` context manager, slug retry |
@@ -599,6 +600,15 @@ blog/
 │       ├── img/                   # Static images
 │       ├── fonts/                 # Web fonts
 │       └── uploads/              # User media uploads
+│
+├── devlog_cli/                        # Standalone CLI package
+│   ├── __init__.py                   # Package version via importlib.metadata
+│   ├── main.py                       # Root Click group (devlog entry point)
+│   ├── context.py                    # CliContext dataclass
+│   ├── output.py                     # Human/JSON rendering
+│   ├── errors.py                     # Domain exception hierarchy
+│   ├── exit_codes.py                 # Stable ExitCode IntEnum
+│   └── result.py                     # Result dataclass with factories
 │
 ├── tests/                           # Test suite
 │   ├── conftest.py                 # Pytest configuration

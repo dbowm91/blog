@@ -81,6 +81,8 @@ Important actual file locations (verify before assuming):
 | Theme config | `app/config.py` — `THEME_EXTERNAL_DIR`, `THEME_ALLOW_EXTERNAL`, `THEME_STRICT_VALIDATION`, `THEME_DEFAULT_DARK`, `THEME_DEFAULT_LIGHT`, `THEME_DEFAULT_SCHEME` |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
 | DB Dialect Helpers | `app/db_utils.py` (`get_database_dialect()`, `is_sqlite_database()`) |
+| CLI package | `devlog_cli/` — standalone Click CLI (main, context, output, errors, exit_codes, result) |
+| CLI entry point | `devlog_cli.main:main` — registered as `devlog` in `pyproject.toml [project.scripts]` |
 
 ## Security & Privacy Rules
 
