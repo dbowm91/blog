@@ -8,7 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.operations.results import BackupCreateResult, BackupVerifyResult
+from app.services.operations.results import (
+    BackupCreateResult,
+    BackupVerifyResult,
+    BackupInspectResult,
+)
 
 
 @pytest.fixture()
@@ -136,3 +140,77 @@ class TestVerifyBackup:
         assert result.path == backup_path
         assert result.valid is True
         assert "could not be fully verified" in result.summary
+
+
+class TestInspectBackup:
+    def test_inspect_nonexistent(self):
+        from app.services.operations.backup import inspect_backup
+
+        result = inspect_backup("/nonexistent/backup.db")
+
+        assert isinstance(result, BackupInspectResult)
+        assert result.ok is False
+        assert result.code == "backup.inspect.not_found"
+
+    def test_inspect_empty_file(self, app, backup_dir):
+        from app.services.operations.backup import inspect_backup
+
+        path = os.path.join(backup_dir, "empty_inspect.db")
+        with open(path, "w") as f:
+            f.write("")
+
+        result = inspect_backup(path)
+
+        assert isinstance(result, BackupInspectResult)
+        assert result.ok is False
+        assert result.code == "backup.inspect.empty"
+        assert result.file_size == 0
+
+    def test_inspect_sqlite_file(self, app, backup_dir):
+        from app.services.operations.backup import inspect_backup
+
+        path = os.path.join(backup_dir, "sqlite_inspect.db")
+        conn = sqlite3.connect(path)
+        conn.execute("CREATE TABLE IF NOT EXISTS test_inspect (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
+        result = inspect_backup(path)
+
+        assert isinstance(result, BackupInspectResult)
+        assert result.ok is True
+        assert result.code == "backup.inspect.ok"
+        assert result.is_sqlite is True
+        assert result.file_size > 0
+        assert "SQLite" in result.summary
+
+    def test_inspect_gzip_file(self, app, backup_dir):
+        import gzip
+
+        from app.services.operations.backup import inspect_backup
+
+        path = os.path.join(backup_dir, "compressed_inspect.db.gz")
+        with gzip.open(path, "wb") as f:
+            f.write(b"not really a db but gzipped")
+
+        result = inspect_backup(path)
+
+        assert isinstance(result, BackupInspectResult)
+        assert result.ok is True
+        assert result.is_compressed is True
+        assert "gzip" in result.summary.lower()
+
+    def test_inspect_unknown_format(self, app, backup_dir):
+        from app.services.operations.backup import inspect_backup
+
+        path = os.path.join(backup_dir, "unknown_inspect.dat")
+        with open(path, "wb") as f:
+            f.write(b"\x00\x01\x02\x03some data")
+
+        result = inspect_backup(path)
+
+        assert isinstance(result, BackupInspectResult)
+        assert result.ok is True
+        assert result.is_sqlite is False
+        assert result.is_compressed is False
+        assert result.file_size > 0

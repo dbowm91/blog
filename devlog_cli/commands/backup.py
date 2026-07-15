@@ -158,7 +158,72 @@ def backup_verify(ctx: click.Context, path: str) -> None:
     raise SystemExit(r.exit_code)
 
 
+@backup.command("inspect")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
+@click.pass_context
+def backup_inspect(ctx: click.Context, path: str, json_mode: bool) -> None:
+    """Inspect a backup file's type and properties."""
+    cli_ctx: CliContext = ctx.obj
+    json_mode = json_mode or cli_ctx.json_mode
+
+    try:
+        app = cli_ctx.ensure_app_context()
+    except Exception as exc:
+        r = Result.failure(
+            code="backup.inspect.app_context_failed",
+            summary=f"Failed to initialize application: {exc}",
+            exit_code=ExitCode.GENERAL_FAILURE,
+        )
+        render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+        raise SystemExit(r.exit_code)
+
+    with app.app_context():
+        try:
+            from app.services.operations.backup import inspect_backup
+        except ImportError as exc:
+            r = Result.failure(
+                code="backup.inspect.import_failed",
+                summary=f"Backup service unavailable: {exc}",
+                exit_code=ExitCode.MISSING_DEPENDENCY,
+            )
+            render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+            raise SystemExit(r.exit_code)
+
+        try:
+            op_result = inspect_backup(path)
+        except Exception as exc:
+            r = Result.failure(
+                code="backup.inspect.error",
+                summary=f"Inspection failed: {exc}",
+                exit_code=ExitCode.BACKUP_ERROR,
+            )
+            render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+            raise SystemExit(r.exit_code)
+
+    details = dict(op_result.details)
+    details["path"] = op_result.path
+
+    if op_result.ok:
+        r = Result.success(
+            code=op_result.code,
+            summary=op_result.summary,
+            details=details,
+        )
+    else:
+        r = Result.failure(
+            code=op_result.code,
+            summary=op_result.summary,
+            exit_code=ExitCode.BACKUP_ERROR,
+            details=details,
+            remediation=op_result.remediation,
+        )
+
+    render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
+
+
 def register_backup_commands(backup_group: click.Group) -> None:
     """Register backup subcommands on the given Click group."""
-    for cmd in [backup_create, backup_verify]:
+    for cmd in [backup_create, backup_verify, backup_inspect]:
         backup_group.add_command(cmd)

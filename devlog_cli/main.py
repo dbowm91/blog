@@ -135,5 +135,15 @@ register_data_commands(data)
 
 
 @main.group()
+def media() -> None:
+    """Media management."""
+
+
+from devlog_cli.commands.media import register_media_commands  # noqa: E402
+
+register_media_commands(media)
+
+
+@main.group()
 def deploy() -> None:
     """Deployment operations."""

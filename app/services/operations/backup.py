@@ -7,7 +7,11 @@ import sqlite3
 
 from flask import current_app
 
-from app.services.operations.results import BackupCreateResult, BackupVerifyResult
+from app.services.operations.results import (
+    BackupCreateResult,
+    BackupVerifyResult,
+    BackupInspectResult,
+)
 
 
 def create_backup_operation(
@@ -165,3 +169,80 @@ def _quick_verify(path: str) -> bool:
             conn.close()
     except (sqlite3.Error, OSError):
         return False
+
+
+def inspect_backup(path: str) -> BackupInspectResult:
+    """Inspect a backup file and report its type and properties.
+
+    Does not perform integrity checks. Reports whether the file is
+    SQLite, compressed, or encrypted based on magic bytes.
+    """
+    if not os.path.exists(path):
+        return BackupInspectResult(
+            ok=False,
+            code="backup.inspect.not_found",
+            summary=f"Backup file not found: {path}",
+            path=path,
+            remediation=["Verify the file path is correct."],
+        )
+
+    try:
+        file_size = os.path.getsize(path)
+    except OSError as e:
+        return BackupInspectResult(
+            ok=False,
+            code="backup.inspect.unreadable",
+            summary=f"Cannot read backup file: {e}",
+            path=path,
+        )
+
+    if file_size == 0:
+        return BackupInspectResult(
+            ok=False,
+            code="backup.inspect.empty",
+            summary=f"Backup file is empty: {path}",
+            path=path,
+        )
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(16)
+    except OSError as e:
+        return BackupInspectResult(
+            ok=False,
+            code="backup.inspect.read_error",
+            summary=f"Cannot read backup header: {e}",
+            path=path,
+        )
+
+    is_sqlite = header[:6] == b"SQLite"
+    is_compressed = header[:2] == b"\x1f\x8b"  # gzip magic bytes
+    is_encrypted = not is_sqlite and not is_compressed and file_size > 0
+
+    parts = []
+    if is_sqlite:
+        parts.append("SQLite database")
+    if is_compressed:
+        parts.append("gzip compressed")
+    if is_encrypted:
+        parts.append("possibly encrypted")
+
+    type_desc = ", ".join(parts) if parts else "unknown format"
+
+    return BackupInspectResult(
+        ok=True,
+        code="backup.inspect.ok",
+        summary=f"Backup: {os.path.basename(path)} ({file_size} bytes, {type_desc})",
+        path=path,
+        file_size=file_size,
+        is_sqlite=is_sqlite,
+        is_compressed=is_compressed,
+        is_encrypted=is_encrypted,
+        details={
+            "file_size": file_size,
+            "is_sqlite": is_sqlite,
+            "is_compressed": is_compressed,
+            "is_encrypted": is_encrypted,
+            "type_description": type_desc,
+        },
+    )

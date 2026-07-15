@@ -6,8 +6,17 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy.exc import OperationalError
 
-from app.services.operations.database import check_database_integrity, rebuild_search_index
-from app.services.operations.results import DatabaseCheckResult, SearchRebuildResult
+from app.services.operations.database import (
+    check_database_integrity,
+    rebuild_search_index,
+    get_migration_status,
+    run_migrations,
+)
+from app.services.operations.results import (
+    DatabaseCheckResult,
+    SearchRebuildResult,
+    MigrationStatusResult,
+)
 
 
 class TestCheckDatabaseIntegrity:
@@ -132,3 +141,51 @@ class TestRebuildSearchIndex:
 
         assert isinstance(result, SearchRebuildResult)
         assert result.indexed_count == 0
+
+
+class TestGetMigrationStatus:
+    def test_get_status_success(self, app, db):
+        with app.app_context():
+            result = get_migration_status()
+
+        assert isinstance(result, MigrationStatusResult)
+        assert result.ok is True
+        assert result.code == "db.migration.status"
+
+    def test_get_status_failure(self, app, db):
+        with app.app_context():
+            with patch(
+                "flask_migrate.current",
+                side_effect=Exception("No migration context"),
+            ):
+                result = get_migration_status()
+
+        assert isinstance(result, MigrationStatusResult)
+        assert result.ok is False
+        assert result.code == "db.migration.status_error"
+
+
+class TestRunMigrations:
+    def test_run_migrations_success(self, app, db):
+        with app.app_context():
+            with patch("flask_migrate.upgrade") as mock_upgrade:
+                with patch("flask_migrate.current", return_value="abc123"):
+                    result = run_migrations()
+
+        assert isinstance(result, MigrationStatusResult)
+        assert result.ok is True
+        assert result.code == "db.migration.applied"
+        mock_upgrade.assert_called_once()
+
+    def test_run_migrations_failure(self, app, db):
+        with app.app_context():
+            with patch(
+                "flask_migrate.upgrade",
+                side_effect=Exception("Migration failed"),
+            ):
+                result = run_migrations()
+
+        assert isinstance(result, MigrationStatusResult)
+        assert result.ok is False
+        assert result.code == "db.migration.failed"
+        assert "Migration failed" in result.summary

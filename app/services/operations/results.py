@@ -64,6 +64,12 @@ class SearchRebuildResult(OperationResult):
 
 
 @dataclass(frozen=True)
+class MigrationStatusResult(OperationResult):
+    current_head: str = ""
+    pending_count: int = 0
+
+
+@dataclass(frozen=True)
 class MediaCleanupResult(OperationResult):
     orphaned_deleted: int = 0
     missing_cleared: int = 0
@@ -136,3 +142,12 @@ class BackupCreateResult(OperationResult):
 class BackupVerifyResult(OperationResult):
     path: str = ""
     valid: bool = True
+
+
+@dataclass(frozen=True)
+class BackupInspectResult(OperationResult):
+    path: str = ""
+    file_size: int = 0
+    is_sqlite: bool = False
+    is_compressed: bool = False
+    is_encrypted: bool = False

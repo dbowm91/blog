@@ -22,9 +22,16 @@ try:
     from app.services.operations.database import (
         check_database_integrity,
         rebuild_search_index,
+        get_migration_status,
+        run_migrations,
     )
 
-    __all__ += ["check_database_integrity", "rebuild_search_index"]
+    __all__ += [
+        "check_database_integrity",
+        "rebuild_search_index",
+        "get_migration_status",
+        "run_migrations",
+    ]
 except ImportError:
     pass
 
@@ -74,8 +81,9 @@ try:
     from app.services.operations.backup import (
         create_backup_operation,
         verify_backup,
+        inspect_backup,
     )
 
-    __all__ += ["create_backup_operation", "verify_backup"]
+    __all__ += ["create_backup_operation", "verify_backup", "inspect_backup"]
 except ImportError:
     pass
