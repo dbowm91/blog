@@ -31,7 +31,7 @@ Extracted from CLI handlers into reusable, testable services at `app/services/op
 |--------|---------|
 | `results.py` | Typed `OperationResult` dataclasses with stable operation codes |
 | `admin.py` | Admin user create/promote/reset-password/list |
-| `database.py` | SQLite integrity check, FTS rebuild |
+| `database.py` | SQLite integrity check, FTS rebuild, migration status |
 | `media.py` | Orphaned media scan and cleanup |
 | `transfer.py` | Site data export/import with atomic writes |
 | `themes.py` | Theme list/validate/inspect/refresh/paths/accessibility facade |

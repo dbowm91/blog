@@ -315,8 +315,12 @@ devlog admin reset-password <username>  # Reset admin password
 devlog admin list                # List admin users
 devlog db check                  # Check SQLite integrity
 devlog db rebuild-search         # Rebuild FTS5 index
+devlog db status                 # Show Alembic migration status
+devlog db migrate                # Apply pending database migrations
 devlog data export <file>        # Export data to JSON
 devlog data import <file>        # Import data from JSON
+devlog media scan                # Scan for orphaned media files (dry run)
+devlog media cleanup             # Clean up orphaned media files (--apply to delete)
 devlog themes list               # List available themes
 devlog themes validate <path>    # Validate a theme file or name
 devlog themes inspect <name>     # Inspect theme details

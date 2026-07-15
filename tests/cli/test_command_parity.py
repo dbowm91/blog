@@ -235,6 +235,41 @@ class TestMediaParity:
             assert result.ok
             assert result.orphaned_deleted == 0
 
+    def test_service_apply_cleanup(self, app, db):
+        from app.services.operations.media import apply_orphaned_media_cleanup
+
+        with app.app_context():
+            result = apply_orphaned_media_cleanup()
+            assert result.ok
+            assert result.code == "media.cleanup.complete"
+            assert result.orphaned_deleted == 0
+            assert result.missing_cleared == 0
+
+    def test_devlog_media_cleanup_dry_run(self, runner):
+        result = runner.invoke(main, ["media", "cleanup"])
+        assert result.exit_code == 0
+
+    def test_devlog_media_cleanup_json(self, runner):
+        result = runner.invoke(main, ["--json", "media", "cleanup"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["ok"] is True
+
+    def test_devlog_media_cleanup_apply(self, runner):
+        result = runner.invoke(main, ["media", "cleanup", "--apply"])
+        assert result.exit_code == 0
+
+    def test_flask_cleanup_orphaned_images(self, app, db):
+        from app.cli import register_cli_commands
+
+        with app.app_context():
+            from click.testing import CliRunner as AppRunner
+
+            cli_runner = AppRunner()
+            register_cli_commands(app)
+            result = cli_runner.invoke(app.cli.commands["cleanup-orphaned-images"])
+            assert result.exit_code == 0
+
 
 class TestBackupParity:
     def test_service_inspect_nonexistent(self, app, db):
@@ -340,6 +375,68 @@ class TestThemeParity:
     def test_devlog_themes_accessibility(self, runner):
         result = runner.invoke(main, ["themes", "accessibility"])
         assert result.exit_code == 0
+
+
+class TestFlaskCommandParity:
+    def test_flask_rebuild_search(self, app, db):
+        from app.cli import register_cli_commands
+
+        with app.app_context():
+            from click.testing import CliRunner as AppRunner
+
+            cli_runner = AppRunner()
+            register_cli_commands(app)
+            result = cli_runner.invoke(app.cli.commands["rebuild-search"])
+            assert result.exit_code == 0
+
+    def test_flask_check_integrity(self, app, db):
+        from app.cli import register_cli_commands
+
+        with app.app_context():
+            from click.testing import CliRunner as AppRunner
+
+            cli_runner = AppRunner()
+            register_cli_commands(app)
+            result = cli_runner.invoke(app.cli.commands["check-integrity"])
+            assert result.exit_code == 0
+
+    def test_flask_export_data(self, app, db, tmp_path):
+        from app.cli import register_cli_commands
+
+        with app.app_context():
+            from click.testing import CliRunner as AppRunner
+
+            cli_runner = AppRunner()
+            register_cli_commands(app)
+            dest = str(tmp_path / "flask_export.json")
+            result = cli_runner.invoke(app.cli.commands["export-data"], [dest])
+            assert result.exit_code == 0
+            assert Path(dest).exists()
+
+    def test_flask_themes_list(self, app, db):
+        from app.cli import register_cli_commands
+
+        with app.app_context():
+            from click.testing import CliRunner as AppRunner
+
+            cli_runner = AppRunner()
+            register_cli_commands(app)
+            result = cli_runner.invoke(app.cli.commands["themes"].commands["list"])
+            assert result.exit_code == 0
+
+    def test_flask_themes_validate(self, app, db):
+        from app.cli import register_cli_commands
+
+        with app.app_context():
+            from click.testing import CliRunner as AppRunner
+
+            cli_runner = AppRunner()
+            register_cli_commands(app)
+            result = cli_runner.invoke(
+                app.cli.commands["themes"].commands["validate"],
+                ["Catppuccin Mocha"],
+            )
+            assert result.exit_code == 0
 
 
 class TestCommandRegistration:

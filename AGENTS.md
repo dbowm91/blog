@@ -192,6 +192,36 @@ Flask compatibility flow:
 Flask command wrapper -> call same service function -> render compatibility output
 ```
 
+## Codebase Structure Reference
+
+Important actual file locations (verify before assuming):
+
+| Item | Actual Location |
+|------|-----------------|
+| API routes | `app/routes/api/` (PACKAGE with posts.py, pages.py, series.py, tags.py, subscribers.py, stats.py, auth.py) |
+| API scope matching | `scope_allows()` in `app/routes/api/auth.py` — exact match, `admin:*` grants all, category wildcards (`posts:*` etc.) |
+| Validators | `app/validators.py` (NOT `app/core/validators.py`) |
+| Backup logic | `app/services/backup.py` (centralized service) |
+| Admin Audit Log model | `app/models.py` — `AdminAuditLog` class |
+| PostRevision model | `app/models.py` — `PostRevision` class |
+| Comment model | `app/models.py` |
+| Services | `app/services/` (backup, encryption, search, serialization, slug, tag) |
+| Theme settings service | `app/services/theme_settings.py` — validation, migration, effective name resolution |
+| Typed config package | `app/config/` — typed config model, loader, validation, provenance, secrets, profiles, serialization, migration |
+| Theme config | `app/config.py` → `app/config_legacy.py` — legacy globals re-exported via `app/config/__init__.py` for backward compat |
+| Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
+| DB Dialect Helpers | `app/db_utils.py` (`get_database_dialect()`, `is_sqlite_database()`) |
+| CLI package | `devlog_cli/` — standalone Click CLI (main, context, output, errors, exit_codes, result) |
+| CLI entry point | `devlog_cli.main:main` — registered as `devlog` in `pyproject.toml [project.scripts]` |
+| CLI config commands | `devlog_cli/commands/config.py` — `config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate` |
+| CLI admin commands | `devlog_cli/commands/admin.py` |
+| CLI db commands | `devlog_cli/commands/db.py` |
+| CLI data commands | `devlog_cli/commands/data.py` |
+| CLI theme commands | `devlog_cli/commands/themes.py` |
+| CLI backup commands | `devlog_cli/commands/backup.py` |
+| Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Operations tests | `tests/services/` |
+
 ### Thread-Safe Storage Singleton
 
 `app/storage.py:get_storage()` uses double-checked locking pattern with `threading.Lock()` for thread-safe singleton initialization.

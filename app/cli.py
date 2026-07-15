@@ -91,7 +91,7 @@ def register_cli_commands(app: Any) -> None:
         from app.services.operations.transfer import export_site_data
 
         try:
-            result = export_site_data(output_file)
+            result = export_site_data(output_file, force=True)
             click.echo(result.summary)
         except FileExistsError as e:
             click.echo(str(e))

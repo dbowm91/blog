@@ -47,7 +47,7 @@ This is a Flask-based blog CMS with:
 Business logic for CLI commands lives in `app/services/operations/`:
 
 - `admin.py` — create_admin, promote_admin, reset_admin_password, list_admins
-- `database.py` — check_database_integrity, rebuild_search_index
+- `database.py` — check_database_integrity, rebuild_search_index, get_migration_status, run_migrations
 - `media.py` — scan_orphaned_media, apply_orphaned_media_cleanup
 - `transfer.py` — export_site_data, validate_import, import_site_data
 - `themes.py` — list_theme_descriptors, validate_theme, inspect_theme, refresh_theme_registry, get_theme_paths, run_accessibility_check
@@ -70,8 +70,9 @@ Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [p
 |---------------|--------|---------|
 | `devlog config` | `devlog_cli/commands/config.py` | check, show, explain, paths, init, migrate |
 | `devlog admin` | `devlog_cli/commands/admin.py` | Admin user management |
-| `devlog db` | `devlog_cli/commands/db.py` | Database operations |
+| `devlog db` | `devlog_cli/commands/db.py` | Database operations (check, rebuild-search, status, migrate) |
 | `devlog data` | `devlog_cli/commands/data.py` | Import/export |
+| `devlog media` | `devlog_cli/commands/media.py` | Media scan and cleanup |
 | `devlog themes` | `devlog_cli/commands/themes.py` | Theme operations |
 | `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
 
