@@ -4,7 +4,7 @@ config_version = 1
 # DevLog Configuration Reference
 # =============================================================================
 #
-# This file is a template. setup.sh copies it to config.toml if absent.
+# This file is a template. scripts/setup-dev.sh copies it to config.toml if absent.
 # config.toml is gitignored — only this file is committed.
 #
 # Precedence chain (highest wins):

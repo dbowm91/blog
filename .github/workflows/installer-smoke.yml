@@ -1,0 +1,289 @@
+name: Installer Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      wheel-path: ${{ steps.build.outputs.wheel-path }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build wheel
+        id: build
+        run: |
+          python -m build --wheel
+          WHEEL=$(ls dist/*.whl)
+          echo "wheel-path=${WHEEL}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate checksums
+        run: python scripts/generate_checksums.py --directory dist
+
+      - name: Create Docker bundle
+        run: |
+          BUNDLE_NAME="docker-bundle-${{ steps.version.outputs.version }}.tar.gz"
+          mkdir -p /tmp/docker-bundle
+          for f in docker-compose.yml Dockerfile .env.example; do
+            [ -f "$f" ] && cp "$f" /tmp/docker-bundle/
+          done
+          tar -czf "dist/${BUNDLE_NAME}" -C /tmp docker-bundle
+          rm -rf /tmp/docker-bundle
+          python scripts/generate_checksums.py --directory dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+          retention-days: 1
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on install.sh
+        run: shellcheck -x -s bash scripts/install.sh
+
+  native-install:
+    name: Native Installation
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+      - name: Test native install
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.build-artifacts.outputs.version }}"
+          WHEEL_PATH="${{ needs.build-artifacts.outputs.wheel-path }}"
+
+          INSTALL_DIR="/tmp/devlog-smoke-install"
+          PREFIX="${INSTALL_DIR}/opt/devlog"
+          VERSION_DIR="${PREFIX}/releases/${VERSION}"
+          VENV_DIR="${VERSION_DIR}/venv"
+          CURRENT_LINK="${PREFIX}/current"
+
+          mkdir -p "${VERSION_DIR}"
+
+          python3 -m venv "${VENV_DIR}"
+          "${VENV_DIR}/bin/pip" install --quiet --no-cache-dir "${WHEEL_PATH}"
+
+          "${VENV_DIR}/bin/devlog" --version
+
+          INSTALLED_VERSION=$("${VENV_DIR}/bin/python" -c "
+          from importlib.metadata import version
+          print(version('devlog'))
+          ")
+          if [ "${INSTALLED_VERSION}" != "${VERSION}" ]; then
+            echo "ERROR: version mismatch — expected ${VERSION}, got ${INSTALLED_VERSION}" >&2
+            exit 1
+          fi
+
+          ln -sfn "${VERSION_DIR}" "${CURRENT_LINK}"
+          ln -sfn "${CURRENT_LINK}/venv/bin/devlog" "${PREFIX}/bin/devlog"
+
+          "${PREFIX}/bin/devlog" --version
+
+          "${VENV_DIR}/bin/devlog" config init --profile development --config "${INSTALL_DIR}/config.toml"
+          "${VENV_DIR}/bin/devlog" --config "${INSTALL_DIR}/config.toml" config check
+          "${VENV_DIR}/bin/devlog" --config "${INSTALL_DIR}/config.toml" themes list
+
+          rm -rf "${INSTALL_DIR}"
+
+  docker-bundle:
+    name: Docker Bundle
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+      - name: Test Docker bundle extraction
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.build-artifacts.outputs.version }}"
+          BUNDLE="dist/docker-bundle-${VERSION}.tar.gz"
+
+          if [ ! -f "${BUNDLE}" ]; then
+            echo "ERROR: Docker bundle not found: ${BUNDLE}" >&2
+            exit 1
+          fi
+
+          EXTRACT_DIR="/tmp/docker-bundle-smoke"
+          mkdir -p "${EXTRACT_DIR}"
+          tar -xzf "${BUNDLE}" -C "${EXTRACT_DIR}"
+
+          FOUND=$(find "${EXTRACT_DIR}" -mindepth 1 -maxdepth 1 -type d | head -1)
+          if [ -z "${FOUND}" ]; then
+            echo "ERROR: no directories found in extracted bundle" >&2
+            exit 1
+          fi
+
+          if [ ! -f "${FOUND}/docker-compose.yml" ]; then
+            echo "ERROR: docker-compose.yml not found in bundle" >&2
+            exit 1
+          fi
+
+          if [ ! -f "${FOUND}/Dockerfile" ]; then
+            echo "ERROR: Dockerfile not found in bundle" >&2
+            exit 1
+          fi
+
+          rm -rf "${EXTRACT_DIR}"
+
+  install-dry-run:
+    name: Install Dry Run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test install.sh option parsing
+        run: |
+          set -euo pipefail
+
+          output=$(bash scripts/install.sh --help 2>&1 || true)
+          if ! echo "${output}" | grep -q "Usage:"; then
+            echo "ERROR: --help did not produce usage output" >&2
+            exit 1
+          fi
+
+          output=$(bash scripts/install.sh --version 2>&1 || true)
+          if ! echo "${output}" | grep -q "requires a value"; then
+            echo "ERROR: --version without value should fail" >&2
+            exit 1
+          fi
+
+          output=$(bash scripts/install.sh --channel invalid 2>&1 || true)
+          if ! echo "${output}" | grep -q "Invalid channel"; then
+            echo "ERROR: invalid channel should fail" >&2
+            exit 1
+          fi
+
+          output=$(bash scripts/install.sh --unknown-flag 2>&1 || true)
+          if ! echo "${output}" | grep -q "Unknown option"; then
+            echo "ERROR: unknown option should fail" >&2
+            exit 1
+          fi
+
+          echo "All option parsing tests passed"
+
+  checksum-verification:
+    name: Checksum Verification
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+      - name: Verify checksums
+        run: python scripts/check_release_artifacts.py --directory dist --checksums dist/checksums.txt
+
+  version-consistency:
+    name: Version Consistency
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+      - name: Check version consistency
+        run: |
+          set -euo pipefail
+          EXPECTED="${{ needs.build-artifacts.outputs.version }}"
+
+          WHEEL=$(ls dist/*.whl)
+          WHEEL_NAME=$(basename "${WHEEL}")
+          WHEEL_VERSION=$(echo "${WHEEL_NAME}" | sed -E 's/devlog-([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+
+          if [ "${WHEEL_VERSION}" != "${EXPECTED}" ]; then
+            echo "ERROR: wheel version ${WHEEL_VERSION} != pyproject.toml version ${EXPECTED}" >&2
+            exit 1
+          fi
+
+          BUNDLE="dist/docker-bundle-${EXPECTED}.tar.gz"
+          if [ ! -f "${BUNDLE}" ]; then
+            echo "ERROR: Docker bundle not found for version ${EXPECTED}" >&2
+            exit 1
+          fi
+
+          if ! grep -q "${EXPECTED}" dist/checksums.txt 2>/dev/null; then
+            echo "ERROR: version ${EXPECTED} not referenced in checksums.txt" >&2
+            exit 1
+          fi
+
+          python -m venv /tmp/version-check-venv
+          /tmp/version-check-venv/bin/pip install --quiet --no-cache-dir "${WHEEL}"
+          INSTALL_VERSION=$(/tmp/version-check-venv/bin/python -c "
+          from importlib.metadata import version
+          print(version('devlog'))
+          ")
+
+          if [ "${INSTALL_VERSION}" != "${EXPECTED}" ]; then
+            echo "ERROR: installed version ${INSTALL_VERSION} != expected ${EXPECTED}" >&2
+            exit 1
+          fi
+
+          rm -rf /tmp/version-check-venv

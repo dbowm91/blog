@@ -1,0 +1,98 @@
+config_version = 1
+
+[app]
+title = "DevLog"
+description = "A place for thoughts on code"
+posts_per_page = 10
+session_lifetime_hours = 24
+session_ip_binding = "warn"
+tag_cache_ttl_seconds = 60
+max_upload_size = 10485760
+
+[admin]
+username = "admin"
+
+[server]
+host = "0.0.0.0"
+port = 5000
+debug = false
+
+[site]
+base_url = "http://localhost:5000"
+cdn_url = ""
+related_posts_count = 3
+
+[email]
+smtp_host = ""
+smtp_port = 587
+smtp_user = ""
+smtp_password = ""
+from_address = "blog@example.com"
+smtp_timeout = 30
+
+[newsletter]
+send_time = "08:00"
+confirmation_expiry_hours = 1
+max_retry_attempts = 5
+
+[comments]
+min_length = 3
+max_length = 5000
+rate_limit_per_ip = "5 per minute"
+rate_limit_per_post = "3 per minute"
+notify_pending = false
+spam_words = ""
+
+[themes]
+external_dir = ""
+allow_external = true
+strict_validation = false
+default_dark = "Catppuccin Mocha"
+default_light = "Catppuccin Latte"
+default_scheme = "system"
+
+[database]
+uri = ""
+pool_size = 10
+max_overflow = 20
+pool_recycle = 3600
+
+[redis]
+url = "redis://redis:6379/0"
+cache_url = ""
+rate_limit_url = ""
+
+[celery]
+broker_url = ""
+
+[scheduler]
+enabled = false
+
+[storage]
+backend = "local"
+
+[health]
+check_secret = ""
+
+[metrics]
+enabled = false
+secret = ""
+
+[backup]
+data_backup_dir = "backups"
+encryption_key = ""
+
+[security]
+max_failed_attempts = 5
+lockout_duration_minutes = 15
+
+[webhook]
+timeout = 10
+encryption_key = ""
+
+[logging]
+level = "INFO"
+
+[search]
+provider = "sqlite"
+config = {}

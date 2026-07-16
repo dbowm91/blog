@@ -99,6 +99,10 @@ Important actual file locations (verify before assuming):
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 | Operations tests | `tests/services/` |
 | Dependency consistency | `scripts/check_dependency_manifest_consistency.py` |
+| Installer | `scripts/install.sh` — one-shot native/Docker installer |
+| Dev setup | `scripts/setup-dev.sh` — development environment setup |
+| Checksum generation | `scripts/generate_checksums.py` — release artifact checksums |
+| Artifact verification | `scripts/check_release_artifacts.py` — verify wheel/checksums |
 
 ## Security & Privacy Rules
 
@@ -320,7 +324,7 @@ See [architecture/infrastructure/storage.md](architecture/infrastructure/storage
 
 ### config.toml.example
 
-`config.toml.example` exists as a template. `setup.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed. If `config.toml` is missing, `app/config_legacy.py` falls back to `config.toml.example` with a warning. The typed config system (`app/config/loader.py`) resolves the same precedence chain: env vars > config.toml > defaults.
+`config.toml.example` exists as a template. `scripts/setup-dev.sh` copies it to `config.toml` if absent. `config.toml` is gitignored — only `config.toml.example` is committed. If `config.toml` is missing, `app/config_legacy.py` falls back to `config.toml.example` with a warning. The typed config system (`app/config/loader.py`) resolves the same precedence chain: env vars > config.toml > defaults.
 
 ### python-dotenv Auto-Loading
 
@@ -328,7 +332,11 @@ See [architecture/infrastructure/storage.md](architecture/infrastructure/storage
 
 ### setup.sh Behavior
 
-`setup.sh` creates a venv, installs deps, generates `.env` (if missing), copies `config.toml` from template, then sources `.env`. It does NOT start the server — the final message tells the user to run `python run.py`.
+`scripts/setup-dev.sh` creates a venv, installs deps, generates `.env` (if missing), copies `config.toml` from template, then sources `.env`. It does NOT start the server — the final message tells the user to run `python run.py`.
+
+### Installer
+
+`scripts/install.sh` is a one-shot installer for native and Docker modes. It downloads versioned release artifacts, verifies SHA-256 checksums, installs into a versioned directory layout (`/opt/devlog/releases/X.Y.Z/venv/`), creates an atomic symlink at `/opt/devlog/current`, and creates a launcher at `/usr/local/bin/devlog`. The installer does not create configuration or database state — that is delegated to `devlog onboard`.
 
 ### RELEASE.md
 

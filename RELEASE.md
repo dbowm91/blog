@@ -31,10 +31,17 @@ This runs lint, type check, tests, frontend build, Docker build, and Compose con
 - [ ] Update `CHANGELOG.md`: move `[Unreleased]` content under `[X.Y.Z]` with date
 - [ ] Create git tag: `git tag -a vX.Y.Z -m "Release X.Y.Z"`
 
+## Release Artifacts
+
+- [ ] Build wheel: `python -m build --wheel`
+- [ ] Verify wheel contents: `python scripts/check_release_artifacts.py --directory dist/`
+- [ ] Generate checksums: `python scripts/generate_checksums.py --directory dist/`
+- [ ] Verify checksums: `python scripts/check_release_artifacts.py --directory dist/ --checksums dist/checksums.txt`
+
 ## Post-Release
 
 - [ ] Push tag: `git push origin vX.Y.Z`
-- [ ] Create GitHub Release from tag
+- [ ] Create GitHub Release from tag (workflow builds wheel, sdist, Docker image, checksums)
 - [ ] Verify Docker build: `docker compose --profile production build`
 - [ ] Deploy to staging/production
 - [ ] Smoke test: homepage loads, login works, posts render, feeds accessible

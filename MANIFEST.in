@@ -1,2 +1,10 @@
 recursive-include app/themes/bundled *.toml *.json *.md
 include app/themes/ACCESSIBILITY_EXCEPTIONS.json
+recursive-include app/templates *
+recursive-include app/static/css *
+recursive-include app/static/js *
+recursive-include app/static/dist *
+recursive-include migrations *
+include config.toml.example
+include requirements.txt
+include requirements-dev.txt

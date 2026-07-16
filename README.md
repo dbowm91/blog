@@ -46,7 +46,16 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 
 ## Quick Start
 
-### Docker Production (Recommended)
+### One-Shot Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native
+devlog onboard --mode native
+```
+
+This installs DevLog from verified release artifacts to `/opt/devlog/`, creates a `devlog` launcher, and runs onboarding. No Node.js or source checkout required.
+
+### Docker Production
 
 ```bash
 git clone https://github.com/dbowm91/blog.git /opt/blog
@@ -67,7 +76,7 @@ The app binds to `127.0.0.1:5000` (localhost only). For public access, terminate
 ```bash
 git clone https://github.com/dbowm91/blog.git /opt/blog
 cd /opt/blog
-./setup.sh
+./scripts/setup-dev.sh
 venv/bin/python run.py
 ```
 
@@ -75,7 +84,7 @@ This creates a virtual environment, generates secure credentials, and loads the 
 
 ### CLI Installation
 
-DevLog provides a standalone `devlog` CLI for operator tasks:
+DevLog provides a standalone `devlog` CLI for operator tasks. The installer creates a launcher automatically. For manual installation:
 
 ```bash
 pip install .
@@ -153,7 +162,7 @@ Profiles: `development`, `native-production`, `docker-production`, `minimal`, `f
 
 ## Building Frontend Assets
 
-Docker builds frontend assets automatically via a multi-stage build. For non-Docker deployments:
+Docker builds frontend assets automatically via a multi-stage build. Production releases include pre-built assets in the wheel — native production installation does not require Node.js. For non-Docker development:
 
 ```bash
 npm ci
