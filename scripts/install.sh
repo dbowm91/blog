@@ -259,6 +259,12 @@ check_native_prereqs() {
     python3 -c "import venv" 2>/dev/null || die "Python venv module is required but not available."
     ok "venv module available"
 
+    if python3 -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.execute('CREATE VIRTUAL TABLE IF NOT EXISTS _test USING fts5(content)'); conn.close()" 2>/dev/null; then
+        ok "SQLite FTS5 available"
+    else
+        warn "SQLite FTS5 not available — search will use LIKE fallback"
+    fi
+
     require_cmd curl "curl is required for downloading artifacts."
     ok "curl available"
 
