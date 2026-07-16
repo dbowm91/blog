@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+import shutil
 import sqlite3
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.filesystem.layout import RuntimePaths
+
+
+@dataclass
+class PathCheckResult:
+    exists: bool
+    is_symlink: bool = False
+    symlink_target: str | None = None
+    writable: bool = False
+    permissions: str = "unknown"
+    free_space_bytes: int | None = None
+    is_release_dir: bool = False
 
 
 @dataclass
@@ -13,12 +26,25 @@ class VerificationResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     path_checks: dict[str, bool] = field(default_factory=dict)
+    path_details: dict[str, PathCheckResult] = field(default_factory=dict)
 
 
 def verify_database_accessible(db_path: Path) -> bool:
     try:
         conn = sqlite3.connect(str(db_path), timeout=5)
         conn.execute("SELECT 1")
+        conn.close()
+        return True
+    except (sqlite3.Error, OSError):
+        return False
+
+
+def checkpoint_database(db_path: Path) -> bool:
+    if not db_path.exists():
+        return False
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=10)
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.close()
         return True
     except (sqlite3.Error, OSError):
@@ -40,10 +66,55 @@ def verify_directory_writable(path: Path) -> bool:
         return False
 
 
+def check_path(path: Path) -> PathCheckResult:
+    result = PathCheckResult(exists=path.exists())
+    if not path.exists():
+        return result
+    try:
+        if path.is_symlink():
+            result.is_symlink = True
+            result.symlink_target = str(path.resolve())
+    except OSError:
+        pass
+    try:
+        st = path.stat()
+        result.permissions = oct(stat.S_IMODE(st.st_mode))
+        import os
+
+        result.writable = os.access(path, os.W_OK)
+    except OSError:
+        pass
+    try:
+        usage = shutil.disk_usage(path)
+        result.free_space_bytes = usage.free
+    except OSError:
+        pass
+    if path.name == "current" and path.parent.name == "releases":
+        result.is_release_dir = True
+    elif path.is_dir():
+        try:
+            for item in path.iterdir():
+                if item.name == "current" and item.is_symlink():
+                    result.is_release_dir = True
+                    break
+        except OSError:
+            pass
+    return result
+
+
+def _check_database_strict(db_path: Path) -> str | None:
+    if not db_path.exists():
+        return f"Required database file missing: {db_path}"
+    if not verify_database_accessible(db_path):
+        return f"Database file not accessible: {db_path}"
+    return None
+
+
 def verify_migration(target: RuntimePaths) -> VerificationResult:
     errors: list[str] = []
     warnings: list[str] = []
     path_checks: dict[str, bool] = {}
+    path_details: dict[str, PathCheckResult] = {}
 
     for name in (
         "config_file",
@@ -59,7 +130,13 @@ def verify_migration(target: RuntimePaths) -> VerificationResult:
         "installation_metadata",
     ):
         rp = getattr(target, name)
-        path_checks[name] = rp.path.exists()
+        check = check_path(rp.path)
+        path_checks[name] = check.exists
+        path_details[name] = check
+
+    if target.release_dir is not None:
+        release_check = check_path(target.release_dir.path)
+        path_details["release_dir"] = release_check
 
     if not target.data_dir.path.exists():
         errors.append(f"Data directory does not exist: {target.data_dir.path}")
@@ -87,9 +164,39 @@ def verify_migration(target: RuntimePaths) -> VerificationResult:
     if target.runtime_dir.path.exists() and not verify_directory_writable(target.runtime_dir.path):
         warnings.append(f"Runtime directory not writable: {target.runtime_dir.path}")
 
+    for name, check in path_details.items():
+        if check.is_symlink:
+            warnings.append(f"Path {name} is a symlink pointing to {check.symlink_target}")
+
     return VerificationResult(
         success=len(errors) == 0,
         errors=errors,
         warnings=warnings,
         path_checks=path_checks,
+        path_details=path_details,
     )
+
+
+def verify_production_ready(target: RuntimePaths) -> VerificationResult:
+    result = verify_migration(target)
+
+    if not target.database.path.exists():
+        result.errors.append(
+            f"Production database missing: {target.database.path}. "
+            "Production mode requires an existing database."
+        )
+        result.success = False
+
+    if target.database.path.exists():
+        if not checkpoint_database(target.database.path):
+            result.warnings.append(f"Could not checkpoint database WAL: {target.database.path}")
+
+    for name in ("data_dir", "uploads_dir", "themes_dir", "backups_dir", "exports_dir"):
+        detail = result.path_details.get(name)
+        if detail is not None and detail.free_space_bytes is not None:
+            if detail.free_space_bytes < 100 * 1024 * 1024:
+                result.warnings.append(
+                    f"Low disk space on {name}: {detail.free_space_bytes / (1024 * 1024):.1f} MB free"
+                )
+
+    return result

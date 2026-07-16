@@ -306,28 +306,52 @@ def _check_parent_ownership(path: Path) -> None:
         return
 
 
+def _find_spec(specs: dict[str, DirectorySpec], path: Path) -> DirectorySpec | None:
+    resolved = path.resolve()
+    for spec in specs.values():
+        spec_resolved = spec.path.expanduser().resolve()
+        if spec_resolved == resolved or resolved.is_relative_to(spec_resolved):
+            return spec
+    return None
+
+
 def prepare_directories(
     paths: RuntimePaths,
     *,
     mode: InstallMode,
     dry_run: bool = False,
 ) -> list[Path]:
-    managed = [
-        paths.data_dir.path,
-        paths.uploads_dir.path,
-        paths.themes_dir.path,
-        paths.backups_dir.path,
-        paths.exports_dir.path,
-        paths.log_dir.path,
-        paths.runtime_dir.path,
+    specs = get_directory_specs(mode)
+    managed_with_specs = [
+        (paths.data_dir.path, "data_dir"),
+        (paths.uploads_dir.path, "uploads_dir"),
+        (paths.themes_dir.path, "themes_dir"),
+        (paths.backups_dir.path, "backups_dir"),
+        (paths.exports_dir.path, "exports_dir"),
+        (paths.log_dir.path, "log_dir"),
+        (paths.runtime_dir.path, "runtime_dir"),
     ]
     created: list[Path] = []
-    for p in managed:
+    for p, spec_name in managed_with_specs:
         if not p.exists():
             if not dry_run:
                 _validate_path_safety(p.parent, p)
                 _check_parent_ownership(p)
                 p.mkdir(parents=True, exist_ok=True)
-                os.chmod(p, 0o755)
+                spec = specs.get(spec_name)
+                if spec is not None:
+                    os.chmod(p, spec.mode)
+                    if spec.owner is not None and os.getuid() == 0:
+                        try:
+                            import grp
+                            import pwd
+
+                            uid = pwd.getpwnam(spec.owner).pw_uid
+                            gid = grp.getgrnam(spec.group).gr_gid if spec.group else uid
+                            os.chown(p, uid, gid)
+                        except (KeyError, OSError):
+                            pass
+                else:
+                    os.chmod(p, 0o755)
             created.append(p)
     return created

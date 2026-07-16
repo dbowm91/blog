@@ -4,10 +4,14 @@ import sqlite3
 
 from app.filesystem.layout import InstallMode, RuntimePaths
 from app.filesystem.verification import (
+    PathCheckResult,
     VerificationResult,
+    check_path,
+    checkpoint_database,
     verify_database_accessible,
     verify_directory_writable,
     verify_migration,
+    verify_production_ready,
 )
 
 
@@ -201,3 +205,110 @@ class TestVerifyMigration:
         assert r.errors == []
         assert r.warnings == []
         assert r.path_checks == {}
+
+
+class TestCheckPath:
+    def test_nonexistent_path(self, tmp_path):
+        result = check_path(tmp_path / "nonexistent")
+        assert result.exists is False
+        assert result.is_symlink is False
+
+    def test_existing_directory(self, tmp_path):
+        result = check_path(tmp_path)
+        assert result.exists is True
+        assert result.writable is True
+
+    def test_symlink_detection(self, tmp_path):
+        target = tmp_path / "real"
+        target.mkdir()
+        link = tmp_path / "link"
+        link.symlink_to(target)
+        result = check_path(link)
+        assert result.is_symlink is True
+        assert result.symlink_target == str(target)
+
+    def test_free_space(self, tmp_path):
+        result = check_path(tmp_path)
+        assert result.free_space_bytes is not None
+        assert result.free_space_bytes > 0
+
+    def test_permissions(self, tmp_path):
+        result = check_path(tmp_path)
+        assert result.permissions != "unknown"
+
+    def test_release_dir_detection(self, tmp_path):
+        releases = tmp_path / "releases"
+        releases.mkdir()
+        current = releases / "current"
+        current.symlink_to(tmp_path / "v1.0")
+        result = check_path(releases)
+        assert result.is_release_dir is True
+
+
+class TestCheckpointDatabase:
+    def test_checkpoint_existing(self, tmp_path):
+        db = tmp_path / "test.db"
+        conn = sqlite3.connect(str(db))
+        conn.execute("CREATE TABLE test (id INTEGER)")
+        conn.commit()
+        conn.close()
+        assert checkpoint_database(db) is True
+
+    def test_checkpoint_nonexistent(self, tmp_path):
+        db = tmp_path / "nonexistent.db"
+        assert checkpoint_database(db) is False
+
+
+class TestVerifyProductionReady:
+    def _make_paths(self, tmp_path, *, create_all=True):
+        data = tmp_path / "data"
+        uploads = data / "uploads"
+        themes = data / "themes"
+        backups = data / "backups"
+        exports = data / "exports"
+        logs = tmp_path / "logs"
+        runtime = tmp_path / "runtime"
+        config = tmp_path / "config.toml"
+        env = tmp_path / ".env"
+
+        if create_all:
+            data.mkdir(parents=True, exist_ok=True)
+            uploads.mkdir(parents=True, exist_ok=True)
+            themes.mkdir(parents=True, exist_ok=True)
+            backups.mkdir(parents=True, exist_ok=True)
+            exports.mkdir(parents=True, exist_ok=True)
+            logs.mkdir(parents=True, exist_ok=True)
+            runtime.mkdir(parents=True, exist_ok=True)
+            config.touch()
+            env.touch()
+
+        return RuntimePaths.resolve(
+            InstallMode.DEVELOPMENT,
+            data_dir=data,
+            uploads_dir=uploads,
+            themes_dir=themes,
+            backups_dir=backups,
+            exports_dir=exports,
+            log_dir=logs,
+            runtime_dir=runtime,
+            config_file=config,
+            env_file=env,
+        )
+
+    def test_missing_database_errors(self, tmp_path):
+        paths = self._make_paths(tmp_path, create_all=True)
+        result = verify_production_ready(paths)
+        assert result.success is False
+        assert any("Production database missing" in e for e in result.errors)
+
+    def test_existing_database_ok(self, tmp_path):
+        paths = self._make_paths(tmp_path, create_all=True)
+        paths.database.path.write_bytes(b"sqlite data")
+        result = verify_production_ready(paths)
+        assert result.success is True
+
+    def test_path_details_populated(self, tmp_path):
+        paths = self._make_paths(tmp_path, create_all=True)
+        result = verify_migration(paths)
+        assert "data_dir" in result.path_details
+        assert isinstance(result.path_details["data_dir"], PathCheckResult)

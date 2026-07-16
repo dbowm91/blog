@@ -123,23 +123,36 @@ def step_resolve_mode(ctx: StepContext) -> StepResult:
 def step_resolve_paths(ctx: StepContext) -> StepResult:
     inp = ctx.input
 
-    if inp.mode == "docker":
-        config_dir = Path("/etc/devlog")
-        data_dir = Path("/data")
-    else:
-        config_dir = Path(".")
-        data_dir = Path("data")
+    try:
+        from app.filesystem.layout import InstallMode, RuntimePaths
 
-    ctx.config_dir = config_dir
-    ctx.data_dir = data_dir
+        mode_map = {"docker": InstallMode.DOCKER, "native": InstallMode.DEVELOPMENT}
+        install_mode = mode_map.get(inp.mode, InstallMode.DEVELOPMENT)
+        runtime_paths = RuntimePaths.for_mode(install_mode)
 
-    config_dir.mkdir(parents=True, exist_ok=True)
-    data_dir.mkdir(parents=True, exist_ok=True)
+        ctx.config_dir = runtime_paths.config_file.path.parent
+        ctx.data_dir = runtime_paths.data_dir.path
+
+        ctx.config_dir.mkdir(parents=True, exist_ok=True)
+        ctx.data_dir.mkdir(parents=True, exist_ok=True)
+    except ImportError:
+        if inp.mode == "docker":
+            config_dir = Path("/etc/devlog")
+            data_dir = Path("/data")
+        else:
+            config_dir = Path(".")
+            data_dir = Path("data")
+
+        ctx.config_dir = config_dir
+        ctx.data_dir = data_dir
+
+        config_dir.mkdir(parents=True, exist_ok=True)
+        data_dir.mkdir(parents=True, exist_ok=True)
 
     return StepResult(
         ok=True,
-        message=f"Config: {config_dir}, Data: {data_dir}",
-        details={"config_dir": str(config_dir), "data_dir": str(data_dir)},
+        message=f"Config: {ctx.config_dir}, Data: {ctx.data_dir}",
+        details={"config_dir": str(ctx.config_dir), "data_dir": str(ctx.data_dir)},
     )
 
 

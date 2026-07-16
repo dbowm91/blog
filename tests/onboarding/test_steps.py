@@ -99,8 +99,11 @@ class TestStepResolvePathsNative:
         result = step_resolve_paths(ctx)
 
         assert result.ok is True
-        assert ctx.config_dir == Path(".")
-        assert ctx.data_dir == Path("data")
+        assert ctx.config_dir.is_absolute()
+        assert ctx.config_dir.exists()
+        assert ctx.data_dir.is_absolute()
+        assert ctx.data_dir.exists()
+        assert ctx.data_dir.name == "data"
 
 
 class TestStepBuildConfig:

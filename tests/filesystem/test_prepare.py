@@ -264,6 +264,27 @@ class TestPrepareDirectories:
                 except OSError:
                     pytest.fail(f"Parent of {p} is not writable")
 
+    def test_applies_directory_spec_mode(self, tmp_path):
+        paths = RuntimePaths.resolve(
+            InstallMode.USER,
+            data_dir=tmp_path / "data",
+            uploads_dir=tmp_path / "data" / "uploads",
+            themes_dir=tmp_path / "data" / "themes",
+            backups_dir=tmp_path / "data" / "backups",
+            exports_dir=tmp_path / "data" / "exports",
+            log_dir=tmp_path / "logs",
+            runtime_dir=tmp_path / "runtime",
+            config_file=tmp_path / "config.toml",
+            env_file=tmp_path / ".env",
+        )
+        created = prepare_directories(paths, mode=InstallMode.USER)
+        import os
+        import stat
+
+        for p in created:
+            mode_bits = stat.S_IMODE(os.stat(p).st_mode)
+            assert mode_bits == 0o700, f"{p} has mode {oct(mode_bits)}, expected 0o700"
+
 
 class TestValidatePathSafety:
     def test_traversal_rejected(self, tmp_path):

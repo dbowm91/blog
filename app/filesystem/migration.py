@@ -89,6 +89,8 @@ def plan_migration(
     source: RuntimePaths,
     target: RuntimePaths,
     *,
+    source_mode: InstallMode | None = None,
+    target_mode: InstallMode | None = None,
     include_logs: bool = False,
 ) -> MigrationPlan:
     warnings: list[str] = []
@@ -125,8 +127,8 @@ def plan_migration(
 
     return MigrationPlan(
         steps=steps,
-        source_mode=InstallMode.DEVELOPMENT,
-        target_mode=InstallMode.DEVELOPMENT,
+        source_mode=source_mode or InstallMode.DEVELOPMENT,
+        target_mode=target_mode or InstallMode.DEVELOPMENT,
         warnings=warnings,
         requires_downtime=requires_downtime,
     )

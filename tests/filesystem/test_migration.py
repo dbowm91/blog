@@ -197,6 +197,18 @@ class TestPlanMigration:
         assert plan.source_mode == InstallMode.DEVELOPMENT
         assert plan.target_mode == InstallMode.DEVELOPMENT
 
+    def test_explicit_modes(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        plan = plan_migration(
+            source,
+            target,
+            source_mode=InstallMode.SYSTEM,
+            target_mode=InstallMode.DOCKER,
+        )
+        assert plan.source_mode == InstallMode.SYSTEM
+        assert plan.target_mode == InstallMode.DOCKER
+
     def test_env_file_transfer(self, tmp_path):
         source = _make_source(tmp_path)
         target = _make_target(tmp_path)

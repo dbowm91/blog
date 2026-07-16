@@ -17,14 +17,10 @@ from devlog_cli.result import Result
 
 def _add_status_command(group: click.Group) -> None:
     @group.command("status")
-    @click.option(
-        "--json", "json_mode", is_flag=True, default=False, help="Output in JSON format."
-    )
+    @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.option(
         "--mode",
-        type=click.Choice(
-            ["system", "user", "docker", "development"], case_sensitive=False
-        ),
+        type=click.Choice(["system", "user", "docker", "development"], case_sensitive=False),
         default="development",
         help="Installation mode to report paths for.",
     )
@@ -91,9 +87,7 @@ def _add_status_command(group: click.Group) -> None:
 
 def _add_discover_legacy_command(group: click.Group) -> None:
     @group.command("discover-legacy")
-    @click.option(
-        "--json", "json_mode", is_flag=True, default=False, help="Output in JSON format."
-    )
+    @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.option(
         "--search-root",
         type=click.Path(exists=True, path_type=Path),
@@ -185,24 +179,18 @@ def _add_migrate_command(group: click.Group) -> None:
     @click.option(
         "--from-mode",
         "source_mode",
-        type=click.Choice(
-            ["system", "user", "docker", "development"], case_sensitive=False
-        ),
+        type=click.Choice(["system", "user", "docker", "development"], case_sensitive=False),
         required=True,
         help="Source layout mode.",
     )
     @click.option(
         "--to-mode",
         "target_mode",
-        type=click.Choice(
-            ["system", "user", "docker", "development"], case_sensitive=False
-        ),
+        type=click.Choice(["system", "user", "docker", "development"], case_sensitive=False),
         required=True,
         help="Target layout mode.",
     )
-    @click.option(
-        "--json", "json_mode", is_flag=True, default=False, help="Output in JSON format."
-    )
+    @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.pass_context
     def paths_migrate(
         ctx: click.Context,
@@ -223,7 +211,12 @@ def _add_migrate_command(group: click.Group) -> None:
             source_paths = RuntimePaths.for_mode(src)
             target_paths = RuntimePaths.for_mode(tgt)
 
-            plan = plan_migration(source_paths, target_paths)
+            plan = plan_migration(
+                source_paths,
+                target_paths,
+                source_mode=src,
+                target_mode=tgt,
+            )
 
             steps = [
                 {
@@ -290,14 +283,10 @@ def _add_migrate_command(group: click.Group) -> None:
 
 def _add_check_command(group: click.Group) -> None:
     @group.command("check")
-    @click.option(
-        "--json", "json_mode", is_flag=True, default=False, help="Output in JSON format."
-    )
+    @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.option(
         "--mode",
-        type=click.Choice(
-            ["system", "user", "docker", "development"], case_sensitive=False
-        ),
+        type=click.Choice(["system", "user", "docker", "development"], case_sensitive=False),
         default="development",
         help="Installation mode to check.",
     )
@@ -316,8 +305,7 @@ def _add_check_command(group: click.Group) -> None:
             verification = verify_migration(paths_obj)
 
             summary = (
-                f"{len(verification.errors)} error(s), "
-                f"{len(verification.warnings)} warning(s)"
+                f"{len(verification.errors)} error(s), {len(verification.warnings)} warning(s)"
             )
             details: dict[str, Any] = {
                 "success": verification.success,

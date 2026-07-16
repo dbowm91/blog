@@ -37,14 +37,23 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --chown=blog:blog . .
 COPY --from=frontend-builder /home/blog/app/static/dist /home/blog/app/static/dist
 
-RUN mkdir -p /home/blog/instance /home/blog/logs /home/blog/app/static/uploads
+RUN mkdir -p /data /data/uploads /data/themes /data/backups /data/exports \
+    && mkdir -p /etc/devlog \
+    && mkdir -p /var/log/devlog \
+    && mkdir -p /run/devlog \
+    && chown -R blog:blog /data /etc/devlog /var/log/devlog /run/devlog
 
 USER blog
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     FLASK_APP=run:app \
-    REDIS_URL="redis://redis:6379/0"
+    REDIS_URL="redis://redis:6379/0" \
+    DEVLOG_CONFIG_FILE="/etc/devlog/config.toml" \
+    DEVLOG_ENV_FILE="/etc/devlog/.env" \
+    DEVLOG_DATA_DIR="/data" \
+    DEVLOG_LOG_DIR="/var/log/devlog" \
+    DEVLOG_RUNTIME_DIR="/run/devlog"
 
 EXPOSE 5000
 

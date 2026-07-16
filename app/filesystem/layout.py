@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from enum import Enum
@@ -28,6 +29,39 @@ class ResolvedPath:
     path: Path
     provenance: PathProvenance
     source: str
+
+
+@dataclass(frozen=True)
+class InstallationMetadata:
+    mode: InstallMode
+    version: str
+    data_dir: Path | None = None
+    config_file: Path | None = None
+    env_file: Path | None = None
+    install_root: Path | None = None
+
+    @classmethod
+    def load(cls, path: Path) -> InstallationMetadata | None:
+        if not path.exists():
+            return None
+        try:
+            raw = json.loads(path.read_text())
+            mode = InstallMode(raw["mode"])
+            version = raw.get("version", "unknown")
+            data_dir = Path(raw["data_dir"]) if "data_dir" in raw else None
+            config_file = Path(raw["config_file"]) if "config_file" in raw else None
+            env_file = Path(raw["env_file"]) if "env_file" in raw else None
+            install_root = Path(raw["install_root"]) if "install_root" in raw else None
+            return cls(
+                mode=mode,
+                version=version,
+                data_dir=data_dir,
+                config_file=config_file,
+                env_file=env_file,
+                install_root=install_root,
+            )
+        except (json.JSONDecodeError, KeyError, ValueError):
+            return None
 
 
 def _resolve_path(
@@ -127,6 +161,83 @@ def _resolve_exports_dir(data_dir: Path, explicit: Path | None = None) -> Path:
 
 
 @dataclass(frozen=True)
+class ModeDetectionResult:
+    detected_mode: InstallMode
+    source: str
+    ambiguous: bool = False
+    candidates: list[tuple[InstallMode, str]] | None = None
+
+
+def detect_mode_from_metadata(search_root: Path | None = None) -> ModeDetectionResult | None:
+    root = (search_root or Path.cwd()).resolve()
+    metadata_locations = [
+        root / ".devlog-installation.json",
+        root / "data" / ".devlog-installation.json",
+    ]
+    for meta_path in metadata_locations:
+        meta = InstallationMetadata.load(meta_path)
+        if meta is not None:
+            return ModeDetectionResult(
+                detected_mode=meta.mode,
+                source=f"metadata file {meta_path}",
+            )
+    parent = root.parent
+    if parent != root:
+        parent_meta = parent / ".devlog-installation.json"
+        meta = InstallationMetadata.load(parent_meta)
+        if meta is not None:
+            return ModeDetectionResult(
+                detected_mode=meta.mode,
+                source=f"metadata file {parent_meta}",
+            )
+    return None
+
+
+def detect_mode(search_root: Path | None = None) -> ModeDetectionResult:
+    root = (search_root or Path.cwd()).resolve()
+    candidates: list[tuple[InstallMode, str]] = []
+
+    meta_result = detect_mode_from_metadata(root)
+    if meta_result is not None:
+        candidates.append((meta_result.detected_mode, meta_result.source))
+
+    docker_env = os.environ.get("DEVLOG_DOCKER")
+    if docker_env:
+        candidates.append((InstallMode.DOCKER, "DEVLOG_DOCKER env var"))
+    elif Path("/.dockerenv").exists():
+        candidates.append((InstallMode.DOCKER, "Docker container detected"))
+
+    if os.environ.get("DEVLOG_MODE"):
+        candidates.append((InstallMode(os.environ["DEVLOG_MODE"]), "DEVLOG_MODE env var"))
+
+    system_paths = [Path("/etc/devlog/config.toml"), Path("/var/lib/devlog")]
+    for sp in system_paths:
+        if sp.exists():
+            candidates.append((InstallMode.SYSTEM, f"system path {sp}"))
+            break
+
+    if candidates:
+        if len(candidates) == 1:
+            mode, source = candidates[0]
+            return ModeDetectionResult(detected_mode=mode, source=source)
+        primary_mode, primary_source = candidates[0]
+        other_modes = [(m, s) for m, s in candidates[1:] if m != primary_mode]
+        if other_modes:
+            return ModeDetectionResult(
+                detected_mode=primary_mode,
+                source=primary_source,
+                ambiguous=True,
+                candidates=candidates,
+            )
+        return ModeDetectionResult(detected_mode=primary_mode, source=primary_source)
+
+    return ModeDetectionResult(
+        detected_mode=InstallMode.DEVELOPMENT,
+        source="no metadata or system paths found, defaulting to development",
+    )
+
+
+@dataclass(frozen=True)
 class RuntimePaths:
     config_file: ResolvedPath
     env_file: ResolvedPath
@@ -139,6 +250,7 @@ class RuntimePaths:
     log_dir: ResolvedPath
     runtime_dir: ResolvedPath
     installation_metadata: ResolvedPath
+    release_dir: ResolvedPath | None = None
 
     @classmethod
     def resolve(
@@ -222,8 +334,47 @@ class RuntimePaths:
     def for_mode(cls, mode: InstallMode) -> RuntimePaths:
         return cls.resolve(mode)
 
+    @classmethod
+    def from_metadata(
+        cls,
+        metadata_path: Path,
+        *,
+        config_file: Path | None = None,
+        env_file: Path | None = None,
+        data_dir: Path | None = None,
+        log_dir: Path | None = None,
+        runtime_dir: Path | None = None,
+        uploads_dir: Path | None = None,
+        themes_dir: Path | None = None,
+        backups_dir: Path | None = None,
+        exports_dir: Path | None = None,
+        database_path: Path | None = None,
+    ) -> RuntimePaths | None:
+        meta = InstallationMetadata.load(metadata_path)
+        if meta is None:
+            return None
+        explicit_overrides: dict[str, Path | None] = {
+            "config_file": config_file or meta.config_file,
+            "env_file": env_file or meta.env_file,
+            "data_dir": data_dir or meta.data_dir,
+        }
+        return cls.resolve(
+            meta.mode,
+            config_file=explicit_overrides["config_file"],
+            env_file=explicit_overrides["env_file"],
+            data_dir=explicit_overrides["data_dir"],
+            log_dir=log_dir,
+            runtime_dir=runtime_dir,
+            uploads_dir=uploads_dir,
+            themes_dir=themes_dir,
+            backups_dir=backups_dir,
+            exports_dir=exports_dir,
+            database_path=database_path,
+            install_root=meta.install_root,
+        )
+
     def as_dict(self) -> dict[str, str]:
-        return {
+        result = {
             "config_file": str(self.config_file.path),
             "env_file": str(self.env_file.path),
             "data_dir": str(self.data_dir.path),
@@ -236,9 +387,12 @@ class RuntimePaths:
             "runtime_dir": str(self.runtime_dir.path),
             "installation_metadata": str(self.installation_metadata.path),
         }
+        if self.release_dir is not None:
+            result["release_dir"] = str(self.release_dir.path)
+        return result
 
     def all_paths(self) -> list[tuple[str, Path]]:
-        return [
+        paths = [
             ("config_file", self.config_file.path),
             ("env_file", self.env_file.path),
             ("data_dir", self.data_dir.path),
@@ -251,6 +405,9 @@ class RuntimePaths:
             ("runtime_dir", self.runtime_dir.path),
             ("installation_metadata", self.installation_metadata.path),
         ]
+        if self.release_dir is not None:
+            paths.append(("release_dir", self.release_dir.path))
+        return paths
 
     def provenance_for(self, name: str) -> str:
         rp = getattr(self, name, None)
@@ -363,6 +520,12 @@ def _resolve_system(
         provenance=resolved_data.provenance,
         source=resolved_data.source,
     )
+    release_root = root / "releases" / "current"
+    resolved_release = ResolvedPath(
+        path=release_root.resolve(),
+        provenance=PathProvenance.SYSTEM_DEFAULT,
+        source=f"system default {release_root}",
+    )
     return RuntimePaths(
         config_file=resolved_config,
         env_file=resolved_env,
@@ -375,6 +538,7 @@ def _resolve_system(
         log_dir=resolved_log,
         runtime_dir=resolved_runtime,
         installation_metadata=resolved_metadata,
+        release_dir=resolved_release,
     )
 
 

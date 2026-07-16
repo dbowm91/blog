@@ -176,10 +176,10 @@ class TestRuntimePathsSystem:
         assert paths.config_file.path == (root / "config.toml").resolve()
         assert paths.env_file.path == (root / ".env").resolve()
 
-    def test_all_paths_returns_11(self):
+    def test_all_paths_returns_12(self):
         paths = RuntimePaths.for_mode(InstallMode.SYSTEM)
         all_p = paths.all_paths()
-        assert len(all_p) == 11
+        assert len(all_p) == 12
         assert all(isinstance(n, str) and isinstance(p, Path) for n, p in all_p)
 
     def test_all_paths_names(self):
@@ -197,13 +197,14 @@ class TestRuntimePathsSystem:
             "log_dir",
             "runtime_dir",
             "installation_metadata",
+            "release_dir",
         ]
         assert names == expected
 
     def test_as_dict_returns_strings(self):
         paths = RuntimePaths.for_mode(InstallMode.SYSTEM)
         d = paths.as_dict()
-        assert len(d) == 11
+        assert len(d) == 12
         for v in d.values():
             assert isinstance(v, str)
 
@@ -222,6 +223,7 @@ class TestRuntimePathsSystem:
             "log_dir",
             "runtime_dir",
             "installation_metadata",
+            "release_dir",
         }
         assert set(d.keys()) == expected_keys
 
@@ -455,3 +457,150 @@ class TestForModeAlias:
         direct = RuntimePaths.resolve(mode)
         via_for_mode = RuntimePaths.for_mode(mode)
         assert direct == via_for_mode
+
+
+class TestInstallationMetadata:
+    def test_load_valid(self, tmp_path):
+        from app.filesystem.layout import InstallationMetadata
+
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text('{"mode": "system", "version": "1.0.0", "data_dir": "/data"}')
+        meta = InstallationMetadata.load(meta_file)
+        assert meta is not None
+        assert meta.mode == InstallMode.SYSTEM
+        assert meta.version == "1.0.0"
+        assert meta.data_dir == Path("/data")
+
+    def test_load_nonexistent(self, tmp_path):
+        from app.filesystem.layout import InstallationMetadata
+
+        meta = InstallationMetadata.load(tmp_path / "missing.json")
+        assert meta is None
+
+    def test_load_invalid_json(self, tmp_path):
+        from app.filesystem.layout import InstallationMetadata
+
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text("not json")
+        meta = InstallationMetadata.load(meta_file)
+        assert meta is None
+
+    def test_load_missing_mode(self, tmp_path):
+        from app.filesystem.layout import InstallationMetadata
+
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text('{"version": "1.0.0"}')
+        meta = InstallationMetadata.load(meta_file)
+        assert meta is None
+
+
+class TestReleaseDir:
+    def test_system_has_release_dir(self):
+        paths = RuntimePaths.for_mode(InstallMode.SYSTEM)
+        assert paths.release_dir is not None
+        assert paths.release_dir.path.name == "current"
+        assert paths.release_dir.provenance == PathProvenance.SYSTEM_DEFAULT
+
+    def test_development_no_release_dir(self):
+        paths = RuntimePaths.for_mode(InstallMode.DEVELOPMENT)
+        assert paths.release_dir is None
+
+    def test_docker_no_release_dir(self):
+        paths = RuntimePaths.for_mode(InstallMode.DOCKER)
+        assert paths.release_dir is None
+
+    def test_user_no_release_dir(self):
+        paths = RuntimePaths.for_mode(InstallMode.USER)
+        assert paths.release_dir is None
+
+    def test_all_paths_includes_release_for_system(self):
+        paths = RuntimePaths.for_mode(InstallMode.SYSTEM)
+        all_p = paths.all_paths()
+        names = [n for n, _ in all_p]
+        assert "release_dir" in names
+
+    def test_all_paths_excludes_release_for_dev(self):
+        paths = RuntimePaths.for_mode(InstallMode.DEVELOPMENT)
+        all_p = paths.all_paths()
+        names = [n for n, _ in all_p]
+        assert "release_dir" not in names
+
+    def test_as_dict_includes_release_for_system(self):
+        paths = RuntimePaths.for_mode(InstallMode.SYSTEM)
+        d = paths.as_dict()
+        assert "release_dir" in d
+
+    def test_as_dict_excludes_release_for_dev(self):
+        paths = RuntimePaths.for_mode(InstallMode.DEVELOPMENT)
+        d = paths.as_dict()
+        assert "release_dir" not in d
+
+
+class TestFromMetadata:
+    def test_from_metadata_loads_mode(self, tmp_path):
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text('{"mode": "system", "version": "1.0.0"}')
+        paths = RuntimePaths.from_metadata(meta_file)
+        assert paths is not None
+        assert paths.config_file.path == Path("/etc/devlog/config.toml")
+
+    def test_from_metadata_returns_none_for_missing(self, tmp_path):
+        paths = RuntimePaths.from_metadata(tmp_path / "missing.json")
+        assert paths is None
+
+    def test_from_metadata_applies_overrides(self, tmp_path):
+        custom_data = tmp_path / "custom-data"
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text('{"mode": "system", "version": "1.0.0"}')
+        paths = RuntimePaths.from_metadata(meta_file, data_dir=custom_data)
+        assert paths is not None
+        assert paths.data_dir.path == custom_data.resolve()
+
+
+class TestDetectMode:
+    def test_detect_from_metadata(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        from app.filesystem.layout import detect_mode
+
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text('{"mode": "docker", "version": "1.0.0"}')
+        result = detect_mode(tmp_path)
+        assert result.detected_mode == InstallMode.DOCKER
+        assert "metadata" in result.source
+
+    def test_detect_default_development(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("DEVLOG_DOCKER", raising=False)
+        monkeypatch.delenv("DEVLOG_MODE", raising=False)
+        from app.filesystem.layout import detect_mode
+
+        result = detect_mode(tmp_path)
+        assert result.detected_mode == InstallMode.DEVELOPMENT
+
+    def test_detect_docker_env(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("DEVLOG_DOCKER", "1")
+        from app.filesystem.layout import detect_mode
+
+        result = detect_mode(tmp_path)
+        assert result.detected_mode == InstallMode.DOCKER
+
+    def test_detect_mode_env(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("DEVLOG_MODE", "user")
+        from app.filesystem.layout import detect_mode
+
+        result = detect_mode(tmp_path)
+        assert result.detected_mode == InstallMode.USER
+
+    def test_detect_ambiguous(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        from app.filesystem.layout import detect_mode
+
+        meta_file = tmp_path / ".devlog-installation.json"
+        meta_file.write_text('{"mode": "system", "version": "1.0.0"}')
+        monkeypatch.setenv("DEVLOG_DOCKER", "1")
+        result = detect_mode(tmp_path)
+        assert result.ambiguous is True
+        assert result.candidates is not None
+        assert len(result.candidates) >= 2

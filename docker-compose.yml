@@ -39,9 +39,9 @@ services:
       # Number of proxies (for ProxyFix middleware, default: 1)
       - PROXY_COUNT=${PROXY_COUNT:-1}
     volumes:
-      - blog_data:/home/blog/instance
-      - blog_logs:/home/blog/logs
-      - blog_uploads:/home/blog/app/static/uploads
+      - blog_data:/data
+      - blog_config:/etc/devlog
+      - blog_logs:/var/log/devlog
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -79,9 +79,9 @@ services:
       - SMTP_HOST=${SMTP_HOST:-}
       - PYTHONPATH=/home/blog
     volumes:
-      - blog_data:/home/blog/instance
-      - blog_logs:/home/blog/logs
-      - blog_uploads:/home/blog/app/static/uploads
+      - blog_data:/data
+      - blog_config:/etc/devlog
+      - blog_logs:/var/log/devlog
     depends_on:
       redis:
         condition: service_healthy
@@ -116,7 +116,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - blog_uploads:/home/blog/app/static/uploads:ro
+      - blog_data:/data:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
       blog:
@@ -131,7 +131,7 @@ services:
       org.opencontainers.image.title: "DevLog Backup"
       org.opencontainers.image.description: "Database and file backup service"
     volumes:
-      - blog_data:/home/blog/instance:ro
+      - blog_data:/data:ro
       - ./backups:/backups
     working_dir: /home/blog
     entrypoint: ["python3", "backup.py"]
@@ -149,7 +149,7 @@ services:
 volumes:
   blog_data:
     name: blog_data
+  blog_config:
+    name: blog_config
   blog_logs:
     name: blog_logs
-  blog_uploads:
-    name: blog_uploads
