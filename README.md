@@ -97,7 +97,7 @@ devlog --verbose config     # Verbose help
 devlog --quiet db           # Minimal output
 ```
 
-Command groups: `config`, `admin`, `db`, `data`, `themes`, `backup`. The `config` group provides typed configuration management commands.
+Command groups: `config`, `admin`, `db`, `data`, `themes`, `backup`, `onboard`. The `config` group provides typed configuration management commands. The `onboard` group provides first-run and reconfiguration onboarding.
 
 ### Access Your Blog
 
@@ -130,6 +130,24 @@ devlog config show --effective   # Show resolved values with sources
 devlog config explain email.smtp_host  # Explain a specific field
 devlog config init --profile development  # Generate config from profile
 ```
+
+### Onboarding
+
+DevLog includes an interactive onboarding workflow for first-run setup and reconfiguration:
+
+```bash
+devlog onboard detect                    # Detect current installation state
+devlog onboard plan --mode native        # Show what onboarding would do
+devlog onboard run --mode native         # Run interactive onboarding
+devlog onboard run --mode native \
+  --non-interactive \
+  --admin-password-file /run/secrets/pw  # Non-interactive (CI/Docker)
+```
+
+The `onboard` command guides you through mode selection, configuration generation, database migration, admin user creation, and asset verification — all without manual file editing.
+
+Supported modes: `native` (bare metal/VM), `docker` (containerized).
+Profiles: `development`, `native-production`, `docker-production`, `minimal`, `full`.
 
 ---
 

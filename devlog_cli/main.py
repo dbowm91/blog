@@ -145,5 +145,15 @@ register_media_commands(media)
 
 
 @main.group()
+def onboard() -> None:
+    """First-run and reconfiguration onboarding."""
+
+
+from devlog_cli.commands.onboard import register_onboard_commands  # noqa: E402
+
+register_onboard_commands(onboard)
+
+
+@main.group()
 def deploy() -> None:
     """Deployment operations."""

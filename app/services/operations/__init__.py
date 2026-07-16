@@ -87,3 +87,14 @@ try:
     __all__ += ["create_backup_operation", "verify_backup", "inspect_backup"]
 except ImportError:
     pass
+
+try:
+    from app.services.operations.onboard import (
+        detect_installation,
+        generate_plan,
+        apply_onboarding,
+    )
+
+    __all__ += ["detect_installation", "generate_plan", "apply_onboarding"]
+except ImportError:
+    pass

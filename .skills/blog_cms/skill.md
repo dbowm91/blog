@@ -41,6 +41,7 @@ This is a Flask-based blog CMS with:
 | Static CSS | `app/static/css/` |
 | CLI package | `devlog_cli/` — standalone Click CLI (entry point: `devlog_cli.main:main`, registered as `devlog` in `pyproject.toml`) |
 | Operations services | `app/services/operations/` — business logic for CLI commands |
+| Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 
 ## Operations Service Layer
 
@@ -52,6 +53,7 @@ Business logic for CLI commands lives in `app/services/operations/`:
 - `transfer.py` — export_site_data, validate_import, import_site_data
 - `themes.py` — list_theme_descriptors, validate_theme, inspect_theme, refresh_theme_registry, get_theme_paths, run_accessibility_check
 - `backup.py` — create_backup_operation, verify_backup
+- `onboard.py` — detect_installation, generate_plan, apply_onboarding
 
 Service functions:
 - Never depend on Click or terminal output
@@ -75,6 +77,7 @@ Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [p
 | `devlog media` | `devlog_cli/commands/media.py` | Media scan and cleanup |
 | `devlog themes` | `devlog_cli/commands/themes.py` | Theme operations |
 | `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
+| `devlog onboard` | `devlog_cli/commands/onboard.py` | detect, plan, run — first-run and reconfiguration onboarding |
 
 ## Verified Routes
 

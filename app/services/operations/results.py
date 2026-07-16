@@ -151,3 +151,28 @@ class BackupInspectResult(OperationResult):
     is_sqlite: bool = False
     is_compressed: bool = False
     is_encrypted: bool = False
+
+
+@dataclass(frozen=True)
+class OnboardDetectResult(OperationResult):
+    state: str = ""
+    config_exists: bool = False
+    database_exists: bool = False
+    admin_exists: bool = False
+
+
+@dataclass(frozen=True)
+class OnboardPlanResult(OperationResult):
+    actions: list[dict[str, Any]] = field(default_factory=list)
+    action_count: int = 0
+
+
+@dataclass(frozen=True)
+class OnboardApplyResult(OperationResult):
+    config_path: str = ""
+    data_path: str = ""
+    admin_username: str = ""
+    migration_head: str = ""
+    steps_completed: int = 0
+    steps_total: int = 0
+    next_command: str = ""

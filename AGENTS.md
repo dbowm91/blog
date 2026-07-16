@@ -93,7 +93,10 @@ Important actual file locations (verify before assuming):
 | CLI data commands | `devlog_cli/commands/data.py` |
 | CLI theme commands | `devlog_cli/commands/themes.py` |
 | CLI backup commands | `devlog_cli/commands/backup.py` |
+| CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
+| Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 | Operations tests | `tests/services/` |
 | Dependency consistency | `scripts/check_dependency_manifest_consistency.py` |
 
@@ -225,7 +228,9 @@ Important actual file locations (verify before assuming):
 | CLI data commands | `devlog_cli/commands/data.py` |
 | CLI theme commands | `devlog_cli/commands/themes.py` |
 | CLI backup commands | `devlog_cli/commands/backup.py` |
+| CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
 | Operations tests | `tests/services/` |
 
 ### Thread-Safe Storage Singleton
@@ -456,6 +461,26 @@ The accessibility policy uses a three-tier classification system: `recommended`,
 
 - `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
 - `app/themes/bundled/` — packaged Halloy theme files shipped with the app (50 `.toml` files + `__init__.py` + `catalog_manifest.json` + `ATTRIBUTION.md`)
+
+### Onboarding System
+
+The `devlog onboard` command provides first-run and reconfiguration onboarding:
+
+- **State machine**: 17 ordered steps in `app/onboarding/steps.py` — detect, resolve mode/paths, collect inputs, build config, resolve secrets, plan changes, validate, write config/env, create dirs, run migrations, create admin, verify assets, readiness check, write metadata, render completion
+- **Input model**: `app/onboarding/model.py` — `OnboardingInput` frozen dataclass + `build_config_from_input()` → `DevLogConfig`
+- **Secret handling**: `app/onboarding/secrets.py` — generates SECRET_KEY, health secret, metrics secret; preserves existing on re-run; writes `.env` with mode 0600
+- **Planner**: `app/onboarding/planner.py` — dry-run plan generation with create/preserve/update/skip/conflict actions
+- **Metadata**: `app/onboarding/metadata.py` — persists installation state for resume/idempotency
+- **Service layer**: `app/services/operations/onboard.py` — wraps onboarding package for CLI
+- **CLI**: `devlog_cli/commands/onboard.py` — detect, plan, run subcommands
+- **Tests**: `tests/onboarding/` (151 unit tests) + `tests/cli/test_onboard_commands.py` (15 CLI tests)
+
+Key rules:
+- Secrets never appear in JSON output or logs
+- Config writes are atomic (temp + rename)
+- Existing files are backed up before overwrite
+- Dry-run mode skips all mutations
+- Non-interactive mode requires all values via options, never prompts
 
 ## Architecture Cross-Reference
 
