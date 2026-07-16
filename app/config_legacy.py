@@ -98,6 +98,14 @@ __all__ = [
     "THEME_DEFAULT_DARK",
     "THEME_DEFAULT_LIGHT",
     "THEME_DEFAULT_SCHEME",
+    "DEVLOG_DATA_DIR",
+    "DEVLOG_LOG_DIR",
+    "DEVLOG_RUNTIME_DIR",
+    "DEVLOG_DATABASE_PATH",
+    "DEVLOG_UPLOADS_DIR",
+    "DEVLOG_THEMES_DIR",
+    "DEVLOG_BACKUPS_DIR",
+    "DEVLOG_EXPORTS_DIR",
 ]
 
 
@@ -198,6 +206,14 @@ if _typed_config is not None:
     SEARCH_PROVIDER = _c.search.provider
     SEARCH_CONFIG = _c.search.config
     ENABLE_SCHEDULER = _c.scheduler.enabled
+    DEVLOG_DATA_DIR = _c.paths.data_dir
+    DEVLOG_LOG_DIR = _c.paths.log_dir
+    DEVLOG_RUNTIME_DIR = _c.paths.runtime_dir
+    DEVLOG_DATABASE_PATH = _c.paths.database_path
+    DEVLOG_UPLOADS_DIR = _c.paths.uploads_dir
+    DEVLOG_THEMES_DIR = _c.paths.themes_dir
+    DEVLOG_BACKUPS_DIR = _c.paths.backups_dir
+    DEVLOG_EXPORTS_DIR = _c.paths.exports_dir
     THEME_EXTERNAL_DIR = _c.themes.external_dir
     THEME_ALLOW_EXTERNAL = _c.themes.allow_external
     THEME_STRICT_VALIDATION = _c.themes.strict_validation
@@ -269,6 +285,14 @@ else:
     SEARCH_PROVIDER = _env("SEARCH_PROVIDER", "sqlite")
     SEARCH_CONFIG: dict[str, Any] = {}
     ENABLE_SCHEDULER = _env_bool("ENABLE_SCHEDULER")
+    DEVLOG_DATA_DIR = _env("DEVLOG_DATA_DIR", "")
+    DEVLOG_LOG_DIR = _env("DEVLOG_LOG_DIR", "")
+    DEVLOG_RUNTIME_DIR = _env("DEVLOG_RUNTIME_DIR", "")
+    DEVLOG_DATABASE_PATH = _env("DEVLOG_DATABASE_PATH", "")
+    DEVLOG_UPLOADS_DIR = _env("DEVLOG_UPLOADS_DIR", "")
+    DEVLOG_THEMES_DIR = _env("DEVLOG_THEMES_DIR", "")
+    DEVLOG_BACKUPS_DIR = _env("DEVLOG_BACKUPS_DIR", "")
+    DEVLOG_EXPORTS_DIR = _env("DEVLOG_EXPORTS_DIR", "")
     THEME_EXTERNAL_DIR = _env("THEME_EXTERNAL_DIR", "")
     THEME_ALLOW_EXTERNAL = _env_bool("THEME_ALLOW_EXTERNAL", True)
     THEME_STRICT_VALIDATION = _env_bool("THEME_STRICT_VALIDATION")

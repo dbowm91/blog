@@ -20,6 +20,9 @@ class OnboardingMetadata:
     data_path: str
     managed_paths: list[str]
     admin_username: str
+    last_completed_step: int = -1
+    stopped_at: str = ""
+    stopped_reason: str = ""
 
 
 def load_metadata(data_path: Path) -> OnboardingMetadata | None:
@@ -41,6 +44,9 @@ def load_metadata(data_path: Path) -> OnboardingMetadata | None:
             data_path=data.get("data_path", ""),
             managed_paths=data.get("managed_paths", []),
             admin_username=data.get("admin_username", ""),
+            last_completed_step=data.get("last_completed_step", -1),
+            stopped_at=data.get("stopped_at", ""),
+            stopped_reason=data.get("stopped_reason", ""),
         )
     except (OSError, json.JSONDecodeError, KeyError):
         return None

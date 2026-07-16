@@ -93,8 +93,9 @@ try:
         detect_installation,
         generate_plan,
         apply_onboarding,
+        resume_onboarding,
     )
 
-    __all__ += ["detect_installation", "generate_plan", "apply_onboarding"]
+    __all__ += ["detect_installation", "generate_plan", "apply_onboarding", "resume_onboarding"]
 except ImportError:
     pass

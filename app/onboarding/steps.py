@@ -27,6 +27,9 @@ class StepContext:
     config_dir: Path = field(default_factory=lambda: Path("."))
     data_dir: Path = field(default_factory=lambda: Path("data"))
     dry_run: bool = False
+    created_files: list[Path] = field(default_factory=list)
+    created_dirs: list[Path] = field(default_factory=list)
+    step_index: int = 0
 
 
 @dataclass(frozen=True)
@@ -149,7 +152,9 @@ def step_collect_inputs(ctx: StepContext) -> StepResult:
 
             updates: dict[str, object] = {}
             updates["site_title"] = click.prompt("Site title", default=inp.site_title)
-            updates["site_description"] = click.prompt("Site description", default=inp.site_description)
+            updates["site_description"] = click.prompt(
+                "Site description", default=inp.site_description
+            )
             updates["base_url"] = click.prompt("Base URL", default=inp.base_url)
             updates["admin_username"] = click.prompt("Admin username", default=inp.admin_username)
 
@@ -157,9 +162,7 @@ def step_collect_inputs(ctx: StepContext) -> StepResult:
             if admin_pw:
                 updates["admin_password"] = admin_pw
 
-            enable_newsletter = click.confirm(
-                "Enable newsletter?", default=inp.enable_newsletter
-            )
+            enable_newsletter = click.confirm("Enable newsletter?", default=inp.enable_newsletter)
             updates["enable_newsletter"] = enable_newsletter
             if enable_newsletter:
                 updates["smtp_host"] = click.prompt("SMTP host", default=inp.smtp_host)
@@ -171,7 +174,9 @@ def step_collect_inputs(ctx: StepContext) -> StepResult:
                         updates["smtp_password"] = smtp_pw
                     updates["from_address"] = click.prompt("From address", default=inp.from_address)
 
-            updates["enable_scheduler"] = click.confirm("Enable scheduler?", default=inp.enable_scheduler)
+            updates["enable_scheduler"] = click.confirm(
+                "Enable scheduler?", default=inp.enable_scheduler
+            )
             updates["enable_redis"] = click.confirm("Enable Redis?", default=inp.enable_redis)
 
             inp = inp.__class__(**{**inp.__dict__, **updates})
@@ -288,6 +293,7 @@ def step_write_config(ctx: StepContext) -> StepResult:
 
     toml_content = config_to_toml(ctx.config)
     _atomic_write(config_path, toml_content)
+    ctx.created_files.append(config_path)
 
     return StepResult(
         ok=True,
@@ -306,6 +312,7 @@ def step_write_env(ctx: StepContext) -> StepResult:
         _backup_file(env_path)
 
     write_env_file(env_path, ctx.secrets)
+    ctx.created_files.append(env_path)
 
     return StepResult(
         ok=True,
@@ -329,6 +336,7 @@ def step_create_directories(ctx: StepContext) -> StepResult:
         if not d.exists():
             d.mkdir(parents=True, exist_ok=True)
             created.append(str(d))
+            ctx.created_dirs.append(d)
 
     return StepResult(
         ok=True,
@@ -461,36 +469,12 @@ def step_write_metadata(ctx: StepContext) -> StepResult:
     if ctx.dry_run:
         return StepResult(ok=True, message="Dry run: skipping metadata write")
 
-    from datetime import datetime, timezone
-
-    from app.onboarding.metadata import OnboardingMetadata, save_metadata
-
-    inp = ctx.input
-    now = datetime.now(timezone.utc).isoformat()
-
-    metadata = OnboardingMetadata(
-        version=1,
-        mode=inp.mode,
-        profile=inp.profile,
-        package_version="",
-        completed_at=now,
-        config_path=str(ctx.config_dir / "config.toml"),
-        data_path=str(ctx.data_dir),
-        managed_paths=[
-            str(ctx.config_dir / "config.toml"),
-            ".env",
-            str(ctx.data_dir),
-            inp.backup_dir,
-        ],
-        admin_username=inp.admin_username,
-    )
-
-    save_metadata(ctx.data_dir, metadata)
+    _save_progress(ctx, ctx.step_index)
 
     return StepResult(
         ok=True,
         message="Metadata saved",
-        details={"completed_at": now},
+        details={},
     )
 
 
@@ -546,11 +530,70 @@ _ALL_STEPS = [
     step_render_completion,
 ]
 
+STEP_NAMES = [s.__name__ for s in _ALL_STEPS]
+
+
+def _compensate(ctx: StepContext) -> None:
+    for f in reversed(ctx.created_files):
+        try:
+            if f.exists():
+                f.unlink()
+        except OSError:
+            pass
+    for d in reversed(ctx.created_dirs):
+        try:
+            if d.exists() and not any(d.iterdir()):
+                d.rmdir()
+        except OSError:
+            pass
+
+
+def _save_progress(
+    ctx: StepContext, step_index: int, stopped_at: str = "", stopped_reason: str = ""
+) -> None:
+    if ctx.dry_run:
+        return
+
+    from datetime import datetime, timezone
+
+    from app.onboarding.metadata import OnboardingMetadata, save_metadata
+
+    inp = ctx.input
+    now = datetime.now(timezone.utc).isoformat()
+
+    completed_at = ""
+    is_last_real_step = step_index >= len(_ALL_STEPS) - 2
+    if stopped_at == "" and is_last_real_step:
+        completed_at = now
+
+    metadata = OnboardingMetadata(
+        version=1,
+        mode=inp.mode,
+        profile=inp.profile,
+        package_version="",
+        completed_at=completed_at,
+        config_path=str(ctx.config_dir / "config.toml"),
+        data_path=str(ctx.data_dir),
+        managed_paths=[
+            str(ctx.config_dir / "config.toml"),
+            ".env",
+            str(ctx.data_dir),
+            inp.backup_dir,
+        ],
+        admin_username=inp.admin_username,
+        last_completed_step=step_index,
+        stopped_at=stopped_at,
+        stopped_reason=stopped_reason,
+    )
+
+    save_metadata(ctx.data_dir, metadata)
+
 
 def run_steps(
     input: OnboardingInput,
     config_path: Path | None = None,
     data_path: Path | None = None,
+    start_step: int = 0,
 ) -> list[StepResult]:
     ctx = StepContext(
         input=input,
@@ -564,11 +607,22 @@ def run_steps(
 
     results: list[StepResult] = []
 
-    for step_fn in _ALL_STEPS:
+    for i, step_fn in enumerate(_ALL_STEPS):
+        if i < start_step:
+            results.append(StepResult(ok=True, message=f"Skipped (resume from step {start_step})"))
+            continue
+
+        ctx.step_index = i
         result = step_fn(ctx)
         results.append(result)
 
         if not result.ok:
+            step_name = STEP_NAMES[i] if i < len(STEP_NAMES) else step_fn.__name__
+            _save_progress(ctx, i, stopped_at=step_name, stopped_reason=result.message)
+            _compensate(ctx)
             break
+
+        if step_fn.__name__ != "step_render_completion":
+            _save_progress(ctx, i)
 
     return results

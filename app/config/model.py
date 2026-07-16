@@ -266,6 +266,18 @@ class SearchConfig:
 
 
 @dataclass(frozen=True)
+class PathsConfig:
+    data_dir: str = ""
+    log_dir: str = ""
+    runtime_dir: str = ""
+    database_path: str = ""
+    uploads_dir: str = ""
+    themes_dir: str = ""
+    backups_dir: str = ""
+    exports_dir: str = ""
+
+
+@dataclass(frozen=True)
 class DevLogConfig:
     """Top-level typed configuration."""
 
@@ -291,6 +303,7 @@ class DevLogConfig:
     webhook: WebhookConfig = field(default_factory=WebhookConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
+    paths: PathsConfig = field(default_factory=PathsConfig)
 
     secret_key: str = ""
     admin_password: str = ""

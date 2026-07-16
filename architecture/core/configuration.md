@@ -267,3 +267,16 @@ Unknown keys never silently influence defaults — they are always reported and 
 - [Email Infrastructure](../infrastructure/email.md) - Email configuration
 - [Storage Infrastructure](../infrastructure/storage.md) - Storage backends
 - `tests/config/` - 235 tests for the typed config system
+
+## PathsConfig (Phase F)
+
+The `PathsConfig` section in `app/config/model.py` allows overriding derived filesystem paths via `config.toml` or `DEVLOG_*` env vars. This integrates with the filesystem layout system (`app/filesystem/`) to provide centralized path resolution for all deployment modes.
+
+| Path | Config Key | Env Var | Description |
+|------|-----------|---------|-------------|
+| Data root | `paths.data_root` | `DEVLOG_DATA_ROOT` | Base directory for data files |
+| Config dir | `paths.config_dir` | `DEVLOG_CONFIG_DIR` | Configuration file directory |
+| Log dir | `paths.log_dir` | `DEVLOG_LOG_DIR` | Log file directory |
+| Runtime dir | `paths.runtime_dir` | `DEVLOG_RUNTIME_DIR` | Runtime files (sockets, PID files) |
+
+See `app/filesystem/layout.py` for the `RuntimePaths` dataclass and `InstallMode` enum. CLI commands: `devlog paths status`, `devlog paths discover-legacy`, `devlog paths migrate`, `devlog paths check`.

@@ -98,6 +98,8 @@ Important actual file locations (verify before assuming):
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 | Operations tests | `tests/services/` |
+| Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |
+| Paths CLI commands | `devlog_cli/commands/paths.py` — `paths status`, `paths discover-legacy`, `paths migrate`, `paths check` |
 | Dependency consistency | `scripts/check_dependency_manifest_consistency.py` |
 | Installer | `scripts/install.sh` — one-shot native/Docker installer |
 | Dev setup | `scripts/setup-dev.sh` — development environment setup |
@@ -185,6 +187,26 @@ Type-check coverage includes both `app/` and `devlog_cli/`.
 
 See [architecture/core/models.md](architecture/core/models.md) for model details.
 
+### Filesystem Layout (Phase F)
+
+The codebase has a centralized filesystem path system at `app/filesystem/`:
+
+- `app/filesystem/layout.py` — `RuntimePaths` dataclass with `InstallMode` (system, user, docker, development) and `PathProvenance` tracking
+- `app/filesystem/prepare.py` — directory creation with permissions and security checks
+- `app/filesystem/discovery.py` — legacy layout discovery (read-only)
+- `app/filesystem/migration.py` — migration planner (dry-run only in this phase)
+- `app/filesystem/verification.py` — post-migration verification
+
+CLI commands: `devlog paths status`, `devlog paths discover-legacy`, `devlog paths migrate`, `devlog paths check`
+
+The `PathsConfig` section in `app/config/model.py` allows overriding derived paths via `config.toml` or `DEVLOG_*` env vars.
+
+Key rules:
+- All paths are absolute after resolution
+- Explicit overrides always win over env vars and mode defaults
+- Legacy discovery is read-only; migration planning defaults to dry-run
+- Production services must not require write access to source directories
+
 ### Service Extraction (Phase C)
 
 Operational business logic has been extracted from `app/cli.py` into `app/services/operations/`. The standalone `devlog` CLI commands in `devlog_cli/commands/` call these services. Flask commands in `app/cli.py` remain as compatibility wrappers.
@@ -236,6 +258,8 @@ Important actual file locations (verify before assuming):
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
 | Operations tests | `tests/services/` |
+| Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |
+| Paths CLI commands | `devlog_cli/commands/paths.py` — `paths status`, `paths discover-legacy`, `paths migrate`, `paths check` |
 
 ### Thread-Safe Storage Singleton
 
@@ -518,7 +542,7 @@ Load specialized skills using the `skill` tool with the skill name.
 
 | Skill | Description | Triggers |
 |-------|-------------|----------|
-| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, operations services |
+| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer, filesystem layout | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, operations services, filesystem layout, paths CLI |
 | `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference, architecture review plan |
 
 ## Skills Directory Note

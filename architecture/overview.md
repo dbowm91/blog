@@ -107,6 +107,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | Base62 | `app/base62.py` | Base62 encode/decode for short share URLs (`/s/<code>`) |
 | DB Utilities | `app/db_utils.py` | `get_database_dialect()`, `is_sqlite_database()` helpers |
 | Page View Buffer | `app/page_view_buffer.py` | Thread-safe buffer for batching page view inserts |
+| Filesystem Layout | `app/filesystem/` | Centralized path resolution with InstallMode and PathProvenance |
 | Backup Integrity | `app/backup_integrity.py` | Checksum verification and SQLite validation for backups |
 | Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption (PBKDF2-HMAC-SHA256 key derivation) |
 | Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption at rest |
@@ -482,6 +483,19 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 ---
 
+## Filesystem Layout
+
+The filesystem layout system provides centralized path resolution for all deployment modes:
+
+| Mode | Data Root | Config | Logs | Runtime |
+|------|-----------|--------|------|---------|
+| System | `/var/lib/devlog` | `/etc/devlog/config.toml` | `/var/log/devlog` | `/run/devlog` |
+| User | `$XDG_DATA_HOME/devlog` | `$XDG_CONFIG_HOME/devlog/config.toml` | `$XDG_STATE_HOME/devlog/logs` | `$XDG_RUNTIME_DIR/devlog` |
+| Docker | `/data` | `/etc/devlog/config.toml` | `/var/log/devlog` | `/run/devlog` |
+| Development | `./data` | `./config.toml` | `./logs` | `./instance` |
+
+Each path carries provenance metadata (explicit override, env var, mode default, etc.) accessible via `devlog paths status`.
+
 ## Directory Structure
 
 ```
@@ -593,6 +607,13 @@ blog/
 │   │
 │   ├── middleware/                 # WSGI middleware
 │   │   └── rate_limit.py         # Admin rate limiting
+│   │
+│   ├── filesystem/                # Centralized filesystem path system
+│   │   ├── layout.py             # RuntimePaths dataclass, InstallMode, PathProvenance
+│   │   ├── prepare.py            # Directory creation with permissions/security
+│   │   ├── discovery.py          # Legacy layout discovery (read-only)
+│   │   ├── migration.py          # Migration planner (dry-run)
+│   │   └── verification.py       # Post-migration verification
 │   │
 │   └── static/                    # Frontend assets
 │       ├── css/                   # Stylesheets

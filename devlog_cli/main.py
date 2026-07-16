@@ -155,5 +155,15 @@ register_onboard_commands(onboard)
 
 
 @main.group()
+def paths() -> None:
+    """Manage filesystem paths and layout."""
+
+
+from devlog_cli.commands.paths import register_paths_commands  # noqa: E402
+
+register_paths_commands(paths)
+
+
+@main.group()
 def deploy() -> None:
     """Deployment operations."""

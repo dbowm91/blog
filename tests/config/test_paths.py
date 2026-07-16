@@ -32,6 +32,7 @@ class TestResolveConfigPath:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("DEVLOG_CONFIG", raising=False)
+        monkeypatch.chdir(tmp_path)
         nonexistent = tmp_path / "nonexistent.toml"
         result = resolve_config_path(cli_path=nonexistent)
         assert result.selected is None
@@ -58,10 +59,11 @@ class TestResolveConfigPath:
         assert result.selected.exists is True
 
     def test_unreadable_file_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("DEVLOG_CONFIG", raising=False)
+        monkeypatch.chdir(tmp_path)
         unreadable = tmp_path / "unreadable.toml"
         unreadable.write_text("[app]\ntitle = 'Bad'\n")
         os.chmod(unreadable, 0o000)
-        monkeypatch.delenv("DEVLOG_CONFIG", raising=False)
         result = resolve_config_path(cli_path=unreadable)
         assert result.selected is None
         os.chmod(unreadable, 0o644)
@@ -104,6 +106,7 @@ class TestResolveEnvFilePath:
 
     def test_no_env_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("DEVLOG_ENV_FILE", raising=False)
+        monkeypatch.chdir(tmp_path)
         result = resolve_env_file_path()
         assert result.selected is None
 

@@ -235,3 +235,89 @@ class TestOnboardRun:
         )
 
         assert result.exit_code != 0
+
+
+class TestOnboardResume:
+    def test_resume_help(self, runner):
+        result = runner.invoke(main, ["onboard", "resume", "--help"])
+
+        assert result.exit_code == 0
+        assert "--data-path" in result.output
+
+    def test_resume_no_metadata(self, runner_with_app, tmp_path):
+        data_dir = tmp_path / "empty_data"
+        data_dir.mkdir()
+
+        result = runner_with_app.invoke(
+            main,
+            ["onboard", "resume", "--data-path", str(data_dir)],
+        )
+
+        assert result.exit_code != 0
+        assert "no_metadata" in result.output or "No onboarding" in result.output
+
+    def test_resume_no_metadata_json(self, runner_with_app, tmp_path):
+        data_dir = tmp_path / "empty_data"
+        data_dir.mkdir()
+
+        result = runner_with_app.invoke(
+            main,
+            ["--json", "onboard", "resume", "--data-path", str(data_dir)],
+        )
+
+        assert result.exit_code != 0
+        data = json.loads(result.output)
+        assert data["ok"] is False
+        assert "no_metadata" in data["code"]
+
+    def test_resume_already_complete(self, runner_with_app, tmp_path):
+        from app.onboarding.metadata import OnboardingMetadata, save_metadata
+
+        meta = OnboardingMetadata(
+            version=1,
+            mode="native",
+            profile="development",
+            package_version="",
+            completed_at="2026-01-01T00:00:00",
+            config_path="config.toml",
+            data_path=str(tmp_path),
+            managed_paths=[],
+            admin_username="admin",
+            last_completed_step=16,
+        )
+        save_metadata(tmp_path, meta)
+
+        result = runner_with_app.invoke(
+            main,
+            ["onboard", "resume", "--data-path", str(tmp_path)],
+        )
+
+        assert result.exit_code == 0
+        assert "completed" in result.output.lower() or "nothing to resume" in result.output.lower()
+
+    def test_resume_already_complete_json(self, runner_with_app, tmp_path):
+        from app.onboarding.metadata import OnboardingMetadata, save_metadata
+
+        meta = OnboardingMetadata(
+            version=1,
+            mode="native",
+            profile="development",
+            package_version="",
+            completed_at="2026-01-01T00:00:00",
+            config_path="config.toml",
+            data_path=str(tmp_path),
+            managed_paths=[],
+            admin_username="admin",
+            last_completed_step=16,
+        )
+        save_metadata(tmp_path, meta)
+
+        result = runner_with_app.invoke(
+            main,
+            ["--json", "onboard", "resume", "--data-path", str(tmp_path)],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["ok"] is True
+        assert data["details"]["completed"] is True

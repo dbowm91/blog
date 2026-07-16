@@ -27,7 +27,7 @@ from app.onboarding.state import (
     InstallationInfo,
     detect_installation,
 )
-from app.onboarding.steps import StepContext, StepResult, run_steps
+from app.onboarding.steps import StepContext, StepResult, run_steps, STEP_NAMES
 
 __all__ = [
     "CompletionInfo",
@@ -38,6 +38,7 @@ __all__ = [
     "PlannedAction",
     "StepContext",
     "StepResult",
+    "STEP_NAMES",
     "build_config_from_input",
     "detect_installation",
     "format_plan_json",

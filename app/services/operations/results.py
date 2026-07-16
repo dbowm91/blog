@@ -176,3 +176,12 @@ class OnboardApplyResult(OperationResult):
     steps_completed: int = 0
     steps_total: int = 0
     next_command: str = ""
+
+
+@dataclass(frozen=True)
+class OnboardResumeResult(OperationResult):
+    last_step: str = ""
+    last_step_index: int = -1
+    stopped_at: str = ""
+    stopped_reason: str = ""
+    completed: bool = False

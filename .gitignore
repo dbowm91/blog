@@ -7,7 +7,9 @@ instance/
 .venv/
 venv/
 .env
+.env.backup.*
 config.toml
+config.toml.backup.*
 .env.local
 .env.production
 logs/
@@ -15,6 +17,7 @@ logs/
 ._*
 app/static/uploads/
 backups/
+data/
 node_modules/
 app/static/dist/
 .ruff_cache/

@@ -21,6 +21,7 @@ from app.config.model import (
     LoggingConfig,
     MetricsConfig,
     NewsletterConfig,
+    PathsConfig,
     RedisConfig,
     SchedulerConfig,
     SearchConfig,
@@ -148,6 +149,16 @@ _TOML_TO_DATACLASS_FIELD: dict[str, dict[str, str]] = {
     "webhook": {"timeout": "timeout", "encryption_key": "encryption_key"},
     "logging": {"level": "level"},
     "search": {"provider": "provider", "config": "config"},
+    "paths": {
+        "data_dir": "data_dir",
+        "log_dir": "log_dir",
+        "runtime_dir": "runtime_dir",
+        "database_path": "database_path",
+        "uploads_dir": "uploads_dir",
+        "themes_dir": "themes_dir",
+        "backups_dir": "backups_dir",
+        "exports_dir": "exports_dir",
+    },
 }
 
 _ENV_OVERRIDE_MAP: dict[str, str] = {
@@ -234,6 +245,14 @@ _ENV_OVERRIDE_MAP: dict[str, str] = {
     "S3_ENDPOINT": "storage_s3_endpoint",
     "S3_PUBLIC_URL": "storage_s3_public_url",
     "STORAGE_BACKEND": "storage_backend",
+    "DEVLOG_DATA_DIR": "paths_data_dir",
+    "DEVLOG_LOG_DIR": "paths_log_dir",
+    "DEVLOG_RUNTIME_DIR": "paths_runtime_dir",
+    "DEVLOG_DATABASE_PATH": "paths_database_path",
+    "DEVLOG_UPLOADS_DIR": "paths_uploads_dir",
+    "DEVLOG_THEMES_DIR": "paths_themes_dir",
+    "DEVLOG_BACKUPS_DIR": "paths_backups_dir",
+    "DEVLOG_EXPORTS_DIR": "paths_exports_dir",
 }
 
 _SECRET_FIELDS = frozenset(
@@ -417,6 +436,7 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
     webhook_section = _build_section(WebhookConfig, _TOML_TO_DATACLASS_FIELD["webhook"], raw)
     logging_section = _build_section(LoggingConfig, _TOML_TO_DATACLASS_FIELD["logging"], raw)
     search_section = _build_section(SearchConfig, _TOML_TO_DATACLASS_FIELD["search"], raw)
+    paths_section = _build_section(PathsConfig, _TOML_TO_DATACLASS_FIELD["paths"], raw)
 
     database_section = DatabaseConfig(
         uri=db_uri,
@@ -482,6 +502,7 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
         webhook=webhook_section,
         logging=logging_section,
         search=search_section,
+        paths=paths_section,
         secret_key=secret_key,
         admin_password=admin_password,
         session_cookie_secure=session_cookie_secure,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Any
 
 import click
@@ -172,6 +173,46 @@ def _handle_onboard_run(
     raise SystemExit(r.exit_code)
 
 
+def _handle_onboard_resume(
+    ctx: click.Context,
+    data_path: str | None,
+    json_mode: bool,
+) -> None:
+    cli_ctx: CliContext = ctx.obj
+
+    resolved_data = Path(data_path) if data_path else None
+
+    app = cli_ctx.ensure_app_context()
+    with app.app_context():
+        from app.services.operations.onboard import resume_onboarding
+
+        result = resume_onboarding(data_path=resolved_data)
+
+    details: dict[str, Any] = {
+        "last_step": result.last_step,
+        "last_step_index": result.last_step_index,
+        "stopped_at": result.stopped_at,
+        "stopped_reason": result.stopped_reason,
+        "completed": result.completed,
+    }
+
+    if result.ok:
+        r = Result.success(
+            code=result.code,
+            summary=result.summary,
+            details=details,
+        )
+    else:
+        r = Result.failure(
+            code=result.code,
+            summary=result.summary,
+            exit_code=ExitCode.GENERAL_FAILURE,
+        )
+
+    render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
+    raise SystemExit(r.exit_code)
+
+
 def register_onboard_commands(onboard_group: click.Group) -> None:
     @onboard_group.command("detect")
     @click.pass_context
@@ -277,3 +318,20 @@ def register_onboard_commands(onboard_group: click.Group) -> None:
             admin_password_file=admin_password_file,
             json_mode=json_mode,
         )
+
+    @onboard_group.command("resume")
+    @click.option(
+        "--data-path",
+        type=click.Path(),
+        default=None,
+        help="Path to data directory with onboarding metadata.",
+    )
+    @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
+    @click.pass_context
+    def onboard_resume(
+        ctx: click.Context,
+        data_path: str | None,
+        json_mode: bool,
+    ) -> None:
+        """Resume interrupted onboarding from last completed step."""
+        _handle_onboard_resume(ctx, data_path, json_mode)
