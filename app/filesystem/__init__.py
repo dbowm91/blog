@@ -15,6 +15,12 @@ from app.filesystem.layout import (
     detect_mode,
     detect_mode_from_metadata,
 )
+from app.filesystem.lifecycle import (
+    CATEGORY_POLICIES,
+    RUNTIME_PATH_CATEGORIES,
+    LifecyclePolicy,
+    PathCategory,
+)
 from app.filesystem.migration import (
     MigrationAction,
     MigrationPlan,
@@ -38,14 +44,18 @@ from app.filesystem.verification import (
 )
 
 __all__ = [
+    "CATEGORY_POLICIES",
     "DirectorySpec",
     "InstallationMetadata",
     "InstallMode",
     "LegacyDiscovery",
+    "LifecyclePolicy",
     "MigrationAction",
     "MigrationPlan",
     "MigrationStep",
     "ModeDetectionResult",
+    "RUNTIME_PATH_CATEGORIES",
+    "PathCategory",
     "PathCheckResult",
     "PathProvenance",
     "ResolvedPath",

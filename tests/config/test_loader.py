@@ -65,9 +65,23 @@ class TestResolveDatabaseUri:
         raw = {"DATABASE_URL": "sqlite:///url.db"}
         assert _resolve_database_uri(raw) == "sqlite:///url.db"
 
-    def test_empty_raw_returns_sqlite_default(self) -> None:
+    def test_empty_raw_returns_sqlite_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("DEVLOG_DATA_DIR", raising=False)
+        monkeypatch.delenv("DEVLOG_DATABASE_PATH", raising=False)
         result = _resolve_database_uri({})
         assert "sqlite" in result
+        assert "devlog.sqlite3" in result
+
+    def test_devlog_database_path_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("DEVLOG_DATABASE_PATH", "/custom/path/mydb.sqlite3")
+        result = _resolve_database_uri({})
+        assert result == "sqlite:////custom/path/mydb.sqlite3"
+
+    def test_devlog_data_dir_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("DEVLOG_DATABASE_PATH", raising=False)
+        monkeypatch.setenv("DEVLOG_DATA_DIR", "/srv/data")
+        result = _resolve_database_uri({})
+        assert result == "sqlite:////srv/data/devlog.sqlite3"
 
 
 class TestResolveCacheRedisUrl:

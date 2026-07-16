@@ -258,7 +258,11 @@ Sitemap: {BASE_URL}/sitemap.xml
                 checks["search"] = "unsupported"
 
             try:
-                disk_path = Path(current_app.instance_path)
+                from app.config.loader import load_effective_config
+
+                disk_cfg = load_effective_config()
+                data_dir_str = disk_cfg.paths.data_dir if disk_cfg.paths.data_dir else None
+                disk_path = Path(data_dir_str) if data_dir_str else Path.cwd() / "data"
                 disk_usage = shutil.disk_usage(disk_path)
                 free_percent = (disk_usage.free / disk_usage.total) * 100
                 checks["disk_space"] = "ok" if free_percent >= 10 else "low"
@@ -335,6 +339,17 @@ Sitemap: {BASE_URL}/sitemap.xml
                 "timestamp": utc_now().isoformat(),
                 "details": {
                     "database_latency_ms": round(db_latency_ms, 2),
+                    "database_path": str(
+                        Path(
+                            current_app.config.get("SQLALCHEMY_DATABASE_URI", "").replace(
+                                "sqlite:///", "/"
+                            )
+                        )
+                        if current_app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith(
+                            "sqlite:///"
+                        )
+                        else "non-sqlite"
+                    ),
                     "scheduler_next_run": health.get("next_run"),
                     "scheduler_last_newsletter_send": health.get("last_newsletter_send"),
                 },
@@ -397,7 +412,11 @@ Sitemap: {BASE_URL}/sitemap.xml
         metrics_lines.append("# HELP blog_disk_free_bytes Free disk space in bytes")
         metrics_lines.append("# TYPE blog_disk_free_bytes gauge")
         try:
-            disk_path = Path(current_app.instance_path)
+            from app.config.loader import load_effective_config
+
+            metrics_cfg = load_effective_config()
+            data_dir_str = metrics_cfg.paths.data_dir if metrics_cfg.paths.data_dir else None
+            disk_path = Path(data_dir_str) if data_dir_str else Path.cwd() / "data"
             disk_usage = shutil.disk_usage(disk_path)
             metrics_lines.append(f"blog_disk_free_bytes {disk_usage.free}")
         except OSError:

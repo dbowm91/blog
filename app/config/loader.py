@@ -361,8 +361,15 @@ def _resolve_database_uri(raw: dict) -> str:
         val = raw.get(key)
         if val:
             return str(val)
-    sqlite_dir = Path(os.environ.get("DATA_BACKUP_DIR", "data")).parent
-    return f"sqlite:///{sqlite_dir}/blog.db"
+    explicit_db = os.environ.get("DEVLOG_DATABASE_PATH", "")
+    if explicit_db:
+        return f"sqlite:///{Path(explicit_db).resolve()}"
+    data_dir = os.environ.get("DEVLOG_DATA_DIR", "")
+    if data_dir:
+        db_path = Path(data_dir).resolve() / "devlog.sqlite3"
+    else:
+        db_path = Path.cwd() / "data" / "devlog.sqlite3"
+    return f"sqlite:///{db_path}"
 
 
 def _resolve_cache_redis_url(raw: dict) -> str:

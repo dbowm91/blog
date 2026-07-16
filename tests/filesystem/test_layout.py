@@ -604,3 +604,64 @@ class TestDetectMode:
         assert result.ambiguous is True
         assert result.candidates is not None
         assert len(result.candidates) >= 2
+
+
+class TestDockerVolumeMigration:
+    def test_docker_volume_paths_resolve_to_container_paths(self):
+        paths = RuntimePaths.for_mode(InstallMode.DOCKER)
+        assert str(paths.data_dir.path) == "/data"
+        assert str(paths.database.path) == "/data/devlog.sqlite3"
+        assert str(paths.uploads_dir.path) == "/data/uploads"
+        assert str(paths.themes_dir.path) == "/data/themes"
+        assert str(paths.backups_dir.path) == "/data/backups"
+        assert str(paths.exports_dir.path) == "/data/exports"
+
+    def test_docker_volume_subdirs_are_consistent(self):
+        paths = RuntimePaths.for_mode(InstallMode.DOCKER)
+        for name in ("uploads_dir", "themes_dir", "backups_dir", "exports_dir"):
+            rp = getattr(paths, name)
+            assert str(rp.path).startswith("/data/"), f"Docker volume {name} should be under /data"
+
+    def test_docker_database_under_data_dir(self):
+        paths = RuntimePaths.for_mode(InstallMode.DOCKER)
+        assert paths.database.path.parent == paths.data_dir.path
+
+    def test_docker_explicit_data_dir_propagates(self, tmp_path):
+        custom = tmp_path / "custom-data"
+        paths = RuntimePaths.resolve(InstallMode.DOCKER, data_dir=custom)
+        assert paths.data_dir.path == custom.resolve()
+        assert paths.database.path == custom.resolve() / "devlog.sqlite3"
+        assert paths.uploads_dir.path == custom.resolve() / "uploads"
+        assert paths.themes_dir.path == custom.resolve() / "themes"
+        assert paths.backups_dir.path == custom.resolve() / "backups"
+        assert paths.exports_dir.path == custom.resolve() / "exports"
+
+    def test_docker_named_volume_initialization(self, tmp_path):
+        """Verify prepare_directories creates the expected Docker layout."""
+        from app.filesystem.prepare import prepare_directories
+
+        data_dir = tmp_path / "data"
+        log_dir = tmp_path / "logs"
+        runtime_dir = tmp_path / "run"
+        paths = RuntimePaths.resolve(
+            InstallMode.DOCKER,
+            data_dir=data_dir,
+            log_dir=log_dir,
+            runtime_dir=runtime_dir,
+        )
+        created = prepare_directories(paths, mode=InstallMode.DOCKER)
+        assert len(created) > 0
+        assert data_dir.exists()
+        assert (data_dir / "uploads").exists()
+        assert (data_dir / "themes").exists()
+        assert (data_dir / "backups").exists()
+        assert (data_dir / "exports").exists()
+
+    def test_docker_uid_gid_documented_in_dockerfile(self):
+        """Verify Dockerfile defines UID/GID 1000:1000 explicitly."""
+        dockerfile = Path(__file__).resolve().parent.parent.parent / "Dockerfile"
+        content = dockerfile.read_text()
+        assert "--uid 1000" in content, "Dockerfile should use explicit UID 1000"
+        assert "--gid 1000" in content or "--gid blog" in content, (
+            "Dockerfile should use explicit GID 1000 or named group"
+        )

@@ -31,17 +31,22 @@ LABEL org.opencontainers.image.licenses="MIT"
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash blog
+    && groupadd --gid 1000 blog \
+    && useradd --uid 1000 --gid blog --create-home --shell /bin/bash blog
 
-COPY --from=builder /opt/venv /opt/venv
-COPY --chown=blog:blog . .
-COPY --from=frontend-builder /home/blog/app/static/dist /home/blog/app/static/dist
+# UID/GID 1000:1000 — fixed, documented, and consistent across builds.
+# Host volumes are chowned to this UID/GID at first start.
+# Do not change without a migration path for existing deployments.
 
 RUN mkdir -p /data /data/uploads /data/themes /data/backups /data/exports \
     && mkdir -p /etc/devlog \
     && mkdir -p /var/log/devlog \
     && mkdir -p /run/devlog \
     && chown -R blog:blog /data /etc/devlog /var/log/devlog /run/devlog
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=blog:blog . .
+COPY --from=frontend-builder /home/blog/app/static/dist /home/blog/app/static/dist
 
 USER blog
 
