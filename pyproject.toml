@@ -49,6 +49,7 @@ dependencies = [
     "prometheus-client>=0.20.0,<1.0",
     "python-dotenv>=1.0,<2.0",
     "click>=8.0,<9.0",
+    "requests>=2.31.0,<3.0",
 ]
 
 [project.optional-dependencies]
@@ -75,12 +76,12 @@ Repository = "https://github.com/dbowm91/blog"
 Issues = "https://github.com/dbowm91/blog/issues"
 
 [tool.setuptools.packages.find]
-include = ["app*", "devlog_cli*"]
+include = ["app*", "devlog_cli*", "migrations*"]
 
 [tool.setuptools.package-data]
 "app.themes.bundled" = ["*.toml", "catalog_manifest.json", "ATTRIBUTION.md"]
 "app.themes" = ["ACCESSIBILITY_EXCEPTIONS.json"]
-"app" = ["templates/**/*", "static/css/**/*", "static/js/**/*"]
+"app" = ["templates/**/*", "static/css/**/*", "static/js/**/*", "static/dist/**/*"]
 "migrations" = ["**/*.py", "alembic.ini"]
 
 [tool.ruff]

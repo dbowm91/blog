@@ -12,12 +12,9 @@ from __future__ import annotations
 
 from app import config_legacy as _legacy
 from app.config_legacy import (  # noqa: F401
-    _config,
     _env,
     _env_str,
     _env_bool,
-    _validate_config,
-    load_config,
     is_production,
     ADMIN_RATE_LIMITS,
     COMPRESS_ALGORITHM,

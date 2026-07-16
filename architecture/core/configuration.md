@@ -237,27 +237,30 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 ## Validation
 
 The typed config system provides multi-layer validation via `app/config/validation.py`:
-- Schema validation (type checking, required fields)
+- Schema validation (type checking, required fields, unknown-key policy)
 - Security validation (secret strength, production checks)
 - Filesystem validation (directory existence, permissions)
 - Dependency validation (cross-field requirements)
 - Compatibility validation (deprecated settings, migration paths)
 
-The legacy `_validate_config()` function in `app/config_legacy.py` validates:
-- `send_time` is valid HH:MM format
-- `posts_per_page` is 1-100
-- `confirmation_expiry_hours` is positive integer
-- `smtp_port` is 1-65535
-- `base_url` has valid scheme and domain
-- `dashboard_per_page` is positive integer (app/config.py:214-230)
-- `subscribers_per_page` is positive integer (app/config.py:214-230)
-- `media_per_page` is positive integer (app/config.py:214-230)
-- `media_max_files` is positive integer (app/config.py:214-230)
-- `max_upload_size` is positive integer (app/config.py:214-230)
-- `export_batch_size` is positive integer (app/config.py:214-230)
-- `fts_result_limit` is positive integer (app/config.py:214-230)
-- `token_enumeration_delay` is positive number (app/config.py:232-241)
-- `smtp_timeout` is positive integer (app/config.py:243-250)
+### Unknown-Key Policy
+
+Unknown keys in `config.toml` are handled with version-aware severity:
+
+| Config Version | Severity | Behavior |
+|----------------|----------|----------|
+| Unversioned (no `config_version`) | WARNING | Unknown keys produce warnings; config loads successfully |
+| `config_version = 1` | ERROR | Unknown keys fail validation |
+| `--production` mode | ERROR | Unknown keys always fail regardless of version |
+
+Finding codes:
+- `schema.unknown_section` — unrecognized `[section]`
+- `schema.unknown_field` — unrecognized field in a known section
+- `schema.unknown_top_level_key` — unrecognized top-level key
+
+This policy is enforced by `validate_schema(raw_toml, strict=...)` in `app/config/validation.py`. The `strict=True` parameter forces ERROR severity for all unknown keys. Production mode (`validate_all(..., production=True)`) passes `strict=True` automatically.
+
+Unknown keys never silently influence defaults — they are always reported and never consumed by the loader.
 
 ## See Also
 - [App Factory](core/app-factory.md) - How config is used

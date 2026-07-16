@@ -1,6 +1,6 @@
 # Release 1 Closure
 
-**Date:** 2026-07-15
+**Date:** 2026-07-16 (updated)
 
 ## Summary
 
@@ -34,10 +34,12 @@ Release 1 delivers a self-hosted Flask blog CMS with admin dashboard, newsletter
 
 - All unit tests passing (excluding E2E which requires Docker)
 - Coverage above 80% threshold
-- mypy clean on `app/` and `devlog_cli/`
+- mypy on `app/` and `devlog_cli/` (9 pre-existing errors in app/ documented in AGENTS.md)
 - ruff lint and format clean
 - Docker build succeeds with Vite manifest present
+- Migration chain tests pass (alembic migration + drop_theme_preset)
 - Package smoke test passes: CLI commands and app-context operations verified
+- Dependency manifest consistency check passes
 
 ## Known Limitations
 
@@ -58,3 +60,11 @@ Release 2 is ready for planning. Priorities under consideration:
 - Performance benchmarks for large post catalogs
 
 The codebase is stable, well-tested, and CI-enforced. Release 1 provides a solid foundation for incremental improvements.
+
+## Gap Closure (2026-07-16)
+
+The following gaps from the initial closure pass were addressed:
+
+1. **CI mypy coverage** — `lint-and-type` now runs `mypy app/ devlog_cli/` (was `mypy app/`)
+2. **config_legacy refactor** — Module now projects from typed loader (`load_effective_config`) instead of independently parsing config.toml. Deprecation warning emitted on import. Removed dead `load_config()` and `_validate_config()` functions.
+3. **Closure doc** — Updated with migration chain test results and dependency consistency check

@@ -11,17 +11,21 @@ from devlog_cli.result import Result
 
 
 def _to_result(op_result, *, verbose: bool = False) -> Result:
+    details = dict(op_result.details)
+    if hasattr(op_result, "themes"):
+        details["themes"] = op_result.themes
+        details["total"] = op_result.total
     if op_result.ok:
         return Result.success(
             code=op_result.code,
             summary=op_result.summary,
-            details=op_result.details,
+            details=details,
             warnings=list(op_result.warnings),
         )
     return Result.failure(
         code=op_result.code,
         summary=op_result.summary,
-        details=op_result.details,
+        details=details,
         warnings=list(op_result.warnings),
         remediation=list(op_result.remediation),
     )
