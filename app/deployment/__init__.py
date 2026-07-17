@@ -31,7 +31,7 @@ from app.deployment.lifecycle import (
     stop_service,
 )
 from app.deployment.logrotate import render_logrotate
-from app.deployment.model import DeploymentContext, RenderResult
+from app.deployment.model import DeploymentContext, RenderResult, validate_deployment_context
 from app.deployment.proxy import (
     render_caddyfile,
     render_nginx_config,
@@ -70,5 +70,6 @@ __all__ = [
     "start_service",
     "stop_service",
     "validate_caddyfile",
+    "validate_deployment_context",
     "validate_nginx_config",
 ]

@@ -131,3 +131,18 @@ class RenderResult:
     warnings: list[str] = field(default_factory=list)
     permissions: int = 0o644
     description: str = ""
+
+
+def validate_deployment_context(ctx: DeploymentContext) -> list[str]:
+    errors: list[str] = []
+    if ctx.has_scheduler and not ctx.has_celery:
+        errors.append(
+            "Scheduler is enabled but celery broker URL is not configured; "
+            "scheduled jobs will not execute without a broker"
+        )
+    if ctx.has_scheduler and ctx.mode == InstallMode.DEVELOPMENT:
+        errors.append(
+            "Scheduler is enabled in development mode; "
+            "scheduler unit will not be generated for foreground deployment"
+        )
+    return errors

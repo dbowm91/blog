@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from app.config.model import DevLogConfig
-from app.deployment.model import DeploymentContext, RenderResult
+from app.config.model import (
+    CeleryConfig,
+    DevLogConfig,
+    SchedulerConfig,
+)
+from app.deployment.model import DeploymentContext, RenderResult, validate_deployment_context
 from app.filesystem.layout import InstallMode, RuntimePaths
 
 
@@ -184,3 +188,35 @@ class TestRenderResult:
     def test_custom_permissions(self):
         result = RenderResult(content="c", filename="f", managed=True, permissions=0o600)
         assert result.permissions == 0o600
+
+
+class TestValidateDeploymentContext:
+    def test_scheduler_without_broker(self, app):
+        config = DevLogConfig(
+            scheduler=SchedulerConfig(enabled=True),
+            celery=CeleryConfig(broker_url=""),
+        )
+        ctx = DeploymentContext.from_config(config, mode=InstallMode.SYSTEM)
+        errors = validate_deployment_context(ctx)
+        assert any("celery broker" in e.lower() for e in errors)
+
+    def test_scheduler_with_broker(self, app):
+        config = DevLogConfig(
+            scheduler=SchedulerConfig(enabled=True),
+            celery=CeleryConfig(broker_url="redis://localhost:6379/0"),
+        )
+        ctx = DeploymentContext.from_config(config, mode=InstallMode.SYSTEM)
+        errors = validate_deployment_context(ctx)
+        assert errors == []
+
+    def test_scheduler_in_development_mode(self, app):
+        config = DevLogConfig(scheduler=SchedulerConfig(enabled=True))
+        ctx = DeploymentContext.from_config(config, mode=InstallMode.DEVELOPMENT)
+        errors = validate_deployment_context(ctx)
+        assert any("development mode" in e.lower() for e in errors)
+
+    def test_no_scheduler_no_errors(self, app):
+        config = DevLogConfig()
+        ctx = DeploymentContext.from_config(config, mode=InstallMode.SYSTEM)
+        errors = validate_deployment_context(ctx)
+        assert errors == []

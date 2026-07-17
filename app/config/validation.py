@@ -730,10 +730,13 @@ def validate_dependencies(config: DevLogConfig) -> list[Finding]:
     if config.scheduler.enabled and not config.celery.broker_url:
         findings.append(
             Finding(
-                severity=Severity.WARNING,
+                severity=Severity.ERROR,
                 code="dependencies.scheduler_no_broker",
                 field="scheduler",
-                message="Scheduler is enabled but celery broker URL is not configured; scheduled jobs may not execute",
+                message="Scheduler is enabled but celery broker URL is not configured; "
+                "scheduled jobs will not execute without a broker",
+                remediation="Set CELERY_BROKER_URL or configure [celery].broker_url in config.toml, "
+                "or disable the scheduler with ENABLE_SCHEDULER=false",
             )
         )
 

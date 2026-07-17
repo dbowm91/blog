@@ -45,6 +45,9 @@ def _add_render_command(group: click.Group) -> None:
         default=None,
         help="Directory to write rendered files into.",
     )
+    @click.option(
+        "--user", "user_unit", is_flag=True, default=False, help="Generate user systemd units."
+    )
     @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.pass_context
     def deploy_render(
@@ -53,18 +56,21 @@ def _add_render_command(group: click.Group) -> None:
         targets: tuple[str, ...],
         print_content: bool,
         output: Path | None,
+        user_unit: bool,
         json_mode: bool,
     ) -> None:
         """Render deployment files for the specified mode and target(s)."""
         cli_ctx: CliContext = ctx.obj
         json_mode = json_mode or cli_ctx.json_mode
 
+        effective_mode = "user" if user_unit else mode
+
         try:
             app = cli_ctx.ensure_app_context()
             with app.app_context():
                 from app.services.operations.deploy import deploy_render as svc_render
 
-                result = svc_render(mode, targets=list(targets))
+                result = svc_render(effective_mode, targets=list(targets))
         except ImportError as e:
             r = Result.failure(
                 code="deploy.render.missing_module",
@@ -79,6 +85,18 @@ def _add_render_command(group: click.Group) -> None:
                 code="deploy.render.unexpected",
                 summary=f"Unexpected error: {e}",
                 exit_code=ExitCode.GENERAL_FAILURE,
+            )
+            render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
+            raise SystemExit(r.exit_code)
+
+        if not result.ok:
+            r = Result.failure(
+                code=result.code,
+                summary=result.summary,
+                exit_code=ExitCode.GENERAL_FAILURE,
+                details={"mode": effective_mode, "targets": list(targets)},
+                warnings=result.warnings,
+                remediation=result.remediation,
             )
             render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
             raise SystemExit(r.exit_code)
@@ -103,13 +121,13 @@ def _add_render_command(group: click.Group) -> None:
                     dest = output / f"{target}-{fname}"
                     dest.write_text(f["content"])
 
-        summary_parts = [f"{len(files)} file(s) rendered for {mode}"]
+        summary_parts = [f"{len(files)} file(s) rendered for {effective_mode}"]
         if result.warnings:
             summary_parts.append(f"{len(result.warnings)} warning(s)")
         summary = " | ".join(summary_parts)
 
         details: dict[str, Any] = {
-            "mode": mode,
+            "mode": effective_mode,
             "targets": list(targets),
             "files": files,
         }
@@ -156,6 +174,9 @@ def _add_install_command(group: click.Group) -> None:
         default=None,
         help="Base directory for deployment files.",
     )
+    @click.option(
+        "--user", "user_unit", is_flag=True, default=False, help="Install user systemd units."
+    )
     @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.pass_context
     def deploy_install(
@@ -165,12 +186,14 @@ def _add_install_command(group: click.Group) -> None:
         force: bool,
         dry_run: bool,
         base_dir: Path | None,
+        user_unit: bool,
         json_mode: bool,
     ) -> None:
         """Install deployment files for the specified mode."""
         cli_ctx: CliContext = ctx.obj
         json_mode = json_mode or cli_ctx.json_mode
 
+        effective_mode = "user" if user_unit else mode
         target_list = list(targets) if targets else None
 
         try:
@@ -179,7 +202,7 @@ def _add_install_command(group: click.Group) -> None:
                 from app.services.operations.deploy import deploy_install as svc_install
 
                 result = svc_install(
-                    mode,
+                    effective_mode,
                     targets=target_list,
                     force=force,
                     dry_run=dry_run,
@@ -204,7 +227,7 @@ def _add_install_command(group: click.Group) -> None:
             raise SystemExit(r.exit_code)
 
         details: dict[str, Any] = {
-            "mode": mode,
+            "mode": effective_mode,
             "dry_run": dry_run,
             "force": force,
             **result.details,
@@ -245,24 +268,30 @@ def _add_check_command(group: click.Group) -> None:
         default=None,
         help="Base directory to check against.",
     )
+    @click.option(
+        "--user", "user_unit", is_flag=True, default=False, help="Check user systemd units."
+    )
     @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format.")
     @click.pass_context
     def deploy_check(
         ctx: click.Context,
         mode: str,
         base_dir: Path | None,
+        user_unit: bool,
         json_mode: bool,
     ) -> None:
         """Check for deployment drift in installed files."""
         cli_ctx: CliContext = ctx.obj
         json_mode = json_mode or cli_ctx.json_mode
 
+        effective_mode = "user" if user_unit else mode
+
         try:
             app = cli_ctx.ensure_app_context()
             with app.app_context():
                 from app.services.operations.deploy import deploy_check as svc_check
 
-                result = svc_check(mode, base_dir=str(base_dir) if base_dir else None)
+                result = svc_check(effective_mode, base_dir=str(base_dir) if base_dir else None)
         except ImportError as e:
             r = Result.failure(
                 code="deploy.check.missing_module",
@@ -287,7 +316,7 @@ def _add_check_command(group: click.Group) -> None:
         summary = " | ".join(summary_parts)
 
         details: dict[str, Any] = {
-            "mode": mode,
+            "mode": effective_mode,
             **result.details,
         }
 
