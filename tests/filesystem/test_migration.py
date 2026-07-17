@@ -8,6 +8,7 @@ from app.filesystem.layout import InstallMode, RuntimePaths
 from app.filesystem.migration import (
     MigrationAction,
     MigrationStep,
+    execute_migration,
     plan_migration,
 )
 
@@ -273,3 +274,93 @@ class TestPlanMigration:
         plan = plan_migration(source, target, include_logs=False)
         log_steps = [s for s in plan.steps if "Logs" in s.description]
         assert len(log_steps) == 0
+
+
+class TestExecuteMigration:
+    def test_dry_run_no_changes(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        source.config_file.path.write_text("config content")
+        plan = plan_migration(source, target)
+        result = execute_migration(plan, dry_run=True)
+        assert result.ok
+        assert result.completed_steps == len(plan.steps)
+        assert not target.config_file.path.exists()
+
+    def test_execute_moves_config(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        source.config_file.path.write_text("config content")
+        plan = plan_migration(source, target)
+        result = execute_migration(plan)
+        assert result.ok
+        assert target.config_file.path.exists()
+        assert target.config_file.path.read_text() == "config content"
+
+    def test_execute_skips_missing_source(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        source.config_file.path.unlink()
+        plan = plan_migration(source, target)
+        result = execute_migration(plan)
+        assert result.ok
+
+    def test_execute_stops_on_conflict(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        source.config_file.path.write_text("new")
+        target.config_file.path.parent.mkdir(parents=True, exist_ok=True)
+        target.config_file.path.write_text("existing")
+        plan = plan_migration(source, target)
+        result = execute_migration(plan, stop_on_conflict=True)
+        assert not result.ok
+        assert len(result.errors) > 0
+
+    def test_execute_continues_on_conflict(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        source.config_file.path.write_text("new")
+        target.config_file.path.parent.mkdir(parents=True, exist_ok=True)
+        target.config_file.path.write_text("existing")
+        (source.env_file.path).write_text("SECRET_KEY=test")
+        plan = plan_migration(source, target)
+        result = execute_migration(plan, stop_on_conflict=False)
+        assert result.ok
+
+    def test_execute_creates_directories(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        (source.uploads_dir.path / "photo.jpg").touch()
+        plan = plan_migration(source, target)
+        result = execute_migration(plan)
+        assert result.ok
+        assert (target.uploads_dir.path / "photo.jpg").exists()
+
+    def test_execute_preserves_source_on_skip(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        plan = plan_migration(source, target)
+        result = execute_migration(plan)
+        assert result.ok
+        assert source.data_dir.path.exists()
+
+    def test_execution_result_fields(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        plan = plan_migration(source, target)
+        result = execute_migration(plan, dry_run=True)
+        assert hasattr(result, "ok")
+        assert hasattr(result, "completed_steps")
+        assert hasattr(result, "total_steps")
+        assert hasattr(result, "errors")
+        assert hasattr(result, "completed_paths")
+
+    def test_execute_moves_database(self, tmp_path):
+        source = _make_source(tmp_path)
+        target = _make_target(tmp_path)
+        source.database.path.write_bytes(b"sqlite data")
+        plan = plan_migration(source, target)
+        result = execute_migration(plan)
+        assert result.ok
+        assert target.database.path.exists()
+        assert target.database.path.read_bytes() == b"sqlite data"

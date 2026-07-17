@@ -32,6 +32,7 @@ from app.config.model import (
 class OnboardingInput:
     mode: str = "native"
     profile: str = "development"
+    scope: str = ""
     site_title: str = "DevLog"
     site_description: str = "A place for thoughts on code"
     base_url: str = "http://localhost:5000"
@@ -51,6 +52,8 @@ class OnboardingInput:
     storage_backend: str = "local"
     backup_dir: str = "backups"
     enable_backup_encryption: bool = False
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
     theme_dark: str = "Catppuccin Mocha"
     theme_light: str = "Catppuccin Latte"
     theme_scheme: str = "system"
@@ -59,7 +62,7 @@ class OnboardingInput:
     accept_defaults: bool = False
 
 
-def build_config_from_input(inp: OnboardingInput) -> DevLogConfig:
+def build_config_from_input(inp: OnboardingInput, *, data_dir: Path | None = None) -> DevLogConfig:
     is_production = inp.profile in ("native-production", "docker-production")
     use_https = inp.base_url.startswith("https://")
 
@@ -71,9 +74,12 @@ def build_config_from_input(inp: OnboardingInput) -> DevLogConfig:
     db_uri = ""
     if inp.mode == "docker":
         db_uri = "sqlite:///data/blog.db"
+    elif data_dir is not None:
+        db_path = data_dir / "blog.db"
+        db_uri = f"sqlite:///{db_path.resolve()}"
     else:
-        data_dir = Path("data")
-        db_uri = f"sqlite:///{data_dir.resolve()}/blog.db"
+        db_path = Path("data") / "blog.db"
+        db_uri = f"sqlite:///{db_path.resolve()}"
 
     redis_url = "redis://localhost:6379/0"
     cache_url = ""

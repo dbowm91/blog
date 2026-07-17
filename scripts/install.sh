@@ -740,7 +740,7 @@ maybe_run_onboard() {
         if [ -t 0 ] || [ -r /dev/tty ]; then
             info "Running onboarding..."
             if [ "$INSTALL_MODE" = "native" ]; then
-                "${PREFIX}/current/venv/bin/devlog" onboard run --mode native </dev/tty || true
+                "${PREFIX}/current/venv/bin/devlog" onboard run --mode native --scope "${INSTALL_SCOPE}" </dev/tty || true
             else
                 log "Run manually: cd ${PREFIX} && devlog onboard --mode docker"
             fi

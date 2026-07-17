@@ -26,10 +26,12 @@ class StepContext:
     warnings: list[str] = field(default_factory=list)
     config_dir: Path = field(default_factory=lambda: Path("."))
     data_dir: Path = field(default_factory=lambda: Path("data"))
+    env_file: Path = field(default_factory=lambda: Path(".env"))
     dry_run: bool = False
     created_files: list[Path] = field(default_factory=list)
     created_dirs: list[Path] = field(default_factory=list)
     step_index: int = 0
+    runtime_paths: Any | None = None
 
 
 @dataclass(frozen=True)
@@ -126,12 +128,25 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
     try:
         from app.filesystem.layout import InstallMode, RuntimePaths
 
-        mode_map = {"docker": InstallMode.DOCKER, "native": InstallMode.DEVELOPMENT}
-        install_mode = mode_map.get(inp.mode, InstallMode.DEVELOPMENT)
+        scope = inp.scope or ""
+        if inp.mode == "docker":
+            install_mode = InstallMode.DOCKER
+        elif inp.mode == "native":
+            if scope == "system":
+                install_mode = InstallMode.SYSTEM
+            elif scope == "user":
+                install_mode = InstallMode.USER
+            else:
+                install_mode = InstallMode.DEVELOPMENT
+        else:
+            install_mode = InstallMode.DEVELOPMENT
+
         runtime_paths = RuntimePaths.for_mode(install_mode)
+        ctx.runtime_paths = runtime_paths
 
         ctx.config_dir = runtime_paths.config_file.path.parent
         ctx.data_dir = runtime_paths.data_dir.path
+        ctx.env_file = runtime_paths.env_file.path
 
         ctx.config_dir.mkdir(parents=True, exist_ok=True)
         ctx.data_dir.mkdir(parents=True, exist_ok=True)
@@ -139,12 +154,26 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
         if inp.mode == "docker":
             config_dir = Path("/etc/devlog")
             data_dir = Path("/data")
+            env_file = Path("/etc/devlog/.env")
+        elif inp.scope == "system":
+            config_dir = Path("/etc/devlog")
+            data_dir = Path("/var/lib/devlog")
+            env_file = Path("/etc/devlog/.env")
+        elif inp.scope == "user":
+            from pathlib import Path as P
+
+            home = P.home()
+            config_dir = home / ".config" / "devlog"
+            data_dir = home / ".local" / "share" / "devlog"
+            env_file = config_dir / ".env"
         else:
             config_dir = Path(".")
             data_dir = Path("data")
+            env_file = Path(".env")
 
         ctx.config_dir = config_dir
         ctx.data_dir = data_dir
+        ctx.env_file = env_file
 
         config_dir.mkdir(parents=True, exist_ok=True)
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -152,7 +181,11 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
     return StepResult(
         ok=True,
         message=f"Config: {ctx.config_dir}, Data: {ctx.data_dir}",
-        details={"config_dir": str(ctx.config_dir), "data_dir": str(ctx.data_dir)},
+        details={
+            "config_dir": str(ctx.config_dir),
+            "data_dir": str(ctx.data_dir),
+            "env_file": str(ctx.env_file),
+        },
     )
 
 
@@ -200,13 +233,7 @@ def step_collect_inputs(ctx: StepContext) -> StepResult:
     if not inp.admin_password:
         return StepResult(
             ok=False,
-            message="Admin password is required. Set via prompt, --admin-password, or ADMIN_PASSWORD env var.",
-        )
-
-    if inp.non_interactive and not inp.admin_password:
-        return StepResult(
-            ok=False,
-            message="Admin password is required in non-interactive mode.",
+            message="Admin password is required. Set via prompt, --admin-password-file, or ADMIN_PASSWORD env var.",
         )
 
     return StepResult(
@@ -217,7 +244,7 @@ def step_collect_inputs(ctx: StepContext) -> StepResult:
 
 
 def step_build_config(ctx: StepContext) -> StepResult:
-    config = build_config_from_input(ctx.input)
+    config = build_config_from_input(ctx.input, data_dir=ctx.data_dir)
     ctx.config = config
     return StepResult(
         ok=True,
@@ -230,9 +257,8 @@ def step_resolve_secrets(ctx: StepContext) -> StepResult:
     inp = ctx.input
     existing: dict[str, str] = {}
 
-    env_path = Path(".env")
-    if env_path.exists():
-        existing = read_env_file(env_path)
+    if ctx.env_file.exists():
+        existing = read_env_file(ctx.env_file)
 
     if inp.admin_password:
         existing.setdefault("ADMIN_PASSWORD", inp.admin_password)
@@ -319,7 +345,7 @@ def step_write_env(ctx: StepContext) -> StepResult:
     if ctx.dry_run:
         return StepResult(ok=True, message="Dry run: skipping .env write")
 
-    env_path = Path(".env")
+    env_path = ctx.env_file
 
     if env_path.exists():
         _backup_file(env_path)
@@ -426,21 +452,43 @@ def step_create_administrator(ctx: StepContext) -> StepResult:
 
 
 def step_verify_assets(ctx: StepContext) -> StepResult:
-    checks = {
-        "vite_manifest": Path("app/static/dist/manifest.json"),
-        "base_template": Path("app/templates/base.html"),
-        "themes_bundled": Path("app/themes/bundled"),
-        "migrations": Path("migrations/versions"),
-    }
+    try:
+        from importlib.resources import as_file, files
+
+        pkg = files("app")
+        checks = {
+            "themes_bundled": pkg.joinpath("themes", "bundled"),
+            "migrations": pkg.joinpath("migrations", "versions"),
+            "base_template": pkg.joinpath("templates", "base.html"),
+        }
+    except Exception:
+        checks = {
+            "themes_bundled": Path("app/themes/bundled"),
+            "migrations": Path("migrations/versions"),
+            "base_template": Path("app/templates/base.html"),
+        }
+
+    try:
+        from importlib.resources import as_file, files
+
+        manifest = files("app.static").joinpath("dist", "manifest.json")
+        with as_file(manifest) as p:
+            checks["vite_manifest"] = Path(str(p))
+    except Exception:
+        checks["vite_manifest"] = Path("app/static/dist/manifest.json")
 
     results: dict[str, bool] = {}
     warnings: list[str] = []
 
-    for name, path in checks.items():
-        exists = path.exists()
+    for name, path_or_ref in checks.items():
+        try:
+            p = Path(str(path_or_ref)) if not isinstance(path_or_ref, Path) else path_or_ref
+            exists = p.exists()
+        except Exception:
+            exists = False
         results[name] = exists
         if not exists:
-            warnings.append(f"Missing: {name} at {path}")
+            warnings.append(f"Missing: {name}")
 
     ctx.warnings.extend(warnings)
 
@@ -579,17 +627,24 @@ def _save_progress(
     if stopped_at == "" and is_last_real_step:
         completed_at = now
 
+    try:
+        from importlib.metadata import version
+
+        pkg_version = version("devlog")
+    except Exception:
+        pkg_version = ""
+
     metadata = OnboardingMetadata(
         version=1,
         mode=inp.mode,
         profile=inp.profile,
-        package_version="",
+        package_version=pkg_version,
         completed_at=completed_at,
         config_path=str(ctx.config_dir / "config.toml"),
         data_path=str(ctx.data_dir),
         managed_paths=[
             str(ctx.config_dir / "config.toml"),
-            ".env",
+            str(ctx.env_file),
             str(ctx.data_dir),
             inp.backup_dir,
         ],

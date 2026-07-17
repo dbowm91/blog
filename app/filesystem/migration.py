@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -30,6 +31,15 @@ class MigrationPlan:
     target_mode: InstallMode = InstallMode.DEVELOPMENT
     warnings: list[str] = field(default_factory=list)
     requires_downtime: bool = False
+
+
+@dataclass
+class MigrationExecutionResult:
+    ok: bool
+    completed_steps: int
+    total_steps: int
+    errors: list[str] = field(default_factory=list)
+    completed_paths: list[str] = field(default_factory=list)
 
 
 def _plan_file_transfer(
@@ -131,4 +141,94 @@ def plan_migration(
         target_mode=target_mode or InstallMode.DEVELOPMENT,
         warnings=warnings,
         requires_downtime=requires_downtime,
+    )
+
+
+def _checkpoint_sqlite(db_path: Path) -> bool:
+    try:
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.close()
+        return True
+    except Exception:
+        return False
+
+
+def execute_migration(
+    plan: MigrationPlan,
+    *,
+    dry_run: bool = False,
+    stop_on_conflict: bool = True,
+) -> MigrationExecutionResult:
+    completed = 0
+    errors: list[str] = []
+    completed_paths: list[str] = []
+
+    db_source = None
+    for step in plan.steps:
+        if (
+            step.source
+            and step.source.name in ("blog.db", "devlog.sqlite3")
+            and step.source.exists()
+        ):
+            db_source = step.source
+            break
+
+    if db_source and not dry_run:
+        _checkpoint_sqlite(db_source)
+
+    for step in plan.steps:
+        if dry_run:
+            completed += 1
+            continue
+
+        if step.action == MigrationAction.SKIP:
+            completed += 1
+            continue
+
+        if step.action == MigrationAction.CONFLICT:
+            if stop_on_conflict:
+                errors.append(step.description)
+                break
+            completed += 1
+            continue
+
+        if step.action == MigrationAction.CREATE_DIR:
+            try:
+                step.target.mkdir(parents=True, exist_ok=True)
+                completed += 1
+                completed_paths.append(str(step.target))
+            except OSError as e:
+                errors.append(f"Failed to create {step.target}: {e}")
+                break
+            continue
+
+        if step.action in (MigrationAction.MOVE, MigrationAction.COPY):
+            if step.source is None or not step.source.exists():
+                errors.append(f"Source missing for {step.description}")
+                break
+
+            try:
+                step.target.parent.mkdir(parents=True, exist_ok=True)
+                if step.action == MigrationAction.MOVE:
+                    shutil.move(str(step.source), str(step.target))
+                else:
+                    if step.source.is_dir():
+                        shutil.copytree(str(step.source), str(step.target))
+                    else:
+                        shutil.copy2(str(step.source), str(step.target))
+                completed += 1
+                completed_paths.append(str(step.target))
+            except OSError as e:
+                errors.append(f"Failed: {step.description}: {e}")
+                break
+
+    return MigrationExecutionResult(
+        ok=len(errors) == 0,
+        completed_steps=completed,
+        total_steps=len(plan.steps),
+        errors=errors,
+        completed_paths=completed_paths,
     )

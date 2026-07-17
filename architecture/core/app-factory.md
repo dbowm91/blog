@@ -185,14 +185,20 @@ Content-Security-Policy:
 
 **Note:** `style-src-attr 'unsafe-inline'` is required for the theme system's inline CSS variables and dynamic styling.
 
-## Configuration (`app/config.py`)
+## Configuration
+
+Configuration is managed by two layers:
+
+1. **Typed config system** (`app/config/`) — Canonical source of truth for all configuration fields and defaults. Provides 20 frozen dataclasses (`DevLogConfig` + 19 section classes), TOML/JSON serialization, multi-layer validation (schema, security, filesystem, dependencies, compatibility), and config version migration.
+
+2. **Legacy config** (`app/config_legacy.py`) — Re-exported via `app/config/__init__.py` for backward compatibility with existing code that references `app.config` globals.
 
 Configuration is loaded from `config.toml` with environment variable overrides.
 
 ### Priority (highest to lowest)
 1. Environment variables
 2. `config.toml` file
-3. Default values in `app/config.py`
+3. Default values in typed config model (`app/config/model.py`)
 
 ### Key Configuration Categories
 
@@ -205,6 +211,9 @@ Configuration is loaded from `config.toml` with environment variable overrides.
 | **Site** | `BASE_URL`, `CDN_URL`, `RELATED_POSTS_COUNT` |
 | **Email** | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` |
 | **Newsletter** | `NEWSLETTER_SEND_TIME`, `CONFIRMATION_EXPIRY_HOURS` |
+| **Paths** | Data directory, config file, env file (overridable via `DEVLOG_*` env vars) |
+
+**Deep Dive:** [core/configuration.md](core/configuration.md)
 
 ## Extensions (`app/extensions.py`)
 

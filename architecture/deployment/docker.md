@@ -12,6 +12,26 @@ Multi-container Docker setup for production deployment.
 | `nginx` | `nginx:alpine` | Reverse proxy (optional, `reverse-proxy` profile) |
 | `backup` | Custom | Scheduled database backups |
 
+## Installation
+
+The installer (`scripts/install.sh`) supports Docker mode with `--docker`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --docker
+```
+
+For native (non-Docker) installation, the installer uses a versioned release layout with atomic symlinks. Use `--system` (default, installs to `/opt/devlog`) or `--user` (installs to `~/.local/share/devlog`):
+
+```bash
+# System-wide
+curl -fsSL ... | bash -s -- --native --system
+
+# Per-user (XDG-compliant)
+curl -fsSL ... | bash -s -- --native --user
+```
+
+The installer handles code artifacts only (download, checksum verification, virtualenv creation, activation). Configuration, database setup, and admin creation are delegated to `devlog onboard` (see [installation.md](installation.md) for the full responsibility boundary).
+
 ## Docker Compose Profiles
 
 | Profile | Services | Purpose |

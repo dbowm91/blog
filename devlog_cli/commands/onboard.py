@@ -47,6 +47,7 @@ def _handle_onboard_detect(ctx: click.Context) -> None:
 def _handle_onboard_plan(
     ctx: click.Context,
     mode: str,
+    scope: str,
     profile: str,
     json_mode: bool,
 ) -> None:
@@ -57,7 +58,7 @@ def _handle_onboard_plan(
         from app.onboarding.model import OnboardingInput
         from app.services.operations.onboard import generate_plan
 
-        inp = OnboardingInput(mode=mode, profile=profile)
+        inp = OnboardingInput(mode=mode, scope=scope, profile=profile)
         result = generate_plan(inp)
 
     if json_mode:
@@ -87,6 +88,7 @@ def _handle_onboard_plan(
 def _handle_onboard_run(
     ctx: click.Context,
     mode: str,
+    scope: str,
     profile: str,
     non_interactive: bool,
     dry_run: bool,
@@ -112,6 +114,7 @@ def _handle_onboard_run(
 
     input_dict: dict[str, Any] = {
         "mode": mode,
+        "scope": scope,
         "profile": profile,
         "non_interactive": non_interactive,
         "dry_run": dry_run,
@@ -229,6 +232,12 @@ def register_onboard_commands(onboard_group: click.Group) -> None:
         help="Installation mode.",
     )
     @click.option(
+        "--scope",
+        type=click.Choice(["system", "user"]),
+        default=None,
+        help="Native installation scope (system or user directories).",
+    )
+    @click.option(
         "--profile",
         type=click.Choice(
             ["development", "native-production", "docker-production", "minimal", "full"]
@@ -242,11 +251,12 @@ def register_onboard_commands(onboard_group: click.Group) -> None:
     def onboard_plan(
         ctx: click.Context,
         mode: str,
+        scope: str | None,
         profile: str,
         json_mode: bool,
     ) -> None:
         """Show onboarding plan without applying changes."""
-        _handle_onboard_plan(ctx, mode, profile, json_mode)
+        _handle_onboard_plan(ctx, mode, scope or "", profile, json_mode)
 
     @onboard_group.command("run")
     @click.option(
@@ -255,6 +265,12 @@ def register_onboard_commands(onboard_group: click.Group) -> None:
         default="native",
         show_default=True,
         help="Installation mode.",
+    )
+    @click.option(
+        "--scope",
+        type=click.Choice(["system", "user"]),
+        default=None,
+        help="Native installation scope (system or user directories).",
     )
     @click.option(
         "--profile",
@@ -296,6 +312,7 @@ def register_onboard_commands(onboard_group: click.Group) -> None:
     def onboard_run(
         ctx: click.Context,
         mode: str,
+        scope: str | None,
         profile: str,
         non_interactive: bool,
         dry_run: bool,
@@ -309,6 +326,7 @@ def register_onboard_commands(onboard_group: click.Group) -> None:
         _handle_onboard_run(
             ctx,
             mode=mode,
+            scope=scope or "",
             profile=profile,
             non_interactive=non_interactive,
             dry_run=dry_run,

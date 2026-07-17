@@ -474,18 +474,20 @@ All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for 
 
 | Component | Purpose |
 |-----------|---------|
+| Installer | One-shot native (`--system`/`--user` scope) or Docker installation with checksum verification |
+| Onboarding | First-run configuration: secrets, config.toml, database migrations, admin creation |
 | Docker | Containerized deployment; health check includes 10s `start_period` before healthy status |
 | Docker Compose | Multi-container orchestration; requires explicit profiles (`--profile production`, `--profile backup`) — no default profile |
 | Optional nginx | TLS termination, static files, rate limiting (requires `--profile reverse-proxy` and certificate configuration) |
 | CI/CD | Automated testing and deployment |
 
-**Deep Dive:** [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md)
+**Deep Dive:** [deployment/installation.md](deployment/installation.md), [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md)
 
 ---
 
 ## Filesystem Layout
 
-The filesystem layout system provides centralized path resolution for all deployment modes:
+The filesystem layout system provides centralized path resolution for all deployment modes. `RuntimePaths` in `app/filesystem/layout.py` is the sole path resolution authority — neither the installer nor onboarding derives paths independently.
 
 | Mode | Data Root | Config | Logs | Runtime |
 |------|-----------|--------|------|---------|
@@ -495,6 +497,8 @@ The filesystem layout system provides centralized path resolution for all deploy
 | Development | `./data` | `./config.toml` | `./logs` | `./instance` |
 
 Each path carries provenance metadata (explicit override, env var, mode default, etc.) accessible via `devlog paths status`.
+
+**Installation contract:** The installer (`scripts/install.sh`) installs code artifacts only. Onboarding (`devlog onboard`) creates configuration, secrets, database, and admin state. See [deployment/installation.md](deployment/installation.md) for the full responsibility boundary.
 
 ## Directory Structure
 

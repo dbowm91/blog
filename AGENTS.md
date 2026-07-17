@@ -93,7 +93,7 @@ Important actual file locations (verify before assuming):
 | CLI data commands | `devlog_cli/commands/data.py` |
 | CLI theme commands | `devlog_cli/commands/themes.py` |
 | CLI backup commands | `devlog_cli/commands/backup.py` |
-| CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run |
+| CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run with `--scope` option (system/user) |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
@@ -194,10 +194,14 @@ The codebase has a centralized filesystem path system at `app/filesystem/`:
 - `app/filesystem/layout.py` — `RuntimePaths` dataclass with `InstallMode` (system, user, docker, development) and `PathProvenance` tracking
 - `app/filesystem/prepare.py` — directory creation with permissions and security checks
 - `app/filesystem/discovery.py` — legacy layout discovery (read-only)
-- `app/filesystem/migration.py` — migration planner (dry-run only in this phase)
+- `app/filesystem/migration.py` — migration planner and executor; `MigrationPlan` (dry-run) and `execute_migration()` (apply)
 - `app/filesystem/verification.py` — post-migration verification
 
 CLI commands: `devlog paths status`, `devlog paths discover-legacy`, `devlog paths migrate`, `devlog paths check`
+
+Key items:
+- `MigrationExecutionResult` dataclass returned by `execute_migration()` — tracks `ok`, `completed_steps`, `total_steps`, `errors`, `completed_paths`
+- `execute_migration()` performs a SQLite WAL checkpoint (`PRAGMA wal_checkpoint(TRUNCATE)`) on the source database before executing move/copy steps
 
 The `PathsConfig` section in `app/config/model.py` allows overriding derived paths via `config.toml` or `DEVLOG_*` env vars.
 
@@ -254,7 +258,7 @@ Important actual file locations (verify before assuming):
 | CLI data commands | `devlog_cli/commands/data.py` |
 | CLI theme commands | `devlog_cli/commands/themes.py` |
 | CLI backup commands | `devlog_cli/commands/backup.py` |
-| CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run |
+| CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run with `--scope` option (system/user) |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
 | Operations tests | `tests/services/` |
@@ -499,13 +503,24 @@ The accessibility policy uses a three-tier classification system: `recommended`,
 The `devlog onboard` command provides first-run and reconfiguration onboarding:
 
 - **State machine**: 17 ordered steps in `app/onboarding/steps.py` — detect, resolve mode/paths, collect inputs, build config, resolve secrets, plan changes, validate, write config/env, create dirs, run migrations, create admin, verify assets, readiness check, write metadata, render completion
-- **Input model**: `app/onboarding/model.py` — `OnboardingInput` frozen dataclass + `build_config_from_input()` → `DevLogConfig`
+- **Input model**: `app/onboarding/model.py` — `OnboardingInput` frozen dataclass + `build_config_from_input(data_dir=)` → `DevLogConfig`
 - **Secret handling**: `app/onboarding/secrets.py` — generates SECRET_KEY, health secret, metrics secret; preserves existing on re-run; writes `.env` with mode 0600
 - **Planner**: `app/onboarding/planner.py` — dry-run plan generation with create/preserve/update/skip/conflict actions
 - **Metadata**: `app/onboarding/metadata.py` — persists installation state for resume/idempotency
 - **Service layer**: `app/services/operations/onboard.py` — wraps onboarding package for CLI
-- **CLI**: `devlog_cli/commands/onboard.py` — detect, plan, run subcommands
+- **CLI**: `devlog_cli/commands/onboard.py` — detect, plan, run subcommands; `--scope` option on `plan` and `run` controls native installation scope (system/user directories)
 - **Tests**: `tests/onboarding/` (151 unit tests) + `tests/cli/test_onboard_commands.py` (15 CLI tests)
+
+Scope and mode relationship:
+- `--scope system` resolves to system-level paths (e.g. `/etc/devlog/`, `/var/lib/devlog/`) via `RuntimePaths.for_mode(InstallMode.SYSTEM)`
+- `--scope user` resolves to user-level paths (e.g. `~/.config/devlog/`, `~/.local/share/devlog/`) via `RuntimePaths.for_mode(InstallMode.USER)`
+- Docker mode ignores `--scope` and uses container-standard paths (`/data/`, `/config/`)
+- When `--scope` is omitted, the onboarding step detects the appropriate scope from the current installation
+
+Key internals:
+- `detect_installation()` uses `RuntimePaths.for_mode(detect_mode())` when no explicit paths are provided, ensuring path resolution stays centralized
+- `build_config_from_input(inp, data_dir=)` accepts an optional `data_dir` parameter to override the default database location
+- `_save_progress()` populates `package_version` from `importlib.metadata.version("devlog")` for installation provenance tracking
 
 Key rules:
 - Secrets never appear in JSON output or logs
@@ -513,6 +528,17 @@ Key rules:
 - Existing files are backed up before overwrite
 - Dry-run mode skips all mutations
 - Non-interactive mode requires all values via options, never prompts
+
+### Installation Contract (R2C1)
+
+The Release 2 Closure installation contract defines strict responsibilities between the installer and onboarding:
+
+- `scripts/install.sh` installs verified code artifacts and creates only minimal release/bundle scaffolding (symlink, launcher). It must not create configuration, database state, or secrets.
+- `devlog onboard` creates and validates configuration, secrets, state directories, database schema, administrator state, and installation metadata.
+- `RuntimePaths` is the sole authority for runtime path resolution. Neither the installer nor onboarding should derive paths independently.
+- The installer must not maintain a parallel configuration schema, secret generator, profile system, or database migration implementation.
+
+This separation ensures that `install.sh` remains a minimal, auditable artifact-delivery mechanism while `devlog onboard` owns all configuration and state lifecycle.
 
 ## Architecture Cross-Reference
 

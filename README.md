@@ -50,10 +50,24 @@ A self-hosted Flask blog CMS for technical writing, newsletters, feeds, analytic
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native
-devlog onboard --mode native
+devlog onboard run --mode native
 ```
 
-This installs DevLog from verified release artifacts to `/opt/devlog/`, creates a `devlog` launcher, and runs onboarding. No Node.js or source checkout required.
+For system-wide installation (default):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native --system
+devlog onboard run --mode native --scope system
+```
+
+For user-local installation:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native --user
+devlog onboard run --mode native --scope user
+```
+
+This installs DevLog from verified release artifacts, creates a `devlog` launcher, and runs onboarding. No Node.js or source checkout required.
 
 ### Docker Production
 

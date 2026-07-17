@@ -77,6 +77,10 @@ _ALLOWLIST: set[str] = {
     "app/filesystem/prepare.py",
     # CLI config init — default output path
     "devlog_cli/commands/config.py",
+    # Onboarding model — constructs database URI for config (legitimate: builds DevLogConfig)
+    "app/onboarding/model.py",
+    # Migration execution — checks DB filename for SQLite checkpoint (legitimate: runtime check)
+    "app/filesystem/migration.py",
 }
 
 

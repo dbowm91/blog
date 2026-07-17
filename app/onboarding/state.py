@@ -27,8 +27,8 @@ class InstallationInfo:
 
 
 def _find_config(config_path: Path | None) -> Path | None:
-    if config_path and config_path.exists():
-        return config_path
+    if config_path is not None:
+        return config_path if config_path.exists() else None
 
     env_val = os.environ.get("DEVLOG_CONFIG")
     if env_val:
@@ -70,11 +70,14 @@ def _find_database(data_path: Path | None) -> Path | None:
 
     if data_path:
         candidates.append(data_path / "blog.db")
+        candidates.append(data_path / "devlog.sqlite3")
 
     candidates.extend(
         [
             Path("data/blog.db"),
+            Path("data/devlog.sqlite3"),
             Path("blog.db"),
+            Path("devlog.sqlite3"),
         ]
     )
 
@@ -89,6 +92,17 @@ def detect_installation(
     config_path: Path | None = None,
     data_path: Path | None = None,
 ) -> InstallationInfo:
+    if config_path is None and data_path is None:
+        try:
+            from app.filesystem.layout import RuntimePaths, detect_mode
+
+            mode_result = detect_mode()
+            runtime_paths = RuntimePaths.for_mode(mode_result.detected_mode)
+            config_path = runtime_paths.config_file.path
+            data_path = runtime_paths.data_dir.path
+        except ImportError:
+            pass
+
     resolved_config = _find_config(config_path)
     env_file = _find_env_file()
     resolved_data = _find_database(data_path)

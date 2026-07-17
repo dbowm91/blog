@@ -77,7 +77,15 @@ Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [p
 | `devlog media` | `devlog_cli/commands/media.py` | Media scan and cleanup |
 | `devlog themes` | `devlog_cli/commands/themes.py` | Theme operations |
 | `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
-| `devlog onboard` | `devlog_cli/commands/onboard.py` | detect, plan, run — first-run and reconfiguration onboarding |
+| `devlog onboard` | `devlog_cli/commands/onboard.py` | detect, plan, run, resume — first-run and reconfiguration onboarding |
+
+CLI onboarding options:
+- `--mode native|docker` — installation mode
+- `--scope system|user` — native installation scope (system or user directories)
+- `--profile development|native-production|docker-production|minimal|full`
+- `--non-interactive` — requires all values via options
+- `--dry-run` — show plan without applying
+- `--admin-password-file` — read admin password from file
 
 ## Verified Routes
 
