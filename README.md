@@ -120,7 +120,7 @@ devlog --verbose config     # Verbose help
 devlog --quiet db           # Minimal output
 ```
 
-Command groups: `config`, `admin`, `db`, `data`, `themes`, `backup`, `onboard`. The `config` group provides typed configuration management commands. The `onboard` group provides first-run and reconfiguration onboarding.
+Command groups: `config`, `admin`, `db`, `data`, `themes`, `backup`, `onboard`, `deploy`. The `config` group provides typed configuration management commands. The `onboard` group provides first-run and reconfiguration onboarding. The `deploy` group provides deployment artifact rendering and installation.
 
 ### Access Your Blog
 
@@ -264,6 +264,34 @@ See [docs/themes/operator-guide.md](docs/themes/operator-guide.md) for the full 
 3. Write content in Markdown
 4. Pages appear at `/page/<slug>`
 
+### Deployment
+
+Generate and install deployment artifacts:
+
+```bash
+# Render systemd units
+devlog deploy render --mode system --target systemd --print
+
+# Render Docker Compose
+devlog deploy render --mode docker --target compose --output ./deploy/
+
+# Install deployment files
+devlog deploy install --mode system --target systemd --force
+
+# Check for deployment drift
+devlog deploy check --mode system
+```
+
+### Service Lifecycle
+
+```bash
+devlog start       # Start the service
+devlog stop        # Stop the service
+devlog restart     # Restart the service
+devlog status      # Show service status
+devlog logs        # Show service logs
+```
+
 ### User Management
 
 - **Create admin:** `devlog admin create <username>` (or `flask create-admin <username>`)
@@ -376,6 +404,18 @@ devlog themes paths              # Show theme resource paths
 devlog themes accessibility      # Run WCAG contrast checks (--strict for mandatory-only)
 devlog backup create             # Create a backup
 devlog backup verify <filename>  # Verify backup integrity
+
+# Deployment (via devlog CLI)
+devlog deploy render --mode <mode> --target <target> --print  # Render deployment files
+devlog deploy install --mode <mode> --target <target>  # Install deployment files
+devlog deploy check --mode <mode>  # Check for deployment drift
+
+# Service lifecycle
+devlog start       # Start the service
+devlog stop        # Stop the service
+devlog restart     # Restart the service
+devlog status      # Show service status
+devlog logs        # Show service logs
 ```
 
 > **Note:** Flask commands (`flask ...`) delegate to the same service layer as the standalone `devlog` CLI. The `devlog` CLI is the recommended interface for scripting and automation.

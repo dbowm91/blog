@@ -99,3 +99,53 @@ try:
     __all__ += ["detect_installation", "generate_plan", "apply_onboarding", "resume_onboarding"]
 except ImportError:
     pass
+
+try:
+    from app.services.operations.deploy import (
+        deploy_render,
+        deploy_install,
+        deploy_check,
+        lifecycle_status,
+        lifecycle_start,
+        lifecycle_stop,
+        lifecycle_restart,
+        lifecycle_logs,
+    )
+
+    __all__ += [
+        "deploy_render",
+        "deploy_install",
+        "deploy_check",
+        "lifecycle_status",
+        "lifecycle_start",
+        "lifecycle_stop",
+        "lifecycle_restart",
+        "lifecycle_logs",
+    ]
+except ImportError:
+    pass
+
+try:
+    from app.services.operations.deploy import (
+        deploy_render,
+        deploy_install,
+        deploy_check,
+        lifecycle_status,
+        lifecycle_start,
+        lifecycle_stop,
+        lifecycle_restart,
+        lifecycle_logs,
+    )
+
+    __all__ += [
+        "deploy_render",
+        "deploy_install",
+        "deploy_check",
+        "lifecycle_status",
+        "lifecycle_start",
+        "lifecycle_stop",
+        "lifecycle_restart",
+        "lifecycle_logs",
+    ]
+except ImportError:
+    pass

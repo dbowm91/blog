@@ -167,3 +167,13 @@ register_paths_commands(paths)
 @main.group()
 def deploy() -> None:
     """Deployment operations."""
+
+
+from devlog_cli.commands.deploy import register_deploy_commands  # noqa: E402
+
+register_deploy_commands(deploy)
+
+
+from devlog_cli.commands.lifecycle import register_lifecycle_commands  # noqa: E402
+
+register_lifecycle_commands(main)

@@ -94,9 +94,13 @@ Important actual file locations (verify before assuming):
 | CLI theme commands | `devlog_cli/commands/themes.py` |
 | CLI backup commands | `devlog_cli/commands/backup.py` |
 | CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run with `--scope` option (system/user) |
+| CLI deploy commands | `devlog_cli/commands/deploy.py` — `deploy render`, `deploy install`, `deploy check` |
+| CLI lifecycle commands | `devlog_cli/commands/lifecycle.py` — `start`, `stop`, `restart`, `status`, `logs` |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
+| Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
 | Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |
 | Paths CLI commands | `devlog_cli/commands/paths.py` — `paths status`, `paths discover-legacy`, `paths migrate`, `paths check` |
@@ -259,8 +263,12 @@ Important actual file locations (verify before assuming):
 | CLI theme commands | `devlog_cli/commands/themes.py` |
 | CLI backup commands | `devlog_cli/commands/backup.py` |
 | CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run with `--scope` option (system/user) |
+| CLI deploy commands | `devlog_cli/commands/deploy.py` — `deploy render`, `deploy install`, `deploy check` |
+| CLI lifecycle commands | `devlog_cli/commands/lifecycle.py` — `start`, `stop`, `restart`, `status`, `logs` |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
+| Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
 | Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |
 | Paths CLI commands | `devlog_cli/commands/paths.py` — `paths status`, `paths discover-legacy`, `paths migrate`, `paths check` |
@@ -498,6 +506,21 @@ The accessibility policy uses a three-tier classification system: `recommended`,
 - `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
 - `app/themes/bundled/` — packaged Halloy theme files shipped with the app (50 `.toml` files + `__init__.py` + `catalog_manifest.json` + `ATTRIBUTION.md`)
 
+### Deployment Commands
+
+Phase G provides deployment artifact generation and service lifecycle management:
+
+- `devlog deploy render --mode <mode> --target <target>` — renders deployment files (systemd, compose, caddy, nginx, logrotate)
+- `devlog deploy install --mode <mode>` — installs deployment files atomically
+- `devlog deploy check --mode <mode>` — checks for deployment drift
+- `devlog start|stop|restart|status|logs` — lifecycle commands (backend-aware)
+
+Backend detection: system mode uses systemd, user mode uses systemd user units, docker mode uses compose, development mode reports foreground guidance.
+
+Systemd units include hardening directives (NoNewPrivileges, PrivateTmp, ProtectSystem=strict, ProtectHome=true). Worker and scheduler units are separate when Celery/scheduler is enabled.
+
+See [architecture/deployment/deployment.md](architecture/deployment/deployment.md) for full documentation.
+
 ### Onboarding System
 
 The `devlog onboard` command provides first-run and reconfiguration onboarding:
@@ -558,7 +581,7 @@ For detailed architecture documentation, see the `architecture/` directory:
 | Frontend (Vite, templates, CSS) | [architecture/frontend/overview.md](architecture/frontend/overview.md), [architecture/frontend/templates.md](architecture/frontend/templates.md), [architecture/frontend/static-assets.md](architecture/frontend/static-assets.md) |
 | Testing (pytest, E2E, benchmarks) | [architecture/testing/test-suite.md](architecture/testing/test-suite.md) |
 | Security (2FA, CSRF, rate limiting) | [architecture/deployment/security.md](architecture/deployment/security.md) |
-| Deployment (Docker, CI/CD) | [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
+| Deployment (Docker, CI/CD) | [architecture/deployment/deployment.md](architecture/deployment/deployment.md), [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
 | Theme system (Halloy migration) | [docs/themes/supported-schema.md](docs/themes/supported-schema.md), [docs/themes/blog-theme-contract.md](docs/themes/blog-theme-contract.md), [docs/themes/operator-guide.md](docs/themes/operator-guide.md) |
 | System overview | [architecture/overview.md](architecture/overview.md) |
 
@@ -568,7 +591,7 @@ Load specialized skills using the `skill` tool with the skill name.
 
 | Skill | Description | Triggers |
 |-------|-------------|----------|
-| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer, filesystem layout | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, operations services, filesystem layout, paths CLI |
+| `blog_cms` | Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer, filesystem layout, deployment module | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, operations services, filesystem layout, paths CLI, deployment, systemd, compose, caddy, nginx, logrotate, lifecycle |
 | `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference, architecture review plan |
 
 ## Skills Directory Note

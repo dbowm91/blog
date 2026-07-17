@@ -1,6 +1,6 @@
 ---
 name: blog_cms
-description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff. Use when working with Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log."
+description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer, filesystem layout, deployment module. Use when working with Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, deployment, systemd, compose, docker-compose, caddy, nginx, logrotate, lifecycle, service management."
 ---
 
 # Blog CMS Skill
@@ -41,6 +41,8 @@ This is a Flask-based blog CMS with:
 | Static CSS | `app/static/css/` |
 | CLI package | `devlog_cli/` — standalone Click CLI (entry point: `devlog_cli.main:main`, registered as `devlog` in `pyproject.toml`) |
 | Operations services | `app/services/operations/` — business logic for CLI commands |
+| Deploy service | `app/services/operations/deploy.py` — deployment rendering, install, drift, lifecycle |
+| Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 
 ## Operations Service Layer
@@ -53,6 +55,7 @@ Business logic for CLI commands lives in `app/services/operations/`:
 - `transfer.py` — export_site_data, validate_import, import_site_data
 - `themes.py` — list_theme_descriptors, validate_theme, inspect_theme, refresh_theme_registry, get_theme_paths, run_accessibility_check
 - `backup.py` — create_backup_operation, verify_backup
+- `deploy.py` — deploy_render, deploy_install, deploy_check, lifecycle_start, lifecycle_stop, lifecycle_restart, lifecycle_status, lifecycle_logs
 - `onboard.py` — detect_installation, generate_plan, apply_onboarding
 
 Service functions:
@@ -78,6 +81,8 @@ Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [p
 | `devlog themes` | `devlog_cli/commands/themes.py` | Theme operations |
 | `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
 | `devlog onboard` | `devlog_cli/commands/onboard.py` | detect, plan, run, resume — first-run and reconfiguration onboarding |
+| `devlog deploy` | `devlog_cli/commands/deploy.py` | render, install, check — deployment artifact generation and installation |
+| `devlog start/stop/restart/status/logs` | `devlog_cli/commands/lifecycle.py` | Backend-aware service lifecycle commands |
 
 CLI onboarding options:
 - `--mode native|docker` — installation mode
