@@ -35,16 +35,16 @@ devlog doctor [OPTIONS]
 | filesystem | 8 | Required dirs, ownership, writability, symlinks, inodes, FS type, Docker UID, stale files, legacy remnants |
 | database | 8 | Connectivity, migration, integrity, FTS5, path match, WAL, ownership, orphaned migration, backend features |
 | search | 2 | FTS5 availability, FTS schema health |
-| assets | 2 | Vite manifest, referenced assets |
-| themes | 4 | Bundled catalog, selected resolution, accessibility, attribution |
-| redis | 2 | Connectivity, authentication |
-| celery | 2 | Broker config, worker accessibility |
-| scheduler | 2 | Running state, lock staleness |
+| assets | 3 | Vite manifest, referenced assets, upload serving |
+| themes | 5 | Bundled catalog, selected resolution, accessibility, attribution, external dir |
+| redis | 3 | Connectivity, authentication, database index |
+| celery | 4 | Broker config, worker accessibility, routing config, version compatibility |
+| scheduler | 3 | Running state, lock staleness, job execution |
 | email | 2 | SMTP config, SMTP reachability |
-| storage | 2 | Backend config, writability |
-| deployment | 6 | Mode, drift, managed files, health endpoint, proxy, bind address, PID, restart loop |
+| storage | 3 | Backend config, writability, S3 probe |
+| deployment | 9 | Mode, drift, managed files, health endpoint, proxy, bind address, PID, restart loop, systemd syntax, process version, image match |
 | service | 2 | Service state, restart loop |
-| backup | 4 | Directory readiness, manifest, encryption, retention |
+| backup | 6 | Directory readiness, manifest, encryption, retention, verification, path nesting |
 | security | 3 | Session config, secret validation, cookie security |
 | health | 1 | Health endpoint reachable |
 | capacity | 2 | Disk space, inodes |
@@ -118,7 +118,16 @@ Deep checks are expensive (e.g., SQLite integrity scan, WAL checkpoint) and excl
         "duration_ms": 1.2,
         "details": {},
         "remediation": [],
-        "safe_fix_id": null
+        "safe_fix_id": null,
+        "paths": ["app/services/operations/doctor.py:342"]
+      }
+    ],
+    "safe_fix_plan": [
+      {
+        "fix_id": "create_missing_dirs",
+        "description": "Create missing runtime directories",
+        "targets": ["fs.required_dirs"],
+        "actions": ["mkdir -p /var/lib/devlog/cache"]
       }
     ]
   },
@@ -133,6 +142,12 @@ All check details are redacted before output. Keys containing "secret", "passwor
 
 ## Engine Details
 
+- **Topological dependency ordering**: Checks declare optional dependencies. The engine resolves execution order so that prerequisites run before dependents, preventing redundant work and ensuring consistent state.
+- **Parallel execution**: Currently runs checks sequentially. Parallel execution is planned for future iterations to reduce total runtime.
+- **Automatic secret redaction**: The engine redacts values in check details before output. Keys containing "secret", "password", "token", "key", or "credential" have values masked (first 2 chars + asterisks + last 2 chars).
+- **Dry-run mode**: Safe fixes support dry-run execution. The engine reports what would change without applying mutations, allowing operators to review before committing.
+- **Paths in output**: Check results include source file paths and line numbers for diagnostics, enabling editors and IDEs to navigate directly to relevant code.
+- **Operational error handling**: Checks that raise unexpected exceptions return an ERROR result with the traceback captured. The engine continues executing remaining checks and reports the error in the output without halting the run.
 - **Config loading**: Loaded once via `DoctorContext.config` (lazy, cached)
 - **Path resolution**: Loaded once via `DoctorContext.paths` (lazy, cached)
 - **Per-check timeout**: Each check runs in a daemon thread with `thread.join(timeout)`. If the thread is alive after timeout, an ERROR result is returned.

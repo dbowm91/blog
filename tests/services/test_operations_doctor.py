@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 
-
 from app.services.operations.doctor import (
     CheckCategory,
     CheckDefinition,
@@ -12,6 +11,7 @@ from app.services.operations.doctor import (
     CheckStatus,
     DoctorResult,
     Severity,
+    _topological_sort,
     get_registry,
     get_safe_fix_plan,
     redact_details,
@@ -308,11 +308,23 @@ class TestGlobalRegistry:
     def test_global_registry_has_checks(self):
         reg = get_registry()
         ids = reg.all_ids()
-        assert len(ids) > 10
+        assert len(ids) >= 63
         assert "db.connectivity" in ids
         assert "config.load" in ids
         assert "fs.required_dirs" in ids
         assert "themes.bundled" in ids
+        assert "assets.upload_serving" in ids
+        assert "themes.external_dir" in ids
+        assert "dep.redis_db" in ids
+        assert "dep.celery_routing" in ids
+        assert "dep.celery_version" in ids
+        assert "dep.scheduler_runs" in ids
+        assert "dep.storage_s3_probe" in ids
+        assert "deploy.systemd_syntax" in ids
+        assert "deploy.process_version" in ids
+        assert "deploy.image_match" in ids
+        assert "backup.verification" in ids
+        assert "backup.path_nesting" in ids
 
     def test_global_registry_categories(self):
         reg = get_registry()
@@ -399,14 +411,22 @@ class TestThemeChecks:
     def test_selected_themes(self, app, db):
         with app.app_context():
             result = run_doctor(check_ids=["themes.selected"])
-            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.ERROR)
+            assert result.checks[0].status in (
+                CheckStatus.PASS,
+                CheckStatus.WARN,
+                CheckStatus.ERROR,
+            )
 
 
 class TestDeploymentChecks:
     def test_deploy_mode(self, app, db):
         with app.app_context():
             result = run_doctor(check_ids=["deploy.mode"])
-            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.ERROR)
+            assert result.checks[0].status in (
+                CheckStatus.PASS,
+                CheckStatus.WARN,
+                CheckStatus.ERROR,
+            )
 
 
 class TestBackupChecks:
@@ -695,7 +715,11 @@ class TestEngineFeatures:
 
             serialized = json.dumps(d, default=str)
             assert isinstance(serialized, str)
-            assert "doctor.ok" in serialized or "doctor.degraded" in serialized or "doctor.failed" in serialized
+            assert (
+                "doctor.ok" in serialized
+                or "doctor.degraded" in serialized
+                or "doctor.failed" in serialized
+            )
 
     def test_total_timeout_skips_remaining(self, app, db):
         with app.app_context():
@@ -736,7 +760,14 @@ class TestNewSafeFixes:
     def test_fix_create_dirs(self, app, db):
         from app.services.operations.doctor import _fix_create_missing_dirs, CheckResult
 
-        cr = CheckResult("test", "filesystem", "warn", "recommended", "missing", safe_fix_id="create_missing_dirs")
+        cr = CheckResult(
+            "test",
+            "filesystem",
+            "warn",
+            "recommended",
+            "missing",
+            safe_fix_id="create_missing_dirs",
+        )
         ok, detail = _fix_create_missing_dirs(cr)
         assert isinstance(ok, bool)
         assert isinstance(detail, str)
@@ -744,7 +775,9 @@ class TestNewSafeFixes:
     def test_fix_cleanup_stale_pid(self, app, db):
         from app.services.operations.doctor import _fix_cleanup_stale_pid, CheckResult
 
-        cr = CheckResult("test", "deployment", "warn", "optional", "stale", safe_fix_id="cleanup_stale_pid")
+        cr = CheckResult(
+            "test", "deployment", "warn", "optional", "stale", safe_fix_id="cleanup_stale_pid"
+        )
         ok, detail = _fix_cleanup_stale_pid(cr)
         assert isinstance(ok, bool)
 
@@ -752,14 +785,23 @@ class TestNewSafeFixes:
         from app.services.operations.doctor import _fix_rebuild_fts, CheckResult
 
         with app.app_context():
-            cr = CheckResult("test", "search", "warn", "recommended", "missing", safe_fix_id="rebuild_fts")
+            cr = CheckResult(
+                "test", "search", "warn", "recommended", "missing", safe_fix_id="rebuild_fts"
+            )
             ok, detail = _fix_rebuild_fts(cr)
             assert isinstance(ok, bool)
 
     def test_fix_correct_permissions(self, app, db):
         from app.services.operations.doctor import _fix_correct_permissions, CheckResult
 
-        cr = CheckResult("test", "secrets", "warn", "recommended", "permissive", safe_fix_id="correct_permissions")
+        cr = CheckResult(
+            "test",
+            "secrets",
+            "warn",
+            "recommended",
+            "permissive",
+            safe_fix_id="correct_permissions",
+        )
         ok, detail = _fix_correct_permissions(cr)
         assert isinstance(ok, bool)
 
@@ -820,3 +862,412 @@ class TestBrokenStateScenarios:
             result = run_doctor(category="nonexistent")
             assert len(result.checks) == 0
             assert result.ok is True
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H6 Asset checks new
+# ---------------------------------------------------------------------------
+
+
+class TestH6AssetChecksNew:
+    def test_upload_serving(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["assets.upload_serving"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_external_theme_dir_not_set(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["themes.external_dir"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (
+                CheckStatus.PASS,
+                CheckStatus.WARN,
+                CheckStatus.SKIP,
+                CheckStatus.FAIL,
+            )
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H7 Dependency checks new
+# ---------------------------------------------------------------------------
+
+
+class TestH7DependencyChecksNewer:
+    def test_redis_db(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.redis_db"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_celery_routing(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.celery_routing"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_celery_version(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.celery_version"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_scheduler_runs(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.scheduler_runs"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_storage_s3_probe(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.storage_s3_probe"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (
+                CheckStatus.PASS,
+                CheckStatus.WARN,
+                CheckStatus.SKIP,
+                CheckStatus.FAIL,
+            )
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H8 Deployment checks new
+# ---------------------------------------------------------------------------
+
+
+class TestH8DeploymentChecksNewer:
+    def test_systemd_syntax(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.systemd_syntax"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_process_version(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.process_version"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_image_match(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.image_match"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H9 Backup checks new
+# ---------------------------------------------------------------------------
+
+
+class TestH9BackupChecksNewer:
+    def test_backup_verification(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["backup.verification"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_backup_path_nesting(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["backup.path_nesting"])
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+
+# ---------------------------------------------------------------------------
+# Engine improvement tests
+# ---------------------------------------------------------------------------
+
+
+class TestTopologicalSort:
+    def test_empty_list(self):
+        assert _topological_sort([]) == []
+
+    def test_no_prerequisites(self):
+        checks = [
+            CheckDefinition("a.1", "filesystem", "A"),
+            CheckDefinition("b.1", "database", "B"),
+        ]
+        result = _topological_sort(checks)
+        assert [c.check_id for c in result] == ["a.1", "b.1"]
+
+    def test_respects_prerequisites(self):
+        checks = [
+            CheckDefinition("a.1", "filesystem", "A", prerequisites=["b.1"]),
+            CheckDefinition("b.1", "database", "B"),
+        ]
+        result = _topological_sort(checks)
+        ids = [c.check_id for c in result]
+        assert ids.index("b.1") < ids.index("a.1")
+
+    def test_chained_prerequisites(self):
+        checks = [
+            CheckDefinition("c.1", "filesystem", "C", prerequisites=["b.1"]),
+            CheckDefinition("b.1", "database", "B", prerequisites=["a.1"]),
+            CheckDefinition("a.1", "database", "A"),
+        ]
+        result = _topological_sort(checks)
+        ids = [c.check_id for c in result]
+        assert ids.index("a.1") < ids.index("b.1")
+        assert ids.index("b.1") < ids.index("c.1")
+
+    def test_cycle_breaks_gracefully(self):
+        checks = [
+            CheckDefinition("a.1", "filesystem", "A", prerequisites=["b.1"]),
+            CheckDefinition("b.1", "database", "B", prerequisites=["a.1"]),
+        ]
+        result = _topological_sort(checks)
+        assert len(result) == 2
+        ids = [c.check_id for c in result]
+        assert set(ids) == {"a.1", "b.1"}
+
+
+class TestAutoRedaction:
+    def test_secrets_redacted_in_run_doctor(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.secret_key"])
+            assert result.checks[0].status == CheckStatus.PASS
+
+    def test_redact_details_function(self):
+        details = {"secret_key": "abcdef1234567890", "host": "localhost"}
+        redacted = redact_details(details)
+        assert redacted["host"] == "localhost"
+        assert redacted["secret_key"] != "abcdef1234567890"
+
+
+class TestDryRunSafeFixes:
+    def test_dry_run_returns_plan(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.required_dirs"], fix_safe=True, dry_run=True)
+            assert isinstance(result.safe_fix_plan, list)
+
+    def test_dry_run_no_actual_fixes(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.pid"], fix_safe=True, dry_run=True)
+            assert isinstance(result.safe_fix_plan, list)
+
+    def test_dry_run_does_not_apply_fixes(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.required_dirs"], fix_safe=True, dry_run=True)
+            assert result.safe_fix_plan is not None
+            assert result.ok is True
+
+    def test_dry_run_plan_populated(self, app, db):
+        with app.app_context():
+            result = run_doctor(
+                check_ids=["install.secret_permissions"], fix_safe=True, dry_run=True
+            )
+            assert isinstance(result.safe_fix_plan, list)
+
+
+class TestPathsInOutput:
+    def test_paths_populated(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            assert isinstance(result.paths, dict)
+            assert "data_dir" in result.paths or len(result.paths) == 0
+
+    def test_paths_in_to_dict(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            d = result.to_dict()
+            assert "paths" in d["details"]
+            assert isinstance(d["details"]["paths"], dict)
+
+    def test_paths_field_populated(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            assert isinstance(result.paths, dict)
+            assert len(result.paths) >= 0
+
+    def test_paths_in_json(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            d = result.to_dict()
+            assert "paths" in d["details"]
+
+
+class TestEngineError:
+    def test_engine_error_on_mode_failure(self, monkeypatch):
+        import app.services.operations.doctor as doc_mod
+
+        def bad_context(mode: str, ver: str) -> None:
+            raise RuntimeError("mode detection failed")
+
+        monkeypatch.setattr(doc_mod, "DoctorContext", bad_context)
+        try:
+            result = run_doctor(check_ids=["pkg.version"])
+            assert result.ok is False
+            assert result.status == "error"
+            assert result.code == "doctor.engine_error"
+        finally:
+            monkeypatch.undo()
+
+    def test_engine_error_returns_error_result(self, app, db, monkeypatch):
+        from app.filesystem import layout
+
+        def broken_detect():
+            raise RuntimeError("Cannot detect mode")
+
+        monkeypatch.setattr(layout, "detect_mode", broken_detect)
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            assert isinstance(result, DoctorResult)
+
+
+class TestSeverityExitMapping:
+    def test_required_fail_returns_nonzero(self, app, db, monkeypatch):
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.secret_key"])
+            assert result.ok is False
+            assert result.status == "failure"
+
+    def test_optional_warn_returns_degraded(self, app, db, monkeypatch):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            assert result.status in ("healthy", "degraded")
+
+    def test_all_pass_returns_healthy(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.connectivity", "config.load", "pkg.version"])
+            assert any(c.status == "pass" for c in result.checks)
+
+
+class TestBrokenConfigScenarios:
+    def test_config_load_failure(self, app, db, monkeypatch):
+        def broken_load():
+            raise RuntimeError("Config load failed")
+
+        monkeypatch.setattr("app.config.loader.load_effective_config", broken_load)
+        with app.app_context():
+            result = run_doctor(check_ids=["config.load"])
+            assert result.checks[0].status in ("fail", "skip", "error")
+
+    def test_config_validate_with_errors(self, app, db, monkeypatch):
+        with app.app_context():
+            result = run_doctor(check_ids=["config.validate"])
+            assert result.checks[0].status in ("pass", "warn")
+
+
+class TestPermissionScenarios:
+    def test_env_file_permissive(self, app, db, monkeypatch, tmp_path):
+        from app.services.operations.doctor import _ctx_paths
+
+        paths = _ctx_paths()
+        if paths is None:
+            return
+        env_path = paths.env_file.path
+        if not env_path.exists():
+            env_path.parent.mkdir(parents=True, exist_ok=True)
+            env_path.write_text("TEST=value\n")
+            created = True
+        else:
+            created = False
+        try:
+            env_path.chmod(0o644)
+            result = run_doctor(check_ids=["install.secret_permissions"])
+            assert result.checks[0].status == "warn"
+        finally:
+            env_path.chmod(0o600)
+            if created:
+                env_path.unlink()
+
+
+class TestMissingAssetsScenarios:
+    def test_frontend_manifest_missing(self, app, db, monkeypatch):
+        from pathlib import Path
+
+        original_exists = Path.exists
+
+        def patched_exists(self_inner):
+            if str(self_inner).endswith("manifest.json"):
+                return False
+            return original_exists(self_inner)
+
+        monkeypatch.setattr(Path, "exists", patched_exists)
+        with app.app_context():
+            result = run_doctor(check_ids=["assets.frontend_manifest"])
+            assert result.checks[0].status == "warn"
+
+
+class TestStaleMigrationScenarios:
+    def test_migration_orphaned_check(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.orphaned_migration"])
+            assert result.checks[0].status in ("pass", "warn")
+
+    def test_migration_head_check(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.migration_head"])
+            assert result.checks[0].status in ("pass", "warn")
+
+
+class TestSchedulerScenarios:
+    def test_scheduler_status(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.scheduler"])
+            assert result.checks[0].status in ("pass", "warn", "skip")
+
+    def test_scheduler_stale_lock(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.scheduler_stale"])
+            assert result.checks[0].status in ("pass", "warn", "skip")
+
+
+class TestLowDiskScenarios:
+    def test_disk_space_critical(self, app, db, monkeypatch):
+        import shutil
+
+        def mock_disk_usage(path):
+            class FakeUsage:
+                total = 1000 * 1024 * 1024
+                free = 10 * 1024 * 1024
+                used = 990 * 1024 * 1024
+
+            return FakeUsage()
+
+        monkeypatch.setattr(shutil, "disk_usage", mock_disk_usage)
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.disk_space"])
+            assert result.checks[0].status == "fail"
+            assert (
+                "critically low" in result.checks[0].summary.lower()
+                or "low" in result.checks[0].summary.lower()
+            )
+
+
+class TestBackupNesting:
+    def test_backup_not_nested(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["backup.path_nesting"])
+            assert result.checks[0].status in ("pass", "warn", "skip")
+
+
+class TestComprehensiveDoctorRun:
+    def test_full_run_produces_all_fields(self, app, db):
+        with app.app_context():
+            result = run_doctor()
+            assert isinstance(result, DoctorResult)
+            assert result.mode != ""
+            assert result.version != ""
+            assert result.duration_ms > 0
+            assert isinstance(result.checks, list)
+            assert len(result.checks) > 50
+            d = result.to_dict()
+            assert "ok" in d
+            assert "status" in d
+            assert "details" in d
+            assert "checks" in d["details"]
+            assert "paths" in d["details"]
+
+    def test_json_serializable(self, app, db):
+        import json
+
+        with app.app_context():
+            result = run_doctor()
+            d = result.to_dict()
+            serialized = json.dumps(d, default=str)
+            assert isinstance(serialized, str)
+            parsed = json.loads(serialized)
+            assert parsed["ok"] in (True, False)

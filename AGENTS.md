@@ -100,7 +100,7 @@ Important actual file locations (verify before assuming):
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
-| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 63 check implementations across 14 categories |
+| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 75 check implementations across 14 categories |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 | Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
@@ -271,7 +271,7 @@ Important actual file locations (verify before assuming):
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
-| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 63 check implementations across 14 categories |
+| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 75 check implementations across 14 categories |
 | Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
 | Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |
