@@ -300,6 +300,38 @@ def _topological_sort(checks: list[CheckDefinition]) -> list[CheckDefinition]:
     return [id_to_defn[cid] for cid in unique if cid in id_to_defn]
 
 
+def _batch_by_level(checks: list[CheckDefinition]) -> list[list[CheckDefinition]]:
+    id_to_defn = {c.check_id: c for c in checks}
+    prereqs: dict[str, set[str]] = {}
+    for c in checks:
+        prereqs[c.check_id] = {p for p in c.prerequisites if p in id_to_defn}
+
+    level: dict[str, int] = {}
+    for c in checks:
+        if not prereqs[c.check_id]:
+            level[c.check_id] = 0
+
+    changed = True
+    while changed:
+        changed = False
+        for c in checks:
+            if c.check_id in level:
+                continue
+            prereq_levels = [level[p] for p in prereqs[c.check_id] if p in level]
+            if len(prereq_levels) == len(prereqs[c.check_id]):
+                level[c.check_id] = max(prereq_levels) + 1
+                changed = True
+
+    for c in checks:
+        if c.check_id not in level:
+            level[c.check_id] = 0
+
+    batches: dict[int, list[CheckDefinition]] = {}
+    for c in checks:
+        batches.setdefault(level[c.check_id], []).append(c)
+    return [batches[k] for k in sorted(batches)]
+
+
 _TIMEOUT_RESULT = object()
 
 
@@ -370,6 +402,7 @@ def run_doctor(
     dry_run: bool = False,
     deep: bool = False,
     total_timeout: float = 120.0,
+    parallel: bool = True,
 ) -> DoctorResult:
     engine_start = time.monotonic()
 
@@ -419,37 +452,37 @@ def run_doctor(
 
     checks_to_run = _topological_sort(checks_to_run)
 
+    flask_app = None
+    try:
+        from flask import current_app
+
+        flask_app = current_app._get_current_object()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
     results: list[CheckResult] = []
 
-    for defn in checks_to_run:
+    def _run_single_check(defn: CheckDefinition) -> CheckResult:
         elapsed = time.monotonic() - engine_start
         if elapsed >= total_timeout:
-            results.append(
-                CheckResult(
-                    check_id=defn.check_id,
-                    category=defn.category,
-                    status=CheckStatus.SKIP,
-                    severity=defn.severity,
-                    summary="Skipped: total timeout reached",
-                )
+            return CheckResult(
+                check_id=defn.check_id,
+                category=defn.category,
+                status=CheckStatus.SKIP,
+                severity=defn.severity,
+                summary="Skipped: total timeout reached",
             )
-            continue
-
         runner = _registry.get(defn.check_id)
         if runner is None:
-            continue
-
+            return CheckResult(
+                check_id=defn.check_id,
+                category=defn.category,
+                status=CheckStatus.SKIP,
+                severity=defn.severity,
+                summary="Skipped: not registered",
+            )
         remaining = total_timeout - elapsed
         per_check_timeout = min(defn.timeout_seconds, remaining)
-
-        flask_app = None
-        try:
-            from flask import current_app
-
-            flask_app = current_app._get_current_object()  # type: ignore[attr-defined]
-        except Exception:
-            pass
-
         check_start = time.monotonic()
         cr = _run_check_with_timeout(
             runner[1],
@@ -461,7 +494,7 @@ def run_doctor(
             severity=defn.severity,
         )
         cr_duration = (time.monotonic() - check_start) * 1000
-        cr = CheckResult(
+        return CheckResult(
             check_id=cr.check_id,
             category=cr.category,
             status=cr.status,
@@ -472,7 +505,63 @@ def run_doctor(
             remediation=cr.remediation or list(defn.remediation),
             safe_fix_id=cr.safe_fix_id or defn.safe_fix_id,
         )
-        results.append(cr)
+
+    if parallel and len(checks_to_run) > 1:
+        batches = _batch_by_level(checks_to_run)
+        for batch in batches:
+            elapsed = time.monotonic() - engine_start
+            if elapsed >= total_timeout:
+                for defn in batch:
+                    results.append(
+                        CheckResult(
+                            check_id=defn.check_id,
+                            category=defn.category,
+                            status=CheckStatus.SKIP,
+                            severity=defn.severity,
+                            summary="Skipped: total timeout reached",
+                        )
+                    )
+                continue
+            threads: list[threading.Thread] = []
+            batch_results: list[CheckResult | None] = [None] * len(batch)
+
+            def _worker(idx: int, defn: CheckDefinition) -> None:
+                batch_results[idx] = _run_single_check(defn)
+
+            for i, defn in enumerate(batch):
+                t = threading.Thread(target=_worker, args=(i, defn), daemon=True)
+                threads.append(t)
+                t.start()
+            for t in threads:
+                t.join(timeout=total_timeout - (time.monotonic() - engine_start))
+            for i, defn in enumerate(batch):
+                if batch_results[i] is not None:
+                    results.append(batch_results[i])  # type: ignore[arg-type]
+                else:
+                    results.append(
+                        CheckResult(
+                            check_id=defn.check_id,
+                            category=defn.category,
+                            status=CheckStatus.ERROR,
+                            severity=defn.severity,
+                            summary="Check timed out or failed to complete",
+                        )
+                    )
+    else:
+        for defn in checks_to_run:
+            elapsed = time.monotonic() - engine_start
+            if elapsed >= total_timeout:
+                results.append(
+                    CheckResult(
+                        check_id=defn.check_id,
+                        category=defn.category,
+                        status=CheckStatus.SKIP,
+                        severity=defn.severity,
+                        summary="Skipped: total timeout reached",
+                    )
+                )
+                continue
+            results.append(_run_single_check(defn))
 
     paths_info: dict[str, str] = {}
     if ctx.paths:
@@ -2193,13 +2282,27 @@ def _check_redis_db(**kwargs: Any) -> CheckResult:
 
         client = redis_lib.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
         client.ping()
-        info = client.info("server")
-        db_num = client.connection_pool.connection_kwargs.get("db", 0)
+        actual_db = client.connection_pool.connection_kwargs.get("db", 0)
+        client.select(actual_db)
+        test_key = "_devlog_doctor_db_verify"
+        client.set(test_key, "1", ex=10)
+        val = client.get(test_key)
+        client.delete(test_key)
+        if val is None:
+            return _make_result(
+                **kwargs,
+                status=CheckStatus.WARN,
+                summary=f"Redis DB {actual_db} — write/read test failed",
+                details={"db": actual_db},
+            )
         return _make_result(
             **kwargs,
             status=CheckStatus.PASS,
-            summary=f"Redis selected DB: {db_num}",
-            details={"db": db_num, "redis_version": info.get("redis_version", "unknown")},
+            summary=f"Redis DB {actual_db} verified (write/read OK)",
+            details={
+                "db": actual_db,
+                "redis_version": client.info("server").get("redis_version", "unknown"),
+            },
         )
     except ImportError:
         return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Redis client not installed")
@@ -2265,9 +2368,37 @@ def _check_scheduler_runs(**kwargs: Any) -> CheckResult:
         from app.scheduler import get_scheduler_status
 
         running = get_scheduler_status()
-        if running:
-            return _make_result(**kwargs, status=CheckStatus.PASS, summary="Scheduler is running")
-        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Scheduler is not running")
+        if not running:
+            return _make_result(
+                **kwargs,
+                status=CheckStatus.WARN,
+                summary="Scheduler is not running",
+                remediation=["Start the application to activate the scheduler."],
+            )
+        try:
+            from app import scheduler as sched_mod
+
+            apscheduler = getattr(sched_mod, "_scheduler", None)
+            if apscheduler is not None:
+                jobs = apscheduler.get_jobs()
+                job_info = []
+                for job in jobs[:5]:
+                    next_run = job.next_run_time
+                    job_info.append(
+                        {
+                            "id": job.id,
+                            "next_run": str(next_run) if next_run else "none",
+                        }
+                    )
+                return _make_result(
+                    **kwargs,
+                    status=CheckStatus.PASS,
+                    summary=f"Scheduler running with {len(jobs)} job(s)",
+                    details={"job_count": len(jobs), "jobs": job_info},
+                )
+        except Exception:
+            pass
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Scheduler is running")
     except Exception:
         return _make_result(
             **kwargs, status=CheckStatus.SKIP, summary="Scheduler status not determinable"
@@ -2949,6 +3080,51 @@ def _check_cookie_security(**kwargs: Any) -> CheckResult:
     )
 
 
+def _check_scheduler_owner(**kwargs: Any) -> CheckResult:
+    try:
+        import os
+
+        runtime_dir = _ctx_paths()
+        if runtime_dir is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        lock_file = runtime_dir.runtime_dir.path / "scheduler.lock"
+        if not lock_file.exists():
+            return _make_result(
+                **kwargs,
+                status=CheckStatus.PASS,
+                summary="No scheduler lock file (single owner assumed)",
+            )
+        try:
+            import json
+
+            lock_data = json.loads(lock_file.read_text())
+            pid = lock_data.get("pid") if isinstance(lock_data, dict) else None
+            if pid:
+                try:
+                    os.kill(int(pid), 0)
+                    hostname = lock_data.get("hostname", "unknown")
+                    return _make_result(
+                        **kwargs,
+                        status=CheckStatus.PASS,
+                        summary=f"Scheduler owned by PID {pid} on {hostname}",
+                        details={"pid": pid, "hostname": hostname},
+                    )
+                except OSError:
+                    return _make_result(
+                        **kwargs,
+                        status=CheckStatus.WARN,
+                        summary=f"Scheduler lock references dead PID {pid}",
+                        remediation=["Remove stale lock file."],
+                    )
+        except (json.JSONDecodeError, ValueError):
+            pass
+        return _make_result(
+            **kwargs, status=CheckStatus.PASS, summary="Scheduler lock file present"
+        )
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
 # ---------------------------------------------------------------------------
 # Register all checks
 # ---------------------------------------------------------------------------
@@ -3533,6 +3709,17 @@ def _register_all_checks() -> None:
                 timeout_seconds=5,
             ),
             _check_scheduler_runs,
+        ),
+        (
+            CheckDefinition(
+                "dep.scheduler_owner",
+                CheckCategory.SCHEDULER,
+                "Scheduler single-owner verification",
+                Severity.RECOMMENDED,
+                timeout_seconds=5,
+                remediation=["Ensure only one scheduler instance runs."],
+            ),
+            _check_scheduler_owner,
         ),
         (
             CheckDefinition(

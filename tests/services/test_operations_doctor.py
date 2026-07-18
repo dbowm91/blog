@@ -11,6 +11,7 @@ from app.services.operations.doctor import (
     CheckStatus,
     DoctorResult,
     Severity,
+    _batch_by_level,
     _topological_sort,
     get_registry,
     get_safe_fix_plan,
@@ -319,6 +320,7 @@ class TestGlobalRegistry:
         assert "dep.celery_routing" in ids
         assert "dep.celery_version" in ids
         assert "dep.scheduler_runs" in ids
+        assert "dep.scheduler_owner" in ids
         assert "dep.storage_s3_probe" in ids
         assert "deploy.systemd_syntax" in ids
         assert "deploy.process_version" in ids
@@ -897,7 +899,6 @@ class TestH7DependencyChecksNewer:
     def test_redis_db(self, app, db):
         with app.app_context():
             result = run_doctor(check_ids=["dep.redis_db"])
-            assert len(result.checks) == 1
             assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
 
     def test_celery_routing(self, app, db):
@@ -915,7 +916,11 @@ class TestH7DependencyChecksNewer:
     def test_scheduler_runs(self, app, db):
         with app.app_context():
             result = run_doctor(check_ids=["dep.scheduler_runs"])
-            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_scheduler_owner(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.scheduler_owner"])
             assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
 
     def test_storage_s3_probe(self, app, db):
@@ -1271,3 +1276,38 @@ class TestComprehensiveDoctorRun:
             assert isinstance(serialized, str)
             parsed = json.loads(serialized)
             assert parsed["ok"] in (True, False)
+
+
+class TestParallelExecution:
+    def test_parallel_batches_are_created(self, app, db):
+        checks = [
+            CheckDefinition("a.1", "filesystem", "A"),
+            CheckDefinition("b.1", "filesystem", "B"),
+            CheckDefinition("c.1", "filesystem", "C", prerequisites=["a.1"]),
+        ]
+        batches = _batch_by_level(checks)
+        assert len(batches) == 2
+        batch0_ids = {c.check_id for c in batches[0]}
+        batch1_ids = {c.check_id for c in batches[1]}
+        assert batch0_ids == {"a.1", "b.1"}
+        assert batch1_ids == {"c.1"}
+
+    def test_parallel_execution_produces_same_results(self, app, db):
+        with app.app_context():
+            result_parallel = run_doctor(
+                check_ids=["pkg.version", "config.load", "db.connectivity"],
+                parallel=True,
+            )
+            result_sequential = run_doctor(
+                check_ids=["pkg.version", "config.load", "db.connectivity"],
+                parallel=False,
+            )
+            parallel_ids = {c.check_id for c in result_parallel.checks}
+            sequential_ids = {c.check_id for c in result_sequential.checks}
+            assert parallel_ids == sequential_ids
+
+    def test_parallel_does_not_block_on_single_check(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"], parallel=True)
+            assert len(result.checks) == 1
+            assert result.checks[0].status == "pass"

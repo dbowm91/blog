@@ -21,6 +21,7 @@ devlog doctor [OPTIONS]
   --category CAT      Filter checks by category
   --fix-safe          Apply safe fixes after checks
   --deep              Include expensive checks (SQLite integrity, WAL checkpoint)
+  --no-parallel       Disable parallel check execution
   --list-checks       List all available checks and exit
   --json              Output in JSON format
 ```
@@ -39,7 +40,7 @@ devlog doctor [OPTIONS]
 | themes | 5 | Bundled catalog, selected resolution, accessibility, attribution, external dir |
 | redis | 3 | Connectivity, authentication, database index |
 | celery | 4 | Broker config, worker accessibility, routing config, version compatibility |
-| scheduler | 3 | Running state, lock staleness, job execution |
+| scheduler | 4 | Running state, lock staleness, job execution, owner match |
 | email | 2 | SMTP config, SMTP reachability |
 | storage | 3 | Backend config, writability, S3 probe |
 | deployment | 9 | Mode, drift, managed files, health endpoint, proxy, bind address, PID, restart loop, systemd syntax, process version, image match |
@@ -143,7 +144,7 @@ All check details are redacted before output. Keys containing "secret", "passwor
 ## Engine Details
 
 - **Topological dependency ordering**: Checks declare optional dependencies. The engine resolves execution order so that prerequisites run before dependents, preventing redundant work and ensuring consistent state.
-- **Parallel execution**: Currently runs checks sequentially. Parallel execution is planned for future iterations to reduce total runtime.
+- **Parallel execution**: Checks are grouped into batches by dependency level. Checks within a batch run concurrently via threads. Between batches, the engine waits for all checks in the current batch to complete before starting the next. Controlled by `parallel=True` parameter (default: True). Use `--no-parallel` CLI flag to disable.
 - **Automatic secret redaction**: The engine redacts values in check details before output. Keys containing "secret", "password", "token", "key", or "credential" have values masked (first 2 chars + asterisks + last 2 chars).
 - **Dry-run mode**: Safe fixes support dry-run execution. The engine reports what would change without applying mutations, allowing operators to review before committing.
 - **Paths in output**: Check results include source file paths and line numbers for diagnostics, enabling editors and IDEs to navigate directly to relevant code.

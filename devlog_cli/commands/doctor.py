@@ -33,6 +33,10 @@ if TYPE_CHECKING:
     "--deep", is_flag=True, default=False,
     help="Include expensive checks (e.g., SQLite integrity, WAL checkpoint).",
 )
+@click.option(
+    "--no-parallel", is_flag=True, default=False,
+    help="Disable parallel check execution.",
+)
 @click.pass_context
 def doctor(
     ctx: click.Context,
@@ -43,6 +47,7 @@ def doctor(
     json_mode: bool,
     list_checks: bool,
     deep: bool,
+    no_parallel: bool,
 ) -> None:
     """Run diagnostic checks to assess installation health."""
     cli_ctx: CliContext = ctx.obj
@@ -104,6 +109,7 @@ def doctor(
                 check_ids=check_ids,
                 fix_safe=fix_safe,
                 deep=deep,
+                parallel=not no_parallel,
             )
 
             if json_mode:
