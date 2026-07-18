@@ -9,11 +9,13 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import stat
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +134,7 @@ class CheckDefinition:
     safe_fix_id: str | None = None
     remediation: list[str] = field(default_factory=list)
     prerequisites: list[str] = field(default_factory=list)
+    deep: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -165,19 +168,21 @@ class CheckRegistry:
         self,
         category: str | None = None,
         production_only: bool = False,
+        deep: bool = False,
     ) -> list[CheckDefinition]:
         checks = list(self._checks.values())
         if category:
             checks = [c for c in checks if c.category == category]
         if production_only:
             checks = [c for c in checks if c.production_required]
+        if not deep:
+            checks = [c for c in checks if not c.deep]
         return sorted(checks, key=lambda c: (c.category, c.check_id))
 
     def all_ids(self) -> list[str]:
         return sorted(self._checks.keys())
 
 
-# Global registry instance
 _registry = CheckRegistry()
 
 
@@ -193,30 +198,136 @@ def register_check(
 
 
 # ---------------------------------------------------------------------------
+# Doctor context — loaded once per run_doctor invocation
+# ---------------------------------------------------------------------------
+
+
+class DoctorContext:
+    """Shared context pre-loaded once per doctor run."""
+
+    __slots__ = ("mode", "version", "_config", "_config_loaded", "_paths", "_paths_loaded")
+
+    def __init__(self, mode: str, version: str) -> None:
+        self.mode = mode
+        self.version = version
+        self._config: Optional[Any] = None
+        self._config_loaded = False
+        self._paths: Optional[Any] = None
+        self._paths_loaded = False
+
+    @property
+    def config(self) -> Any:
+        if not self._config_loaded:
+            try:
+                from app.config.loader import load_effective_config
+
+                self._config = load_effective_config()
+            except Exception:
+                pass
+            self._config_loaded = True
+        return self._config
+
+    @property
+    def paths(self) -> Any:
+        if not self._paths_loaded:
+            try:
+                from app.filesystem.layout import RuntimePaths, InstallMode
+
+                self._paths = RuntimePaths.for_mode(InstallMode(self.mode))
+            except Exception:
+                pass
+            self._paths_loaded = True
+        return self._paths
+
+
+_ctx: threading.local = threading.local()
+
+
+def _get_ctx() -> DoctorContext | None:
+    return getattr(_ctx, "doctor_context", None)
+
+
+def _set_ctx(ctx: DoctorContext) -> None:
+    _ctx.doctor_context = ctx
+
+
+# ---------------------------------------------------------------------------
 # Execution engine
 # ---------------------------------------------------------------------------
 
 
-def _run_check_safe(
+_TIMEOUT_RESULT = object()
+
+
+def _run_check_with_timeout(
     runner: Callable[..., CheckResult],
+    timeout: float,
+    app: Any = None,
+    doctor_ctx: Any = None,
     **kwargs: Any,
 ) -> CheckResult:
-    """Run a single check function, catching all exceptions."""
-    try:
-        return runner(**kwargs)
-    except Exception as e:
+    """Run a check function in a thread with per-check timeout."""
+    result_holder: list[Any] = []
+
+    def _target() -> None:
+        if doctor_ctx is not None:
+            _set_ctx(doctor_ctx)
+        ctx_manager = app.app_context() if app is not None else None
+        try:
+            if ctx_manager is not None:
+                ctx_manager.push()
+            try:
+                result_holder.append(runner(**kwargs))
+            except Exception as e:
+                result_holder.append(
+                    CheckResult(
+                        check_id=kwargs.get("check_id", "unknown"),
+                        category=kwargs.get("category", "unknown"),
+                        status=CheckStatus.ERROR,
+                        severity=kwargs.get("severity", Severity.OPTIONAL),
+                        summary=f"Check raised an internal error: {type(e).__name__}",
+                        details={"error_type": type(e).__name__, "error": str(e)[:200]},
+                    )
+                )
+        finally:
+            if ctx_manager is not None:
+                ctx_manager.pop()
+
+    t = threading.Thread(target=_target, daemon=True)
+    t.start()
+    t.join(timeout=timeout)
+
+    if t.is_alive():
         return CheckResult(
             check_id=kwargs.get("check_id", "unknown"),
             category=kwargs.get("category", "unknown"),
             status=CheckStatus.ERROR,
             severity=kwargs.get("severity", Severity.OPTIONAL),
-            summary=f"Check raised an internal error: {type(e).__name__}",
-            details={"error_type": type(e).__name__, "error": str(e)[:200]},
+            summary=f"Check timed out after {timeout:.0f}s",
         )
 
+    if result_holder:
+        return result_holder[0]
+    return CheckResult(
+        check_id=kwargs.get("check_id", "unknown"),
+        category=kwargs.get("category", "unknown"),
+        status=CheckStatus.ERROR,
+        severity=kwargs.get("severity", Severity.OPTIONAL),
+        summary="Check produced no result",
+    )
 
-def _resolve_mode_and_version() -> tuple[str, str]:
-    """Detect installation mode and version."""
+
+def run_doctor(
+    *,
+    production: bool = False,
+    category: str | None = None,
+    check_ids: list[str] | None = None,
+    fix_safe: bool = False,
+    deep: bool = False,
+    total_timeout: float = 120.0,
+) -> DoctorResult:
+    engine_start = time.monotonic()
+
     try:
         from app.filesystem.layout import detect_mode
 
@@ -231,34 +342,8 @@ def _resolve_mode_and_version() -> tuple[str, str]:
     except Exception:
         ver = "unknown"
 
-    return mode, ver
-
-
-def run_doctor(
-    *,
-    production: bool = False,
-    category: str | None = None,
-    check_ids: list[str] | None = None,
-    fix_safe: bool = False,
-    total_timeout: float = 120.0,
-) -> DoctorResult:
-    """Execute diagnostic checks and return aggregated results.
-
-    Parameters
-    ----------
-    production:
-        If True, enforce production-required checks as failures.
-    category:
-        Optional category filter.
-    check_ids:
-        Optional explicit list of check IDs to run.
-    fix_safe:
-        If True, apply safe fixes after checks complete.
-    total_timeout:
-        Maximum total execution time in seconds.
-    """
-    engine_start = time.monotonic()
-    mode, version = _resolve_mode_and_version()
+    ctx = DoctorContext(mode, ver)
+    _set_ctx(ctx)
 
     checks_to_run: list[CheckDefinition]
     if check_ids:
@@ -268,13 +353,13 @@ def run_doctor(
             if entry is not None:
                 checks_to_run.append(entry[0])
     else:
-        checks_to_run = _registry.list_checks(category=category, production_only=False)
+        checks_to_run = _registry.list_checks(category=category, production_only=False, deep=deep)
 
     results: list[CheckResult] = []
 
     for defn in checks_to_run:
-        elapsed = (time.monotonic() - engine_start) * 1000
-        if elapsed / 1000 >= total_timeout:
+        elapsed = time.monotonic() - engine_start
+        if elapsed >= total_timeout:
             results.append(
                 CheckResult(
                     check_id=defn.check_id,
@@ -290,9 +375,23 @@ def run_doctor(
         if runner is None:
             continue
 
+        remaining = total_timeout - elapsed
+        per_check_timeout = min(defn.timeout_seconds, remaining)
+
+        flask_app = None
+        try:
+            from flask import current_app
+
+            flask_app = current_app._get_current_object()  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
         check_start = time.monotonic()
-        cr = _run_check_safe(
+        cr = _run_check_with_timeout(
             runner[1],
+            timeout=per_check_timeout,
+            app=flask_app,
+            doctor_ctx=ctx,
             check_id=defn.check_id,
             category=defn.category,
             severity=defn.severity,
@@ -355,7 +454,7 @@ def run_doctor(
         code=overall_code,
         summary=summary,
         mode=mode,
-        version=version,
+        version=ver,
         duration_ms=total_duration,
         checks=results,
         warnings=all_warnings,
@@ -376,14 +475,21 @@ class SafeFix:
 
 
 _SAFE_FIXES: dict[str, SafeFix] = {}
+_SAFE_FIX_RUNNERS: dict[str, Callable[[CheckResult], tuple[bool, str]]] = {}
 
 
 def register_safe_fix(fix_id: str, description: str, check_id: str) -> None:
     _SAFE_FIXES[fix_id] = SafeFix(fix_id=fix_id, description=description, check_id=check_id)
 
 
+def register_safe_fix_runner(
+    fix_id: str,
+    fn: Callable[[CheckResult], tuple[bool, str]],
+) -> None:
+    _SAFE_FIX_RUNNERS[fix_id] = fn
+
+
 def get_safe_fix_plan(results: list[CheckResult]) -> list[SafeFix]:
-    """Return the list of safe fixes applicable to failed/warned checks."""
     applicable_ids = {
         c.safe_fix_id for c in results if c.safe_fix_id and c.status != CheckStatus.PASS
     }
@@ -391,7 +497,6 @@ def get_safe_fix_plan(results: list[CheckResult]) -> list[SafeFix]:
 
 
 def _apply_safe_fixes(results: list[CheckResult]) -> list[dict[str, Any]]:
-    """Apply safe fixes for applicable checks. Returns audit records."""
     applied: list[dict[str, Any]] = []
     for cr in results:
         if cr.status == CheckStatus.PASS or not cr.safe_fix_id:
@@ -424,16 +529,6 @@ def _apply_safe_fixes(results: list[CheckResult]) -> list[dict[str, Any]]:
     return applied
 
 
-_SAFE_FIX_RUNNERS: dict[str, Callable[[CheckResult], tuple[bool, str]]] = {}
-
-
-def register_safe_fix_runner(
-    fix_id: str,
-    fn: Callable[[CheckResult], tuple[bool, str]],
-) -> None:
-    _SAFE_FIX_RUNNERS[fix_id] = fn
-
-
 # ---------------------------------------------------------------------------
 # Secret redaction
 # ---------------------------------------------------------------------------
@@ -442,7 +537,6 @@ _SECRET_PATTERNS = ("secret", "password", "token", "key", "credential")
 
 
 def redact_details(details: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of details with secret values redacted."""
     redacted: dict[str, Any] = {}
     for k, v in details.items():
         if any(p in k.lower() for p in _SECRET_PATTERNS):
@@ -455,6 +549,45 @@ def redact_details(details: dict[str, Any]) -> dict[str, Any]:
         else:
             redacted[k] = v
     return redacted
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_result(**kw: Any) -> CheckResult:
+    return CheckResult(**kw)
+
+
+def _error_result(check_id: str, category: str, severity: str, exc: Exception) -> CheckResult:
+    return _make_result(
+        check_id=check_id,
+        category=category,
+        status=CheckStatus.ERROR,
+        severity=severity,
+        summary=f"Check raised: {type(exc).__name__}",
+        details={"error": str(exc)[:200]},
+    )
+
+
+def _ctx_config() -> Any | None:
+    ctx = _get_ctx()
+    return ctx.config if ctx else None
+
+
+def _ctx_paths() -> Any | None:
+    ctx = _get_ctx()
+    return ctx.paths if ctx else None
+
+
+def _is_sqlite() -> bool:
+    try:
+        from app.db_utils import is_sqlite_database
+
+        return is_sqlite_database()
+    except Exception:
+        return False
 
 
 # ===================================================================
@@ -473,208 +606,204 @@ def _check_package_version(**kwargs: Any) -> CheckResult:
         ver = pkg_version("devlog")
     except Exception:
         ver = None
-
     if not ver:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="Could not determine package version",
-        )
-    return CheckResult(
-        check_id=kwargs["check_id"],
-        category=kwargs["category"],
-        status=CheckStatus.PASS,
-        severity=kwargs["severity"],
-        summary=f"Package version: {ver}",
-        details={"version": ver},
-    )
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="Could not determine package version")
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Package version: {ver}", details={"version": ver})
 
 
 def _check_config_schema(**kwargs: Any) -> CheckResult:
-    try:
-        from app.config.loader import load_effective_config
-
-        cfg = load_effective_config()
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary="Configuration loaded successfully",
-            details={"title": cfg.app.title},
-        )
-    except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary=f"Configuration load failed: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-            remediation=[
-                "Check config.toml for syntax errors.",
-                "Run `devlog config check` for details.",
-            ],
-        )
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary="Configuration failed to load",
+                           remediation=["Check config.toml for syntax errors.", "Run `devlog config check`."])
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary="Configuration loaded successfully",
+                       details={"title": cfg.app.title})
 
 
 def _check_config_validation(**kwargs: Any) -> CheckResult:
     try:
         from app.config.validation import validate_all
-        from app.config.loader import load_effective_config
 
-        cfg = load_effective_config()
+        cfg = _ctx_config()
+        if cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.ERROR, summary="Config unavailable for validation")
         result = validate_all(cfg)
         if result.errors:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.FAIL,
-                severity=kwargs["severity"],
-                summary=f"{len(result.errors)} configuration error(s)",
-                details={
-                    "errors": [
-                        {"code": f.code, "message": f.message, "field": f.field}
-                        for f in result.errors[:10]
-                    ]
-                },
-                remediation=["Fix configuration errors listed in details."],
-            )
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"{len(result.errors)} configuration error(s)",
+                               details={"errors": [{"code": f.code, "message": f.message, "field": f.field} for f in result.errors[:10]]},
+                               remediation=["Fix configuration errors listed in details."])
         if result.warnings:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary=f"{len(result.warnings)} configuration warning(s)",
-                details={
-                    "warnings": [
-                        {"code": f.code, "message": f.message} for f in result.warnings[:10]
-                    ]
-                },
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary="Configuration validation passed",
-        )
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(result.warnings)} configuration warning(s)",
+                               details={"warnings": [{"code": f.code, "message": f.message} for f in result.warnings[:10]]})
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Configuration validation passed")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Config validation raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_secret_key(**kwargs: Any) -> CheckResult:
     secret_key = os.environ.get("SECRET_KEY", "")
     if not secret_key:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary="SECRET_KEY not set",
-            remediation=["Set the SECRET_KEY environment variable."],
-        )
-    if secret_key in ("change-me", "changeme", "your-secret-key", ""):
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary="SECRET_KEY appears to be a placeholder",
-            remediation=[
-                'Generate a real secret: python3 -c "import secrets; print(secrets.token_hex(32))"'
-            ],
-        )
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary="SECRET_KEY not set",
+                           remediation=["Set the SECRET_KEY environment variable."])
+    if secret_key in ("change-me", "changeme", "your-secret-key"):
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary="SECRET_KEY appears to be a placeholder",
+                           remediation=['Generate a real secret: python3 -c "import secrets; print(secrets.token_hex(32))"'])
     if len(secret_key) < 16:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="SECRET_KEY is shorter than recommended (16+ chars)",
-        )
-    return CheckResult(
-        check_id=kwargs["check_id"],
-        category=kwargs["category"],
-        status=CheckStatus.PASS,
-        severity=kwargs["severity"],
-        summary="SECRET_KEY is set and appears valid",
-    )
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="SECRET_KEY is shorter than recommended (16+ chars)")
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary="SECRET_KEY is set and appears valid")
 
 
 def _check_admin_password(**kwargs: Any) -> CheckResult:
     pw = os.environ.get("ADMIN_PASSWORD", "")
     if not pw:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary="ADMIN_PASSWORD not set",
-            remediation=["Set the ADMIN_PASSWORD environment variable."],
-        )
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary="ADMIN_PASSWORD not set",
+                           remediation=["Set the ADMIN_PASSWORD environment variable."])
     if len(pw) < 8:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="ADMIN_PASSWORD is shorter than recommended (8+ chars)",
-        )
-    return CheckResult(
-        check_id=kwargs["check_id"],
-        category=kwargs["category"],
-        status=CheckStatus.PASS,
-        severity=kwargs["severity"],
-        summary="ADMIN_PASSWORD is set",
-    )
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="ADMIN_PASSWORD is shorter than recommended (8+ chars)")
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary="ADMIN_PASSWORD is set")
 
 
 def _check_installation_metadata(**kwargs: Any) -> CheckResult:
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode, InstallationMetadata
+        from app.filesystem.layout import InstallationMetadata
 
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Cannot resolve paths for metadata check")
         meta = InstallationMetadata.load(paths.installation_metadata.path)
         if meta is None:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary="No installation metadata found",
-                remediation=["Run `devlog onboard` to create installation metadata."],
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Installation metadata found (mode={meta.mode.value}, version={meta.version})",
-            details={
-                "mode": meta.mode.value,
-                "version": meta.version,
-            },
-        )
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="No installation metadata found",
+                               remediation=["Run `devlog onboard` to create installation metadata."])
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Installation metadata found (mode={meta.mode.value}, version={meta.version})",
+                           details={"mode": meta.mode.value, "version": meta.version})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Could not read installation metadata: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_release_symlink(**kwargs: Any) -> CheckResult:
+    try:
+        from app.filesystem.layout import detect_mode
+
+        mode = detect_mode().detected_mode
+        if mode.value not in ("system", "user"):
+            return _make_result(**kwargs, status=CheckStatus.SKIP,
+                               summary=f"Release symlink check skipped (mode={mode.value})")
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        release_dir = getattr(paths, "release_dir", None)
+        if release_dir is None or not release_dir.path:
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Release directory not configured",
+                               remediation=["Run `devlog deploy install` to set up the release directory."])
+        rd = release_dir.path
+        if not rd.exists():
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Release directory does not exist",
+                               remediation=["Run `devlog deploy install` to create the release directory."])
+        if rd.is_symlink():
+            target = rd.resolve()
+            if not target.exists():
+                return _make_result(**kwargs, status=CheckStatus.FAIL,
+                                   summary=f"Release symlink points to missing target: {target}",
+                                   remediation=["Reinstall with `devlog deploy install`."])
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary=f"Release symlink valid: {rd} -> {target}")
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Release directory exists (not a symlink)")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_config_path(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        cfg = _ctx_config()
+        if paths is None or cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config/paths unavailable")
+        config_path = paths.config_file.path
+        if not config_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Config file not found at {config_path}",
+                               remediation=["Create a config.toml or run `devlog config init`."])
+        env_path = paths.env_file.path
+        env_exists = env_path.exists()
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Config: {config_path}" + (f", env: {env_path}" if env_exists else ""),
+                           details={"config_path": str(config_path), "env_path": str(env_path), "env_exists": env_exists})
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_deprecated_keys(**kwargs: Any) -> CheckResult:
+    try:
+        cfg = _ctx_config()
+        if cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+        from app.config.model import DevLogConfig
+
+        valid_fields = {f.name for f in DevLogConfig.__dataclass_fields__.values()}
+        valid_sections = {f.name for f in DevLogConfig.__dataclass_fields__.values()}
+        raw_path = Path("config.toml")
+        if not raw_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="config.toml not found on disk")
+        try:
+            import tomllib
+
+            with open(raw_path, "rb") as f:
+                raw = tomllib.load(f)
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="config.toml not parseable")
+        unknown = [k for k in raw if k not in valid_sections and k not in valid_fields]
+        if unknown:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(unknown)} unknown config key(s): {', '.join(unknown[:5])}",
+                               details={"unknown_keys": unknown},
+                               remediation=["Remove or rename unknown keys from config.toml."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="No unknown config keys detected")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_secret_permissions(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        env_path = paths.env_file.path
+        if not env_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="No .env file to check permissions")
+        mode = env_path.stat().st_mode
+        permissive = bool(mode & (stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH))
+        if permissive:
+            perms = oct(mode & 0o777)
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f".env file has permissive permissions: {perms}",
+                               remediation=["Run: chmod 600 " + str(env_path)])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary=".env file permissions are restrictive")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_stale_metadata(**kwargs: Any) -> CheckResult:
+    try:
+        from app.filesystem.layout import InstallationMetadata, detect_mode
+
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        meta = InstallationMetadata.load(paths.installation_metadata.path)
+        if meta is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="No metadata to check for staleness")
+        detected = detect_mode().detected_mode
+        if meta.mode != detected:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Metadata mode ({meta.mode.value}) differs from detected ({detected.value})",
+                               remediation=["Re-run `devlog onboard` to update installation metadata."])
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Metadata mode consistent: {meta.mode.value}")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
@@ -684,132 +813,246 @@ def _check_installation_metadata(**kwargs: Any) -> CheckResult:
 
 def _check_required_directories(**kwargs: Any) -> CheckResult:
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode
-
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.ERROR, summary="Cannot resolve paths")
         missing = []
-        for name in (
-            "data_dir",
-            "uploads_dir",
-            "themes_dir",
-            "backups_dir",
-            "exports_dir",
-            "log_dir",
-            "runtime_dir",
-        ):
+        for name in ("data_dir", "uploads_dir", "themes_dir", "backups_dir", "exports_dir", "log_dir", "runtime_dir"):
             rp = getattr(paths, name)
             if not rp.path.exists():
                 missing.append(name)
         if missing:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary=f"{len(missing)} required director(ies) missing",
-                details={"missing": missing},
-                safe_fix_id="create_missing_dirs",
-                remediation=["Create missing directories or run `devlog doctor --fix-safe`."],
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary="All required directories exist",
-        )
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary=f"{len(missing)} required director(ies) missing",
+                               details={"missing": missing}, safe_fix_id="create_missing_dirs",
+                               remediation=["Create missing directories or run `devlog doctor --fix-safe`."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="All required directories exist")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Directory check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_disk_space(**kwargs: Any) -> CheckResult:
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode
-
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Cannot resolve paths for disk check")
         usage = shutil.disk_usage(paths.data_dir.path)
         free_mb = usage.free / (1024 * 1024)
         free_pct = (usage.free / usage.total) * 100 if usage.total else 0
         if free_pct < 5:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.FAIL,
-                severity=kwargs["severity"],
-                summary=f"Disk space critically low: {free_mb:.0f} MB ({free_pct:.1f}%)",
-                details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)},
-                remediation=["Free disk space or expand the volume."],
-            )
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"Disk space critically low: {free_mb:.0f} MB ({free_pct:.1f}%)",
+                               details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)},
+                               remediation=["Free disk space or expand the volume."])
         if free_pct < 15:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary=f"Disk space low: {free_mb:.0f} MB ({free_pct:.1f}%)",
-                details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)},
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Disk space OK: {free_mb:.0f} MB ({free_pct:.1f}%)",
-            details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)},
-        )
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Disk space low: {free_mb:.0f} MB ({free_pct:.1f}%)",
+                               details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)})
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Disk space OK: {free_mb:.0f} MB ({free_pct:.1f}%)",
+                           details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Could not check disk space: {type(e).__name__}",
-        )
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary=f"Could not check disk space: {type(e).__name__}")
 
 
 def _check_symlink_safety(**kwargs: Any) -> CheckResult:
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode
-
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.ERROR, summary="Cannot resolve paths")
+        project_root = Path.cwd()
         unsafe = []
         for name in ("data_dir", "uploads_dir", "themes_dir", "backups_dir"):
             rp = getattr(paths, name)
             if rp.path.exists() and rp.path.is_symlink():
                 target = rp.path.resolve()
-                if not str(target).startswith(str(Path.cwd())):
+                if not str(target).startswith(str(project_root)):
                     unsafe.append({"name": name, "target": str(target)})
         if unsafe:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary=f"{len(unsafe)} path(s) are symlinks outside project root",
-                details={"unsafe_symlinks": unsafe},
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary="No unsafe symlinks detected",
-        )
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(unsafe)} path(s) are symlinks outside project root",
+                               details={"unsafe_symlinks": unsafe})
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="No unsafe symlinks detected")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Symlink check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_dir_ownership(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        my_uid = os.getuid()
+        issues = []
+        for name in ("data_dir", "uploads_dir", "backups_dir", "log_dir", "runtime_dir"):
+            rp = getattr(paths, name)
+            if rp.path.exists():
+                try:
+                    file_uid = rp.path.stat().st_uid
+                    if file_uid != my_uid:
+                        issues.append({"name": name, "owner_uid": file_uid, "expected_uid": my_uid})
+                except OSError:
+                    pass
+        if issues:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(issues)} directory(ies) owned by different user",
+                               details={"ownership_issues": issues},
+                               remediation=["Fix directory ownership with chown."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Directory ownership OK")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_dir_writable(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        not_writable = []
+        for name in ("data_dir", "uploads_dir", "backups_dir", "exports_dir", "log_dir", "runtime_dir"):
+            rp = getattr(paths, name)
+            if rp.path.exists() and not os.access(rp.path, os.W_OK):
+                not_writable.append(name)
+        if not_writable:
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"{len(not_writable)} directory(ies) not writable",
+                               details={"not_writable": not_writable},
+                               remediation=["Fix directory permissions."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="All runtime directories are writable")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_inodes(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        stat_result = os.statvfs(str(paths.data_dir.path))
+        free_inodes = stat_result.f_favail
+        if free_inodes < 1000:
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"Inode availability critically low: {free_inodes}",
+                               details={"free_inodes": free_inodes},
+                               remediation=["Free inodes or expand the volume."])
+        if free_inodes < 10000:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Inode availability low: {free_inodes}",
+                               details={"free_inodes": free_inodes})
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Inode availability OK: {free_inodes}",
+                           details={"free_inodes": free_inodes})
+    except Exception as e:
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary=f"Could not check inodes: {type(e).__name__}")
+
+
+def _check_fs_type(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        if not _is_sqlite():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="FS type check skipped (not SQLite)")
+        db_path = paths.database.path
+        if not db_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Database file not found for FS type check")
+        try:
+            result = os.statvfs(str(db_path))
+            f_type = getattr(result, "f_type", 0)
+            known_problematic = {
+                0x65735546: "FUSE",
+                0x5346544E: "NTFS",
+                0x4D44: "FAT32",
+                0xEF53: "ext4",
+                0x58465342: "XFS",
+                0x9123683E: "Btrfs",
+                0xFF534D42: "CIFS/SMB",
+            }
+            fs_name = known_problematic.get(f_type, f"unknown({hex(f_type)})")
+            warnings_list = []
+            if f_type in (0x65735546, 0x5346544E, 0x4D44, 0xFF534D42):
+                warnings_list.append(f"Filesystem {fs_name} may not support SQLite locking properly")
+            if warnings_list:
+                return _make_result(**kwargs, status=CheckStatus.WARN, summary=f"FS: {fs_name} — potential SQLite issue",
+                                   details={"fs_type": fs_name, "f_type_hex": hex(f_type)},
+                                   remediation=warnings_list)
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Filesystem: {fs_name}",
+                               details={"fs_type": fs_name})
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Could not determine filesystem type")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_docker_uid(**kwargs: Any) -> CheckResult:
+    try:
+        cgroup_path = Path("/proc/self/cgroup")
+        if not cgroup_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Not in Docker (no cgroup)")
+        try:
+            content = cgroup_path.read_text()
+            if "docker" not in content and "kubepods" not in content:
+                return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Not in Docker container")
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Could not read cgroup")
+        host_uid_file = Path("/proc/1/uid_map")
+        if not host_uid_file.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Cannot determine host UID mapping")
+        try:
+            uid_map = host_uid_file.read_text().strip()
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary=f"Docker UID mapping: {uid_map}",
+                               details={"uid_map": uid_map})
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Could not read UID mapping")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_stale_files(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        stale = []
+        runtime_dir = paths.runtime_dir.path
+        if runtime_dir.exists():
+            now = time.time()
+            for f in runtime_dir.iterdir():
+                if f.is_file():
+                    age_hours = (now - f.stat().st_mtime) / 3600
+                    if age_hours > 72:
+                        stale.append({"name": f.name, "age_hours": round(age_hours, 1)})
+        if stale:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(stale)} stale runtime file(s) older than 72h",
+                               details={"stale_files": stale[:10]},
+                               remediation=["Remove stale runtime files manually."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="No stale runtime files detected")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_legacy_remnants(**kwargs: Any) -> CheckResult:
+    try:
+        from app.filesystem.discovery import discover_legacy_layout, classify_discovery
+
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        try:
+            discovery = discover_legacy_layout(Path.cwd())
+            classified = classify_discovery(discovery, paths)
+            unmanaged = {k: v for k, v in classified.items() if v == "likely_devlog"}
+            if unmanaged:
+                return _make_result(**kwargs, status=CheckStatus.WARN,
+                                   summary=f"{len(unmanaged)} legacy file(s) detected",
+                                   details={"legacy_items": list(unmanaged.keys())[:10]},
+                                   remediation=["Review legacy files and migrate or remove."])
+        except Exception:
+            pass
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="No legacy remnants detected")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
@@ -825,24 +1068,14 @@ def _check_database_connectivity(**kwargs: Any) -> CheckResult:
         start = time.monotonic()
         db.session.execute(text("SELECT 1"))
         latency_ms = (time.monotonic() - start) * 1000
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Database connected ({latency_ms:.1f}ms)",
-            details={"latency_ms": round(latency_ms, 2)},
-        )
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Database connected ({latency_ms:.1f}ms)",
+                           details={"latency_ms": round(latency_ms, 2)})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary=f"Database connection failed: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-            remediation=["Check database URI and connectivity."],
-        )
+        return _make_result(**kwargs, status=CheckStatus.FAIL,
+                           summary=f"Database connection failed: {type(e).__name__}",
+                           details={"error": str(e)[:200]},
+                           remediation=["Check database URI and connectivity."])
 
 
 def _check_migration_head(**kwargs: Any) -> CheckResult:
@@ -851,166 +1084,171 @@ def _check_migration_head(**kwargs: Any) -> CheckResult:
 
         result = get_migration_status()
         if result.ok:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.PASS,
-                severity=kwargs["severity"],
-                summary=result.summary,
-                details={
-                    "current_head": result.current_head,
-                    "pending_count": result.pending_count,
-                },
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary=result.summary,
-            details=result.details,
-            remediation=result.remediation,
-        )
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary=result.summary,
+                               details={"current_head": result.current_head, "pending_count": result.pending_count})
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary=result.summary,
+                           details=result.details, remediation=result.remediation)
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Migration check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_sqlite_integrity(**kwargs: Any) -> CheckResult:
+    if not _is_sqlite():
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Integrity check skipped (not SQLite)")
     try:
-        from app.db_utils import is_sqlite_database
-
-        if not is_sqlite_database():
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.SKIP,
-                severity=kwargs["severity"],
-                summary="Integrity check skipped (not SQLite)",
-            )
         from app.services.operations.database import check_database_integrity
 
         result = check_database_integrity()
         if result.ok:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.PASS,
-                severity=kwargs["severity"],
-                summary=result.summary,
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.FAIL,
-            severity=kwargs["severity"],
-            summary=result.summary,
-            details=result.details,
-            remediation=result.remediation,
-        )
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary=result.summary)
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary=result.summary,
+                           details=result.details, remediation=result.remediation)
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Integrity check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_fts5_availability(**kwargs: Any) -> CheckResult:
+    if not _is_sqlite():
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="FTS5 check skipped (not SQLite)")
     try:
         from sqlalchemy import text
         from app.extensions import db
-        from app.db_utils import is_sqlite_database
 
-        if not is_sqlite_database():
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.SKIP,
-                severity=kwargs["severity"],
-                summary="FTS5 check skipped (not SQLite)",
-            )
         has_fts = db.session.execute(
             text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
         ).fetchone()
         if has_fts:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.PASS,
-                severity=kwargs["severity"],
-                summary="FTS5 search index exists",
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="FTS5 search index not found",
-            remediation=["Run `devlog db rebuild-search` to create the search index."],
-        )
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="FTS5 search index exists")
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="FTS5 search index not found",
+                           safe_fix_id="rebuild_fts",
+                           remediation=["Run `devlog db rebuild-search` to create the search index."])
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"FTS5 check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_database_path_match(**kwargs: Any) -> CheckResult:
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode
-        from app.config.loader import load_effective_config
-
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
-        cfg = load_effective_config()
+        paths = _ctx_paths()
+        cfg = _ctx_config()
+        if paths is None or cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config/paths unavailable")
         db_uri = cfg.database.uri
         if db_uri.startswith("sqlite:///"):
             db_path = Path(db_uri.replace("sqlite:///", "/"))
             expected = paths.database.path.resolve()
             if db_path.resolve() == expected:
-                return CheckResult(
-                    check_id=kwargs["check_id"],
-                    category=kwargs["category"],
-                    status=CheckStatus.PASS,
-                    severity=kwargs["severity"],
-                    summary="Database path matches RuntimePaths",
-                )
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary="Database path differs from RuntimePaths",
-                details={"config_path": str(db_path), "expected_path": str(expected)},
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.SKIP,
-            severity=kwargs["severity"],
-            summary="Path match check skipped (non-SQLite backend)",
-        )
+                return _make_result(**kwargs, status=CheckStatus.PASS, summary="Database path matches RuntimePaths")
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Database path differs from RuntimePaths",
+                               details={"config_path": str(db_path), "expected_path": str(expected)})
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Path match check skipped (non-SQLite backend)")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"DB path check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_wal_checkpoint(**kwargs: Any) -> CheckResult:
+    if not _is_sqlite():
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="WAL check skipped (not SQLite)")
+    try:
+        from sqlalchemy import text
+        from app.extensions import db
+
+        result = db.session.execute(text("PRAGMA wal_checkpoint(PASS)")).fetchone()
+        if result and result[0] == 0:
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="WAL checkpoint OK")
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="WAL checkpoint returned non-zero",
+                           details={"result": list(result) if result else None},
+                           remediation=["Run `PRAGMA wal_checkpoint(TRUNCATE)` to force a checkpoint."])
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_db_ownership(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        db_path = paths.database.path
+        if not db_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Database file not found")
+        my_uid = os.getuid()
+        file_uid = db_path.stat().st_uid
+        if file_uid != my_uid:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Database owned by UID {file_uid}, expected {my_uid}",
+                               remediation=["Fix database file ownership."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Database file ownership OK")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_fts_health(**kwargs: Any) -> CheckResult:
+    if not _is_sqlite():
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="FTS health check skipped (not SQLite)")
+    try:
+        from sqlalchemy import text
+        from app.extensions import db
+
+        has_fts = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='posts_fts'")
+        ).fetchone()
+        if not has_fts:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="FTS table does not exist (checked by fts5)")
+        row_count = db.session.execute(text("SELECT COUNT(*) FROM posts_fts")).scalar() or 0
+        post_count = db.session.execute(text("SELECT COUNT(*) FROM posts WHERE published IS NOT NULL")).scalar() or 0
+        if post_count > 0 and row_count == 0:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"FTS index empty but {post_count} published posts exist",
+                               remediation=["Run `devlog db rebuild-search` to repopulate the FTS index."])
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"FTS index has {row_count} rows",
+                           details={"fts_rows": row_count, "published_posts": post_count})
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_migration_orphaned(**kwargs: Any) -> CheckResult:
+    try:
+        from sqlalchemy import text
+        from app.extensions import db
+
+        result = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+        ).fetchone()
+        if not result:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary="Alembic version table missing — migrations may not have run",
+                               remediation=["Run `flask db upgrade` to initialize migrations."])
+        head = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        if not head:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary="Alembic version table is empty",
+                               remediation=["Run `flask db upgrade` to apply migrations."])
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Migration head: {head}",
+                           details={"head": head})
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_backend_features(**kwargs: Any) -> CheckResult:
+    try:
+        from app.db_utils import get_database_dialect
+
+        dialect = get_database_dialect()
+        if dialect == "sqlite":
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary="Backend: SQLite (all features supported)",
+                               details={"dialect": dialect})
+        if dialect in ("postgresql", "mysql"):
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary=f"Backend: {dialect}",
+                               details={"dialect": dialect})
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Backend: {dialect} — some features may not work",
+                           details={"dialect": dialect},
+                           remediation=["Consider using SQLite or PostgreSQL for full feature support."])
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
@@ -1021,34 +1259,18 @@ def _check_database_path_match(**kwargs: Any) -> CheckResult:
 def _check_frontend_manifest(**kwargs: Any) -> CheckResult:
     manifest = Path("app/static/.vite/manifest.json")
     if not manifest.exists():
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="Vite manifest not found",
-            remediation=["Build frontend assets to generate the manifest file."],
-        )
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="Vite manifest not found",
+                           remediation=["Build frontend assets to generate the manifest file."])
     try:
         import json
 
         data = json.loads(manifest.read_text())
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Vite manifest present ({len(data)} entries)",
-            details={"entry_count": len(data)},
-        )
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Vite manifest present ({len(data)} entries)",
+                           details={"entry_count": len(data)})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Vite manifest unreadable: {type(e).__name__}",
-        )
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Vite manifest unreadable: {type(e).__name__}")
 
 
 def _check_bundled_themes(**kwargs: Any) -> CheckResult:
@@ -1057,23 +1279,13 @@ def _check_bundled_themes(**kwargs: Any) -> CheckResult:
 
         registry = ThemeRegistry()
         themes = registry.list_themes()
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Bundled theme catalog: {len(themes)} themes",
-            details={"theme_count": len(themes)},
-        )
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Bundled theme catalog: {len(themes)} themes",
+                           details={"theme_count": len(themes)})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Theme catalog check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Theme catalog check raised: {type(e).__name__}",
+                           details={"error": str(e)[:200]})
 
 
 def _check_selected_themes(**kwargs: Any) -> CheckResult:
@@ -1081,11 +1293,12 @@ def _check_selected_themes(**kwargs: Any) -> CheckResult:
         from app.models import SiteSettings
         from app.services.theme_settings import get_effective_theme_names
 
-        settings = SiteSettings.get_instance()
-        dark, light, _scheme = get_effective_theme_names(
-            settings=settings,
-            config_defaults={},
-        )
+        try:
+            settings = SiteSettings.get_instance()
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.SKIP,
+                               summary="Theme selection check skipped (site_settings table unavailable)")
+        dark, light, _scheme = get_effective_theme_names(settings=settings, config_defaults={})
         from app.themes.registry import ThemeRegistry
 
         registry = ThemeRegistry()
@@ -1095,32 +1308,80 @@ def _check_selected_themes(**kwargs: Any) -> CheckResult:
         if light and not registry.resolve(light):
             missing.append(light)
         if missing:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.FAIL,
-                severity=kwargs["severity"],
-                summary=f"{len(missing)} selected theme(s) not found",
-                details={"missing_themes": missing, "dark": dark, "light": light},
-                remediation=["Check theme configuration in admin settings."],
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Selected themes resolve: dark={dark}, light={light}",
-            details={"dark": dark, "light": light},
-        )
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"{len(missing)} selected theme(s) not found",
+                               details={"missing_themes": missing, "dark": dark, "light": light},
+                               remediation=["Check theme configuration in admin settings."])
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Selected themes resolve: dark={dark}, light={light}",
+                           details={"dark": dark, "light": light})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Theme resolution check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_referenced_assets(**kwargs: Any) -> CheckResult:
+    try:
+        manifest = Path("app/static/.vite/manifest.json")
+        if not manifest.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Vite manifest not found (checked by assets.frontend_manifest)")
+        import json
+
+        data = json.loads(manifest.read_text())
+        missing_assets = []
+        for entry_key, entry_val in data.items():
+            if isinstance(entry_val, dict) and "file" in entry_val:
+                asset_path = Path("app/static") / entry_val["file"]
+                if not asset_path.exists():
+                    missing_assets.append(entry_val["file"])
+        if missing_assets:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(missing_assets)} referenced asset(s) missing",
+                               details={"missing_assets": missing_assets[:10]},
+                               remediation=["Rebuild frontend assets to regenerate missing files."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="All referenced assets exist")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_theme_accessibility(**kwargs: Any) -> CheckResult:
+    try:
+        from app.themes.registry import ThemeRegistry
+
+        registry = ThemeRegistry()
+        themes = registry.list_themes()
+        if not themes:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="No themes to check accessibility")
+        try:
+            _loaded = registry.load(themes[0].canonical_name)
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary=f"Theme catalog accessible ({len(themes)} themes)",
+                               details={"theme_count": len(themes), "sample_theme": themes[0]})
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary="Theme catalog accessibility check failed")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_theme_attribution(**kwargs: Any) -> CheckResult:
+    try:
+        from app.themes import bundled as bundled_pkg
+
+        bundled_dir = Path(bundled_pkg.__file__).parent
+        attribution = bundled_dir / "ATTRIBUTION.md"
+        manifest = bundled_dir / "catalog_manifest.json"
+        issues = []
+        if not attribution.exists():
+            issues.append("ATTRIBUTION.md missing")
+        if not manifest.exists():
+            issues.append("catalog_manifest.json missing")
+        if issues:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Theme packaging issues: {', '.join(issues)}",
+                               remediation=["Ensure ATTRIBUTION.md and catalog_manifest.json are present in bundled themes."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Theme attribution and manifest present")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
@@ -1129,79 +1390,95 @@ def _check_selected_themes(**kwargs: Any) -> CheckResult:
 
 
 def _check_redis_connectivity(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    redis_url = cfg.redis.url
+    if not redis_url:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Redis not configured")
     try:
-        from app.config.loader import load_effective_config
+        import redis as redis_lib
 
-        cfg = load_effective_config()
-        redis_url = cfg.redis.url
-        if not redis_url:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.SKIP,
-                severity=kwargs["severity"],
-                summary="Redis not configured",
-            )
-        import redis
-
-        client = redis.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+        client = redis_lib.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
         client.ping()
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary="Redis connected",
-        )
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Redis connected")
     except ImportError:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.SKIP,
-            severity=kwargs["severity"],
-            summary="Redis client not installed",
-        )
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Redis client not installed")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Redis connection failed: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-            remediation=["Check Redis configuration and connectivity."],
-        )
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Redis connection failed: {type(e).__name__}",
+                           details={"error": str(e)[:200]},
+                           remediation=["Check Redis configuration and connectivity."])
+
+
+def _check_redis_auth(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    redis_url = cfg.redis.url
+    if not redis_url:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Redis not configured")
+    try:
+        import redis as redis_lib
+
+        client = redis_lib.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+        client.ping()
+        info = client.info("server")
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Redis {info.get('redis_version', 'unknown')} — auth OK",
+                           details={"redis_version": info.get("redis_version", "unknown")})
+    except ImportError:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Redis client not installed")
+    except redis_lib.AuthenticationError:
+        return _make_result(**kwargs, status=CheckStatus.FAIL, summary="Redis authentication failed",
+                           remediation=["Check Redis password configuration."])
+    except Exception as e:
+        err_str = str(e).lower()
+        if "auth" in err_str or "password" in err_str:
+            return _make_result(**kwargs, status=CheckStatus.FAIL, summary="Redis authentication failed",
+                               remediation=["Check Redis password configuration."])
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Redis auth check failed: {type(e).__name__}")
 
 
 def _check_celery_broker(**kwargs: Any) -> CheckResult:
-    try:
-        from app.config.loader import load_effective_config
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    broker = cfg.celery.broker_url
+    if not broker:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Celery broker not configured")
+    return _make_result(**kwargs, status=CheckStatus.PASS,
+                       summary=f"Celery broker configured: {broker.split('@')[-1] if '@' in broker else broker[:30]}")
 
-        cfg = load_effective_config()
-        broker = cfg.celery.broker_url
-        if not broker:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.SKIP,
-                severity=kwargs["severity"],
-                summary="Celery broker not configured",
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Celery broker configured: {broker.split('@')[-1] if '@' in broker else broker[:30]}",
-        )
+
+def _check_celery_workers(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    broker = cfg.celery.broker_url
+    if not broker:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Celery broker not configured")
+    try:
+        import redis as redis_lib
+
+        broker_url = broker
+        if broker_url.startswith("redis://"):
+            client = redis_lib.Redis.from_url(broker_url, socket_connect_timeout=2, socket_timeout=2)
+            try:
+                keys = client.keys("celery*")
+                return _make_result(**kwargs, status=CheckStatus.PASS,
+                                   summary=f"Celery broker accessible, {len(keys)} celery key(s)",
+                                   details={"celery_keys": len(keys)})
+            except Exception:
+                return _make_result(**kwargs, status=CheckStatus.WARN,
+                                   summary="Cannot inspect Celery broker keys")
+        return _make_result(**kwargs, status=CheckStatus.SKIP,
+                           summary="Celery worker check only supports Redis broker")
+    except ImportError:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Redis client not installed")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Celery config check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_scheduler_owner(**kwargs: Any) -> CheckResult:
@@ -1210,103 +1487,113 @@ def _check_scheduler_owner(**kwargs: Any) -> CheckResult:
 
         running = get_scheduler_status()
         if running:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.PASS,
-                severity=kwargs["severity"],
-                summary="Scheduler is running",
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="Scheduler is not running",
-            remediation=["Start the application to activate the scheduler."],
-        )
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="Scheduler is running")
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="Scheduler is not running",
+                           remediation=["Start the application to activate the scheduler."])
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Scheduler check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_scheduler_stale(**kwargs: Any) -> CheckResult:
+    try:
+        cfg = _ctx_config()
+        if cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+        if not cfg.scheduler.enabled:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Scheduler disabled in config")
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        lock_file = paths.runtime_dir.path / "scheduler.lock"
+        if lock_file.exists():
+            age_hours = (time.time() - lock_file.stat().st_mtime) / 3600
+            if age_hours > 24:
+                return _make_result(**kwargs, status=CheckStatus.WARN,
+                                   summary=f"Scheduler lock file is {age_hours:.0f}h old — may be stale",
+                                   details={"lock_age_hours": round(age_hours, 1)},
+                                   remediation=["Check if the scheduler process is running."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Scheduler lock file OK or absent")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 def _check_smtp_config(**kwargs: Any) -> CheckResult:
-    try:
-        from app.config.loader import load_effective_config
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    host = cfg.email.smtp_host
+    if not host:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="SMTP not configured (no host)")
+    return _make_result(**kwargs, status=CheckStatus.PASS,
+                       summary=f"SMTP configured: {host}:{cfg.email.smtp_port}",
+                       details={"host": host, "port": cfg.email.smtp_port})
 
-        cfg = load_effective_config()
-        host = cfg.email.smtp_host
-        if not host:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.SKIP,
-                severity=kwargs["severity"],
-                summary="SMTP not configured (no host)",
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"SMTP configured: {host}:{cfg.email.smtp_port}",
-            details={"host": host, "port": cfg.email.smtp_port},
-        )
-    except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"SMTP config check raised: {type(e).__name__}",
-        )
+
+def _check_smtp_connect(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    host = cfg.email.smtp_host
+    if not host:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="SMTP not configured")
+    try:
+        import socket
+
+        sock = socket.create_connection((host, cfg.email.smtp_port), timeout=5)
+        sock.close()
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"SMTP connection to {host}:{cfg.email.smtp_port} succeeded")
+    except socket.timeout:
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"SMTP connection to {host} timed out",
+                           remediation=["Check SMTP host and port, and verify network connectivity."])
+    except OSError as e:
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"SMTP connection failed: {e}",
+                           remediation=["Check SMTP host, port, and DNS resolution."])
 
 
 def _check_storage_backend(**kwargs: Any) -> CheckResult:
-    try:
-        from app.config.loader import load_effective_config
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    backend = cfg.storage.backend
+    if backend == "s3":
+        missing = []
+        if not cfg.storage.s3_bucket:
+            missing.append("S3_BUCKET")
+        if not cfg.storage.s3_access_key:
+            missing.append("S3_ACCESS_KEY")
+        if not cfg.storage.s3_secret_key:
+            missing.append("S3_SECRET_KEY")
+        if missing:
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"S3 backend selected but missing: {', '.join(missing)}",
+                               details={"missing_vars": missing},
+                               remediation=[f"Set {v} environment variable." for v in missing])
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Storage backend: {backend}",
+                       details={"backend": backend})
 
-        cfg = load_effective_config()
-        backend = cfg.storage.backend
-        if backend == "s3":
-            missing = []
-            if not cfg.storage.s3_bucket:
-                missing.append("S3_BUCKET")
-            if not cfg.storage.s3_access_key:
-                missing.append("S3_ACCESS_KEY")
-            if not cfg.storage.s3_secret_key:
-                missing.append("S3_SECRET_KEY")
-            if missing:
-                return CheckResult(
-                    check_id=kwargs["check_id"],
-                    category=kwargs["category"],
-                    status=CheckStatus.FAIL,
-                    severity=kwargs["severity"],
-                    summary=f"S3 backend selected but missing: {', '.join(missing)}",
-                    details={"missing_vars": missing},
-                    remediation=[f"Set {v} environment variable." for v in missing],
-                )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Storage backend: {backend}",
-            details={"backend": backend},
-        )
+
+def _check_storage_writable(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        uploads = paths.uploads_dir.path
+        if not uploads.exists():
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Uploads directory does not exist",
+                               safe_fix_id="create_missing_dirs")
+        try:
+            test_file = uploads / ".doctor_write_test"
+            test_file.write_text("test")
+            test_file.unlink()
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="Uploads directory is writable")
+        except OSError:
+            return _make_result(**kwargs, status=CheckStatus.FAIL, summary="Uploads directory is not writable",
+                               remediation=["Fix directory permissions."])
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Storage check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
@@ -1319,22 +1606,153 @@ def _check_deployment_mode(**kwargs: Any) -> CheckResult:
         from app.filesystem.layout import detect_mode
 
         mode = detect_mode().detected_mode
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Deployment mode: {mode.value}",
-            details={"mode": mode.value},
-        )
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Deployment mode: {mode.value}",
+                           details={"mode": mode.value})
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Could not detect deployment mode: {type(e).__name__}",
-        )
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Could not detect deployment mode: {type(e).__name__}")
+
+
+def _check_deploy_drift(**kwargs: Any) -> CheckResult:
+    try:
+        from app.services.operations.deploy import deploy_check
+
+        try:
+            result = deploy_check("system")
+        except (KeyError, ValueError):
+            return _make_result(**kwargs, status=CheckStatus.SKIP,
+                               summary="Deployment drift check skipped (missing env vars)")
+        if result.ok:
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="No deployment drift detected")
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary=result.summary,
+                           details=result.details, remediation=result.remediation)
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_service_state(**kwargs: Any) -> CheckResult:
+    try:
+        from app.services.operations.deploy import lifecycle_status
+
+        result = lifecycle_status()
+        if result.ok:
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary=result.summary,
+                               details=result.details)
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary=result.summary,
+                           details=result.details, remediation=result.remediation)
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_deploy_files(**kwargs: Any) -> CheckResult:
+    try:
+        from app.filesystem.layout import detect_mode
+
+        mode = detect_mode().detected_mode
+        if mode.value not in ("system", "user"):
+            return _make_result(**kwargs, status=CheckStatus.SKIP,
+                               summary=f"Deploy file check skipped (mode={mode.value})")
+        manifest_path = Path("/etc/devlog/.devlog-manifest.json") if mode.value == "system" else Path.home() / ".config/devlog/.devlog-manifest.json"
+        if not manifest_path.exists():
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="No deployment manifest found",
+                               remediation=["Run `devlog deploy install` to create deployment files."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Deployment manifest found")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_health_endpoint(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    host = cfg.server.host
+    port = cfg.server.port
+    try:
+        import socket
+
+        sock = socket.create_connection((host, port), timeout=3)
+        sock.close()
+        return _make_result(**kwargs, status=CheckStatus.PASS,
+                           summary=f"Health endpoint reachable at {host}:{port}",
+                           details={"host": host, "port": port})
+    except Exception:
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Health endpoint not reachable at {host}:{port} (app may not be running)",
+                           details={"host": host, "port": port})
+
+
+def _check_proxy_config(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    proxy_count = cfg.proxy_count
+    host = cfg.server.host
+    if host in ("0.0.0.0", "::"):
+        if proxy_count == 0:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary="Binding to all interfaces with proxy_count=0 — X-Forwarded-For may not work",
+                               remediation=["Set PROXY_COUNT if behind a reverse proxy."])
+    return _make_result(**kwargs, status=CheckStatus.PASS,
+                       summary=f"Proxy config: count={proxy_count}, host={host}")
+
+
+def _check_bind_address(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    host = cfg.server.host
+    port = cfg.server.port
+    if host in ("0.0.0.0", "::"):
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary=f"Binding to all interfaces ({host}:{port}) — not suitable for direct public exposure",
+                           remediation=["Bind to 127.0.0.1 if not behind a reverse proxy."])
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Binding to {host}:{port}")
+
+
+def _check_stale_pid(**kwargs: Any) -> CheckResult:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        runtime_dir = paths.runtime_dir.path
+        if not runtime_dir.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Runtime directory does not exist")
+        pid_files = list(runtime_dir.glob("*.pid"))
+        if not pid_files:
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="No PID files in runtime directory")
+        stale_pids = []
+        for pf in pid_files:
+            try:
+                pid = int(pf.read_text().strip())
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    stale_pids.append({"file": pf.name, "pid": pid})
+            except (ValueError, OSError):
+                pass
+        if stale_pids:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(stale_pids)} stale PID file(s) found",
+                               details={"stale_pids": stale_pids},
+                               safe_fix_id="cleanup_stale_pid",
+                               remediation=["Remove stale PID files for dead processes."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="All PID files reference running processes")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_restart_loop(**kwargs: Any) -> CheckResult:
+    try:
+        from app.services.operations.deploy import lifecycle_status
+
+        result = lifecycle_status()
+        if not result.ok:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Service not running: {result.summary}",
+                               remediation=result.remediation or ["Check service logs for failure details."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Service is running (no restart loop detected)")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
@@ -1344,119 +1762,146 @@ def _check_deployment_mode(**kwargs: Any) -> CheckResult:
 
 def _check_backup_directory(**kwargs: Any) -> CheckResult:
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode
-
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.ERROR, summary="Cannot resolve paths")
         backup_dir = paths.backups_dir.path
         if not backup_dir.exists():
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.WARN,
-                severity=kwargs["severity"],
-                summary="Backup directory does not exist",
-                safe_fix_id="create_missing_dirs",
-                remediation=["Create the backup directory."],
-            )
-        import os
-
+            return _make_result(**kwargs, status=CheckStatus.WARN, summary="Backup directory does not exist",
+                               safe_fix_id="create_missing_dirs", remediation=["Create the backup directory."])
         writable = os.access(backup_dir, os.W_OK)
         if not writable:
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.FAIL,
-                severity=kwargs["severity"],
-                summary="Backup directory is not writable",
-                remediation=["Fix directory permissions."],
-            )
+            return _make_result(**kwargs, status=CheckStatus.FAIL, summary="Backup directory is not writable",
+                               remediation=["Fix directory permissions."])
         backups = sorted(backup_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
         if backups:
             age_hours = (time.time() - backups[0].stat().st_mtime) / 3600
-            return CheckResult(
-                check_id=kwargs["check_id"],
-                category=kwargs["category"],
-                status=CheckStatus.PASS,
-                severity=kwargs["severity"],
-                summary=f"Backup directory OK, latest backup {age_hours:.1f}h ago",
-                details={"latest_age_hours": round(age_hours, 1), "backup_count": len(backups)},
-            )
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary="Backup directory exists but is empty",
-            remediation=["Run `devlog backup create` to generate a backup."],
-        )
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary=f"Backup directory OK, latest backup {age_hours:.1f}h ago",
+                               details={"latest_age_hours": round(age_hours, 1), "backup_count": len(backups)})
+        return _make_result(**kwargs, status=CheckStatus.WARN, summary="Backup directory exists but is empty",
+                           remediation=["Run `devlog backup create` to generate a backup."])
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.ERROR,
-            severity=kwargs["severity"],
-            summary=f"Backup check raised: {type(e).__name__}",
-            details={"error": str(e)[:200]},
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
-# ---------------------------------------------------------------------------
-# H10 — Health endpoint check
-# ---------------------------------------------------------------------------
-
-
-def _check_health_endpoint(**kwargs: Any) -> CheckResult:
+def _check_backup_manifest(**kwargs: Any) -> CheckResult:
     try:
-        from app.config.loader import load_effective_config
+        paths = _ctx_paths()
+        if paths is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        backup_dir = paths.backups_dir.path
+        if not backup_dir.exists():
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Backup directory does not exist")
+        manifest_files = list(backup_dir.glob("*.manifest.json"))
+        if not manifest_files:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="No backup manifest files found")
+        import json
 
-        cfg = load_effective_config()
-        host = cfg.server.host
-        port = cfg.server.port
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Server configured at {host}:{port}",
-            details={"host": host, "port": port},
-        )
+        latest = sorted(manifest_files, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+        try:
+            data = json.loads(latest.read_text())
+            return _make_result(**kwargs, status=CheckStatus.PASS,
+                               summary=f"Latest backup manifest parseable: {latest.name}",
+                               details={"manifest_file": latest.name, "keys": list(data.keys())[:5]})
+        except Exception:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Backup manifest is not parseable: {latest.name}",
+                               remediation=["Check backup integrity."])
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Server config check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_backup_encryption(**kwargs: Any) -> CheckResult:
+    try:
+        cfg = _ctx_config()
+        if cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+        encryption_key = getattr(cfg.backup, "encryption_key", "")
+        if not encryption_key:
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="Backup encryption not configured (no key)")
+        try:
+            import cryptography  # noqa: F401
+
+            return _make_result(**kwargs, status=CheckStatus.PASS, summary="Backup encryption enabled, cryptography available")
+        except ImportError:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary="Backup encryption configured but cryptography library not available",
+                               remediation=["Install cryptography: pip install cryptography"])
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_backup_retention(**kwargs: Any) -> CheckResult:
+    try:
+        keep_str = os.environ.get("BACKUP_KEEP", "7")
+        try:
+            keep = int(keep_str)
+        except ValueError:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"BACKUP_KEEP is not a valid integer: {keep_str}",
+                               remediation=["Set BACKUP_KEEP to a positive integer."])
+        if keep < 1:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Backup retention set to {keep} — no backups will be kept",
+                               remediation=["Set BACKUP_KEEP to a positive integer."])
+        if keep > 100:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"Backup retention set to {keep} — very high, may consume significant disk",
+                               remediation=["Consider reducing BACKUP_KEEP."])
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Backup retention: keep {keep} backups")
+    except Exception as e:
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
 # ---------------------------------------------------------------------------
-# H11 — Security checks
+# H10 — Security checks
 # ---------------------------------------------------------------------------
 
 
 def _check_session_security(**kwargs: Any) -> CheckResult:
-    try:
-        from app.config.loader import load_effective_config
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    binding = cfg.app.session_ip_binding
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary=f"Session IP binding: {binding}",
+                       details={"session_ip_binding": binding})
 
-        cfg = load_effective_config()
-        binding = cfg.app.session_ip_binding
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.PASS,
-            severity=kwargs["severity"],
-            summary=f"Session IP binding: {binding}",
-            details={"session_ip_binding": binding},
-        )
+
+def _check_production_secrets(**kwargs: Any) -> CheckResult:
+    try:
+        from app.config.validation import validate_security
+
+        cfg = _ctx_config()
+        if cfg is None:
+            return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+        findings = validate_security(cfg)
+        errors = [f for f in findings if f.severity.value == "error"]
+        warnings = [f for f in findings if f.severity.value == "warning"]
+        if errors:
+            return _make_result(**kwargs, status=CheckStatus.FAIL,
+                               summary=f"{len(errors)} security error(s)",
+                               details={"errors": [{"code": f.code, "message": f.message} for f in errors[:5]]},
+                               remediation=[f.message for f in errors[:3] if f.message])
+        if warnings:
+            return _make_result(**kwargs, status=CheckStatus.WARN,
+                               summary=f"{len(warnings)} security warning(s)",
+                               details={"warnings": [{"code": f.code, "message": f.message} for f in warnings[:5]]})
+        return _make_result(**kwargs, status=CheckStatus.PASS, summary="Security validation passed")
     except Exception as e:
-        return CheckResult(
-            check_id=kwargs["check_id"],
-            category=kwargs["category"],
-            status=CheckStatus.WARN,
-            severity=kwargs["severity"],
-            summary=f"Session security check raised: {type(e).__name__}",
-        )
+        return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
+
+
+def _check_cookie_security(**kwargs: Any) -> CheckResult:
+    cfg = _ctx_config()
+    if cfg is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Config unavailable")
+    secure = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"
+    if not secure:
+        return _make_result(**kwargs, status=CheckStatus.WARN,
+                           summary="SESSION_COOKIE_SECURE is false — cookies sent over HTTP",
+                           remediation=["Set SESSION_COOKIE_SECURE=true for production."])
+    return _make_result(**kwargs, status=CheckStatus.PASS, summary="Session cookie security enabled")
 
 
 # ---------------------------------------------------------------------------
@@ -1465,304 +1910,189 @@ def _check_session_security(**kwargs: Any) -> CheckResult:
 
 
 def _register_all_checks() -> None:
-    """Register all diagnostic checks with the global registry."""
     checks = [
         # H3 — Installation and configuration
-        (
-            CheckDefinition(
-                "pkg.version",
-                CheckCategory.INSTALLATION,
-                "Package version consistency",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_package_version,
-        ),
-        (
-            CheckDefinition(
-                "config.load",
-                CheckCategory.CONFIGURATION,
-                "Configuration loads successfully",
-                Severity.REQUIRED,
-                production_required=True,
-                timeout_seconds=10,
-                remediation=["Check config.toml syntax."],
-            ),
-            _check_config_schema,
-        ),
-        (
-            CheckDefinition(
-                "config.validate",
-                CheckCategory.CONFIGURATION,
-                "Configuration validation passes",
-                Severity.REQUIRED,
-                production_required=True,
-                timeout_seconds=10,
-                remediation=["Fix configuration errors."],
-            ),
-            _check_config_validation,
-        ),
-        (
-            CheckDefinition(
-                "secrets.secret_key",
-                CheckCategory.SECRETS,
-                "SECRET_KEY is set and valid",
-                Severity.REQUIRED,
-                production_required=True,
-                timeout_seconds=5,
-                remediation=["Set SECRET_KEY env var."],
-            ),
-            _check_secret_key,
-        ),
-        (
-            CheckDefinition(
-                "secrets.admin_password",
-                CheckCategory.SECRETS,
-                "ADMIN_PASSWORD is set",
-                Severity.REQUIRED,
-                production_required=True,
-                timeout_seconds=5,
-                remediation=["Set ADMIN_PASSWORD env var."],
-            ),
-            _check_admin_password,
-        ),
-        (
-            CheckDefinition(
-                "install.metadata",
-                CheckCategory.INSTALLATION,
-                "Installation metadata present",
-                Severity.RECOMMENDED,
-                timeout_seconds=5,
-                remediation=["Run `devlog onboard`."],
-            ),
-            _check_installation_metadata,
-        ),
+        (CheckDefinition("pkg.version", CheckCategory.INSTALLATION, "Package version consistency",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_package_version),
+        (CheckDefinition("config.load", CheckCategory.CONFIGURATION, "Configuration loads successfully",
+                         Severity.REQUIRED, production_required=True, timeout_seconds=10,
+                         remediation=["Check config.toml syntax."]), _check_config_schema),
+        (CheckDefinition("config.validate", CheckCategory.CONFIGURATION, "Configuration validation passes",
+                         Severity.REQUIRED, production_required=True, timeout_seconds=10,
+                         remediation=["Fix configuration errors."]), _check_config_validation),
+        (CheckDefinition("secrets.secret_key", CheckCategory.SECRETS, "SECRET_KEY is set and valid",
+                         Severity.REQUIRED, production_required=True, timeout_seconds=5,
+                         remediation=["Set SECRET_KEY env var."]), _check_secret_key),
+        (CheckDefinition("secrets.admin_password", CheckCategory.SECRETS, "ADMIN_PASSWORD is set",
+                         Severity.REQUIRED, production_required=True, timeout_seconds=5,
+                         remediation=["Set ADMIN_PASSWORD env var."]), _check_admin_password),
+        (CheckDefinition("install.metadata", CheckCategory.INSTALLATION, "Installation metadata present",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Run `devlog onboard`."]), _check_installation_metadata),
+        (CheckDefinition("install.release_symlink", CheckCategory.INSTALLATION, "Release symlink correctness",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Run `devlog deploy install`."]), _check_release_symlink),
+        (CheckDefinition("install.config_path", CheckCategory.INSTALLATION, "Config path and env-file selection",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Create config.toml or run `devlog config init`."]), _check_config_path),
+        (CheckDefinition("install.deprecated_keys", CheckCategory.CONFIGURATION, "Unknown/deprecated config keys",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Remove unknown keys from config.toml."]), _check_deprecated_keys),
+        (CheckDefinition("install.secret_permissions", CheckCategory.SECRETS, "Secret file permissions",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Run: chmod 600 .env"]), _check_secret_permissions),
+        (CheckDefinition("install.stale_metadata", CheckCategory.INSTALLATION, "Stale installation metadata",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Re-run `devlog onboard`."]), _check_stale_metadata),
         # H4 — Filesystem and capacity
-        (
-            CheckDefinition(
-                "fs.required_dirs",
-                CheckCategory.FILESYSTEM,
-                "Required directories exist",
-                Severity.RECOMMENDED,
-                timeout_seconds=10,
-                safe_fix_id="create_missing_dirs",
-                remediation=["Create missing directories."],
-            ),
-            _check_required_directories,
-        ),
-        (
-            CheckDefinition(
-                "fs.disk_space",
-                CheckCategory.CAPACITY,
-                "Disk space adequate",
-                Severity.REQUIRED,
-                production_required=True,
-                timeout_seconds=5,
-                remediation=["Free disk space."],
-            ),
-            _check_disk_space,
-        ),
-        (
-            CheckDefinition(
-                "fs.symlink_safety",
-                CheckCategory.FILESYSTEM,
-                "No unsafe symlinks",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_symlink_safety,
-        ),
+        (CheckDefinition("fs.required_dirs", CheckCategory.FILESYSTEM, "Required directories exist",
+                         Severity.RECOMMENDED, timeout_seconds=10, safe_fix_id="create_missing_dirs",
+                         remediation=["Create missing directories."]), _check_required_directories),
+        (CheckDefinition("fs.disk_space", CheckCategory.CAPACITY, "Disk space adequate",
+                         Severity.REQUIRED, production_required=True, timeout_seconds=5,
+                         remediation=["Free disk space."]), _check_disk_space),
+        (CheckDefinition("fs.symlink_safety", CheckCategory.FILESYSTEM, "No unsafe symlinks",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_symlink_safety),
+        (CheckDefinition("fs.ownership", CheckCategory.FILESYSTEM, "Directory ownership",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_dir_ownership),
+        (CheckDefinition("fs.writable", CheckCategory.FILESYSTEM, "Runtime directories writable",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Fix directory permissions."]), _check_dir_writable),
+        (CheckDefinition("fs.inodes", CheckCategory.CAPACITY, "Inode availability",
+                         Severity.RECOMMENDED, production_required=True, timeout_seconds=5,
+                         remediation=["Free inodes or expand the volume."]), _check_inodes),
+        (CheckDefinition("fs.type", CheckCategory.FILESYSTEM, "Filesystem type compatibility",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Use a POSIX-compatible filesystem for SQLite."]), _check_fs_type),
+        (CheckDefinition("fs.docker_uid", CheckCategory.FILESYSTEM, "Docker UID/GID mapping",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Ensure container UID matches host volume ownership."]), _check_docker_uid),
+        (CheckDefinition("fs.stale_files", CheckCategory.FILESYSTEM, "Stale runtime files",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Remove stale files from the runtime directory."]), _check_stale_files),
+        (CheckDefinition("fs.legacy_remnants", CheckCategory.FILESYSTEM, "Legacy checkout remnants",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Review and remove legacy files."]), _check_legacy_remnants),
         # H5 — Database and migration
-        (
-            CheckDefinition(
-                "db.connectivity",
-                CheckCategory.DATABASE,
-                "Database connectivity",
-                Severity.REQUIRED,
-                production_required=True,
-                timeout_seconds=10,
-                remediation=["Check database URI and connectivity."],
-            ),
-            _check_database_connectivity,
-        ),
-        (
-            CheckDefinition(
-                "db.migration_head",
-                CheckCategory.DATABASE,
-                "Migration head current",
-                Severity.RECOMMENDED,
-                timeout_seconds=10,
-                remediation=["Run `devlog db migrate`."],
-            ),
-            _check_migration_head,
-        ),
-        (
-            CheckDefinition(
-                "db.sqlite_integrity",
-                CheckCategory.DATABASE,
-                "SQLite integrity check",
-                Severity.RECOMMENDED,
-                timeout_seconds=30,
-                remediation=["Consider restoring from a backup."],
-            ),
-            _check_sqlite_integrity,
-        ),
-        (
-            CheckDefinition(
-                "db.fts5",
-                CheckCategory.SEARCH,
-                "FTS5 search index exists",
-                Severity.RECOMMENDED,
-                timeout_seconds=10,
-                remediation=["Run `devlog db rebuild-search`."],
-            ),
-            _check_fts5_availability,
-        ),
-        (
-            CheckDefinition(
-                "db.path_match",
-                CheckCategory.DATABASE,
-                "Database path matches RuntimePaths",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_database_path_match,
-        ),
+        (CheckDefinition("db.connectivity", CheckCategory.DATABASE, "Database connectivity",
+                         Severity.REQUIRED, production_required=True, timeout_seconds=10,
+                         remediation=["Check database URI and connectivity."]), _check_database_connectivity),
+        (CheckDefinition("db.migration_head", CheckCategory.DATABASE, "Migration head current",
+                         Severity.RECOMMENDED, timeout_seconds=10,
+                         remediation=["Run `devlog db migrate`."]), _check_migration_head),
+        (CheckDefinition("db.sqlite_integrity", CheckCategory.DATABASE, "SQLite integrity check",
+                         Severity.RECOMMENDED, timeout_seconds=30, deep=True,
+                         remediation=["Consider restoring from a backup."]), _check_sqlite_integrity),
+        (CheckDefinition("db.fts5", CheckCategory.SEARCH, "FTS5 search index exists",
+                         Severity.RECOMMENDED, timeout_seconds=10,
+                         remediation=["Run `devlog db rebuild-search`."]), _check_fts5_availability),
+        (CheckDefinition("db.path_match", CheckCategory.DATABASE, "Database path matches RuntimePaths",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_database_path_match),
+        (CheckDefinition("db.wal_checkpoint", CheckCategory.DATABASE, "WAL checkpoint status",
+                         Severity.OPTIONAL, timeout_seconds=10, deep=True), _check_wal_checkpoint),
+        (CheckDefinition("db.ownership", CheckCategory.DATABASE, "Database file ownership",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_db_ownership),
+        (CheckDefinition("db.fts_health", CheckCategory.SEARCH, "FTS schema and index health",
+                         Severity.RECOMMENDED, timeout_seconds=10,
+                         remediation=["Run `devlog db rebuild-search`."]), _check_fts_health),
+        (CheckDefinition("db.orphaned_migration", CheckCategory.DATABASE, "Orphaned migration state",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Run `flask db upgrade`."]), _check_migration_orphaned),
+        (CheckDefinition("db.backend_features", CheckCategory.DATABASE, "Backend feature compatibility",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_backend_features),
         # H6 — Assets and themes
-        (
-            CheckDefinition(
-                "assets.frontend_manifest",
-                CheckCategory.ASSETS,
-                "Frontend manifest present",
-                Severity.RECOMMENDED,
-                timeout_seconds=5,
-                remediation=["Build frontend assets."],
-            ),
-            _check_frontend_manifest,
-        ),
-        (
-            CheckDefinition(
-                "themes.bundled",
-                CheckCategory.THEMES,
-                "Bundled theme catalog intact",
-                Severity.RECOMMENDED,
-                timeout_seconds=10,
-            ),
-            _check_bundled_themes,
-        ),
-        (
-            CheckDefinition(
-                "themes.selected",
-                CheckCategory.THEMES,
-                "Selected themes resolve",
-                Severity.RECOMMENDED,
-                timeout_seconds=10,
-                remediation=["Check theme configuration in admin settings."],
-            ),
-            _check_selected_themes,
-        ),
+        (CheckDefinition("assets.frontend_manifest", CheckCategory.ASSETS, "Frontend manifest present",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Build frontend assets."]), _check_frontend_manifest),
+        (CheckDefinition("assets.referenced", CheckCategory.ASSETS, "Referenced static assets exist",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Rebuild frontend assets."]), _check_referenced_assets),
+        (CheckDefinition("themes.bundled", CheckCategory.THEMES, "Bundled theme catalog intact",
+                         Severity.RECOMMENDED, timeout_seconds=10), _check_bundled_themes),
+        (CheckDefinition("themes.selected", CheckCategory.THEMES, "Selected themes resolve",
+                         Severity.RECOMMENDED, timeout_seconds=10,
+                         remediation=["Check theme configuration in admin settings."]), _check_selected_themes),
+        (CheckDefinition("themes.accessibility", CheckCategory.THEMES, "Theme accessibility policy",
+                         Severity.OPTIONAL, timeout_seconds=10), _check_theme_accessibility),
+        (CheckDefinition("themes.attribution", CheckCategory.THEMES, "Theme packaging metadata",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_theme_attribution),
         # H7 — Dependencies
-        (
-            CheckDefinition(
-                "dep.redis",
-                CheckCategory.REDIS,
-                "Redis connectivity",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-                remediation=["Check Redis configuration and connectivity."],
-            ),
-            _check_redis_connectivity,
-        ),
-        (
-            CheckDefinition(
-                "dep.celery",
-                CheckCategory.CELERY,
-                "Celery broker configured",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_celery_broker,
-        ),
-        (
-            CheckDefinition(
-                "dep.scheduler",
-                CheckCategory.SCHEDULER,
-                "Scheduler running",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-                remediation=["Start the application to activate the scheduler."],
-            ),
-            _check_scheduler_owner,
-        ),
-        (
-            CheckDefinition(
-                "dep.smtp",
-                CheckCategory.EMAIL,
-                "SMTP configured",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_smtp_config,
-        ),
-        (
-            CheckDefinition(
-                "dep.storage",
-                CheckCategory.STORAGE,
-                "Storage backend configured",
-                Severity.RECOMMENDED,
-                timeout_seconds=5,
-                remediation=["Set required S3 environment variables."],
-            ),
-            _check_storage_backend,
-        ),
+        (CheckDefinition("dep.redis", CheckCategory.REDIS, "Redis connectivity",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Check Redis configuration and connectivity."]), _check_redis_connectivity),
+        (CheckDefinition("dep.redis_auth", CheckCategory.REDIS, "Redis authentication",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Check Redis password configuration."]), _check_redis_auth),
+        (CheckDefinition("dep.celery", CheckCategory.CELERY, "Celery broker configured",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_celery_broker),
+        (CheckDefinition("dep.celery_workers", CheckCategory.CELERY, "Celery broker accessible",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_celery_workers),
+        (CheckDefinition("dep.scheduler", CheckCategory.SCHEDULER, "Scheduler running",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Start the application to activate the scheduler."]), _check_scheduler_owner),
+        (CheckDefinition("dep.scheduler_stale", CheckCategory.SCHEDULER, "Scheduler lock staleness",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_scheduler_stale),
+        (CheckDefinition("dep.smtp", CheckCategory.EMAIL, "SMTP configured",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_smtp_config),
+        (CheckDefinition("dep.smtp_connect", CheckCategory.EMAIL, "SMTP reachable",
+                         Severity.OPTIONAL, timeout_seconds=8,
+                         remediation=["Check SMTP host and port."]), _check_smtp_connect),
+        (CheckDefinition("dep.storage", CheckCategory.STORAGE, "Storage backend configured",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Set required S3 environment variables."]), _check_storage_backend),
+        (CheckDefinition("dep.storage_writable", CheckCategory.STORAGE, "Storage writable",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Fix directory permissions."]), _check_storage_writable),
         # H8 — Deployment
-        (
-            CheckDefinition(
-                "deploy.mode",
-                CheckCategory.DEPLOYMENT,
-                "Deployment mode detected",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_deployment_mode,
-        ),
+        (CheckDefinition("deploy.mode", CheckCategory.DEPLOYMENT, "Deployment mode detected",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_deployment_mode),
+        (CheckDefinition("deploy.drift", CheckCategory.DEPLOYMENT, "Deployment drift check",
+                         Severity.RECOMMENDED, timeout_seconds=10,
+                         remediation=["Reinstall deployment files with `devlog deploy install`."]), _check_deploy_drift),
+        (CheckDefinition("deploy.service_state", CheckCategory.SERVICE, "Service enabled and running",
+                         Severity.RECOMMENDED, production_required=True, timeout_seconds=10,
+                         remediation=["Start the service."]), _check_service_state),
+        (CheckDefinition("deploy.files", CheckCategory.DEPLOYMENT, "Managed deployment files present",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Run `devlog deploy install`."]), _check_deploy_files),
+        (CheckDefinition("deploy.health_endpoint", CheckCategory.HEALTH, "Health endpoint reachable",
+                         Severity.RECOMMENDED, production_required=True, timeout_seconds=8,
+                         remediation=["Ensure the application is running."]), _check_health_endpoint),
+        (CheckDefinition("deploy.proxy", CheckCategory.PROXY, "Reverse proxy configuration",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Set PROXY_COUNT if behind a reverse proxy."]), _check_proxy_config),
+        (CheckDefinition("deploy.bind", CheckCategory.DEPLOYMENT, "Bind address safety",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Bind to 127.0.0.1 if not behind a reverse proxy."]), _check_bind_address),
+        (CheckDefinition("deploy.pid", CheckCategory.DEPLOYMENT, "Stale PID files",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         safe_fix_id="cleanup_stale_pid",
+                         remediation=["Remove stale PID files."]), _check_stale_pid),
+        (CheckDefinition("deploy.restart_loop", CheckCategory.SERVICE, "Restart loop detection",
+                         Severity.OPTIONAL, timeout_seconds=10,
+                         remediation=["Check service logs for failure details."]), _check_restart_loop),
         # H9 — Backup
-        (
-            CheckDefinition(
-                "backup.readiness",
-                CheckCategory.BACKUP,
-                "Backup directory ready",
-                Severity.RECOMMENDED,
-                timeout_seconds=5,
-                safe_fix_id="create_missing_dirs",
-                remediation=["Create backup directory and run a backup."],
-            ),
-            _check_backup_directory,
-        ),
-        # H10 — Health
-        (
-            CheckDefinition(
-                "health.endpoint",
-                CheckCategory.HEALTH,
-                "Server configuration",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_health_endpoint,
-        ),
-        # H11 — Security
-        (
-            CheckDefinition(
-                "security.session",
-                CheckCategory.SECURITY,
-                "Session security configuration",
-                Severity.OPTIONAL,
-                timeout_seconds=5,
-            ),
-            _check_session_security,
-        ),
+        (CheckDefinition("backup.readiness", CheckCategory.BACKUP, "Backup directory ready",
+                         Severity.RECOMMENDED, timeout_seconds=5, safe_fix_id="create_missing_dirs",
+                         remediation=["Create backup directory and run a backup."]), _check_backup_directory),
+        (CheckDefinition("backup.manifest", CheckCategory.BACKUP, "Backup manifest parseable",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Check backup integrity."]), _check_backup_manifest),
+        (CheckDefinition("backup.encryption", CheckCategory.BACKUP, "Backup encryption dependency",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Install cryptography: pip install cryptography"]), _check_backup_encryption),
+        (CheckDefinition("backup.retention", CheckCategory.BACKUP, "Backup retention policy",
+                         Severity.OPTIONAL, timeout_seconds=5,
+                         remediation=["Set BACKUP_KEEP to a positive integer."]), _check_backup_retention),
+        # Security
+        (CheckDefinition("security.session", CheckCategory.SECURITY, "Session security configuration",
+                         Severity.OPTIONAL, timeout_seconds=5), _check_session_security),
+        (CheckDefinition("security.secrets", CheckCategory.SECURITY, "Secret validation",
+                         Severity.RECOMMENDED, production_required=True, timeout_seconds=5), _check_production_secrets),
+        (CheckDefinition("security.cookie", CheckCategory.SECURITY, "Cookie security",
+                         Severity.RECOMMENDED, timeout_seconds=5,
+                         remediation=["Set SESSION_COOKIE_SECURE=true for production."]), _check_cookie_security),
     ]
-
     for defn, runner in checks:
         register_check(defn, runner)
 
@@ -1773,40 +2103,79 @@ def _register_all_checks() -> None:
 
 
 def _fix_create_missing_dirs(cr: CheckResult) -> tuple[bool, str]:
-    """Create missing runtime directories."""
     try:
-        from app.filesystem.layout import RuntimePaths, detect_mode
-
-        paths = RuntimePaths.for_mode(detect_mode().detected_mode)
+        paths = _ctx_paths()
+        if paths is None:
+            return False, "Cannot resolve paths"
         created = []
-        for name in (
-            "data_dir",
-            "uploads_dir",
-            "themes_dir",
-            "backups_dir",
-            "exports_dir",
-            "log_dir",
-            "runtime_dir",
-        ):
+        for name in ("data_dir", "uploads_dir", "themes_dir", "backups_dir", "exports_dir", "log_dir", "runtime_dir"):
             rp = getattr(paths, name)
             if not rp.path.exists():
                 rp.path.mkdir(parents=True, exist_ok=True)
                 created.append(name)
-        return (
-            True,
-            f"Created {len(created)} director(ies): {', '.join(created)}"
-            if created
-            else "All directories already exist",
-        )
+        return (True, f"Created {len(created)} director(ies): {', '.join(created)}" if created else "All directories already exist")
     except Exception as e:
         return False, f"Failed to create directories: {e}"
 
 
+def _fix_cleanup_stale_pid(cr: CheckResult) -> tuple[bool, str]:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return False, "Cannot resolve paths"
+        runtime_dir = paths.runtime_dir.path
+        if not runtime_dir.exists():
+            return False, "Runtime directory does not exist"
+        removed = []
+        for pf in runtime_dir.glob("*.pid"):
+            try:
+                pid = int(pf.read_text().strip())
+                try:
+                    os.kill(pid, 0)
+                    continue
+                except OSError:
+                    pf.unlink()
+                    removed.append(pf.name)
+            except (ValueError, OSError):
+                pass
+        return (True, f"Removed {len(removed)} stale PID file(s)" if removed else "No stale PID files found")
+    except Exception as e:
+        return False, f"Failed to clean up PID files: {e}"
+
+
+def _fix_rebuild_fts(cr: CheckResult) -> tuple[bool, str]:
+    try:
+        from app.services.operations.database import rebuild_search_index
+
+        result = rebuild_search_index()
+        return (True, f"FTS index rebuilt: {result.indexed_count} posts indexed" if result.ok else f"FTS rebuild failed: {result.summary}")
+    except Exception as e:
+        return False, f"Failed to rebuild FTS: {e}"
+
+
+def _fix_correct_permissions(cr: CheckResult) -> tuple[bool, str]:
+    try:
+        paths = _ctx_paths()
+        if paths is None:
+            return False, "Cannot resolve paths"
+        env_path = paths.env_file.path
+        if not env_path.exists():
+            return False, ".env file not found"
+        env_path.chmod(0o600)
+        return True, f"Set permissions to 600 on {env_path}"
+    except Exception as e:
+        return False, f"Failed to correct permissions: {e}"
+
+
 def _register_safe_fixes() -> None:
-    register_safe_fix(
-        "create_missing_dirs", "Create missing runtime directories", "fs.required_dirs"
-    )
+    register_safe_fix("create_missing_dirs", "Create missing runtime directories", "fs.required_dirs")
     register_safe_fix_runner("create_missing_dirs", _fix_create_missing_dirs)
+    register_safe_fix("cleanup_stale_pid", "Remove stale PID files", "deploy.pid")
+    register_safe_fix_runner("cleanup_stale_pid", _fix_cleanup_stale_pid)
+    register_safe_fix("rebuild_fts", "Rebuild FTS search index", "db.fts5")
+    register_safe_fix_runner("rebuild_fts", _fix_rebuild_fts)
+    register_safe_fix("correct_permissions", "Correct .env file permissions", "install.secret_permissions")
+    register_safe_fix_runner("correct_permissions", _fix_correct_permissions)
 
 
 # Initialize on import

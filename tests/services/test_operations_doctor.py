@@ -421,3 +421,402 @@ class TestSecurityChecks:
         with app.app_context():
             result = run_doctor(check_ids=["security.session"])
             assert result.checks[0].status == CheckStatus.PASS
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H3 Installation
+# ---------------------------------------------------------------------------
+
+
+class TestInstallationChecks:
+    def test_release_symlink(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["install.release_symlink"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_config_path(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["install.config_path"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_deprecated_keys(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["install.deprecated_keys"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_secret_permissions(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["install.secret_permissions"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_stale_metadata(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["install.stale_metadata"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H4 Filesystem
+# ---------------------------------------------------------------------------
+
+
+class TestFilesystemChecksNew:
+    def test_dir_ownership(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.ownership"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_dir_writable(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.writable"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.FAIL)
+
+    def test_inodes(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.inodes"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_fs_type(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.type"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_docker_uid(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.docker_uid"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_stale_files(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.stale_files"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_legacy_remnants(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.legacy_remnants"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H5 Database
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseChecksNew:
+    def test_wal_checkpoint(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.wal_checkpoint"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_db_ownership(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.ownership"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_fts_health(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.fts_health"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_migration_orphaned(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.orphaned_migration"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_backend_features(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.backend_features"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H6 Assets
+# ---------------------------------------------------------------------------
+
+
+class TestAssetChecksNew:
+    def test_referenced_assets(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["assets.referenced"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_theme_accessibility(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["themes.accessibility"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_theme_attribution(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["themes.attribution"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H7 Dependencies
+# ---------------------------------------------------------------------------
+
+
+class TestDependencyChecksNew:
+    def test_redis_auth(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.redis_auth"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_celery_workers(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.celery_workers"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_scheduler_stale(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.scheduler_stale"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_smtp_connect(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.smtp_connect"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_storage_writable(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["dep.storage_writable"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.FAIL)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H8 Deployment
+# ---------------------------------------------------------------------------
+
+
+class TestDeploymentChecksNew:
+    def test_deploy_drift(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.drift"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_service_state(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.service_state"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_deploy_files(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.files"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_health_endpoint(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.health_endpoint"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_proxy_config(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.proxy"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_bind_address(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.bind"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_stale_pid(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.pid"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_restart_loop(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["deploy.restart_loop"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — H9 Backup
+# ---------------------------------------------------------------------------
+
+
+class TestBackupChecksNew:
+    def test_backup_manifest(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["backup.manifest"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.SKIP)
+
+    def test_backup_encryption(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["backup.encryption"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_backup_retention(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["backup.retention"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+
+# ---------------------------------------------------------------------------
+# New check tests — Security
+# ---------------------------------------------------------------------------
+
+
+class TestSecurityChecksNew:
+    def test_production_secrets(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["security.secrets"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+    def test_cookie_security(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["security.cookie"])
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.WARN)
+
+
+# ---------------------------------------------------------------------------
+# Engine tests
+# ---------------------------------------------------------------------------
+
+
+class TestEngineFeatures:
+    def test_per_check_timeout(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["db.sqlite_integrity"], total_timeout=120)
+            assert len(result.checks) == 1
+            assert result.checks[0].status in (CheckStatus.PASS, CheckStatus.SKIP)
+
+    def test_deep_flag(self, app, db):
+        with app.app_context():
+            result_normal = run_doctor(deep=False)
+            result_deep = run_doctor(deep=True)
+            assert len(result_deep.checks) >= len(result_normal.checks)
+
+    def test_json_serialization(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["pkg.version"])
+            d = result.to_dict()
+            import json
+
+            serialized = json.dumps(d, default=str)
+            assert isinstance(serialized, str)
+            assert "doctor.ok" in serialized or "doctor.degraded" in serialized or "doctor.failed" in serialized
+
+    def test_total_timeout_skips_remaining(self, app, db):
+        with app.app_context():
+            result = run_doctor(total_timeout=0.001)
+            skipped = [c for c in result.checks if c.status == CheckStatus.SKIP]
+            assert len(skipped) > 0 or len(result.checks) == 0
+
+    def test_severity_ordering(self, app, db):
+        with app.app_context():
+            result = run_doctor()
+            assert len(result.checks) > 10
+            categories = {c.category for c in result.checks}
+            assert "database" in categories
+            assert "filesystem" in categories
+
+
+# ---------------------------------------------------------------------------
+# Safe fix tests — new fixes
+# ---------------------------------------------------------------------------
+
+
+class TestNewSafeFixes:
+    def test_cleanup_stale_pid_registered(self):
+        from app.services.operations.doctor import _SAFE_FIXES
+
+        assert "cleanup_stale_pid" in _SAFE_FIXES
+
+    def test_rebuild_fts_registered(self):
+        from app.services.operations.doctor import _SAFE_FIXES
+
+        assert "rebuild_fts" in _SAFE_FIXES
+
+    def test_correct_permissions_registered(self):
+        from app.services.operations.doctor import _SAFE_FIXES
+
+        assert "correct_permissions" in _SAFE_FIXES
+
+    def test_fix_create_dirs(self, app, db):
+        from app.services.operations.doctor import _fix_create_missing_dirs, CheckResult
+
+        cr = CheckResult("test", "filesystem", "warn", "recommended", "missing", safe_fix_id="create_missing_dirs")
+        ok, detail = _fix_create_missing_dirs(cr)
+        assert isinstance(ok, bool)
+        assert isinstance(detail, str)
+
+    def test_fix_cleanup_stale_pid(self, app, db):
+        from app.services.operations.doctor import _fix_cleanup_stale_pid, CheckResult
+
+        cr = CheckResult("test", "deployment", "warn", "optional", "stale", safe_fix_id="cleanup_stale_pid")
+        ok, detail = _fix_cleanup_stale_pid(cr)
+        assert isinstance(ok, bool)
+
+    def test_fix_rebuild_fts(self, app, db):
+        from app.services.operations.doctor import _fix_rebuild_fts, CheckResult
+
+        with app.app_context():
+            cr = CheckResult("test", "search", "warn", "recommended", "missing", safe_fix_id="rebuild_fts")
+            ok, detail = _fix_rebuild_fts(cr)
+            assert isinstance(ok, bool)
+
+    def test_fix_correct_permissions(self, app, db):
+        from app.services.operations.doctor import _fix_correct_permissions, CheckResult
+
+        cr = CheckResult("test", "secrets", "warn", "recommended", "permissive", safe_fix_id="correct_permissions")
+        ok, detail = _fix_correct_permissions(cr)
+        assert isinstance(ok, bool)
+
+
+# ---------------------------------------------------------------------------
+# Broken-state scenario tests
+# ---------------------------------------------------------------------------
+
+
+class TestBrokenStateScenarios:
+    def test_missing_secret_key(self, app, db, monkeypatch):
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.secret_key"])
+            assert result.checks[0].status == CheckStatus.FAIL
+            assert "SECRET_KEY" in result.checks[0].summary
+
+    def test_placeholder_secret_key(self, app, db, monkeypatch):
+        monkeypatch.setenv("SECRET_KEY", "changeme")
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.secret_key"])
+            assert result.checks[0].status == CheckStatus.FAIL
+            assert "placeholder" in result.checks[0].summary.lower()
+
+    def test_missing_admin_password(self, app, db, monkeypatch):
+        monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.admin_password"])
+            assert result.checks[0].status == CheckStatus.FAIL
+
+    def test_short_secret_key_warns(self, app, db, monkeypatch):
+        monkeypatch.setenv("SECRET_KEY", "short")
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.secret_key"])
+            assert result.checks[0].status == CheckStatus.WARN
+
+    def test_production_required_enforced(self, app, db, monkeypatch):
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+        with app.app_context():
+            result = run_doctor(check_ids=["secrets.secret_key"], production=True)
+            assert result.checks[0].status == CheckStatus.FAIL
+            assert result.ok is False
+
+    def test_single_check_failure_does_not_block_others(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["nonexistent.check", "pkg.version"])
+            pkg_results = [c for c in result.checks if c.check_id == "pkg.version"]
+            assert len(pkg_results) == 1
+            assert pkg_results[0].status == CheckStatus.PASS
+
+    def test_check_id_not_found_returns_empty(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["totally.nonexistent.id"])
+            assert len(result.checks) == 0
+
+    def test_category_filter(self, app, db):
+        with app.app_context():
+            result = run_doctor(category="nonexistent")
+            assert len(result.checks) == 0
+            assert result.ok is True

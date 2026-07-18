@@ -57,7 +57,7 @@ Business logic for CLI commands lives in `app/services/operations/`:
 - `backup.py` — create_backup_operation, verify_backup
 - `deploy.py` — deploy_render, deploy_install, deploy_check, lifecycle_start, lifecycle_stop, lifecycle_restart, lifecycle_status, lifecycle_logs
 - `onboard.py` — detect_installation, generate_plan, apply_onboarding
-- `doctor.py` — diagnostic check registry, execution engine, safe fixes, 27 check implementations across 14 categories
+- `doctor.py` — diagnostic check registry, execution engine, safe fixes, 63 check implementations across 14 categories
 
 Service functions:
 - Never depend on Click or terminal output

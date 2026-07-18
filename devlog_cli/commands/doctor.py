@@ -29,6 +29,10 @@ if TYPE_CHECKING:
 @click.option(
     "--list-checks", is_flag=True, default=False, help="List all available checks and exit."
 )
+@click.option(
+    "--deep", is_flag=True, default=False,
+    help="Include expensive checks (e.g., SQLite integrity, WAL checkpoint).",
+)
 @click.pass_context
 def doctor(
     ctx: click.Context,
@@ -38,6 +42,7 @@ def doctor(
     fix_safe: bool,
     json_mode: bool,
     list_checks: bool,
+    deep: bool,
 ) -> None:
     """Run diagnostic checks to assess installation health."""
     cli_ctx: CliContext = ctx.obj
@@ -55,7 +60,7 @@ def doctor(
             registry = get_registry()
 
             if list_checks:
-                checks = registry.list_checks(category=category)
+                checks = registry.list_checks(category=category, deep=deep)
                 if not checks:
                     r = Result.success(code="doctor.list.empty", summary="No checks registered.")
                     render(r, json_mode=json_mode, verbose=cli_ctx.verbose)
@@ -73,6 +78,7 @@ def doctor(
                             "production_required": c.production_required,
                             "timeout_seconds": c.timeout_seconds,
                             "safe_fix_id": c.safe_fix_id,
+                            "deep": c.deep,
                         }
                         for c in checks
                     ]
@@ -83,8 +89,9 @@ def doctor(
                 for c in checks:
                     prod = " [required]" if c.production_required else ""
                     fix = f" [fix:{c.safe_fix_id}]" if c.safe_fix_id else ""
+                    deep_tag = " [deep]" if c.deep else ""
                     click.echo(
-                        f"  {c.check_id:<30s} {c.category:<15s} {c.severity:<12s}{prod}{fix}"
+                        f"  {c.check_id:<35s} {c.category:<15s} {c.severity:<12s}{prod}{fix}{deep_tag}"
                     )
                     click.echo(f"    {c.description}")
                 raise SystemExit(ExitCode.SUCCESS)
@@ -96,6 +103,7 @@ def doctor(
                 category=category,
                 check_ids=check_ids,
                 fix_safe=fix_safe,
+                deep=deep,
             )
 
             if json_mode:
@@ -107,7 +115,7 @@ def doctor(
                     output["details"]["safe_fixes_applied"] = [
                         {"fix_id": f.fix_id, "description": f.description} for f in plan
                     ]
-                print(json_mod.dumps(output, indent=2))
+                print(json_mod.dumps(output, indent=2, default=str))
             else:
                 _render_human_doctor(doctor_result, verbose=cli_ctx.verbose, fix_safe=fix_safe)
 
@@ -130,18 +138,25 @@ def doctor(
         raise SystemExit(r.exit_code)
 
 
+_STATUS_ICONS = {
+    "pass": "+",
+    "warn": "!",
+    "fail": "x",
+    "skip": "-",
+    "error": "?",
+}
+
+_STATUS_COLORS = {
+    "pass": "green",
+    "warn": "yellow",
+    "fail": "red",
+    "error": "red",
+}
+
+
 def _render_human_doctor(
     result: "DoctorResult", *, verbose: bool = False, fix_safe: bool = False
 ) -> None:
-    """Render doctor results in human-readable format."""
-    status_icons = {
-        "pass": "+",
-        "warn": "!",
-        "fail": "x",
-        "skip": "-",
-        "error": "?",
-    }
-
     if result.ok and result.status == "healthy":
         click.echo(click.style(f"  {result.summary}", fg="green"))
     elif result.status == "degraded":
@@ -154,25 +169,25 @@ def _render_human_doctor(
     )
     click.echo()
 
+    severity_order = {"required": 0, "recommended": 1, "optional": 2}
+    status_order = {"fail": 0, "error": 1, "warn": 2, "skip": 3, "pass": 4}
+    sorted_checks = sorted(
+        result.checks,
+        key=lambda c: (severity_order.get(c.severity, 9), status_order.get(c.status, 9)),
+    )
+
     categories: dict[str, list] = {}
-    for c in result.checks:
+    for c in sorted_checks:
         categories.setdefault(c.category, []).append(c)
 
     for cat_name in sorted(categories.keys()):
         cat_checks = categories[cat_name]
         click.echo(f"  [{cat_name.upper()}]")
         for c in cat_checks:
-            icon = status_icons.get(c.status, "?")
-            if c.status == "pass":
-                color = "green"
-            elif c.status == "warn":
-                color = "yellow"
-            elif c.status in ("fail", "error"):
-                color = "red"
-            else:
-                color = None
+            icon = _STATUS_ICONS.get(c.status, "?")
+            color = _STATUS_COLORS.get(c.status)
             styled_icon = click.style(icon, fg=color) if color else icon
-            line = f"    {styled_icon} {c.check_id:<30s} {c.summary}"
+            line = f"    {styled_icon} {c.check_id:<35s} {c.summary}"
             if c.duration_ms > 0:
                 line += f" ({c.duration_ms:.0f}ms)"
             click.echo(line)
