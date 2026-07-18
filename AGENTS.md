@@ -96,9 +96,11 @@ Important actual file locations (verify before assuming):
 | CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run with `--scope` option (system/user) |
 | CLI deploy commands | `devlog_cli/commands/deploy.py` — `deploy render`, `deploy install`, `deploy check` |
 | CLI lifecycle commands | `devlog_cli/commands/lifecycle.py` — `start`, `stop`, `restart`, `status`, `logs` |
+| CLI doctor command | `devlog_cli/commands/doctor.py` — `doctor`, `doctor --production`, `doctor --check CHECK_ID`, `doctor --category CATEGORY`, `doctor --fix-safe`, `doctor --list-checks` |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
+| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 27 check implementations across 14 categories |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 | Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
@@ -265,9 +267,11 @@ Important actual file locations (verify before assuming):
 | CLI onboard commands | `devlog_cli/commands/onboard.py` — detect, plan, run with `--scope` option (system/user) |
 | CLI deploy commands | `devlog_cli/commands/deploy.py` — `deploy render`, `deploy install`, `deploy check` |
 | CLI lifecycle commands | `devlog_cli/commands/lifecycle.py` — `start`, `stop`, `restart`, `status`, `logs` |
+| CLI doctor command | `devlog_cli/commands/doctor.py` — `doctor`, `doctor --production`, `doctor --check CHECK_ID`, `doctor --category CATEGORY`, `doctor --fix-safe`, `doctor --list-checks` |
 | Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
 | Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
+| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 27 check implementations across 14 categories |
 | Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
 | Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |

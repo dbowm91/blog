@@ -57,6 +57,7 @@ Business logic for CLI commands lives in `app/services/operations/`:
 - `backup.py` — create_backup_operation, verify_backup
 - `deploy.py` — deploy_render, deploy_install, deploy_check, lifecycle_start, lifecycle_stop, lifecycle_restart, lifecycle_status, lifecycle_logs
 - `onboard.py` — detect_installation, generate_plan, apply_onboarding
+- `doctor.py` — diagnostic check registry, execution engine, safe fixes, 27 check implementations across 14 categories
 
 Service functions:
 - Never depend on Click or terminal output
@@ -82,6 +83,7 @@ Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [p
 | `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
 | `devlog onboard` | `devlog_cli/commands/onboard.py` | detect, plan, run, resume — first-run and reconfiguration onboarding |
 | `devlog deploy` | `devlog_cli/commands/deploy.py` | render, install, check — deployment artifact generation and installation |
+| `devlog doctor` | `devlog_cli/commands/doctor.py` | Diagnostic checks: `doctor`, `doctor --production`, `doctor --check CHECK_ID`, `doctor --category CATEGORY`, `doctor --fix-safe`, `doctor --list-checks` |
 | `devlog start/stop/restart/status/logs` | `devlog_cli/commands/lifecycle.py` | Backend-aware service lifecycle commands |
 
 CLI onboarding options:
