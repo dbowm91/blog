@@ -27,8 +27,9 @@
     <form method="POST" action="{{ url_for('admin.subscribers_bulk', status=filter_status) }}" id="bulk-form" data-bulk-select="subscriber">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-        <div class="post-list">
+        <div class="post-list post-list--with-check">
             <div class="post-list-header">
+                <span class="post-list-header-check"></span>
                 <span>Email</span>
                 <span class="post-list-header-right">Actions</span>
             </div>

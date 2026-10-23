@@ -17,6 +17,8 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Task Line Numbers](#task-line-numbers)
 - [Test Structure](#test-structure)
 - [Misc Implementation Notes](#misc-implementation-notes)
+- [Verifying Frontend Visual Defects](#verifying-frontend-visual-defects)
+- [Second Frontend Review Pass (2026-10-23)](#second-frontend-review-pass-2026-10-23)
 
 ---
 
@@ -500,4 +502,63 @@ file in the pristine tree reproduced the failure exactly, proving it was
 pre-existing repository pollution rather than a regression. Comparing a failure
 *set* against a pristine baseline is the only reliable way to separate a real
 regression from environment state.
+
+## Second Frontend Review Pass (2026-10-23)
+
+A second review of the running instance found eight more defects. The
+interesting ones were not visual at all.
+
+**A test that mutates session-scoped config poisons every test after it.** The
+`app` fixture is session-scoped. A test that set `app.config["CSRF_ENABLED"] =
+True` and `app.config["TESTING"] = False` without restoring them left CSRF
+enforced for the rest of the session: every later admin POST returned 403,
+every admin GET redirected to the login page, and the suite went from 76 to
+137 failures — all caused by the new test, not by the change under test. Use
+`monkeypatch.setitem(app.config, ...)`, which restores the value at teardown.
+The symptom (mass authentication failures in unrelated files) points nowhere
+near the cause.
+
+**The CSRF token was single-use, so a page could only submit once.** The
+sliding window in `app/csrf.py` removed a token on use and rotated it, but
+`inject_csrf` only ever publishes `tokens[-1]`, so the window never held more
+than one token. The theme preview endpoint consumed the page's only token, and
+the "Save Theme Settings" form that followed it was rejected with a 403 — the
+theme never changed. The token is now validated against the window without
+being consumed, which is also what Flask-WTF, Django and Rails do. Replay
+resistance was the only property lost, and it buys nothing against a token
+that is unguessable and session-bound.
+
+**The theme preview injected variables nothing reads.** The preview endpoint
+returned `loaded_theme.css`, which `to_css_variables` renders with the
+`--blog-*` semantic names. No stylesheet references `var(--blog-*)` — the
+cascade consumes the legacy alias names `--bg`, `--text`, `--accent`. The
+preview therefore always showed the *current* theme. `to_legacy_css()` now
+serialises the legacy names, and the preview stylesheet is scoped to
+`#theme-preview-container` so that previewing a theme no longer repaints the
+whole admin panel.
+
+**`func.date()` returns a string on SQLite.** `admin/analytics.html` called
+`day.date.strftime('%b %d')` on the result of `func.date(PageView.created_at)`,
+which is a `str` on SQLite and a `date` elsewhere. The page raised
+`'str object' has no attribute 'strftime'` and returned 500 whenever the
+period contained any views. `_coerce_date()` normalises the value.
+
+**The admin panel had no colour-scheme toggle.** `color-scheme.js` was only in
+the public module list and `admin/base.html` had no `.nav-actions` host, so the
+one place you would change the theme was the one place you could not.
+
+**`tests/onboarding/` overwrites `.env` and `config.toml` in the repository
+root.** Running the suite replaces the local instance's configuration with
+`failed = true` and rewrites `ADMIN_PASSWORD`. It does not affect the test run
+itself — the config is loaded at import — but it silently breaks a local
+server on the next start, and it leaves `.env.backup.*` files behind. Restore
+both files after a full-suite run.
+
+**Grid headers and rows are separate grid containers.** A `.post-list-header`
+and a `.post-list-item` sized their own tracks, so an `auto` column ended up a
+different width in each and the columns drifted apart — the dashboard header
+had two cells over rows with four. The list is now a single grid and the rows
+are `subgrid`s of it, so every row shares the parent's tracks. Give the header
+a transparent 1px border when the items have one, or the rows sit 1px apart.
+
 

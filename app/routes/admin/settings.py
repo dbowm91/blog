@@ -22,6 +22,7 @@ from app.themes.registry import (
     ThemeLoadError,
 )
 from app.themes.service import get_theme_service
+from app.themes.translate import to_legacy_css
 from app.utils import sanitize_css
 
 logger = logging.getLogger(__name__)
@@ -206,7 +207,7 @@ def settings_theme_preview() -> ResponseReturnValue:
     try:
         loaded_dark = registry.load(dark_name)
         resolved_dark_name = loaded_dark.descriptor.canonical_name
-        dark_css = loaded_dark.css
+        dark_css = to_legacy_css(loaded_dark.legacy_vars)
         dark_is_dark = loaded_dark.is_dark
         dark_warnings = [
             f"{w.token}: {w.description} ({w.ratio:.2f}:1, WCAG {w.wcag})"
@@ -222,7 +223,7 @@ def settings_theme_preview() -> ResponseReturnValue:
     try:
         loaded_light = registry.load(light_name)
         resolved_light_name = loaded_light.descriptor.canonical_name
-        light_css = loaded_light.css
+        light_css = to_legacy_css(loaded_light.legacy_vars)
         light_is_dark = loaded_light.is_dark
         light_warnings = [
             f"{w.token}: {w.description} ({w.ratio:.2f}:1, WCAG {w.wcag})"

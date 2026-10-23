@@ -186,14 +186,14 @@
         line-height: 1.4;
     }
     .source-bundled {
-        background: var(--bg-secondary, #f0f0f0);
-        color: var(--text-secondary, #666);
-        border: 1px solid var(--border-color, #ddd);
+        background: var(--bg-elevated);
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
     }
     .source-external {
-        background: var(--color-accent-bg, #e8f4fd);
-        color: var(--color-accent, #0066cc);
-        border: 1px solid var(--color-accent-border, #b3d9f2);
+        background: var(--accent-dim);
+        color: var(--accent);
+        border: 1px solid var(--accent-dim);
     }
     .classification-dark {
         background: #2d2d2d;
@@ -205,16 +205,16 @@
         border: 1px solid #ddd;
     }
     .overrides-tag {
-        background: var(--color-warning-bg, #fff3cd);
-        color: var(--color-warning, #856404);
-        border: 1px solid var(--color-warning-border, #ffeeba);
+        background: var(--warning-bg);
+        color: var(--warning-fg);
+        border: 1px solid var(--yellow-dim);
     }
     .theme-warnings-container {
         margin-bottom: 16px;
     }
     .theme-warnings-box {
-        background: var(--color-warning-bg, #fff3cd);
-        border: 1px solid var(--color-warning-border, #ffeeba);
+        background: var(--warning-bg);
+        border: 1px solid var(--yellow-dim);
         border-radius: 6px;
         padding: 12px 16px;
     }
@@ -249,12 +249,13 @@
         font-size: 0.9rem;
     }
     .theme-preview-container {
-        border: 1px solid var(--border-color, #ddd);
+        border: 1px solid var(--border);
         border-radius: 8px;
         max-height: 500px;
         overflow-y: auto;
         padding: 24px;
-        background: var(--bg-primary, #fff);
+        background: var(--bg-surface);
+        color: var(--text);
     }
     .theme-preview-badge {
         display: inline-block;
@@ -264,16 +265,16 @@
         font-weight: 500;
     }
     .badge-success {
-        background: var(--color-success-bg, #d4edda);
-        color: var(--color-success, #155724);
+        background: var(--success-bg);
+        color: var(--green);
     }
     .badge-error {
-        background: var(--color-error-bg, #f8d7da);
-        color: var(--color-error, #721c24);
+        background: var(--error-bg);
+        color: var(--red);
     }
     .badge-warning {
-        background: var(--color-warning-bg, #fff3cd);
-        color: var(--color-warning, #856404);
+        background: var(--warning-bg);
+        color: var(--warning-fg);
     }
     .theme-preview-code {
         margin: 16px 0;
@@ -283,8 +284,9 @@
     .theme-preview-code pre {
         margin: 0;
         padding: 16px;
-        background: var(--bg-secondary, #f5f5f5);
-        border: 1px solid var(--border-color, #ddd);
+        background: var(--code-bg);
+        color: var(--text);
+        border: 1px solid var(--border);
         border-radius: 6px;
         overflow-x: auto;
     }
@@ -295,10 +297,10 @@
     .theme-preview-card {
         margin: 16px 0;
         padding: 20px;
-        border: 1px solid var(--border-color, #ddd);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        background: var(--bg-primary, #fff);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        background: var(--bg-elevated);
+        box-shadow: 0 2px 4px var(--shadow-color);
     }
     .theme-preview-card h3 {
         margin-top: 0;
@@ -388,7 +390,7 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
     function showError(message) {
         var errorEl = document.createElement('div');
         errorEl.className = 'theme-preview-loading';
-        errorEl.style.color = 'var(--color-error)';
+        errorEl.style.color = 'var(--red)';
         errorEl.textContent = 'Error: ' + message;
         previewContainer.replaceChildren(errorEl);
         previewSection.style.display = 'block';
@@ -423,20 +425,26 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
         }
         previewStyleEl = document.createElement('style');
         previewStyleEl.setAttribute('nonce', '{{ csp_nonce }}');
-        var cssText = '[data-color-scheme="dark"] { ' + darkCss + ' }\n';
-        cssText += '[data-color-scheme="light"] { ' + lightCss + ' }\n';
-        cssText += ':root { ' + darkCss + ' }';
+        // Scoped to the preview container so previewing a theme does not
+        // repaint the whole admin panel.
+        var cssText = '#theme-preview-container[data-color-scheme="dark"] { ' + darkCss + ' }\n';
+        cssText += '#theme-preview-container[data-color-scheme="light"] { ' + lightCss + ' }';
         previewStyleEl.textContent = cssText;
         document.head.appendChild(previewStyleEl);
     }
 
-    function fetchPreview() {
+    var previewRequestId = 0;
+
+    function fetchPreview(event) {
+        var btn = event && event.currentTarget;
+        var target = btn && btn.getAttribute('data-target') === 'light' ? 'light' : 'dark';
         var darkName = darkSelect.value;
         var lightName = lightSelect.value;
         if (!darkName || !lightName) return;
 
         showLoading();
 
+        var requestId = ++previewRequestId;
         var formData = new FormData();
         formData.append('theme_dark_name', darkName);
         formData.append('theme_light_name', lightName);
@@ -462,6 +470,8 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
         })
         .then(function(data) {
             if (!data) return;
+            // A newer preview request supersedes this one.
+            if (requestId !== previewRequestId) return;
             if (data.error) {
                 showError(data.error);
                 return;
@@ -469,12 +479,7 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
 
             applyPreviewCss(data.dark_css, data.light_css);
 
-            var scheme = localStorage.getItem('blog-color-scheme') || 'system';
-            var effective = scheme === 'system'
-                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                : scheme;
-            previewContainer.setAttribute('data-color-scheme', effective);
-
+            previewContainer.setAttribute('data-color-scheme', target);
             previewContainer.innerHTML = document.getElementById('theme-preview-content-restore').innerHTML;
             previewSection.style.display = 'block';
 

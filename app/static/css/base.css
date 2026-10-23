@@ -542,7 +542,7 @@ textarea {
         opacity: 0.5;
     }
     
-    .nav-links a.active::after {
+    .nav-links a.active .nav-link-text::after {
         display: none;
     }
 

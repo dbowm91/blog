@@ -1,6 +1,6 @@
 """Analytics helpers for admin routes."""
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func, select
 from typing import Any
@@ -10,6 +10,28 @@ from app.extensions import db
 from app.models import PageView, ShareEvent, Subscriber, Post
 from app.utils import utc_now
 from app.routes.admin.helpers.shared import _categorize_referrer
+
+
+def _coerce_date(value: Any) -> date | None:
+    """Coerce a SQL date expression into a ``date``.
+
+    ``func.date()`` returns a string on SQLite and a ``date`` on other
+    dialects, so the value has to be normalised before a template can call
+    ``strftime()`` on it.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value)
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 @flask_cache.memoize(timeout=300)
@@ -27,9 +49,16 @@ def _get_analytics_data(days: int) -> dict[str, Any]:
         .cte()
     )
 
-    daily_views = db.session.execute(
+    daily_views_rows = db.session.execute(
         select(daily_views_cte.c.date, daily_views_cte.c.views).order_by(daily_views_cte.c.date)
     ).all()
+
+    daily_views: list[dict[str, Any]] = []
+    for row in daily_views_rows:
+        day = _coerce_date(row.date)
+        if day is None:
+            continue
+        daily_views.append({"date": day, "views": row.views})
 
     total_views = db.session.execute(select(func.sum(daily_views_cte.c.views))).scalar_one() or 0
 

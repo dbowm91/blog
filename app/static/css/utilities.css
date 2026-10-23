@@ -17,6 +17,18 @@
     transition: opacity 0.3s;
 }
 
+/* --- Honeypot ---
+   Off-screen rather than display:none so automated submitters still find the
+   field while people never see it. */
+.hidden-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .editor-status-bar {
     display: flex;
     gap: 8px;

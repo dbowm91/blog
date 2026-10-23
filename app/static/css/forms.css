@@ -1,5 +1,81 @@
 /* Shared form controls and validation states. */
 
+/* --- Baseline form controls ---
+   Applied outside `.form-group` as well, so a control that is not wrapped in
+   a form group never falls back to the browser's plain white default. */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="datetime-local"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: var(--font-sans);
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="url"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="datetime-local"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-dim);
+}
+
+/* --- Search / filter input ---
+   Lives here rather than in public.css so the admin panel, which does not load
+   public.css, renders the same control. */
+.search-input {
+    padding: 6px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+    width: 100%;
+}
+
+.search-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
 /* --- Forms --- */
 .form-group {
     margin-bottom: 20px;

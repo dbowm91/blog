@@ -41,6 +41,43 @@ export function initFormLoading() {
     });
 }
 
+const SCROLL_RESTORE_KEY = 'devlog-scroll-position';
+const SCROLL_PRESERVE_SELECTOR = 'a.filter-link, a.page-link';
+
+export function initScrollPreservation() {
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest(SCROLL_PRESERVE_SELECTOR);
+        if (!link) return;
+        try {
+            sessionStorage.setItem(SCROLL_RESTORE_KEY, String(Math.round(window.scrollY)));
+        } catch {
+            // storage unavailable — scroll position is simply not preserved
+        }
+    });
+
+    let saved = null;
+    try {
+        saved = sessionStorage.getItem(SCROLL_RESTORE_KEY);
+    } catch {
+        return;
+    }
+    if (saved === null) return;
+    try {
+        sessionStorage.removeItem(SCROLL_RESTORE_KEY);
+    } catch {
+        // storage unavailable — nothing to restore
+    }
+    const y = Number(saved);
+    if (!Number.isFinite(y) || y <= 0) return;
+
+    const apply = () => window.scrollTo(0, y);
+    if (document.readyState === 'complete') {
+        requestAnimationFrame(apply);
+    } else {
+        window.addEventListener('load', () => requestAnimationFrame(apply), { once: true });
+    }
+}
+
 export function announce(message) {
     const el = document.getElementById('sr-announce');
     if (el) {
@@ -52,6 +89,9 @@ export function announce(message) {
 export function initSharedUtils() {
     // --- Pending-state submit buttons ---
     initFormLoading();
+
+    // --- Keep the viewport in place across filter/pagination navigation ---
+    initScrollPreservation();
 
     // --- History back button (CSP-safe replacement for inline onclick) ---
     document.querySelectorAll('[data-history-back]').forEach(btn => {

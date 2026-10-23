@@ -1100,17 +1100,41 @@
     }
 }
 
+/* The column template lives on the list container and is shared with every
+   row through `subgrid`, so the header labels and the item cells always line
+   up no matter how wide the individual cells get. Each variant matches the
+   child order of its own `.post-list-item`. */
 .post-list {
-    display: flex;
-    flex-direction: column;
+    --post-list-cols: minmax(0, 1fr) max-content;
+    display: grid;
+    grid-template-columns: var(--post-list-cols);
     gap: 2px;
 }
 
-.post-list-header {
+.post-list--with-check { --post-list-cols: max-content minmax(0, 1fr) max-content; }
+.post-list--with-metrics { --post-list-cols: minmax(0, 1fr) max-content max-content; }
+.post-list--posts { --post-list-cols: max-content minmax(0, 1fr) max-content max-content; }
+.post-list--pages { --post-list-cols: minmax(0, 1fr) max-content max-content max-content; }
+
+.post-list > * {
+    grid-column: 1 / -1;
+}
+
+.post-list-header,
+.post-list-item {
     display: grid;
-    grid-template-columns: 1fr 150px 100px auto;
+    /* Fallback for engines without subgrid support; the second declaration
+       wins wherever subgrid is available. */
+    grid-template-columns: var(--post-list-cols);
+    grid-template-columns: subgrid;
     align-items: center;
+}
+
+.post-list-header {
     padding: 8px 20px;
+    /* Matches the item border so the header labels and the item cells start
+       at exactly the same x offset. */
+    border: 1px solid transparent;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -1122,10 +1146,11 @@
     text-align: right;
 }
 
+.post-list-header-metrics {
+    margin: 0 var(--space-lg);
+}
+
 .post-list-item {
-    display: grid;
-    grid-template-columns: 1fr 150px 100px auto;
-    align-items: center;
     padding: 16px 20px;
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -1196,6 +1221,27 @@
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* Rows whose controls need more room than the columns allow get their own
+   full-width line underneath. */
+.post-list-item--stacked .post-list-extra {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.post-list-extra .inline-form {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.post-list-extra .label-hint {
+    flex-basis: 100%;
 }
 
 .badge {
@@ -1403,6 +1449,21 @@
 /* --- Phase 8: User management & backup --- */
 .pw-input {
     width: 150px;
+}
+
+.search-input.pw-input {
+    width: 150px;
+    flex: 0 0 150px;
+}
+
+.create-user-form .search-input {
+    flex: 0 1 220px;
+    width: auto;
+}
+
+.filter-form .search-input {
+    flex: 0 1 240px;
+    width: auto;
 }
 
 .create-user-form {

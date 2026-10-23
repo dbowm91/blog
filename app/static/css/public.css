@@ -374,6 +374,9 @@
 }
 
 .share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 16px;
     border-radius: var(--radius-sm);
     font-size: 14px;
@@ -1173,26 +1176,6 @@ a.related-card {
     display: flex;
     gap: 8px;
     align-items: center;
-}
-
-.search-input {
-    padding: 6px 12px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-size: 0.85rem;
-    font-family: var(--font-sans);
-    flex: 1 1 auto;
-    min-width: 0;
-    width: 100%;
-    transition: border-color var(--transition);
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--accent);
-    width: 100%;
 }
 
 .search-btn {

@@ -219,12 +219,9 @@ class ThemeService:
 
     @staticmethod
     def _serialize_vars(vars_dict: dict[str, str]) -> str:
-        lines = []
-        for key, value in vars_dict.items():
-            if key == "name":
-                continue
-            lines.append(f"  --{key}: {value};")
-        return "\n".join(lines)
+        from app.themes.translate import to_legacy_css
+
+        return to_legacy_css(vars_dict)
 
 
 def init_theme_service(

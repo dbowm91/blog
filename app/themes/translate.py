@@ -253,3 +253,13 @@ def to_legacy_vars(theme: BlogTheme) -> dict[str, str]:
         if css_var in theme_vars:
             result[legacy_key] = theme_vars[css_var]
     return result
+
+
+def to_legacy_css(legacy_vars: dict[str, str]) -> str:
+    """Serialize legacy alias vars into CSS declaration lines.
+
+    These are the ``--bg`` / ``--text`` / ``--accent`` names the stylesheets
+    actually consume, as opposed to the ``--blog-*`` semantic names emitted by
+    :func:`to_css_variables`.
+    """
+    return "\n".join(f"  --{key}: {value};" for key, value in legacy_vars.items() if key != "name")

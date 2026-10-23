@@ -47,7 +47,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE + 1MB
 **Before Request:**
 - Generate request ID (`g.request_id`)
 - Generate CSP nonce (`g.csp_nonce`)
-- CSRF validation for POST requests: sliding window of 5 valid tokens per session (app/csrf.py:20), token rotation on validation (app/csrf.py:53-60), and global enforcement via before_request_handler() (app/__init__.py:296-298)
+- CSRF validation for POST requests: sliding window of 5 valid tokens per session (app/csrf.py:20), tokens validated against the window without being consumed (app/csrf.py:60-84), and global enforcement via before_request_handler() (app/__init__.py:296-298)
 - Session timeout check with sliding expiration
 
 **After Request:**
