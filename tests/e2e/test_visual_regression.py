@@ -9,12 +9,25 @@ import pytest
 pytestmark = pytest.mark.e2e
 
 
+def _scheme_init_script(scheme):
+    """Seed the stored colour scheme before any page script runs.
+
+    The app's first-paint bootstrap reads ``localStorage`` from the inline
+    ``<head>`` script, so the value must be in place before navigation rather
+    than after it.
+    """
+    return (
+        "try { localStorage.setItem('blog-color-scheme', '%s'); } catch (e) { /* opaque origin */ }"
+        % scheme
+    )
+
+
 class TestVisualRegressionDark:
     """Snapshot tests under dark theme."""
 
     @pytest.fixture(autouse=True)
     def set_dark(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'dark')")
+        page.add_init_script(_scheme_init_script("dark"))
         page.goto(f"{app_server}/")
         page.wait_for_timeout(500)
 
@@ -52,7 +65,7 @@ class TestVisualRegressionDark:
                 }}
             """)
             if color:
-                assert color != "rgb(0, 0, 0)" or True, "Links should have visible color"
+                assert color != "rgba(0, 0, 0, 0)", "Links should have a visible colour"
 
     def test_subscribe_form_visible(self, page, app_server):
         form = page.locator(".subscribe-form, .hero-subscribe")
@@ -65,7 +78,7 @@ class TestVisualRegressionLight:
 
     @pytest.fixture(autouse=True)
     def set_light(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'light')")
+        page.add_init_script(_scheme_init_script("light"))
         page.goto(f"{app_server}/")
         page.wait_for_timeout(500)
 
@@ -102,7 +115,7 @@ class TestVisualRegressionAdmin:
 
     @pytest.fixture(autouse=True)
     def set_dark(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'dark')")
+        page.add_init_script(_scheme_init_script("dark"))
 
     def test_admin_login_visible(self, page, app_server):
         page.goto(f"{app_server}/admin/login")

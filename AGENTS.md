@@ -510,6 +510,28 @@ The accessibility policy uses a three-tier classification system: `recommended`,
 - `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
 - `app/themes/bundled/` — packaged Halloy theme files shipped with the app (50 `.toml` files + `__init__.py` + `catalog_manifest.json` + `ATTRIBUTION.md`)
 
+### Frontend Corrective Roadmap (complete)
+
+A frontend review on 2026-10-23 found 50 findings across the public site, admin dashboard, stylesheet layer, and JavaScript module layer (5 critical, 12 high, 25 medium, 8 low). **All 50 are fixed.** The phased plan and the per-phase closure evidence are at `plans/frontend_corrective_roadmap.md`.
+
+Phases, in dependency order:
+
+- `plans/frontend_corrective_phase_01_image_pipeline.md` — post image URLs were double-prefixed and 404, `srcset="None"` was emitted, and every `loading="lazy"` image was permanently `opacity: 0`
+- `plans/frontend_corrective_phase_02_public_interaction_and_build.md` — the lightbox never opened, the mobile menu and colour-scheme default were broken, the Vite build emitted an orphaned CSS asset
+- `plans/frontend_corrective_phase_03_admin_form_contracts.md` — media uploads always failed, Theme Preview always 403'd, the unsanitised markdown preview was an XSS vector
+- `plans/frontend_corrective_phase_04_css_cascade_and_theme_tokens.md` — the mobile nav could not collapse, the post title was 1.12:1 in dark mode, `--shadow-color` and `--code-bg` were never emitted
+- `plans/frontend_corrective_phase_05_accessibility_and_seo.md` — the sidebar's series navigation pointed at a non-existent endpoint, social metadata was empty by default
+
+These are now the standing contract for the affected surfaces:
+
+- `post_image_url` returns a **URL** (not a filename) and must not be re-wrapped with `url_for('static', ...)`.
+- The admin CSRF header is `X-CSRF-Token`, defined once in `app/csrf.py` as `CSRF_HEADER_NAME` and published to the browser as `data-csrf-header`. Client code uses `csrfHeaders()`.
+- CSS rules that must win must not tie on specificity with a later stylesheet — scope them instead.
+- `main.js` must not import a stylesheet; Flask links them so dev and production share one cascade.
+- Every `var(--x)` a stylesheet references must be emitted by the theme runtime or defined in a stylesheet. `tests/test_css_contracts.py` enforces this.
+
+See `app/static/AGENTS.override.md` for the full cross-layer contract list.
+
 ### Deployment Commands
 
 Phase G provides deployment artifact generation and service lifecycle management:

@@ -51,8 +51,9 @@ class TestColorSchemeToggle:
         assert label and "Color scheme:" in label
 
     def test_toggle_cycles_system_to_dark(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
         page.goto(f"{app_server}/")
+        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
+        page.reload()
         page.wait_for_timeout(500)
 
         page.locator("button.theme-toggle").click()
@@ -62,8 +63,9 @@ class TestColorSchemeToggle:
         assert stored == "dark"
 
     def test_toggle_cycles_dark_to_light(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'dark')")
         page.goto(f"{app_server}/")
+        page.evaluate("localStorage.setItem('blog-color-scheme', 'dark')")
+        page.reload()
         page.wait_for_timeout(500)
 
         page.locator("button.theme-toggle").click()
@@ -73,8 +75,9 @@ class TestColorSchemeToggle:
         assert stored == "light"
 
     def test_toggle_cycles_light_to_system(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'light')")
         page.goto(f"{app_server}/")
+        page.evaluate("localStorage.setItem('blog-color-scheme', 'light')")
+        page.reload()
         page.wait_for_timeout(500)
 
         page.locator("button.theme-toggle").click()
@@ -84,8 +87,9 @@ class TestColorSchemeToggle:
         assert stored == "system"
 
     def test_toggle_updates_aria_label(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
         page.goto(f"{app_server}/")
+        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
+        page.reload()
         page.wait_for_timeout(500)
 
         toggle = page.locator("button.theme-toggle")

@@ -4,7 +4,7 @@ export function initMobileMenu() {
     const closeIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     mobileMenuToggle.className = 'mobile-menu-toggle';
     mobileMenuToggle.type = 'button';
-    mobileMenuToggle.innerHTML = menuIcon;
+    mobileMenuToggle.innerHTML = `<span class="mobile-menu-icon-open">${menuIcon}</span><span class="mobile-menu-icon-close">${closeIcon}</span>`;
     mobileMenuToggle.setAttribute('aria-label', 'Open navigation menu');
     mobileMenuToggle.setAttribute('aria-expanded', 'false');
 
@@ -20,7 +20,6 @@ export function initMobileMenu() {
             navLinks.classList.toggle('open', isOpen);
             mobileMenuToggle.setAttribute('aria-expanded', isOpen.toString());
             mobileMenuToggle.setAttribute('aria-label', isOpen ? 'Close navigation menu' : 'Open navigation menu');
-            mobileMenuToggle.innerHTML = isOpen ? closeIcon : menuIcon;
         };
 
         mobileMenuToggle.addEventListener('click', () => {

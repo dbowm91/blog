@@ -21,7 +21,7 @@ from app.config import (
     AUTHOR_AVATAR,
     BASE_URL,
 )
-from app.csrf import generate_csrf_token
+from app.csrf import generate_csrf_token, CSRF_HEADER_NAME
 from app.tag_cache import _get_tag_counts
 
 logger = logging.getLogger(__name__)
@@ -143,7 +143,11 @@ def register_context_processors(app: Any) -> None:
             nonce = ""
         tokens = session.get("csrf_tokens", [])
         csrf_token = tokens[-1] if tokens else generate_csrf_token()
-        return {"csrf_token": csrf_token, "csp_nonce": nonce}
+        return {
+            "csrf_token": csrf_token,
+            "csrf_header_name": CSRF_HEADER_NAME,
+            "csp_nonce": nonce,
+        }
 
     @app.context_processor
     def inject_config() -> dict[str, Any]:

@@ -1,5 +1,3 @@
-import '../css/public.css';
-
 document.documentElement.classList.add('js');
 
 // Use Vite-compatible import.meta.glob() for static analysis
@@ -83,6 +81,7 @@ const ROUTE_MODULES = {
         './shared/mobile-menu.jsx',
         './admin/shortcuts.js',
         './admin/bulk.js',
+        './public/media-copy.js',
         './upload.js',
         './image-preview.js',
     ],
@@ -98,32 +97,56 @@ const ROUTE_MODULES = {
     ],
 };
 
-function getModulesForPath(path) {
-    for (const [route, modules] of Object.entries(ROUTE_MODULES)) {
-        if (path.startsWith(route)) return modules;
-    }
-    return [
-        './shared/utils.js',
-        './shared/toast.js',
-        './shared/color-scheme.js',
-        './shared/mobile-menu.jsx',
-        './shared/lazy-load.js',
-        './shared/prefetch.js',
-        './public/share.js',
-        './public/lightbox.js',
-        './public/toc.js',
-        './public/code-copy.js',
-        './public/anchor-links.js',
-        './public/media-copy.js',
-        './public/search.js',
-    ];
+const PUBLIC_MODULES = [
+    './shared/utils.js',
+    './shared/toast.js',
+    './shared/color-scheme.js',
+    './shared/mobile-menu.jsx',
+    './shared/lazy-load.js',
+    './shared/prefetch.js',
+    './public/share.js',
+    './public/lightbox.js',
+    './public/toc.js',
+    './public/code-copy.js',
+    './public/anchor-links.js',
+    './public/search.js',
+];
+
+// Longest prefix wins, and a route only matches on a path-segment boundary,
+// so '/admin/newsletter/preview' cannot be captured by '/admin/new'.
+const SORTED_ROUTE_MODULES = Object.entries(ROUTE_MODULES)
+    .sort((a, b) => b[0].length - a[0].length);
+
+function matchesRoute(path, route) {
+    if (route.endsWith('/')) return path.startsWith(route);
+    return path === route || path.startsWith(`${route}/`);
 }
+
+export function getModulesForPath(path) {
+    for (const [route, modules] of SORTED_ROUTE_MODULES) {
+        if (matchesRoute(path, route)) return modules;
+    }
+    return PUBLIC_MODULES;
+}
+
+const MODULE_INIT_OPTIONS = {
+    './shared/color-scheme.js': () => ({
+        defaultScheme: document.documentElement.dataset.defaultScheme || 'system',
+    }),
+};
 
 const loadModule = (path) => {
     const loader = moduleGlob[path];
     if (loader) {
         loader().then(module => {
-            if (typeof module.default === 'function') { module.default(); }
+            if (typeof module.default === 'function') {
+                const options = MODULE_INIT_OPTIONS[path] ? MODULE_INIT_OPTIONS[path]() : undefined;
+                if (options) {
+                    module.default(options);
+                } else {
+                    module.default();
+                }
+            }
         }).catch(err => {
             console.error(`Failed to load module: ${path}`, err);
         });

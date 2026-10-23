@@ -94,6 +94,8 @@ ALIASES: dict[str, str] = {
     "noscript-text": "--blog-noscript-text",
     "navbar-bg": "--blog-navbar-bg",
     "overlay-bg": "--blog-overlay-bg",
+    "shadow-color": "--blog-shadow-color",
+    "code-bg": "--blog-code-bg",
 }
 
 
@@ -201,7 +203,7 @@ EMERGENCY_DEFAULT = BlogTheme(
     selection_bg=_rgb("#30363d"),
     navbar_text=_rgb("#e6edf3"),
     navbar_text_muted=_rgb("#8b949e"),
-    shadow_color=RGBA(0, 0, 0, 0.15),
+    shadow_color=RGBA(0, 0, 0, 0.35),
     noscript_bg=_rgb("#3b2e00"),
     noscript_text=_rgb("#d4a017"),
     coral=_rgb("#f78166"),

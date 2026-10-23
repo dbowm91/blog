@@ -1,6 +1,7 @@
 """Post-related routes - view, preview, share tracking."""
 
 import logging
+from dataclasses import dataclass
 from typing import Any, cast
 
 from flask import current_app
@@ -20,7 +21,7 @@ from sqlalchemy.orm import joinedload, QueryableAttribute
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
-from app.models import Post, ShareEvent, PostSeries
+from app.models import Post, ShareEvent, PostSeries, Comment
 from app.config import MAX_VIEWED_POSTS, BASE_URL
 from app import limiter
 
@@ -29,6 +30,71 @@ logger = logging.getLogger(__name__)
 ALLOWED_SHARE_PLATFORMS = {"twitter", "facebook", "linkedin", "reddit", "hackernews", "link"}
 
 CLOCK_SKEW_TOLERANCE = 30
+
+
+@dataclass(frozen=True)
+class SeriesNavLink:
+    """A neighbouring post within the same series."""
+
+    slug: str
+    title: str
+
+
+@dataclass(frozen=True)
+class SeriesNav:
+    """Context object describing the series a post belongs to."""
+
+    series_title: str
+    series_slug: str
+    prev: SeriesNavLink | None
+    next: SeriesNavLink | None
+
+
+def _build_series_nav(post_obj: Post) -> SeriesNav | None:
+    """Build the series navigation for a post that belongs to a series.
+
+    The neighbours are the published posts that sit either side of the post
+    within its own series, ordered by ``PostSeries.order_index``.
+    """
+    entries = sorted(post_obj.series_entries or [], key=lambda entry: entry.order_index)
+    if not entries:
+        return None
+
+    series = entries[0].series
+    if series is None:
+        return None
+
+    siblings = (
+        db.session.execute(
+            select(PostSeries)
+            .options(joinedload(PostSeries.post))  # type: ignore[arg-type]
+            .filter(PostSeries.series_id == series.id)
+            .order_by(PostSeries.order_index)
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+
+    published = [entry for entry in siblings if entry.post is not None and entry.post.published]
+    position = next(
+        (index for index, entry in enumerate(published) if entry.post_id == post_obj.id),
+        None,
+    )
+    if position is None:
+        return None
+
+    def _link(entry: PostSeries | None) -> SeriesNavLink | None:
+        if entry is None or entry.post is None:
+            return None
+        return SeriesNavLink(slug=entry.post.slug, title=entry.post.title)
+
+    return SeriesNav(
+        series_title=series.name,
+        series_slug=series.slug,
+        prev=_link(published[position - 1] if position > 0 else None),
+        next=_link(published[position + 1] if position + 1 < len(published) else None),
+    )
 
 
 def _safe_redirect_url() -> str:
@@ -92,10 +158,26 @@ def register_post_routes(public: Any) -> None:
         short_code = post_obj.short_code()
         share_url = f"{BASE_URL}/s/{short_code}"
 
+        comments = (
+            db.session.execute(
+                select(Comment)
+                .where(
+                    Comment.post_id == post_obj.id,
+                    Comment.approved.is_(True),
+                    Comment.parent_id.is_(None),
+                )
+                .order_by(Comment.created_at.asc())
+            )
+            .scalars()
+            .all()
+        )
+
         return render_template(
             "post.html",
             post=post_obj,
             related=related,
+            comments=list(comments),
+            series_nav=_build_series_nav(post_obj),
             share_url=share_url,
             short_code=short_code,
             show_full_share=True,

@@ -300,6 +300,14 @@ _CONTRAST_PAIRS: list[tuple[str, str, str, float, Severity, str]] = [
         "primary text on cards/surfaces",
     ),
     (
+        "text_primary",
+        "surface_elevated",
+        "text-primary on surface-elevated",
+        3.0,
+        Severity.ADVISORY,
+        "primary text on elevated surfaces (post hero, dropdowns, code chips)",
+    ),
+    (
         "text_secondary",
         "surface_default",
         "text-secondary on surface-default",
@@ -496,22 +504,34 @@ _CONTRAST_PAIRS: list[tuple[str, str, str, float, Severity, str]] = [
 ]
 
 
+_TEXT_ON_BACKGROUND_SURFACES: list[tuple[str, str]] = [
+    ("bg_page", "bg-page"),
+    ("surface_default", "surface-default"),
+    ("surface_elevated", "surface-elevated"),
+]
+
+
+def check_text_on_background_contrast(
+    blog_theme: BlogTheme,
+    min_ratio: float = 4.5,
+) -> list[ContrastWarning]:
+    """Contrast of primary body text on every surface the stylesheet paints it on."""
+    warnings: list[ContrastWarning] = []
+    for bg_field, bg_label in _TEXT_ON_BACKGROUND_SURFACES:
+        warning = check_contrast(
+            blog_theme.text_primary,
+            getattr(blog_theme, bg_field),
+            "--blog-text-primary",
+            f"text-primary on {bg_label}",
+            min_ratio,
+        )
+        if warning is not None:
+            warnings.append(warning)
+    return warnings
+
+
 def check_blog_theme_contrast(blog_theme: BlogTheme) -> list[ContrastWarning]:
     checks: list[tuple[RGB | RGBA, RGB | RGBA, str, str, float]] = [
-        (
-            blog_theme.text_primary,
-            blog_theme.bg_page,
-            "--blog-text-primary",
-            "text-primary on bg-page",
-            4.5,
-        ),
-        (
-            blog_theme.text_primary,
-            blog_theme.surface_default,
-            "--blog-text-primary",
-            "text-primary on surface-default",
-            4.5,
-        ),
         (
             blog_theme.text_muted,
             blog_theme.surface_default,
@@ -557,7 +577,7 @@ def check_blog_theme_contrast(blog_theme: BlogTheme) -> list[ContrastWarning]:
         ),
     ]
 
-    warnings: list[ContrastWarning] = []
+    warnings: list[ContrastWarning] = check_text_on_background_contrast(blog_theme)
     for fg, bg, token, description, min_ratio in checks:
         warning = check_contrast(fg, bg, token, description, min_ratio)
         if warning is not None:

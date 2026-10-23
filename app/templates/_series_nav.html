@@ -1,0 +1,9 @@
+<nav class="series-nav" aria-label="Series navigation">
+    {% if series_nav.prev %}
+    <a href="{{ url_for('public.post', slug=series_nav.prev.slug) }}" class="series-link prev">&larr; {{ series_nav.prev.title }}</a>
+    {% endif %}
+    <a href="{{ url_for('public.series_view', slug=series_nav.series_slug) }}" class="series-link series-index">{{ series_nav.series_title }}</a>
+    {% if series_nav.next %}
+    <a href="{{ url_for('public.post', slug=series_nav.next.slug) }}" class="series-link next">{{ series_nav.next.title }} &rarr;</a>
+    {% endif %}
+</nav>

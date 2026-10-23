@@ -133,12 +133,12 @@ class TestTranslateLightDark:
     def test_dark_shadow_color(self) -> None:
         result = _translate("dark.toml")
         assert isinstance(result.theme.shadow_color, RGBA)
-        assert result.theme.shadow_color.alpha == pytest.approx(0.15)
+        assert result.theme.shadow_color.alpha == pytest.approx(0.35)
 
     def test_light_shadow_color(self) -> None:
         result = _translate("light.toml")
         assert isinstance(result.theme.shadow_color, RGBA)
-        assert result.theme.shadow_color.alpha == pytest.approx(0.08)
+        assert result.theme.shadow_color.alpha == pytest.approx(0.12)
 
     def test_dark_surface_hover_lighter(self) -> None:
         result = _translate("dark.toml")

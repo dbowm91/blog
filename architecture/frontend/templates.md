@@ -106,14 +106,19 @@ Registered in `app/filters.py`:
 - `markdown_safe` - Render markdown to HTML with nh3 sanitization
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
-- `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`
-- `post_image_srcset` - Generate srcset for responsive images. Checks for variants at 400, 800, and 1200 widths (`{width}_{filename}`), builds `srcset` attribute string with width descriptors (e.g., `400w, 800w, 1200w`). Uses request-level caching via `g._post_image_cache`. Returns `None` if no variants are found.
+- `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`. **Returns a URL, not a filename**: `/static/uploads/<file>` for the local backend and an absolute `https://…` URL for S3. Templates must use the output directly — wrapping it in `url_for('static', filename='uploads/' + img)` produces `/static/uploads//static/uploads/<file>`, which 404s.
+- `post_image_srcset` - Generate srcset for responsive images. Checks for variants at 400, 800, and 1200 widths (`{width}_{filename}`), builds `srcset` attribute string with width descriptors (e.g., `400w, 800w, 1200w`). Uses request-level caching via `g._post_image_cache`. Returns `None` if no variants are found. **The attribute must be guarded** — Jinja renders `None` as the literal string `"None"`, and a `srcset` candidate list overrides `src` entirely.
 - `post_image_avif_url_stub` - DEPRECATED — always returns `None`. No templates currently use it.
 
 ## Context Processors
 
 From `app/context_processors.py`:
-- `inject_csrf()` - `csrf_token` and `csp_nonce` for forms
+- `inject_csrf()` - `csrf_token`, `csrf_header_name`, and `csp_nonce` for forms.
+  `csrf_token` is a **string**, not a callable — `{{ csrf_token() }}` raises `TypeError`
+  and 500s the page. `csrf_header_name` is the single source of truth for the HTTP
+  header that carries the token (`X-CSRF-Token`); it reaches the browser as
+  `data-csrf-header` on the root element so client code never hard-codes it.
+
 - `inject_config()` - Site config variables:
   - `site_title` (not site_name)
   - `site_description` (not site_tagline)

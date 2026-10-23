@@ -75,10 +75,18 @@ export function initShortcuts() {
 
         // Ctrl/Cmd+Shift+P: Toggle preview pane
         if (mod && e.shiftKey && e.key === 'P' && !isInput) {
+            const toggleBtn = document.getElementById('toggle-preview-btn');
+            if (toggleBtn) {
+                e.preventDefault();
+                toggleBtn.click();
+                return;
+            }
             const split = document.querySelector('.editor-split');
             if (split) {
                 e.preventDefault();
-                split.classList.toggle('preview-hidden');
+                const visible = !split.classList.contains('preview-visible');
+                split.classList.toggle('preview-visible', visible);
+                split.classList.toggle('preview-hidden', !visible);
             }
         }
 

@@ -34,9 +34,13 @@ class TestAdminLogin:
         page.click('button[type="submit"]')
 
         page.wait_for_load_state("networkidle")
-        page.wait_for_selector(".flash-message", timeout=5000)
-        toast = page.text_content(".flash-message")
-        assert toast and "invalid" in toast.lower()
+        # The server renders the message as a flash; shared/toast.js converts
+        # flashes into toasts once the bundle loads. Either surface satisfies
+        # the requirement that the error is shown to the user.
+        message = page.locator(".flash-message, .toast-message").first
+        message.wait_for(state="visible", timeout=5000)
+        text = message.text_content()
+        assert text and "invalid" in text.lower()
 
     def test_logout(self, page, app_server):
         """Admin should be able to log out."""

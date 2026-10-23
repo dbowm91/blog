@@ -30,7 +30,7 @@
             <div class="series-post-info">
                 <span class="series-post-order">{{ loop.index }}</span>
                 <div>
-                    <h3><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></h3>
+                    <h2><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></h2>
                     <div class="series-post-meta">
                         {% if post.summary %}
                         <p class="post-summary">{{ post.summary|truncate(150) }}</p>
@@ -46,7 +46,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <h3>No published posts in this series yet</h3>
+        <h2>No published posts in this series yet</h2>
         <p>Check back later for updates.</p>
     </div>
     {% endif %}

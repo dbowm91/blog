@@ -466,6 +466,10 @@
     display: none;
 }
 
+.editor-split.preview-visible .markdown-preview {
+    display: block;
+}
+
 /* --- Tag Create Form --- */
 .tag-create-form {
     margin-bottom: 16px;
@@ -487,10 +491,6 @@
 
     .editor-split .markdown-preview {
         display: none;
-    }
-
-    .editor-split.preview-visible .markdown-preview {
-        display: block;
     }
 
     .editor-split textarea {

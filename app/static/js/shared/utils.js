@@ -16,6 +16,31 @@ export function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+export function getCsrfHeaderName() {
+    return document.documentElement?.dataset?.csrfHeader || 'X-CSRF-Token';
+}
+
+export function csrfHeaders() {
+    const token = getCsrfToken();
+    if (!token) return {};
+    return { [getCsrfHeaderName()]: token };
+}
+
+export function initFormLoading() {
+    document.querySelectorAll('form[data-loading]').forEach(form => {
+        if (form.dataset.loadingBound === 'true') return;
+        form.dataset.loadingBound = 'true';
+        form.addEventListener('submit', () => {
+            const submit = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (!submit || submit.disabled) return;
+            const pendingText = form.dataset.loadingText;
+            if (pendingText) submit.textContent = pendingText;
+            form.setAttribute('aria-busy', 'true');
+            setTimeout(() => { submit.disabled = true; }, 0);
+        });
+    });
+}
+
 export function announce(message) {
     const el = document.getElementById('sr-announce');
     if (el) {
@@ -25,6 +50,9 @@ export function announce(message) {
 }
 
 export function initSharedUtils() {
+    // --- Pending-state submit buttons ---
+    initFormLoading();
+
     // --- History back button (CSP-safe replacement for inline onclick) ---
     document.querySelectorAll('[data-history-back]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -95,6 +123,18 @@ export function initSharedUtils() {
 
     // --- Bulk action confirmation via data-confirm-bulk ---
     document.querySelectorAll('button[data-confirm-bulk]').forEach(btn => {
+        let originalText = btn.textContent;
+        let resetTimer = null;
+        const resetButton = () => {
+            btn.textContent = originalText;
+            btn.dataset.primed = 'false';
+            btn.classList.remove('btn-danger-primed');
+            btn.removeEventListener('blur', resetButton);
+            if (resetTimer) {
+                clearTimeout(resetTimer);
+                resetTimer = null;
+            }
+        };
         btn.addEventListener('click', e => {
             const checked = document.querySelectorAll('.bulk-checkbox:checked');
             if (checked.length === 0) {
@@ -106,29 +146,15 @@ export function initSharedUtils() {
             if (isDelete) {
                 if (btn.dataset.primed !== 'true') {
                     e.preventDefault();
-                    const originalText = btn.textContent;
+                    originalText = btn.textContent;
                     btn.textContent = `Delete ${count} post${count > 1 ? 's' : ''}? Click again to confirm`;
                     btn.dataset.primed = 'true';
-                    btn.dataset.originalText = originalText;
                     btn.classList.add('btn-danger-primed');
-                    const resetButton = () => {
-                        btn.textContent = btn.dataset.originalText;
-                        btn.dataset.primed = 'false';
-                        btn.classList.remove('btn-danger-primed');
-                        btn.removeEventListener('blur', resetButton);
-                    };
-                    setTimeout(() => {
-                        if (btn.dataset.primed === 'true') {
-                            resetButton();
-                        }
-                    }, 5000);
+                    resetTimer = setTimeout(resetButton, 5000);
                     btn.addEventListener('blur', resetButton);
                     return;
-                } else {
-                    delete btn.dataset.primed;
-                    delete btn.dataset.originalText;
-                    btn.classList.remove('btn-danger-primed');
                 }
+                resetButton();
             }
             if (!confirm(btn.dataset.confirmBulk)) e.preventDefault();
         });

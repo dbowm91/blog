@@ -440,3 +440,64 @@ RSS/Atom feed tests are in `tests/test_coverage.py`, NOT in a separate `test_rss
 ### Benchmark Tests Don't Use Fixture
 
 Benchmark tests in `tests/benchmarks/` don't use a `client` fixture - they create clients ad-hoc with `app.test_client()` within each test function.
+
+## Verifying Frontend Visual Defects
+
+The 2026-10-23 frontend review found several defects that no unit test could detect, because the defect *is* the rendering. The technique used to confirm them is reusable and worth repeating.
+
+**Render and inspect the HTML.** The app can be driven with `app.test_client()` against a scratch database. A defect like the double-prefixed image URL (`/static/uploads//static/uploads/<file>`) is visible in the rendered `src` attribute without a browser at all.
+
+**Boot the app and use headless Chrome.** On macOS:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+  --window-size=375,900 --virtual-time-budget=8000 \
+  --screenshot=/tmp/mobile.png "http://127.0.0.1:5599/"
+```
+
+Caveats: `--window-size` below ~500px still reports `window.innerWidth` of 500, so the screenshot is cropped rather than the layout reflowing. `--dump-dom` serialises the DOM after JavaScript has run, which is how the state of dynamically created elements was confirmed. Media queries inside an `<iframe>` evaluate against the iframe viewport, but the app's CSP sets `frame-src 'none'`, so iframes are not usable for this.
+
+**Read computed styles.** The Browser tool's `query` kind does not expose computed styles. To read them, serve a harness page that loads the same stylesheets in the same order and reports `getComputedStyle` results. The CSP applies to static files too: `style-src` has no `unsafe-inline`, so an inline `<style>` block is blocked, and `script-src-attr 'unsafe-inline'` permits an inline `onload` handler, which is the way to run a diagnostic script.
+
+**Sample pixels.** For "is this element actually painted", compare the sampled colour against the known colours. A post card image area measured `#181825` (the card's `--bg-surface`) rather than `#0d1117` (the `default-post.svg` fill) — proof that the image was at `opacity: 0` rather than merely dark.
+
+**Contrast.** Read the emitted theme variables from the rendered `<style>` block and compute the ratio directly. The post title's `#000000` on `#11111b` is 1.12:1.
+
+Local environment note: the system Python's `brotli` wheel is x86_64-only on arm64, so `flask_compress` fails to import. A stub `brotli.py` on `PYTHONPATH` (outside the repo) is enough to boot the app for review purposes.
+
+### What the corrective pass added to this technique
+
+**Playwright is the better tool than headless Chrome, and it is a dependency.** `pytest-playwright` and `playwright` are in `pyproject.toml`'s dev group. `python3 -m playwright install chromium` is enough. `page.evaluate` gives computed styles, `bounding_box()` gives geometry, and `page.locator(...).click()` performs a real interaction — which is what caught two defects that inspection missed.
+
+**A synthetic `click()` can mask a real bug.** `element.click()` from JavaScript dispatches the event on the element itself. A real user click dispatches on the *innermost* node — an `<svg>` inside the button. When `mobile-menu.jsx` replaced the button's `innerHTML` to swap its icon, the clicked `<svg>` was detached, so the document-level handler's `contains(e.target)` check failed and the menu closed again immediately. The CSS fix alone left the hamburger inert. Always verify with a real `page.locator(...).click()`.
+
+**`tests/e2e/` was unrunnable and silently so.** `BaseWSGIServer.set_app()` was removed in Werkzeug 3.x; the app must now be passed to the constructor. Until that was fixed, the entire e2e suite errored at setup — and because `app/static/dist/` is gitignored, a checkout with no build has no bundled JS, so `import.meta.glob` is undefined in the source `main.js` and **no module loads at all**. A test that asserts a dynamically-created element exists will then pass or fail for the wrong reason, and a test that asserts a server-rendered element exists will pass for the wrong reason too. Build the frontend before trusting an e2e result.
+
+**`page.evaluate("localStorage.…")` before the first navigation throws.** `about:blank` has an opaque origin, so localStorage access is denied. Navigate first, then set the value and reload — or use `page.add_init_script`, which runs before any page script and is what you want when the app reads the value during first paint.
+
+**Measure contrast across the whole theme catalog, not one theme.** A fix that helps the default theme can break another: `--accent` is below 4.5:1 against `--bg` in 21 of the 50 bundled themes, so "all links use `--accent`" would have introduced widespread AA failures. Measure the worst case across every bundled theme before choosing a token pairing.
+
+**A `box-shadow` using an undefined custom property does not degrade gracefully.** It resolves to `none` — the whole declaration is dropped at computed-value time. Eight elevation shadows were silently missing because `--shadow-color` was referenced by the stylesheets and emitted by no one. Grep for `var(--x)` references and compare against what the runtime actually emits; `tests/test_css_contracts.py` now does this.
+
+**Prefer a `BuildError` regression test over a code review.** The dead series navigation called `url_for('public.series')` when the endpoint was `public.series_view` — a latent 500 in a block that only rendered under conditions nobody hit. A test that renders a post in a series and asserts the navigation's links resolve pins the endpoint name.
+
+**A browser test can break a migration test.** The session-scoped `app` fixture is
+shared by every test in a directory tree. Starting a live server thread on that
+application puts a live connection on the shared database, and the migration
+round-trip tests later run DDL against the same database — SQLite's batch table
+rebuild then reflects a stale schema and fails with `duplicate column name:
+theme_preset`. The symptom appears far from the cause: the failing test is a
+migration test, and the offender is a Playwright test several files earlier.
+Browser tests belong under `tests/e2e/`, which has its own application and
+database; keep them there.
+
+**Before blaming a change for a suite failure, reproduce the failure on a pristine
+checkout.** `git worktree add /tmp/<name> HEAD` gives an unmodified tree to run
+the same suite against. In this pass the onboarding tests failed only when a
+stray `data/devlog.sqlite3` was present in the working directory — creating that
+file in the pristine tree reproduced the failure exactly, proving it was
+pre-existing repository pollution rather than a regression. Comparing a failure
+*set* against a pristine baseline is the only reliable way to separate a real
+regression from environment state.
+

@@ -1,5 +1,6 @@
+{% set admin_page_name = (request.endpoint.split('.')[-1].replace('_', ' ').title() if request and request.endpoint else 'Admin') %}
 <!DOCTYPE html>
-<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}">
+<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}" data-csrf-header="{{ csrf_header_name }}" data-default-scheme="{{ theme_default_scheme | e }}">
 <head>
     <script nonce="{{ csp_nonce }}">
         (function() {
@@ -17,7 +18,7 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In | Admin | {{ site_title }}</title>
+    <title>{% block title %}{{ admin_page_name }} | Admin | {{ site_title }}{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ vite_asset('img/favicon.svg') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/base.css') }}">

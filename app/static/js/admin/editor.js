@@ -1,50 +1,49 @@
-import { getCsrfToken, announce } from '../shared/utils.js';
-import { marked } from '../lib/marked-wrapper.js';
+import { announce, csrfHeaders } from '../shared/utils.js';
 
-marked.setOptions({ gfm: true, breaks: false });
+export function deriveDraftKey(pathname) {
+    const editorType = /\/admin\/pages\//.test(pathname) ? 'page' : 'post';
+    const idMatch = pathname.match(/\/edit\/(\d+)/);
+    return idMatch ? `draft-${editorType}-${idMatch[1]}` : `draft-${editorType}-new`;
+}
 
 export function initEditor() {
     const bodyTextarea = document.getElementById('body');
     const previewDiv = document.getElementById('markdown-preview');
-    const csrfToken = getCsrfToken();
     const editorSplit = document.getElementById('editor-split');
     const togglePreviewBtn = document.getElementById('toggle-preview-btn');
 
     // Mobile preview toggle
     if (togglePreviewBtn && editorSplit) {
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
-        if (isMobile) {
-            editorSplit.classList.add('preview-hidden');
-        }
 
-        togglePreviewBtn.addEventListener('click', () => {
-            const isHidden = editorSplit.classList.contains('preview-hidden');
-            editorSplit.classList.toggle('preview-hidden');
+        const setPreviewVisible = (visible) => {
+            editorSplit.classList.toggle('preview-visible', visible);
+            editorSplit.classList.toggle('preview-hidden', !visible);
             const toggleText = togglePreviewBtn.querySelector('.toggle-preview-text');
             if (toggleText) {
-                toggleText.textContent = isHidden ? 'Hide Preview' : 'Show Preview';
+                toggleText.textContent = visible ? 'Hide Preview' : 'Show Preview';
+            }
+            togglePreviewBtn.setAttribute('aria-expanded', String(visible));
+        };
+
+        setPreviewVisible(!isMobile);
+
+        togglePreviewBtn.addEventListener('click', () => {
+            setPreviewVisible(!editorSplit.classList.contains('preview-visible'));
+        });
+
+        const syncPreviewState = new MutationObserver(() => {
+            const visible = !editorSplit.classList.contains('preview-hidden');
+            if (editorSplit.classList.contains('preview-visible') !== visible) {
+                setPreviewVisible(visible);
             }
         });
+        syncPreviewState.observe(editorSplit, { attributes: true, attributeFilter: ['class'] });
     }
 
     if (bodyTextarea && previewDiv) {
         let serverRequest = null;
-        let clientRendered = false;
         let previewTimeout = null;
-
-        const renderClientPreview = (text) => {
-            if (!text.trim()) {
-                previewDiv.innerHTML = '<p class="empty-state">Live preview will appear here...</p>';
-                return;
-            }
-            try {
-                previewDiv.innerHTML = marked.parse(text);
-                clientRendered = true;
-            } catch (e) {
-                previewDiv.innerHTML = '<p class="form-error">Preview unavailable</p>';
-                clientRendered = false;
-            }
-        };
 
         const fetchServerPreview = (text) => {
             if (serverRequest) {
@@ -58,7 +57,7 @@ export function initEditor() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRF-Token": csrfToken,
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({ text: text }),
                 signal: abortController.signal,
@@ -66,14 +65,13 @@ export function initEditor() {
             .then(r => r.json())
             .then(data => {
                 previewDiv.classList.remove('preview-loading');
-                if (data.html) {
-                    clientRendered = false;
+                if (data && data.html) {
                     previewDiv.innerHTML = data.html;
                 }
             })
             .catch((err) => {
                 previewDiv.classList.remove('preview-loading');
-                if (err.name !== 'AbortError' && clientRendered === false) {
+                if (err.name !== 'AbortError') {
                     previewDiv.innerHTML = '<p class="form-error">Preview unavailable</p>';
                 }
             });
@@ -86,7 +84,10 @@ export function initEditor() {
 
         const updatePreview = () => {
             const text = bodyTextarea.value;
-            renderClientPreview(text);
+            if (!text.trim()) {
+                previewDiv.innerHTML = '<p class="empty-state">Live preview will appear here...</p>';
+                return;
+            }
             debouncedFetchServerPreview(text);
         };
 
@@ -98,8 +99,7 @@ export function initEditor() {
 
     // --- Draft Autosave ---
     if (bodyTextarea) {
-        const postId = window.location.pathname.match(/\/edit\/(\d+)/)?.[1] || 'new';
-        const draftKey = `draft-${postId}`;
+        const draftKey = deriveDraftKey(window.location.pathname);
         let autosaveTimer;
 
         // Restore draft on load

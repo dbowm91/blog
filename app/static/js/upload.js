@@ -1,4 +1,4 @@
-import { getCsrfToken } from './shared/utils.js';
+import { getCsrfToken, getCsrfHeaderName } from './shared/utils.js';
 
 export function initUpload() {
     const uploadZone = document.getElementById('upload-zone');
@@ -63,7 +63,8 @@ export function initUpload() {
             showUploadProgress(0);
 
             const csrfToken = getCsrfToken();
-            const formData = new FormData(uploadForm);
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken);
             formData.append('file', file);
 
             const xhr = new XMLHttpRequest();
@@ -96,7 +97,7 @@ export function initUpload() {
             });
 
             xhr.open('POST', uploadForm.action);
-            xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+            xhr.setRequestHeader(getCsrfHeaderName(), csrfToken);
             xhr.send(formData);
         };
 

@@ -123,10 +123,6 @@
     letter-spacing: -0.01em;
 }
 
-.post-card-title a {
-    color: var(--text);
-}
-
 .post-card-title a:hover {
     color: var(--accent);
 }
@@ -354,7 +350,7 @@
     letter-spacing: -0.02em;
     line-height: 1.2;
     margin-bottom: 12px;
-    color: var(--text-on-accent);
+    color: var(--text);
 }
 
 /* --- Share Bar --- */
@@ -425,11 +421,14 @@
     position: fixed;
     top: 20px;
     right: 20px;
+    left: auto;
+    margin: 0;
+    padding: 0;
+    width: min(400px, calc(100vw - 40px));
     z-index: 1000;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    max-width: 400px;
 }
 
 .flash {
@@ -445,7 +444,7 @@
 
 .flash-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
 .flash-error { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
-.flash-warning { background: var(--amber-dim); border: 1px solid var(--yellow); color: var(--yellow); }
+.flash-warning { background: var(--yellow-dim); border: 1px solid var(--warning-fg); color: var(--warning-fg); }
 .flash-info { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
 
 .flash-message { flex: 1; font-size: 0.9rem; }
@@ -546,7 +545,7 @@
     gap: var(--space-md);
 }
 
-.related-card {
+a.related-card {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -594,10 +593,6 @@
     color: var(--text-muted);
     margin-bottom: 16px;
     flex-wrap: wrap;
-}
-
-.breadcrumb a {
-    color: var(--text-muted);
 }
 
 .breadcrumb a:hover {
@@ -773,7 +768,7 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--accent);
     color: var(--text-on-accent);
     padding: 8px 16px;
     border-radius: var(--radius);
@@ -1188,14 +1183,16 @@
     color: var(--text);
     font-size: 0.85rem;
     font-family: var(--font-sans);
-    width: 200px;
-    transition: border-color var(--transition), width var(--transition);
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    transition: border-color var(--transition);
 }
 
 .search-input:focus {
     outline: none;
     border-color: var(--accent);
-    width: 240px;
+    width: 100%;
 }
 
 .search-btn {
@@ -1225,6 +1222,9 @@
     position: relative;
     display: flex;
     align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 220px;
 }
 
 .search-clear {

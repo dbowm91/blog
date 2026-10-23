@@ -98,9 +98,9 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
     is_dark = is_dark_background(general.background)
 
     if is_dark:
-        shadow_color = RGBA(0, 0, 0, 0.15)
+        shadow_color = RGBA(0, 0, 0, 0.35)
     else:
-        shadow_color = RGBA(0, 0, 0, 0.08)
+        shadow_color = RGBA(0, 0, 0, 0.12)
 
     text_primary = _resolve_bg(text.primary)
     text_secondary = _resolve_bg(buffer.topic)

@@ -385,6 +385,16 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
         previewSection.style.display = 'block';
     }
 
+    function showError(message) {
+        var errorEl = document.createElement('div');
+        errorEl.className = 'theme-preview-loading';
+        errorEl.style.color = 'var(--color-error)';
+        errorEl.textContent = 'Error: ' + message;
+        previewContainer.replaceChildren(errorEl);
+        previewSection.style.display = 'block';
+        warningsContainer.style.display = 'none';
+    }
+
     function renderWarnings(warnings, darkWarnings, lightWarnings) {
         var all = [];
         if (warnings && warnings.length) all = all.concat(warnings);
@@ -431,22 +441,29 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
         formData.append('theme_dark_name', darkName);
         formData.append('theme_light_name', lightName);
 
+        var csrfHeaderName = document.documentElement.dataset.csrfHeader || 'X-CSRF-Token';
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        var headers = {};
+        headers[csrfHeaderName] = csrfToken;
+
         fetch('{{ url_for("admin.settings_theme_preview") }}', {
             method: 'POST',
             body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
+            headers: headers
         })
         .then(function(resp) {
-            if (!resp.ok) throw new Error('Preview request failed');
-            return resp.json();
+            return resp.json().catch(function() { return {}; }).then(function(data) {
+                if (!resp.ok) {
+                    showError(data && data.error ? data.error : 'Preview request failed.');
+                    return null;
+                }
+                return data;
+            });
         })
         .then(function(data) {
+            if (!data) return;
             if (data.error) {
-                previewContainer.innerHTML = '<div class="theme-preview-loading" style="color: var(--color-error);">Error: ' + data.error + '</div>';
-                previewSection.style.display = 'block';
-                warningsContainer.style.display = 'none';
+                showError(data.error);
                 return;
             }
 
@@ -463,10 +480,8 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
 
             renderWarnings(data.warnings, data.dark_warnings, data.light_warnings);
         })
-        .catch(function(err) {
-            previewContainer.innerHTML = '<div class="theme-preview-loading" style="color: var(--color-error);">Failed to load preview. Please try again.</div>';
-            previewSection.style.display = 'block';
-            warningsContainer.style.display = 'none';
+        .catch(function() {
+            showError('Failed to load preview. Please try again.');
         });
     }
 

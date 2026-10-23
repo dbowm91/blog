@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}" data-prism-js-url="{{ vite_asset('js/prism.min.js') }}" data-prism-langs-url="{{ vite_asset('js/prism-languages.js') }}">
+<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}" data-prism-js-url="{{ vite_asset('js/prism.min.js') }}" data-prism-langs-url="{{ vite_asset('js/prism-languages.js') }}" data-csrf-header="{{ csrf_header_name }}" data-default-scheme="{{ theme_default_scheme | e }}">
 <head>
     <script nonce="{{ csp_nonce }}">
         (function() {
@@ -23,11 +23,11 @@
     <meta property="og:description" content="{% block og_description %}{{ site_description }}{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{{ base_url }}{{ request.path }}">
-    {% block og_image %}{% endblock %}
+    {% block og_image %}<meta property="og:image" content="{{ base_url }}/static/img/default-post.svg">{% endblock %}
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block twitter_title %}{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}{% endblock %}">
-    {% block twitter_image %}{% endblock %}
+    <meta name="twitter:title" content="{% block twitter_title %}{{ site_title }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ site_description }}{% endblock %}">
+    {% block twitter_image %}<meta name="twitter:image" content="{{ base_url }}/static/img/default-post.svg">{% endblock %}
     <link rel="canonical" href="{{ canonical_url }}">
     {% block feed_links %}
     <link rel="alternate" type="application/atom+xml" title="{{ site_title }} (Atom)" href="{{ url_for('rss.atom_feed') }}">
@@ -99,6 +99,7 @@
         <div class="nav-links" id="nav-links">
             <form action="{{ url_for('public.search') }}" method="GET" class="search-form mobile-search-form" aria-label="Search posts">
                 <div class="search-input-wrapper">
+                    <label class="sr-only" for="search-input">Search query</label>
                     <input type="text" name="q" id="search-input" placeholder="Search..." class="search-input" value="{{ request.args.get('q', '') }}" aria-label="Search query">
                     <button type="button" class="search-clear" aria-label="Clear search" style="display:none">&times;</button>
                 </div>
@@ -113,16 +114,17 @@
                 </form>
             {% endif %}
         </div>
+        <div class="nav-actions" id="nav-actions"></div>
         </div>
     </nav>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="flash-container container" role="status" aria-live="polite">
+            <div class="flash-container" role="status" aria-live="polite">
                 {% for category, message in messages %}
                     <div class="flash flash-{{ category }}">
                         <span class="flash-message">{{ message }}</span>
-                        <button class="flash-close" aria-label="Dismiss">&times;</button>
+                        <button type="button" class="flash-close" aria-label="Dismiss">&times;</button>
                     </div>
                 {% endfor %}
             </div>
@@ -133,11 +135,11 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer" id="footer">
+    <footer class="footer" id="footer" aria-label="Site footer">
         <div class="container footer-grid">
             {% if show_footer_posts %}
             <div class="footer-section">
-                <h3 class="footer-heading">Recent Posts</h3>
+                <h3 class="footer-heading">Latest from the blog</h3>
                 <ul class="footer-links">
                     {% for post in recent_posts_footer %}
                     <li><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></li>
@@ -146,7 +148,7 @@
             </div>
             {% endif %}
             <div class="footer-section">
-                <h3 class="footer-heading">Tags</h3>
+                <h3 class="footer-heading">Browse by tag</h3>
                 <div class="footer-tags">
                     {% for tag in footer_tags[:10] %}
                     <a href="{{ url_for('public.tag', slug=tag.slug) }}" class="tag tag-sidebar">{{ tag.name }}</a>

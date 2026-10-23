@@ -1,6 +1,8 @@
 {% extends "admin/base.html" %}
 {% from "admin/_breadcrumbs.html" import breadcrumb %}
 
+{% block title %}Manage Posts: {{ series.name }} | Admin{% endblock %}
+
 {% block content %}
 {{ breadcrumb([
     { 'label': 'Series', 'url': url_for('admin.series_list') },
@@ -22,17 +24,23 @@
 
             {% for ps in series_posts %}
             <div class="series-post-item" data-post-series-id="{{ ps.id }}">
-                <span class="drag-handle">⋮⋮</span>
                 <span class="post-order">{{ loop.index }}</span>
                 <a href="{{ url_for('admin.edit_post', post_id=ps.post.id) }}" class="post-title">{{ ps.post.title }}</a>
                 <input type="hidden" name="post_order[]" value="{{ ps.id }}">
-                <button type="submit" form="series-remove-{{ ps.id }}" class="btn btn-small btn-danger" data-confirm="Remove this post from the series?">Remove</button>
+                <span class="series-move-controls">
+                    <button type="button" class="btn btn-small btn-ghost series-move-btn" data-direction="up" aria-label="Move {{ ps.post.title }} up">&uarr;</button>
+                    <button type="button" class="btn btn-small btn-ghost series-move-btn" data-direction="down" aria-label="Move {{ ps.post.title }} down">&darr;</button>
+                </span>
+                <button type="submit" form="series-remove-{{ ps.id }}" class="btn btn-small btn-danger">Remove</button>
             </div>
             {% endfor %}
+            <div class="series-reorder-actions">
+                <button type="submit" class="btn btn-primary btn-small">Save order</button>
+            </div>
         </form>
 
         {% for ps in series_posts %}
-        <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}" id="series-remove-{{ ps.id }}" class="inline-form" style="display:none">
+        <form method="POST" action="{{ url_for('admin.series_posts', series_id=series.id) }}" id="series-remove-{{ ps.id }}" class="inline-form" style="display:none" data-confirm="Remove this post from the series?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="remove">
             <input type="hidden" name="post_series_id" value="{{ ps.id }}">
@@ -70,7 +78,7 @@
     {% endif %}
 </div>
 
-<style>
+<style nonce="{{ csp_nonce }}">
 .series-posts-list {
     margin: 20px 0;
 }
@@ -81,9 +89,12 @@
     padding: 10px;
     border-bottom: 1px solid var(--border);
 }
-.drag-handle {
-    cursor: move;
-    color: var(--text-muted);
+.series-move-controls {
+    display: inline-flex;
+    gap: 4px;
+}
+.series-reorder-actions {
+    margin-top: 12px;
 }
 .post-order {
     font-weight: bold;
@@ -93,4 +104,47 @@
     flex: 1;
 }
 </style>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var form = document.getElementById('series-reorder-form');
+    if (!form) return;
+
+    function rows() {
+        return Array.prototype.slice.call(form.querySelectorAll('.series-post-item'));
+    }
+
+    function refreshOrder() {
+        rows().forEach(function(row, index) {
+            var label = row.querySelector('.post-order');
+            if (label) label.textContent = String(index + 1);
+        });
+    }
+
+    function move(row, offset) {
+        var items = rows();
+        var index = items.indexOf(row);
+        var target = index + offset;
+        if (index < 0 || target < 0 || target >= items.length) return;
+        if (offset < 0) {
+            form.insertBefore(row, items[target]);
+        } else {
+            form.insertBefore(items[target], row);
+        }
+        refreshOrder();
+    }
+
+    form.addEventListener('click', function(e) {
+        if (!e.target || typeof e.target.closest !== 'function') return;
+        var btn = e.target.closest('.series-move-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var row = btn.closest('.series-post-item');
+        if (!row) return;
+        move(row, btn.dataset.direction === 'up' ? -1 : 1);
+    });
+
+    refreshOrder();
+})();
+</script>
 {% endblock %}

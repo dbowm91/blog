@@ -4,7 +4,7 @@
         {% set srcset = post|post_image_srcset %}
         {% set rt = post.body | reading_time %}
         {% if img %}
-            <img src="{{ url_for('static', filename='uploads/' + img) }}" srcset="{{ srcset }}" sizes="(max-width: 800px) 100vw, 800px" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
+            <img src="{{ img }}"{% if srcset %} srcset="{{ srcset }}" sizes="(max-width: 800px) 100vw, 800px"{% endif %} alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% else %}
             <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ post.title }}" class="post-hero-img" loading="lazy" decoding="async" width="800" height="400">
         {% endif %}

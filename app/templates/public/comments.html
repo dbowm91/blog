@@ -6,31 +6,32 @@
         <time datetime="{{ comment.created_at.isoformat() }}">{{ comment.created_at.strftime('%b %d, %Y at %H:%M') }}</time>
     </div>
     <div class="comment-body">{{ comment.content }}</div>
-    {% if comment.replies %}
+    {% set replies = comment.replies | selectattr('approved') | list %}
+    {% if replies %}
     <div class="comment-replies">
-        {{ render_comments(comment.replies) }}
+        {{ render_comments(replies) }}
     </div>
     {% endif %}
 </div>
 {% endfor %}
 {% endmacro %}
 
-{% macro comment_form(slug, parent_id=None) %}
+{% macro comment_form(slug, parent_id=None, field_prefix='') %}
 <form method="POST" action="{{ url_for('public.add_comment', slug=slug) }}" class="comment-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="parent_id" value="{{ parent_id or '' }}">
     <input type="text" name="website_url" class="hidden-field" tabindex="-1" autocomplete="off">
     <div class="form-group">
-        <label for="author_name">Name</label>
-        <input type="text" name="author_name" required>
+        <label for="{{ field_prefix }}author_name">Name</label>
+        <input type="text" id="{{ field_prefix }}author_name" name="author_name" required>
     </div>
     <div class="form-group">
-        <label for="author_email">Email</label>
-        <input type="email" name="author_email" required>
+        <label for="{{ field_prefix }}author_email">Email</label>
+        <input type="email" id="{{ field_prefix }}author_email" name="author_email" required>
     </div>
     <div class="form-group">
-        <label for="content">Comment</label>
-        <textarea name="content" rows="4" required></textarea>
+        <label for="{{ field_prefix }}content">Comment</label>
+        <textarea id="{{ field_prefix }}content" name="content" rows="4" required></textarea>
     </div>
     <button type="submit" class="btn btn-primary">Submit Comment</button>
 </form>

@@ -90,8 +90,9 @@ class TestKeyboardNavigation:
     """Verify keyboard operation of key controls."""
 
     def test_theme_toggle_keyboard(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
         page.goto(f"{app_server}/")
+        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
+        page.reload()
         page.wait_for_timeout(500)
         toggle = page.locator("button.theme-toggle")
         toggle.focus()
@@ -101,8 +102,9 @@ class TestKeyboardNavigation:
         assert stored == "dark", "Enter on theme toggle should cycle scheme"
 
     def test_theme_toggle_space_key(self, page, app_server):
-        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
         page.goto(f"{app_server}/")
+        page.evaluate("localStorage.setItem('blog-color-scheme', 'system')")
+        page.reload()
         page.wait_for_timeout(500)
         toggle = page.locator("button.theme-toggle")
         toggle.focus()

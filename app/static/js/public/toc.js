@@ -1,6 +1,9 @@
+import { ensureHeadingIds, getHeadingText } from '../shared/heading-slug.js';
+
 export function initToc() {
     const tocContainer = document.querySelector('.post-toc-container');
     if (tocContainer) {
+        ensureHeadingIds();
         const headings = document.querySelectorAll('.prose h2, .prose h3');
         if (headings.length >= 3) {
             const toc = document.createElement('nav');
@@ -13,15 +16,12 @@ export function initToc() {
             toc.appendChild(title);
 
             const ul = document.createElement('ul');
-            headings.forEach((heading, index) => {
-                if (!heading.id) {
-                    heading.id = `heading-${index}`;
-                }
+            headings.forEach((heading) => {
                 const li = document.createElement('li');
                 li.className = heading.tagName === 'H3' ? 'toc-h3' : '';
                 const a = document.createElement('a');
                 a.href = `#${heading.id}`;
-                a.textContent = heading.textContent;
+                a.textContent = getHeadingText(heading);
                 a.dataset.section = heading.id;
                 li.appendChild(a);
                 ul.appendChild(li);

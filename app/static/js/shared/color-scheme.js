@@ -2,8 +2,13 @@ const STORAGE_KEY = 'blog-color-scheme';
 const VALID_SCHEMES = ['system', 'dark', 'light'];
 const SCHEME_ATTR = 'data-color-scheme';
 
+function getConfiguredDefault() {
+    const configured = document.documentElement?.dataset?.defaultScheme;
+    return VALID_SCHEMES.includes(configured) ? configured : 'system';
+}
+
 function getStoredScheme(defaultScheme) {
-    var fallback = defaultScheme || 'system';
+    const fallback = VALID_SCHEMES.includes(defaultScheme) ? defaultScheme : getConfiguredDefault();
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
         return VALID_SCHEMES.includes(stored) ? stored : fallback;
@@ -48,7 +53,7 @@ function cycleScheme(current) {
 }
 
 export function initColorScheme(options) {
-    var defaultScheme = (options && options.defaultScheme) || 'system';
+    const defaultScheme = (options && options.defaultScheme) || getConfiguredDefault();
     const stored = getStoredScheme(defaultScheme);
     const effective = resolveEffectiveScheme(stored);
 
@@ -57,36 +62,44 @@ export function initColorScheme(options) {
     const toggle = document.createElement('button');
     toggle.className = 'theme-toggle';
     toggle.type = 'button';
-    toggle.setAttribute('aria-label', `Color scheme: ${getSchemeLabel(stored)}`);
-    toggle.title = `Color scheme: ${getSchemeLabel(stored)}`;
-    toggle.innerHTML = getSchemeIcon(stored);
+
+    // The accessible name describes the scheme in effect; the icon shows the
+    // stored preference (so "system" stays distinguishable from a fixed mode).
+    // The control is tri-state, so aria-pressed carries the binary part of the
+    // state: pressed means an explicit choice is in effect rather than "system".
+    const describe = (preference) => {
+        const current = resolveEffectiveScheme(preference);
+        const label = `Color scheme: ${getSchemeLabel(current)}`;
+        toggle.setAttribute('aria-label', label);
+        toggle.setAttribute('aria-pressed', preference === 'system' ? 'false' : 'true');
+        toggle.title = label;
+        toggle.innerHTML = getSchemeIcon(preference);
+    };
+
+    describe(stored);
 
     toggle.addEventListener('click', () => {
-        const current = getStoredScheme();
+        const current = getStoredScheme(defaultScheme);
         const next = cycleScheme(current);
         try {
             localStorage.setItem(STORAGE_KEY, next);
         } catch {
             // storage unavailable — apply without persisting
         }
-        const nextEffective = resolveEffectiveScheme(next);
-        applyScheme(nextEffective);
-        toggle.setAttribute('aria-label', `Color scheme: ${getSchemeLabel(next)}`);
-        toggle.title = `Color scheme: ${getSchemeLabel(next)}`;
-        toggle.innerHTML = getSchemeIcon(next);
+        applyScheme(resolveEffectiveScheme(next));
+        describe(next);
     });
 
-    const navLinksEl = document.querySelector('.nav-links');
-    if (navLinksEl) {
-        const wrapper = document.createElement('span');
-        wrapper.appendChild(toggle);
-        navLinksEl.prepend(wrapper);
+    // The toggle must stay reachable on small viewports, where .nav-links is hidden.
+    const host = document.querySelector('.nav-actions') || document.querySelector('.nav-container');
+    if (host) {
+        host.appendChild(toggle);
     }
 
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (getStoredScheme() === 'system') {
-            const effective = resolveEffectiveScheme('system');
-            applyScheme(effective);
+        if (getStoredScheme(defaultScheme) === 'system') {
+            applyScheme(resolveEffectiveScheme('system'));
+            describe('system');
         }
     });
 }

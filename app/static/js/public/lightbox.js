@@ -15,6 +15,7 @@ export function initLightbox() {
         let isZoomed = false;
         let touchStartX = 0;
         let touchEndX = 0;
+        let previousBodyOverflow = null;
 
         const updateNav = () => {
             if (lightboxPrev) {
@@ -50,6 +51,8 @@ export function initLightbox() {
             lightboxTrigger = img;
             isZoomed = false;
             lightboxImg.classList.remove('zoomed');
+            previousBodyOverflow = document.body.style.overflow;
+            lightbox.classList.remove('hidden');
             lightbox.classList.add('open');
             lightbox.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden';
@@ -59,8 +62,10 @@ export function initLightbox() {
 
         const closeLightbox = () => {
             lightbox.classList.remove('open');
+            lightbox.classList.add('hidden');
             lightbox.setAttribute('aria-hidden', 'true');
-            document.body.style.overflow = '';
+            document.body.style.overflow = previousBodyOverflow ?? '';
+            previousBodyOverflow = null;
             isZoomed = false;
             lightboxImg.classList.remove('zoomed');
             if (lightboxTrigger) {
@@ -128,7 +133,7 @@ export function initLightbox() {
         });
 
         document.addEventListener('keydown', (e) => {
-            if (!lightbox.classList.contains('open')) return;
+            if (lightbox.classList.contains('hidden')) return;
 
             switch (e.key) {
                 case 'Escape':

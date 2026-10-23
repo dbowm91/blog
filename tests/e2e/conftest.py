@@ -83,8 +83,7 @@ def app_server(app, app_url):
     def run_server():
         from werkzeug.serving import BaseWSGIServer, WSGIRequestHandler
 
-        server = BaseWSGIServer("127.0.0.1", 5010, WSGIRequestHandler)
-        server.set_app(app.wsgi_app)
+        server = BaseWSGIServer("127.0.0.1", 5010, app.wsgi_app, WSGIRequestHandler)
         app._e2e_server = server
         server.serve_forever()
 

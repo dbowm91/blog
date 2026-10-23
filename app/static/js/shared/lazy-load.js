@@ -1,4 +1,18 @@
 export function initLazyLoad() {
+    const lazyImages = document.querySelectorAll('img[loading="lazy"]');
+
+    // The `.loaded` class is the contract with the CSS fade-in rule, so it must be
+    // applied on every browser (including ones with native lazy loading).
+    lazyImages.forEach(img => {
+        const markLoaded = () => img.classList.add('loaded');
+        if (img.complete) {
+            markLoaded();
+        } else {
+            img.addEventListener('load', markLoaded, { once: true });
+            img.addEventListener('error', markLoaded, { once: true });
+        }
+    });
+
     // Native lazy loading support
     if ('loading' in HTMLImageElement.prototype) {
         return;
@@ -7,13 +21,12 @@ export function initLazyLoad() {
     // IntersectionObserver polyfill for lazy loading
     if (!('IntersectionObserver' in window)) {
         // No IntersectionObserver support: load all images immediately
-        document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+        lazyImages.forEach(img => {
             img.src = img.dataset.src || img.src;
         });
         return;
     }
 
-    const lazyImages = document.querySelectorAll('img[loading="lazy"]');
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {

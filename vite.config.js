@@ -17,6 +17,9 @@ export default defineConfig({
           if (id.includes('prism.min.js') || id.includes('prism-languages.js')) {
             return 'vendor';
           }
+          if (id.includes('/shared/utils.js')) {
+            return 'shared';
+          }
           if (id.includes('/admin/editor.js')) {
             return 'admin';
           }

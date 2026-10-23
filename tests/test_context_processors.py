@@ -11,7 +11,7 @@ class TestInjectFooterData:
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
         assert footer is not None
-        assert "Recent Posts" not in str(footer)
+        assert "Latest from the blog" not in str(footer)
 
     def test_footer_data_is_injected_for_public_home(self, client, sample_post):
         """Footer data should be injected for public home path /."""
@@ -20,7 +20,7 @@ class TestInjectFooterData:
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
         assert footer is not None
-        assert "Recent Posts" in str(footer)
+        assert "Latest from the blog" in str(footer)
 
     def test_footer_data_is_injected_for_archive(self, client, sample_post):
         """Footer data should be injected for /archive path."""
@@ -29,7 +29,7 @@ class TestInjectFooterData:
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
         assert footer is not None
-        assert "Recent Posts" in str(footer)
+        assert "Latest from the blog" in str(footer)
 
 
 class TestInjectShowFooterPosts:
@@ -41,7 +41,7 @@ class TestInjectShowFooterPosts:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
-        assert "Recent Posts" not in str(footer)
+        assert "Latest from the blog" not in str(footer)
 
     def test_show_footer_posts_false_for_tag(self, client, sample_tag):
         """show_footer_posts should be False for /tag/ path."""
@@ -49,7 +49,7 @@ class TestInjectShowFooterPosts:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
-        assert "Recent Posts" not in str(footer)
+        assert "Latest from the blog" not in str(footer)
 
     def test_show_footer_posts_true_for_home(self, client, sample_post):
         """show_footer_posts should be True for / path."""
@@ -57,7 +57,7 @@ class TestInjectShowFooterPosts:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
-        assert "Recent Posts" in str(footer)
+        assert "Latest from the blog" in str(footer)
 
     def test_show_footer_posts_true_for_archive(self, client, sample_post):
         """show_footer_posts should be True for /archive path."""
@@ -65,7 +65,7 @@ class TestInjectShowFooterPosts:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         footer = soup.find("footer")
-        assert "Recent Posts" in str(footer)
+        assert "Latest from the blog" in str(footer)
 
 
 class TestInjectConfig:

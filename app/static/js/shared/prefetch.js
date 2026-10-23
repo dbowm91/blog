@@ -37,8 +37,17 @@ export function initPrefetch() {
         return ALLOWED_PROTOCOLS.some(p => url.startsWith(p));
     };
 
+    const isSameOrigin = (url) => {
+        try {
+            return new URL(url, window.location.href).origin === window.location.origin;
+        } catch {
+            return false;
+        }
+    };
+
     const queuePrefetch = (url) => {
         if (prefetchedUrls.has(url) || !isAllowedUrl(url)) return;
+        if (!isSameOrigin(url)) return;
         if (prefetchQueue.length >= MAX_QUEUE) return;
 
         prefetchedUrls.add(url);
@@ -46,9 +55,15 @@ export function initPrefetch() {
         processQueue();
     };
 
-    document.querySelectorAll('a[href]').forEach(link => {
+    const links = Array.from(document.querySelectorAll('a[href]')).filter((link) => {
         const url = link.href;
-        if (!url) return;
+        return url && isAllowedUrl(url) && isSameOrigin(url);
+    });
+
+    if (links.length === 0) return;
+
+    links.forEach(link => {
+        const url = link.href;
 
         if (link.classList.contains('page-link')) {
             link.addEventListener('mouseenter', () => queuePrefetch(url), { passive: true });

@@ -129,7 +129,11 @@ const ROUTE_MODULES = {
 };
 
 function getModulesForPath(path) {
-    // Returns route-specific modules or default public modules
+    // Returns route-specific modules or default public modules.
+    // Matching is on a path-segment boundary, preferring the longest route:
+    //   path === route || path.startsWith(route + '/')
+    // Plain startsWith is not sufficient — '/admin/new' is a literal prefix
+    // of '/admin/newsletter/preview'.
 }
 ```
 
@@ -151,11 +155,23 @@ The progressive image loading pattern in `app/static/css/public.css` is:
 
 #### JavaScript Fallback Behavior
 
-The `lazy-load.js` module implements a three-tier fallback strategy:
+The `lazy-load.js` module attaches the `load` and `error` listeners **before** the
+native-support early return, so the `.loaded` class is applied on every browser:
 
-1. **Native lazy loading**: If `'loading' in HTMLImageElement.prototype`, the JS returns early and does nothing — the browser handles `loading="lazy"` natively
-2. **IntersectionObserver polyfill**: If native not supported but IntersectionObserver exists, observe images with `rootMargin: '200px 0px'` and swap `dataset.src` into `src` when intersecting
-3. **Immediate load fallback**: If no IntersectionObserver support, load all `loading="lazy"` images immediately by copying `dataset.src` to `src`
+1. **Class contract (always)**: every `img[loading="lazy"]` gets a `load` listener
+   that adds `.loaded`, and an `error` listener that also adds it — a broken image
+   must not be left at `opacity: 0` forever. An image that is already complete is
+   marked immediately.
+2. **Native lazy loading**: If `'loading' in HTMLImageElement.prototype`, the
+   browser handles the deferred fetching and the module stops there.
+3. **IntersectionObserver polyfill**: If native is not supported but
+   IntersectionObserver exists, observe images with `rootMargin: '200px 0px'` and
+   swap `dataset.src` into `src` when intersecting.
+4. **Immediate load fallback**: If no IntersectionObserver support, load all
+   `loading="lazy"]` images immediately by copying `dataset.src` to `src`.
+
+Step 1 is what makes the `opacity: 0` rule safe. Any new rule that hides an element
+must have an equivalent guaranteed restoration path.
 
 ### Admin Body Class Detection
 
@@ -199,10 +215,12 @@ optimizeDeps: {
 - Anchor link handling (`anchor-links.js`)
 - Code block copy buttons (`code-copy.js`)
 - Image lightbox (`lightbox.js`)
-- Media URL copying (`media-copy.js`)
 - Search functionality (`search.js`)
 - Social share buttons (`share.js`)
 - Table of contents generation (`toc.js`)
+
+`media-copy.js` lives under `public/` but belongs to the admin media library — it is
+loaded only for the `/admin/media` route.
 
 ## CSS
 
@@ -213,6 +231,18 @@ Stylesheets in `app/static/css/`:
 - `forms.css` — Form styles
 - `utilities.css` — Utility classes
 - `critical.css` — Above-the-fold CSS for fast initial paint
+
+### Cascade Ownership
+
+The stylesheets are linked in DOM order: `critical.css` → `base.css` →
+`layout.css` → `public.css` → `forms.css` → `utilities.css`. At equal specificity
+the later stylesheet wins, so **exactly one stylesheet may own an element's
+visibility at a given breakpoint**.
+
+`.nav-links` is the worked example: `base.css` hid it below 769px while
+`layout.css` set `display: flex` unconditionally. Both declarations had equal
+specificity, so document order decided the outcome and the mobile navigation could
+never collapse. `layout.css` now scopes its rule to `@media (min-width: 769px)`.
 - `admin.css` — Admin dashboard styles
 - Prism.js themes: `prism.css`, `prism-dark.css`, `prism-coy.css`, `prism-funky.css`, `prism-okaidia.css`, `prism-tomorrow.css`
 
@@ -235,6 +265,24 @@ Dark mode follows OS preference by default via `prefers-color-scheme: dark`. The
 `base.css` owns the fallback design tokens used by every theme, including spacing, typography, surfaces, borders, focus colors, and semantic colors. The inline `theme_vars` block in the base templates overrides the color tokens for the selected Halloy theme (default: "Catppuccin Mocha"). The theme system translates Halloy TOML palettes into the blog's semantic CSS variables via `BlogTheme` and `translate.py`. Keep new component rules on these variables so all bundled Halloy themes remain coherent.
 
 Phase 09 is complete — all CSS files now use semantic variables (`var(--navbar-bg)`, `var(--overlay-bg)`, `var(--shadow-color)`, `var(--success-bg)`, `var(--error-bg)`, `var(--warning-bg)`, `var(--accent-dim)`, `var(--text-on-accent)`, etc.) instead of hardcoded color literals. The only remaining hardcoded values are: `:root` emergency fallbacks, print stylesheet, social share brand colors, lightbox backdrop, neutral shadows, and SVG/email assets. See `docs/themes/frontend-literal-audit.md` for the full audit.
+
+**Token completeness is enforced.** `tests/test_css_contracts.py` collects every
+`var(--x)` referenced by a stylesheet and asserts that each name is either emitted
+by the theme runtime or defined in a stylesheet. This is what catches a token that
+is referenced but never emitted — such tokens resolve to the guaranteed-invalid
+value, so the declaration using them is dropped at computed-value time.
+
+`--shadow-color` and `--code-bg` were both referenced by the stylesheets while
+being emitted by no one: eight `box-shadow` declarations silently rendered as
+`none`, and light-mode inline code had no background. They are now produced by the
+translation layer (`app/themes/translate.py` via the `ALIASES` map in
+`app/themes/model.py`), so every bundled theme supplies them without a 50-file
+migration.
+
+The runtime also emits a small number of legacy aliases that no stylesheet
+consumes. They are kept because `tests/themes/test_phase09_css_tokens.py` and
+`tests/themes/test_translation.py` pin the legacy alias set; the allow-list and the
+per-token rationale live in `tests/test_css_contracts.py::DEAD_TOKEN_ALLOW_LIST`.
 
 ### Font Self-Hosting
 
@@ -279,8 +327,20 @@ In production:
 
 Actual chunks via `manualChunks` in `vite.config.js`:
 - `vendor` — Prism.js libraries (`prism.min.js`, `prism-languages.js`)
+- `shared` — `shared/utils.js`, assigned explicitly so a failure inside an
+  admin-only module cannot abort a shared module on a public page
 - `admin` — Admin editor (`admin/editor.js`)
 - `public` — Public search (`public/search.js`)
+
+`shared/utils.js` must be assigned to the `shared` chunk **before** the
+`/admin/editor.js` rule. `admin/editor.js` imports it, and without the explicit
+assignment Rollup emits the shared module into the admin chunk — every public page
+then fetches the admin chunk to obtain `initSharedUtils`.
+
+`main.js` must not import a stylesheet. Flask links the stylesheets in the base
+templates so the dev server and production share one cascade order; an import in
+`main.js` would emit an orphaned CSS asset and append the stylesheet after every
+linked one in dev.
 
 ## See Also
 - [Templates](frontend/templates.md) - Jinja2 templates

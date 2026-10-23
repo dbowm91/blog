@@ -22,6 +22,12 @@ from flask import session, request, abort, current_app
 
 CSRF_TOKEN_WINDOW_SIZE = 5
 
+#: Single source of truth for the HTTP header that carries the CSRF token.
+#: Client-side code must not hard-code the name; it is published to templates
+#: as ``csrf_header_name`` and reaches the browser via the ``data-csrf-header``
+#: attribute on the root element.
+CSRF_HEADER_NAME = "X-CSRF-Token"
+
 
 def should_skip_csrf() -> bool:
     """Return True if the current request should skip CSRF validation.
@@ -60,7 +66,7 @@ def validate_csrf_token() -> None:
     if current_app.config.get("TESTING") and not current_app.config.get("CSRF_ENABLED", True):
         return
 
-    token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+    token = request.form.get("csrf_token") or request.headers.get(CSRF_HEADER_NAME)
     if not token:
         abort(403)
 
