@@ -190,6 +190,25 @@ either emitted by the theme runtime or defined in a stylesheet — this is enfor
 `tests/test_css_contracts.py`. Tokens that the runtime emits but no stylesheet
 consumes are dead weight.
 
+### Code Block Line Numbers
+
+Line numbers are produced by a CSS counter, and the markup has to carry the
+structure a counter needs. `app/markdown_renderer.py` wraps every code line in
+`<span class="code-line">`; `base.css` owns `counter-reset: code-line` on
+`.prose pre`, `counter-increment: code-line` on `.code-line` and
+`content: counter(code-line)` on its `::before`.
+
+`base.css` owns those rules because the admin shell does not load
+`public.css` — the admin live preview renders `.prose` code blocks too. No
+stylesheet may own the numbering a second time, and no JavaScript may take
+part in it.
+
+Prism is the one thing that would break the contract: `highlightElement()`
+replaces the `<code>` element's `innerHTML`, which removes the `code-line`
+spans. Prism does not load today (`nh3` strips the `class` attribute from
+`<code>`, so `pre[class*="language-"]` never matches) — if it is ever
+enabled, the numbering has to move into a Prism plugin.
+
 ### Stylesheet Ownership
 
 Exactly one stylesheet owns a given element's visibility at each breakpoint.

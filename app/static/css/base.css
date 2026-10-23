@@ -246,6 +246,25 @@ textarea {
     background: var(--bg-surface);
 }
 
+.prose pre {
+    counter-reset: code-line;
+}
+
+.prose pre code .code-line {
+    counter-increment: code-line;
+}
+
+.prose pre code .code-line::before {
+    content: counter(code-line);
+    display: inline-block;
+    width: 3ch;
+    margin-right: 1em;
+    text-align: right;
+    color: var(--text-dim);
+    -webkit-user-select: none;
+    user-select: none;
+}
+
 .theme-toggle {
     background: none;
     border: none;

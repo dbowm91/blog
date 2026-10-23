@@ -19,6 +19,7 @@ from typing import Any, cast
 from flask_login import current_user
 
 from app.extensions import db
+from app.markdown_renderer import render_markdown
 from app.models import Post, Tag
 from app.routes.admin import admin_required
 from app.routes.admin.helpers import (
@@ -313,10 +314,6 @@ def register_editor_routes(admin):
         data = request.get_json(silent=True)
         if not data or "text" not in data:
             return jsonify({"error": "invalid"}), 400
-        import nh3
-        import markdown as md
-        from app.markdown_config import MARKDOWN_ALLOWED_TAGS, MARKDOWN_ALLOWED_ATTRIBUTES
 
-        html = md.markdown(data["text"], extensions=["fenced_code", "tables"])
-        clean = nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
+        clean = render_markdown(data["text"], extensions=("fenced_code", "tables"))
         return jsonify({"html": clean})

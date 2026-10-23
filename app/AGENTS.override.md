@@ -15,6 +15,7 @@ Specialized handling for the Flask application core.
 - `tag_cache.py` - Tag count cache (flask-cache memoization)
 - `search.py` - FTS5 full-text search (returns empty list when FTS unavailable) + snippet extraction
 - `markdown_config.py` - Shared nh3 allowed tags/attributes for markdown rendering
+- `markdown_renderer.py` - Single markdown pipeline; wraps code lines in `.code-line` spans for the CSS line counter
 - `csv_utils.py` - Subscriber CSV export with formula injection prevention
 - `context_processors.py` - Template context (theme, footer, canonical_url)
 - `filters.py` - Template filters (reading_time, post_image_url, truncate, etc.)

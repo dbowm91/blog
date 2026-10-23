@@ -243,6 +243,23 @@ visibility at a given breakpoint**.
 `layout.css` set `display: flex` unconditionally. Both declarations had equal
 specificity, so document order decided the outcome and the mobile navigation could
 never collapse. `layout.css` now scopes its rule to `@media (min-width: 769px)`.
+
+### Code Block Line Numbers
+
+Code blocks are numbered on the left by a CSS counter. `app/markdown_renderer.py`
+wraps every code line in `<span class="code-line">` — CSS cannot enumerate the
+lines of a text node, so the markup has to carry the structure the counter
+counts — and `base.css` owns the counter rules:
+
+- `counter-reset: code-line` on `.prose pre`
+- `counter-increment: code-line` on `.code-line`
+- `content: counter(code-line)` on `.code-line::before`, in a fixed-width gutter
+
+The newlines stay between the spans rather than inside them, so the code text
+(`textContent`) is unchanged and copy and paste still yields what the author
+wrote. `base.css` owns the rules because the admin shell does not load
+`public.css` and the admin live preview renders `.prose` code blocks too. No
+JavaScript takes part in the numbering.
 - `admin.css` — Admin dashboard styles
 - Prism.js themes: `prism.css`, `prism-dark.css`, `prism-coy.css`, `prism-funky.css`, `prism-okaidia.css`, `prism-tomorrow.css`
 

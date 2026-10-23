@@ -19,6 +19,7 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Misc Implementation Notes](#misc-implementation-notes)
 - [Verifying Frontend Visual Defects](#verifying-frontend-visual-defects)
 - [Second Frontend Review Pass (2026-10-23)](#second-frontend-review-pass-2026-10-23)
+- [Code Block Line Numbers (2026-10-23)](#code-block-line-numbers-2026-10-23)
 
 ---
 
@@ -562,3 +563,43 @@ are `subgrid`s of it, so every row shares the parent's tracks. Give the header
 a transparent 1px border when the items have one, or the rows sit 1px apart.
 
 
+## Code Block Line Numbers (2026-10-23)
+
+Code blocks are numbered on the left with a CSS counter. No JavaScript and no
+client-side library is involved, but the markup has to carry the structure a
+counter needs.
+
+**CSS cannot enumerate the lines of a text node.** Python-Markdown renders a
+code block as `<pre><code>one\ntwo</code></pre>` — the code is a single text
+node, so a stylesheet has nothing to count. `app/markdown_renderer.py` wraps
+every line in `<span class="code-line">` and the stylesheet numbers those
+spans with `counter-increment` / `content: counter(code-line)`. The renderer
+is the single producer: `app/filters.py` (`markdown_safe`), the admin preview
+endpoint and the feed renderers all call `render_markdown()`.
+
+**The newlines stay between the spans, not inside them.** That keeps
+`textContent` byte-identical to the un-numbered output, so copy and paste
+still yields the code the author wrote, and it means a trailing newline does
+not become a numbered line of its own. A code block whose content contains raw
+HTML is left alone — splitting it per line could cut a tag in half.
+
+**The counter rules live in `base.css`, not `public.css`.** The admin shell
+does not load `public.css`, so the admin live preview would have shown
+unnumbered code blocks. `base.css` is the only stylesheet both shells load.
+
+**Prism would destroy the line spans.** `Prism.highlightElement()` replaces
+the `<code>` element's `innerHTML` with its own token markup, which removes
+the `code-line` spans and with them the numbering. Prism is currently inert:
+`nh3` strips the `class` attribute from `<code>` (there is no `code` entry in
+`MARKDOWN_ALLOWED_ATTRIBUTES`), so the `pre[class*="language-"]` selector that
+loads Prism never matches. The same stripping is why the syntax theme
+selector and the copy button in `public/code-copy.js` do nothing today. If
+Prism is ever switched on, the numbering has to move to a Prism plugin or be
+re-applied after highlighting — it cannot stay a server-side markup contract.
+
+**`getComputedStyle(el, '::before').content` returns the unresolved
+expression.** Chrome reports `counter(code-line)`, not `"1"`. To prove a
+counter resolved in a browser test, drop the fixed gutter width through the
+CSSOM (`rule.style.width = 'auto'` — an injected `<style>` is blocked by the
+CSP) and check that the pseudo-element still has a box: a resolved counter
+gives the box the width of a digit, an unresolved one gives it no box at all.

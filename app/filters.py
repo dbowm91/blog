@@ -1,18 +1,15 @@
 """Template filters for the blog CMS."""
 
-import markdown
-import nh3
 from typing import Any
 from flask import Flask, g, has_request_context
 
-from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TAGS
+from app.markdown_renderer import render_markdown
 
 
 def register_filters(app: Flask) -> None:
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text: str) -> str:
-        html = markdown.markdown(text, extensions=["fenced_code", "tables", "footnotes"])
-        return nh3.clean(html, tags=MARKDOWN_ALLOWED_TAGS, attributes=MARKDOWN_ALLOWED_ATTRIBUTES)
+        return render_markdown(text)
 
     @app.template_filter("reading_time")
     def reading_time_filter(text: str) -> str:

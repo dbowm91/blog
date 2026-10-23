@@ -103,6 +103,7 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | CSRF | `app/csrf.py` | Sliding window CSRF tokens (5 valid), API blueprint exemption |
 | Vite Integration | `app/vite.py` | Content-hashed asset URLs, CDN prefix, manifest lookup |
 | Markdown Config | `app/markdown_config.py` | Shared nh3.clean() allowlists for markdown HTML sanitization |
+| Markdown Renderer | `app/markdown_renderer.py` | Single markdown pipeline; wraps code lines in `.code-line` spans for the CSS line counter |
 | CSV Utilities | `app/csv_utils.py` | Streaming CSV export with formula injection prevention |
 | Base62 | `app/base62.py` | Base62 encode/decode for short share URLs (`/s/<code>`) |
 | DB Utilities | `app/db_utils.py` | `get_database_dialect()`, `is_sqlite_database()` helpers |
@@ -527,6 +528,7 @@ blog/
 │   ├── webhook_encryption.py        # Webhook secret encryption
 │   ├── backup_encryption.py         # Backup file encryption
 │   ├── markdown_config.py           # Shared nh3.clean() config for markdown HTML sanitization
+│   ├── markdown_renderer.py         # Markdown pipeline; wraps code lines in .code-line spans
 │   ├── transaction.py              # Transaction decorator/context manager (IntegrityError rollback)
 │   ├── csv_utils.py                 # CSV export with formula injection prevention
 │   ├── base62.py                    # Base62 encode/decode for short share URLs (/s/<code>)

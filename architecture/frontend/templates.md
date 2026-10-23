@@ -103,7 +103,7 @@ email/base_email.html                  # Standalone email base template
 ## Filters
 
 Registered in `app/filters.py`:
-- `markdown_safe` - Render markdown to HTML with nh3 sanitization
+- `markdown_safe` - Render markdown to HTML with nh3 sanitization, via `render_markdown()` in `app/markdown_renderer.py`. That helper is the single markdown producer: the admin preview endpoint and the feed renderers call it too, and it wraps every code line in `<span class="code-line">` so the stylesheet can number code blocks with a CSS counter.
 - `reading_time` - Calculate reading time from text content
 - `sanitize_css` - Sanitize custom CSS input
 - `post_image_url` - Get post image URL with `storage.exists()` check (returns None if file missing) and request-level caching via `g._post_image_cache`. **Returns a URL, not a filename**: `/static/uploads/<file>` for the local backend and an absolute `https://…` URL for S3. Templates must use the output directly — wrapping it in `url_for('static', filename='uploads/' + img)` produces `/static/uploads//static/uploads/<file>`, which 404s.
