@@ -6,11 +6,73 @@ This module contains implementation plans and historical records of completed ar
 
 ## Active Plans
 
-No plan series is currently open.
+### Site Identity, Authorship and Layout (open — 2026-10-24)
 
-### Frontend Corrective (complete — 2026-10-23)
+Roadmap: `site_identity_authoring_roadmap.md`
 
-Roadmap: `frontend_corrective_roadmap.md`
+Origin: an operator review of the running instance on 2026-10-24. Every
+finding was confirmed by rendering the application in Chromium and measuring
+the DOM, not by reading templates. The measurement table is in the roadmap.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | `site_identity_phase_01_admin_settings.md` | Planned — theme preview order, comments switch, editable footer |
+| 02 | `site_identity_phase_02_user_profiles.md` | Planned — profile fields, avatar, short/full bio, admin profile editor |
+| 03 | `site_identity_phase_03_public_auth.md` | Planned — public login, account page, nav affordance |
+| 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Planned — `Post.author_id`, author page, author links |
+| 05 | `site_identity_phase_05_page_navigation.md` | Planned — published pages reachable from the nav and footer |
+| 06 | `site_identity_phase_06_comments_layout.md` | Planned — comment measure, comment styling, mobile |
+
+**Run the phases in order.** They share `app/models.py`,
+`app/templates/base.html`, `app/routes/admin/settings.py`,
+`app/templates/admin/settings.html`, `app/templates/post.html` and
+`app/static/css/public.css`. Phases 02 and 06 touch disjoint files and may be
+developed in parallel, but the merge order stays 01 → 02 → 03 → 04 → 05 → 06 so
+the migrations chain in one direction.
+
+**Single-owner rules for this series** (one value, one producer):
+
+| Value | Owner |
+|---|---|
+| `SiteSettings.comments_enabled` | Phase 01 |
+| `SiteSettings.footer_text` | Phase 01 |
+| `SiteSettings.show_pages_in_menu`, `menu_pages` | Phase 05 |
+| `User.display_name`, `bio_short`, `bio_full`, `avatar_path` | Phase 02 |
+| `Post.author_id` | Phase 04 |
+| The `.comments` / `.comment*` CSS block | Phase 06 |
+
+Phase 05 adds its page-menu fields to the **Site** settings section and the
+same `POST /admin/settings/site` endpoint that Phase 01 creates. It must not
+create a second settings form for the same page.
+
+**Migration chain.** The single Alembic head is `drop_theme_preset_column`.
+Each phase adds one migration with `down_revision` pointing at the previous
+phase's revision, in series order.
+
+**Rendering rule for this series.** New CSS consumes theme tokens only
+(`var(--text-dim)`, `var(--bg-surface)`, `var(--border)`, `var(--radius)`,
+`var(--space-*)`). No colour literals, no new tokens, no renames. Bios and any
+new rich-text field render through `app/markdown_renderer.py` — the single
+sanitised markdown producer. No second markdown path.
+
+**What the review confirmed**, so the next reader does not re-derive it: the
+theme preview sat below the theme selector and stayed hidden until a button was
+pressed; there was no public login, so the three non-admin accounts in the
+database could not authenticate at all; `users` had no profile fields and
+`/admin/users` had no profile editor; `posts` had no `author_id` and the
+rendered author was a single config-level value that was empty by default and
+never a link; published pages worked at `/page/<slug>` but nothing on the site
+linked to them; the footer was hardcoded; there was no comments switch; and the
+comment block had no styling at all and sat 176px to the left of the post
+column on desktop.
+
+## Historical Plans
+
+The **Frontend Corrective** series (2026-10-23) closed 50 findings across the public
+site, admin dashboard, stylesheet layer, and JavaScript module layer. It is the
+first plan series to carry per-phase `## Completion` sections with verification
+evidence — use that format for future series. The **Site Identity, Authorship and
+Layout** series (2026-10-24) follows the same format.
 
 | Phase | File | Status |
 |---|---|---|
@@ -22,15 +84,6 @@ Roadmap: `frontend_corrective_roadmap.md`
 
 All 50 findings were resolved; none were deferred. Each phase file carries a
 `## Completion` section recording what changed and how it was verified.
-
-## Historical Plans
-
-All implementation plans have been completed and merged. The detailed task lists are preserved in git history for reference.
-
-The **Frontend Corrective** series (2026-10-23) closed 50 findings across the public
-site, admin dashboard, stylesheet layer, and JavaScript module layer. It is the
-first plan series to carry per-phase `## Completion` sections with verification
-evidence — use that format for future series.
 
 Four defects were found during implementation that were not in the original scope,
 and they are recorded in the roadmap's closure section: the newsletter email
