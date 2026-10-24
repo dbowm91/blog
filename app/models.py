@@ -32,6 +32,10 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
     locked_until = db.Column(UTCDateTime, nullable=True)
     totp_secret_encrypted = db.Column(db.String(256), nullable=True)
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    display_name = db.Column(db.String(120), default="", nullable=False)
+    bio_short = db.Column(db.String(300), default="", nullable=False)
+    bio_full = db.Column(db.Text, default="", nullable=False)
+    avatar_path = db.Column(db.String(255), nullable=True)
 
     admin_sessions = db.relationship(
         "AdminSession",
@@ -49,6 +53,23 @@ class User(UserMixin, db.Model):  # type: ignore[name-defined]
 
         try:
             return decrypt(self.totp_secret_encrypted)
+        except Exception:
+            return None
+
+    @property
+    def profile_name(self) -> str:
+        """Display name, falling back to the login identifier."""
+        return self.display_name.strip() or self.username
+
+    @property
+    def avatar_url(self) -> Optional[str]:
+        """Public URL of the stored avatar, or None when there is no avatar."""
+        if not self.avatar_path:
+            return None
+        from app.storage import get_storage
+
+        try:
+            return get_storage().url(self.avatar_path)
         except Exception:
             return None
 
@@ -164,6 +185,7 @@ class Page(db.Model):  # type: ignore[name-defined]
         onupdate=utc_now,
     )
     published = db.Column(db.Boolean, default=False, nullable=False)
+    show_in_menu = db.Column(db.Boolean, default=True, nullable=False)
 
     __table_args__ = (db.Index("ix_pages_published_slug", "published", "slug"),)
 
@@ -198,6 +220,14 @@ class Post(db.Model):  # type: ignore[name-defined]
     scheduled_publish_at = db.Column(UTCDateTime, nullable=True)
     newsletter_sent_at = db.Column(UTCDateTime, nullable=True)
     newsletter_attempts = db.Column(db.Integer, default=0, nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+
+    author = db.relationship(
+        "User",
+        foreign_keys=[author_id],
+        lazy="joined",
+        backref=db.backref("posts", lazy="select"),
+    )
 
     tags = db.relationship("Tag", secondary=post_tags, back_populates="posts")
     page_views = db.relationship(
@@ -350,6 +380,12 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
     theme_dark_name = db.Column(db.String(128), nullable=False, default="Catppuccin Mocha")
     theme_light_name = db.Column(db.String(128), nullable=False, default="Catppuccin Latte")
     theme_default_scheme = db.Column(db.String(16), nullable=False, default="system")
+    comments_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    footer_text = db.Column(db.String(300), default="", nullable=False)
+    footer_show_posts = db.Column(db.Boolean, default=True, nullable=False)
+    footer_show_tags = db.Column(db.Boolean, default=True, nullable=False)
+    show_pages_in_menu = db.Column(db.Boolean, default=True, nullable=False)
+    menu_pages = db.Column(db.Text, default="", nullable=False)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod
@@ -359,6 +395,9 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
             instance = cls()
             db.session.add(instance)
             db.session.flush()
+            from app.services.site_settings import invalidate_site_settings_cache
+
+            invalidate_site_settings_cache()
         return instance
 
     def __repr__(self) -> str:
