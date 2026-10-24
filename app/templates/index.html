@@ -20,6 +20,7 @@
                 {% set img = post|post_image_url %}
                 {% set srcset = post|post_image_srcset %}
                 {% set rt = post.body | reading_time %}
+                {% set post_author = resolve_author(post) %}
                 <div class="post-card animate-in post-card-link">
                 {% if img %}
                     <a href="{{ url_for('public.post', slug=post.slug) }}">
@@ -37,7 +38,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                 {{ rt }}
                             </span>
-                            <span class="post-author">{{ author_name }}</span>
+                            <span class="post-author">{% if post_author.username %}<a href="{{ url_for('public.author', username=post_author.username) }}">{{ post_author.name }}</a>{% else %}{{ post_author.name }}{% endif %}</span>
                         </div>
                         <h2 class="post-card-title">
                             <a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a>

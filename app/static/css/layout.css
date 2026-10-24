@@ -381,6 +381,11 @@
     color: var(--text-dim);
 }
 
+.footer-text {
+    margin: 0;
+    white-space: pre-line;
+}
+
 @media (max-width: 768px) {
     .nav-container {
         flex-wrap: wrap;

@@ -4,6 +4,7 @@
 {% set truncated_desc = (post.summary or post.body) | truncate(160) %}
 {% set og_img = post|post_image_url %}
 {% set og_abs = og_img if og_img and og_img.startswith('http') else (base_url ~ og_img if og_img else base_url ~ '/static/img/default-post.svg') %}
+{% set post_author = resolve_author(post) %}
 
 {% block title %}{{ post.title }} | {{ site_title }}{% endblock %}
 {% block meta_description %}{{ truncated_desc }}{% endblock %}
@@ -26,7 +27,8 @@
     "dateModified": {{ (post.updated_at.isoformat() if post.updated_at else post.created_at.isoformat()) | tojson }},
     "author": {
         "@type": "Person",
-        "name": {{ author_name | tojson }}
+        "name": {{ post_author.name | tojson }}{% if post_author.username %},
+        "url": {{ (base_url ~ '/author/' ~ post_author.username) | tojson }}{% endif %}
     },
     "publisher": {
         "@type": "Organization",
@@ -77,6 +79,7 @@
 </div>
 {% endif %}
 
+{% if comments_enabled %}
 <section class="comments" id="comments" aria-label="Comments">
     <h2 class="comments-title">Comments</h2>
     {% if comments %}
@@ -90,6 +93,15 @@
         {{ comment_form(post.slug) }}
     </div>
 </section>
+{% elif comments %}
+<section class="comments" id="comments" aria-label="Comments">
+    <h2 class="comments-title">Comments</h2>
+    <div class="comment-list">
+        {{ render_comments(comments) }}
+    </div>
+    <p class="comments-empty">Commenting is closed. Existing comments are still shown.</p>
+</section>
+{% endif %}
 
 {% if related %}
 <section class="related-posts">
