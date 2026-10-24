@@ -9,6 +9,7 @@ app/static/
 ├── js/
 │   ├── admin/          # Admin dashboard JS
 │   │   ├── bulk.js
+│   │   ├── editor-history.js
 │   │   ├── editor.js
 │   │   ├── markdown-toolbar.js
 │   │   └── shortcuts.js
@@ -209,6 +210,7 @@ optimizeDeps: {
 - Dashboard analytics and charts
 - Post editor enhancements
 - Markdown formatting toolbar (`markdown-toolbar.js`) — inserts markdown at the caret; loaded through `editor.js`
+- Editor undo/redo history (`editor-history.js`) — loaded through `editor.js`
 - Media upload management
 - Settings and theme forms
 - Bulk operations

@@ -5,7 +5,16 @@
     <span id="body-hint" class="label-hint">{{ hint }}</span>
     <div class="editor-split" id="editor-split">
         <div class="editor-textarea-wrapper">
-            <div class="editor-toolbar" role="toolbar" aria-label="Markdown formatting" aria-controls="body">
+            <div class="editor-toolbar" role="toolbar" aria-label="Markdown formatting and editing history" aria-controls="body">
+                <span class="md-tool-group" role="group" aria-label="Editing history">
+                    <button type="button" class="md-tool" data-history-action="undo" title="Undo" aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
+                    </button>
+                    <button type="button" class="md-tool" data-history-action="redo" title="Redo" aria-label="Redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
+                    </button>
+                </span>
+                <span class="md-tool-sep" aria-hidden="true"></span>
                 <button type="button" class="md-tool" data-md-action="bold" title="Bold" aria-label="Bold">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h6a4 4 0 0 1 0 8H6z"></path><path d="M6 12h7a4 4 0 0 1 0 8H6z"></path></svg>
                 </button>

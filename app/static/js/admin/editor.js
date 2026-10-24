@@ -1,5 +1,6 @@
 import { announce, csrfHeaders } from '../shared/utils.js';
 import { initMarkdownToolbar } from './markdown-toolbar.js';
+import { initEditorHistory } from './editor-history.js';
 
 export function deriveDraftKey(pathname) {
     const editorType = /\/admin\/pages\//.test(pathname) ? 'page' : 'post';
@@ -106,6 +107,7 @@ export function initEditor() {
                     const summaryInput = document.getElementById('summary');
                     if (titleInput && draft.title) titleInput.value = draft.title;
                     if (summaryInput && draft.summary) summaryInput.value = draft.summary;
+                    bodyTextarea.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             } catch (e) {
                 localStorage.removeItem(draftKey);
@@ -207,6 +209,9 @@ export function initEditor() {
         bodyTextarea.addEventListener('input', updateCounts);
         updateCounts();
     }
+
+    // Seeded last so a restored draft is the starting point, not an undo step
+    initEditorHistory(bodyTextarea);
 }
 
 export default initEditor;

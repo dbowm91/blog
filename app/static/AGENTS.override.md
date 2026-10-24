@@ -11,7 +11,7 @@ app/static/
 │   ├── lib/              # Third-party JS libraries (marked.js for markdown preview)
 │   ├── shared/           # Shared JS modules (utils, dark-mode, modal, mobile-menu, toast, etc.)
 │   ├── public/           # Public-facing JS modules (share, lightbox, toc, search, etc.)
-│   └── admin/            # Admin JS modules (editor, bulk, shortcuts)
+│   └── admin/            # Admin JS modules (editor, editor-history, markdown-toolbar, bulk, shortcuts)
 ├── css/
 │   ├── critical.css       # Above-the-fold CSS for fast initial paint
 │   ├── base.css          # CSS variables, reset, typography

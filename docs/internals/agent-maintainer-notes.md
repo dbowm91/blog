@@ -974,6 +974,43 @@ Two details that are easy to get wrong:
 - The line actions strip an existing marker of the same kind before adding
   theirs, so clicking "Heading" on `## Heading` does not produce `## ## Heading`.
 
+### Undo and redo
+
+`app/static/js/admin/editor-history.js` owns the editor history. It has two
+parts: `createHistory()` is pure logic over a `read`/`write` pair, and
+`initEditorHistory()` wires it to the textarea, the keyboard and the buttons.
+
+**The native undo stack is not enough here.** The toolbar sets
+`textarea.value` directly, which wipes the browser's undo history — so after a
+bold insertion, Cmd+Z could not undo it. The blog therefore keeps its own
+stack and takes Cmd+Z over completely.
+
+The rules:
+
+- The stack holds `{value, selectionStart, selectionEnd}` snapshots, 200 deep.
+- Typing is **coalesced**: edits within 600ms of each other collapse into one
+  entry, so undo removes a burst of typing rather than one character.
+- A toolbar insertion is **structural** and always gets its own entry. The
+  toolbar dispatches an `editor:structural` event on the textarea before it
+  mutates the value; the history listens for it and forces the next record.
+  Without that, a toolbar click landing inside the coalescing window would be
+  merged into the surrounding typing.
+- Editing after an undo truncates the redo tail, which is the standard
+  behaviour of every editor.
+- `undo()` and `redo()` restore the value **and** the selection, and dispatch
+  an `input` event so the live preview and the draft autosave follow.
+
+The toolbar carries an undo and a redo button next to the formatting
+buttons. They are `disabled` when there is nothing to undo or redo, which is
+why they are the only buttons in the toolbar that change state.
+
+**The history is seeded last.** `initEditorHistory()` runs at the end of
+`initEditor()`, after the draft restore. A restored draft is the starting
+point, not an undo step — otherwise the first undo would wipe the draft the
+author had just recovered. The restore also dispatches an `input` event now,
+so the live preview and the word count follow it; before that, the preview
+kept showing the empty state after a restore.
+
 ### Strikethrough is a first-party extension
 
 Python-Markdown has no `strikethrough` extension and `pymdown-extensions` is

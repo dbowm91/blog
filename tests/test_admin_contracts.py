@@ -59,6 +59,10 @@ def _run_node_esm(tmp_path: Path, script: str) -> dict:
         JS_DIR / "admin" / "markdown-toolbar.js",
         tmp_path / "admin" / "markdown-toolbar.js",
     )
+    shutil.copy2(
+        JS_DIR / "admin" / "editor-history.js",
+        tmp_path / "admin" / "editor-history.js",
+    )
     shutil.copy2(JS_DIR / "shared" / "utils.js", tmp_path / "shared" / "utils.js")
     shutil.copy2(JS_DIR / "shared" / "filter-select.js", tmp_path / "shared" / "filter-select.js")
     driver = tmp_path / "driver.mjs"
@@ -351,6 +355,147 @@ def test_page_editor_attaches_the_body_error_to_the_field(authenticated_client):
     assert "Content is required." in html
     assert 'aria-describedby="body-hint body-error"' in html
     assert 'aria-invalid="true"' in html
+
+
+# --- Editor undo/redo history ------------------------------------------------
+
+
+def test_editor_exposes_undo_and_redo_controls(authenticated_client):
+    """Both editors carry the undo and redo buttons."""
+    for path in ("/admin/new", "/admin/pages/new"):
+        html = authenticated_client.get(path).get_data(as_text=True)
+        assert 'data-history-action="undo"' in html
+        assert 'data-history-action="redo"' in html
+        assert 'aria-keyshortcuts="Control+Z Meta+Z"' in html
+        assert 'aria-label="Editing history"' in html
+
+
+def test_editor_wires_the_history_module():
+    """The editor loads the history and the toolbar marks its edits structural."""
+    source = _read(JS_DIR / "admin" / "editor.js")
+    assert "initEditorHistory" in source
+
+    history = _read(JS_DIR / "admin" / "editor-history.js")
+    assert "editor:structural" in history
+    assert "event.preventDefault()" in history
+    assert "history.undo()" in history
+    assert "history.redo()" in history
+
+    toolbar = _read(JS_DIR / "admin" / "markdown-toolbar.js")
+    assert "editor:structural" in toolbar
+
+
+@pytest.mark.skipif(not _node_available(), reason="node runtime is not available")
+def test_editor_history_undoes_and_redoes(tmp_path):
+    """The history core walks backwards and forwards through the edits."""
+    result = _run_node_esm(
+        tmp_path,
+        """
+        import { createHistory } from './admin/editor-history.js';
+
+        let value = '';
+        const history = createHistory({
+            read: () => ({ value, start: 0, end: 0 }),
+            write: (entry) => { value = entry.value; },
+            coalesceMs: 0,
+        });
+
+        history.seed();
+        const seeded = { canUndo: history.canUndo(), canRedo: history.canRedo() };
+
+        value = 'first';
+        history.record(true);
+        value = 'second';
+        history.record(true);
+
+        const undone = history.undo();
+        const afterUndo = value;
+        const redone = history.redo();
+        const afterRedo = value;
+
+        console.log(JSON.stringify({
+            seeded,
+            undone,
+            afterUndo,
+            redone,
+            afterRedo,
+            canUndo: history.canUndo(),
+            canRedo: history.canRedo(),
+        }));
+        """,
+    )
+    assert result["seeded"] == {"canUndo": False, "canRedo": False}
+    assert result["undone"] is True
+    assert result["afterUndo"] == "first"
+    assert result["redone"] is True
+    assert result["afterRedo"] == "second"
+    assert result["canUndo"] is True
+    assert result["canRedo"] is False
+
+
+@pytest.mark.skipif(not _node_available(), reason="node runtime is not available")
+def test_editor_history_coalesces_a_typing_burst(tmp_path):
+    """Consecutive keystrokes collapse into one undo step."""
+    result = _run_node_esm(
+        tmp_path,
+        """
+        import { createHistory } from './admin/editor-history.js';
+
+        let value = '';
+        const history = createHistory({
+            read: () => ({ value, start: 0, end: 0 }),
+            write: (entry) => { value = entry.value; },
+            coalesceMs: 60000,
+        });
+
+        history.seed();
+        value = 'a';
+        history.record();
+        value = 'ab';
+        history.record();
+        history.undo();
+
+        console.log(JSON.stringify({ value }));
+        """,
+    )
+    assert result["value"] == ""
+
+
+@pytest.mark.skipif(not _node_available(), reason="node runtime is not available")
+def test_editor_history_drops_the_redo_tail_after_a_new_edit(tmp_path):
+    """Editing after an undo discards the branch that was undone."""
+    result = _run_node_esm(
+        tmp_path,
+        """
+        import { createHistory } from './admin/editor-history.js';
+
+        let value = '';
+        const history = createHistory({
+            read: () => ({ value, start: 0, end: 0 }),
+            write: (entry) => { value = entry.value; },
+            coalesceMs: 0,
+        });
+
+        history.seed();
+        value = 'first';
+        history.record(true);
+        value = 'second';
+        history.record(true);
+
+        history.undo();
+        value = 'third';
+        history.record(true);
+
+        console.log(JSON.stringify({
+            value,
+            canRedo: history.canRedo(),
+            canUndo: history.canUndo(),
+        }));
+        """,
+    )
+    assert result["value"] == "third"
+    assert result["canRedo"] is False
+    assert result["canUndo"] is True
 
 
 # --- FE-ADM-09 / FE-ADM-10: series reorder and remove -----------------------

@@ -480,6 +480,23 @@
     outline-offset: 1px;
 }
 
+.md-tool:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.md-tool:disabled:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+}
+
+.md-tool-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
 .md-tool-sep {
     width: 1px;
     height: 18px;

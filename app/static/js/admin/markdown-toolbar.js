@@ -15,6 +15,7 @@ const ACTIONS = {
 function replaceSpan(textarea, from, to, text, selectStart, selectEnd) {
     const value = textarea.value;
 
+    textarea.dispatchEvent(new CustomEvent('editor:structural', { bubbles: true }));
     textarea.value = value.slice(0, from) + text + value.slice(to);
     textarea.focus();
     textarea.setSelectionRange(selectStart, selectEnd);
