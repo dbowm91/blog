@@ -425,9 +425,38 @@ The slug generation in `app/services/slug.py` has an application-level race cond
 
 `deliver_webhook_task` dispatches individual webhook deliveries to `deliver_single_webhook_task` for per-webhook retry support. Each webhook gets its own Celery task invocation with independent retry logic (up to 3 retries with exponential backoff). Failed webhooks are no longer silently skipped.
 
-### nginx and Flask Rate Limits Are Aligned
+### Login Rate Limiting Lives in the Proxy, Not the Application
 
-nginx `limit_req_zone=login` is configured at `rate=5r/m` and Flask `ADMIN_RATE_LIMITS["login"]` is `(5, 60)` - both equal 5/minute. The burst setting in nginx (5) doesn't change the effective rate.
+As of 2026-10-24 the application does **not** rate limit the login routes. The
+operator's position is that the deployment sits behind a reverse proxy or WAF,
+so the per-IP limit belongs there and the application should not pay for it -
+with a Redis-backed limiter that is a network round trip on every attempt.
+
+What was removed:
+
+- `@limiter.limit("5 per minute")` on `public.login`, `admin.login`,
+  `admin.forgot_password` and `admin.login_2fa`.
+- The `"login"` key from `ADMIN_RATE_LIMITS` in `app/config_legacy.py`. The
+  remaining keys are read only by `app/middleware/rate_limit.py`, whose
+  `limit_by_type` decorator is a no-op wrapper - nothing calls it.
+
+What was kept, deliberately: the **per-account lockout**
+(`User.failed_login_count`, `User.locked_until`, `MAX_FAILED_ATTEMPTS`,
+`LOCKOUT_DURATION_MINUTES`) and `LOGIN_FAILURE_DELAY`. Those are columns on
+the user row and a sleep on the failure path, so they cost no extra request.
+A per-IP proxy limit does not stop a distributed attempt against one account;
+the lockout does.
+
+Where the limit now lives:
+
+- `nginx/conf.d/blog.conf` - `location = /login` and `location = /admin/login`
+  share the `login` zone; `nginx/nginx.conf` defines the zone at `rate=5r/m`.
+- `app/deployment/proxy.py::render_nginx_config` - emits the
+  `limit_req_zone` directives and both login locations. The file must be
+  included from the **http** context, because `limit_req_zone` is only valid
+  there.
+- Caddy has no built-in rate limiting. `render_caddyfile` now warns that the
+  proxy needs a plugin (for example `caddy-ratelimit`) or a WAF in front.
 
 ### nginx Security Headers
 
@@ -799,13 +828,44 @@ and `op.add_column` silently drops an inline `REFERENCES` clause there. The
 application enforces the delete behaviour in code instead, so the constraint
 being absent on SQLite is not a behavioural difference.
 
-**Pre-existing, not fixed here:** running `flask db upgrade` against a
-*completely empty* database fails on this branch with
+**Fixed on 2026-10-24: a fresh install now works.** Running `flask db upgrade`
+against a *completely empty* database used to fail with
 `duplicate column name: newsletter_attempts`. Two branches of the migration
 graph both add `posts.newsletter_attempts` (`89a922eae517` and
-`16034e1c5a45`), and the initial schema already creates some of the tables
-that `16034e1c5a45` creates. The chain works for an existing deployment,
-which is the upgrade path that matters, but a fresh install from the
-migrations alone is broken. `tests/test_migration_chain.py` does not exercise
-a from-scratch upgrade, so CI does not catch it. Fixing it means rewriting
-historical migrations and is a separate piece of work.
+`16034e1c5a45`), and both create the `post_revisions` table
+(`add_post_revisions` and `16034e1c5a45`). The chain worked for an existing
+deployment, which is the upgrade path that matters, but a fresh install from
+the migrations alone was broken.
+
+The fix was three parts:
+
+- `16034e1c5a45` now checks before it creates anything. A column or table
+  that already exists is left alone, and each index is created
+  independently of the table that holds it, so the branch that arrives second
+  adds only what the branch that arrived first did not. It also no longer
+  runs `UPDATE alembic_version SET version_num=...`, which set every branch
+  row to a single revision and corrupted the branch tracking.
+- `89a922eae517` and `add_post_revisions` tolerate the sibling branch having
+  already dropped their column and their table.
+- A new head migration, `reconcile_schema_with_models`, brings a database
+  built by the migration graph up to the models. The graph predates several
+  models, so the columns and tables those models need were never added by a
+  migration: `api_tokens` did not exist, `users` was missing `email`,
+  `reset_token`, `reset_token_expires_at`, `failed_login_count`,
+  `locked_until`, `totp_secret_encrypted`, `totp_enabled` and
+  `backup_codes_hashed`, `webhook_events` was missing the delivery
+  counters, `post_tags` was missing its tag index, `users.totp_secret` and
+  `webhooks.secret` were leftovers the models had replaced, and seven
+  columns had the wrong nullability. Every step is conditional, so on a
+  database that already matches the models it changes nothing.
+
+**Rewriting the body of an already-applied migration only affects databases
+that have not applied it yet.** Existing deployments have the revision
+stamped, so they never run it again. That is what makes it safe to make the
+historical migrations conditional instead of squashing the history.
+
+**CI now covers it.** `tests/test_migration_chain.py` builds a database from
+scratch in a subprocess and compares the resulting schema with the model
+metadata. The upgrade runs in a subprocess because `migrations/env.py` takes
+its engine from the current Flask application, and the test suite's own
+application is bound to a different database.

@@ -2,11 +2,23 @@
 
 Tests the specific Halloy theme migrations by invoking their upgrade/downgrade
 functions within a proper Alembic Operations context.
+
+The last test builds a database from scratch with the whole migration graph
+and compares the result with the models. The graph has two branches that
+leave ``1992db4c5c98`` and both branches create some of the same objects, so
+a fresh install is the case that exercises the branch interaction.
 """
+
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import sqlalchemy as sa
 from alembic.runtime.migration import MigrationContext
 from alembic.operations import Operations
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _get_columns(engine, table_name):
@@ -301,3 +313,69 @@ def test_fresh_install_creates_correct_schema(app):
 
         with engine.begin() as conn:
             conn.execute(sa.text("DROP TABLE site_settings"))
+
+
+def _fresh_install(tmp_path):
+    """Build a database from scratch with the whole migration graph.
+
+    The upgrade runs in a subprocess because the migration environment reads
+    the engine from the current Flask application, and the test suite's own
+    application is bound to a different database.
+    """
+    db_path = tmp_path / "fresh.sqlite3"
+    env = os.environ.copy()
+    env["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    env["FLASK_APP"] = "run:app"
+    env.setdefault("SECRET_KEY", "test-secret-key-test-secret-key-1234")
+    env.setdefault("ADMIN_PASSWORD", "test-password-123")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "flask", "db", "upgrade"],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return db_path
+
+
+def test_fresh_install_upgrades_without_error(tmp_path):
+    """A database built from scratch runs every migration.
+
+    The graph has two branches that leave 1992db4c5c98. Both of them create
+    some of the same objects - 89a922eae517 adds posts.newsletter_attempts and
+    add_post_revisions creates the post_revisions table - and 16034e1c5a45
+    creates them too. A fresh install runs both branches, so the DDL has to
+    tolerate arriving second.
+    """
+    db_path = _fresh_install(tmp_path)
+
+    engine = sa.create_engine(f"sqlite:///{db_path}")
+    with engine.connect() as conn:
+        version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar()
+    assert version == "reconcile_schema_with_models"
+
+
+def test_fresh_install_schema_matches_the_models(tmp_path):
+    """The schema a fresh install produces is the schema the models describe."""
+    from app.extensions import db
+
+    db_path = _fresh_install(tmp_path)
+
+    engine = sa.create_engine(f"sqlite:///{db_path}")
+    inspector = sa.inspect(engine)
+
+    problems = []
+    for name, table in db.metadata.tables.items():
+        if not inspector.has_table(name):
+            problems.append(f"missing table {name}")
+            continue
+        actual = {col["name"] for col in inspector.get_columns(name)}
+        expected = {col.name for col in table.columns}
+        missing = expected - actual
+        if missing:
+            problems.append(f"{name}: missing columns {sorted(missing)}")
+
+    assert not problems, "\n".join(problems)

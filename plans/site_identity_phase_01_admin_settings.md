@@ -495,10 +495,10 @@ service, the Site section, the comments switch end-to-end and the footer.
 Migration upgrade and downgrade were exercised against a simulated existing
 deployment by `/tmp/devlog_review_stubs/mig_verify.py` — both directions pass.
 
-**Recorded, not fixed:** `flask db upgrade` against a *completely empty*
-database still fails with `duplicate column name: newsletter_attempts`. Two
-branches of the historical migration graph both add that column. This is
-pre-existing and is not caused by this series — fixing it means rewriting
-historical migrations. It is recorded in
-`docs/internals/agent-maintainer-notes.md`.
+**Recorded at the time, fixed on 2026-10-24:** `flask db upgrade` against a
+*completely empty* database failed with `duplicate column name:
+newsletter_attempts`. Two branches of the historical migration graph both add
+that column. That is fixed now — see the "Fresh Install" section in
+`docs/internals/agent-maintainer-notes.md` and the
+`reconcile_schema_with_models` migration.
 

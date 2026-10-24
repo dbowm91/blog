@@ -56,7 +56,13 @@ def downgrade():
         batch_op.drop_index("ix_posts_published_updated")
         batch_op.drop_index("ix_posts_newsletter_sent_at")
         batch_op.create_index(batch_op.f("ix_posts_slug"), ["slug"], unique=False)
-        batch_op.drop_column("newsletter_attempts")
+        # The sibling branch may already have dropped this column, because
+        # 16034e1c5a45 also adds it and both branches run on a database that
+        # is built from scratch.
+        if "newsletter_attempts" in {
+            col["name"] for col in sa.inspect(op.get_bind()).get_columns("posts")
+        }:
+            batch_op.drop_column("newsletter_attempts")
 
     with op.batch_alter_table("page_views", schema=None) as batch_op:
         batch_op.create_index(batch_op.f("ix_page_views_post_id"), ["post_id"], unique=False)

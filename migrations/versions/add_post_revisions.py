@@ -31,5 +31,11 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index("ix_post_revisions_post_created", table_name="post_revisions")
+    # The sibling branch may already have dropped this table, because
+    # 16034e1c5a45 also creates it and both branches run on a database that
+    # is built from scratch.
+    if not sa.inspect(op.get_bind()).has_table("post_revisions"):
+        return
+    if sa.inspect(op.get_bind()).has_index("post_revisions", "ix_post_revisions_post_created"):
+        op.drop_index("ix_post_revisions_post_created", table_name="post_revisions")
     op.drop_table("post_revisions")
