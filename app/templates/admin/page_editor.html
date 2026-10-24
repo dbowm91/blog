@@ -1,4 +1,5 @@
 {% extends "admin/base.html" %}
+{% from "admin/_editor_body.html" import markdown_editor %}
 
 {% block title %}{{ 'Edit' if page else 'New' }} Page | Admin{% endblock %}
 
@@ -33,25 +34,7 @@
             {% endif %}
         </div>
 
-        <div class="form-group">
-            <label for="body">Content</label>
-            <span id="body-hint" class="label-hint">Markdown formatting supported</span>
-            <div class="editor-split" id="editor-split">
-                <div class="editor-textarea-wrapper">
-                    <textarea id="body" name="body" rows="20" required placeholder="Write your page content in Markdown..." aria-describedby="body-hint{{ '-error' if errors and errors.body else '' }}"{{ ' aria-invalid="true"' if errors and errors.body else '' }}>{{ page.body if page else '' }}</textarea>
-                    <button type="button" id="toggle-preview-btn" class="btn btn-small btn-ghost toggle-preview-btn" aria-label="Toggle preview" aria-expanded="false">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        <span class="toggle-preview-text">Show Preview</span>
-                    </button>
-                </div>
-                <div id="markdown-preview" class="markdown-preview prose">
-                    <p class="empty-state">Live preview will appear here...</p>
-                </div>
-            </div>
-            {% if errors and errors.body %}
-                <span class="field-error" id="body-error" role="alert">{{ errors.body }}</span>
-            {% endif %}
-        </div>
+        {{ markdown_editor(value=page.body if page else '', label='Content', hint='Markdown formatting supported', placeholder='Write your page content in Markdown...', error=errors.body if errors and errors.body else None) }}
 
         <div class="form-group form-checkbox">
             <input type="checkbox" id="published" name="published" {{ 'checked' if page and page.published }}>

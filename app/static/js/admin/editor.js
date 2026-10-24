@@ -1,4 +1,5 @@
 import { announce, csrfHeaders } from '../shared/utils.js';
+import { initMarkdownToolbar } from './markdown-toolbar.js';
 
 export function deriveDraftKey(pathname) {
     const editorType = /\/admin\/pages\//.test(pathname) ? 'page' : 'post';
@@ -12,10 +13,10 @@ export function initEditor() {
     const editorSplit = document.getElementById('editor-split');
     const togglePreviewBtn = document.getElementById('toggle-preview-btn');
 
-    // Mobile preview toggle
-    if (togglePreviewBtn && editorSplit) {
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    initMarkdownToolbar();
 
+    // Collapsible preview, below the editor
+    if (togglePreviewBtn && editorSplit) {
         const setPreviewVisible = (visible) => {
             editorSplit.classList.toggle('preview-visible', visible);
             editorSplit.classList.toggle('preview-hidden', !visible);
@@ -26,19 +27,11 @@ export function initEditor() {
             togglePreviewBtn.setAttribute('aria-expanded', String(visible));
         };
 
-        setPreviewVisible(!isMobile);
+        setPreviewVisible(true);
 
         togglePreviewBtn.addEventListener('click', () => {
-            setPreviewVisible(!editorSplit.classList.contains('preview-visible'));
+            setPreviewVisible(editorSplit.classList.contains('preview-hidden'));
         });
-
-        const syncPreviewState = new MutationObserver(() => {
-            const visible = !editorSplit.classList.contains('preview-hidden');
-            if (editorSplit.classList.contains('preview-visible') !== visible) {
-                setPreviewVisible(visible);
-            }
-        });
-        syncPreviewState.observe(editorSplit, { attributes: true, attributeFilter: ['class'] });
     }
 
     if (bodyTextarea && previewDiv) {

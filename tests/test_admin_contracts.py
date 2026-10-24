@@ -55,6 +55,10 @@ def _run_node_esm(tmp_path: Path, script: str) -> dict:
     (tmp_path / "admin").mkdir()
     (tmp_path / "shared").mkdir()
     shutil.copy2(JS_DIR / "admin" / "editor.js", tmp_path / "admin" / "editor.js")
+    shutil.copy2(
+        JS_DIR / "admin" / "markdown-toolbar.js",
+        tmp_path / "admin" / "markdown-toolbar.js",
+    )
     shutil.copy2(JS_DIR / "shared" / "utils.js", tmp_path / "shared" / "utils.js")
     shutil.copy2(JS_DIR / "shared" / "filter-select.js", tmp_path / "shared" / "filter-select.js")
     driver = tmp_path / "driver.mjs"
@@ -265,8 +269,53 @@ def test_preview_toggle_manages_revealing_class_and_state():
     assert "'Hide Preview' : 'Show Preview'" in source
 
     css = _read(STATIC_DIR / "css" / "admin.css")
-    assert ".editor-split.preview-visible .markdown-preview" in css
     assert ".editor-split.preview-hidden .markdown-preview" in css
+
+
+def test_editor_stacks_the_preview_below_a_full_width_textarea():
+    """The editor is a single column: the preview sits under the textarea."""
+    css = _read(STATIC_DIR / "css" / "admin.css")
+    split = css.split(".editor-split {", 1)[1].split("}", 1)[0]
+    assert "flex-direction: column" in split
+    assert "grid-template-columns" not in split
+    assert ".editor-split textarea" in css
+    assert "width: 100%" in css.split(".editor-split textarea {", 1)[1].split("}", 1)[0]
+
+
+def test_markdown_toolbar_exposes_every_formatting_action():
+    """The toolbar offers the full set of common markdown insertions."""
+    html = _read(ADMIN_TEMPLATES_DIR / "_editor_body.html")
+    for action in (
+        "bold",
+        "italic",
+        "underline",
+        "strikethrough",
+        "code",
+        "codeblock",
+        "link",
+        "heading",
+        "quote",
+        "bulletlist",
+        "numberedlist",
+    ):
+        assert f'data-md-action="{action}"' in html
+    assert 'role="toolbar"' in html
+
+    source = _read(JS_DIR / "admin" / "markdown-toolbar.js")
+    for action in (
+        "bold",
+        "italic",
+        "underline",
+        "strikethrough",
+        "code",
+        "codeblock",
+        "link",
+        "heading",
+        "quote",
+        "bulletlist",
+        "numberedlist",
+    ):
+        assert f"    {action}:" in source
 
 
 def test_post_editor_exposes_preview_toggle_contract(authenticated_client):
@@ -275,7 +324,8 @@ def test_post_editor_exposes_preview_toggle_contract(authenticated_client):
     assert 'id="editor-split"' in html
     assert 'id="toggle-preview-btn"' in html
     assert "toggle-preview-text" in html
-    assert 'aria-expanded="false"' in html
+    assert 'aria-controls="markdown-preview"' in html
+    assert 'aria-expanded="true"' in html
 
 
 def test_page_editor_exposes_preview_toggle_contract(authenticated_client):
@@ -284,7 +334,23 @@ def test_page_editor_exposes_preview_toggle_contract(authenticated_client):
     assert 'id="editor-split"' in html
     assert 'id="toggle-preview-btn"' in html
     assert "toggle-preview-text" in html
-    assert 'aria-expanded="false"' in html
+    assert 'aria-controls="markdown-preview"' in html
+    assert 'aria-expanded="true"' in html
+
+
+def test_page_editor_attaches_the_body_error_to_the_field(authenticated_client):
+    """A missing body re-renders the editor with the error wired to the field."""
+    response = authenticated_client.post(
+        "/admin/pages/new",
+        data={"title": "", "slug": "", "body": ""},
+    )
+
+    assert response.status_code == 400
+    html = response.get_data(as_text=True)
+    assert 'id="body-error"' in html
+    assert "Content is required." in html
+    assert 'aria-describedby="body-hint body-error"' in html
+    assert 'aria-invalid="true"' in html
 
 
 # --- FE-ADM-09 / FE-ADM-10: series reorder and remove -----------------------
