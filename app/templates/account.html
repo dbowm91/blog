@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_name }}{% endblock %}
+
+{% block content %}
+<article class="account-card">
+    <header class="account-header">
+        {% if avatar_url %}
+        <img class="account-avatar" src="{{ avatar_url }}" alt="{{ profile_name }}" width="96" height="96">
+        {% else %}
+        <span class="account-avatar account-avatar-placeholder" aria-hidden="true">{{ profile_name[:1]|upper }}</span>
+        {% endif %}
+        <div class="account-identity">
+            <h1 class="account-name">{{ profile_name }}</h1>
+            {% if bio_short %}
+            <p class="account-bio">{{ bio_short }}</p>
+            {% endif %}
+            <p class="account-count">{{ post_count }} published post{{ '' if post_count == 1 else 's' }}</p>
+        </div>
+    </header>
+
+    {% if editing %}
+    <form method="POST" action="{{ url_for('public.account_profile') }}" enctype="multipart/form-data" class="account-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label for="display_name">Display name</label>
+            <input type="text" id="display_name" name="display_name" value="{{ profile_name }}" maxlength="120" autocomplete="nickname">
+        </div>
+        <div class="form-group">
+            <label for="bio_short">Short bio</label>
+            <input type="text" id="bio_short" name="bio_short" value="{{ bio_short }}" maxlength="300">
+            <p class="form-help">Shown next to your posts. Up to 300 characters.</p>
+        </div>
+        <div class="form-group">
+            <label for="bio_full">Full bio</label>
+            <textarea id="bio_full" name="bio_full" rows="8">{{ bio_full }}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="avatar">Avatar</label>
+            <input type="file" id="avatar" name="avatar" accept="image/*">
+        </div>
+        {% if avatar_url %}
+        <div class="form-checkbox">
+            <input type="checkbox" id="remove_avatar" name="remove_avatar" value="1">
+            <label for="remove_avatar">Remove the current avatar</label>
+        </div>
+        {% endif %}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save profile</button>
+            <a class="btn btn-ghost" href="{{ url_for('public.account') }}">Cancel</a>
+        </div>
+    </form>
+    {% else %}
+    <p class="account-actions">
+        <a class="btn btn-primary" href="{{ url_for('public.account_profile') }}">Edit profile</a>
+    </p>
+    {% endif %}
+</article>
+<style nonce="{{ csp_nonce }}">
+    .account-card {
+        max-width: 640px;
+        margin: var(--space-2xl, 48px) auto;
+        padding: var(--space-lg, 24px);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg, 12px);
+    }
+    .account-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md, 16px);
+        margin-bottom: var(--space-lg, 24px);
+    }
+    .account-avatar {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 3px solid var(--accent);
+    }
+    .account-avatar-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 600;
+        background: var(--bg-elevated);
+        color: var(--text-dim);
+    }
+    .account-name {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    .account-bio {
+        margin: var(--space-xs, 4px) 0 0;
+        color: var(--text-muted);
+    }
+    .account-count {
+        margin: var(--space-xs, 4px) 0 0;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+    }
+    .account-form .form-group {
+        margin-bottom: var(--space-md, 16px);
+    }
+    .account-form input[type="text"],
+    .account-form textarea {
+        width: 100%;
+        padding: 10px 12px;
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md, 8px);
+        font-size: 1rem;
+    }
+    .account-form .form-actions {
+        display: flex;
+        gap: var(--space-sm, 8px);
+        margin-top: var(--space-lg, 24px);
+    }
+</style>
+{% endblock %}

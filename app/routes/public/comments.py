@@ -81,6 +81,12 @@ def add_comment(slug: str) -> ResponseReturnValue:
     Methods: POST
     POST: Validates and saves comment (requires approval).
     """
+    from app.context_processors import get_site_settings
+
+    if not get_site_settings()["comments_enabled"]:
+        flash("Comments are closed.", "error")
+        return redirect(url_for("public.post", slug=slug))
+
     # Honeypot check - if filled, silently reject
     honeypot = request.form.get("website_url", "").strip()
     if honeypot:

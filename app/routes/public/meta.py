@@ -19,7 +19,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.extensions import db
-from app.models import Post, Tag, Page
+from app.models import Post, Tag, Page, User
 from app.config import (
     BASE_URL,
     HEALTH_CHECK_SECRET,
@@ -99,6 +99,23 @@ def _generate_sitemap():
     <lastmod>{lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>\n"""
+    # Author pages
+    for username in (
+        db.session.execute(
+            select(User.username)
+            .join(Post, Post.author_id == User.id)
+            .filter(Post.published.is_(True))
+            .distinct()
+            .order_by(User.username)
+        )
+        .scalars()
+        .all()
+    ):
+        yield f"""  <url>
+    <loc>{xml_escape(BASE_URL)}/author/{xml_escape(username)}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>\n"""
     # Tags
     for tag in db.session.execute(select(Tag)).scalars().yield_per(100):

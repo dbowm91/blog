@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Pages | {{ site_title }}{% endblock %}
+{% block meta_description %}Every static page published on {{ site_title }}.{% endblock %}
+{% block og_title %}Pages | {{ site_title }}{% endblock %}
+
+{% block content %}
+<style nonce="{{ csp_nonce }}">
+    .pages-index-heading {
+        margin: 0 0 var(--space-md);
+    }
+    .pages-index-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: var(--space-md);
+    }
+    .pages-index-item {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: var(--space-md);
+    }
+    .pages-index-title {
+        margin: 0 0 var(--space-xs);
+        font-size: 1.05rem;
+    }
+    .pages-index-title a {
+        color: var(--text);
+    }
+    .pages-index-summary {
+        margin: 0;
+        color: var(--text-dim);
+    }
+    .pages-index-empty {
+        color: var(--text-dim);
+    }
+</style>
+
+<nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ url_for('public.index') }}">Home</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current">Pages</span>
+</nav>
+
+<h1 class="pages-index-heading">Pages</h1>
+
+{% if pages %}
+<ul class="pages-index-list">
+    {% for pg, summary in pages %}
+    <li class="pages-index-item">
+        <h2 class="pages-index-title">
+            <a href="{{ url_for('public.page', slug=pg.slug) }}">{{ pg.title }}</a>
+        </h2>
+        {% if summary %}
+        <p class="pages-index-summary">{{ summary }}</p>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="pages-index-empty">No pages have been published yet.</p>
+{% endif %}
+{% endblock %}
