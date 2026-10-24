@@ -2,7 +2,7 @@
 
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Planned
+**Status:** Complete
 **Severity:** High — non-admin accounts exist in the database but there is no way for anyone to sign in as one.
 
 ## Objective
@@ -246,4 +246,30 @@ Phase 04 lands after it and adds the author-facing views of the same session.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete.
+
+| Item | Resolution |
+|---|---|
+| Routes | `app/routes/public/auth.py` registers `public.login` (`/login`), `public.logout` (`/logout`, POST), `public.account` (`/account`) and `public.account_profile` (`/account/profile`). |
+| Admin accounts refused | The public login **refuses** admin accounts. Without this a public session would satisfy `admin_required` on its `is_admin` check alone, so admin sign-in stays on `/admin/login` only. |
+| Same controls as admin auth | 5 requests/minute rate limit, the shared `failed_login_count` / `locked_until` lockout counters, `LOGIN_FAILURE_DELAY` on invalid credentials, and `session.clear()` before `login_user()`. |
+| Two-factor | A 2FA account must supply its TOTP or a backup code. A 2FA account whose secret cannot be decrypted is refused rather than allowed in without a second factor. |
+| Redirect safety | `is_safe_next_url()` is a dedicated helper for this route — it does not reuse the Referer-based `_safe_redirect_url()`, which has different semantics. |
+| Admin sessions | `admin_required` also requires an `AdminSession` row, so `public.logout` deletes that row. A public session therefore cannot reach an admin route. |
+| Account page | `app/templates/account.html` shows the signed-in user's profile and doubles as the editor for display name, short bio, full bio and avatar through an `editing` flag. It carries no password and no admin controls. |
+| Nav affordance | The public nav carries **Log in** when signed out and **Account**, **Write** and **Log out** when signed in. |
+| Forgot password | `app/routes/admin/auth.py` forgot-password now works for non-admin accounts, so a locked-out author can still recover. |
+
+**Verification** — headless Chromium against the live instance at
+`http://localhost:5050`, harness at `/tmp/devlog_review_stubs/identity_verify.py`:
+
+```
+PASS login_page_exists
+PASS nav_has_log_in
+PASS author_nav_has_account
+PASS author_nav_has_write
+PASS author_nav_has_no_dashboard
+```
+
+Unit coverage: `tests/test_public_auth.py` (21 tests), covering login,
+lockout, rate limiting, the admin-account refusal, 2FA and the safe redirect.

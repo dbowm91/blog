@@ -2,7 +2,7 @@
 
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Planned
+**Status:** Complete
 **Severity:** High — posts have no author at all, so "clicking on an author" cannot work.
 
 ## Objective
@@ -279,4 +279,31 @@ touches `app/templates/post.html` as well and lands after this phase.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete.
+
+| Item | Resolution |
+|---|---|
+| Column | `posts` gained `author_id` through migration `add_post_author`, with an index. The foreign key is created only on non-SQLite dialects — SQLite does not enforce foreign keys in this deployment, so `app/routes/admin/users.py` nulls `posts.author_id` in code when a user is deleted. |
+| Backfill | Every existing post is backfilled with the oldest admin account, so no post is left without an author after the upgrade. |
+| One producer | `app/services/authors.py` owns the author: `AuthorView`, `resolve_author`, `resolve_author_id`, `list_authors` and `default_author_id`. Templates and routes never re-derive it. |
+| Config-level author | `AuthorView.username is None` means the configured site author has no account. The name is then rendered as plain text — there is no profile page to link to. |
+| Author page | `GET /author/<username>` (`public.author`) renders `app/templates/author.html` with the author's display name, short bio and full bio. |
+| Links | The author is a link on the post page (`_post_content.html`) and on the listing (`index.html`), and appears as the JSON-LD `author` on the post page. The sitemap carries the author pages. |
+| Editor | The post editor carries an **Author** select populated from `list_authors()`. |
+| API | The posts API resolves the author field through the same service. |
+| Export/import | `Post.author_id` is **intentionally not** in the export payload. Users are not exported, so an imported post is assigned to the importing admin. This matches the roadmap's cross-cutting constraint 5. |
+| Author role | `author_required` in `app/routes/admin/__init__.py` lets any signed-in user reach the post editor and nothing else. An author may edit only their own posts (403 otherwise), and **their posts are forced to drafts** — publishing and scheduling stay an admin decision. That default was chosen deliberately, because auto-publishing is a product decision the operator did not specify. |
+
+**Verification** — headless Chromium against the live instance at
+`http://localhost:5050`, harness at `/tmp/devlog_review_stubs/identity_verify.py`:
+
+```
+PASS author_reaches_editor
+PASS author_page_shows_full_bio
+PASS author_page_shows_short_bio
+PASS post_links_to_author
+```
+
+Unit coverage: `tests/test_authors.py` (21 tests) and `tests/test_author_role.py`
+(12 tests), covering the resolver, the author page, the author links, the
+editor select and the author role's ownership and draft rules.

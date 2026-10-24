@@ -1,7 +1,7 @@
 # Site Identity, Authorship and Layout Roadmap
 
 **Date:** 2026-10-24
-**Status:** Open — planned, not started
+**Status:** Open — Phases 01 (both parts), 02, 03, 04 and 05 shipped; Phase 06 planned
 **Origin:** operator review of the running instance (2026-10-24)
 **Series prefix:** `SIA-`
 
@@ -54,7 +54,10 @@ harness, not a test).
 
 ## Database reality
 
-Read directly from `data/devlog.sqlite3`:
+Read directly from `data/devlog.sqlite3` **before the series shipped**. The
+columns and accounts listed below are the state the phases were planned
+against; each phase's Completion section records what the schema looks like
+now.
 
 - `users` columns: `id, username, email, password_hash, is_admin, reset_token,
   reset_token_expires_at, failed_login_count, locked_until,
@@ -77,11 +80,11 @@ Read directly from `data/devlog.sqlite3`:
 
 | Phase | File | Area | Status |
 |---|---|---|---|
-| 01 | `site_identity_phase_01_admin_settings.md` | Settings reorganisation, theme preview placement, comments toggle, editable footer | Part A complete (theme preview placement) — Part B planned |
-| 02 | `site_identity_phase_02_user_profiles.md` | Profile fields, avatar, short/full bio, admin profile editor | Planned |
-| 03 | `site_identity_phase_03_public_auth.md` | Public login, account page, nav affordance | Planned |
-| 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Post → author, author page, author links | Planned |
-| 05 | `site_identity_phase_05_page_navigation.md` | Making published pages reachable | Planned |
+| 01 | `site_identity_phase_01_admin_settings.md` | Settings reorganisation, theme preview placement, comments toggle, editable footer | Complete — Part A (theme preview placement) and Part B (comments switch, editable footer, page menu) |
+| 02 | `site_identity_phase_02_user_profiles.md` | Profile fields, avatar, short/full bio, admin profile editor | Complete |
+| 03 | `site_identity_phase_03_public_auth.md` | Public login, account page, nav affordance | Complete |
+| 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Post → author, author page, author links | Complete |
+| 05 | `site_identity_phase_05_page_navigation.md` | Making published pages reachable | Complete |
 | 06 | `site_identity_phase_06_comments_layout.md` | Comment measure, comment styling, mobile | Planned |
 
 ## Execution order
@@ -127,8 +130,10 @@ settings form.
 3. **No CSP weakening.** No new inline scripts, no `unsafe-inline`, no injected
    `<style>` without a nonce.
 4. **Migrations are additive.** New columns are nullable or carry a default.
-   The single Alembic head is `drop_theme_preset_column`; every new migration
-   uses `down_revision = "drop_theme_preset_column"` in chain order.
+   The Alembic head moved from `drop_theme_preset_column` to
+   `add_page_menu_fields`; the series added four migrations in chain order —
+   `add_site_settings_content_flags`, `add_user_profile_fields`,
+   `add_post_author`, `add_page_menu_fields`.
 5. **Export/import.** `app/services/serialization.py` enumerates fields
    explicitly. `serialize_post` does not include an author and `users` are not
    exported at all, so `Post.author_id` is intentionally **not** added to the
@@ -162,3 +167,24 @@ planned, and each needs its own change:
 The roadmap closes when every phase file carries a `## Completion` section with
 the verification evidence, and `plans/AGENTS.override.md` lists the series under
 **Active Plans** → then **Historical Plans**.
+
+Phases 01–05 carry their Completion sections. Phase 06 remains planned, so the
+series stays open until the comment-measure work ships.
+
+## Verification of Phases 01–05
+
+All five phases were verified by rendering the running instance at
+`http://localhost:5050` in headless Chromium, not by reading templates. The
+combined harness is at `/tmp/devlog_review_stubs/identity_verify.py` (scratch
+harness, not committed) and reported **29/29 checks passed** against the four
+operator questions — can users log in, is there a page to edit their own
+information, can the admin edit their display information, does it attach to
+the posts they create — plus the page-menu requirement.
+
+| Operator question | Resolution | Phase |
+|---|---|---|
+| Can users log in? | Yes. `/login` accepts a non-admin account; the nav shows Log in, and Account, Write and Log out once signed in. | 03 |
+| Is there a page to edit their own info? | Yes. `/account` shows the profile and doubles as the editor for display name, short bio, full bio and avatar. | 02, 03 |
+| Can the admin edit their display information? | Yes. `/admin/users` carries a Profile action per user, and `/admin/profile` edits the signed-in admin's own profile. | 02 |
+| Does this attach to posts they create? | Yes. `Post.author_id` records the creator; the author is named and linked on the post, in the listing, in the JSON-LD and on `/author/<username>`. An author's own posts are forced to drafts — publishing stays an admin decision. | 04 |
+| Pages should create links in the nav bar as well | Yes. Published pages appear in the nav through the Site section of the settings page, and in the footer's Pages column, with `/pages` as the full index. | 05 |

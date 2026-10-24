@@ -535,24 +535,25 @@ See `app/static/AGENTS.override.md` for the full cross-layer contract list.
 ### Site Identity, Authorship and Layout Roadmap (open)
 
 An operator review of the running instance on 2026-10-24 found eight gaps.
-**The plan is written; no phase is implemented yet.** The roadmap and the
-per-phase findings are at `plans/site_identity_authoring_roadmap.md`. Every
-finding was confirmed by rendering the instance in Chromium and measuring the
-DOM, not by reading templates.
+**Phases 01–05 have shipped; Phase 06 (comment layout) is still planned.** The
+roadmap and the per-phase findings are at
+`plans/site_identity_authoring_roadmap.md`. Every finding was confirmed by
+rendering the instance in Chromium and measuring the DOM, not by reading
+templates.
 
 Phases, in dependency order:
 
-- `plans/site_identity_phase_01_admin_settings.md` — the theme preview sat *below* the theme selector it previews, so the operator had to keep scrolling up and down to see a result; there was no comments switch; the footer was hardcoded. **Part A (the preview placement) has shipped** — the mechanism is unchanged, only the panel moved above the selector, gained a reserved non-resizing footprint, and is scrolled into view when produced
-- `plans/site_identity_phase_02_user_profiles.md` — `users` had no profile fields; `/admin/users` had no profile editor, so there was nowhere to set a picture or a bio
-- `plans/site_identity_phase_03_public_auth.md` — there was no public login, so the three non-admin accounts in the database could not authenticate at all
-- `plans/site_identity_phase_04_authorship_and_author_pages.md` — `posts` had no `author_id`; the rendered author was a single config value, empty by default and never a link; there was no author page
-- `plans/site_identity_phase_05_page_navigation.md` — published pages worked at `/page/<slug>` but nothing on the site linked to them
-- `plans/site_identity_phase_06_comments_layout.md` — the comment block had no CSS at all and sat 176px to the left of the post column on desktop; replies had no indent
+- `plans/site_identity_phase_01_admin_settings.md` — the theme preview sat *below* the theme selector it previews, so the operator had to keep scrolling up and down to see a result; there was no comments switch; the footer was hardcoded. **Shipped** — Part A moved the panel above the selector with a reserved non-resizing footprint and a scroll-into-view, leaving the mechanism untouched; Part B added the Site section with the comments switch (which fails closed), the editable plain-text footer and the page-menu fields
+- `plans/site_identity_phase_02_user_profiles.md` — `users` had no profile fields; `/admin/users` had no profile editor. **Shipped** — display name, avatar, short bio and full bio, editable per user from `/admin/users` and at `/admin/profile`
+- `plans/site_identity_phase_03_public_auth.md` — there was no public login, so the three non-admin accounts in the database could not authenticate at all. **Shipped** — `/login`, `/account`, nav affordances, admin accounts refused on the public route, and the same rate limit, lockout and 2FA controls the admin login uses
+- `plans/site_identity_phase_04_authorship_and_author_pages.md` — `posts` had no `author_id`; the rendered author was a single config value, empty by default and never a link; there was no author page. **Shipped** — `Post.author_id`, an author page at `/author/<username>`, author links and JSON-LD, and an `author_required` role that may only edit its own posts and whose posts stay drafts
+- `plans/site_identity_phase_05_page_navigation.md` — published pages worked at `/page/<slug>` but nothing on the site linked to them. **Shipped** — pages appear in the nav and the footer's Pages column, with `/pages` as the index
+- `plans/site_identity_phase_06_comments_layout.md` — the comment block had no CSS at all and sat 176px to the left of the post column on desktop; replies had no indent. **Still planned**
 
 Rules that apply to this series:
 
 - One value, one producer. `comments_enabled` and `footer_text` are owned by Phase 01; the page-menu fields by Phase 05; the profile fields by Phase 02; `Post.author_id` by Phase 04; the comment CSS by Phase 06.
-- The single Alembic head is `drop_theme_preset_column`; each phase's migration chains from the previous phase.
+- The Alembic head is `add_page_menu_fields`; the series added four migrations in chain order — `add_site_settings_content_flags`, `add_user_profile_fields`, `add_post_author`, `add_page_menu_fields`.
 - New CSS uses theme tokens only; bios and other rich-text fields render through `app/markdown_renderer.py`, the single sanitised markdown producer.
 - Browser-level tests belong under `tests/e2e/`.
 

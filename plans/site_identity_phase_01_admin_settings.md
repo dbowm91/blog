@@ -2,14 +2,16 @@
 
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Part A complete (theme preview placement); Part B planned (comments switch, editable footer)
+**Status:** Complete — Part A (theme preview placement) and Part B (comments switch, editable footer, page menu) shipped
 **Severity:** High — the settings page cannot express two of the site-level controls the operator asked for, and the theme preview sat below the control it previews.
 
 This phase has two parts:
 
 - **Part A — Theme preview placement.** Shipped. See [Part A](#part-a--theme-preview-placement) and
   the [Completion](#completion) section.
-- **Part B — Comments switch and editable footer.** Not started.
+- **Part B — Comments switch and editable footer.** Shipped. See
+  [Part B](#part-b--comments-switch-and-editable-footer) and the
+  [Completion](#completion) section.
 
 ## Operator clarification (2026-10-24)
 
@@ -409,7 +411,7 @@ section created here with the page-menu fields; Phase 06 reads
 
 ## Completion
 
-**Status:** Part A complete. Part B not started.
+**Status:** Complete. Part A and Part B both shipped.
 
 ### Part A — theme preview placement (shipped)
 
@@ -459,4 +461,44 @@ loop needs no scrolling.
 returns for the current theme pair ("Both themes are classified as dark.") adds
 108px to the section when it appears. That is content, not layout shift — the
 preview box itself does not resize — and it is recorded rather than fixed.
+
+### Part B — comments switch, editable footer and page menu (shipped)
+
+| Item | Resolution |
+|---|---|
+| Site section | `/admin/settings` gained a **Site** section. Section order is now Theme Preview, Theme, Theme Registry, Site. The six values it owns are `comments_enabled`, `footer_text`, `footer_show_posts`, `footer_show_tags`, `show_pages_in_menu` and `menu_pages`. |
+| One form, one endpoint | `POST /admin/settings/site` persists all six. Validation and parsing live in `app/services/site_settings.py` (`validate_site_settings`, `parse_menu_pages`); the route never interprets raw form values. |
+| Comments switch — fails closed | The public POST endpoint in `app/routes/public/comments.py` refuses to accept a comment when the switch is off, and `app/templates/post.html` hides the form and shows "Commenting is closed". Existing comments stay visible — the switch closes the door, it does not delete what is already there. |
+| Footer text | `footer_text` is **plain text**. It is rendered escaped with `white-space: pre-line` (`.footer-text` in `app/static/css/layout.css`), never markdown and never HTML. |
+| Footer columns | `footer_show_posts` and `footer_show_tags` toggle the "Latest from the blog" and "Browse by tag" columns independently. |
+| Page menu | `show_pages_in_menu` and the ordered `menu_pages` id list are edited in the same Site section, so there is no second settings form. The parser is owned by `app/services/site_settings.py`; `app/services/navigation.py` re-exports it as a thin alias so there is exactly one parser. |
+| Schema | Migration `add_site_settings_content_flags` adds `comments_enabled`, `footer_text`, `footer_show_posts`, `footer_show_tags`, `show_pages_in_menu` and `menu_pages` to `site_settings`, all nullable or defaulted so existing deployments keep working. |
+| Read path | `SiteSettings.get_instance()` flushes, so the public read path uses a plain select via `app/services/site_settings.read_site_settings()`. The row is read **once per request** and shared by the theme service, the context processors and the navigation service — the homepage query budget is 9, not 11. |
+
+**Verification** — headless Chromium against the live instance at
+`http://localhost:5050`, harness at `/tmp/devlog_review_stubs/identity_verify.py`:
+
+```
+PASS settings_has_site_section
+PASS settings_has_comments_toggle
+PASS settings_has_footer_field
+PASS settings_has_menu_field
+PASS comments_section_present
+PASS nav_has_log_in
+PASS nav_has_pages
+PASS footer_has_page_links
+PASS footer_has_pages_heading
+```
+
+Unit coverage: `tests/test_site_settings.py` (16 tests) covers the validation
+service, the Site section, the comments switch end-to-end and the footer.
+Migration upgrade and downgrade were exercised against a simulated existing
+deployment by `/tmp/devlog_review_stubs/mig_verify.py` — both directions pass.
+
+**Recorded, not fixed:** `flask db upgrade` against a *completely empty*
+database still fails with `duplicate column name: newsletter_attempts`. Two
+branches of the historical migration graph both add that column. This is
+pre-existing and is not caused by this series — fixing it means rewriting
+historical migrations. It is recorded in
+`docs/internals/agent-maintainer-notes.md`.
 

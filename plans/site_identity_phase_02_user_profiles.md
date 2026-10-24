@@ -2,7 +2,7 @@
 
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Planned
+**Status:** Complete
 **Severity:** High — `users` has no profile fields, so there is nothing for a profile page to edit.
 
 ## Objective
@@ -225,4 +225,28 @@ page shell). Phase 04 reads the fields added here and must land after it.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete.
+
+| Item | Resolution |
+|---|---|
+| Profile fields | `users` gained `display_name`, `bio_short`, `bio_full` and `avatar_path` through migration `add_user_profile_fields`. All are nullable or defaulted, so existing deployments keep working. |
+| Model helpers | `User.profile_name` falls back to the username when no display name is set; `User.avatar_url` resolves the stored avatar path against the media root and returns `None` when there is no avatar. |
+| Service | `app/services/profile.py` owns validation and persistence (`ProfilePayload`, `validate_profile_payload`, `save_profile`). The routes never interpret raw form values. |
+| Admin editor | `GET/POST /admin/users/<user_id>/profile` (`admin.user_profile`) edits any user's profile. `/admin/profile` (`admin.own_profile`) edits the signed-in admin's own profile and redirects there. |
+| Reachability | `/admin/users` carries a **Profile** action per user, and the admin nav carries a **Profile** link. |
+| Avatar | Uploaded through the existing media path; the stored value is a path, not a URL, so the media root can move without breaking the profile. |
+| User deletion | Deleting a user nulls `posts.author_id` for that user's posts rather than orphaning them. SQLite does not enforce the foreign key here, so this is done in code. |
+
+**Verification** — headless Chromium against the live instance at
+`http://localhost:5050`, harness at `/tmp/devlog_review_stubs/identity_verify.py`:
+
+```
+PASS users_list_has_profile_action
+PASS account_page_shows_display_name
+PASS account_page_shows_short_bio
+PASS own_profile_editor_present
+PASS own_profile_editor_has_no_password_field
+PASS own_profile_editor_has_no_admin_field
+```
+
+Unit coverage: `tests/test_user_profiles.py` (22 tests).

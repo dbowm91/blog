@@ -16,12 +16,16 @@ the DOM, not by reading templates. The measurement table is in the roadmap.
 
 | Phase | File | Status |
 |---|---|---|
-| 01 | `site_identity_phase_01_admin_settings.md` | Part A complete (theme preview placement) — Part B planned (comments switch, editable footer) |
-| 02 | `site_identity_phase_02_user_profiles.md` | Planned — profile fields, avatar, short/full bio, admin profile editor |
-| 03 | `site_identity_phase_03_public_auth.md` | Planned — public login, account page, nav affordance |
-| 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Planned — `Post.author_id`, author page, author links |
-| 05 | `site_identity_phase_05_page_navigation.md` | Planned — published pages reachable from the nav and footer |
+| 01 | `site_identity_phase_01_admin_settings.md` | Complete — Part A (theme preview placement) and Part B (comments switch, editable footer, page menu) |
+| 02 | `site_identity_phase_02_user_profiles.md` | Complete — profile fields, avatar, short/full bio, admin profile editor |
+| 03 | `site_identity_phase_03_public_auth.md` | Complete — public login, account page, nav affordance |
+| 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Complete — `Post.author_id`, author page, author links |
+| 05 | `site_identity_phase_05_page_navigation.md` | Complete — published pages reachable from the nav and footer |
 | 06 | `site_identity_phase_06_comments_layout.md` | Planned — comment measure, comment styling, mobile |
+
+Phases 01–05 shipped and carry their verification evidence in their own
+`## Completion` sections. Phase 06 remains open, so the series stays in
+**Active Plans**.
 
 **Run the phases in order.** They share `app/models.py`,
 `app/templates/base.html`, `app/routes/admin/settings.py`,

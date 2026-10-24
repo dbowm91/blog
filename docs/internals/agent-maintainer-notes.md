@@ -665,3 +665,147 @@ re-skin of the admin shell. All preview CSS is inline in the template's
 block: 'nearest'})`, where `reduceMotion` comes from
 `matchMedia('(prefers-reduced-motion: reduce)')`. This is what removes the
 up-and-down scrolling the placement change was made to fix.
+
+## Site Identity, Authorship and Page Navigation (2026-10-24)
+
+An operator review of the running instance found that the site had no user
+accounts a visitor could actually use, no author behind a post, and pages that
+were published but unreachable. This section records the contracts that the
+implementation now depends on.
+
+### Site settings are one form, one owner
+
+`POST /admin/settings/site` persists six values through
+`app/services/site_settings.py:validate_site_settings()`:
+
+| Value | Meaning |
+|---|---|
+| `comments_enabled` | Comments are accepted on the public site |
+| `footer_text` | Footer line, plain text, capped at 300 characters |
+| `footer_show_posts` | Show the "Latest from the blog" footer column |
+| `footer_show_tags` | Show the "Browse by tag" footer column |
+| `show_pages_in_menu` | Master switch for the pages menu |
+| `menu_pages` | JSON array of page ids, in menu order |
+
+**The footer text is plain text, never markup.** It is rendered with Jinja
+autoescaping and `white-space: pre-line` (`.footer-text` in
+`app/static/css/layout.css`) rather than as markdown, so an admin cannot
+inject markup into every page of the site.
+
+**The comments switch fails closed.** `app/routes/public/comments.py` refuses
+to create a comment when the switch is off, and the comment block is not
+rendered at all. Existing comments stay visible — the switch closes the door,
+it does not delete the conversation.
+
+**The menu has two layers, and only one owner.** `menu_pages` is an explicit
+ordered list of page ids. When it is empty the menu falls back to every
+published page with `Page.show_in_menu` set, ordered by title. The format is
+parsed in exactly one place, `app/services/site_settings.py:parse_menu_pages()`;
+`app/services/navigation.py:parse_menu_page_ids()` is a thin alias over it.
+
+### `SiteSettings.get_instance()` is not safe on a read path
+
+`get_instance()` performs `db.session.flush()`, which pushes unrelated pending
+changes into the transaction. It is fine on an admin write path. Public reads
+use `app/context_processors.py:get_site_settings()`, which does a plain
+`select(SiteSettings).order_by(id).limit(1)`, and
+`app/services/navigation.py:get_menu_settings()`, which does the same.
+
+### Profiles
+
+`User` carries `display_name`, `bio_short`, `bio_full` and `avatar_path`.
+`User.profile_name` is the only producer of a display name — it falls back to
+`username` — and `User.avatar_url` is the only producer of an avatar URL. The
+avatar path is a storage-relative filename written by
+`app/services/profile.py`; a client-supplied URL is never stored.
+
+The avatar upload reuses `app/routes/admin/helpers/images.py:_save_image()`,
+which already does extension allow-listing and magic-byte detection. Replacing
+an avatar deletes the previous file from storage — an avatar edit that leaks a
+file per change is a defect.
+
+The full bio is markdown and renders through `app/markdown_renderer.py`, the
+single sanitised markdown producer. The short bio is plain text.
+
+### Public authentication is a separate authority from the admin panel
+
+`flask_login` keeps one `current_user` per session, so the public sign-in and
+the admin sign-in share a session cookie. Three things keep them apart:
+
+1. **The public login refuses admin accounts.** `app/routes/public/auth.py`
+   rejects a user with `is_admin` set and points them at the admin panel.
+   Without this, a public session would satisfy `admin_required` on its
+   `is_admin` check alone.
+2. **`admin_required` also requires an `AdminSession` row.** The admin panel
+   binds the session to an IP and to the session row; a public session has
+   neither.
+3. **`public.logout` deletes the `AdminSession` row** before calling
+   `logout_user()`, exactly as the admin logout does. Without this, an admin
+   who signs out from the public site leaves an orphaned row.
+
+The public login applies the same controls as the admin login: a 5-per-minute
+rate limit, the shared lockout counters on the `User` row, the
+`LOGIN_FAILURE_DELAY` sleep on every failure, `session.clear()` before
+`login_user()`, and a second factor for accounts that have one. A public
+sign-in must never be a weaker path than the admin sign-in.
+
+The `?next=` parameter is validated by `is_safe_next_url()` in
+`app/routes/public/auth.py`: a single leading slash, no scheme, no netloc, no
+backslash, no control characters. It is deliberately **not** the Referer-based
+`_safe_redirect_url()` in `app/routes/public/posts.py`, which solves a
+different problem.
+
+### Authorship
+
+`Post.author_id` points at `User.id`. The migration backfills every existing
+post with the oldest administrator, so no post renders authorless after an
+upgrade.
+
+`app/services/authors.py:resolve_author()` is the only producer of an author:
+the assigned user, then the legacy config-level author (`AUTHOR_NAME`,
+`AUTHOR_ROLE`, `AUTHOR_AVATAR`), then the site title. The name is never
+empty.
+
+`AuthorView.username` is `None` for a config-level author. Templates link the
+name to `/author/<username>` **only** when it is not `None` — a config author
+has no profile page, so linking it would produce a 404.
+
+SQLite does not enforce foreign keys in this application (`PRAGMA
+foreign_keys` is never set), so deleting a user nulls `posts.author_id` in the
+delete route rather than relying on `ON DELETE SET NULL`.
+
+### Page navigation
+
+`app/services/navigation.py:resolve_page_menu()` is the single producer of the
+menu and is read fresh on every call — there is no cache to invalidate, so
+publishing, unpublishing or deleting a page is reflected immediately.
+
+### Migration chain
+
+The single Alembic head before this work was `drop_theme_preset_column`. Four
+migrations were added in series:
+
+```
+drop_theme_preset_column
+  -> add_site_settings_content_flags
+  -> add_user_profile_fields
+  -> add_post_author
+  -> add_page_menu_fields
+```
+
+`add_post_author` adds the `author_id` column and the index, then creates the
+foreign key **only on dialects that can alter constraints** — SQLite cannot,
+and `op.add_column` silently drops an inline `REFERENCES` clause there. The
+application enforces the delete behaviour in code instead, so the constraint
+being absent on SQLite is not a behavioural difference.
+
+**Pre-existing, not fixed here:** running `flask db upgrade` against a
+*completely empty* database fails on this branch with
+`duplicate column name: newsletter_attempts`. Two branches of the migration
+graph both add `posts.newsletter_attempts` (`89a922eae517` and
+`16034e1c5a45`), and the initial schema already creates some of the tables
+that `16034e1c5a45` creates. The chain works for an existing deployment,
+which is the upgrade path that matters, but a fresh install from the
+migrations alone is broken. `tests/test_migration_chain.py` does not exercise
+a from-scratch upgrade, so CI does not catch it. Fixing it means rewriting
+historical migrations and is a separate piece of work.

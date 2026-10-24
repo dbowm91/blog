@@ -2,7 +2,7 @@
 
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Planned
+**Status:** Complete
 **Severity:** High — published pages work but nothing links to them, so the feature is invisible.
 
 ## Objective
@@ -233,4 +233,30 @@ on the same template.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete.
+
+| Item | Resolution |
+|---|---|
+| Column | `pages` gained `show_in_menu` through migration `add_page_menu_fields`. It defaults to **True**, so a published page appears without the operator configuring anything. |
+| Two layers, one parser | `menu_pages` holds an explicit ordered list of page ids and wins when stored; when it is empty the menu falls back to every published page flagged `show_in_menu`, ordered by title. The parser is owned by `app/services/site_settings.py`; `app/services/navigation.py` re-exports `parse_menu_page_ids` as a thin alias so there is exactly one parser. |
+| One producer | `app/services/navigation.py::resolve_page_menu` is the only producer of the menu. `app/context_processors.py` wraps it and exposes it to templates as `page_menu`. |
+| Nav | The public nav carries a **Pages** link, and each menu page is listed. |
+| Footer | The footer carries a **Pages** column listing the same pages. |
+| Index | `GET /pages` (`public.pages_index`) renders `app/templates/pages.html` with every published page, so the nav entry has somewhere to point even when the menu is empty. |
+| Admin control | The admin pages list carries a **Show in menu** control, backed by `POST /admin/pages/<id>/menu` (`admin.set_page_menu`). |
+| Admin settings | The pages-in-menu switch and the ordered page list live in the **Site** section of `/admin/settings` and are saved by the same `POST /admin/settings/site` endpoint — there is no second settings form. |
+
+**Verification** — headless Chromium against the live instance at
+`http://localhost:5050`, harness at `/tmp/devlog_review_stubs/identity_verify.py`:
+
+```
+PASS nav_has_pages
+PASS footer_has_page_links
+PASS footer_has_pages_heading
+PASS pages_index_lists_about
+PASS pages_index_lists_contact
+```
+
+Unit coverage: `tests/test_page_navigation.py` (12 test functions), covering
+the resolver's two layers, the explicit ordering, the published-only filter,
+the admin menu toggle and the `/pages` index.
