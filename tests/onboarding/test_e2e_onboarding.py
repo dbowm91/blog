@@ -39,12 +39,21 @@ def _make_passing_steps(config_dir: Path | None = None, data_dir: Path | None = 
                 ctx.config_dir = _config_dir
             if _data_dir:
                 ctx.data_dir = _data_dir
+            # The env file must be redirected with the config directory. Its
+            # default is ``Path(".env")``, which is the repository root, and
+            # the step would otherwise overwrite the developer's own .env
+            # with the test's secrets.
+            ctx.env_file = ctx.config_dir / ".env"
             ctx.config_dir.mkdir(parents=True, exist_ok=True)
             ctx.data_dir.mkdir(parents=True, exist_ok=True)
             return StepResult(
                 ok=True,
                 message=f"Config: {ctx.config_dir}, Data: {ctx.data_dir}",
-                details={"config_dir": str(ctx.config_dir), "data_dir": str(ctx.data_dir)},
+                details={
+                    "config_dir": str(ctx.config_dir),
+                    "data_dir": str(ctx.data_dir),
+                    "env_file": str(ctx.env_file),
+                },
             )
 
         steps[path_idx] = fixed_resolve_paths
@@ -79,7 +88,7 @@ class TestE2EFreshInstall:
         content = config_file.read_text()
         assert "Test Blog" in content
 
-        env_file = Path(".env")
+        env_file = config_dir / ".env"
         assert env_file.exists()
         env_content = env_file.read_text()
         assert "SECRET_KEY=" in env_content
@@ -123,7 +132,7 @@ class TestE2EFreshInstall:
 
         assert all(r.ok for r in results)
 
-        env_file = Path(".env")
+        env_file = config_dir / ".env"
         assert env_file.exists()
         mode = stat.S_IMODE(os.stat(env_file).st_mode)
         assert mode == 0o600

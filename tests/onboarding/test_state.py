@@ -55,9 +55,9 @@ class TestDetectInstallation:
         db_path = data_dir / "blog.db"
         conn = sqlite3.connect(str(db_path))
         conn.execute(
-            "CREATE TABLE user (id INTEGER PRIMARY KEY, username TEXT, is_admin INTEGER DEFAULT 0)"
+            "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, is_admin INTEGER DEFAULT 0)"
         )
-        conn.execute("INSERT INTO user (username, is_admin) VALUES ('admin', 1)")
+        conn.execute("INSERT INTO users (username, is_admin) VALUES ('admin', 1)")
         conn.commit()
         conn.close()
 

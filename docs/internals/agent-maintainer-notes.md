@@ -53,6 +53,47 @@ These files have been flagged for exception handling issues (all now fixed):
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`
 
+### The Test Suite Used to Overwrite the Developer's `.env`
+
+Fixed on 2026-10-24. Running `pytest tests/` replaced the repository root's
+`.env` with the onboarding test's own secrets, leaving the developer with
+`ADMIN_PASSWORD=SecurePass1!` and a rewritten `SECRET_KEY`. It happened 28
+times before it was caught, and every stale copy was left behind as
+`.env.backup.<timestamp>`.
+
+Three causes, three fixes:
+
+- `tests/onboarding/test_e2e_onboarding.py` replaced the path-resolution step
+  with a stub that set `ctx.config_dir` and `ctx.data_dir` but left
+  `ctx.env_file` at its default of `Path(".env")` - the repository root. The
+  stub now sets `ctx.env_file = ctx.config_dir / ".env"`, so the test writes
+  into its own tmp directory.
+- `app/onboarding/steps.py::step_resolve_paths` overwrote `ctx.config_dir`,
+  `ctx.data_dir` and `ctx.env_file` with the install-mode paths, discarding
+  whatever the caller had passed to `run_steps`. That is how
+  `tests/onboarding/test_failure_and_resume.py` ended up writing
+  `failed = true` over the repository's `config.toml`. `StepContext` now
+  carries a `paths_explicit` flag, set by `run_steps` when the caller gives
+  paths, and `step_resolve_paths` leaves those paths alone. Both production
+  callers of `run_steps` pass no paths, so the install-mode resolution is
+  unchanged for them.
+- `app/onboarding/state.py::_find_database` appended the working-directory
+  candidates (`data/devlog.sqlite3`, `blog.db`, ...) to the list even when
+  `data_path` was given explicitly, so detection reported the developer's own
+  working copy as the installation being detected. An explicit `data_path` is
+  now authoritative, matching what `_find_config` already did.
+  `detect_installation` also takes an `env_path` argument so the env file can
+  be scoped the same way.
+
+A fourth bug came out of the same investigation: the admin check in
+`detect_installation` queried a table called `user`, but the table is
+`users`, so the query always raised, `admin_exists` was always false, and
+`devlog onboard detect` reported every installation as `partial`. It now
+reports `complete` for an installation that is complete.
+
+**If the `.env` looks wrong after running the tests, restore it from
+`.env.backup.*` - and note that the backup is the *pre-test* copy.**
+
 ---
 
 ## Implemented Features

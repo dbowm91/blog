@@ -32,6 +32,7 @@ class StepContext:
     created_dirs: list[Path] = field(default_factory=list)
     step_index: int = 0
     runtime_paths: Any | None = None
+    paths_explicit: bool = False
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,7 @@ def step_detect_installation(ctx: StepContext) -> StepResult:
     state = detect_installation(
         config_path=ctx.config_dir / "config.toml" if ctx.config_dir else None,
         data_path=ctx.data_dir,
+        env_path=ctx.env_file,
     )
     ctx.state = state
     return StepResult(
@@ -144,9 +146,14 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
         runtime_paths = RuntimePaths.for_mode(install_mode)
         ctx.runtime_paths = runtime_paths
 
-        ctx.config_dir = runtime_paths.config_file.path.parent
-        ctx.data_dir = runtime_paths.data_dir.path
-        ctx.env_file = runtime_paths.env_file.path
+        if not ctx.paths_explicit:
+            ctx.config_dir = runtime_paths.config_file.path.parent
+            ctx.data_dir = runtime_paths.data_dir.path
+            ctx.env_file = runtime_paths.env_file.path
+        elif ctx.env_file == Path(".env"):
+            # An explicit config directory was given, so the env file belongs
+            # beside it rather than in the working directory.
+            ctx.env_file = ctx.config_dir / ".env"
 
         ctx.config_dir.mkdir(parents=True, exist_ok=True)
         ctx.data_dir.mkdir(parents=True, exist_ok=True)
@@ -171,9 +178,12 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
             data_dir = Path("data")
             env_file = Path(".env")
 
-        ctx.config_dir = config_dir
-        ctx.data_dir = data_dir
-        ctx.env_file = env_file
+        if not ctx.paths_explicit:
+            ctx.config_dir = config_dir
+            ctx.data_dir = data_dir
+            ctx.env_file = env_file
+        elif ctx.env_file == Path(".env"):
+            ctx.env_file = ctx.config_dir / ".env"
 
         config_dir.mkdir(parents=True, exist_ok=True)
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -670,8 +680,10 @@ def run_steps(
 
     if config_path:
         ctx.config_dir = config_path.parent
+        ctx.paths_explicit = True
     if data_path:
         ctx.data_dir = data_path
+        ctx.paths_explicit = True
 
     results: list[StepResult] = []
 

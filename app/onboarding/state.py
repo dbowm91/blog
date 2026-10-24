@@ -47,7 +47,10 @@ def _find_config(config_path: Path | None) -> Path | None:
     return None
 
 
-def _find_env_file() -> Path | None:
+def _find_env_file(env_path: Path | None = None) -> Path | None:
+    if env_path is not None:
+        return env_path if env_path.exists() else None
+
     env_val = os.environ.get("DEVLOG_ENV_FILE")
     if env_val:
         p = Path(env_val)
@@ -66,20 +69,22 @@ def _find_env_file() -> Path | None:
 
 
 def _find_database(data_path: Path | None) -> Path | None:
-    candidates: list[Path] = []
-
-    if data_path:
-        candidates.append(data_path / "blog.db")
-        candidates.append(data_path / "devlog.sqlite3")
-
-    candidates.extend(
-        [
+    candidates: list[Path]
+    if data_path is not None:
+        # An explicit data directory is authoritative. Looking outside it
+        # would report the developer's own working copy as the installation
+        # being detected.
+        candidates = [
+            data_path / "blog.db",
+            data_path / "devlog.sqlite3",
+        ]
+    else:
+        candidates = [
             Path("data/blog.db"),
             Path("data/devlog.sqlite3"),
             Path("blog.db"),
             Path("devlog.sqlite3"),
         ]
-    )
 
     for c in candidates:
         if c.exists():
@@ -91,6 +96,7 @@ def _find_database(data_path: Path | None) -> Path | None:
 def detect_installation(
     config_path: Path | None = None,
     data_path: Path | None = None,
+    env_path: Path | None = None,
 ) -> InstallationInfo:
     if config_path is None and data_path is None:
         try:
@@ -104,7 +110,7 @@ def detect_installation(
             pass
 
     resolved_config = _find_config(config_path)
-    env_file = _find_env_file()
+    env_file = _find_env_file(env_path)
     resolved_data = _find_database(data_path)
 
     config_exists = resolved_config is not None
@@ -124,7 +130,7 @@ def detect_installation(
             import sqlite3
 
             conn = sqlite3.connect(str(resolved_data))
-            cursor = conn.execute("SELECT COUNT(*) FROM user WHERE is_admin = 1")
+            cursor = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
             count = cursor.fetchone()[0]
             conn.close()
             admin_exists = count > 0

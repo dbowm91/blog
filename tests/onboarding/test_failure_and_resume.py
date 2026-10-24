@@ -115,7 +115,13 @@ class TestStepFailureTracking:
             non_interactive=True,
             dry_run=True,
         )
-        ctx = StepContext(input=inp, config_dir=tmp_path, data_dir=tmp_path / "data", dry_run=True)
+        ctx = StepContext(
+            input=inp,
+            config_dir=tmp_path,
+            data_dir=tmp_path / "data",
+            dry_run=True,
+            paths_explicit=True,
+        )
 
         results = []
         for i, step_fn in enumerate(steps):
