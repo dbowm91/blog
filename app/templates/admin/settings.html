@@ -10,6 +10,26 @@
         <h1>Settings</h1>
     </div>
 
+    <div class="settings-section" id="theme-preview-section">
+        <h2>Theme Preview</h2>
+        <div id="theme-warnings" class="theme-warnings-container" style="display: none;">
+            <div class="theme-warnings-box">
+                <div class="theme-warnings-header">
+                    <span class="theme-warnings-icon">&#9888;</span>
+                    <strong>Warnings</strong>
+                    <button type="button" class="theme-warnings-dismiss" id="dismiss-warnings">&times;</button>
+                </div>
+                <ul id="theme-warnings-list"></ul>
+            </div>
+        </div>
+        <div id="theme-preview-container" class="theme-preview-container">
+            <div class="theme-preview-loading">Select a theme below and press its Preview button to see it here.</div>
+        </div>
+        <div style="margin-top: 12px; text-align: right;">
+            <button type="button" class="btn btn-ghost" id="clear-preview">Clear Preview</button>
+        </div>
+    </div>
+
     <div class="settings-section">
         <h2>Theme</h2>
         <form method="POST" action="{{ url_for('admin.settings_theme') }}" data-loading data-loading-text="Saving...">
@@ -138,26 +158,6 @@
         </form>
     </div>
 
-    <div class="settings-section" id="theme-preview-section" style="display: none;">
-        <h2>Theme Preview</h2>
-        <div id="theme-warnings" class="theme-warnings-container" style="display: none;">
-            <div class="theme-warnings-box">
-                <div class="theme-warnings-header">
-                    <span class="theme-warnings-icon">&#9888;</span>
-                    <strong>Warnings</strong>
-                    <button type="button" class="theme-warnings-dismiss" id="dismiss-warnings">&times;</button>
-                </div>
-                <ul id="theme-warnings-list"></ul>
-            </div>
-        </div>
-        <div id="theme-preview-container" class="theme-preview-container">
-            <div class="theme-preview-loading">Click "Preview" to see theme styling</div>
-        </div>
-        <div style="margin-top: 12px; text-align: right;">
-            <button type="button" class="btn btn-ghost" id="clear-preview">Clear Preview</button>
-        </div>
-    </div>
-
     <div class="settings-section">
         <h2>Theme Registry</h2>
         <p style="margin-bottom: 16px; color: var(--text-muted); font-size: 0.9rem;">
@@ -251,11 +251,18 @@
     .theme-preview-container {
         border: 1px solid var(--border);
         border-radius: 8px;
-        max-height: 500px;
+        min-height: 380px;
+        max-height: 380px;
         overflow-y: auto;
         padding: 24px;
         background: var(--bg-surface);
         color: var(--text);
+    }
+    @media (max-width: 768px) {
+        .theme-preview-container {
+            min-height: 300px;
+            max-height: 300px;
+        }
     }
     .theme-preview-badge {
         display: inline-block;
@@ -310,6 +317,7 @@
         align-items: center;
         justify-content: center;
         padding: 40px;
+        min-height: 100%;
         color: var(--text-muted, #888);
     }
 </style>
@@ -328,6 +336,7 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
     var previewBtns = document.querySelectorAll('.theme-preview-btn');
     var dismissBtn = document.getElementById('dismiss-warnings');
     var clearBtn = document.getElementById('clear-preview');
+    var previewPlaceholder = previewContainer.querySelector('.theme-preview-loading');
     var darkSelect = document.getElementById('theme_dark_name');
     var lightSelect = document.getElementById('theme_light_name');
     var themeDarkMeta = document.getElementById('theme_dark_meta');
@@ -484,6 +493,13 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
             previewSection.style.display = 'block';
 
             renderWarnings(data.warnings, data.dark_warnings, data.light_warnings);
+
+            var reduceMotion = window.matchMedia
+                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            previewSection.scrollIntoView({
+                behavior: reduceMotion ? 'auto' : 'smooth',
+                block: 'nearest'
+            });
         })
         .catch(function() {
             showError('Failed to load preview. Please try again.');
@@ -506,7 +522,9 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
                 previewStyleEl.remove();
                 previewStyleEl = null;
             }
-            previewSection.style.display = 'none';
+            if (previewPlaceholder) {
+                previewContainer.replaceChildren(previewPlaceholder.cloneNode(true));
+            }
             warningsContainer.style.display = 'none';
         });
     }

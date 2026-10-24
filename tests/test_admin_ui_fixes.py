@@ -1,6 +1,6 @@
 """Regression tests for the admin/public UI defects found during review.
 
-Covers the eight reported problems:
+Covers the reported problems:
 
 1. nav links sat high in the bar and the active underline floated far below
    the text;
@@ -17,7 +17,9 @@ Covers the eight reported problems:
    reads, ignored which theme was being previewed, repainted the whole
    admin panel, and was rejected by CSRF as soon as the page had already
    submitted once;
-8. the users list squeezed its action cluster into a 150px column.
+8. the users list squeezed its action cluster into a 150px column;
+9. the theme preview panel sat below the theme selector, was hidden until a
+   preview had been loaded, and jumped in size when it appeared.
 """
 
 from __future__ import annotations
@@ -305,6 +307,96 @@ def test_admin_panel_exposes_the_colour_scheme_toggle():
 def test_admin_nav_host_exists_for_the_toggle():
     src = read_js("shared", "color-scheme.js")
     assert ".nav-actions" in src
+
+
+# ---------------------------------------------------------------------------
+# 9. Theme preview panel placement
+# ---------------------------------------------------------------------------
+
+
+def settings_html(authenticated_client) -> str:
+    response = authenticated_client.get("/admin/settings")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def section_headings(html: str) -> list[str]:
+    headings = []
+    for match in re.finditer(r'<div class="settings-section[^"]*"[^>]*>', html):
+        heading = re.search(r"<h2>(.*?)</h2>", html[match.end() :], re.S)
+        headings.append(heading.group(1).strip() if heading else "")
+    return headings
+
+
+def test_theme_preview_section_is_rendered_above_the_theme_selector(authenticated_client):
+    html = settings_html(authenticated_client)
+
+    assert section_headings(html) == ["Theme Preview", "Theme", "Theme Registry"]
+
+    first_section = re.search(r'<div class="settings-section[^"]*"[^>]*>', html)
+    assert first_section is not None
+    assert 'id="theme-preview-section"' in first_section.group(0)
+
+    assert html.index('id="theme-preview-section"') < html.index("<h2>Theme</h2>")
+    assert html.index("<h2>Theme</h2>") < html.index("<h2>Theme Registry</h2>")
+
+
+def test_theme_preview_section_is_visible_by_default(authenticated_client):
+    html = settings_html(authenticated_client)
+
+    assert 'id="theme-preview-section" style="display: none;"' not in html
+
+    section_tag = re.search(r'<div class="settings-section" id="theme-preview-section"[^>]*>', html)
+    assert section_tag is not None
+    assert "display: none" not in section_tag.group(0)
+
+    assert "Select a theme below and press its Preview button to see it here." in html
+    assert 'Click "Preview" to see theme styling' not in html
+
+
+def test_theme_preview_container_cannot_change_height_when_the_preview_loads():
+    src = read_template("admin", "settings.html")
+
+    bodies = re.findall(r"\.theme-preview-container\s*\{([^}]*)\}", src)
+    assert bodies
+
+    values = []
+    for body in bodies:
+        min_match = re.search(r"min-height:\s*([^;]+);", body)
+        max_match = re.search(r"max-height:\s*([^;]+);", body)
+        if min_match is None and max_match is None:
+            continue
+        assert min_match is not None and max_match is not None, body
+        assert min_match.group(1).strip() == max_match.group(1).strip(), body
+        values.append(min_match.group(1).strip())
+
+    assert values
+    assert "380px" in values
+
+
+def test_clearing_the_preview_keeps_the_panel_and_restores_the_placeholder():
+    src = read_template("admin", "settings.html")
+
+    clear_handler = src.split("if (clearBtn) {", 1)[1].split("});", 1)[0]
+
+    assert "previewSection.style.display = 'none'" not in src
+    assert "previewSection.style.display" not in clear_handler
+    assert "replaceChildren" in clear_handler
+    assert "previewPlaceholder" in clear_handler
+
+
+def test_preview_buttons_stay_next_to_the_theme_selects(authenticated_client):
+    html = settings_html(authenticated_client)
+
+    buttons = re.findall(r"<button[^>]*theme-preview-btn[^>]*>", html)
+    assert len(buttons) == 2
+
+    for select_id, target in (("theme_dark_name", "dark"), ("theme_light_name", "light")):
+        button = next(b for b in buttons if f'data-target="{target}"' in b)
+        select_at = html.index(f'id="{select_id}"')
+        button_at = html.index(button)
+        assert select_at < button_at
+        assert "<h2>" not in html[select_at:button_at]
 
 
 # ---------------------------------------------------------------------------

@@ -190,6 +190,29 @@ either emitted by the theme runtime or defined in a stylesheet — this is enfor
 `tests/test_css_contracts.py`. Tokens that the runtime emits but no stylesheet
 consumes are dead weight.
 
+### Admin Theme Preview
+
+The preview panel on `/admin/settings` is a seam between the template, the
+inline script in that template, and the admin stylesheet (which owns none of
+it). The section order — Theme Preview, Theme, Theme Registry — is a contract,
+not an arrangement, and four invariants keep the panel working:
+
+- The `.theme-preview-btn` triggers stay with the two theme `<select>`
+  controls. `fetchPreview()` reads the current, possibly unsaved, select
+  values and posts them to `admin.settings_theme_preview`; the buttons are
+  `type="button"` and never submit the form.
+- `.theme-preview-container` sets `min-height` equal to `max-height` (380px,
+  300px under the 768px breakpoint), so replacing the placeholder with
+  preview content cannot change the box height and cannot move the controls
+  below it.
+- "Clear Preview" restores the placeholder node; it must not hide the section.
+- `applyPreviewCss()` scopes the injected stylesheet to
+  `#theme-preview-container[data-color-scheme="…"]`, so previewing a theme
+  never repaints the rest of the admin panel.
+
+All preview CSS is inline in the template's `<style nonce="{{ csp_nonce }}">`
+block. No preview rule belongs in `app/static/css/`.
+
 ### Code Block Line Numbers
 
 Line numbers are produced by a CSS counter, and the markup has to carry the

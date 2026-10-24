@@ -304,3 +304,107 @@ def test_admin_panel_exposes_the_colour_scheme_toggle(browser, app_server, app):
         assert before != after
     finally:
         context.close()
+
+
+@requires_frontend_build
+def test_theme_preview_panel_sits_above_the_theme_selector(browser, app_server, app):
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    try:
+        _login(page, app_server)
+        page.goto(f"{app_server}/admin/settings")
+        page.wait_for_selector("#theme-preview-section", timeout=15000)
+
+        tops = page.evaluate(
+            """() => ({
+              preview: document.querySelector('#theme-preview-section').getBoundingClientRect().top,
+              select: document.querySelector('#theme_dark_name').getBoundingClientRect().top,
+            })"""
+        )
+
+        assert tops["preview"] < tops["select"], tops
+    finally:
+        context.close()
+
+
+@requires_frontend_build
+def test_theme_preview_does_not_change_the_panel_height(browser, app_server, app):
+    """Loading a preview must not resize the box it is rendered in."""
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    try:
+        _login(page, app_server)
+        page.goto(f"{app_server}/admin/settings")
+        page.wait_for_selector("#theme-preview-container", timeout=15000)
+
+        before = page.evaluate(
+            "() => document.querySelector('#theme-preview-container').getBoundingClientRect().height"
+        )
+
+        page.select_option("#theme_dark_name", "Nord")
+        page.click(".theme-preview-btn >> nth=0")
+        page.wait_for_selector("#theme-preview-container h2", timeout=15000)
+
+        after = page.evaluate(
+            "() => document.querySelector('#theme-preview-container').getBoundingClientRect().height"
+        )
+
+        assert abs(after - before) <= 1, f"preview box resized from {before} to {after}"
+    finally:
+        context.close()
+
+
+@requires_frontend_build
+def test_theme_preview_scrolls_into_view(browser, app_server, app):
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    try:
+        _login(page, app_server)
+        page.goto(f"{app_server}/admin/settings")
+        page.wait_for_selector("#theme-preview-section", timeout=15000)
+
+        page.select_option("#theme_dark_name", "Nord")
+        page.click(".theme-preview-btn >> nth=0")
+        page.wait_for_selector("#theme-preview-container h2", timeout=15000)
+        page.wait_for_timeout(500)
+
+        top = page.evaluate(
+            "() => document.querySelector('#theme-preview-section').getBoundingClientRect().top"
+        )
+
+        assert top >= 0, f"preview panel is cut off above the viewport: top={top}"
+    finally:
+        context.close()
+
+
+@requires_frontend_build
+def test_clearing_the_theme_preview_keeps_the_panel_visible(browser, app_server, app):
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    try:
+        _login(page, app_server)
+        page.goto(f"{app_server}/admin/settings")
+        page.wait_for_selector("#theme-preview-container", timeout=15000)
+
+        page.select_option("#theme_dark_name", "Nord")
+        page.click(".theme-preview-btn >> nth=0")
+        page.wait_for_selector("#theme-preview-container h2", timeout=15000)
+
+        page.click("#clear-preview")
+        page.wait_for_timeout(300)
+
+        state = page.evaluate(
+            """() => {
+              const section = document.querySelector('#theme-preview-section');
+              const container = document.querySelector('#theme-preview-container');
+              return {
+                display: getComputedStyle(section).display,
+                text: container.textContent.trim(),
+              };
+            }"""
+        )
+
+        assert state["display"] != "none", state
+        assert "Select a theme below" in state["text"], state
+    finally:
+        context.close()

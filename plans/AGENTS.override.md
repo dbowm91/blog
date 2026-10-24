@@ -16,7 +16,7 @@ the DOM, not by reading templates. The measurement table is in the roadmap.
 
 | Phase | File | Status |
 |---|---|---|
-| 01 | `site_identity_phase_01_admin_settings.md` | Planned — theme preview order, comments switch, editable footer |
+| 01 | `site_identity_phase_01_admin_settings.md` | Part A complete (theme preview placement) — Part B planned (comments switch, editable footer) |
 | 02 | `site_identity_phase_02_user_profiles.md` | Planned — profile fields, avatar, short/full bio, admin profile editor |
 | 03 | `site_identity_phase_03_public_auth.md` | Planned — public login, account page, nav affordance |
 | 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Planned — `Post.author_id`, author page, author links |
@@ -56,14 +56,16 @@ new rich-text field render through `app/markdown_renderer.py` — the single
 sanitised markdown producer. No second markdown path.
 
 **What the review confirmed**, so the next reader does not re-derive it: the
-theme preview sat below the theme selector and stayed hidden until a button was
-pressed; there was no public login, so the three non-admin accounts in the
-database could not authenticate at all; `users` had no profile fields and
-`/admin/users` had no profile editor; `posts` had no `author_id` and the
+theme preview sat *below* the theme selector it previews, so the operator had
+to keep travelling up and down the page to see a result — the preview
+**mechanism itself works** and was deliberately not redesigned, only the
+placement changed; there was no public login, so the three non-admin accounts
+in the database could not authenticate at all; `users` had no profile fields
+and `/admin/users` had no profile editor; `posts` had no `author_id` and the
 rendered author was a single config-level value that was empty by default and
 never a link; published pages worked at `/page/<slug>` but nothing on the site
-linked to them; the footer was hardcoded; there was no comments switch; and the
-comment block had no styling at all and sat 176px to the left of the post
+linked to them; the footer was hardcoded; there was no comments switch; and
+the comment block had no styling at all and sat 176px to the left of the post
 column on desktop.
 
 ## Historical Plans

@@ -542,7 +542,7 @@ DOM, not by reading templates.
 
 Phases, in dependency order:
 
-- `plans/site_identity_phase_01_admin_settings.md` — the theme preview sat *below* the theme selector and stayed hidden until a button was pressed; there was no comments switch; the footer was hardcoded
+- `plans/site_identity_phase_01_admin_settings.md` — the theme preview sat *below* the theme selector it previews, so the operator had to keep scrolling up and down to see a result; there was no comments switch; the footer was hardcoded. **Part A (the preview placement) has shipped** — the mechanism is unchanged, only the panel moved above the selector, gained a reserved non-resizing footprint, and is scrolled into view when produced
 - `plans/site_identity_phase_02_user_profiles.md` — `users` had no profile fields; `/admin/users` had no profile editor, so there was nowhere to set a picture or a bio
 - `plans/site_identity_phase_03_public_auth.md` — there was no public login, so the three non-admin accounts in the database could not authenticate at all
 - `plans/site_identity_phase_04_authorship_and_author_pages.md` — `posts` had no `author_id`; the rendered author was a single config value, empty by default and never a link; there was no author page

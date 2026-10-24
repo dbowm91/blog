@@ -20,6 +20,7 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Verifying Frontend Visual Defects](#verifying-frontend-visual-defects)
 - [Second Frontend Review Pass (2026-10-23)](#second-frontend-review-pass-2026-10-23)
 - [Code Block Line Numbers (2026-10-23)](#code-block-line-numbers-2026-10-23)
+- [Admin Theme Preview Placement (2026-10-24)](#admin-theme-preview-placement-2026-10-24)
 
 ---
 
@@ -603,3 +604,64 @@ counter resolved in a browser test, drop the fixed gutter width through the
 CSSOM (`rule.style.width = 'auto'` — an injected `<style>` is blocked by the
 CSP) and check that the pseudo-element still has a box: a resolved counter
 gives the box the width of a digit, an unresolved one gives it no box at all.
+
+## Admin Theme Preview Placement (2026-10-24)
+
+The "Theme Preview" panel on the admin settings page
+(`app/templates/admin/settings.html`) used to sit **below** the "Theme"
+section, and it was hidden by an inline `style="display: none;"` until a
+preview had been fetched. An operator had to scroll down past the selectors to
+find the preview, scroll back up to change the selection, and scroll down
+again to look at the result. The panel now sits **above** the "Theme" section,
+and the section order is Theme Preview → Theme → Theme Registry.
+
+Only the placement changed. The selector, the request path, the endpoint, the
+injected stylesheet and the button wiring are the same code that shipped
+before — the mechanism was deliberately **not** redesigned. Re-implementing the
+preview would have made a placement change impossible to review as one.
+
+**The panel is visible by default and shows a placeholder.** The inline
+`display: none` was removed from `#theme-preview-section`. Until a preview is
+fetched the container shows the copy "Select a theme below and press its
+Preview button to see it here."; after a successful preview the container is
+replaced with the sample markup held in `#theme-preview-content-restore`.
+
+**The `.theme-preview-btn` triggers stay with the two `<select>` controls.**
+They are `type="button"` and never submit the form. `fetchPreview()` reads the
+*current* — possibly unsaved — values of `#theme_dark_name` and
+`#theme_light_name` and POSTs them to `admin.settings_theme_preview`, with the
+CSRF header name taken from `document.documentElement.dataset.csrfHeader`.
+Moving the panel above the controls did not move the buttons with it, and it
+must not: the button's `data-target` attribute is what tells `fetchPreview()`
+which colour scheme to preview, and the operator needs each button next to the
+control it previews.
+
+**`min-height` equals `max-height`, and that is the point.**
+`.theme-preview-container` declares `min-height: 380px` and `max-height: 380px`
+(300px under the 768px breakpoint), so the box cannot change height when the
+placeholder is swapped for real preview content and the controls below it
+cannot move. This matters more after the move than before it: the panel is
+*above* the controls, so a height change would push the very controls the
+operator is driving. If the preview needs more room, change both values
+together and keep them equal.
+
+**"Clear Preview" restores the placeholder, it does not hide the section.** The
+handler removes the injected `<style>` element and repopulates the container
+with a clone of the placeholder node; the section stays visible. Reinstating
+`previewSection.style.display = 'none'` on clear would bring back the original
+complaint.
+
+**The preview stylesheet stays scoped.** `applyPreviewCss()` injects a
+`<style>` element carrying the CSP nonce whose rules are scoped to
+`#theme-preview-container[data-color-scheme="dark"|"light"]`, so previewing a
+theme never repaints the rest of the admin panel. That scoping predates this
+move and must be preserved — it is the difference between a preview and a
+re-skin of the admin shell. All preview CSS is inline in the template's
+`<style nonce="{{ csp_nonce }}">` block; there are no preview rules in
+`app/static/css/*.css`.
+
+**A successful preview scrolls the panel into view.** The success path calls
+`previewSection.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth',
+block: 'nearest'})`, where `reduceMotion` comes from
+`matchMedia('(prefers-reduced-motion: reduce)')`. This is what removes the
+up-and-down scrolling the placement change was made to fix.

@@ -170,6 +170,31 @@ This attribute is consumed by `loadPrismIfNeeded()` in `main.js` to dynamically 
 ### `_breadcrumbs.html`
 Admin breadcrumb navigation partial for nested admin pages.
 
+## Admin Settings Page Layout
+
+`admin/settings.html` lays its sections out in a fixed order: **Theme Preview**,
+then **Theme**, then **Theme Registry**. The preview panel is the first thing
+on the page and is always visible — it holds a placeholder until a preview is
+fetched, so its presence is not a signal that a preview is running.
+
+The order is a contract, not an arrangement, and four invariants keep it
+working:
+
+- The `.theme-preview-btn` triggers stay beside the two theme `<select>`
+  controls in the Theme section. `fetchPreview()` reads the current, possibly
+  unsaved, select values and posts them to `admin.settings_theme_preview`.
+- `.theme-preview-container` sets `min-height` equal to `max-height` (380px,
+  300px under the 768px breakpoint), so swapping the placeholder for preview
+  content cannot change the box height and move the controls below it.
+- "Clear Preview" restores the placeholder; it does not hide the section.
+- The stylesheet injected by `applyPreviewCss()` is scoped to
+  `#theme-preview-container[data-color-scheme="…"]`, so a preview never
+  repaints the rest of the admin panel.
+
+All preview CSS is inline in the template's `<style nonce="{{ csp_nonce }}">`
+block. The reasoning behind the placement is recorded in
+[Agent Maintainer Notes](../../docs/internals/agent-maintainer-notes.md#admin-theme-preview-placement-2026-10-24).
+
 ## See Also
 - [Static Assets](frontend/static-assets.md) - JS/CSS
 - [App Factory](core/app-factory.md) - Filter registration

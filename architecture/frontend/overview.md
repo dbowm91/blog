@@ -31,6 +31,7 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Heading IDs | `shared/heading-slug.js` | One generator only |
 | Route → module set | `main.js` | Match on a path-segment boundary, longest match first |
 | Theme colour | the theme runtime | Static CSS consumes tokens; every referenced token is emitted or defined |
+| Admin theme preview | `admin/settings.html` (inline script) | Triggers stay with the selects; `min-height` equals `max-height`; clear restores the placeholder; preview CSS stays scoped to `#theme-preview-container` |
 | Breakpoint visibility | one stylesheet per breakpoint | Rules that must win must not tie on specificity |
 | Stylesheet order | `app/templates/base.html` | `main.js` must not import a stylesheet, or dev and production diverge |
 

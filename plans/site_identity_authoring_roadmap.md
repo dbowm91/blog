@@ -18,6 +18,16 @@ Every item below was verified against the running instance before the plan was
 written. The verification harness and its output are recorded in each phase file;
 no finding is based on reading alone.
 
+## Operator clarification (2026-10-24)
+
+After the series was written, the operator corrected one item: the theme
+selector and preview **mechanism works**, and the complaint is placement only —
+the preview should sit above the control it previews so the operator does not
+have to keep travelling up and down to see it. Phase 01 was rewritten around
+that: the mechanism is untouched, and only the position of the panel, its
+reserved footprint, the clear action and the scroll-into-view changed. Phase 01
+Part A has since shipped.
+
 ## Verification method
 
 Findings were confirmed by rendering `http://localhost:5050` in headless
@@ -35,8 +45,9 @@ harness, not a test).
 | `.comments` border-top / padding-left | `0px` / `0px` — the block has no rules of its own |
 | `.author-card` links | 0 — the author name is not a link |
 | Listing `.post-author` links | 0 — plain text |
-| Admin settings section order | Theme (0), Theme Preview (1), Theme Registry (2) |
-| Theme preview computed display | `none` — hidden until a button is pressed |
+| Admin settings section order (before) | Theme (0), Theme Preview (1), Theme Registry (2) |
+| Admin settings section order (after Phase 01 Part A) | Theme Preview (0), Theme (1), Theme Registry (2) |
+| Theme preview computed display | `none` before — now visible, with a reserved, non-resizing box |
 | Admin nav entries containing "profile" | none |
 | `/admin/settings` body text | no "comment", no "footer" |
 | `/admin/users` body text | no "bio", no "avatar" |
@@ -66,7 +77,7 @@ Read directly from `data/devlog.sqlite3`:
 
 | Phase | File | Area | Status |
 |---|---|---|---|
-| 01 | `site_identity_phase_01_admin_settings.md` | Settings reorganisation, comments toggle, editable footer | Planned |
+| 01 | `site_identity_phase_01_admin_settings.md` | Settings reorganisation, theme preview placement, comments toggle, editable footer | Part A complete (theme preview placement) — Part B planned |
 | 02 | `site_identity_phase_02_user_profiles.md` | Profile fields, avatar, short/full bio, admin profile editor | Planned |
 | 03 | `site_identity_phase_03_public_auth.md` | Public login, account page, nav affordance | Planned |
 | 04 | `site_identity_phase_04_authorship_and_author_pages.md` | Post → author, author page, author links | Planned |

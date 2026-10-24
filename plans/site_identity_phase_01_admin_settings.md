@@ -2,25 +2,47 @@
 
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Planned
-**Severity:** High — the settings page cannot express three of the site-level controls the operator asked for, and the theme preview is below the control it previews.
+**Status:** Part A complete (theme preview placement); Part B planned (comments switch, editable footer)
+**Severity:** High — the settings page cannot express two of the site-level controls the operator asked for, and the theme preview sat below the control it previews.
+
+This phase has two parts:
+
+- **Part A — Theme preview placement.** Shipped. See [Part A](#part-a--theme-preview-placement) and
+  the [Completion](#completion) section.
+- **Part B — Comments switch and editable footer.** Not started.
+
+## Operator clarification (2026-10-24)
+
+The operator reviewed this phase and corrected its framing:
+
+> the selector and preview mechanism does work currently. all i'm saying is to
+> move where the preview is displayed to sit on top of where you would select
+> it, so it's easier to see. otherwise you need to keep going up and down to
+> see it.
+
+So the preview mechanism is **not** a defect and must not be redesigned. The
+fault is placement only: the panel was rendered *below* the Theme section, so
+reaching it meant scrolling past the whole form, and the admin had to keep
+travelling up and down between the controls and the result. Everything in this
+plan that touched the mechanism has been rewritten accordingly.
 
 ## Objective
 
 Make `/admin/settings` a complete site-settings surface:
 
-1. Put the theme preview **above** the theme selector and show it by default,
-   so an admin can see the effect of a theme without scrolling and without
-   pressing a button first.
+1. Put the theme preview **above** the theme selector, so the admin can see the
+   effect of a theme without scrolling up and down to reach it.
 2. Add a comments on/off switch that actually turns comment submission and
    the comment block off across the public site.
 3. Add an editable site footer.
 
 ## Findings
 
+### Part A — Theme preview placement
+
 ### SIA-01 — The theme preview sits below the theme selector (high)
 
-`app/templates/admin/settings.html` orders the settings sections as:
+`app/templates/admin/settings.html` ordered the settings sections as:
 
 | Order | Section | Line |
 |---|---|---|
@@ -35,28 +57,44 @@ settings section order: [{i:0, heading:'Theme'}, {i:1, heading:'Theme Preview'},
 ```
 
 The preview is the *result* of the selectors in the section above it, so the
-operator has to scroll past the control to reach the feedback and then scroll
-back to change the selection.
+operator had to scroll past the control to reach the feedback and then scroll
+back to change the selection. That is the "keep going up and down" the operator
+reported.
 
-### SIA-02 — The theme preview is hidden until a button is pressed (high)
+The mechanism itself is sound and is **not** in scope for redesign:
 
-The section carries an inline `style="display: none;"`:
+- `fetchPreview()` reads the *current* values of both selects, so a preview
+  reflects an unsaved selection.
+- The request goes to `admin.settings_theme_preview` with the CSRF header read
+  from `document.documentElement.dataset.csrfHeader`.
+- `applyPreviewCss()` injects a `<style>` element carrying the CSP nonce whose
+  rules are scoped to `#theme-preview-container[data-color-scheme="…"]`, so
+  previewing never repaints the admin panel.
+- The `.theme-preview-btn` triggers are `type="button"` inside the Theme
+  form's markup, so they never submit the form.
+
+### SIA-02 — A panel above the controls must not resize when it loads (high)
+
+This defect only exists *because of* the move, and it is the reason the panel
+cannot simply be relocated and left alone.
+
+Measured on the original markup: the preview container was 156px tall holding
+the placeholder and 500px tall holding real preview content — a 344px growth.
+With the panel **below** the form that growth was harmless. With the panel
+**above** the form it would insert 344px between the operator and the
+controls they are using, shoving the selects and the Preview button down the
+page at the exact moment they press it.
+
+The same applies to the panel's own visibility. The original section carried
+`style="display: none;"`, so it was absent until a preview was fetched:
 
 ```html
-<!-- app/templates/admin/settings.html:141 -->
+<!-- app/templates/admin/settings.html:141, before the move -->
 <div class="settings-section" id="theme-preview-section" style="display: none;">
 ```
 
-Measured: `preview section state: {"inlineDisplay": "none", "computed": "none"}`.
-
-The preview is only populated by `fetchPreview()` in the page's inline script,
-which is bound to the `.theme-preview-btn` elements. On load the container
-still holds its placeholder copy ("Click \"Preview\" to see theme styling"),
-hidden. The admin sees no preview at all until they press Preview.
-
-The preview request itself is correct — `fetchPreview` sends the *selected*
-values from both selects, so a preview reflects an unsaved selection. That
-behaviour must be preserved when the preview is made to load on demand.
+A panel that appears from nothing above the form pushes the whole form down.
+The panel therefore needs a stable, reserved footprint in both states.
 
 ### SIA-03 — There is no comments on/off control (high)
 
@@ -102,31 +140,61 @@ and endpoint keeps one owner per value and keeps the failure modes separate.
 
 ## Fix specification
 
-### 1. Move and auto-populate the theme preview
+## Part A — Theme preview placement
+
+### A1. Move the preview panel above the theme selector
 
 In `app/templates/admin/settings.html`:
 
 - Move the `#theme-preview-section` block **above** the Theme section, so the
   order becomes: Theme Preview, Theme, Theme Registry.
-- Remove the inline `style="display: none;"`. The section is visible by
-  default; `fetchPreview` already sets `previewSection.style.display = 'block'`
-  on every path, so the attribute is the only thing keeping it hidden.
-- On load, request the preview for the **currently selected** values (the
-  saved theme), so the admin sees the live theme before touching anything.
-- Keep the existing `.theme-preview-btn` buttons. They must still preview the
-  *selected but unsaved* values — that is the whole point of the preview.
-- Add a light/dark switch inside the preview container so both schemes can be
-  compared without changing the saved setting. The existing
-  `data-target="light"` / `data-target="dark"` buttons already drive
-  `previewContainer.setAttribute('data-color-scheme', target)`; the switch must
-  reuse that same code path rather than introduce a second one.
-- Do not weaken the CSP. The preview stylesheet is injected with
-  `style.setAttribute('nonce', ...)` — keep the nonce.
+- The `.theme-preview-btn` triggers **stay next to the two selects** inside
+  the Theme form. They preview the selected-but-unsaved values; that is the
+  point of the preview, and moving them would not improve it.
+- The mechanism is untouched: same endpoint, same request payload, same scoped
+  `<style>` injection, same CSRF header. No new code path is introduced.
+- The panel is visible from the start, showing the placeholder copy. It is not
+  fetched automatically — the operator asked for a placement change, not a
+  behaviour change, and auto-fetching would fire a request on every settings
+  page load for no benefit.
 
-Guard the auto-preview so it cannot fire before the DOM is ready and so a
-failed request leaves the placeholder message in place rather than an empty box.
+### A2. Give the panel a stable footprint
 
-### 2. Comments switch
+- `.theme-preview-container` declares `min-height` equal to `max-height`
+  (380px on desktop, 300px under the 768px breakpoint) so the box cannot
+  change size when the placeholder is replaced by real preview content.
+- `.theme-preview-loading` gets `min-height: 100%` so the placeholder fills
+  the reserved box instead of hugging its top edge.
+- The `Clear Preview` action resets the container to the placeholder rather
+  than hiding the section. Hiding it would remove 548px from above the form
+  and shove everything up. The injected preview `<style>` element is still
+  removed on clear.
+
+### A3. Bring the preview into view when it is produced
+
+After a successful preview, scroll the panel into view:
+
+```javascript
+previewSection.scrollIntoView({
+    behavior: reduceMotion ? 'auto' : 'smooth',
+    block: 'nearest'
+});
+```
+
+`block: 'nearest'` scrolls the minimum distance, so nothing moves when the
+panel is already on screen. `prefers-reduced-motion` is honoured. This is the
+step that actually removes the up-and-down: the result comes to the operator
+instead of the operator going to it.
+
+### A4. Keep the CSP and the scoping intact
+
+The preview stylesheet is injected with `style.setAttribute('nonce', ...)`.
+Keep the nonce and keep the `#theme-preview-container[data-color-scheme="…"]`
+scoping. Previewing a theme must never repaint the admin panel.
+
+## Part B — Comments switch and editable footer
+
+### B1. Comments switch
 
 Model (`app/models.py`, `SiteSettings`):
 
@@ -233,46 +301,69 @@ after the upgrade.
 
 ## Tests
 
+### Part A — theme preview placement
+
 1. **Preview order (unit)** — assert that in the rendered `/admin/settings`
-   HTML, the index of the Theme Preview section is **less than** the index of
-   the Theme section. Assert with string offsets, not a CSS selector.
+   HTML the `id="theme-preview-section"` marker appears before the Theme
+   section's `<h2>Theme</h2>` marker, and that the preview section is the
+   first `.settings-section` in the document. Anchor on `<h2>Theme</h2>`:
+   the bare string "Theme" also occurs inside "Theme Preview" and
+   "Theme Registry".
 2. **Preview visible by default (unit)** — assert the rendered settings page
-   contains no `style="display: none;"` on `#theme-preview-section`.
-3. **Preview auto-loads (browser, `tests/e2e/`)** — open `/admin/settings`,
-   wait for `#theme-preview-container` to contain the sample heading without
-   clicking any button; assert no console error.
-4. **Preview still honours unsaved selections (browser)** — change the dark
-   theme select, press Preview, assert the preview request carried the new
-   value (assert on the request payload or the resulting `data-color-scheme`
-   attribute and content).
-5. **Comments toggle (unit)** — with `comments_enabled = False`, assert
+   does not carry a hidden preview section, and that the placeholder copy is
+   present.
+3. **No layout shift (unit)** — read the template source and assert the
+   `.theme-preview-container` rule declares `min-height` and `max-height` with
+   the same value, so the box cannot change size when the preview loads.
+4. **Clear keeps the panel (unit)** — assert the clear handler does not set
+   `previewSection.style.display = 'none'`, and that it restores the
+   placeholder.
+5. **Triggers stay with the selects (unit)** — assert each `theme-preview-btn`
+   still appears after its corresponding select in the rendered page.
+6. **Preview comes into view (browser, `tests/e2e/`)** — press Preview, wait
+   for the content, assert the preview section's bounding box top is >= 0.
+7. **No shift in the browser (browser)** — measure the container height in the
+   placeholder state and again after a preview; assert they are equal.
+8. **Clear in the browser (browser)** — assert the section's computed display
+   is not `none` and the container shows the placeholder again.
+
+### Part B — comments switch and footer
+
+9. **Comments toggle (unit)** — with `comments_enabled = False`, assert
    `GET /post/<slug>` does not contain `<section class="comments"`, and
    `POST /post/<slug>/comments` does not create a `Comment` row and flashes an
    error.
-6. **Comments toggle (browser)** — toggle it off in the admin, reload the post,
-   assert the comment form is gone; toggle it back on, assert it returns.
-7. **Footer text (unit)** — assert the footer renders `footer_text` when set,
-   and falls back to the default copyright line when empty.
-8. **Footer text is escaped (unit)** — set `footer_text` to
-   `<script>alert(1)</script>`; assert the rendered page contains the escaped
-   form and no `<script>` element with that content.
-9. **Footer columns (unit)** — assert the "Latest from the blog" and
-   "Browse by tag" headings are absent when the corresponding flags are off.
-10. **Settings route (unit)** — POST to `/admin/settings/site` with a valid
+10. **Comments toggle (browser)** — toggle it off in the admin, reload the post,
+    assert the comment form is gone; toggle it back on, assert it returns.
+11. **Footer text (unit)** — assert the footer renders `footer_text` when set,
+    and falls back to the default copyright line when empty.
+12. **Footer text is escaped (unit)** — set `footer_text` to
+    `<script>alert(1)</script>`; assert the rendered page contains the escaped
+    form and no `<script>` element with that content.
+13. **Footer columns (unit)** — assert the "Latest from the blog" and
+    "Browse by tag" headings are absent when the corresponding flags are off.
+14. **Settings route (unit)** — POST to `/admin/settings/site` with a valid
     CSRF token; assert the values persisted and the settings cache was
     invalidated. Assert an invalid payload is rejected without a partial write.
-11. **Migration (unit)** — assert the new columns exist after `flask db
+15. **Migration (unit)** — assert the new columns exist after `flask db
     upgrade` and that the downgrade drops them. Follow the existing pattern in
     `tests/test_migration_chain.py`.
 
 ## Expected files
+
+### Part A — shipped
+
+- `app/templates/admin/settings.html` — the panel move, the reserved
+  container height, the placeholder reset on clear, the scroll-into-view
+
+### Part B — planned
 
 - `app/models.py` (SiteSettings columns)
 - `app/services/site_settings.py` (new)
 - `app/routes/admin/settings.py` (`/admin/settings/site`)
 - `app/routes/public/comments.py` (fail-closed gate)
 - `app/context_processors.py` (expose `comments_enabled`, `footer_text`, `footer_show_posts`, `footer_show_tags`)
-- `app/templates/admin/settings.html` (preview reorder, Site section)
+- `app/templates/admin/settings.html` (Site section)
 - `app/templates/base.html` (footer text)
 - `app/templates/post.html` (comment block conditional)
 - `app/static/css/public.css` (`.footer-text`, comment-closed note)
@@ -282,10 +373,22 @@ after the upgrade.
 
 ## Acceptance criteria
 
-- [ ] The Theme Preview section renders above the Theme section.
-- [ ] The preview is visible on load and shows the currently saved theme without a click.
-- [ ] Selecting a different theme and pressing Preview still previews the unsaved selection.
-- [ ] The preview does not repaint the admin panel outside the preview container.
+### Part A — theme preview placement
+
+- [x] The Theme Preview section renders above the Theme section.
+- [x] The preview panel occupies a stable place and is visible without a click.
+- [x] Populating the preview does not change the container height, so the
+      controls below it never move.
+- [x] Pressing Preview brings the panel into view; the operator no longer has
+      to travel up and down to see the result.
+- [x] The Preview triggers stay beside the selects they preview, and the
+      mechanism is unchanged: an unsaved selection still previews.
+- [x] Clear Preview restores the placeholder and leaves the panel in place.
+- [x] The preview does not repaint the admin panel outside the preview container.
+- [x] The CSP is not weakened and the injected stylesheet keeps its nonce.
+
+### Part B — comments switch and footer
+
 - [ ] An admin can switch comments off; the comment block disappears and the public endpoint refuses to create comments.
 - [ ] Switching comments back on restores the block and the endpoint.
 - [ ] Existing comments remain visible while commenting is closed.
@@ -293,6 +396,9 @@ after the upgrade.
 - [ ] Footer text is rendered as escaped text, never as markup.
 - [ ] An admin can hide either footer column.
 - [ ] Each persisted value has exactly one producer and one settings form.
+
+### Both parts
+
 - [ ] `pytest tests/` passes; `ruff` and `mypy` are clean; the rendered instance confirms every item.
 
 ## Dependencies
@@ -303,4 +409,54 @@ section created here with the page-menu fields; Phase 06 reads
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Part A complete. Part B not started.
+
+### Part A — theme preview placement (shipped)
+
+| Item | Resolution |
+|---|---|
+| Panel position | The `#theme-preview-section` block now renders above the Theme section. Section order is Theme Preview, Theme, Theme Registry. |
+| Mechanism | Unchanged. The `.theme-preview-btn` triggers stay next to the two selects inside the Theme form; `fetchPreview()` still posts the current, possibly unsaved select values to `admin.settings_theme_preview` with the CSRF header from `document.documentElement.dataset.csrfHeader`. No auto-fetch was added — the operator asked for a placement change, not a behaviour change. |
+| Stable footprint | `.theme-preview-container` declares `min-height` equal to `max-height` (380px, 300px under 768px), and `.theme-preview-loading` gets `min-height: 100%` so the placeholder fills the reserved box. Populating the preview cannot change the box height, so the controls below never move. |
+| Visibility | The inline `style="display: none;"` was removed. The panel is visible on load with the placeholder copy "Select a theme below and press its Preview button to see it here." |
+| Clear | "Clear Preview" now removes the injected stylesheet and restores a clone of the placeholder into the container. It no longer hides the section, which would have pulled the form up by 548px. |
+| Scroll | After a successful preview, `previewSection.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest'})` brings the panel into view. `prefers-reduced-motion` is honoured. |
+| CSP and scoping | Unchanged. The injected `<style>` keeps its nonce and stays scoped to `#theme-preview-container[data-color-scheme="…"]`. |
+
+**Verification** — headless Chromium against the live instance at
+`http://localhost:5050`, harness at `/tmp/devlog_review_stubs/preview_placement.py`:
+
+```
+section order: Theme Preview (top 199), Theme (top 811), Theme Registry (top 1717)
+PASS A1.preview_above_theme
+PASS A2.preview_is_first_section
+PASS A3.preview_section_visible_by_default
+PASS A4.placeholder_shown_initially
+PASS B1.preview_populates              scheme=dark heading='Sample Heading'
+PASS B2.preview_visible_on_screen_after_press
+PASS B3.preview_fully_visible_after_press
+PASS B4.preview_and_select_visible_together   previewTop=199 selectTop=993 viewport=1000
+PASS B5.select_and_preview_on_same_screen
+PASS C1.clear_keeps_panel_visible
+PASS C2.clear_restores_placeholder
+PASS D1.preview_css_stays_scoped      scoped=1
+PASS D2.only_the_site_theme_is_unscoped
+PASS E1.no_page_errors
+14/14 checks passed
+```
+
+Responsive pass, harness at `/tmp/devlog_review_stubs/preview_responsive.py`:
+`#theme-preview-container` measured at **380px desktop / 300px mobile in both
+the placeholder and the loaded state** — no layout shift at any viewport — with
+no horizontal overflow and no page errors at 1280×1000, 1280×800, 768×1024 and
+390×844.
+
+At 1280×1000 the preview panel (top 199, bottom 855) and the dark theme select
+(top 993) are on screen together after a preview, so the change-theme → preview
+loop needs no scrolling.
+
+**Not verified here:** the accessibility warnings box that the preview endpoint
+returns for the current theme pair ("Both themes are classified as dark.") adds
+108px to the section when it appears. That is content, not layout shift — the
+preview box itself does not resize — and it is recorded rather than fixed.
+
