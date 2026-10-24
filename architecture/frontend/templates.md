@@ -24,6 +24,7 @@ app/templates/
 ├── tag.html                     # Tag archive
 ├── admin/                       # Admin templates
 │   ├── _breadcrumbs.html
+│   ├── _editor_body.html
 │   ├── analytics.html
 │   ├── audit.html
 │   ├── backup.html
@@ -153,6 +154,9 @@ Post content partial with:
 
 ### `_error.html`
 Error page partial used by `404.html`, `429.html`, and `500.html`. Renders error code, message, and back link.
+
+### `admin/_editor_body.html`
+The `markdown_editor` macro renders the whole markdown body field for both admin editors: the formatting toolbar, the full-width textarea, the collapsible live preview and the word/character counter. `admin/editor.html` and `admin/page_editor.html` both call it, so the two editors cannot drift apart. The preview sits **below** the textarea and is collapsed through `#toggle-preview-btn`, which is the single owner of the `preview-visible` / `preview-hidden` classes and of `aria-expanded`.
 
 ### `_sidebar.html`
 Admin sidebar partial with navigation links to dashboard sections (posts, pages, media, subscribers, tags, series, settings, audit, backup).

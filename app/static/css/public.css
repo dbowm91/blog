@@ -25,34 +25,6 @@
     margin: 0 auto;
 }
 
-.hero-subscribe {
-    display: flex;
-    gap: var(--space-sm);
-    max-width: 520px;
-    margin: var(--space-lg) auto 0;
-}
-
-.hero-subscribe input[type="email"] {
-    flex: 1;
-    min-width: 0;
-    padding: 10px 14px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--font-sans);
-}
-
-.hero-subscribe input[type="email"]:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
-}
-
-.hero-subscribe input[type="email"]::placeholder {
-    color: var(--text-dim);
-}
-
 /* --- Post Cards (with image) --- */
 .posts-list {
     display: flex;
@@ -533,6 +505,7 @@
 .related-posts {
     margin-top: 48px;
     padding-top: 32px;
+    padding-bottom: var(--space-xl);
     border-top: 1px solid var(--border);
 }
 
@@ -1307,11 +1280,11 @@ a.related-card {
 }
 
 @media (max-width: 560px) {
-    .hero-subscribe {
+    .subscribe-form-footer {
         flex-direction: column;
     }
 
-    .hero-subscribe .btn {
+    .subscribe-form-footer .btn {
         width: 100%;
     }
 }

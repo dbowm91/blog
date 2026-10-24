@@ -153,6 +153,29 @@ def test_nav_leaves_out_pages_that_are_not_in_the_menu(app, client, db):
     assert '/page/hidden"' not in nav
 
 
+def test_nav_has_no_pages_index_link(app, client, db):
+    """The navigation bar lists the pages themselves, not a separate index link."""
+    _require_public_shell(app)
+    _make_page("About", "about", show_in_menu=True)
+
+    html = client.get("/").get_data(as_text=True)
+
+    nav = html.split('<div class="nav-links"', 1)[1].split('<div class="nav-actions"', 1)[0]
+    assert "/pages" not in nav
+    assert ">Pages<" not in nav
+
+
+def test_footer_still_links_to_the_pages_index(app, client, db):
+    """The footer keeps the route to the full list of published pages."""
+    _require_public_shell(app)
+    _make_page("About", "about", show_in_menu=True)
+
+    html = client.get("/").get_data(as_text=True)
+
+    footer = html.split('<footer class="footer"', 1)[1]
+    assert '/pages"' in footer
+
+
 def test_nav_marks_the_current_page_as_active(app, client, db):
     """The navigation bar marks the page you are on."""
     _require_public_shell(app)

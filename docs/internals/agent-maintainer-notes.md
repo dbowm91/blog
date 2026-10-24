@@ -21,6 +21,7 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Second Frontend Review Pass (2026-10-23)](#second-frontend-review-pass-2026-10-23)
 - [Code Block Line Numbers (2026-10-23)](#code-block-line-numbers-2026-10-23)
 - [Admin Theme Preview Placement (2026-10-24)](#admin-theme-preview-placement-2026-10-24)
+- [Editor Layout, Markdown Toolbar and Footer Subscribe (2026-10-24)](#editor-layout-markdown-toolbar-and-footer-subscribe-2026-10-24)
 
 ---
 
@@ -910,3 +911,107 @@ scratch in a subprocess and compares the resulting schema with the model
 metadata. The upgrade runs in a subprocess because `migrations/env.py` takes
 its engine from the current Flask application, and the test suite's own
 application is bound to a different database.
+
+---
+
+## Editor Layout, Markdown Toolbar and Footer Subscribe (2026-10-24)
+
+### The editor is one shared component
+
+`app/templates/admin/_editor_body.html` holds a `markdown_editor` macro that
+renders the whole body field: the markdown toolbar, the textarea, the preview
+toggle, the live preview and the word/character counter. Both
+`admin/editor.html` and `admin/page_editor.html` call it. The two editors
+cannot drift apart again because there is only one copy of the markup.
+
+### The preview sits under the editor, not beside it
+
+`.editor-split` is a **flex column**, not a two-column grid. The textarea is
+full width and the live preview renders below it. The preview is collapsed
+through the `#toggle-preview-btn` button, which owns the state: it sets
+`preview-visible` / `preview-hidden` on `#editor-split` and keeps
+`aria-expanded` and the button label in sync. The button is the single
+writer of those classes — `app/static/js/admin/shortcuts.js` clicks the
+button rather than toggling the classes itself.
+
+The old contract had the toggle hidden on desktop and the preview forced
+hidden on mobile by a media query. Both are gone.
+
+**A Jinja escaping trap to avoid.** The page editor used to write the invalid
+state with `{{ ' aria-invalid="true"' if errors and errors.body else '' }}`.
+Jinja autoescapes the string literal, so the browser received
+`aria-invalid=&#34;true&#34;` — a broken attribute. Inline `{% if %}` blocks
+write the attribute literally and are the safe way to emit a literal
+attribute value.
+
+### The markdown toolbar
+
+`app/static/js/admin/markdown-toolbar.js` inserts markdown at the caret.
+Every button carries `data-md-action="<action>"` and the module holds the one
+table of actions.
+
+| Action | Inserted |
+|--------|----------|
+| `bold` | `**text**` |
+| `italic` | `*text*` |
+| `underline` | `<u>text</u>` |
+| `strikethrough` | `~~text~~` |
+| `code` | `` `text` `` |
+| `codeblock` | a fenced block |
+| `link` | `[text](url)`, with `url` selected |
+| `heading` | `## ` |
+| `quote` | `> ` |
+| `bulletlist` | `- ` |
+| `numberedlist` | `1. `, `2. `, ... |
+
+Two details that are easy to get wrong:
+
+- The line actions (heading, quote, both lists) replace the **whole line
+  block**, not the selection span. Replacing the selection span duplicates the
+  rest of the line, because the block runs from the start of the first line to
+  the end of the last one. `replaceSpan()` takes explicit from/to offsets for
+  this reason.
+- The line actions strip an existing marker of the same kind before adding
+  theirs, so clicking "Heading" on `## Heading` does not produce `## ## Heading`.
+
+### Strikethrough is a first-party extension
+
+Python-Markdown has no `strikethrough` extension and `pymdown-extensions` is
+not a dependency. `app/markdown_extensions.py` provides one: an
+`InlineProcessor` that turns `~~text~~` into `<s>text</s>`. The sanitiser
+already allowed the `s` and `u` tags, so no change was needed there.
+
+`render_markdown()` appends the extension to whatever extension list it is
+given, so the page, the editor preview and the feeds all speak the same
+dialect. `FEED_EXTENSIONS` in `app/markdown_renderer.py` is the feed list;
+the feeds drop `footnotes` (footnote references do not survive a feed) but
+keep strikethrough.
+
+The editor preview endpoint now calls `render_markdown()` with the default
+extensions, so the preview is byte-for-byte what the published page renders.
+
+### The nav has no "Pages" link
+
+The navbar lists the menu pages themselves and nothing else. There is no
+separate "Pages" entry. `GET /pages` still exists and still lists every
+published page; the **footer** Pages heading links to it, which is where a
+published page that is *not* in the menu stays reachable.
+
+### The subscribe form lives in the footer
+
+The newsletter form was removed from the homepage hero and now sits in the
+footer as a **Newsletter** column, so it is on every public page. The
+`.subscribe-form-footer` rules already existed in `app/static/css/layout.css`;
+the `.hero-subscribe` rules were deleted with the form.
+
+### Restart the server after `npm run build`
+
+`app/vite.py` caches the Vite manifest in a module-level global for the life
+of the process. After `npm run build` the manifest names new hashed files and
+the old ones are gone, but a running server keeps serving the **old** manifest
+— so it references bundle files that no longer exist, the admin JavaScript
+never loads, and every editor control silently does nothing.
+
+**Restart the Flask server after every frontend build** before you trust a
+browser check. The symptom is a page that renders but whose JavaScript is
+dead, which looks like a bug in the code you just wrote.

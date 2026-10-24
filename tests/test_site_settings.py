@@ -96,6 +96,31 @@ def test_footer_columns_can_be_hidden(client):
     assert b"Browse by tag" not in response.data
 
 
+def test_subscribe_form_lives_in_the_footer_on_every_page(client, db):
+    """The newsletter form is in the footer, so it is on every public page."""
+    post = _published_post(db)
+
+    for path in ("/", f"/post/{post.slug}"):
+        response = client.get(path)
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        footer = html.split('<footer class="footer"', 1)[1]
+        assert 'action="/subscribe"' in footer
+        assert 'class="subscribe-form-footer"' in footer
+        assert 'name="csrf_token"' in footer
+        assert "hero-subscribe" not in html
+
+
+def test_footer_subscribe_form_posts_to_the_subscribe_endpoint(client):
+    """The footer form is wired to the public subscribe route."""
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+    footer = html.split('<footer class="footer"', 1)[1]
+
+    assert 'action="/subscribe"' in footer
+    assert 'name="email"' in footer
+
+
 def test_comments_block_hidden_when_comments_are_closed(client, db):
     post = _published_post(db)
     _set_site_settings(comments_enabled=False)

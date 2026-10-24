@@ -10,6 +10,7 @@ app/static/
 │   ├── admin/          # Admin dashboard JS
 │   │   ├── bulk.js
 │   │   ├── editor.js
+│   │   ├── markdown-toolbar.js
 │   │   └── shortcuts.js
 │   ├── public/         # Public site JS
 │   │   ├── anchor-links.js
@@ -207,6 +208,7 @@ optimizeDeps: {
 ### Admin JS
 - Dashboard analytics and charts
 - Post editor enhancements
+- Markdown formatting toolbar (`markdown-toolbar.js`) — inserts markdown at the caret; loaded through `editor.js`
 - Media upload management
 - Settings and theme forms
 - Bulk operations
@@ -330,6 +332,8 @@ Located at `vite.config.js`:
 > **Docker builds handle this automatically.** The Dockerfile uses a multi-stage build where the first stage (`node:20-alpine`) runs `npm ci && npm run build`, and the runtime stage copies the resulting `app/static/dist/` into the final image. No manual build step is needed for Docker deployments.
 >
 > **Non-Docker deployments** require running `npm ci && npm run build` manually before starting the server.
+
+> **⚠️ Restart a running server after every frontend build.** `app/vite.py` caches the Vite manifest in a module-level global for the life of the process. A rebuild renames the hashed bundles and deletes the old ones, but a server that is already running keeps serving the stale manifest — so it points at bundle files that no longer exist, the JavaScript never loads, and every interactive control silently does nothing. Restart the Flask server before you trust a browser check of a frontend change.
 
 ### Vite Asset Helper
 

@@ -68,7 +68,7 @@ class TestVisualRegressionDark:
                 assert color != "rgba(0, 0, 0, 0)", "Links should have a visible colour"
 
     def test_subscribe_form_visible(self, page, app_server):
-        form = page.locator(".subscribe-form, .hero-subscribe")
+        form = page.locator(".subscribe-form, .hero-subscribe, .subscribe-form-footer").first
         if form.count() > 0:
             assert form.is_visible(), "Subscribe form should be visible"
 
@@ -105,7 +105,7 @@ class TestVisualRegressionLight:
         assert result["color"] != result["bgColor"], "Text should contrast with background"
 
     def test_subscribe_form_visible(self, page, app_server):
-        form = page.locator(".subscribe-form, .hero-subscribe")
+        form = page.locator(".subscribe-form, .hero-subscribe, .subscribe-form-footer").first
         if form.count() > 0:
             assert form.is_visible(), "Subscribe form should be visible"
 

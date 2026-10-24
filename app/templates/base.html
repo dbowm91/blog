@@ -109,9 +109,6 @@
             {% for nav_page in page_menu %}
             <a href="{{ url_for('public.page', slug=nav_page.slug) }}" {% if request.endpoint == 'public.page' and request.view_args.get('slug') == nav_page.slug %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">{{ nav_page.title }}</span></a>
             {% endfor %}
-            {% if page_menu %}
-                <a href="{{ url_for('public.pages_index') }}" {% if request.endpoint == 'public.pages_index' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Pages</span></a>
-            {% endif %}
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('public.account') }}" {% if request.endpoint == 'public.account' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Account</span></a>
                 {% if current_user.is_admin %}
@@ -150,6 +147,16 @@
 
     <footer class="footer" id="footer" aria-label="Site footer">
         <div class="container footer-grid">
+            <div class="footer-section">
+                <h3 class="footer-heading">Newsletter</h3>
+                <p class="footer-subscribe-text">Occasional posts. No spam, unsubscribe anytime.</p>
+                <form method="POST" action="{{ url_for('public.subscribe') }}" class="subscribe-form-footer">
+                    <label class="sr-only" for="footer-newsletter-email">Email address</label>
+                    <input type="email" id="footer-newsletter-email" name="email" placeholder="you@example.com" autocomplete="email" required>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-small btn-primary">Subscribe</button>
+                </form>
+            </div>
             {% if show_footer_posts and footer_show_posts %}
             <div class="footer-section">
                 <h3 class="footer-heading">Latest from the blog</h3>
@@ -172,7 +179,7 @@
             {% endif %}
             {% if page_menu %}
             <div class="footer-section">
-                <h3 class="footer-heading">Pages</h3>
+                <h3 class="footer-heading"><a href="{{ url_for('public.pages_index') }}">Pages</a></h3>
                 <ul class="footer-links">
                     {% for pg in page_menu %}
                     <li><a href="{{ url_for('public.page', slug=pg.slug) }}">{{ pg.title }}</a></li>
