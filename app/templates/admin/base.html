@@ -28,6 +28,9 @@
     <link rel="stylesheet" href="{{ vite_asset('css/admin.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/forms.css') }}">
     <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}">
+    {% for preload_font in appearance_preload_fonts | default([], true) %}
+    <link rel="preload" href="{{ preload_font.url }}" as="font" type="{{ preload_font.type }}" crossorigin>
+    {% endfor %}
     <style nonce="{{ csp_nonce }}">
         :root,
         [data-color-scheme="dark"] {
@@ -45,6 +48,8 @@
             {% endif %}
             {% endfor %}
         }
+
+        {{ appearance_css | default('', true) | safe }}
 
         {% if custom_css_enabled and custom_css %}
         {{ custom_css | sanitize_css | safe }}

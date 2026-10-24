@@ -372,6 +372,20 @@ class TestPackageDataCompleteness:
         dist_files = [f for f in wheel_contents if "static/dist/" in f]
         assert dist_files, "Wheel missing Vite dist files (present in source but not in wheel)"
 
+    def test_includes_static_fonts(self, wheel_contents):
+        font_files = [f for f in wheel_contents if "static/fonts/" in f and f.endswith(".woff2")]
+        assert font_files, "Wheel missing bundled font files (present in source but not in wheel)"
+
+    def test_includes_static_images(self, wheel_contents):
+        image_files = [f for f in wheel_contents if "static/img/" in f]
+        assert image_files, "Wheel missing static images (present in source but not in wheel)"
+
+    def test_includes_backdrop_svgs(self, wheel_contents):
+        backdrop_files = [
+            f for f in wheel_contents if "static/img/backdrops/" in f and f.endswith(".svg")
+        ]
+        assert backdrop_files, "Wheel missing backdrop SVGs (present in source but not in wheel)"
+
     def test_wheel_excludes_env_files(self, wheel_contents):
         env_files = [f for f in wheel_contents if ".env" in f]
         assert not env_files, f"Wheel contains .env files: {env_files}"

@@ -159,7 +159,7 @@ from app.routes.admin.backup import (  # noqa: E402, F401
 )
 from app.routes.admin.analytics import analytics  # noqa: E402, F401
 from app.routes.admin.newsletter import newsletter_test, newsletter_preview  # noqa: E402, F401
-from app.routes.admin.settings import settings, settings_theme  # noqa: E402, F401
+from app.routes.admin.settings import settings, settings_theme, settings_appearance  # noqa: E402, F401
 from app.routes.admin.pages import pages_list, new_page, edit_page, delete_page  # noqa: E402, F401
 from app.routes.admin.series import (  # noqa: E402, F401
     series_list,

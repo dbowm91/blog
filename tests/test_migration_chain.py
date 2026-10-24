@@ -10,6 +10,7 @@ a fresh install is the case that exercises the branch interaction.
 """
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -51,6 +52,29 @@ def _get_all_rows(engine, table_name):
     with engine.connect() as conn:
         result = conn.execute(sa.text(f"SELECT * FROM {table_name}"))
         return [dict(row._mapping) for row in result]
+
+
+def _expected_head() -> str:
+    """The single head of the migration graph, read from the revision scripts.
+
+    Deriving it keeps the fresh-install test meaningful after every new
+    revision instead of pinning a revision name that goes stale.
+    """
+    revisions: set[str] = set()
+    parents: set[str] = set()
+    for path in (REPO_ROOT / "migrations" / "versions").glob("*.py"):
+        text = path.read_text()
+        revision = re.search(r'^revision\s*=\s*["\']([^"\']+)["\']', text, re.M)
+        if not revision:
+            continue
+        revisions.add(revision.group(1))
+        down = re.search(r"^down_revision\s*=\s*(.+)$", text, re.M)
+        if down:
+            parents.update(re.findall(r'["\']([^"\']+)["\']', down.group(1)))
+
+    heads = sorted(revisions - parents)
+    assert len(heads) == 1, f"expected a single migration head, found {heads}"
+    return heads[0]
 
 
 def _run_migration(engine, upgrade_fn):
@@ -355,7 +379,17 @@ def test_fresh_install_upgrades_without_error(tmp_path):
     engine = sa.create_engine(f"sqlite:///{db_path}")
     with engine.connect() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar()
-    assert version == "reconcile_schema_with_models"
+    assert version == _expected_head()
+
+
+def test_fresh_install_adds_the_appearance_columns(tmp_path):
+    """The appearance settings are part of the schema a fresh install produces."""
+    db_path = _fresh_install(tmp_path)
+
+    engine = sa.create_engine(f"sqlite:///{db_path}")
+
+    columns = _get_columns(engine, "site_settings")
+    assert {"font_sans", "font_mono", "backdrop"} <= columns
 
 
 def test_fresh_install_schema_matches_the_models(tmp_path):

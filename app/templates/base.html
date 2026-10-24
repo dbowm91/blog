@@ -50,8 +50,9 @@
         <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}">
         <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}">
     </noscript>
-    <link rel="preload" href="{{ vite_asset('fonts/inter-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="{{ vite_asset('fonts/jetbrains-mono-400-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+    {% for preload_font in appearance_preload_fonts | default([], true) %}
+    <link rel="preload" href="{{ preload_font.url }}" as="font" type="{{ preload_font.type }}" crossorigin>
+    {% endfor %}
     <style nonce="{{ csp_nonce }}">
         :root,
         [data-color-scheme="dark"] {
@@ -69,6 +70,8 @@
             {% endif %}
             {% endfor %}
         }
+
+        {{ appearance_css | default('', true) | safe }}
 
         {% if custom_css_enabled and custom_css %}
         {{ custom_css | sanitize_css | safe }}

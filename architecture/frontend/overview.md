@@ -8,9 +8,12 @@ Frontend assets and templating.
 |-----------|----------|---------|
 | JavaScript | `app/static/js/` | Vanilla JS modules |
 | CSS | `app/static/css/` | Stylesheets |
-| Uploads | `app/static/uploads/` | User media |
+| Fonts | `app/static/fonts/` | Self-hosted woff2 families |
+| Images | `app/static/img/` | Favicon, default post image, page backdrops |
+| Uploads | `app/static/uploads/` | User media, custom fonts and backdrops |
 | Vite Build | `app/static/dist/` | Built assets |
 | Templates | `app/templates/` | Jinja2 templates |
+| Appearance | `app/appearance/` | Font and backdrop registries and service |
 
 ## Theme CSS Cache Contract
 
@@ -31,6 +34,8 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Heading IDs | `shared/heading-slug.js` | One generator only |
 | Route → module set | `main.js` | Match on a path-segment boundary, longest match first |
 | Theme colour | the theme runtime | Static CSS consumes tokens; every referenced token is emitted or defined |
+| Typeface | the appearance runtime | `--font-sans` and `--font-mono` are emitted by `app/appearance/service.py`; stylesheets never name a family directly |
+| Page backdrop | the appearance runtime | `--backdrop-image` and `--backdrop-tint` are emitted per scheme; the SVG supplies shape only, never colour |
 | Admin theme preview | `admin/settings.html` (inline script) | Triggers stay with the selects; `min-height` equals `max-height`; clear restores the placeholder; preview CSS stays scoped to `#theme-preview-container` |
 | Breakpoint visibility | one stylesheet per breakpoint | Rules that must win must not tie on specificity |
 | Stylesheet order | `app/templates/base.html` | `main.js` must not import a stylesheet, or dev and production diverge |
@@ -42,4 +47,5 @@ ones that are mechanically checkable.
 ## See Also
 - [Static Assets](frontend/static-assets.md) - JS/CSS assets
 - [Templates](frontend/templates.md) - Jinja2 templates
+- [Appearance Layer](frontend/appearance.md) - Fonts and page backdrops
 - [Cache Contract](../../docs/themes/cache-contract.md) - Cache freshness model, invalidation API, multi-worker notes

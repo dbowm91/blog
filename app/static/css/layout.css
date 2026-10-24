@@ -267,6 +267,7 @@
 
 .sidebar-section {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-lg);

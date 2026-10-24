@@ -81,7 +81,7 @@ include = ["app*", "devlog_cli*", "migrations*"]
 [tool.setuptools.package-data]
 "app.themes.bundled" = ["*.toml", "catalog_manifest.json", "ATTRIBUTION.md"]
 "app.themes" = ["ACCESSIBILITY_EXCEPTIONS.json"]
-"app" = ["templates/**/*", "static/css/**/*", "static/js/**/*", "static/dist/**/*", "config.toml.example"]
+"app" = ["templates/**/*", "static/css/**/*", "static/js/**/*", "static/dist/**/*", "static/fonts/**/*", "static/img/**/*", "config.toml.example"]
 "migrations" = ["**/*.py", "alembic.ini"]
 
 [tool.ruff]

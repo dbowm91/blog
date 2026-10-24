@@ -81,6 +81,8 @@ Important actual file locations (verify before assuming):
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, encryption, search, serialization, slug, tag) |
 | Theme settings service | `app/services/theme_settings.py` — validation, migration, effective name resolution |
+| Appearance layer | `app/appearance/` — font and backdrop registries, appearance service, SVG sanitiser, uploads |
+| Appearance settings service | `app/services/appearance_settings.py` — form parsing and key resolution for the appearance form |
 | Typed config package | `app/config/` — typed config model, loader, validation, provenance, secrets, profiles, serialization, migration |
 | Theme config | `app/config.py` → `app/config_legacy.py` — legacy globals re-exported via `app/config/__init__.py` for backward compat |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
@@ -252,6 +254,8 @@ Important actual file locations (verify before assuming):
 | Comment model | `app/models.py` |
 | Services | `app/services/` (backup, encryption, search, serialization, slug, tag) |
 | Theme settings service | `app/services/theme_settings.py` — validation, migration, effective name resolution |
+| Appearance layer | `app/appearance/` — font and backdrop registries, appearance service, SVG sanitiser, uploads |
+| Appearance settings service | `app/services/appearance_settings.py` — form parsing and key resolution for the appearance form |
 | Typed config package | `app/config/` — typed config model, loader, validation, provenance, secrets, profiles, serialization, migration |
 | Theme config | `app/config.py` → `app/config_legacy.py` — legacy globals re-exported via `app/config/__init__.py` for backward compat |
 | Tag Cache | `app/tag_cache.py` (flask-caching with TTL) |
@@ -509,6 +513,22 @@ The accessibility policy uses a three-tier classification system: `recommended`,
 
 - `themes/*.toml` — top-level Halloy catalog (50 source files; ignore macOS `._*.toml` metadata files)
 - `app/themes/bundled/` — packaged Halloy theme files shipped with the app (50 `.toml` files + `__init__.py` + `catalog_manifest.json` + `ATTRIBUTION.md`)
+
+### Appearance Layer (fonts and page backdrops)
+
+The theme system owns colour. The appearance layer (`app/appearance/`) owns everything else the theme does not decide: which typeface the site renders with, and which large graphic sits behind the page. It mirrors the theme mechanism exactly — registry → service → `SiteSettings` → admin UI → runtime CSS — so there is one customisation mechanism, not two.
+
+Key rules:
+
+- **Colour stays with the theme.** The appearance service derives the backdrop tint from the theme's `bg` and `accent` per scheme; it never introduces a palette.
+- **The backdrop SVG supplies shape only.** It is applied through `mask-image`, so its own fill is irrelevant and an operator's uploaded SVG matches the theme whatever colour it was drawn in.
+- **Nothing is fetched from a third party.** Fonts are self-hosted in `app/static/fonts/`; `app/static/fonts/LICENSES.md` records the OFL terms.
+- **Uploaded SVGs are sanitised before they are stored** (`app/appearance/svg.py`). The stored file is the sanitised one, so serving it cannot execute anything.
+- **Panels are translucent, inputs are not.** `background: var(--bg-surface)` followed by `background: color-mix(in srgb, var(--bg-surface) 94%, transparent)` — the first declaration is the fallback for engines without `color-mix()`.
+- **The page background is three layers**: the theme `bg` on the canvas, a gradient mixed from `bg` and `bg-surface` (`body::before`), and the backdrop shape (`body::after`).
+- **The stored key is the family key.** `SiteSettings.font_sans` holds either `inter` or `custom-font-<slug>-<hash>.woff2`, so no second column is needed.
+
+Settings: `SiteSettings.font_sans`, `SiteSettings.font_mono`, `SiteSettings.backdrop`. Admin route: `admin.settings_appearance` (`POST /admin/settings/appearance`). Documentation: [architecture/frontend/appearance.md](architecture/frontend/appearance.md).
 
 ### Frontend Corrective Roadmap (complete)
 

@@ -34,6 +34,7 @@
 
 .post-card {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -333,6 +334,7 @@
     padding: 12px;
     margin-bottom: 24px;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     flex-wrap: wrap;
@@ -448,6 +450,7 @@
     padding: 16px 20px;
     margin-bottom: 32px;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border-left: 3px solid var(--accent);
     border-radius: 0 var(--radius) var(--radius) 0;
     font-size: 0.95rem;
@@ -471,6 +474,7 @@
     padding: 20px;
     margin: 40px 0;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
 }
@@ -523,6 +527,7 @@
 
 a.related-card {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
@@ -602,6 +607,7 @@ a.related-card {
 
 .post-toc {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px 20px;
@@ -838,6 +844,7 @@ a.related-card {
     padding: 16px 20px;
     border-left: 3px solid var(--accent);
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border-radius: 0 var(--radius) var(--radius) 0;
     color: var(--text-muted);
     font-style: italic;
@@ -1064,6 +1071,7 @@ a.related-card {
     margin-bottom: 24px;
     padding: 20px;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
 }

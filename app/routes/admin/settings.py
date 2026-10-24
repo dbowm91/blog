@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from flask import jsonify, render_template, redirect, url_for, request, flash
 from flask.typing import ResponseReturnValue
@@ -16,7 +17,17 @@ from app.extensions import db
 from app.models import Page, SiteSettings
 from app.routes.admin import admin, admin_required
 from app.context_processors import invalidate_footer_cache, invalidate_settings_cache
+from app.appearance.model import CATEGORY_MONO, CATEGORY_SANS, SOURCE_CUSTOM
+from app.appearance.service import get_appearance_service
+from app.appearance.uploads import save_custom_backdrop, save_custom_font
+from app.services.appearance_settings import (
+    CUSTOM_OPTION,
+    resolve_backdrop_key,
+    resolve_font_key,
+    validate_appearance_settings,
+)
 from app.services.site_settings import parse_menu_pages, validate_site_settings
+from app.storage import get_storage
 from app.themes.registry import (
     ThemeValidationError,
     ThemeNotFoundError,
@@ -28,6 +39,19 @@ from app.themes.translate import to_legacy_css
 from app.utils import sanitize_css
 
 logger = logging.getLogger(__name__)
+
+
+def _store_upload(
+    files: Any,
+    field: str,
+    saver: Any,
+    storage: Any,
+) -> tuple[str | None, str | None]:
+    """Store an optional upload, returning the stored name or an error."""
+    upload = files.get(field)
+    if upload is None or not getattr(upload, "filename", ""):
+        return None, None
+    return saver(storage, upload)
 
 
 @admin.route("/settings", methods=["GET"])
@@ -59,6 +83,14 @@ def settings() -> ResponseReturnValue:
 
     menu_choices = db.session.execute(select(Page).order_by(Page.title)).scalars().all()
 
+    appearance_service = get_appearance_service()
+    font_registry = appearance_service.get_font_registry()
+    backdrop_registry = appearance_service.get_backdrop_registry()
+
+    sans_families = font_registry.list_families(CATEGORY_SANS)
+    mono_families = font_registry.list_families(CATEGORY_MONO)
+    backdrops = backdrop_registry.list_backdrops()
+
     return render_template(
         "admin/settings.html",
         settings=settings_obj,
@@ -71,6 +103,13 @@ def settings() -> ResponseReturnValue:
         external_themes=external_themes,
         menu_choices=menu_choices,
         menu_pages_selected=parse_menu_pages(settings_obj.menu_pages),
+        bundled_sans_fonts=[f for f in sans_families if f.source != SOURCE_CUSTOM],
+        custom_sans_fonts=[f for f in sans_families if f.source == SOURCE_CUSTOM],
+        bundled_mono_fonts=[f for f in mono_families if f.source != SOURCE_CUSTOM],
+        custom_mono_fonts=[f for f in mono_families if f.source == SOURCE_CUSTOM],
+        bundled_backdrops=[b for b in backdrops if b.source != SOURCE_CUSTOM],
+        custom_backdrops=[b for b in backdrops if b.source == SOURCE_CUSTOM],
+        custom_option=CUSTOM_OPTION,
     )
 
 
@@ -152,6 +191,103 @@ def settings_theme() -> ResponseReturnValue:
         return redirect(url_for("admin.settings"))
 
     flash("Theme settings saved.", "success")
+    return redirect(url_for("admin.settings"))
+
+
+@admin.route("/settings/appearance", methods=["POST"])
+@admin_required
+def settings_appearance() -> ResponseReturnValue:
+    """
+    Update the font and backdrop choices.
+
+    Methods: POST
+    POST: Stores the selected font families and page backdrop, and any
+          uploaded font or backdrop file. Validation is owned by
+          `app.services.appearance_settings`.
+    Requires: Admin authentication.
+    Form params:
+        font_sans: Sans font key, or the custom sentinel to upload a file
+        font_mono: Monospace font key, or the custom sentinel to upload a file
+        backdrop: Backdrop key, the custom sentinel, or an empty value for none
+        font_sans_file: Optional woff2 upload for the sans slot
+        font_mono_file: Optional woff2 upload for the monospace slot
+        backdrop_file: Optional SVG upload for the backdrop
+    """
+    payload = validate_appearance_settings(request.form)
+    settings_obj = SiteSettings.get_instance()
+
+    service = get_appearance_service()
+    font_registry = service.get_font_registry()
+    backdrop_registry = service.get_backdrop_registry()
+    storage = get_storage()
+
+    sans_file, error = _store_upload(request.files, "font_sans_file", save_custom_font, storage)
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    mono_file, error = _store_upload(request.files, "font_mono_file", save_custom_font, storage)
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    backdrop_file, error = _store_upload(
+        request.files, "backdrop_file", save_custom_backdrop, storage
+    )
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    if sans_file or mono_file or backdrop_file:
+        service.invalidate_registry()
+
+    sans_key, error = resolve_font_key(
+        payload.font_sans,
+        sans_file,
+        settings_obj.font_sans,
+        font_registry,
+        CATEGORY_SANS,
+        "sans",
+    )
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    mono_key, error = resolve_font_key(
+        payload.font_mono,
+        mono_file,
+        settings_obj.font_mono,
+        font_registry,
+        CATEGORY_MONO,
+        "monospace",
+    )
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    backdrop_key, error = resolve_backdrop_key(
+        payload.backdrop,
+        backdrop_file,
+        settings_obj.backdrop,
+        backdrop_registry,
+    )
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    settings_obj.font_sans = sans_key
+    settings_obj.font_mono = mono_key
+    settings_obj.backdrop = backdrop_key
+
+    try:
+        db.session.commit()
+        invalidate_settings_cache()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.settings"))
+
+    flash("Appearance settings saved.", "success")
     return redirect(url_for("admin.settings"))
 
 

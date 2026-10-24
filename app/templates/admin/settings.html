@@ -170,6 +170,96 @@
     </div>
 
     <div class="settings-section">
+        <h2>Typography &amp; Background</h2>
+        <form method="POST" action="{{ url_for('admin.settings_appearance') }}" enctype="multipart/form-data" data-loading data-loading-text="Saving...">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="form-group">
+                <label for="font_sans">Sans Font</label>
+                <select id="font_sans" name="font_sans" class="search-input">
+                    <optgroup label="Bundled Fonts">
+                        {% for family in bundled_sans_fonts %}
+                        <option value="{{ family.key }}" {% if settings.font_sans == family.key %}selected{% endif %}>{{ family.label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% if custom_sans_fonts %}
+                    <optgroup label="Custom Fonts">
+                        {% for family in custom_sans_fonts %}
+                        <option value="{{ family.key }}" {% if settings.font_sans == family.key %}selected{% endif %}>{{ family.label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    <option value="{{ custom_option }}">Custom — upload a new file</option>
+                </select>
+                <p class="form-help">The typeface used for body text. Every bundled font is served from this site; nothing is loaded from a third party.</p>
+            </div>
+
+            <div class="form-group" id="font-sans-upload-group" style="display: none;">
+                <label for="font_sans_file">Custom Sans Font File</label>
+                <input type="file" id="font_sans_file" name="font_sans_file" accept=".woff2,.woff" class="search-input">
+                <p class="form-help">A woff2 file, up to 5 MB. It replaces the current custom font when it is saved.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="font_mono">Monospace Font</label>
+                <select id="font_mono" name="font_mono" class="search-input">
+                    <optgroup label="Bundled Fonts">
+                        {% for family in bundled_mono_fonts %}
+                        <option value="{{ family.key }}" {% if settings.font_mono == family.key %}selected{% endif %}>{{ family.label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% if custom_mono_fonts %}
+                    <optgroup label="Custom Fonts">
+                        {% for family in custom_mono_fonts %}
+                        <option value="{{ family.key }}" {% if settings.font_mono == family.key %}selected{% endif %}>{{ family.label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    <option value="{{ custom_option }}">Custom — upload a new file</option>
+                </select>
+                <p class="form-help">The typeface used for code, inline code and the editor.</p>
+            </div>
+
+            <div class="form-group" id="font-mono-upload-group" style="display: none;">
+                <label for="font_mono_file">Custom Monospace Font File</label>
+                <input type="file" id="font_mono_file" name="font_mono_file" accept=".woff2,.woff" class="search-input">
+                <p class="form-help">A woff2 file, up to 5 MB. It replaces the current custom font when it is saved.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="backdrop">Page Backdrop</label>
+                <select id="backdrop" name="backdrop" class="search-input">
+                    <optgroup label="Bundled Backdrops">
+                        {% for backdrop in bundled_backdrops %}
+                        <option value="{{ backdrop.key }}" {% if settings.backdrop == backdrop.key %}selected{% endif %}>{{ backdrop.label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% if custom_backdrops %}
+                    <optgroup label="Custom Backdrops">
+                        {% for backdrop in custom_backdrops %}
+                        <option value="{{ backdrop.key }}" {% if settings.backdrop == backdrop.key %}selected{% endif %}>{{ backdrop.label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    <option value="">None</option>
+                    <option value="{{ custom_option }}">Custom — upload an SVG</option>
+                </select>
+                <p class="form-help">A large single-colour graphic behind the page. Its colour is derived from the theme, so it stays a shade off the background in both light and dark.</p>
+            </div>
+
+            <div class="form-group" id="backdrop-upload-group" style="display: none;">
+                <label for="backdrop_file">Custom Backdrop File</label>
+                <input type="file" id="backdrop_file" name="backdrop_file" accept=".svg,image/svg+xml" class="search-input">
+                <p class="form-help">An SVG file, up to 1 MB. Scripting and external references are stripped before it is stored.</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Appearance Settings</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="settings-section">
         <h2>Site</h2>
         <form method="POST" action="{{ url_for('admin.settings_site') }}" data-loading data-loading-text="Saving...">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -584,6 +674,26 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
             warningsContainer.style.display = 'none';
         });
     }
+})();
+
+(function() {
+    var customOption = {{ custom_option | tojson }};
+    var pairs = [
+        ['font_sans', 'font-sans-upload-group'],
+        ['font_mono', 'font-mono-upload-group'],
+        ['backdrop', 'backdrop-upload-group']
+    ];
+
+    pairs.forEach(function(pair) {
+        var select = document.getElementById(pair[0]);
+        var group = document.getElementById(pair[1]);
+        if (!select || !group) return;
+        function sync() {
+            group.style.display = select.value === customOption ? 'block' : 'none';
+        }
+        select.addEventListener('change', sync);
+        sync();
+    });
 })();
 </script>
 

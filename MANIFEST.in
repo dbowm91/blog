@@ -4,6 +4,8 @@ recursive-include app/templates *
 recursive-include app/static/css *
 recursive-include app/static/js *
 recursive-include app/static/dist *
+recursive-include app/static/fonts *
+recursive-include app/static/img *
 recursive-include migrations *
 include config.toml.example
 include requirements.txt

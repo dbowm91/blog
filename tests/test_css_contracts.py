@@ -417,3 +417,43 @@ class TestDeadTokens:
         available = _runtime_tokens() | _stylesheet_tokens()
         for token in DEAD_TOKEN_ALLOW_LIST:
             assert token in available
+
+
+class TestAppearanceLayer:
+    """The backdrop, the gradient and the translucent panels."""
+
+    def test_backdrop_tokens_are_defined(self) -> None:
+        tokens = _stylesheet_tokens()
+        assert "--backdrop-tint" in tokens
+        assert "--backdrop-image" in tokens
+
+    def test_the_page_background_carries_a_gradient(self) -> None:
+        rules = {rule.selector: rule for rule in _parse_rules(_read("base.css"))}
+        gradient = rules["body::before"].declarations()
+        assert "linear-gradient" in gradient.get("background-image", "")
+
+    def test_the_backdrop_layer_is_masked_by_the_backdrop_image(self) -> None:
+        rules = {rule.selector: rule for rule in _parse_rules(_read("base.css"))}
+        layer = rules["body::after"].declarations()
+        assert "var(--backdrop-image)" in layer.get("mask-image", "")
+        assert "var(--backdrop-tint)" in layer.get("background-color", "")
+
+    def test_the_page_background_is_transparent_so_the_layers_show(self) -> None:
+        bodies = [
+            rule
+            for rule in _parse_rules(_read("base.css"))
+            if rule.selector.strip() == "body" and not rule.media_queries
+        ]
+        backgrounds = [rule.declarations().get("background") for rule in bodies]
+        assert "transparent" in backgrounds, backgrounds
+
+    def test_panels_are_slightly_translucent(self) -> None:
+        rules = {rule.selector: rule for rule in _parse_rules(_read("public.css"))}
+        background = rules[".post-card"].declarations().get("background", "")
+        assert "color-mix" in background
+        assert "transparent" in background
+
+    def test_the_bundled_fonts_are_declared(self) -> None:
+        css = _read("base.css")
+        for family in ("IBM Plex Sans", "IBM Plex Mono", "Fira Code"):
+            assert f"font-family: '{family}'" in css, f"{family} has no @font-face rule"

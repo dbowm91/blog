@@ -32,6 +32,26 @@ from app.tag_cache import _get_tag_counts
 
 logger = logging.getLogger(__name__)
 
+_APPEARANCE_FALLBACK: dict[str, Any] = {
+    "appearance_css": (
+        ":root {\n"
+        "  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;\n"
+        "  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;\n"
+        "  --backdrop-tint: transparent;\n"
+        "  --backdrop-image: none;\n"
+        "}"
+    ),
+    "appearance_font_sans": "inter",
+    "appearance_font_mono": "jetbrains-mono",
+    "appearance_backdrop": "",
+    "appearance_backdrop_url": "",
+    "appearance_backdrop_tint_dark": "transparent",
+    "appearance_backdrop_tint_light": "transparent",
+    "appearance_font_sans_stack": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    "appearance_font_mono_stack": "'JetBrains Mono', 'Fira Code', monospace",
+    "appearance_preload_fonts": [],
+}
+
 
 def invalidate_settings_cache() -> None:
     """Invalidate the SiteSettings cache."""
@@ -41,6 +61,12 @@ def invalidate_settings_cache() -> None:
         from app.themes.service import get_theme_service
 
         get_theme_service().invalidate_settings_cache()
+    except Exception:
+        pass
+    try:
+        from app.appearance.service import get_appearance_service
+
+        get_appearance_service().invalidate_settings_cache()
     except Exception:
         pass
 
@@ -221,6 +247,19 @@ def register_context_processors(app: Any) -> None:
                 "(this should not happen in normal operation)"
             )
             return _get_cached_settings()
+
+    @app.context_processor
+    def inject_appearance() -> dict[str, Any]:
+        try:
+            from app.appearance.service import get_appearance_service
+
+            return get_appearance_service().get_context()
+        except Exception:
+            logger.warning(
+                "appearance service unavailable, using defaults "
+                "(this should not happen in normal operation)"
+            )
+            return _APPEARANCE_FALLBACK
 
     @app.context_processor
     def inject_footer_data() -> dict[str, Any]:

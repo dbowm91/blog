@@ -511,6 +511,10 @@ def create_app() -> Flask:
         app=app,
     )
 
+    from app.appearance.service import init_appearance_service  # noqa: E402
+
+    init_appearance_service(app=app)
+
     if cfg.scheduler.enabled:
         init_scheduler(app)
     else:

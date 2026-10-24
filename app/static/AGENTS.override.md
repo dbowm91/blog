@@ -22,7 +22,7 @@ app/static/
 │   ├── utilities.css     # Helper classes
 │   ├── prism.css         # Syntax highlighting theme (base)
 │   └── prism-*.css       # Additional Prism themes (coy, dark, funky, okaidia, tomorrow)
-├── fonts/                # Self-hosted fonts (Inter, JetBrains Mono)
+├── fonts/                # Self-hosted fonts (Inter, IBM Plex Sans, JetBrains Mono, IBM Plex Mono, Fira Code)
 ├── img/                  # Static images
 └── dist/                 # Vite build output
 ```
@@ -96,8 +96,10 @@ For `backdrop-filter: blur()`, use `will-change: backdrop-filter` in CSS:
 ## CSS Architecture
 
 - Dark mode is default; light theme toggled via `data-color-scheme` attribute (migrated from `data-theme` in Phase 08)
-- Self-hosted fonts (Inter, JetBrains Mono) via `@font-face`
+- Self-hosted fonts (Inter, IBM Plex Sans, JetBrains Mono, IBM Plex Mono, Fira Code) via `@font-face`
 - No external font CDNs
+- The page background is three layers: the theme `bg` on the canvas, a gradient mixed from `bg` and `bg-surface` (`body::before`), and the backdrop shape (`body::after`, masked by `--backdrop-image`)
+- Panels are translucent via `color-mix(in srgb, var(--bg-surface) 94%, transparent)` with a plain `var(--bg-surface)` fallback first
 
 ## Syntax Highlighting Themes
 

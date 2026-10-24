@@ -386,6 +386,9 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
     footer_show_tags = db.Column(db.Boolean, default=True, nullable=False)
     show_pages_in_menu = db.Column(db.Boolean, default=True, nullable=False)
     menu_pages = db.Column(db.Text, default="", nullable=False)
+    font_sans = db.Column(db.String(128), default="inter", nullable=False)
+    font_mono = db.Column(db.String(128), default="jetbrains-mono", nullable=False)
+    backdrop = db.Column(db.String(128), default="default", nullable=False)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod

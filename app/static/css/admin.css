@@ -183,6 +183,7 @@
     margin-bottom: 20px;
     padding: var(--space-sm-md);
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border-radius: var(--radius);
 }
 
@@ -367,6 +368,7 @@
 
 .media-card {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
@@ -449,6 +451,7 @@
     gap: 2px;
     padding: var(--space-xs);
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-bottom: none;
     border-radius: var(--radius) var(--radius) 0 0;
@@ -623,6 +626,7 @@
 
 .login-card {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 40px;
@@ -688,6 +692,7 @@
 
 .stat-card {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px;
@@ -743,6 +748,7 @@
 /* Trending Widget */
 .trending-widget {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px;
@@ -811,6 +817,7 @@
 
 .chart-widget {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px;
@@ -999,6 +1006,7 @@
 
 .analytics-card {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-lg);
@@ -1231,6 +1239,7 @@
 .post-list-item {
     padding: 16px 20px;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     transition: border-color var(--transition);
@@ -1391,6 +1400,7 @@
 
 .editor-form {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
@@ -1424,6 +1434,7 @@
 
 .modal-content {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 32px;
@@ -1620,6 +1631,7 @@
 /* --- Settings Page --- */
 .settings-section {
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 24px;

@@ -28,7 +28,7 @@ body {
     font-family: var(--font-sans);
     line-height: 1.6;
     color: var(--text);
-    background: var(--bg);
+    background: transparent;
 }
 
 .container {
@@ -91,6 +91,7 @@ body {
 .post-card {
     overflow: hidden;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
 }
