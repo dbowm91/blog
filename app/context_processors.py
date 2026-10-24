@@ -1,6 +1,11 @@
 """Context processors for injecting common template variables."""
 
-__all__ = ["invalidate_settings_cache", "invalidate_footer_cache"]
+__all__ = [
+    "invalidate_settings_cache",
+    "invalidate_footer_cache",
+    "get_site_settings",
+    "resolve_page_menu",
+]
 
 import logging
 
@@ -22,6 +27,7 @@ from app.config import (
     BASE_URL,
 )
 from app.csrf import generate_csrf_token, CSRF_HEADER_NAME
+from app.services.site_settings import invalidate_site_settings_cache, read_site_settings
 from app.tag_cache import _get_tag_counts
 
 logger = logging.getLogger(__name__)
@@ -30,6 +36,7 @@ logger = logging.getLogger(__name__)
 def invalidate_settings_cache() -> None:
     """Invalidate the SiteSettings cache."""
     flask_cache.delete("site_settings")
+    invalidate_site_settings_cache()
     try:
         from app.themes.service import get_theme_service
 
@@ -41,6 +48,50 @@ def invalidate_settings_cache() -> None:
 def invalidate_footer_cache() -> None:
     """Invalidate the footer cache."""
     flask_cache.delete_memoized(_get_footer_data)
+
+
+def get_site_settings() -> dict[str, Any]:
+    """Read the site-level settings for public rendering.
+
+    Uses a plain select rather than ``SiteSettings.get_instance()``, which
+    performs ``db.session.flush()`` and would flush unrelated pending changes
+    on a public request.
+    """
+    defaults: dict[str, Any] = {
+        "comments_enabled": True,
+        "footer_text": "",
+        "footer_show_posts": True,
+        "footer_show_tags": True,
+    }
+
+    try:
+        settings = read_site_settings()
+    except OperationalError:
+        logger.exception("Database error loading site settings, using defaults")
+        return defaults
+
+    if settings is None:
+        return defaults
+
+    return {
+        "comments_enabled": settings.comments_enabled,
+        "footer_text": settings.footer_text,
+        "footer_show_posts": settings.footer_show_posts,
+        "footer_show_tags": settings.footer_show_tags,
+    }
+
+
+def resolve_page_menu() -> list[Any]:
+    """The ordered list of pages shown in the site navigation."""
+    try:
+        from app.services.navigation import resolve_page_menu as resolver
+    except ImportError:
+        return []
+    try:
+        return resolver()
+    except Exception:
+        logger.exception("Failed to resolve the page menu")
+        return []
 
 
 def _get_settings_cache_key() -> str:
@@ -62,11 +113,7 @@ def _get_cached_settings() -> dict[str, Any]:
     emergency_vars = to_legacy_vars(EMERGENCY_DEFAULT)
 
     try:
-        from app.models import SiteSettings
-
-        settings = db.session.execute(
-            select(SiteSettings).order_by(SiteSettings.id).limit(1)
-        ).scalar_one_or_none()
+        settings = read_site_settings()
 
         if not settings:
             return {
@@ -202,3 +249,14 @@ def register_context_processors(app: Any) -> None:
     def inject_show_footer_posts() -> dict[str, bool]:
         path = request.path if request else ""
         return {"show_footer_posts": not (path.startswith("/search") or path.startswith("/tag/"))}
+
+    @app.context_processor
+    def inject_site_settings() -> dict[str, Any]:
+        return get_site_settings()
+
+    @app.context_processor
+    def inject_page_menu() -> dict[str, Any]:
+        path = request.path if request else ""
+        if path.startswith("/admin") or path.startswith("/api"):
+            return {"page_menu": []}
+        return {"page_menu": resolve_page_menu()}

@@ -31,6 +31,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db, login_manager, migrate
 
 from app.csrf import validate_csrf_token, should_skip_csrf
+from app.services.site_settings import invalidate_site_settings_cache
 from app.utils import utc_now
 
 # Register sqlite3 datetime adapters for Python 3.12+ compatibility
@@ -291,6 +292,11 @@ def create_app() -> Flask:
         g.request_id = secrets.token_hex(4)
         g.csp_nonce = secrets.token_urlsafe(16)
         g.request_start_time = time.perf_counter()
+
+        # The SiteSettings row is read once per request and shared by the
+        # theme service, the context processors and the navigation service.
+        # Drop any row cached for a previous request on this context.
+        invalidate_site_settings_cache()
 
         # CSRF validation for POST requests (skips API blueprint)
         if req.method == "POST" and not should_skip_csrf():

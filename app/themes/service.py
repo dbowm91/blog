@@ -106,8 +106,7 @@ class ThemeService:
             return self._emergency_context()
 
     def _build_context_from_db(self) -> dict[str, Any]:
-        from app.extensions import db
-        from app.models import SiteSettings
+        from app.services.site_settings import read_site_settings
         from app.services.theme_settings import (
             get_effective_theme_names,
             validate_theme_settings,
@@ -117,13 +116,10 @@ class ThemeService:
             THEME_DEFAULT_LIGHT,
             THEME_DEFAULT_SCHEME,
         )
-        from sqlalchemy import select
         from sqlalchemy.exc import OperationalError
 
         try:
-            settings = db.session.execute(
-                select(SiteSettings).order_by(SiteSettings.id).limit(1)
-            ).scalar_one_or_none()
+            settings = read_site_settings()
         except OperationalError:
             logger.exception("theme service: database error loading settings")
             return self._emergency_context()
