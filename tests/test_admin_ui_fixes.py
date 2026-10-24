@@ -331,7 +331,7 @@ def section_headings(html: str) -> list[str]:
 def test_theme_preview_section_is_rendered_above_the_theme_selector(authenticated_client):
     html = settings_html(authenticated_client)
 
-    assert section_headings(html) == ["Theme Preview", "Theme", "Theme Registry"]
+    assert section_headings(html) == ["Theme Preview", "Theme", "Theme Registry", "Site"]
 
     first_section = re.search(r'<div class="settings-section[^"]*"[^>]*>', html)
     assert first_section is not None

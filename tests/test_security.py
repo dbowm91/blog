@@ -183,9 +183,14 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
     db.session.commit()
 
     # These routes should now return 403
-    for path in ["/admin/", "/admin/new", "/admin/analytics", "/admin/subscribers"]:
+    for path in ["/admin/", "/admin/analytics", "/admin/subscribers", "/admin/users"]:
         response = client.get(path)
         assert response.status_code == 403, f"Expected 403 for {path}, got {response.status_code}"
+
+    # The post editor is deliberately reachable by an author, but an author
+    # may not open a post that belongs to somebody else.
+    response = client.get("/admin/new")
+    assert response.status_code == 200, f"Expected 200 for /admin/new, got {response.status_code}"
 
 
 def test_account_lockout_after_failed_attempts(app, db, client):
