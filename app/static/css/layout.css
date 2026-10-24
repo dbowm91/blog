@@ -69,6 +69,9 @@
         display: flex;
         gap: var(--space-lg);
         align-items: center;
+        /* A menu with many pages wraps to a second row rather than
+           overflowing the header. */
+        flex-wrap: wrap;
     }
 }
 

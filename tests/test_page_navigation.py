@@ -125,6 +125,45 @@ def test_pages_index_shows_a_summary_of_the_first_paragraph(app, client, db):
     assert "Second paragraph." not in html
 
 
+def test_nav_links_each_menu_page(app, client, db):
+    """Every page in the menu is its own link in the navigation bar."""
+    _require_public_shell(app)
+    _make_page("About", "about", show_in_menu=True)
+    _make_page("Contact", "contact", show_in_menu=True)
+
+    html = client.get("/").get_data(as_text=True)
+
+    nav = html.split('<div class="nav-links"', 1)[1].split('<div class="nav-actions"', 1)[0]
+    assert '/page/about"' in nav
+    assert '/page/contact"' in nav
+    assert ">About<" in nav
+    assert ">Contact<" in nav
+
+
+def test_nav_leaves_out_pages_that_are_not_in_the_menu(app, client, db):
+    """A page that is not in the menu is not a navigation bar link."""
+    _require_public_shell(app)
+    _make_page("About", "about", show_in_menu=True)
+    _make_page("Hidden", "hidden", show_in_menu=False)
+
+    html = client.get("/").get_data(as_text=True)
+
+    nav = html.split('<div class="nav-links"', 1)[1].split('<div class="nav-actions"', 1)[0]
+    assert '/page/about"' in nav
+    assert '/page/hidden"' not in nav
+
+
+def test_nav_marks_the_current_page_as_active(app, client, db):
+    """The navigation bar marks the page you are on."""
+    _require_public_shell(app)
+    _make_page("About", "about", show_in_menu=True)
+
+    html = client.get("/page/about").get_data(as_text=True)
+
+    nav = html.split('<div class="nav-links"', 1)[1].split('<div class="nav-actions"', 1)[0]
+    assert '/page/about" aria-current="page" class="active"' in nav
+
+
 def test_admin_pages_list_shows_menu_control_and_toggle_persists(authenticated_client, db):
     page = _make_page("About", "about")
 

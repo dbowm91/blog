@@ -240,7 +240,7 @@ on the same template.
 | Column | `pages` gained `show_in_menu` through migration `add_page_menu_fields`. It defaults to **True**, so a published page appears without the operator configuring anything. |
 | Two layers, one parser | `menu_pages` holds an explicit ordered list of page ids and wins when stored; when it is empty the menu falls back to every published page flagged `show_in_menu`, ordered by title. The parser is owned by `app/services/site_settings.py`; `app/services/navigation.py` re-exports `parse_menu_page_ids` as a thin alias so there is exactly one parser. |
 | One producer | `app/services/navigation.py::resolve_page_menu` is the only producer of the menu. `app/context_processors.py` wraps it and exposes it to templates as `page_menu`. |
-| Nav | The public nav carries a **Pages** link, and each menu page is listed. |
+| Nav | The public nav carries a **Pages** link to the full index, and **each menu page is its own link** in the navigation bar. A page that is not in the menu is not a navigation link. The current page is marked `aria-current="page"`. |
 | Footer | The footer carries a **Pages** column listing the same pages. |
 | Index | `GET /pages` (`public.pages_index`) renders `app/templates/pages.html` with every published page, so the nav entry has somewhere to point even when the menu is empty. |
 | Admin control | The admin pages list carries a **Show in menu** control, backed by `POST /admin/pages/<id>/menu` (`admin.set_page_menu`). |
@@ -251,6 +251,7 @@ on the same template.
 
 ```
 PASS nav_has_pages
+PASS nav_has_page_links              nav = ['×', 'Search', 'Posts', 'About', 'Contact', 'Pages', 'Log in']
 PASS footer_has_page_links
 PASS footer_has_pages_heading
 PASS pages_index_lists_about
