@@ -314,9 +314,9 @@ Flask-Limiter enforces per-IP rate limits across all routes. Limits are applied 
 
 | Endpoint | Limit | Key | Source |
 |----------|-------|-----|--------|
-| Admin login | 5/min | per-IP | `app/routes/admin/auth.py:33` |
-| 2FA login | 5/min | per-IP | `app/routes/admin/auth.py:154` |
-| Forgot password | 5/min | per-IP | `app/routes/admin/auth.py:341` |
+| Admin login | proxy | per-IP | `limit_req zone=login` in nginx, not the application |
+| 2FA login | proxy | per-IP | `limit_req zone=admin` covers `/admin/` |
+| Forgot password | proxy | per-IP | `limit_req zone=admin` covers `/admin/` |
 | Public browse | 60/min | per-IP | `app/routes/public/browse.py` |
 | Archive | 30/min | per-IP | `app/routes/public/browse.py:124` |
 | Search | 20/min | per-IP | `app/routes/public/browse.py:263` |
@@ -330,9 +330,11 @@ Flask-Limiter enforces per-IP rate limits across all routes. Limits are applied 
 | Post share | 20/min | per-IP | `app/routes/public/posts.py:179` |
 | Sitemap/robots/health | 60/min | per-IP | `app/routes/public/meta.py` |
 
+The login routes are **not** rate limited by the application. The deployment is expected to sit behind a reverse proxy or WAF that limits them; the shipped nginx configuration applies a `limit_req` zone to `/login` and `/admin/login`. The application keeps the per-account lockout (`MAX_FAILED_ATTEMPTS`, `LOCKOUT_DURATION_MINUTES`) and `LOGIN_FAILURE_DELAY`.
+
 Comment rate limits are configurable via `config.toml` (`comments.rate_limit_per_ip`, `comments.rate_limit_per_post`). Defaults: 5/min per-IP, 3/min per-post.
 
-Admin rate limits for API writes/reads are configured in `app/config.py:164-171` (`ADMIN_RATE_LIMITS`) but these are used by the `AdminRateLimiter` class, not the route-level decorators.
+The `ADMIN_RATE_LIMITS` dict in `app/config_legacy.py` holds the API write/read limits. They are read only by the `AdminRateLimiter` class in `app/middleware/rate_limit.py`, whose `limit_by_type` decorator is a no-op wrapper - nothing calls it. There is no `login` key; the login routes are limited by the proxy.
 
 ## See Also
 - [Public Routes](public-routes.md) - Public blog routes

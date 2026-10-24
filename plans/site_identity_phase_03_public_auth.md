@@ -24,6 +24,10 @@ The only login route in the application is `admin.login`:
 def login() -> Any:
 ```
 
+(The `@limiter.limit` decorator was removed on 2026-10-24, when login rate
+limiting moved to the reverse proxy. The quote above is the code as it was
+when this finding was made.)
+
 It renders `admin/login.html` and lives under the `/admin` blueprint. There is
 no `/login`, `/signin` or `/account` route on the public blueprint
 (`app/routes/public/__init__.py` registers browse, posts, subscribe and meta
@@ -90,7 +94,7 @@ the global default.
 
 ### SIA-14 — The public login must not be a weaker path than the admin login (high)
 
-The admin login applies, in order: a 5-per-minute rate limit, a lockout after
+The admin login applies, in order: a lockout after
 `MAX_FAILED_ATTEMPTS` for `LOCKOUT_DURATION_MINUTES`, a `LOGIN_FAILURE_DELAY`
 sleep on failure, session clearing before `login_user()` (session-fixation
 protection), and TOTP when enabled. The public login must apply the same
@@ -136,7 +140,7 @@ entry points — not two implementations.
   header; this case needs an explicit `next` parameter validator, which must be
   a **new** function with its own tests rather than a silent reuse of a
   Referer-based helper.
-- Rate limit: `@limiter.limit("5 per minute")`, matching the admin login.
+- Rate limit: the per-IP limit is the proxy's job, not the application's. The application keeps the account lockout.
 - TOTP: if the user has 2FA enabled, the public login must not bypass it.
   Either require the TOTP code on the public form or refuse to sign in a
   2FA-enabled user and point them at the admin 2FA flow. Whichever is chosen,
@@ -193,8 +197,8 @@ must be invalidated as well (clearing the session cookie on reset covers it).
    leaked. Compare the message for a known username and an unknown one.
 4. **Lockout (unit)** — assert the account locks after `MAX_FAILED_ATTEMPTS`
    failures and that further attempts are refused.
-5. **Rate limit (unit)** — assert the endpoint is registered with the
-   `5 per minute` limit.
+5. **Lockout (unit)** — assert the account locks after `MAX_FAILED_ATTEMPTS`
+   failures, which is the control the application keeps.
 6. **Open redirect (unit)** — assert `?next=https://evil.example/` is rejected
    and `?next=/post/x` is accepted.
 7. **Session fixation (unit)** — assert the session identifier changes across
@@ -252,7 +256,7 @@ Phase 04 lands after it and adds the author-facing views of the same session.
 |---|---|
 | Routes | `app/routes/public/auth.py` registers `public.login` (`/login`), `public.logout` (`/logout`, POST), `public.account` (`/account`) and `public.account_profile` (`/account/profile`). |
 | Admin accounts refused | The public login **refuses** admin accounts. Without this a public session would satisfy `admin_required` on its `is_admin` check alone, so admin sign-in stays on `/admin/login` only. |
-| Same controls as admin auth | 5 requests/minute rate limit, the shared `failed_login_count` / `locked_until` lockout counters, `LOGIN_FAILURE_DELAY` on invalid credentials, and `session.clear()` before `login_user()`. |
+| Same controls as admin auth | The shared `failed_login_count` / `locked_until` lockout counters, `LOGIN_FAILURE_DELAY` on invalid credentials, and `session.clear()` before `login_user()`. The per-IP rate limit is **not** one of these — as of 2026-10-24 the application does not rate limit the login routes at all, because the deployment is expected to sit behind a reverse proxy or WAF that does it. |
 | Two-factor | A 2FA account must supply its TOTP or a backup code. A 2FA account whose secret cannot be decrypted is refused rather than allowed in without a second factor. |
 | Redirect safety | `is_safe_next_url()` is a dedicated helper for this route — it does not reuse the Referer-based `_safe_redirect_url()`, which has different semantics. |
 | Admin sessions | `admin_required` also requires an `AdminSession` row, so `public.logout` deletes that row. A public session therefore cannot reach an admin route. |
@@ -271,5 +275,7 @@ PASS author_nav_has_write
 PASS author_nav_has_no_dashboard
 ```
 
-Unit coverage: `tests/test_public_auth.py` (21 tests), covering login,
-lockout, rate limiting, the admin-account refusal, 2FA and the safe redirect.
+Unit coverage: `tests/test_public_auth.py`, covering login, the account
+lockout, the admin-account refusal, 2FA and the safe redirect. One test
+asserts the endpoint carries **no** application rate limit, and one asserts
+the account lockout still engages.

@@ -36,14 +36,11 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import limiter
 from app.config import LOCKOUT_DURATION_MINUTES, LOGIN_FAILURE_DELAY, MAX_FAILED_ATTEMPTS
 from app.extensions import db
 from app.models import AdminSession, Post, User
 
 logger = logging.getLogger(__name__)
-
-LOGIN_RATE_LIMIT = "5 per minute"
 
 _REGISTERED_FLAG = "_devlog_public_auth_routes"
 
@@ -202,7 +199,6 @@ def register_auth_routes(public: Blueprint) -> None:
     setattr(public, _REGISTERED_FLAG, True)
 
     @public.route("/login", methods=["GET", "POST"])
-    @limiter.limit(LOGIN_RATE_LIMIT)
     def login() -> ResponseReturnValue:
         """Sign a visitor in with a username or an email address.
 
@@ -214,6 +210,13 @@ def register_auth_routes(public: Blueprint) -> None:
         A two-factor account must present its authenticator code or a backup
         code on the same form. A two-factor account without a stored secret
         can never be signed in through this route.
+
+        There is no application-layer rate limit here. The deployment is
+        expected to sit behind a reverse proxy or WAF that limits how often
+        this route is called; the shipped nginx configuration applies a
+        ``limit_req`` zone to ``/login``. What the application keeps is the
+        per-account lockout, which is a column on the user row and costs no
+        extra request.
         """
         next_url = request.args.get("next", "")
         if not is_safe_next_url(next_url):

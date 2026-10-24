@@ -21,7 +21,6 @@ from app.routes.admin.helpers import logger
 from app.tasks import send_password_reset_task
 from app.routes.admin.helpers import _check_password_complexity
 from app.config import MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES, LOGIN_FAILURE_DELAY
-from app import limiter
 
 
 def _hash_token(token: str) -> str:
@@ -30,7 +29,6 @@ def _hash_token(token: str) -> str:
 
 
 @admin.route("/login", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
 def login() -> Any:
     """
     Admin login page.
@@ -47,6 +45,14 @@ def login() -> Any:
     - Alternative would be Flask-Session with Redis and session.regenerate_id()
     - IP binding is implemented via AdminSession.ip_address field
     - Limitation: IP binding may cause issues for users behind NAT/proxies/VPNs
+
+    RATE LIMITING
+    There is no application-layer rate limit on this route. The deployment is
+    expected to sit behind a reverse proxy or WAF that limits how often it is
+    called; the shipped nginx configuration applies a ``limit_req`` zone to
+    ``/admin/login`` and to ``/admin/``. What the application keeps is the
+    per-account lockout, which is a column on the user row and costs no extra
+    request.
     """
     if current_user.is_authenticated:
         return redirect(url_for("admin.dashboard"))
@@ -150,7 +156,6 @@ def newsletter_reset(post_id: int) -> Any:
 
 
 @admin.route("/forgot-password", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
 def forgot_password() -> Any:
     """
     Request a password reset.
@@ -343,7 +348,6 @@ def verify_2fa() -> Any:
 
 
 @admin.route("/login-2fa", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
 def login_2fa() -> Any:
     """
     TOTP verification during login.

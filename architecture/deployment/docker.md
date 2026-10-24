@@ -390,7 +390,7 @@ Before deploying to production, verify all items:
 - [ ] `client_max_body_size` set in nginx for file uploads
 
 ### Security
-- [ ] Rate limiting configured for `/admin/login` (5 req/min)
+- [ ] Rate limiting configured for `/login` and `/admin/login` (5 req/min)
 - [ ] `CSRF_ENABLED` not disabled in production
 - [ ] Admin dashboard not exposed on public interfaces without authentication
 - [ ] Redis not exposed to untrusted networks

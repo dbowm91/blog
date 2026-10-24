@@ -208,12 +208,16 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `login` | `(5, 60)` | Login attempts per minute |
 | `api_write` | `(100, 60)` | Write API calls per minute |
 | `api_read` | `(500, 60)` | Read API calls per minute |
 | `settings` | `(50, 60)` | Settings updates per minute |
 | `post_create` | `(100, 60)` | Post creation per minute |
 | `post_update` | `(100, 60)` | Post updates per minute |
+
+There is deliberately **no** `login` key. The login routes are not rate limited
+by the application — the deployment is expected to sit behind a reverse proxy
+or WAF that limits them. The per-account lockout (`MAX_FAILED_ATTEMPTS`,
+`LOCKOUT_DURATION_MINUTES`) is the control the application keeps.
 
 ### Comment Settings
 

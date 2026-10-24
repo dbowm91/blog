@@ -72,10 +72,20 @@ Rate limiting zones defined in `nginx/nginx.conf:48-49`:
 
 | Zone | Rate | Burst | Scope | Applied To |
 |------|------|-------|-------|------------|
-| `login` | 5 req/min | 5 nodelay | Per IP | `/admin/login` |
+| `login` | 5 req/min | 5 nodelay | Per IP | `/login`, `/admin/login` |
 | `admin` | 20 req/min | 10 nodelay | Per IP | `/admin/` |
 
-Rate limit violations return HTTP 429. Flask-Limiter provides application-level rate limiting in addition to nginx's reverse-proxy layer.
+Rate limit violations return HTTP 429.
+
+The login routes are **not** rate limited by the application. The deployment
+is expected to sit behind this proxy or a WAF, so the per-IP limit lives here
+rather than costing the application a storage round trip on every attempt.
+Flask-Limiter still provides application-level rate limiting for the API,
+comments and the public browse routes.
+
+The generated native deployment config (`app/deployment/proxy.py`) emits the
+same zones and the same two login locations. It must be included from the
+**http** context, because `limit_req_zone` is only valid there.
 
 ## SSL/TLS Certificates
 

@@ -47,6 +47,54 @@ Public routes serve the blog's public-facing pages.
 - **Route**: `GET /page/<slug>`
 - **Purpose**: Display static pages
 
+## Auth Routes (`auth.py`)
+
+### Login
+- **Route**: `GET/POST /login`
+- **Endpoint**: `public.login`
+- **Purpose**: Sign a visitor in with a username or an email address
+- **Template**: `login.html`
+- **Refuses admin accounts** — an administrator must sign in at `/admin/login`.
+  `admin_required` checks `is_admin` before it checks the `AdminSession` row,
+  so a public session could otherwise satisfy it on the first check
+- **Controls**: per-account lockout, `LOGIN_FAILURE_DELAY`, TOTP or a backup
+  code for a two-factor account, `session.clear()` before `login_user()`
+- **Not rate limited by the application** — the reverse proxy or WAF does that
+
+### Logout
+- **Route**: `POST /logout`
+- **Endpoint**: `public.logout`
+- **Purpose**: End the session; also deletes the `AdminSession` row, so a
+  public session cannot reach an admin route
+
+### Account
+- **Route**: `GET /account`
+- **Endpoint**: `public.account`
+- **Purpose**: Show the signed-in visitor's profile
+
+### Account Profile
+- **Route**: `GET/POST /account/profile`
+- **Endpoint**: `public.account_profile`
+- **Purpose**: Edit the signed-in visitor's own display name, short bio, full
+  bio and avatar. No password field and no administrator controls.
+
+## Author Routes (`authors.py`)
+
+### Author Page
+- **Route**: `GET /author/<username>`
+- **Endpoint**: `public.author`
+- **Purpose**: An author's public page, carrying their display name, short bio
+  and full bio
+- **Owner**: `app/services/authors.py` is the only producer of an author
+
+## Page Routes (`pages.py`)
+
+### Pages Index
+- **Route**: `GET /pages`
+- **Endpoint**: `public.pages_index`
+- **Purpose**: List every published page, with a summary of the first
+  paragraph of each
+
 ## Post Routes (`posts.py`)
 
 ### Published Post

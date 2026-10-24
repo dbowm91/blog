@@ -304,10 +304,30 @@ def test_forgot_password_issues_token_for_non_admin(client, db, author_user, mon
     assert user.reset_token_expires_at is not None
 
 
-def test_login_endpoint_carries_a_rate_limit(app):
-    """The public login endpoint is limited to five attempts per minute."""
+def test_login_endpoint_has_no_application_rate_limit(app):
+    """The application does not rate limit login; the proxy is expected to.
+
+    Rate limiting the login routes in the application costs a storage round
+    trip on every attempt, and the deployment is expected to sit behind a
+    reverse proxy or WAF that does it instead.
+    """
     _, decorated = limiter.limit_manager.resolve_limits(app, endpoint="public.login")
-    assert any(str(item.limit).startswith("5 per") for item in decorated)
+    assert not any(str(item.limit).startswith("5 per") for item in decorated)
+
+
+def test_login_account_lockout_is_still_enforced(app, client, db, author_user):
+    """The per-account lockout stays, because it costs no extra request."""
+    from app.config import MAX_FAILED_ATTEMPTS
+
+    for _ in range(MAX_FAILED_ATTEMPTS):
+        client.post(
+            "/login",
+            data={"identifier": author_user.username, "password": "wrong-password"},
+        )
+
+    user = _reload(author_user)
+    assert user.failed_login_count >= MAX_FAILED_ATTEMPTS
+    assert user.is_locked()
 
 
 def test_public_logout_removes_admin_session(client, db, admin_user):

@@ -30,7 +30,7 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 ### What the Application Covers
 
 - CSRF protection on all POST requests (enabled by default)
-- Rate limiting via `flask-limiter` (login: 5/min, API writes: 100/min, API reads: 500/min)
+- Rate limiting via `flask-limiter` on the API (writes: 10/min, reads: 20/min), comments and public browse routes
 - SSRF protection on webhook delivery targets
 - HTML/CSS/SQL injection prevention via parameterized queries and input sanitization
 - Session fixation prevention and secure cookie attributes (HttpOnly, SameSite=Lax)
@@ -41,6 +41,7 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 
 ### What the Application Does NOT Cover
 
+- **Rate limiting on the login routes**: the application deliberately does not rate limit `/login` or `/admin/login`, so the proxy can do it without the application paying for a storage round trip on every attempt. The per-account lockout stays, because it is a column on the user row and a distributed attempt against one account is not stopped by a per-IP limit. **A deployment without a reverse proxy or WAF in front of it has no per-IP limit on the login routes.**
 - **TLS/HTTPS**: The application does not terminate TLS. Use a reverse proxy (nginx, Caddy) for SSL termination and HTTP-to-HTTPS redirects.
 - **WAF (Web Application Firewall)**: No WAF is included. For public-facing deployments, consider a WAF layer (Cloudflare, ModSecurity).
 - **DDoS protection**: Rate limiting is per-IP only. The application does not provide volumetric DDoS mitigation.

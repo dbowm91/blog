@@ -108,6 +108,12 @@ def render_caddyfile(ctx: DeploymentContext) -> RenderResult:
 
     content = "\n".join(lines) + "\n"
 
+    warnings.append(
+        "Caddy has no built-in rate limiting. The application deliberately does not "
+        "rate limit the login routes, so this proxy needs a rate limiting plugin "
+        "(for example caddy-ratelimit) or a WAF in front of it."
+    )
+
     return RenderResult(
         content=content,
         filename="Caddyfile",
@@ -128,6 +134,12 @@ def render_nginx_config(ctx: DeploymentContext) -> RenderResult:
     warnings = _proxy_warnings(ctx)
 
     lines: list[str] = []
+
+    lines.append("# Include this file from the http context: the limit_req_zone")
+    lines.append("# directives below are only valid there.")
+    lines.append("limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;")
+    lines.append("limit_req_zone $binary_remote_addr zone=admin:10m rate=20r/m;")
+    lines.append("")
 
     lines.append("upstream devlog_backend {")
     lines.append(f"    server {upstream_addr}:{upstream_port};")
@@ -192,6 +204,20 @@ def render_nginx_config(ctx: DeploymentContext) -> RenderResult:
     lines.append("    }")
     lines.append("")
 
+    lines.append("    # Login rate limiting. The application does not rate limit the")
+    lines.append("    # login routes; the proxy is the place for it.")
+    for login_path in ("/login", "/admin/login"):
+        lines.append(f"    location = {login_path} {{")
+        lines.append("        limit_req zone=login burst=5 nodelay;")
+        lines.append("        limit_req_status 429;")
+        lines.append("        proxy_pass http://devlog_backend;")
+        lines.append("        proxy_set_header Host              $host;")
+        lines.append("        proxy_set_header X-Real-IP         $remote_addr;")
+        lines.append("        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;")
+        lines.append("        proxy_set_header X-Forwarded-Proto $scheme;")
+        lines.append("    }")
+        lines.append("")
+
     lines.append("    location / {")
     lines.append("        proxy_pass http://devlog_backend;")
     lines.append("        proxy_set_header Host              $host;")
@@ -211,7 +237,7 @@ def render_nginx_config(ctx: DeploymentContext) -> RenderResult:
         managed=True,
         warnings=warnings,
         permissions=0o644,
-        description="nginx reverse proxy server block",
+        description="nginx reverse proxy configuration (include from the http context)",
     )
 
 

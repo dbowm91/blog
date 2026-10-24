@@ -778,6 +778,12 @@ http {
     limit_req_zone $binary_remote_addr zone=admin:10m rate=20r/m;
 
     server {
+        location = /login {
+            limit_req zone=login burst=5 nodelay;
+            limit_req_status 429;
+            proxy_pass http://127.0.0.1:5000;
+        }
+
         location = /admin/login {
             limit_req zone=login burst=5 nodelay;
             limit_req_status 429;
@@ -795,12 +801,15 @@ http {
 
 ### Caddy
 
+Caddy has no built-in rate limiting. It needs a plugin (for example
+`caddy-ratelimit`) or a WAF in front of it.
+
 ```caddy
 blog.example.com {
     reverse_proxy 127.0.0.1:5000
 
     # Rate limiting
-    @login path /admin/login
+    @login path /login /admin/login
     handle @login {
         rate_limit 5 1m
         reverse_proxy 127.0.0.1:5000
@@ -812,12 +821,18 @@ blog.example.com {
 
 ## 10. Rate Limiting
 
-Rate limiting is configured at the reverse proxy level.
+Rate limiting is configured at the reverse proxy level. The application
+deliberately does **not** rate limit the login routes, so the proxy is the
+only thing standing between a brute-force attempt and the login handler.
+The application keeps the per-account lockout (`MAX_FAILED_ATTEMPTS`,
+`LOCKOUT_DURATION_MINUTES`), which is a column on the user row and costs no
+extra request.
 
 ### Recommended Limits
 
 | Endpoint | Limit |
 |---|---|
+| `/login` | 5 req/min |
 | `/admin/login` | 5 req/min |
 | `/admin/*` | 20 req/min |
 | `/api/*` | 20 req/min |
@@ -827,13 +842,14 @@ Rate limiting is configured at the reverse proxy level.
 
 For Cloudflare deployments, use custom rules:
 
-1. **Login protection:** Rate limit `/admin/login` at 5 req/min
+1. **Login protection:** Rate limit `/login` and `/admin/login` at 5 req/min
 2. **Admin protection:** Rate limit `/admin/*` at 20 req/min
 
 ### Troubleshooting Rate Limiting
 - **429 Too Many Requests**: Check if your IP is hitting rate limits, especially for admin routes. Adjust limits in nginx/Caddy config if needed.
 - **Rate limits not applying**: Verify `limit_req_zone` is correctly configured for the right keys (e.g., `$binary_remote_addr` for per-IP limits).
 - **Cloudflare conflicts**: If using Cloudflare WAF rate limiting, ensure limits align with reverse proxy limits to avoid double-limiting.
+- **Behind no proxy at all**: there is no application-layer limit on the login routes, so a bare deployment must put a proxy or WAF in front of it.
 
 ---
 

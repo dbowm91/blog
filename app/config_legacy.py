@@ -303,7 +303,6 @@ else:
     LOCKOUT_DURATION_MINUTES = int(_env("LOCKOUT_DURATION_MINUTES", "15"))
 
 ADMIN_RATE_LIMITS = {
-    "login": (5, 60),
     "api_write": (100, 60),
     "api_read": (500, 60),
     "settings": (50, 60),
