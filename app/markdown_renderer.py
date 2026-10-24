@@ -20,10 +20,13 @@ import markdown
 import nh3
 
 from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TAGS
+from app.markdown_extensions import StrikethroughExtension
 
 CODE_LINE_CLASS = "code-line"
 
 DEFAULT_EXTENSIONS: tuple[str, ...] = ("fenced_code", "tables", "footnotes")
+
+FEED_EXTENSIONS: tuple[str, ...] = ("fenced_code", "tables")
 
 _CODE_BLOCK_RE = re.compile(r"(<pre>\s*<code\b[^>]*>)(.*?)(</code>\s*</pre>)", re.DOTALL)
 
@@ -72,7 +75,7 @@ def render_markdown(text: str, extensions: Sequence[str] = DEFAULT_EXTENSIONS) -
     if not text:
         return ""
 
-    html = markdown.markdown(text, extensions=list(extensions))
+    html = markdown.markdown(text, extensions=[*extensions, StrikethroughExtension()])
     return nh3.clean(
         wrap_code_lines(html),
         tags=MARKDOWN_ALLOWED_TAGS,

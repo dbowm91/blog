@@ -369,5 +369,5 @@ def register_editor_routes(admin):
         if not data or "text" not in data:
             return jsonify({"error": "invalid"}), 400
 
-        clean = render_markdown(data["text"], extensions=("fenced_code", "tables"))
+        clean = render_markdown(data["text"])
         return jsonify({"html": clean})

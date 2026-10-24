@@ -7,7 +7,7 @@ from app.extensions import db
 from app import cache as flask_cache
 from app.config import APP_TITLE, APP_DESCRIPTION, BASE_URL, AUTHOR_NAME
 from app.utils import xml_escape, utc_now
-from app.markdown_renderer import render_markdown
+from app.markdown_renderer import FEED_EXTENSIONS, render_markdown
 import re
 import hashlib
 
@@ -198,7 +198,7 @@ def tag_atom_feed(slug: str) -> Any:
         post_updated = (post.updated_at or post.created_at).isoformat() + "Z"
         post_published = (post.published_at or post.created_at).isoformat() + "Z"
 
-        content_html = render_markdown(post.body, extensions=("fenced_code", "tables"))
+        content_html = render_markdown(post.body, extensions=FEED_EXTENSIONS)
 
         categories = "".join(
             f'    <category term="{xml_escape(tag.name)}"/>\n' for tag in cast(list[Any], post.tags)
@@ -339,7 +339,7 @@ def series_atom_feed(slug: str) -> Any:
         post_updated = (post.updated_at or post.created_at).isoformat() + "Z"
         post_published = (post.published_at or post.created_at).isoformat() + "Z"
 
-        content_html = render_markdown(post.body, extensions=("fenced_code", "tables"))
+        content_html = render_markdown(post.body, extensions=FEED_EXTENSIONS)
 
         categories = "".join(
             f'    <category term="{xml_escape(tag.name)}"/>\n' for tag in cast(list[Any], post.tags)
@@ -485,7 +485,7 @@ def atom_feed() -> Any:
         post_updated = (post.updated_at or post.created_at).isoformat() + "Z"
         post_published = (post.published_at or post.created_at).isoformat() + "Z"
 
-        content_html = render_markdown(post.body, extensions=("fenced_code", "tables"))
+        content_html = render_markdown(post.body, extensions=FEED_EXTENSIONS)
 
         categories = "".join(
             f'    <category term="{xml_escape(tag.name)}"/>\n' for tag in cast(list[Any], post.tags)
@@ -524,7 +524,7 @@ def atom_feed() -> Any:
 def _render_post_item(post: Post) -> dict[str, Any]:
     """Render a post item for RSS/JSON feeds."""
     post_link = f"{BASE_URL}/post/{post.slug}"
-    content_html = render_markdown(post.body, extensions=("fenced_code", "tables"))
+    content_html = render_markdown(post.body, extensions=FEED_EXTENSIONS)
     return {
         "title": post.title,
         "link": post_link,
