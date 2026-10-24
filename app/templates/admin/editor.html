@@ -72,6 +72,16 @@
             <input type="text" id="tags" name="tags" value="{{ tag_names | join(', ') }}" placeholder="python, flask, web" aria-describedby="tags-hint">
         </div>
 
+        <div class="form-group">
+            <label for="author_id">Author</label>
+            <span id="author-hint" class="label-hint">Who wrote this post</span>
+            <select id="author_id" name="author_id" aria-describedby="author-hint">
+                {% for option in author_options %}
+                    <option value="{{ option.id }}"{{ ' selected' if post and post.author_id == option.id }}>{{ option.profile_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <div class="form-group form-checkbox">
             <input type="checkbox" id="published" name="published" {{ 'checked' if post and post.published }}>
             <label for="published">Publish immediately</label>

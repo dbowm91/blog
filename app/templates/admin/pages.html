@@ -11,6 +11,30 @@
         <a href="{{ url_for('admin.new_page') }}" class="btn btn-primary">New Page</a>
     </div>
 
+    <style nonce="{{ csp_nonce }}">
+        .page-menu-form {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-top: var(--space-xs);
+        }
+        .page-menu-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+        .page-menu-note {
+            margin: var(--space-xs) 0 0;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .page-list-slug a {
+            color: inherit;
+        }
+    </style>
+
     <div class="post-list post-list--pages">
         <div class="post-list-header">
             <span>Title</span>
@@ -22,9 +46,30 @@
             <div class="post-list-item">
                 <div class="post-list-info">
                     <a href="{{ url_for('admin.edit_page', page_id=pg.id) }}" class="post-list-title">{{ pg.title }}</a>
+                    <form method="POST" action="{{ url_for('admin.set_page_menu', page_id=pg.id) }}" class="page-menu-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <label class="page-menu-label" for="show-in-menu-{{ pg.id }}">
+                            <input type="checkbox" id="show-in-menu-{{ pg.id }}" name="show_in_menu" value="on"{% if pg.show_in_menu %} checked{% endif %}>
+                            <span>Show in menu</span>
+                        </label>
+                        <button type="submit" class="btn btn-small btn-ghost">Update</button>
+                    </form>
+                    {% if pg.published and pg.id not in menu_page_ids %}
+                        <p class="page-menu-note">
+                            {% if show_pages_in_menu %}
+                                Not shown in the site menu.
+                            {% else %}
+                                The site menu is turned off in Settings.
+                            {% endif %}
+                        </p>
+                    {% endif %}
                 </div>
-                <div class="post-list-slug">
-                    <code>/page/{{ pg.slug }}</code>
+                <div class="post-list-slug page-list-slug">
+                    {% if pg.published %}
+                        <a href="{{ url_for('public.page', slug=pg.slug) }}" target="_blank" rel="noopener"><code>/page/{{ pg.slug }}</code></a>
+                    {% else %}
+                        <code>/page/{{ pg.slug }}</code>
+                    {% endif %}
                 </div>
                 <div class="post-list-status">
                     {% if pg.published %}

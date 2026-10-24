@@ -168,6 +168,62 @@
             <button type="submit" class="btn btn-ghost">Refresh Theme Registry</button>
         </form>
     </div>
+
+    <div class="settings-section">
+        <h2>Site</h2>
+        <form method="POST" action="{{ url_for('admin.settings_site') }}" data-loading data-loading-text="Saving...">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="comments_enabled" {% if settings.comments_enabled %}checked{% endif %}>
+                    Allow comments on posts
+                </label>
+                <p class="form-help">When off, the comment form is hidden and the public endpoint refuses new comments. Existing comments stay visible.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="footer_text">Footer Text</label>
+                <textarea id="footer_text" name="footer_text" class="search-input" rows="3" maxlength="300" placeholder="Leave empty for the default copyright line.">{{ settings.footer_text }}</textarea>
+                <p class="form-help">Plain text shown in the footer of every public page. Leave empty to use the default copyright line.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="footer_show_posts" {% if settings.footer_show_posts %}checked{% endif %}>
+                    Show "Latest from the blog" in the footer
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="footer_show_tags" {% if settings.footer_show_tags %}checked{% endif %}>
+                    Show "Browse by tag" in the footer
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="show_pages_in_menu" {% if settings.show_pages_in_menu %}checked{% endif %}>
+                    Show pages in the navigation menu
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="menu_pages">Pages Menu</label>
+                <select id="menu_pages" name="menu_pages" class="search-input" multiple size="6">
+                    {% for pg in menu_choices %}
+                    <option value="{{ pg.id }}" {% if pg.id in menu_pages_selected %}selected{% endif %}>{{ pg.title }}{% if not pg.published %} (unpublished){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <p class="form-help">Ctrl-click to select several. Leave empty to use the pages marked "show in menu" on the pages list, ordered by title.</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Site Settings</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <style nonce="{{ csp_nonce }}">

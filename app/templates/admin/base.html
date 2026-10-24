@@ -56,13 +56,14 @@
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <nav class="navbar admin-nav" aria-label="Admin navigation">
         <div class="container nav-container">
-                <a href="{{ url_for('admin.dashboard') }}" class="nav-logo">
+                <a href="{{ url_for('admin.dashboard') if current_user.is_admin else url_for('admin.new_post') }}" class="nav-logo">
                     <span class="logo-bracket">{</span>Admin<span class="logo-bracket">}</span>
                 </a>
             <div class="nav-links" id="nav-links">
                 <a href="{{ url_for('public.index') }}" {% if request.endpoint and not request.endpoint.startswith('admin.') %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">View Site</span></a>
                 {% if current_user.is_authenticated %}
                     <span class="nav-separator" aria-hidden="true"></span>
+                    {% if current_user.is_admin %}
                     <a href="{{ url_for('admin.dashboard') }}" {% if request.endpoint == 'admin.dashboard' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Dashboard</span></a>
                     <a href="{{ url_for('admin.analytics') }}" {% if request.endpoint == 'admin.analytics' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Analytics</span></a>
                     <span class="nav-separator" aria-hidden="true"></span>
@@ -74,14 +75,19 @@
                             <a href="{{ url_for('admin.media') }}" {% if request.endpoint == 'admin.media' %}aria-current="page" class="active"{% endif %} role="menuitem">Media</a>
                             <a href="{{ url_for('admin.tags_list') }}" {% if request.endpoint == 'admin.tags_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Tags</a>
                             <a href="{{ url_for('admin.users_list') }}" {% if request.endpoint == 'admin.users_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Users</a>
+                            <a href="{{ url_for('admin.user_profile', user_id=current_user.id) }}" {% if request.endpoint == 'admin.user_profile' %}aria-current="page" class="active"{% endif %} role="menuitem">Profile</a>
                             <a href="{{ url_for('admin.sessions_list') }}" {% if request.endpoint == 'admin.sessions_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Sessions</a>
                             <a href="{{ url_for('admin.backup') }}" {% if request.endpoint == 'admin.backup' %}aria-current="page" class="active"{% endif %} role="menuitem">Backups</a>
                             <a href="{{ url_for('admin.settings') }}" {% if request.endpoint == 'admin.settings' %}aria-current="page" class="active"{% endif %} role="menuitem">Settings</a>
                         </div>
                     </div>
+                    {% else %}
+                    <a href="{{ url_for('admin.new_post') }}" {% if request.endpoint == 'admin.new_post' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Write</span></a>
+                    <a href="{{ url_for('public.account_profile') }}" {% if request.endpoint == 'public.account_profile' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Profile</span></a>
+                    {% endif %}
                     <span class="nav-separator" aria-hidden="true"></span>
                     <button class="nav-shortcut-btn" id="shortcut-trigger" aria-label="Keyboard shortcuts">?</button>
-                    <form method="POST" action="{{ url_for('admin.logout') }}" class="inline-form">
+                    <form method="POST" action="{{ url_for('public.logout') }}" class="inline-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="nav-link-btn">Logout</button>
                     </form>
@@ -177,6 +183,7 @@
         </div>
     </footer>
 
+    {% if current_user.is_admin %}
     <script nonce="{{ csp_nonce }}">
         window.ADMIN_ROUTES = {
             dashboard: "{{ url_for('admin.dashboard') }}",
@@ -186,6 +193,7 @@
             pages: "{{ url_for('admin.pages_list') }}",
         };
     </script>
+    {% endif %}
     <script src="{{ vite_asset('js/lib/marked.min.js') }}" nonce="{{ csp_nonce }}"></script>
     <script type="module" src="{{ vite_asset('js/main.js') }}"></script>
 </body>

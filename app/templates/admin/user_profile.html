@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block title %}Profile | Admin{% endblock %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Users', 'url': url_for('admin.users_list') }, { 'label': 'Profile' }]) }}
+<div class="editor animate-in">
+    <div class="editor-header">
+        <h1>Profile: {{ user.profile_name }}</h1>
+        <div class="flex-row gap-sm">
+            <a href="{{ url_for('admin.users_list') }}" class="btn btn-small btn-ghost">&larr; Back</a>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.user_profile', user_id=user.id) }}" enctype="multipart/form-data" class="editor-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="form-group">
+            <label for="display_name">Display Name</label>
+            <span id="display-name-hint" class="label-hint">Shown instead of the username. Leave empty to use the username.</span>
+            <input type="text" id="display_name" name="display_name" value="{{ user.display_name }}" maxlength="120" placeholder="{{ user.username }}" aria-describedby="display-name-hint">
+        </div>
+
+        <div class="form-group">
+            <label for="bio_short">Short Bio</label>
+            <span id="bio-short-hint" class="label-hint">Plain text, up to 300 characters</span>
+            <textarea id="bio_short" name="bio_short" rows="3" maxlength="300" placeholder="One or two lines about the author" aria-describedby="bio-short-hint">{{ user.bio_short }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="bio_full">Full Bio</label>
+            <span id="bio-full-hint" class="label-hint">Markdown formatting supported</span>
+            <textarea id="bio_full" name="bio_full" rows="12" placeholder="Write the full biography in Markdown..." aria-describedby="bio-full-hint">{{ user.bio_full }}</textarea>
+        </div>
+
+        {% if user.bio_full %}
+        <div class="form-group">
+            <label>Bio Preview</label>
+            <div class="post-body prose">{{ user.bio_full | markdown_safe | safe }}</div>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="avatar">Profile Picture</label>
+            <div class="image-preview">
+                {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.profile_name }}">
+                {% else %}
+                <div class="author-avatar author-avatar-placeholder">
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </div>
+                {% endif %}
+            </div>
+            <input type="file" id="avatar" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp">
+            {% if user.avatar_url %}
+            <label class="remove-image-label" for="remove_avatar">
+                <input type="checkbox" name="remove_avatar" id="remove_avatar"> Remove picture
+            </label>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

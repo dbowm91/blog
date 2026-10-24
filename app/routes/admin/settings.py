@@ -4,6 +4,7 @@ import logging
 
 from flask import jsonify, render_template, redirect, url_for, request, flash
 from flask.typing import ResponseReturnValue
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.config import (  # noqa: F401
@@ -12,9 +13,10 @@ from app.config import (  # noqa: F401
     THEME_DEFAULT_SCHEME,
 )
 from app.extensions import db
-from app.models import SiteSettings
+from app.models import Page, SiteSettings
 from app.routes.admin import admin, admin_required
-from app.context_processors import invalidate_settings_cache
+from app.context_processors import invalidate_footer_cache, invalidate_settings_cache
+from app.services.site_settings import parse_menu_pages, validate_site_settings
 from app.themes.registry import (
     ThemeValidationError,
     ThemeNotFoundError,
@@ -55,6 +57,8 @@ def settings() -> ResponseReturnValue:
     bundled_themes = [t for t in all_themes if t.source.value == "bundled"]
     external_themes = [t for t in all_themes if t.source.value == "external"]
 
+    menu_choices = db.session.execute(select(Page).order_by(Page.title)).scalars().all()
+
     return render_template(
         "admin/settings.html",
         settings=settings_obj,
@@ -65,6 +69,8 @@ def settings() -> ResponseReturnValue:
         valid_schemes=["system", "dark", "light"],
         bundled_themes=bundled_themes,
         external_themes=external_themes,
+        menu_choices=menu_choices,
+        menu_pages_selected=parse_menu_pages(settings_obj.menu_pages),
     )
 
 
@@ -146,6 +152,48 @@ def settings_theme() -> ResponseReturnValue:
         return redirect(url_for("admin.settings"))
 
     flash("Theme settings saved.", "success")
+    return redirect(url_for("admin.settings"))
+
+
+@admin.route("/settings/site", methods=["POST"])
+@admin_required
+def settings_site() -> ResponseReturnValue:
+    """
+    Update the site-level settings.
+
+    Methods: POST
+    POST: Updates the comments switch, the footer text, the two footer column
+    switches and the page menu. Validation is owned by
+    `app.services.site_settings.validate_site_settings`.
+    Requires: Admin authentication.
+    Form params:
+        comments_enabled: Checkbox — comments are accepted on the public site
+        footer_text: Footer line (max 300 chars, plain text)
+        footer_show_posts: Checkbox — show the "Latest from the blog" column
+        footer_show_tags: Checkbox — show the "Browse by tag" column
+        show_pages_in_menu: Checkbox — show the pages menu
+        menu_pages: JSON array of page ids, in menu order
+    """
+    payload = validate_site_settings(request.form)
+    settings_obj = SiteSettings.get_instance()
+
+    settings_obj.comments_enabled = payload.comments_enabled
+    settings_obj.footer_text = payload.footer_text
+    settings_obj.footer_show_posts = payload.footer_show_posts
+    settings_obj.footer_show_tags = payload.footer_show_tags
+    settings_obj.show_pages_in_menu = payload.show_pages_in_menu
+    settings_obj.menu_pages = payload.menu_pages
+
+    try:
+        db.session.commit()
+        invalidate_settings_cache()
+        invalidate_footer_cache()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.settings"))
+
+    flash("Site settings saved.", "success")
     return redirect(url_for("admin.settings"))
 
 

@@ -5,11 +5,12 @@ from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
 from app.extensions import db
-from app.models import User
+from app.models import AdminAuditLog, Post, User
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _check_password_complexity, logger
 from app.csrf import generate_csrf_token
-from sqlalchemy import select, func
+from app.services.profile import save_profile, validate_profile_payload
+from sqlalchemy import select, func, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 
@@ -101,6 +102,7 @@ def delete_user(user_id: int) -> ResponseReturnValue:
         return redirect(url_for("admin.users_list"))
     username = user.username
     is_admin = user.is_admin
+    db.session.execute(update(Post).where(Post.author_id == user_id).values(author_id=None))
     db.session.delete(user)
     try:
         db.session.commit()
@@ -111,6 +113,72 @@ def delete_user(user_id: int) -> ResponseReturnValue:
     logger.info("User deleted: id=%d is_admin=%s", user_id, is_admin)
     flash(f"User '{username}' deleted.", "success")
     return redirect(url_for("admin.users_list"))
+
+
+@admin.route("/users/<int:user_id>/profile", methods=["GET", "POST"])
+@admin_required
+def user_profile(user_id: int) -> ResponseReturnValue:
+    """
+    Edit a user profile.
+
+    Methods: GET, POST
+    GET: Renders the profile editor for the target user.
+    POST: Validates and persists the profile fields and the optional avatar.
+    Requires: Admin authentication.
+    Path params: user_id (int) - ID of the user whose profile is edited.
+    Form params: display_name, bio_short, bio_full, avatar (file), remove_avatar
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+
+    if request.method == "POST":
+        payload = validate_profile_payload(request.form)
+        avatar = request.files.get("avatar")
+        remove_avatar = "remove_avatar" in request.form
+        ok, error = save_profile(user, payload, avatar, remove_avatar)
+        if not ok:
+            flash(error, "error")
+            return redirect(url_for("admin.user_profile", user_id=user_id))
+        db.session.add(
+            AdminAuditLog(
+                actor_id=current_user.id,
+                action="user.profile_update",
+                target_id=user.id,
+                target_type="user",
+                details="Profile updated",
+                ip_address=request.remote_addr,
+            )
+        )
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            logger.warning(
+                "Profile audit entry failed: actor_id=%d target_id=%d",
+                current_user.id,
+                user_id,
+            )
+        logger.info("Profile updated: actor_id=%d target_id=%d", current_user.id, user_id)
+        flash("Profile updated.", "success")
+        return redirect(url_for("admin.user_profile", user_id=user_id))
+
+    return render_template("admin/user_profile.html", user=user)
+
+
+@admin.route("/profile", methods=["GET", "POST"])
+@admin_required
+def own_profile() -> ResponseReturnValue:
+    """
+    Redirect to the canonical profile editor of the logged-in admin.
+
+    Methods: GET, POST
+    Requires: Admin authentication.
+    """
+    target = url_for("admin.user_profile", user_id=current_user.id)
+    if request.method == "POST":
+        return redirect(target, code=307)
+    return redirect(target)
 
 
 @admin.route("/users/<int:user_id>/promote", methods=["POST"])

@@ -13,6 +13,57 @@ from typing import Callable, Any
 admin: Blueprint = Blueprint("admin", __name__, url_prefix="/admin")
 
 
+def _enforce_admin_session() -> Any | None:
+    """Validate the admin session row and the IP binding.
+
+    Returns a response to send instead of calling the view, or None when the
+    admin session is in order. A session without an ``admin_session_id`` is
+    not an admin session and is left alone.
+    """
+    from app.extensions import db
+    from app.models import AdminSession
+    from app.config import SESSION_IP_BINDING
+    from sqlalchemy.exc import IntegrityError, OperationalError
+
+    sid = session.get("admin_session_id")
+    if not sid:
+        return None
+
+    admin_session = db.session.execute(
+        select(AdminSession).filter_by(session_id=sid)
+    ).scalar_one_or_none()
+    if not admin_session:
+        logout_user()
+        session.clear()
+        flash("Session has been revoked. Please log in again.", "error")
+        return redirect(url_for("admin.login"))
+
+    stored_ip = session.get("admin_session_ip")
+    current_ip = request.remote_addr
+    if stored_ip and current_ip and stored_ip != current_ip:
+        if SESSION_IP_BINDING == "off":
+            pass
+        elif SESSION_IP_BINDING == "enforce":
+            try:
+                db.session.delete(admin_session)
+                db.session.commit()
+            except (IntegrityError, OperationalError):
+                db.session.rollback()
+            logout_user()
+            session.clear()
+            flash("Session invalidated due to IP address change.", "error")
+            return redirect(url_for("admin.login"))
+        else:
+            logger.warning(
+                "IP address changed for admin session %s: expected %s, got %s",
+                sid,
+                stored_ip,
+                current_ip,
+            )
+
+    return None
+
+
 def admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     @login_required
@@ -20,44 +71,30 @@ def admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
         if not current_user.is_admin:
             abort(403)
 
-        from app.extensions import db
-        from app.models import AdminSession
-        from app.config import SESSION_IP_BINDING
-        from sqlalchemy.exc import IntegrityError, OperationalError
+        response = _enforce_admin_session()
+        if response is not None:
+            return response
 
-        sid = session.get("admin_session_id")
-        if sid:
-            admin_session = db.session.execute(
-                select(AdminSession).filter_by(session_id=sid)
-            ).scalar_one_or_none()
-            if not admin_session:
-                logout_user()
-                session.clear()
-                flash("Session has been revoked. Please log in again.", "error")
-                return redirect(url_for("admin.login"))
+        return f(*args, **kwargs)
 
-            stored_ip = session.get("admin_session_ip")
-            current_ip = request.remote_addr
-            if stored_ip and current_ip and stored_ip != current_ip:
-                if SESSION_IP_BINDING == "off":
-                    pass
-                elif SESSION_IP_BINDING == "enforce":
-                    try:
-                        db.session.delete(admin_session)
-                        db.session.commit()
-                    except (IntegrityError, OperationalError):
-                        db.session.rollback()
-                    logout_user()
-                    session.clear()
-                    flash("Session invalidated due to IP address change.", "error")
-                    return redirect(url_for("admin.login"))
-                else:
-                    logger.warning(
-                        "IP address changed for admin session %s: expected %s, got %s",
-                        sid,
-                        stored_ip,
-                        current_ip,
-                    )
+    return decorated
+
+
+def author_required(f: Callable[..., Any]) -> Callable[..., Any]:
+    """Allow an administrator or a signed-in author to reach the view.
+
+    Authors reach the post editor and nothing else. Their own posts are the
+    only ones they may open, which the editor enforces separately. Every
+    other admin route stays behind ``admin_required``.
+    """
+
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if current_user.is_admin:
+            response = _enforce_admin_session()
+            if response is not None:
+                return response
 
         return f(*args, **kwargs)
 

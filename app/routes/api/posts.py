@@ -10,12 +10,13 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload, QueryableAttribute
 
 from app.extensions import db
-from app.models import Post, Tag
+from app.models import Post, Tag, User
 from app.utils import utc_now, safe_delete_file, generate_slug
 from app.validators import validate_string, validate_boolean
 from app import limiter
 from app.routes.api import api
-from app.routes.api.auth import require_api_key, require_scope
+from app.routes.api.auth import require_api_key, require_scope, scope_allows
+from app.services.authors import author_url, default_author_id
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ WRITE_LIMIT = "10 per minute"
 
 def _post_to_dict(post: Post) -> dict:
     """Serialize a Post model to a dictionary."""
-    return {
+    data = {
         "id": post.id,
         "title": post.title,
         "slug": post.slug,
@@ -45,6 +46,39 @@ def _post_to_dict(post: Post) -> dict:
         "newsletter_attempts": post.newsletter_attempts,
         "tags": [tag.name for tag in cast(list[Tag], post.tags)],
     }
+    author = post.author
+    if author is not None:
+        data["author"] = {
+            "username": author.username,
+            "name": author.profile_name,
+            "url": author_url(author.username),
+        }
+    else:
+        data["author"] = {"username": None, "name": None}
+    return data
+
+
+def _parse_author_id(value: Any) -> tuple[int | None, str | None]:
+    """Validate the author id of an API payload.
+
+    Returns:
+        A tuple of the author id and an error message.
+    """
+    if value is None:
+        return None, None
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None, "author_id must be an integer"
+    if db.session.get(User, value) is None:
+        return None, "Unknown author"
+    return value, None
+
+
+def _author_scope_error() -> str | None:
+    """Return an error message when the token may not set the author."""
+    auth_info = getattr(request, "api_auth", None) or {}
+    if not scope_allows(auth_info.get("scopes", []), "posts:write"):
+        return "Missing scope: posts:write"
+    return None
 
 
 @api.route("/posts", methods=["GET"])
@@ -129,6 +163,7 @@ def create_post() -> Any:
         image: Image filename (optional)
         published: Published status (default false)
         tags: List of tag names (optional)
+        author_id: Id of the author (optional, requires posts:write)
 
     Returns:
         JSON with created post data
@@ -181,6 +216,16 @@ def create_post() -> Any:
     if err:
         return jsonify({"error": err}), 400
 
+    if "author_id" in data:
+        scope_error = _author_scope_error()
+        if scope_error:
+            return jsonify({"error": scope_error}), 403
+        author_id, author_error = _parse_author_id(data["author_id"])
+        if author_error:
+            return jsonify({"error": author_error}), 400
+    else:
+        author_id = default_author_id()
+
     post = Post(
         title=title,
         slug=slug,
@@ -189,6 +234,7 @@ def create_post() -> Any:
         image=image,
         published=published,
         published_at=utc_now() if published else None,
+        author_id=author_id,
     )
 
     tags = data.get("tags", [])
@@ -233,6 +279,7 @@ def update_post(post_id: int) -> Any:
         image: Image filename
         published: Published status
         tags: List of tag names
+        author_id: Id of the author (requires posts:write)
 
     Returns:
         JSON with updated post data or 404 error
@@ -289,6 +336,14 @@ def update_post(post_id: int) -> Any:
         post.published = published
         if published and not post.published_at:
             post.published_at = utc_now()
+    if "author_id" in data:
+        scope_error = _author_scope_error()
+        if scope_error:
+            return jsonify({"error": scope_error}), 403
+        author_id, author_error = _parse_author_id(data["author_id"])
+        if author_error:
+            return jsonify({"error": author_error}), 400
+        post.author_id = author_id
 
     if "tags" in data:
         from app.routes.admin.helpers.tags import _get_or_create_tags

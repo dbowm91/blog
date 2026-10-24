@@ -21,7 +21,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.markdown_renderer import render_markdown
 from app.models import Post, Tag
-from app.routes.admin import admin_required
+from app.routes.admin import author_required
 from app.routes.admin.helpers import (
     _generate_unique_slug,
     _save_image,
@@ -32,6 +32,7 @@ from app.routes.admin.helpers import (
     invalidate_dashboard_cache,
     logger,
 )
+from app.services.authors import list_authors, resolve_author_id
 
 
 from app.routes.admin.posts.revisions import _save_revision  # noqa: E402
@@ -54,6 +55,7 @@ def _create_post_object(
     now: datetime,
     scheduled_publish_at: datetime | None,
     tag_names: list[str],
+    author_id: int | None = None,
 ) -> Post:
     """Create a Post instance with all fields set."""
     post = Post(
@@ -65,9 +67,31 @@ def _create_post_object(
         image=image,
         published_at=now if published else None,
         scheduled_publish_at=scheduled_publish_at,
+        author_id=author_id,
     )
     setattr(post, "tags", _get_or_create_tags(tag_names))
     return post
+
+
+def _author_options() -> list[Any]:
+    """Users that may be selected as the author of a post.
+
+    An admin may pick any author; a non-admin signed-in user only sees
+    themselves.
+    """
+    if current_user.is_authenticated and not current_user.is_admin:
+        return [current_user]
+    return list_authors()
+
+
+def _render_editor(post: Post | None, tag_names: list[str]) -> Any:
+    """Render the post editor with the available author options."""
+    return render_template(
+        "admin/editor.html",
+        post=post,
+        tag_names=tag_names,
+        author_options=_author_options(),
+    )
 
 
 def _apply_cache_and_fts_updates(post: Post, searchable_changed: bool) -> bool:
@@ -125,35 +149,49 @@ def register_editor_routes(admin):
     """Register editor routes on the admin Blueprint."""
 
     @admin.route("/new", methods=["GET", "POST"])
-    @admin_required
+    @author_required
     def new_post() -> Any:
-        """Create a new blog post."""
+        """Create a new blog post.
+
+        An administrator may publish or schedule the post. An author may
+        only create their own draft; publishing is an administrator's
+        decision.
+        """
+        is_admin = current_user.is_admin
         if request.method == "POST":
             title = request.form.get("title", "").strip()[:200]
             body = request.form.get("body", "").strip()
             summary = request.form.get("summary", "").strip()[:500]
             tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
-            published = "published" in request.form
+            published = "published" in request.form and is_admin
             scheduled_str = request.form.get("scheduled_publish_at", "").strip()
             scheduled_publish_at = None
-            if scheduled_str:
+            if scheduled_str and is_admin:
                 try:
                     scheduled_publish_at = datetime.fromisoformat(scheduled_str)
                     if scheduled_publish_at.tzinfo is None:
                         scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
                 except (ValueError, TypeError):
                     flash("Invalid schedule date format.", "error")
-                    return render_template("admin/editor.html", post=None, tag_names=tag_names)
+                    return _render_editor(None, tag_names)
 
             if not title or not body:
                 flash("Title and body are required.", "error")
-                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+                return _render_editor(None, tag_names)
+
+            try:
+                author_id = resolve_author_id(
+                    request.form.get("author_id", "").strip(), current_user
+                )
+            except ValueError as e:
+                flash(str(e), "error")
+                return _render_editor(None, tag_names)
 
             image_file = request.files.get("image")
             image, error = _save_image(image_file) if image_file else (None, None)
             if error:
                 flash(error, "error")
-                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+                return _render_editor(None, tag_names)
 
             if image:
                 from app.routes.admin.media import _invalidate_media_cache
@@ -170,6 +208,7 @@ def register_editor_routes(admin):
                 now=now,
                 scheduled_publish_at=scheduled_publish_at,
                 tag_names=tag_names,
+                author_id=author_id,
             )
             db.session.add(post)
             try:
@@ -189,7 +228,7 @@ def register_editor_routes(admin):
                 if image:
                     safe_delete_file(os.path.join(current_app.config["UPLOAD_FOLDER"], image))
                 flash("Search index temporarily unavailable. Please try again.", "error")
-                return render_template("admin/editor.html", post=None, tag_names=tag_names)
+                return _render_editor(None, tag_names)
             invalidate_tag_cache()
             invalidate_analytics_cache()
             invalidate_dashboard_cache()
@@ -197,36 +236,51 @@ def register_editor_routes(admin):
             flash("Post created.", "success")
             return redirect(url_for("admin.dashboard"))
 
-        return render_template("admin/editor.html", post=None, tag_names=[])
+        return _render_editor(None, [])
 
     @admin.route("/edit/<int:post_id>", methods=["GET", "POST"])
-    @admin_required
+    @author_required
     def edit_post(post_id: int) -> Any:
-        """Edit an existing blog post."""
+        """Edit an existing blog post.
+
+        An author may only open a post they are the author of.
+        """
         post = db.session.get(Post, post_id)
         if post is None:
             abort(404)
+
+        is_admin = current_user.is_admin
+        if not is_admin and post.author_id != current_user.id:
+            abort(403)
 
         if request.method == "POST":
             title = request.form.get("title", "").strip()[:200]
             body = request.form.get("body", "").strip()
             summary = request.form.get("summary", "").strip()[:500]
             tag_names = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
-            published = "published" in request.form
+            published = "published" in request.form and is_admin
             scheduled_str = request.form.get("scheduled_publish_at", "").strip()
             scheduled_publish_at = None
-            if scheduled_str:
+            if scheduled_str and is_admin:
                 try:
                     scheduled_publish_at = datetime.fromisoformat(scheduled_str)
                     if scheduled_publish_at.tzinfo is None:
                         scheduled_publish_at = scheduled_publish_at.replace(tzinfo=timezone.utc)
                 except (ValueError, TypeError):
                     flash("Invalid schedule date format.", "error")
-                    return render_template("admin/editor.html", post=post, tag_names=tag_names)
+                    return _render_editor(post, tag_names)
 
             if not title or not body:
                 flash("Title and body are required.", "error")
-                return render_template("admin/editor.html", post=post, tag_names=tag_names)
+                return _render_editor(post, tag_names)
+
+            author_raw = request.form.get("author_id", "").strip()
+            if author_raw:
+                try:
+                    post.author_id = resolve_author_id(author_raw, current_user)
+                except ValueError as e:
+                    flash(str(e), "error")
+                    return _render_editor(post, tag_names)
 
             searchable_changed = (
                 title != post.title
@@ -256,7 +310,7 @@ def register_editor_routes(admin):
             image, error = _save_image(image_file) if image_file else (None, None)
             if error:
                 flash(error, "error")
-                return render_template("admin/editor.html", post=post, tag_names=tag_names)
+                return _render_editor(post, tag_names)
             old_image = None
             if image:
                 from app.routes.admin.media import _invalidate_media_cache
@@ -274,7 +328,7 @@ def register_editor_routes(admin):
                     db.session.rollback()
                     logger.warning("FTS sync failed for post %d during edit; rolling back", post.id)
                     flash("Search index temporarily unavailable. Please try again.", "error")
-                    return render_template("admin/editor.html", post=post, tag_names=tag_names)
+                    return _render_editor(post, tag_names)
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
@@ -303,10 +357,10 @@ def register_editor_routes(admin):
             return redirect(url_for("admin.dashboard"))
 
         tag_names = [t.name for t in cast(list[Tag], post.tags)]
-        return render_template("admin/editor.html", post=post, tag_names=tag_names)
+        return _render_editor(post, tag_names)
 
     @admin.route("/preview-markdown", methods=["POST"])
-    @admin_required
+    @author_required
     def preview_markdown() -> Any:
         """Render markdown preview for live editing."""
         if request.content_length and request.content_length > 1024 * 1024:

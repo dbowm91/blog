@@ -158,6 +158,9 @@ def forgot_password() -> Any:
     Methods: GET, POST
     GET: Renders the forgot password form.
     POST: Generates a reset token and sends password reset email.
+    Every account, administrator or not, can request a reset. The response is
+    identical whether or not the account exists, so it cannot be used to
+    enumerate accounts.
     """
     if current_user.is_authenticated:
         return redirect(url_for("admin.dashboard"))
@@ -170,7 +173,7 @@ def forgot_password() -> Any:
 
         user = db.session.execute(select(User).filter_by(username=identifier)).scalar_one_or_none()
 
-        if user and user.is_admin:
+        if user:
             token = secrets.token_hex(32)
             user.reset_token = _hash_token(token)
             user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)

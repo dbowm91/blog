@@ -3,12 +3,29 @@ from flask import render_template, redirect, url_for, request, flash, abort
 from flask.typing import ResponseReturnValue
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
+from typing import Mapping
 
 from app.extensions import db
 from app.models import Page
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _generate_unique_slug
+from app.services.navigation import get_menu_settings, resolve_page_menu
 from app.utils import generate_slug
+
+
+def _show_in_menu_from_form(form: Mapping[str, str], default: bool) -> bool:
+    """Read the ``show_in_menu`` flag from a submitted form.
+
+    The page editor form does not carry the field, so an absent value keeps
+    the current flag on edit and falls back to True on create. A form that
+    manages the flag sends ``show_in_menu_present`` alongside it, which makes
+    an unchecked box record False.
+    """
+    if "show_in_menu_present" in form:
+        return form.get("show_in_menu") == "on"
+    if "show_in_menu" in form:
+        return form.get("show_in_menu") == "on"
+    return default
 
 
 @admin.route("/pages")
@@ -22,7 +39,14 @@ def pages_list() -> ResponseReturnValue:
     Requires: Admin authentication.
     """
     pages = db.session.execute(select(Page).order_by(Page.title)).scalars().all()
-    return render_template("admin/pages.html", pages=pages)
+    show_pages_in_menu, _ = get_menu_settings()
+    menu_page_ids = {page.id for page in resolve_page_menu()}
+    return render_template(
+        "admin/pages.html",
+        pages=pages,
+        menu_page_ids=menu_page_ids,
+        show_pages_in_menu=show_pages_in_menu,
+    )
 
 
 @admin.route("/pages/new", methods=["GET", "POST"])
@@ -48,6 +72,7 @@ def new_page() -> ResponseReturnValue:
     slug = request.form.get("slug", "").strip()[:200]
     body = request.form.get("body", "").strip()
     published = request.form.get("published") == "on"
+    show_in_menu = _show_in_menu_from_form(request.form, True)
 
     errors = {}
     if not title:
@@ -71,6 +96,7 @@ def new_page() -> ResponseReturnValue:
         slug=slug,
         body=body,
         published=published,
+        show_in_menu=show_in_menu,
     )
     db.session.add(page)
 
@@ -123,6 +149,7 @@ def edit_page(page_id) -> ResponseReturnValue:
     slug = request.form.get("slug", "").strip()[:200]
     body = request.form.get("body", "").strip()
     published = request.form.get("published") == "on"
+    show_in_menu = _show_in_menu_from_form(request.form, page.show_in_menu)
 
     errors = {}
     if not title:
@@ -149,6 +176,7 @@ def edit_page(page_id) -> ResponseReturnValue:
     page.slug = slug
     page.body = body
     page.published = published
+    page.show_in_menu = show_in_menu
 
     try:
         db.session.commit()
@@ -162,6 +190,7 @@ def edit_page(page_id) -> ResponseReturnValue:
         page.title = title
         page.body = body
         page.published = published
+        page.show_in_menu = show_in_menu
         db.session.commit()
     except OperationalError:
         db.session.rollback()
@@ -197,4 +226,36 @@ def delete_page(page_id) -> ResponseReturnValue:
         return redirect(url_for("admin.pages_list"))
 
     flash(f"Page '{title}' deleted.", "success")
+    return redirect(url_for("admin.pages_list"))
+
+
+@admin.route("/pages/<int:page_id>/menu", methods=["POST"])
+@admin_required
+def set_page_menu(page_id) -> ResponseReturnValue:
+    """
+    Set whether a page appears in the site navigation menu.
+
+    Methods: POST
+    POST: Sets the show_in_menu flag of the specified page.
+    Requires: Admin authentication.
+    Path params: page_id (int) - ID of the page to update.
+    Form params:
+        show_in_menu: Whether the page is shown in the menu (checkbox)
+    """
+    page = db.session.get(Page, page_id)
+    if not page:
+        abort(404)
+
+    page.show_in_menu = request.form.get("show_in_menu") == "on"
+    try:
+        db.session.commit()
+    except (IntegrityError, OperationalError):
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
+        return redirect(url_for("admin.pages_list"))
+
+    if page.show_in_menu:
+        flash(f"Page '{page.title}' is now shown in the menu.", "success")
+    else:
+        flash(f"Page '{page.title}' is no longer shown in the menu.", "success")
     return redirect(url_for("admin.pages_list"))
