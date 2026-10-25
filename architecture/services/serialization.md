@@ -17,4 +17,4 @@ JSON export/import for blog data.
 No `deserialize_*` functions exist in the serialization module. Import is handled inline in the CLI `import-data` command (`app/cli.py:140`). The `import_data_command` function reads JSON, validates version, and creates model instances directly (tags first, then posts with tag associations, subscribers, and pages). Skips existing records by slug/email lookup.
 
 ## See Also
-- [Backup Service](services/backup.md) - Database backups
+- [Backup Service](backup.md) - Database backups

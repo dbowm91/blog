@@ -99,10 +99,10 @@ Important actual file locations (verify before assuming):
 | CLI deploy commands | `devlog_cli/commands/deploy.py` — `deploy render`, `deploy install`, `deploy check` |
 | CLI lifecycle commands | `devlog_cli/commands/lifecycle.py` — `start`, `stop`, `restart`, `status`, `logs` |
 | CLI doctor command | `devlog_cli/commands/doctor.py` — `doctor`, `doctor --production`, `doctor --check CHECK_ID`, `doctor --category CATEGORY`, `doctor --fix-safe`, `doctor --list-checks` |
-| Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, deploy, onboard, doctor, results) |
 | Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
-| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 76 check implementations across 14 categories |
+| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 76 check implementations across 20 categories |
 | Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
 | Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
@@ -272,10 +272,10 @@ Important actual file locations (verify before assuming):
 | CLI deploy commands | `devlog_cli/commands/deploy.py` — `deploy render`, `deploy install`, `deploy check` |
 | CLI lifecycle commands | `devlog_cli/commands/lifecycle.py` — `start`, `stop`, `restart`, `status`, `logs` |
 | CLI doctor command | `devlog_cli/commands/doctor.py` — `doctor`, `doctor --production`, `doctor --check CHECK_ID`, `doctor --category CATEGORY`, `doctor --fix-safe`, `doctor --list-checks` |
-| Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, results) |
+| Operations services | `app/services/operations/` (admin, database, media, transfer, themes, backup, deploy, onboard, doctor, results) |
 | Deploy service | `app/services/operations/deploy.py` |
 | Onboard service | `app/services/operations/onboard.py` — detect, plan, apply |
-| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 76 check implementations across 14 categories |
+| Doctor service | `app/services/operations/doctor.py` — diagnostic check registry, execution engine, safe fixes, 76 check implementations across 20 categories |
 | Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
 | Operations tests | `tests/services/` |
 | Filesystem layout | `app/filesystem/` (layout, prepare, discovery, migration, verification) |
@@ -456,7 +456,7 @@ The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 - `scripts/theme_inventory.py` — catalog inventory CLI/Python API
 - `tests/themes/` — inventory tests
 - `docs/themes/supported-schema.md` — Phase 02 parser input contract
-- `docs/themes/blog-theme-contract.md` — Phase 03 translator output contract (44 semantic tokens + 26 aliases)
+- `docs/themes/blog-theme-contract.md` — Phase 03 translator output contract (50 tokens + 38 aliases)
 - `docs/themes/frontend-literal-audit.md` — Phase 09 execution list (128 literals: 34 REPLACE converted, 71 RETAIN, 9 FALSE_POS)
 - `docs/themes/legacy-compatibility.md` — Phase 06/14 migration rules
 
@@ -471,7 +471,7 @@ The phased plan is at `plans/halloy_theme_system_roadmap.md`.
 
 #### Key files (Phase 03 deliverables)
 
-- `app/themes/model.py` — `BlogTheme` frozen dataclass (50 fields: 44 semantic tokens + 6 RGBA fields), `CSS_VARS` mapping, `ALIASES` backward-compat mapping, `EMERGENCY_DEFAULT` constant
+- `app/themes/model.py` — `BlogTheme` frozen dataclass (50 fields: 41 `RGB` + 9 `RGBA`), `CSS_VARS` mapping (50 entries), `ALIASES` backward-compat mapping (38 entries), `EMERGENCY_DEFAULT` constant
 - `app/themes/translate.py` — `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()`
 - `app/themes/diagnostics.py` — expanded accessibility validation with severity categories, structured findings, catalog-wide validation
 - `tests/themes/test_translation.py` — translation, derivation, foreground selection, catalog-wide tests
@@ -617,7 +617,7 @@ Scope and mode relationship:
 - `--scope system` resolves to system-level paths (e.g. `/etc/devlog/`, `/var/lib/devlog/`) via `RuntimePaths.for_mode(InstallMode.SYSTEM)`
 - `--scope user` resolves to user-level paths (e.g. `~/.config/devlog/`, `~/.local/share/devlog/`) via `RuntimePaths.for_mode(InstallMode.USER)`
 - Docker mode ignores `--scope` and uses container-standard paths (`/data/`, `/config/`)
-- When `--scope` is omitted, the onboarding step detects the appropriate scope from the current installation
+- When `--scope` is omitted, `step_resolve_paths()` falls back to `InstallMode.DEVELOPMENT` — it does not detect the scope from the current installation
 
 Key internals:
 - `detect_installation()` uses `RuntimePaths.for_mode(detect_mode())` when no explicit paths are provided, ensuring path resolution stays centralized
@@ -628,7 +628,7 @@ Key rules:
 - Secrets never appear in JSON output or logs
 - Config writes are atomic (temp + rename)
 - Existing files are backed up before overwrite
-- Dry-run mode skips all mutations
+- Dry-run mode skips the file writes, but `step_resolve_paths()` still creates the config and data directories
 - Non-interactive mode requires all values via options, never prompts
 
 ### Installation Contract (R2C1)
@@ -648,18 +648,26 @@ For detailed architecture documentation, see the `architecture/` directory:
 
 | Topic | Document |
 |-------|----------|
+| **Birds-eye module map (start here)** | [architecture/overview.md](architecture/overview.md) |
 | App factory, configuration | [architecture/core/app-factory.md](architecture/core/app-factory.md), [architecture/core/configuration.md](architecture/core/configuration.md) |
 | Data models (17 models) | [architecture/core/models.md](architecture/core/models.md) |
+| Filesystem layout, install modes | [architecture/core/filesystem.md](architecture/core/filesystem.md) |
+| Onboarding (first-run setup) | [architecture/core/onboarding.md](architecture/core/onboarding.md) |
+| Theme system (Halloy) | [architecture/core/themes.md](architecture/core/themes.md) |
 | Routes (admin, public, API, RSS) | [architecture/routes/admin-routes.md](architecture/routes/admin-routes.md), [architecture/routes/public-routes.md](architecture/routes/public-routes.md), [architecture/routes/api-routes.md](architecture/routes/api-routes.md), [architecture/routes/rss-feeds.md](architecture/routes/rss-feeds.md) |
 | Services (overview) | [architecture/services/overview.md](architecture/services/overview.md) |
 | Services (individual) | [architecture/services/backup.md](architecture/services/backup.md), [architecture/services/encryption.md](architecture/services/encryption.md), [architecture/services/search.md](architecture/services/search.md), [architecture/services/serialization.md](architecture/services/serialization.md), [architecture/services/slug.md](architecture/services/slug.md), [architecture/services/tag.md](architecture/services/tag.md), [architecture/services/tag_cache.md](architecture/services/tag_cache.md) |
-| Operations services | `app/services/operations/` — admin, database, media, transfer, themes, backup, results |
+| Operations services | [architecture/services/operations.md](architecture/services/operations.md) — admin, database, media, transfer, themes, backup, deploy, onboard, doctor, results |
+| Doctor diagnostics | [architecture/services/doctor.md](architecture/services/doctor.md) |
 | Celery tasks, APScheduler | [architecture/tasks/celery-tasks.md](architecture/tasks/celery-tasks.md), [architecture/tasks/scheduler.md](architecture/tasks/scheduler.md) |
 | Infrastructure (overview) | [architecture/infrastructure/overview.md](architecture/infrastructure/overview.md) |
 | Infrastructure (individual) | [architecture/infrastructure/search.md](architecture/infrastructure/search.md), [architecture/infrastructure/email.md](architecture/infrastructure/email.md), [architecture/infrastructure/storage.md](architecture/infrastructure/storage.md), [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhooks.md) |
-| Frontend (Vite, templates, CSS) | [architecture/frontend/overview.md](architecture/frontend/overview.md), [architecture/frontend/templates.md](architecture/frontend/templates.md), [architecture/frontend/static-assets.md](architecture/frontend/static-assets.md) |
+| Frontend (overview) | [architecture/frontend/overview.md](architecture/frontend/overview.md) |
+| Frontend (individual) | [architecture/frontend/templates.md](architecture/frontend/templates.md), [architecture/frontend/static-assets.md](architecture/frontend/static-assets.md), [architecture/frontend/appearance.md](architecture/frontend/appearance.md) |
 | Testing (pytest, E2E, benchmarks) | [architecture/testing/test-suite.md](architecture/testing/test-suite.md) |
 | Security (2FA, CSRF, rate limiting) | [architecture/deployment/security.md](architecture/deployment/security.md) |
+| Operator CLI (`devlog`) | [architecture/deployment/cli.md](architecture/deployment/cli.md) |
+| Managed deployment (systemd, proxy, drift) | [architecture/deployment/managed-deployment.md](architecture/deployment/managed-deployment.md) |
 | Deployment (Docker, CI/CD) | [architecture/deployment/deployment.md](architecture/deployment/deployment.md), [architecture/deployment/docker.md](architecture/deployment/docker.md), [architecture/deployment/cicd.md](architecture/deployment/cicd.md) |
 | Theme system (Halloy migration) | [docs/themes/supported-schema.md](docs/themes/supported-schema.md), [docs/themes/blog-theme-contract.md](docs/themes/blog-theme-contract.md), [docs/themes/operator-guide.md](docs/themes/operator-guide.md) |
 | System overview | [architecture/overview.md](architecture/overview.md) |

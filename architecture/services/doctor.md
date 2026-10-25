@@ -28,11 +28,14 @@ devlog doctor [OPTIONS]
 
 ## Check Categories
 
+The registry holds **76 checks across 20 categories**. The counts below are the
+measured values from `app/services/operations/doctor.py`.
+
 | Category | Checks | Description |
 |----------|--------|-------------|
-| installation | 6 | Package version, metadata, release symlink, config path, deprecated keys, secret permissions, stale metadata |
+| installation | 5 | Package version, metadata, release symlink, config path, deprecated keys, secret permissions, stale metadata |
 | configuration | 3 | Config load, validation, deprecated keys |
-| secrets | 4 | SECRET_KEY, ADMIN_PASSWORD, secret-file permissions |
+| secrets | 3 | SECRET_KEY, ADMIN_PASSWORD, secret-file permissions |
 | filesystem | 8 | Required dirs, ownership, writability, symlinks, inodes, FS type, Docker UID, stale files, legacy remnants |
 | database | 8 | Connectivity, migration, integrity, FTS5, path match, WAL, ownership, orphaned migration, backend features |
 | search | 2 | FTS5 availability, FTS schema health |
@@ -43,7 +46,7 @@ devlog doctor [OPTIONS]
 | scheduler | 4 | Running state, lock staleness, job execution, owner match |
 | email | 2 | SMTP config, SMTP reachability |
 | storage | 3 | Backend config, writability, S3 probe |
-| deployment | 9 | Mode, drift, managed files, health endpoint, proxy, bind address, PID, restart loop, systemd syntax, process version, image match |
+| deployment | 8 | Mode, drift, managed files, health endpoint, proxy, bind address, PID, restart loop, systemd syntax, process version, image match |
 | service | 2 | Service state, restart loop |
 | backup | 6 | Directory readiness, manifest, encryption, retention, verification, path nesting |
 | security | 3 | Session config, secret validation, cookie security |

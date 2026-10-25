@@ -42,12 +42,14 @@ Service functions never depend on Click, terminal output, or process exit. They 
 The standalone `devlog` CLI commands (`devlog_cli/commands/`) call these services. Flask commands (`app/cli.py`) remain as compatibility wrappers calling the same services.
 
 ## See Also
-- [Backup Service](services/backup.md) - Detailed backup documentation
-- [Serialization](services/serialization.md) - Data export/import
-- [Slug Service](services/slug.md) - Slug generation
-- [Tag Service](services/tag.md) - Tag management
-- [Tag Cache](services/tag_cache.md) - Tag count caching
-- [Search Provider](services/search.md) - Full-text search abstraction
-- [Theme System](../docs/themes/blog-theme-contract.md) - BlogTheme contract and token definitions
-- [Theme Supported Schema](../docs/themes/supported-schema.md) - Halloy TOML input schema
-- [Theme Service](../docs/themes/operator-guide.md) - ThemeService singleton, CLI commands, preview, and refresh
+- [Operations Services](operations.md) - The terminal-free operational service layer
+- [Doctor](doctor.md) - The diagnostic check framework
+- [Backup Service](backup.md) - Detailed backup documentation
+- [Serialization](serialization.md) - Data export/import
+- [Slug Service](slug.md) - Slug generation
+- [Tag Service](tag.md) - Tag management
+- [Tag Cache](tag_cache.md) - Tag count caching
+- [Search Provider](search.md) - Full-text search abstraction
+- [Theme System](../core/themes.md) - The Halloy theme subsystem
+- [Theme Supported Schema](../../docs/themes/supported-schema.md) - Halloy TOML input schema
+- [Theme Service](../../docs/themes/operator-guide.md) - ThemeService singleton, CLI commands, preview, and refresh

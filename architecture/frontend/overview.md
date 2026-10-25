@@ -48,7 +48,7 @@ the seams. Those seams are where the defects live, so each has a named owner:
 ones that are mechanically checkable.
 
 ## See Also
-- [Static Assets](frontend/static-assets.md) - JS/CSS assets
-- [Templates](frontend/templates.md) - Jinja2 templates
-- [Appearance Layer](frontend/appearance.md) - Fonts and page backdrops
+- [Static Assets](static-assets.md) - JS/CSS assets
+- [Templates](templates.md) - Jinja2 templates
+- [Appearance Layer](appearance.md) - Fonts and page backdrops
 - [Cache Contract](../../docs/themes/cache-contract.md) - Cache freshness model, invalidation API, multi-worker notes

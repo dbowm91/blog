@@ -4,15 +4,39 @@
 Architecture documentation for the blog CMS application.
 
 ## Key Files
-- `architecture/overview.md` - High-level architecture overview
-- `architecture/core/` - App factory, configuration, models
+- `architecture/overview.md` - Birds-eye module map and index to every deep-dive document
+- `architecture/core/` - App factory, configuration, models, filesystem layout, onboarding, theme system
 - `architecture/routes/` - API, admin, public routes, RSS feeds
-- `architecture/services/` - Backup, serialization, tag, slug services
+- `architecture/services/` - Service layer, operations services, doctor
 - `architecture/tasks/` - Celery tasks, APScheduler, task overview
 - `architecture/infrastructure/` - Webhooks, search, email, storage, health
-- `architecture/frontend/` - Static assets, templates
-- `architecture/deployment/` - Docker, CI/CD, security
+- `architecture/frontend/` - Static assets, templates, appearance layer
+- `architecture/deployment/` - Operator CLI, managed deployment, security, install, Docker, CI/CD
 - `architecture/testing/` - Test suite documentation
+
+## Document Convention
+
+`architecture/overview.md` is the index. Every module named there links to a
+deep-dive document in the same directory tree. When adding a module, add the
+deep-dive file first, then add the row to the overview's module map.
+
+Deep-dive documents follow these rules:
+
+- H1 title naming the module and its source path, then a one-paragraph intro
+  saying what the module is and why it exists.
+- A table of the module's files and what each one owns.
+- Symbolic references (function names, class names, config keys) rather than
+  line numbers — line numbers drift as the code changes.
+- A `## See Also` section at the end with relative links that resolve **from
+  the document's own directory**. A sibling file uses its bare filename
+  (`models.md`); a file in another directory needs the right `../` prefix
+  (`../frontend/static-assets.md`). Authoring a link as if the base were
+  `architecture/` produces a broken link — verify each target exists before
+  finishing.
+- A `## Notes and Gotchas` section for surprising behaviour, defects, and
+  inconsistencies found while reading the source. Document them; do not fix
+  code from a documentation task.
+
 
 ## Architecture Review Skill
 See `.skills/architecture_review/skill.md` for detailed architecture review workflow.

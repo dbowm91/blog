@@ -38,4 +38,4 @@ Tag counts are cached for performance:
 - Tag create/delete/update
 
 ## See Also
-- [Models](core/models.md) - Tag model
+- [Models](../core/models.md) - Tag model

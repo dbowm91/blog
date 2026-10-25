@@ -213,7 +213,7 @@ Configuration is loaded from `config.toml` with environment variable overrides.
 | **Newsletter** | `NEWSLETTER_SEND_TIME`, `CONFIRMATION_EXPIRY_HOURS` |
 | **Paths** | Data directory, config file, env file (overridable via `DEVLOG_*` env vars) |
 
-**Deep Dive:** [core/configuration.md](core/configuration.md)
+**Deep Dive:** [core/configuration.md](configuration.md)
 
 ## Extensions (`app/extensions.py`)
 
@@ -235,8 +235,11 @@ Provides template variables for all templates:
 - `show_footer_posts` - Boolean controlling footer post display (from `inject_show_footer_posts()`)
 
 ## See Also
-- [Models](core/models.md) - Database models
-- [Configuration](core/configuration.md) - Detailed configuration
+- [Models](models.md) - Database models
+- [Configuration](configuration.md) - Detailed configuration
+- [Filesystem Layout](filesystem.md) - Path resolution, install modes, legacy migration
+- [Onboarding](onboarding.md) - First-run configuration and admin bootstrap
+- [Theme System](themes.md) - The Halloy theme subsystem
 - [Routes: API](../routes/api-routes.md) - REST API endpoints
 - [Routes: Admin](../routes/admin-routes.md) - Admin dashboard routes
 - [Routes: Public](../routes/public-routes.md) - Public blog routes

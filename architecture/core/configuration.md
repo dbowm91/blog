@@ -267,7 +267,7 @@ This policy is enforced by `validate_schema(raw_toml, strict=...)` in `app/confi
 Unknown keys never silently influence defaults — they are always reported and never consumed by the loader.
 
 ## See Also
-- [App Factory](core/app-factory.md) - How config is used
+- [App Factory](app-factory.md) - How config is used
 - [Email Infrastructure](../infrastructure/email.md) - Email configuration
 - [Storage Infrastructure](../infrastructure/storage.md) - Storage backends
 - `tests/config/` - 235 tests for the typed config system

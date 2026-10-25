@@ -200,5 +200,5 @@ block. The reasoning behind the placement is recorded in
 [Agent Maintainer Notes](../../docs/internals/agent-maintainer-notes.md#admin-theme-preview-placement-2026-10-24).
 
 ## See Also
-- [Static Assets](frontend/static-assets.md) - JS/CSS
-- [App Factory](core/app-factory.md) - Filter registration
+- [Static Assets](static-assets.md) - JS/CSS
+- [App Factory](../core/app-factory.md) - Filter registration

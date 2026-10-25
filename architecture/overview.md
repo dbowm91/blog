@@ -1,28 +1,45 @@
 # Architecture Overview
 
-DevLog is a Flask-based blog CMS with SQLAlchemy ORM, full-text search, async task processing, and a Vanilla JS frontend built with Vite.
+DevLog is a Flask blog CMS with SQLAlchemy ORM, FTS5 full-text search, Celery task processing, a self-contained operator CLI, and a Vanilla JS frontend built with Vite.
 
-This document provides a **birds-eye view** of all system components and serves as an **index** to detailed architecture documents for focused review.
+This document is the **birds-eye view**: it names every discrete module, explains how the modules fit together, and links each one to a deep-dive document for focused review. Read this first to know the shape of the system; then follow a link to examine one component in detail.
 
 ---
 
-## Discrete Modules
+## How To Read This Document
 
-The codebase is organized into these discrete modules, each with dedicated deep-dive documentation:
+- **Sections 1–13** are the module map. Each names the module, its source, its responsibility, and its deep-dive link.
+- **System Architecture** shows the runtime topology across processes.
+- **Request Lifecycle** traces a single request through the layers.
+- **Cross-Cutting Contracts** lists the seams where modules meet — these are where defects live.
+- **Directory Structure** and **Key Technologies** are reference tables.
 
-| Module | Description | Deep Dive |
-|--------|-------------|-----------|
-| [Core Application](#1-core-application) | Flask app factory, configuration, extensions | [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md) |
-| [Data Models](#2-data-models) | SQLAlchemy ORM models (17 models) | [core/models.md](core/models.md) |
-| [Routes Layer](#3-routes-layer) | HTTP request handlers (admin, public, API, feeds) | [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
-| [Middleware](#4-middleware) | WSGI middleware (rate limiting) | — |
-| [Services Layer](#5-services-layer) | Business logic (backup, search, slug, tags, encryption) | [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md) |
-| [Task Processing](#6-task-processing) | Async (Celery) and scheduled (APScheduler) tasks | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
-| [Infrastructure](#7-infrastructure) | Search, email, storage, webhooks | [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md) |
-| [Frontend](#8-frontend) | Jinja2 templates, CSS, JavaScript (Vite) | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
-| [Testing](#9-testing) | pytest unit/integration, Playwright E2E, benchmarks | [testing/test-suite.md](testing/test-suite.md) |
-| [Security](#10-security-architecture) | Authentication, 2FA, CSRF, rate limiting | [deployment/security.md](deployment/security.md) |
-| [Deployment](#11-deployment) | Docker, nginx, CI/CD | [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md) |
+Every deep-dive link in this file is relative and resolves from `architecture/`.
+
+---
+
+## The Module Map
+
+| # | Module | Responsibility | Deep Dive |
+|---|--------|----------------|-----------|
+| 1 | [Core Application](#1-core-application) | App factory, extensions, filters, context processors | [core/app-factory.md](core/app-factory.md) |
+| 2 | [Configuration](#2-configuration) | Typed config dataclasses, loader, validation, provenance | [core/configuration.md](core/configuration.md) |
+| 3 | [Data Models](#3-data-models) | 17 SQLAlchemy models and their relationships | [core/models.md](core/models.md) |
+| 4 | [Filesystem Layout](#4-filesystem-layout) | Path resolution, install modes, legacy migration | [core/filesystem.md](core/filesystem.md) |
+| 5 | [Onboarding](#5-onboarding) | First-run configuration, secrets, admin bootstrap | [core/onboarding.md](core/onboarding.md) |
+| 6 | [Theme System](#6-theme-system) | Halloy TOML themes → typed tokens → CSS variables | [core/themes.md](core/themes.md) |
+| 7 | [Appearance Layer](#7-appearance-layer) | Typeface and page backdrop registries | [frontend/appearance.md](frontend/appearance.md) |
+| 8 | [Routes](#8-routes) | Public, admin, API and feed request handlers | [routes/public-routes.md](routes/public-routes.md), [routes/admin-routes.md](routes/admin-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md) |
+| 9 | [Services](#9-services) | Business logic shared by CLI, API and admin | [services/overview.md](services/overview.md) |
+| 10 | [Operations Services](#10-operations-services) | Terminal-free operational logic behind the CLI | [services/operations.md](services/operations.md), [services/doctor.md](services/doctor.md) |
+| 11 | [Task Processing](#11-task-processing) | Celery queues and APScheduler jobs | [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md) |
+| 12 | [Infrastructure](#12-infrastructure) | Search, email, storage, webhooks, health | [infrastructure/overview.md](infrastructure/overview.md) |
+| 13 | [Frontend](#13-frontend) | Templates, CSS, JavaScript, Vite build | [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md) |
+| 14 | [Operator CLI](#14-operator-cli) | The standalone `devlog` command surface | [deployment/cli.md](deployment/cli.md) |
+| 15 | [Managed Deployment](#15-managed-deployment) | systemd units, compose/proxy rendering, drift, lifecycle | [deployment/managed-deployment.md](deployment/managed-deployment.md) |
+| 16 | [Middleware & Security](#16-middleware--security) | Rate limiting, auth, CSRF, headers, encryption | [deployment/security.md](deployment/security.md) |
+| 17 | [Testing](#17-testing) | pytest units, Playwright E2E, benchmarks | [testing/test-suite.md](testing/test-suite.md) |
+| 18 | [Packaging & Install](#18-packaging--install) | Installer, Docker, CI/CD | [deployment/installation.md](deployment/installation.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md) |
 
 ---
 
@@ -80,57 +97,102 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+The web process and the Celery worker are separate processes sharing one Redis. The scheduler is **in-process** with the web app — see [Task Processing](#11-task-processing) for the multi-container caveat.
+
+---
+
+## Request Lifecycle
+
+A public page request crosses these layers in order:
+
+```
+   HTTP request
+        │
+        ▼
+   ┌─────────────────┐
+   │  Reverse proxy  │  TLS, static files, coarse rate limit
+   └────────┬────────┘
+            ▼
+   ┌─────────────────┐
+   │  Flask before_  │  CSRF (non-API POSTs), security headers,
+   │  request handler│  session load, rate-limit keys
+   └────────┬────────┘
+            ▼
+   ┌─────────────────┐
+   │  Blueprint route│  public/ · admin/ · api/
+   └────────┬────────┘
+            ▼
+   ┌─────────────────┐
+   │    Services     │  tag, slug, authors, search, theme, appearance
+   └────────┬────────┘
+            ▼
+   ┌─────────────────┐
+   │   SQLAlchemy    │  models → SQLite (WAL) / PostgreSQL
+   └────────┬────────┘
+            ▼
+   ┌─────────────────┐
+   │  Template render│  context processors inject theme_vars,
+   │                 │  site settings, footer, nav
+   └────────┬────────┘
+            ▼
+   HTML response
+```
+
+An API request diverges at two points: it skips CSRF validation (`should_skip_csrf()` exempts the `api` blueprint) and it authenticates with an API key or scoped `ApiToken` rather than a session cookie. A background action (publish, subscribe, comment) additionally enqueues a Celery task.
+
 ---
 
 ## 1. Core Application
 
-**Source:** `app/__init__.py`, `app/config.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`, `app/tag_cache.py`, `app/cli.py`, `app/validators.py`
+**Source:** `app/__init__.py`, `app/extensions.py`, `app/filters.py`, `app/context_processors.py`, `app/csrf.py`, `app/transaction.py`, `app/vite.py`, `app/validators.py`, `app/utils.py`
 
-**Purpose:** Initialize Flask app, configure extensions, register blueprints, set up middleware.
+**Purpose:** Create and configure the Flask application, and provide the primitives the rest of the system builds on.
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| App Factory | `app/__init__.py` | `create_app()` - Flask app factory |
-| Configuration | `app/config.py` | TOML loading, env overrides, validation |
-| Extensions | `app/extensions.py` | SQLAlchemy, LoginManager, Migrate |
-| Filters | `app/filters.py` | Jinja2 template filters |
-| Context Processors | `app/context_processors.py` | Template global variables |
-| CLI Commands | `app/cli.py` | Flask CLI commands (rebuild-search, seed, create-admin, themes list/validate/inspect/refresh/accessibility) |
-| Standalone CLI | `devlog_cli/` | `devlog` entry point — Click CLI with result/error/output models, command groups (config, admin, db, themes, backup, onboard) |
-| Validators | `app/validators.py` | API input validation |
-| Tag Cache | `app/tag_cache.py` | Tag count caching with Flask-Caching TTL |
+| App factory | `app/__init__.py` | `create_app()` — registers blueprints, extensions, middleware, error handlers |
+| Extensions | `app/extensions.py` | `db` (SQLAlchemy), `login_manager`, `migrate` |
+| Filters | `app/filters.py` | Jinja filters: `markdown_safe`, `reading_time`, `sanitize_css`, `post_image_url`, `post_image_srcset`, `post_image_avif_url_stub` (deprecated stub) |
+| Context processors | `app/context_processors.py` | Inject `theme_vars`, site settings, footer data, page menu, canonical URL |
+| CSRF | `app/csrf.py` | Sliding-window tokens (5 valid); `should_skip_csrf()` exempts the API blueprint |
 | Transactions | `app/transaction.py` | `@transactional` decorator, `db_transaction()` context manager, slug retry |
-| CSRF | `app/csrf.py` | Sliding window CSRF tokens (5 valid), API blueprint exemption |
-| Vite Integration | `app/vite.py` | Content-hashed asset URLs, CDN prefix, manifest lookup |
-| Markdown Config | `app/markdown_config.py` | Shared nh3.clean() allowlists for markdown HTML sanitization |
-| Markdown Renderer | `app/markdown_renderer.py` | Single markdown pipeline; wraps code lines in `.code-line` spans for the CSS line counter |
-| CSV Utilities | `app/csv_utils.py` | Streaming CSV export with formula injection prevention |
-| Base62 | `app/base62.py` | Base62 encode/decode for short share URLs (`/s/<code>`) |
-| DB Utilities | `app/db_utils.py` | `get_database_dialect()`, `is_sqlite_database()` helpers |
-| Page View Buffer | `app/page_view_buffer.py` | Thread-safe buffer for batching page view inserts |
-| Filesystem Layout | `app/filesystem/` | Centralized path resolution with InstallMode and PathProvenance |
-| Backup Integrity | `app/backup_integrity.py` | Checksum verification and SQLite validation for backups |
-| Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption (PBKDF2-HMAC-SHA256 key derivation) |
-| Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption at rest |
-| Theme Primitives | `app/themes/colors.py` | RGB/RGBA color types, hex parsing, WCAG contrast, color mixing (Phase 02) |
-| Theme Parser | `app/themes/halloy.py` | Typed Halloy TOML parser with structured errors (Phase 02) |
-| Theme Model | `app/themes/model.py` | `BlogTheme` frozen dataclass, `CSS_VARS`, `ALIASES`, `EMERGENCY_DEFAULT` (Phase 03) |
-| Theme Translator | `app/themes/translate.py` | Halloy-to-BlogTheme translation, CSS variable generation (Phase 03) |
-| Theme Diagnostics | `app/themes/diagnostics.py` | Contrast checking, provenance tracking (Phase 03); expanded accessibility validation with severity classification, structured findings, catalog-wide validation (Phase 12) |
-| Theme Resources | `app/themes/resources.py` | `ThemeResource` protocol, `ThemeFileInfo`, bundled/external discovery via `importlib.resources`, name validation (Phase 04) |
-| Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation (Phase 04) |
-| Theme Registry | `app/themes/registry.py` | Authoritative theme registry: `_CatalogEntry` binding descriptor + source, listing, resolution, loading, fallback, structured exceptions (Phase 04) |
-| Theme Service | `app/themes/service.py` | Per-process `ThemeService` owning registry and fallback logic, `init_theme_service()`, `get_theme_service()` (Phase 07) |
+| Vite integration | `app/vite.py` | `vite_asset()` — content-hashed URLs, CDN prefix, manifest lookup |
+| Validation | `app/validators.py` | API input validation |
+| Utilities | `app/utils.py` | SSRF protection, email validation, `UTCDateTime` |
+| Markdown | `app/markdown_config.py`, `app/markdown_renderer.py`, `app/markdown_extensions.py` | One markdown pipeline; `nh3` allowlists; wraps code lines in `.code-line` spans |
+| Misc utilities | `app/base62.py`, `app/csv_utils.py`, `app/db_utils.py`, `app/page_view_buffer.py`, `app/tag_cache.py` | Short share URLs, formula-safe CSV export, dialect helpers, buffered page views, tag count cache |
 
-**Deep Dive:** [core/app-factory.md](core/app-factory.md), [core/configuration.md](core/configuration.md)
+**Deep Dive:** [core/app-factory.md](core/app-factory.md)
 
 ---
 
-## 2. Data Models
+## 2. Configuration
 
-**Source:** `app/models.py` (17 models)
+**Source:** `app/config/` (typed package), `app/config_legacy.py` (legacy globals)
 
-**Purpose:** Database schema and relationships.
+Configuration is centralized in `config.toml` with environment variable overrides.
+
+| Module | Purpose |
+|--------|---------|
+| `app/config/model.py` | 20 frozen dataclasses (`DevLogConfig` + 19 section classes) — the canonical source of truth for every field and its default |
+| `app/config/loader.py` | `load_effective_config()` — precedence chain env vars > config.toml > defaults |
+| `app/config/paths.py` | Path resolution with source tracking |
+| `app/config/validation.py` | Multi-layer validation: schema, security, filesystem, dependencies, compatibility |
+| `app/config/provenance.py` | Tracks which source supplied each value |
+| `app/config/secrets.py` | Secret field identification and redaction |
+| `app/config/profiles.py` | Deployment profiles: development, native-production, docker-production, minimal, full |
+| `app/config/serialization.py` | TOML/JSON output with redaction |
+| `app/config/migration.py` | Config version migration |
+
+`app/config_legacy.py` re-exports the legacy module-level globals via `app/config/__init__.py` for backward compatibility. `config.toml.example` mirrors the dataclass defaults; `config.toml` itself is gitignored.
+
+**Deep Dive:** [core/configuration.md](core/configuration.md)
+
+---
+
+## 3. Data Models
+
+**Source:** `app/models.py` — exactly 17 models
 
 | Model | Purpose |
 |-------|---------|
@@ -152,343 +214,17 @@ The codebase is organized into these discrete modules, each with dedicated deep-
 | `AdminAuditLog` | Security audit trail |
 | `ApiToken` | API authentication tokens with scoped access |
 
+`OperationResult` and its subclasses in `app/services/operations/results.py` are plain dataclasses, **not** SQLAlchemy models.
+
 **Deep Dive:** [core/models.md](core/models.md)
 
 ---
 
-## 3. Routes Layer
+## 4. Filesystem Layout
 
-**Source:** `app/routes/`
+**Source:** `app/filesystem/`
 
-**Purpose:** Handle HTTP requests and responses for public, admin, and API access.
-
-| Module | Source | Purpose |
-|--------|--------|---------|
-| Public Routes | `app/routes/public/` | Blog pages, posts, subscriptions |
-| Admin Routes | `app/routes/admin/` | Dashboard, CRUD operations |
-| API Routes | `app/routes/api/` | REST API for programmatic access |
-| RSS/Feeds | `app/routes/rss.py` | Atom, RSS, JSON feeds |
-| Error Handlers | `app/routes/errors.py` | 404, 500, 413 responses |
-
-**Deep Dive:** [routes/admin-routes.md](routes/admin-routes.md), [routes/public-routes.md](routes/public-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md)
-
----
-
-### API Routes Detail (`app/routes/api/`)
-
-| Endpoint | File | Purpose |
-|----------|------|---------|
-| `/api/posts` | `posts.py` | Post CRUD with pagination, search, filtering |
-| `/api/subscribers` | `subscribers.py` | Subscriber management |
-| `/api/stats` | `stats.py` | Dashboard statistics |
-| `/api/pages` | `pages.py` | Static page management |
-| `/api/series` | `series.py` | Post series management |
-| `/api/tags` | `tags.py` | Tag management |
-| API Auth | `auth.py` | `require_api_key` decorator |
-
----
-
-## 4. Middleware
-
-**Source:** `app/middleware/`
-
-**Purpose:** WSGI middleware for cross-cutting concerns.
-
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| Rate Limiting | `app/middleware/rate_limit.py` | Admin endpoint rate limiting with Flask-Limiter |
-
-**Note:** Global rate limiting is configured in `app/__init__.py` via Flask-Limiter (default: 100/min). The middleware module provides admin-specific rate limit configurations.
-
----
-
-## 5. Services Layer
-
-**Source:** `app/services/`
-
-**Purpose:** Business logic encapsulation, abstraction layer for reusable functionality.
-
-| Service | Source | Purpose |
-|---------|--------|---------|
-| Backup | `app/services/backup.py` | Database backup with compression/encryption |
-| Backup Encryption | `app/backup_encryption.py` | AES-256-GCM backup file encryption |
-| Encryption | `app/services/encryption.py` | AES-256-GCM for TOTP secrets |
-| Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
-| Slug | `app/services/slug.py` | Slug generation with collision handling |
-| Tag | `app/services/tag.py` | Tag CRUD operations |
-| Serialization | `app/services/serialization.py` | JSON export/import |
-| Webhook Encryption | `app/webhook_encryption.py` | AES-256-GCM webhook secret encryption |
-
-**Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md)
-
----
-
-### Search Provider Abstraction (`app/services/search/`)
-
-The `app/services/search/` module wraps the low-level `app/search.py` FTS5 implementation with a provider-based abstraction for future flexibility:
-
-| File | Purpose |
-|------|---------|
-| `__init__.py` | `SearchProvider` ABC defining the interface |
-| `sqlite.py` | FTS5 implementation delegating to `app/search.py` |
-| `postgresql.py` | PostgreSQL FTS stub (future implementation) |
-
-**Key Functions (from `app/search.py`):**
-- `init_fts()` - Create FTS5 virtual table
-- `sync_fts()` / `sync_fts_batch()` - Index posts
-- `search()` - Query with BM25 ranking
-- `get_search_snippets()` - Generate highlighted snippets
-- `get_did_you_mean()` - Fuzzy matching suggestions
-
----
-
-## 6. Task Processing
-
-**Source:** `app/tasks.py`, `app/scheduler.py`, `app/celery_app.py`
-
-**Purpose:** Handle asynchronous and scheduled background work.
-
-| System | Source | Purpose |
-|--------|--------|---------|
-| Celery | `app/tasks.py` | Async task queue with Redis broker |
-| APScheduler | `app/scheduler.py` | In-process scheduled jobs |
-
-**Celery Queues:**
-| Queue | Tasks |
-|-------|-------|
-| `images` | Image variant generation |
-| `newsletter` | Newsletter delivery (Celery task — no attempt check) |
-| `webhooks` | Webhook delivery |
-| `email` | Transactional emails |
-| `backup` | Database backups |
-
-**APScheduler Jobs:**
-| Job | Schedule | Purpose |
-|-----|----------|---------|
-| `send_daily_newsletter` | Daily at configured time | Auto-send newsletter |
-| `cleanup_expired_subscribers` | Every 5 minutes | Remove unconfirmed expired |
-| `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
-| `run_daily_backup` | Daily at 02:00 | Daily database backup |
-
-**Newsletter Delivery Paths:** Two paths terminate at `email.send_newsletter()`:
-1. **Daily scheduled:** `scheduler.send_daily_newsletter()` (APScheduler) → `email.send_newsletter()` — checks `NEWSLETTER_MAX_RETRY_ATTEMPTS`, filters posts by `newsletter_attempts`
-2. **Manual/ad-hoc:** `send_newsletter_task` (Celery) → `email.send_newsletter()` — no attempt count check, sends for all requested post IDs
-
-**Newsletter Retry:** Scheduler path respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` (configured in `app/config.py`, referenced in `app/scheduler.py:95-124`). Celery task does not check attempt counts — it sends for all posts in `post_ids` regardless of prior failures. Default retry count is 5.
-
-**APScheduler Multi-Container Warning:** APScheduler uses `FileLock` with `timeout=0` which only works on a single machine. In multi-container deployments, each container runs its own scheduler and jobs may execute simultaneously.
-
-**Deep Dive:** [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md)
-
----
-
-## 7. Infrastructure
-
-**Source:** `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py`
-
-**Purpose:** Supporting systems for core application operation.
-
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| Search | `app/search.py` | FTS5 full-text search (low-level implementation) |
-| Email | `app/email.py` | SMTP email delivery |
-| Storage | `app/storage.py` | Local/S3 storage abstraction |
-| Webhooks | `app/webhooks.py` | Event-driven webhook delivery |
-| Utilities | `app/utils.py` | SSRF protection, logging helpers |
-| Health Check | `app/routes/public/meta.py` | System health monitoring |
-
-**Note on FTS Initialization:** FTS5 init failures are caught and rolled back silently (`app/__init__.py:438-441`). The user is never informed if full-text search will not function. Consider failing loudly or surfacing a user-visible error when FTS init fails.
-
-### Health Check (`GET /health`)
-
-**Source:** `app/routes/public/meta.py:214-362`
-
-Health endpoint for monitoring with rate limit of 60/min per IP.
-
-#### Authentication
-
-- **Basic call**: `GET /health` — returns summary status without sensitive details
-- **Detailed call**: `GET /health?detailed=true` with secret via:
-  - Header: `X-Health-Secret: <HEALTH_CHECK_SECRET>`
-  - Bearer token: `Authorization: Bearer <HEALTH_CHECK_SECRET>`
-  - Query param: `?secret=<HEALTH_CHECK_SECRET>` (legacy, still supported)
-- In production without `HEALTH_CHECK_SECRET`, detailed mode returns 403
-- Secret validated via constant-time HMAC comparison
-
-#### Critical Checks
-
-These checks determine the overall `status` field:
-
-| Check | Validation | Status Values |
-|-------|-----------|---------------|
-| `database` | Executes `SELECT 1` against the database, measures latency | `ok`, `error` |
-| `scheduler` | Calls `get_scheduler_health()` if `SMTP_HOST` is set | `running`, `disabled`, `error` |
-| `search` | SQLite: queries `sqlite_master` for `posts_fts` table existence; non-SQLite: returns `unsupported` | `ok`, `unavailable`, `unsupported`, `error` |
-| `disk_space` | Checks `shutil.disk_usage()` on instance path; threshold is 10% free | `ok`, `low`, `error` |
-| `db_integrity` | SQLite: runs `PRAGMA integrity_check`; non-SQLite: returns `unsupported` | `ok`, `unsupported`, `error` |
-
-#### Optional Checks
-
-These checks are included in the response but do **not** affect overall status:
-
-| Check | Validation | Status Values |
-|-------|-----------|---------------|
-| `redis` | Redis `PING` with 2s connect/timeout | `ok`, `error` |
-| `celery` | `celery_app.control.inspect().ping()` with 3s timeout | `ok`, `unavailable`, `disabled` |
-| `backup_freshness` | Finds most recent backup file by mtime; checks age < 24 hours | `ok`, `stale`, `no_backups`, `error` |
-
-#### Overall Status Logic
-
-- **`ok`**: All critical checks have status in `("ok", "running", "disabled")`
-- **`degraded`**: Any critical check has status `"error"` or `"low"`
-- The HTTP status code is `200` when overall is `ok`, `503` when `degraded`
-
-#### Detailed Response
-
-When authenticated with `?detailed=true&secret=<key>`, the response includes a `details` object:
-
-| Field | Source |
-|-------|--------|
-| `database_latency_ms` | Time for `SELECT 1` in milliseconds |
-| `scheduler_next_run` | Next scheduled job run time (if scheduler enabled) |
-| `scheduler_last_newsletter_send` | Timestamp of last newsletter send (if scheduler enabled) |
-
-#### Response Format
-
-```json
-{
-  "status": "ok|degraded",
-  "checks": {
-    "database": "ok",
-    "scheduler": "running",
-    "search": "ok",
-    "disk_space": "ok",
-    "db_integrity": "ok",
-    "redis": "ok",
-    "celery": "ok",
-    "backup_freshness": "ok"
-  },
-  "timestamp": "<ISO 8601 timestamp>",
-  "details": {
-    "database_latency_ms": 0.42,
-    "scheduler_next_run": "<ISO 8601 timestamp>",
-    "scheduler_last_newsletter_send": "<ISO 8601 timestamp>"
-  }
-}
-```
-
-### Storage (`app/storage.py`)
-
-Storage abstraction layer for media files with local and S3 backends.
-
-| Class | Purpose |
-|-------|---------|
-| `StorageBackend` | Abstract base class defining the interface |
-| `LocalStorageBackend` | Local filesystem storage |
-| `S3StorageBackend` | S3-compatible storage via boto3 |
-
-Configured via `STORAGE_BACKEND` env var: `"local"` (default) or `"s3"`. `get_storage()` returns a module-level singleton. Lazy client initialization for S3 uses `threading.Lock`. `save()` raises exceptions on failure (with logging). Other S3 methods return `False` or empty lists on failure.
-
-### SSRF Protection (`app/utils.py`)
-
-Webhook delivery includes Server-Side Request Forgery (SSRF) protection to prevent requests to internal/private networks.
-
-- **URL Validation**: Before sending webhook requests, URLs are validated against private IP ranges
-- **Blocked Ranges**: `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1/128`, `fc00::/7`
-- **DNS Rebinding Protection**: Resolves hostname and checks resolved IP before sending
-- **Redirect Prevention**: `allow_redirects=False` prevents redirect-based SSRF bypass
-- **Implementation**: `app/utils.py:383-485` (~100 lines). Returns `tuple[bool, str]`.
-
-**Deep Dive:** [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
-
----
-
-## 8. Frontend
-
-**Source:** `app/templates/`, `app/static/`
-
-**Purpose:** User-facing JavaScript, CSS, and templates.
-
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| Static Assets | `app/static/` | JS modules (Vite-bundled), CSS, fonts, images |
-| Templates | `app/templates/` | Jinja2 templates (admin, public, email) |
-
-All JS assets in templates use `vite_asset()` (defined in `app/vite.py:48`) for content-hashed filenames and optional CDN prefix support. This includes `marked.min.js`, Prism JS/CSS, and all route-specific modules.
-
-**Deep Dive:** [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md)
-
-> **⚠️ Production Deployment Requirement:** The Vite build (`npm run build`) must be run before production deployment. The `manifest.json` file (generated at `app/static/dist/.vite/manifest.json`) must be present. If Vite build has not run, JavaScript assets will return hashed paths that do not exist, resulting in broken functionality.
-
----
-
-## 9. Testing
-
-**Source:** `tests/`
-
-**Purpose:** Automated testing with pytest and Playwright.
-
-| Test Type | Location | Tool |
-|-----------|----------|------|
-| Unit/Integration | `tests/test_*.py` | pytest |
-| Benchmark | `tests/benchmarks/` | pytest |
-| E2E | `tests/e2e/` | Playwright |
-
-**Key Fixtures:** `app`, `db`, `client`, `admin_user`, `authenticated_client`, `sample_post`, `sample_tag`, `sample_subscriber`
-
-**Deep Dive:** [testing/test-suite.md](testing/test-suite.md)
-
----
-
-## 10. Security Architecture
-
-**Source:** `app/routes/admin/auth.py`, `app/services/encryption.py`, `app/middleware/rate_limit.py`, `app/csrf.py`
-
-**Purpose:** Authentication, authorization, and protection against attacks.
-
-| Feature | Implementation |
-|---------|---------------|
-| **Authentication** | Session-based with optional TOTP 2FA |
-| **2FA** | TOTP secrets encrypted with AES-256-GCM |
-| **Backup Codes** | SHA-256 hashed, single-use (8 codes) |
-| **CSRF** | Sliding window tokens (5 valid) via `app/csrf.py`; enforced for all POST requests except API blueprint via `should_skip_csrf()` (`app/__init__.py:295-296`) |
-| **API Auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison + scoped `ApiToken` model with `require_scope()` decorator; `scope_allows()` supports exact match, `admin:*` for full access, and category wildcards (e.g. `posts:*`) |
-
-> **CSRF Scope for API Clients:** CSRF validation is **skipped for API endpoints** (`request.blueprint == "api"` checked in `should_skip_csrf()` at `app/csrf.py:26`). The `before_request_handler()` at `app/__init__.py:295-296` calls `should_skip_csrf()` before validating tokens, so API POST requests are exempt. API endpoints are protected by token-based auth (API keys, `ApiToken` model) with token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens. See `deployment/security.md` for full security architecture details.
-| **Account Lockout** | 5 failed attempts → 15-minute lockout |
-| **SSRF Protection** | URL validation against private IP ranges |
-| **Webhook Signing** | HMAC-SHA256 with `X-Webhook-Signature` header |
-| **XSS** | `nh3` HTML sanitizer, CSP headers |
-| **Audit Logging** | `AdminAuditLog` for all admin actions |
-| **Rate Limiting** | Flask-Limiter with Redis/memory backend via `app/middleware/rate_limit.py` |
-| **Session Fixation** | `session.clear()` before `login_user()` |
-
-**Deep Dive:** [deployment/security.md](deployment/security.md)
-
----
-
-## 11. Deployment
-
-**Source:** `Dockerfile`, `docker-compose.yml`, `nginx/`, `scripts/`
-
-**Purpose:** Container orchestration, web server configuration, CI/CD.
-
-| Component | Purpose |
-|-----------|---------|
-| Installer | One-shot native (`--system`/`--user` scope) or Docker installation with checksum verification |
-| Onboarding | First-run configuration: secrets, config.toml, database migrations, admin creation |
-| Docker | Containerized deployment; health check includes 10s `start_period` before healthy status |
-| Docker Compose | Multi-container orchestration; requires explicit profiles (`--profile production`, `--profile backup`) — no default profile |
-| Optional nginx | TLS termination, static files, rate limiting (requires `--profile reverse-proxy` and certificate configuration) |
-| CI/CD | Automated testing and deployment |
-
-**Deep Dive:** [deployment/installation.md](deployment/installation.md), [deployment/overview.md](deployment/overview.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md)
-
----
-
-## Filesystem Layout
-
-The filesystem layout system provides centralized path resolution for all deployment modes. `RuntimePaths` in `app/filesystem/layout.py` is the sole path resolution authority — neither the installer nor onboarding derives paths independently.
+`RuntimePaths` in `app/filesystem/layout.py` is the sole path-resolution authority — neither the installer nor onboarding derives paths independently.
 
 | Mode | Data Root | Config | Logs | Runtime |
 |------|-----------|--------|------|---------|
@@ -497,181 +233,565 @@ The filesystem layout system provides centralized path resolution for all deploy
 | Docker | `/data` | `/etc/devlog/config.toml` | `/var/log/devlog` | `/run/devlog` |
 | Development | `./data` | `./config.toml` | `./logs` | `./instance` |
 
-Each path carries provenance metadata (explicit override, env var, mode default, etc.) accessible via `devlog paths status`.
+Each path carries provenance metadata (explicit override, env var, mode default). Explicit overrides always win over env vars and mode defaults. Legacy discovery is read-only; migration planning defaults to dry-run. Production services must not require write access to source directories.
 
-**Installation contract:** The installer (`scripts/install.sh`) installs code artifacts only. Onboarding (`devlog onboard`) creates configuration, secrets, database, and admin state. See [deployment/installation.md](deployment/installation.md) for the full responsibility boundary.
+CLI: `devlog paths status` · `devlog paths discover-legacy` · `devlog paths migrate` · `devlog paths check`
+
+**Deep Dive:** [core/filesystem.md](core/filesystem.md)
+
+---
+
+## 5. Onboarding
+
+**Source:** `app/onboarding/`, `app/services/operations/onboard.py`
+
+Onboarding is the first-run configuration flow: detect installation → resolve mode → resolve paths → collect input → build config → resolve secrets → plan → validate → write config → write env → create directories → run migrations → create administrator → verify assets.
+
+**Responsibility boundary:** the installer (`scripts/install.sh`) installs *code artifacts only*. Onboarding creates *configuration, secrets, database and admin state*. The two never overlap.
+
+CLI: `devlog onboard detect` · `plan` · `run` · `resume`
+
+**Deep Dive:** [core/onboarding.md](core/onboarding.md)
+
+---
+
+## 6. Theme System
+
+**Source:** `app/themes/`, `app/themes/bundled/` (50 Halloy `.toml` themes)
+
+The theme system owns **colour**. Static CSS may only consume the tokens it emits; it may never name a colour directly.
+
+```
+Halloy .toml → halloy.py parser → translate.py → BlogTheme (44 semantic tokens + 6 RGBA)
+             → to_css_variables() → theme_vars → templates
+```
+
+| Module | Purpose |
+|--------|---------|
+| `colors.py` | RGB/RGBA, hex parsing, WCAG contrast, mixing, lightness adjustment |
+| `halloy.py` | Typed TOML parser with structured error classes |
+| `model.py` | `BlogTheme` frozen dataclass, `CSS_VARS`, `ALIASES`, `EMERGENCY_DEFAULT` |
+| `translate.py` | `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()` |
+| `diagnostics.py` | Accessibility validation, severity classification, structured findings |
+| `resources.py` | `ThemeResource` protocol; bundled discovery via `importlib.resources`; external overrides |
+| `cache.py` | In-process cache with `source_fingerprint` freshness validation |
+| `registry.py` | `ThemeRegistry` — catalogue discovery, resolution, loading, invalidation, structured exceptions |
+| `service.py` | `ThemeService` — per-process, stored on `app.extensions["theme_service"]` |
+
+**Deep Dive:** [core/themes.md](core/themes.md)
+
+---
+
+## 7. Appearance Layer
+
+**Source:** `app/appearance/`, `app/services/appearance_settings.py`
+
+The appearance layer answers "which typeface?" and "which graphic sits behind the page?" — the questions the theme registry does not answer. It follows the same registry → service → settings → runtime shape as the theme system, so there is one mechanism to learn rather than two.
+
+| Module | Purpose |
+|--------|---------|
+| `model.py` | `FontFamily` and `BackdropDescriptor` records |
+| `fonts.py` | `FontRegistry` — bundled families plus operator uploads |
+| `backdrops.py` | `BackdropRegistry` — bundled graphics plus operator uploads |
+| `service.py` | `AppearanceService` — resolves the choice and emits the CSS |
+| `svg.py` | `sanitize_svg()` — makes an uploaded backdrop inert |
+| `uploads.py` | Validates and stores uploaded fonts and backdrops |
+
+Ten font families ship locally (4 sans, 6 mono) as `woff2` files in `app/static/fonts/`. Three backdrops ship in `app/static/img/backdrops/`. A custom font or backdrop whose file has been deleted is treated as missing so the runtime falls back to a bundled asset rather than emitting a 404-backed stack.
+
+**Deep Dive:** [frontend/appearance.md](frontend/appearance.md)
+
+---
+
+## 8. Routes
+
+**Source:** `app/routes/`
+
+| Blueprint | Prefix | Purpose |
+|-----------|--------|---------|
+| `public` | — | Homepage, archive, tags, series, posts, pages, search, share, subscribe, comments, authors, sitemap, robots, health |
+| `admin` | `/admin` | Dashboard, editor, posts, pages, series, tags, users, sessions, media, backup, analytics, newsletter, settings, audit, comments |
+| `api` | `/api` | REST API with scoped tokens |
+| `rss` | — | Atom, RSS and JSON feeds |
+| `errors` | — | 404, 500, 413 handlers |
+
+### API Endpoints
+
+| Endpoint | File | Purpose |
+|----------|------|---------|
+| `/api/posts` | `api/posts.py` | Post CRUD with pagination, search, filtering |
+| `/api/pages` | `api/pages.py` | Static page management |
+| `/api/series` | `api/series.py` | Post series management |
+| `/api/tags` | `api/tags.py` | Tag management |
+| `/api/subscribers` | `api/subscribers.py` | Subscriber management |
+| `/api/stats` | `api/stats.py` | Dashboard statistics |
+| — | `api/auth.py` | `require_api_key` decorator, `scope_allows()` scope matching |
+
+`scope_allows()` supports exact match, `admin:*` for full access, and category wildcards such as `posts:*`.
+
+**Deep Dive:** [routes/public-routes.md](routes/public-routes.md), [routes/admin-routes.md](routes/admin-routes.md), [routes/api-routes.md](routes/api-routes.md), [routes/rss-feeds.md](routes/rss-feeds.md)
+
+---
+
+## 9. Services
+
+**Source:** `app/services/`
+
+Business logic shared by the CLI, the API and the admin routes. Services do not import Flask request context and are callable from any of the three.
+
+| Service | File | Purpose |
+|---------|------|---------|
+| Authors | `services/authors.py` | Author view resolution, author URLs, default author |
+| Navigation | `services/navigation.py` | Menu page-ID parsing, menu resolution |
+| Profile | `services/profile.py` | Profile validation, avatar storage |
+| Site settings | `services/site_settings.py` | Site-settings form parsing and cache invalidation |
+| Theme settings | `services/theme_settings.py` | Theme validation, legacy preset migration, effective name resolution |
+| Appearance settings | `services/appearance_settings.py` | Appearance form parsing and key resolution |
+| Backup | `services/backup.py` | Database backup with compression/encryption |
+| Encryption | `services/encryption.py` | AES-256-GCM for TOTP secrets |
+| Serialization | `services/serialization.py` | JSON export/import |
+| Slug | `services/slug.py` | Unique slug generation with collision handling |
+| Tag | `services/tag.py` | Tag CRUD |
+| Search | `services/search/` | `SearchProvider` abstraction: SQLite FTS5 implementation, PostgreSQL stub |
+
+The standalone FTS5 functions in `app/search.py` are **separate** from the `SearchProvider` abstraction — `SQLiteSearchProvider` wraps its own implementation rather than delegating to `app/search.py`.
+
+**Deep Dive:** [services/overview.md](services/overview.md), [services/backup.md](services/backup.md), [services/search.md](services/search.md), [services/slug.md](services/slug.md), [services/tag.md](services/tag.md), [services/encryption.md](services/encryption.md), [services/serialization.md](services/serialization.md), [services/tag_cache.md](services/tag_cache.md)
+
+---
+
+## 10. Operations Services
+
+**Source:** `app/services/operations/`
+
+Operational business logic extracted from CLI handlers so it can run from the standalone CLI, from Flask CLI wrappers and from tests without a terminal.
+
+| Module | Purpose |
+|--------|---------|
+| `results.py` | `OperationResult` base plus typed subclasses with stable operation codes |
+| `admin.py` | Admin user create / promote / reset-password / list; centralised password complexity rules |
+| `database.py` | SQLite integrity check, FTS rebuild, migration status |
+| `media.py` | Orphaned media scan and cleanup |
+| `transfer.py` | Site data export/import with atomic writes |
+| `themes.py` | Theme list / validate / inspect / refresh / paths / accessibility facade |
+| `backup.py` | Backup creation and verification with structured results |
+| `deploy.py` | Managed deployment render / install / check |
+| `onboard.py` | Onboarding detect / plan / apply |
+| `doctor.py` | Diagnostic check registry — 76 checks across 20 categories |
+
+The contract: no Click, no terminal output, no process exit. App-context required. Typed `OperationResult` return. `commit_with_rollback()` at transaction boundaries. Secrets are never returned or logged.
+
+**Deep Dive:** [services/operations.md](services/operations.md), [services/doctor.md](services/doctor.md)
+
+---
+
+## 11. Task Processing
+
+**Source:** `app/tasks.py`, `app/scheduler.py`, `app/celery_app.py`
+
+| System | Purpose |
+|--------|---------|
+| Celery | Async task queue with a Redis broker, five queues |
+| APScheduler | In-process scheduled jobs, four of them |
+
+### Celery Queues
+
+| Queue | Task | Purpose |
+|-------|------|---------|
+| `images` | `generate_image_variants` | Image variant generation |
+| `newsletter` | `send_newsletter_task` | Newsletter delivery (no attempt-count check) |
+| `webhooks` | `deliver_webhook_task` → `deliver_single_webhook_task` | Two-level webhook delivery |
+| `email` | `send_confirmation_task`, `send_password_reset_task`, `notify_pending_comment_task` | Transactional emails |
+| `backup` | `run_backup_task` | Database backups |
+
+Webhook delivery is two-level: `deliver_webhook_task` fans out to one `deliver_single_webhook_task` per webhook, so one failing endpoint does not block the others. Retries live at the subtask level, not the parent.
+
+### APScheduler Jobs
+
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| `send_daily_newsletter` | Daily at configured time | Auto-send newsletter |
+| `cleanup_expired_subscribers` | Every 5 minutes | Remove unconfirmed expired subscribers |
+| `publish_scheduled_posts` | Every 5 minutes | Auto-publish scheduled posts |
+| `run_daily_backup` | Daily at 02:00 | Daily database backup |
+
+**Newsletter delivery has two paths** that both terminate at `email.send_newsletter()`. The scheduler path respects `NEWSLETTER_MAX_RETRY_ATTEMPTS` (default 5); the Celery task sends for all requested post IDs regardless of prior failures.
+
+> **⚠️ APScheduler multi-container limitation:** APScheduler uses `FileLock` with `timeout=0`, which only works on a single machine. Multiple container replicas each run their own scheduler and may execute jobs concurrently. Set `ENABLE_SCHEDULER=true` on exactly **one** container. It is disabled by default so replicas can run without duplicate jobs.
+
+**Deep Dive:** [tasks/overview.md](tasks/overview.md), [tasks/celery-tasks.md](tasks/celery-tasks.md), [tasks/scheduler.md](tasks/scheduler.md)
+
+---
+
+## 12. Infrastructure
+
+**Source:** `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py`, `app/utils.py`, `app/routes/public/meta.py`
+
+| Component | Purpose |
+|-----------|---------|
+| Search | FTS5 full-text search; BM25 ranking, snippets, did-you-mean |
+| Email | SMTP delivery, `send_newsletter()` is the single newsletter terminus |
+| Storage | Local/S3 abstraction with a thread-safe singleton |
+| Webhooks | Event creation and HMAC-SHA256 signed delivery |
+| SSRF protection | URL validation against private IP ranges (`app/utils.py`) |
+| Health check | `GET /health` — basic mode is unauthenticated, detailed mode needs `HEALTH_CHECK_SECRET` |
+| Metrics | `GET /metrics` — disabled unless `ENABLE_METRICS=true`; production requires `METRICS_SECRET` |
+
+**FTS init is silent:** `app/__init__.py` catches `OperationalError` during FTS initialisation and rolls back without informing the user. If the FTS table cannot be created, search silently returns nothing.
+
+**Deep Dive:** [infrastructure/overview.md](infrastructure/overview.md), [infrastructure/search.md](infrastructure/search.md), [infrastructure/email.md](infrastructure/email.md), [infrastructure/storage.md](infrastructure/storage.md), [infrastructure/webhooks.md](infrastructure/webhooks.md)
+
+---
+
+## 13. Frontend
+
+**Source:** `app/templates/`, `app/static/`
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Templates | `app/templates/` | Jinja2 — public pages, admin pages, email bodies |
+| CSS | `app/static/css/` | `base.css` (tokens, prose, reset), `layout.css`, `forms.css`, `admin.css`, `public.css`, `utilities.css`, `critical.css`, Prism themes |
+| JavaScript | `app/static/js/` | Vanilla ES modules: `shared/`, `public/`, `admin/`, `lib/` |
+| Fonts | `app/static/fonts/` | Self-hosted `woff2` families |
+| Images | `app/static/img/` | Favicon, default post image, backdrops |
+| Uploads | `app/static/uploads/` | User media, custom fonts and backdrops |
+| Build output | `app/static/dist/` | Vite bundle + `manifest.json` |
+
+JavaScript is loaded route-by-route: `main.js` maps path prefixes to module lists, matching on a path-segment boundary with the longest prefix winning. `admin/base.html` and `base.html` are **standalone** root templates — neither extends the other.
+
+All JS assets in templates use `vite_asset()` for content-hashed filenames and optional CDN prefix support.
+
+> **⚠️ Production requirement:** `npm run build` must run before production deployment. `app/static/dist/.vite/manifest.json` must exist, otherwise JS assets resolve to hashed paths that do not exist. Docker builds handle this in the `frontend-builder` stage.
+
+**Deep Dive:** [frontend/overview.md](frontend/overview.md), [frontend/templates.md](frontend/templates.md), [frontend/static-assets.md](frontend/static-assets.md)
+
+---
+
+## 14. Operator CLI
+
+**Source:** `devlog_cli/` — the standalone `devlog` entry point
+
+A Click CLI that shares no code path with the Flask app except through the services layer. It builds its own `CliContext`, calls an operations service, and renders a `Result`.
+
+| Component | Purpose |
+|-----------|---------|
+| `main.py` | Root Click group and sub-group registration |
+| `context.py` | `CliContext` — config path, env file, output flags |
+| `result.py` | `Result` dataclass with success/failure factories |
+| `output.py` | Human-readable and JSON rendering |
+| `errors.py` | Domain exception hierarchy |
+| `exit_codes.py` | Stable `ExitCode` IntEnum |
+
+### Command Groups
+
+| Group | Commands |
+|-------|----------|
+| `config` | `check`, `show`, `explain`, `paths`, `init`, `migrate` |
+| `admin` | `create`, `promote`, `reset-password`, `list` |
+| `db` | `check`, `rebuild-search`, `status`, `migrate` |
+| `themes` | `list`, `validate`, `inspect`, `refresh`, `paths`, `accessibility` |
+| `backup` | `create`, `verify`, `inspect` |
+| `data` | `export`, `import` |
+| `media` | `scan`, `cleanup` |
+| `onboard` | `detect`, `plan`, `run`, `resume` |
+| `paths` | `status`, `discover-legacy`, `migrate`, `check` |
+| `deploy` | `render`, `install`, `check` |
+| `doctor` | `doctor` with `--production`, `--check`, `--category`, `--fix-safe`, `--list-checks` |
+| lifecycle | `start`, `stop`, `restart`, `status`, `logs` |
+
+**Deep Dive:** [deployment/cli.md](deployment/cli.md)
+
+---
+
+## 15. Managed Deployment
+
+**Source:** `app/deployment/`
+
+The layer that renders and installs host-level configuration for a native (non-Docker) installation, and keeps it in sync with drift detection.
+
+| Module | Purpose |
+|--------|---------|
+| `model.py` | `DeploymentContext`, `RenderResult`, context validation |
+| `systemd.py` | Renders and validates web / worker / scheduler units |
+| `compose.py` | Renders a compose file and its env file |
+| `proxy.py` | Renders and validates Caddyfile and nginx configs |
+| `logrotate.py` | Renders the logrotate policy |
+| `install.py` | Install plan, atomic writes, backup and restore |
+| `drift.py` | Content-hash drift detection against a managed manifest |
+| `lifecycle.py` | Service status, start / stop / restart, logs — systemd or compose backend |
+
+**Deep Dive:** [deployment/managed-deployment.md](deployment/managed-deployment.md)
+
+---
+
+## 16. Middleware & Security
+
+**Source:** `app/middleware/rate_limit.py`, `app/csrf.py`, `app/routes/admin/auth.py`, `app/services/encryption.py`
+
+| Feature | Implementation |
+|---------|---------------|
+| **Authentication** | Session-based with optional TOTP 2FA |
+| **2FA** | TOTP secrets encrypted with AES-256-GCM |
+| **Backup codes** | SHA-256 hashed, single-use (8 codes) |
+| **CSRF** | Sliding-window tokens (5 valid), enforced for all POSTs except the API blueprint |
+| **API auth** | Two-tier: legacy `API_KEY` env var with HMAC comparison, plus scoped `ApiToken` with `require_scope()` |
+| **Rate limiting** | Flask-Limiter — global (100/min) plus per-admin and per-IP admin limits |
+| **Account lockout** | 5 failed attempts → 15-minute lockout |
+| **SSRF protection** | URL validation against private IP ranges |
+| **Webhook signing** | HMAC-SHA256 via the `X-Webhook-Signature` header |
+| **XSS** | `nh3` HTML sanitiser, CSP headers |
+| **Audit logging** | `AdminAuditLog` for admin actions |
+| **Session fixation** | `session.clear()` before `login_user()` |
+
+**Deep Dive:** [deployment/security.md](deployment/security.md)
+
+---
+
+## 17. Testing
+
+**Source:** `tests/`
+
+| Test Type | Location | Tool |
+|-----------|----------|------|
+| Unit/Integration | `tests/test_*.py` | pytest |
+| Benchmarks | `tests/benchmarks/` | pytest |
+| E2E | `tests/e2e/` | Playwright |
+
+**Key fixtures:** `app`, `db`, `client`, `admin_user`, `authenticated_client`, `api_client`, `sample_post`, `sample_tag`, `sample_subscriber`. Shared fixtures live in `tests/shared_fixtures.py`.
+
+The E2E suite defines its own session-scoped `app` fixture in `tests/e2e/conftest.py` with a separate `blog_e2e` database, so `pytest tests/e2e/` runs standalone.
+
+**Deep Dive:** [testing/test-suite.md](testing/test-suite.md)
+
+---
+
+## 18. Packaging & Install
+
+**Source:** `scripts/install.sh`, `Dockerfile`, `docker-compose.yml`, `nginx/`, `.github/workflows/ci.yml`
+
+| Component | Purpose |
+|-----------|---------|
+| Installer | One-shot native or Docker install with SHA-256 checksum verification; versioned release layout with an atomic `current` symlink |
+| Onboarding | First-run configuration — see [Onboarding](#5-onboarding) |
+| Docker | Multi-stage build; the `frontend-builder` stage runs the Vite build |
+| Docker Compose | All services require explicit profiles — there is no default profile |
+| nginx | Optional TLS-terminating reverse proxy (`--profile reverse-proxy`) |
+| CI | 11 jobs in `.github/workflows/ci.yml` |
+
+Docker Compose profiles:
+
+| Profile | Services |
+|---------|----------|
+| `production` | blog, celery, redis — app bound to `127.0.0.1:5000` |
+| `reverse-proxy` | nginx (optional) |
+| `backup` | backup service |
+
+**Deep Dive:** [deployment/installation.md](deployment/installation.md), [deployment/docker.md](deployment/docker.md), [deployment/cicd.md](deployment/cicd.md)
+
+---
+
+## Cross-Cutting Contracts
+
+These are the seams where modules meet. Each has a single owner; violating them is how the layers drift apart.
+
+| Value | Owner | Consumers must |
+|---|---|---|
+| Colour | The theme runtime | Static CSS consumes tokens only; every referenced token is emitted or defined |
+| Typeface | The appearance runtime | `--font-sans` and `--font-mono` are emitted by `app/appearance/service.py`; stylesheets never name a family |
+| Prose typography | `app/static/css/base.css` | The admin shell does not load `public.css`, so `public.css` must not own `.prose` rules |
+| Default profile image | `app/templates/_default_avatar.html` | One macro for every "no profile picture" surface; never fall back to the first letter of a name |
+| Heading ID | `app/static/js/shared/heading-slug.js` | One generator only |
+| Heading anchor | `app/static/js/public/anchor-links.js` | The anchor is a child of the heading, never wrapped; transparent until the heading is hovered or the anchor focused |
+| Post image URL | `post_image_url` filter (`app/filters.py`) | Use the URL directly; never re-wrap with `url_for('static', …)` |
+| Responsive `srcset` | `post_image_srcset` filter | Guard the attribute — the filter returns `None` when no variants exist |
+| Markdown | `app/markdown_renderer.py` / `markdown_safe` | One producer; do not add a second markdown pipeline |
+| CSRF header name | `app/csrf.py` (`CSRF_HEADER_NAME`) | Read it from `data-csrf-header` or `csrfHeaders()`; never hard-code it |
+| Route → JS modules | `app/static/js/main.js` | Match on a path-segment boundary, longest match first |
+| Filesystem paths | `RuntimePaths` (`app/filesystem/layout.py`) | One resolver; do not derive paths independently |
+| Secrets | The generating module | Never log, never return, never echo into a result payload |
+| Transaction boundary | `commit_with_rollback()` | Use it in services; do not call `db.session.commit()` directly |
+
+---
 
 ## Directory Structure
 
 ```
 blog/
 ├── app/                              # Main application package
-│   ├── __init__.py                   # create_app() - Flask app factory
-│   ├── config.py                     # Configuration loading from TOML + env
-│   ├── models.py                     # SQLAlchemy ORM models (17 models)
-│   ├── extensions.py                 # Flask extensions (db, login_manager, migrate)
-│   ├── utils.py                      # Utilities (slug, UTCDateTime, SSRF)
-│   ├── validators.py                # API input validation
-│   ├── filters.py                   # Jinja2 template filters
+│   ├── __init__.py                   # create_app() — Flask app factory
+│   ├── extensions.py                 # db, login_manager, migrate
+│   ├── models.py                     # SQLAlchemy models (17)
+│   ├── filters.py                    # Jinja2 template filters
 │   ├── context_processors.py         # Template context injectors
-│   ├── email.py                     # SMTP email sending
-│   ├── webhooks.py                  # Webhook event creation/delivery
+│   ├── csrf.py                       # CSRF token handling
+│   ├── transaction.py                # Transaction decorator/context manager
+│   ├── validators.py                 # API input validation
+│   ├── utils.py                      # SSRF protection, UTCDateTime, email validation
+│   ├── base62.py                     # Short URL encoding
+│   ├── csv_utils.py                  # CSV export with formula-injection prevention
+│   ├── db_utils.py                   # Database dialect helpers
+│   ├── page_view_buffer.py           # Buffered page-view writes
+│   ├── tag_cache.py                  # Tag count cache
+│   ├── vite.py                       # Vite integration (hashed asset URLs)
+│   ├── markdown_config.py            # Shared nh3 sanitiser allowlists
+│   ├── markdown_renderer.py          # The single markdown pipeline
+│   ├── markdown_extensions.py        # Markdown extension registration
 │   ├── storage.py                    # Local/S3 storage abstraction
-│   ├── search.py                    # FTS5 full-text search
-│   ├── tasks.py                     # Celery async tasks
-│   ├── scheduler.py                 # APScheduler jobs
-│   ├── celery_app.py                # Celery configuration
-│   ├── csrf.py                      # CSRF token validation
-│   ├── page_view_buffer.py          # Buffered page view writes
-│   ├── tag_cache.py                 # Tag count caching
-│   ├── backup_integrity.py          # Backup file integrity verification (checksums, SQLite validation)
-│   ├── webhook_encryption.py        # Webhook secret encryption
-│   ├── backup_encryption.py         # Backup file encryption
-│   ├── markdown_config.py           # Shared nh3.clean() config for markdown HTML sanitization
-│   ├── markdown_renderer.py         # Markdown pipeline; wraps code lines in .code-line spans
-│   ├── transaction.py              # Transaction decorator/context manager (IntegrityError rollback)
-│   ├── csv_utils.py                 # CSV export with formula injection prevention
-│   ├── base62.py                    # Base62 encode/decode for short share URLs (/s/<code>)
-│   ├── db_utils.py                  # Database dialect helpers (get_database_dialect, is_sqlite_database)
-│   ├── vite.py                      # Vite integration (content-hashed asset URLs, manifest lookup)
-│   ├── cli.py                       # CLI commands (flask cli)
+│   ├── search.py                     # Standalone FTS5 implementation
+│   ├── email.py                      # SMTP email sending
+│   ├── webhooks.py                   # Webhook event creation and delivery
+│   ├── backup_encryption.py          # AES-256-GCM backup encryption
+│   ├── backup_integrity.py           # Backup checksum and SQLite validation
+│   ├── webhook_encryption.py         # AES-256-GCM webhook secret encryption
+│   ├── config_legacy.py              # Legacy config globals (re-exported)
+│   ├── cli.py                        # Flask CLI compatibility wrappers
+│   ├── celery_app.py                 # Celery configuration
+│   ├── tasks.py                      # Celery async tasks
+│   ├── scheduler.py                  # APScheduler jobs
 │   │
-│   ├── themes/                      # Halloy theme subsystem (all phases complete)
-│   │   ├── __init__.py             # Public API exports
-│   │   ├── colors.py               # RGB/RGBA, hex parsing, WCAG contrast, color mixing
-│   │   ├── halloy.py               # Typed Halloy TOML parser with structured errors
-│   │   ├── model.py                # BlogTheme dataclass, CSS_VARS, ALIASES, EMERGENCY_DEFAULT
-│   │   ├── translate.py            # Halloy-to-BlogTheme translation, CSS generation
-│   │   ├── diagnostics.py          # Contrast checking, provenance tracking
-│   │   ├── resources.py            # ThemeResource protocol, bundled/external discovery via importlib.resources
-│   │   ├── cache.py                # In-process theme caching with source-state validation
-│   │   ├── registry.py             # Authoritative theme registry with _CatalogEntry, structured exceptions
-│   │   ├── service.py              # Per-process ThemeService, init/get helpers
-│   │   └── bundled/                # Packaged Halloy themes (50 .toml files, catalog_manifest.json)
+│   ├── config/                       # Typed configuration package
+│   │   ├── model.py                  # 20 frozen dataclasses
+│   │   ├── loader.py                 # load_effective_config()
+│   │   ├── paths.py                  # Path resolution with source tracking
+│   │   ├── validation.py             # Multi-layer validation
+│   │   ├── provenance.py              # Source tracking
+│   │   ├── secrets.py                # Secret identification and redaction
+│   │   ├── profiles.py               # Deployment profiles
+│   │   ├── serialization.py          # TOML/JSON output with redaction
+│   │   └── migration.py              # Config version migration
 │   │
-│   ├── routes/                      # Route blueprints
-│   │   ├── __init__.py
-│   │   ├── admin/                   # Admin blueprint
-│   │   │   ├── __init__.py         # Blueprint + auth decorators
-│   │   │   ├── auth.py             # Login, logout, 2FA, password reset
-│   │   │   ├── posts/              # Post management
-│   │   │   │   ├── __init__.py     # Registers routes
-│   │   │   │   ├── manage.py       # CRUD operations
-│   │   │   │   ├── editor.py       # Post editor
-│   │   │   │   └── revisions.py   # Post revisions
-│   │   │   ├── subscribers.py      # Subscriber management
-│   │   │   ├── tags.py             # Tag management
-│   │   │   ├── users.py            # User management
-│   │   │   ├── sessions.py         # Admin session management
-│   │   │   ├── media.py            # Media library
-│   │   │   ├── backup.py           # Backup/restore
-│   │   │   ├── analytics.py        # Analytics dashboard
-│   │   │   ├── newsletter.py      # Newsletter sending
-│   │   │   ├── settings.py         # Site settings
-│   │   │   ├── pages.py            # Static pages
-│   │   │   ├── series.py           # Post series
-│   │   │   ├── audit.py           # Audit log viewer
-│   │   │   ├── comments.py         # Comment moderation
-│   │   │   └── helpers/            # Shared admin utilities
-│   │   │       ├── __init__.py
-│   │   │       ├── analytics.py
-│   │   │       ├── dashboard.py
-│   │   │       ├── posts.py
-│   │   │       ├── images.py
-│   │   │       ├── slug.py
-│   │   │       ├── tags.py
-│   │   │       └── shared.py
-│   │   ├── api/                     # REST API blueprint
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py            # require_api_key decorator
-│   │   │   ├── posts.py           # Post CRUD
-│   │   │   ├── pages.py           # Page management
-│   │   │   ├── series.py          # Series management
-│   │   │   ├── tags.py            # Tag management
-│   │   │   ├── subscribers.py     # Subscriber endpoints
-│   │   │   └── stats.py           # Analytics stats
-│   │   ├── public/                 # Public-facing blueprint
-│   │   │   ├── __init__.py
-│   │   │   ├── browse.py          # Home, archive, tag pages
-│   │   │   ├── posts.py           # Post view, preview, share
-│   │   │   ├── subscribe.py       # Newsletter subscription
-│   │   │   ├── comments.py        # Comment submission
-│   │   │   └── meta.py            # Sitemap, robots.txt, health
-│   │   ├── rss.py                  # Atom, RSS, JSON feeds
-│   │   └── errors.py               # 404, 500, 413 handlers
+│   ├── themes/                       # Halloy theme subsystem
+│   │   ├── colors.py                 # RGB/RGBA, hex parsing, WCAG contrast
+│   │   ├── halloy.py                 # Typed Halloy TOML parser
+│   │   ├── model.py                  # BlogTheme, CSS_VARS, ALIASES
+│   │   ├── translate.py              # Translation and CSS generation
+│   │   ├── diagnostics.py            # Accessibility validation
+│   │   ├── resources.py              # ThemeResource protocol, discovery
+│   │   ├── cache.py                  # In-process cache with fingerprints
+│   │   ├── registry.py               # Authoritative theme registry
+│   │   ├── service.py                # Per-process ThemeService
+│   │   └── bundled/                  # 50 packaged .toml themes
 │   │
-│   ├── services/                    # Business logic services
-│   │   ├── backup.py              # Backup with compression/encryption
-│   │   ├── encryption.py          # AES-256-GCM for TOTP secrets
-│   │   ├── serialization.py       # JSON export/import
-│   │   ├── slug.py                # Slug generation
-│   │   ├── tag.py                 # Tag CRUD
-│   │   └── search/                # Search abstraction
-│   │       ├── __init__.py       # SearchProvider ABC
-│   │       ├── sqlite.py         # FTS5 implementation
-│   │       └── postgresql.py     # PostgreSQL FTS (stub)
+│   ├── appearance/                   # Typeface and backdrop layer
+│   │   ├── model.py                  # FontFamily, BackdropDescriptor
+│   │   ├── fonts.py                  # FontRegistry
+│   │   ├── backdrops.py              # BackdropRegistry
+│   │   ├── service.py                # AppearanceService
+│   │   ├── svg.py                    # SVG sanitiser
+│   │   └── uploads.py                # Upload validation and storage
 │   │
-│   ├── middleware/                 # WSGI middleware
-│   │   └── rate_limit.py         # Admin rate limiting
+│   ├── filesystem/                   # Centralised path system
+│   │   ├── layout.py                 # RuntimePaths, InstallMode, provenance
+│   │   ├── prepare.py                # Directory creation with permissions
+│   │   ├── discovery.py              # Legacy layout discovery (read-only)
+│   │   ├── migration.py              # Migration planner and executor
+│   │   ├── verification.py           # Post-migration verification
+│   │   └── lifecycle.py              # Path categories and lifecycle policy
 │   │
-│   ├── filesystem/                # Centralized filesystem path system
-│   │   ├── layout.py             # RuntimePaths dataclass, InstallMode, PathProvenance
-│   │   ├── prepare.py            # Directory creation with permissions/security
-│   │   ├── discovery.py          # Legacy layout discovery (read-only)
-│   │   ├── migration.py          # Migration planner (dry-run)
-│   │   └── verification.py       # Post-migration verification
+│   ├── onboarding/                   # First-run configuration flow
+│   │   ├── model.py                  # OnboardingInput, build_config_from_input
+│   │   ├── state.py                  # InstallState, detect_installation
+│   │   ├── steps.py                  # The step pipeline
+│   │   ├── planner.py                # PlannedAction, plan rendering
+│   │   ├── secrets.py                # Secret generation and env files
+│   │   ├── metadata.py               # OnboardingMetadata
+│   │   └── rendering.py              # Completion rendering
 │   │
-│   └── static/                    # Frontend assets
-│       ├── css/                   # Stylesheets
-│       ├── js/                    # JavaScript (Vite-bundled)
-│       ├── img/                   # Static images
-│       ├── fonts/                 # Web fonts
-│       └── uploads/              # User media uploads
+│   ├── deployment/                   # Managed deployment rendering
+│   │   ├── model.py                  # DeploymentContext, RenderResult
+│   │   ├── systemd.py                # systemd unit rendering
+│   │   ├── compose.py                # Compose file rendering
+│   │   ├── proxy.py                  # Caddy / nginx rendering
+│   │   ├── logrotate.py              # Logrotate rendering
+│   │   ├── install.py                # Install plan, atomic writes, backups
+│   │   ├── drift.py                  # Drift detection
+│   │   └── lifecycle.py              # Service status and control
+│   │
+│   ├── routes/                       # Route blueprints
+│   │   ├── admin/                    # Admin blueprint (auth, posts, users, …)
+│   │   │   ├── posts/                # editor.py, manage.py, revisions.py
+│   │   │   └── helpers/              # Shared admin utilities
+│   │   ├── api/                      # REST API blueprint
+│   │   ├── public/                   # Public-facing blueprint
+│   │   ├── rss.py                    # Atom, RSS, JSON feeds
+│   │   └── errors.py                 # 404, 500, 413 handlers
+│   │
+│   ├── services/                     # Business logic services
+│   │   ├── operations/               # Terminal-free operational services
+│   │   │   ├── results.py            # Typed OperationResult dataclasses
+│   │   │   ├── admin.py              # Admin user management
+│   │   │   ├── database.py           # Integrity, FTS rebuild, migration status
+│   │   │   ├── media.py              # Orphaned media scan and cleanup
+│   │   │   ├── transfer.py           # Export/import
+│   │   │   ├── themes.py             # Theme facade
+│   │   │   ├── backup.py             # Backup create/verify
+│   │   │   ├── deploy.py             # Managed deployment facade
+│   │   │   ├── onboard.py            # Onboarding facade
+│   │   │   └── doctor.py             # Diagnostic check registry
+│   │   ├── search/                   # SearchProvider abstraction
+│   │   ├── authors.py                # Author resolution
+│   │   ├── navigation.py             # Menu resolution
+│   │   ├── profile.py                # Profile validation and avatar storage
+│   │   ├── site_settings.py          # Site settings parsing
+│   │   ├── theme_settings.py         # Theme validation and migration
+│   │   ├── appearance_settings.py    # Appearance form parsing
+│   │   ├── backup.py                 # Backup service
+│   │   ├── encryption.py             # AES-256-GCM
+│   │   ├── serialization.py          # JSON export/import
+│   │   ├── slug.py                   # Slug generation
+│   │   └── tag.py                    # Tag CRUD
+│   │
+│   ├── middleware/                   # WSGI middleware
+│   │   └── rate_limit.py             # Admin and per-IP rate limiting
+│   │
+│   └── static/                       # Frontend assets
+│       ├── css/                      # Stylesheets
+│       ├── js/                       # JavaScript modules
+│       ├── img/                      # Static images and backdrops
+│       ├── fonts/                    # Self-hosted woff2 families
+│       ├── uploads/                  # User media
+│       └── dist/                     # Vite build output
 │
-├── devlog_cli/                        # Standalone CLI package
-│   ├── __init__.py                   # Package version via importlib.metadata
+├── devlog_cli/                       # Standalone CLI package
 │   ├── main.py                       # Root Click group (devlog entry point)
-│   ├── context.py                    # CliContext dataclass
+│   ├── context.py                    # CliContext
 │   ├── output.py                     # Human/JSON rendering
 │   ├── errors.py                     # Domain exception hierarchy
 │   ├── exit_codes.py                 # Stable ExitCode IntEnum
-│   └── result.py                     # Result dataclass with factories
+│   ├── result.py                     # Result dataclass with factories
+│   └── commands/                     # One module per command group
 │
-├── tests/                           # Test suite
-│   ├── conftest.py                 # Pytest configuration
-│   ├── shared_fixtures.py          # Shared fixtures
-│   ├── test_*.py                  # Unit/integration tests
-│   └── e2e/                       # Playwright E2E tests
+├── tests/                            # Test suite
+│   ├── conftest.py                   # Pytest fixtures and configuration
+│   ├── shared_fixtures.py            # Shared fixtures
+│   ├── test_*.py                     # Unit/integration tests
+│   ├── benchmarks/                   # Performance tests
+│   └── e2e/                          # Playwright E2E tests
 │
-├── migrations/                      # Flask-Migrate database migrations
-├── architecture/                    # This directory
-│   ├── overview.md                 # This file
-│   ├── core/                      # Core application docs
-│   ├── routes/                    # Route layer docs
-│   ├── services/                  # Services layer docs
-│   ├── tasks/                     # Task processing docs
-│   ├── infrastructure/           # Infrastructure docs
-│   ├── frontend/                  # Frontend docs
-│   └── testing/                  # Testing docs
+├── migrations/                       # Flask-Migrate database migrations
+├── architecture/                     # This directory
+│   ├── overview.md                   # This file
+│   ├── core/                         # App factory, configuration, models, filesystem, onboarding, themes
+│   ├── routes/                       # Public, admin, API, feeds
+│   ├── services/                     # Service layer and operations services
+│   ├── tasks/                        # Celery and APScheduler
+│   ├── infrastructure/               # Search, email, storage, webhooks
+│   ├── frontend/                     # Templates, static assets, appearance
+│   ├── deployment/                   # CLI, managed deployment, security, install, Docker, CI/CD
+│   └── testing/                      # Test suite
 │
-├── scripts/                        # DevOps scripts
-│   ├── dev.sh                      # Development environment setup
-│   ├── release_check.sh            # Release validation (lint, type, tests, build, Docker)
-│   ├── sync_backups.sh             # Off-site backup sync (rclone/S3)
-│   ├── build_assets.py             # Asset build helper
-│   └── update-assets.sh            # Asset update script
-├── plans/                          # Implementation plans and review roadmaps
-├── nginx/                         # Nginx configuration
-├── docs/                          # OpenAPI spec and documentation
-│   ├── openapi.yaml               # OpenAPI 3.0 specification
-│   └── api/                       # API documentation
-├── run.py                         # Entry point
-├── config.toml                    # Configuration file
-├── docker-compose.yml             # Container orchestration
-├── Dockerfile                     # Container image
-├── requirements.txt              # Python dependencies
-├── package.json                  # Node dependencies
-└── vite.config.js               # Vite bundler config
+├── themes/                           # Halloy authoring catalogue (source of truth for bundled themes)
+├── scripts/                          # DevOps scripts (installer, dev setup, release checks)
+├── plans/                            # Implementation plans and review roadmaps
+├── docs/                             # User and operator documentation
+├── nginx/                            # Nginx configuration
+├── run.py                            # Development entry point (ASGI wrapper)
+├── config.toml                       # Local configuration (gitignored)
+├── docker-compose.yml                # Container orchestration
+├── Dockerfile                        # Container image
+├── requirements.txt                  # Python dependencies
+├── package.json                      # Node dependencies
+└── vite.config.js                    # Vite bundler config
 ```
 
 ---
@@ -706,7 +826,6 @@ blog/
                                    │   Comment   │
                                    │  (parent_id)│
                                    └─────────────┘
-
 ┌─────────────────┐     ┌─────────────────┐
 │   Subscriber     │     │     Series       │
 └─────────────────┘     └────────┬────────┘
@@ -732,26 +851,26 @@ blog/
 
 | Component | Technology |
 |-----------|------------|
-| Web Framework | Flask 3.1+ |
+| Web framework | Flask 3.1+ |
 | ORM | SQLAlchemy 2.0 |
 | Database | SQLite (WAL) / PostgreSQL |
-| ASGI Server | Granian (Rust) |
-| Task Queue | Celery 5.x + Redis |
+| ASGI server | Granian (Rust) |
+| Task queue | Celery 5.x + Redis |
 | Scheduler | APScheduler |
 | Cache | Flask-Caching + Redis |
-| Rate Limiting | Flask-Limiter |
+| Rate limiting | Flask-Limiter |
 | Compression | Flask-Compress |
-| Frontend Build | Vite 6.x |
+| Frontend build | Vite 6.x |
 | CSS | Vanilla CSS (no framework) |
 | JavaScript | Vanilla JS (ES modules) |
 | Templates | Jinja2 |
-| Migration | Flask-Migrate |
-| HTML Sanitizer | nh3 |
+| Migrations | Flask-Migrate / Alembic |
+| HTML sanitiser | nh3 |
 | 2FA | pyotp (TOTP) |
-| QR Codes | qrcode |
-| Image Processing | Pillow |
-| S3 Client | boto3 |
-| HTTP Client | requests |
+| QR codes | qrcode |
+| Image processing | Pillow |
+| S3 client | boto3 |
+| HTTP client | requests |
 | Cryptography | cryptography (AES-256-GCM) |
 | Monitoring | Prometheus (optional) |
 
@@ -759,7 +878,10 @@ blog/
 
 ## Related Documents
 
-- [Implementation Plan](../plans/plan.md) - Consolidated implementation plan
-- [AGENTS.md](../AGENTS.md) - Agent guidelines and conventions
-- [DEPLOY.md](../DEPLOY.md) - Deployment documentation
-- [USAGE.md](../USAGE.md) - Usage documentation
+- [AGENTS.md](../AGENTS.md) — Agent guidelines and codebase conventions
+- [Architecture Review Skill](../.skills/architecture_review/skill.md) — The review workflow these documents follow
+- [DEPLOY.md](../DEPLOY.md) — Deployment documentation
+- [USAGE.md](../USAGE.md) — Usage documentation
+- [Operator Guide](../docs/themes/operator-guide.md) — Theme operation
+- [Filesystem Layout](../docs/filesystem-layout.md) — Path layout reference
+- [API docs](../docs/api/posts.md) — API usage

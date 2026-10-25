@@ -30,11 +30,15 @@ if TYPE_CHECKING:
     "--list-checks", is_flag=True, default=False, help="List all available checks and exit."
 )
 @click.option(
-    "--deep", is_flag=True, default=False,
+    "--deep",
+    is_flag=True,
+    default=False,
     help="Include expensive checks (e.g., SQLite integrity, WAL checkpoint).",
 )
 @click.option(
-    "--no-parallel", is_flag=True, default=False,
+    "--no-parallel",
+    is_flag=True,
+    default=False,
     help="Disable parallel check execution.",
 )
 @click.pass_context

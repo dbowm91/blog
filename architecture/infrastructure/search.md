@@ -204,5 +204,5 @@ The fallback also triggers "did you mean" suggestions via `get_did_you_mean()` w
 - `FTS_RESULT_LIMIT`: Max results (default: 100)
 
 ## See Also
-- [Models](core/models.md) - Post model
+- [Models](../core/models.md) - Post model
 - [Public Routes](../routes/public-routes.md) - Search endpoint

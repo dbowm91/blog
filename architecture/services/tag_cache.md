@@ -47,5 +47,5 @@ def _get_tag_counts_cached() -> dict[Any, Any]:
 ```
 
 ## See Also
-- [Tag Service](services/tag.md) - Tag CRUD operations
+- [Tag Service](tag.md) - Tag CRUD operations
 - `app/config.py` - `TAG_CACHE_TTL_SECONDS` configuration

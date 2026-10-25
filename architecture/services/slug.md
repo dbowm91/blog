@@ -30,4 +30,4 @@ def generate_unique_slug(model: Type, title: str, exclude_id: Optional[int] = No
 3. If all 100 attempts collide, fall back to `base_slug-{uuid8}` where uuid8 is 8 characters from a random UUID
 
 ## See Also
-- [Models](core/models.md) - Database models using slugs
+- [Models](../core/models.md) - Database models using slugs

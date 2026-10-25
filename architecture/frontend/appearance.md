@@ -152,4 +152,4 @@ the route never interprets a raw form value on its own.
 
 ## See Also
 - [Static Assets](static-assets.md) - Fonts, backdrops and the CSS cascade
-- [Themes](../../docs/themes/README.md) - The theme system that owns colour
+- [Theme System](../core/themes.md) - The theme system that owns colour

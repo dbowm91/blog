@@ -12,14 +12,18 @@ Architecture documentation review and improvement workflow. Reviews architecture
 architecture, review, documentation, verify, cross-reference
 
 ## Module Directories
-- `architecture/core/` - app-factory.md, configuration.md, models.md
+- `architecture/core/` - app-factory.md, configuration.md, models.md, filesystem.md, onboarding.md, themes.md
 - `architecture/routes/` - public-routes.md, admin-routes.md, api-routes.md, rss-feeds.md
-- `architecture/services/` - overview.md, backup.md, encryption.md, search.md, serialization.md, slug.md, tag.md, tag_cache.md
+- `architecture/services/` - overview.md, operations.md, doctor.md, backup.md, encryption.md, search.md, serialization.md, slug.md, tag.md, tag_cache.md
 - `architecture/tasks/` - overview.md, scheduler.md, celery-tasks.md
 - `architecture/infrastructure/` - overview.md, search.md, email.md, storage.md, webhooks.md
-- `architecture/frontend/` - overview.md, static-assets.md, templates.md
-- `architecture/deployment/` - overview.md, docker.md, cicd.md, security.md
+- `architecture/frontend/` - overview.md, static-assets.md, templates.md, appearance.md
+- `architecture/deployment/` - overview.md, cli.md, managed-deployment.md, installation.md, docker.md, cicd.md, security.md
 - `architecture/testing/` - test-suite.md
+
+`architecture/overview.md` is the index: it names every discrete module and links
+to its deep-dive document. Adding a module means adding the deep-dive file and
+then adding the row to the overview's module map.
 
 ## Status
 

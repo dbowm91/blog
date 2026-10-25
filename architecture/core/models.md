@@ -512,5 +512,5 @@ Tracks social sharing actions. `platform` is a string identifier (e.g. `"twitter
 None currently documented.
 
 ## See Also
-- [App Factory](core/app-factory.md) - Application initialization
-- [Search](infrastructure/search.md) - FTS5 full-text search
+- [App Factory](app-factory.md) - Application initialization
+- [Search](../infrastructure/search.md) - FTS5 full-text search

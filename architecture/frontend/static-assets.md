@@ -392,5 +392,5 @@ templates so the dev server and production share one cascade order; an import in
 linked one in dev.
 
 ## See Also
-- [Templates](frontend/templates.md) - Jinja2 templates
-- [App Factory](core/app-factory.md) - Vite initialization
+- [Templates](templates.md) - Jinja2 templates
+- [App Factory](../core/app-factory.md) - Vite initialization

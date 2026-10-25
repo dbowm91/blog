@@ -37,10 +37,13 @@ Onboarding handles all runtime configuration:
 - Creates runtime directories via `RuntimePaths`
 - Runs database migrations (`flask db upgrade`)
 - Creates initial admin user
-- Writes `.devlog-installation.json` metadata
+- Writes `onboarding-metadata.json` in the data directory
 - Verifies Vite build assets
 
-Onboarding is idempotent — safe to re-run for reconfiguration.
+Onboarding is re-runnable, but not idempotent in the strict sense: `config.toml` and the
+env file are rewritten on every run. The env file is regenerated from a fixed key set
+(`SECRET_KEY`, `ADMIN_PASSWORD` and the optional secret keys), so any unrelated key that
+was hand-added to `.env` is dropped by a re-run.
 
 ## Path Resolution
 
