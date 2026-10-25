@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_default_avatar.html" import default_avatar %}
 
 {% block title %}{{ author.name }} | {{ site_title }}{% endblock %}
 {% block meta_description %}{{ author.bio_short or site_description }}{% endblock %}
@@ -108,7 +109,7 @@
             <img src="{{ author.avatar_url }}" alt="{{ author.name }}" class="author-profile-avatar" loading="lazy" decoding="async" width="96" height="96">
         {% else %}
             <div class="author-profile-avatar author-profile-avatar-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                {{ default_avatar(66) }}
             </div>
         {% endif %}
         <h1 class="author-profile-name">{{ author.name }}</h1>

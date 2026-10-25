@@ -25,7 +25,7 @@ export function uniqueHeadingSlug(base, taken = usedIds) {
 
 export function getHeadingText(heading) {
     const clone = heading.cloneNode(true);
-    clone.querySelectorAll('.anchor-link, .heading-anchor').forEach((el) => el.remove());
+    clone.querySelectorAll('.anchor-link').forEach((el) => el.remove());
     return (clone.textContent || '').trim();
 }
 

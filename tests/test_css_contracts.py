@@ -381,19 +381,15 @@ class TestAnchorBaseline:
 
     def test_prose_links_keep_underline(self) -> None:
         prose = [
-            rule
-            for rule in _parse_rules(_read("public.css"))
-            if rule.selector.strip() == ".prose a"
+            rule for rule in _parse_rules(_read("base.css")) if rule.selector.strip() == ".prose a"
         ]
-        assert prose, "public.css has no `.prose a` rule"
+        assert prose, "base.css has no `.prose a` rule"
         assert prose[0].declarations().get("text-decoration") == "underline"
 
     def test_prose_underline_wins_over_baseline(self) -> None:
-        rules = _parse_rules(_read("public.css"))
+        rules = _parse_rules(_read("base.css"))
         prose = next(rule for rule in rules if rule.selector.strip() == ".prose a")
-        baseline = next(
-            rule for rule in _parse_rules(_read("base.css")) if rule.selector.strip() == "a"
-        )
+        baseline = next(rule for rule in rules if rule.selector.strip() == "a")
         assert len(prose.selector.split(",")) == 1
         assert prose.declarations().get("text-decoration") == "underline"
         assert baseline.declarations().get("text-decoration") == "none"
@@ -417,6 +413,85 @@ class TestDeadTokens:
         available = _runtime_tokens() | _stylesheet_tokens()
         for token in DEAD_TOKEN_ALLOW_LIST:
             assert token in available
+
+
+class TestProseOwnership:
+    """The admin live preview renders ``.prose``, so base.css owns the prose rules.
+
+    The admin shell does not load ``public.css``; when the prose typography
+    lived there the live preview rendered its paragraphs without spacing.
+    """
+
+    PROSE_SELECTORS = (
+        ".prose",
+        ".prose h1, .prose h2, .prose h3, .prose h4",
+        ".prose p",
+        ".prose ul, .prose ol",
+        ".prose li",
+        ".prose blockquote",
+        ".prose code",
+        ".prose pre",
+        ".prose img",
+        ".prose hr",
+        ".prose table",
+        ".prose th, .prose td",
+        ".prose th",
+    )
+
+    def test_base_css_owns_the_prose_typography(self) -> None:
+        selectors = {rule.selector for rule in _parse_rules(_read("base.css"))}
+        missing = [s for s in self.PROSE_SELECTORS if s not in selectors]
+        assert missing == [], f"base.css is missing the prose rules: {missing}"
+
+    def test_public_css_does_not_own_the_prose_typography(self) -> None:
+        selectors = {rule.selector for rule in _parse_rules(_read("public.css"))}
+        duplicates = [s for s in self.PROSE_SELECTORS if s in selectors]
+        assert duplicates == [], f"public.css duplicates the prose rules: {duplicates}"
+
+    def test_the_prose_rules_are_not_declared_twice(self) -> None:
+        owners: dict[str, set[str]] = {}
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                owners.setdefault(rule.selector, set()).add(path.name)
+        duplicated = {
+            selector: sorted(files)
+            for selector, files in owners.items()
+            if selector in self.PROSE_SELECTORS and len(files) > 1
+        }
+        assert duplicated == {}, f"a prose rule has more than one owner: {duplicated}"
+
+
+class TestHeadingAnchor:
+    """The heading anchor is a link to the section, not a stray '#' after the title."""
+
+    def test_the_anchor_is_hidden_until_the_heading_is_interacted_with(self) -> None:
+        rules = [
+            rule
+            for rule in _parse_rules(_read("base.css"))
+            if rule.selector.strip() == ".prose .anchor-link" and not rule.media_queries
+        ]
+        assert rules, "base.css has no base .prose .anchor-link rule"
+        anchor = rules[0].declarations()
+        assert anchor.get("opacity") == "0"
+        assert anchor.get("position") == "absolute"
+
+    def test_the_anchor_is_revealed_on_hover_and_on_focus(self) -> None:
+        revealed = [
+            rule
+            for rule in _parse_rules(_read("base.css"))
+            if "anchor-link" in rule.selector and rule.declarations().get("opacity") == "1"
+        ]
+        assert revealed
+        assert any("hover" in rule.selector for rule in revealed)
+        assert any(":focus" in rule.selector for rule in revealed)
+
+    def test_the_heading_is_the_anchor_containing_block(self) -> None:
+        rules = {rule.selector: rule for rule in _parse_rules(_read("base.css"))}
+        headings = rules[".prose h1, .prose h2, .prose h3, .prose h4"].declarations()
+        assert headings.get("position") == "relative"
+
+    def test_the_old_wrapper_span_is_gone(self) -> None:
+        assert ".heading-anchor" not in _read("base.css")
 
 
 class TestAppearanceLayer:
@@ -455,5 +530,21 @@ class TestAppearanceLayer:
 
     def test_the_bundled_fonts_are_declared(self) -> None:
         css = _read("base.css")
-        for family in ("IBM Plex Sans", "IBM Plex Mono", "Fira Code"):
+        for family in (
+            "IBM Plex Sans",
+            "IBM Plex Mono",
+            "Fira Code",
+            "Space Grotesk",
+            "Atkinson Hyperlegible",
+            "Cascadia Code",
+            "Spline Sans Mono",
+            "MesloLGS Nerd Font",
+        ):
             assert f"font-family: '{family}'" in css, f"{family} has no @font-face rule"
+
+    def test_every_bundled_font_file_exists(self) -> None:
+        css = _read("base.css")
+        sources = re.findall(r"url\('\.\./(fonts/[^']+)'\)", css)
+        assert sources, "base.css declares no font files"
+        for source in sources:
+            assert (CSS_DIR.parent / source).is_file(), f"{source} is declared but missing"

@@ -1,0 +1,7 @@
+{% macro default_avatar(size=32, extra_class='') -%}
+<svg class="default-avatar {{ extra_class }}" viewBox="0 0 24 24" width="{{ size }}" height="{{ size }}" fill="none" aria-hidden="true" focusable="false">
+<circle cx="12" cy="12" r="11" fill="currentColor" opacity="0.16"></circle>
+<path fill="currentColor" d="M12 11.7a3.35 3.35 0 1 0 0-6.7 3.35 3.35 0 0 0 0 6.7Z"></path>
+<path fill="currentColor" d="M12 13.2c-3.72 0-6.7 1.98-6.7 4.42V19h13.4v-1.38c0-2.44-2.98-4.42-6.7-4.42Z"></path>
+</svg>
+{%- endmacro %}

@@ -527,8 +527,16 @@ Key rules:
 - **Panels are translucent, inputs are not.** `background: var(--bg-surface)` followed by `background: color-mix(in srgb, var(--bg-surface) 94%, transparent)` — the first declaration is the fallback for engines without `color-mix()`.
 - **The page background is three layers**: the theme `bg` on the canvas, a gradient mixed from `bg` and `bg-surface` (`body::before`), and the backdrop shape (`body::after`).
 - **The stored key is the family key.** `SiteSettings.font_sans` holds either `inter` or `custom-font-<slug>-<hash>.woff2`, so no second column is needed.
+- **A choice whose file is gone falls back.** The registries check storage before resolving a custom font or backdrop; a missing file resolves to a bundled family instead of emitting a stack whose first entry never loads.
+- **Ten families ship locally**, including one Nerd Font (`meslo-nerd-font`) whose `unicode-range` names the powerline and devicons blocks in the Private Use Area. `app/static/css/base.css` declares every `@font-face`.
 
 Settings: `SiteSettings.font_sans`, `SiteSettings.font_mono`, `SiteSettings.backdrop`. Admin route: `admin.settings_appearance` (`POST /admin/settings/appearance`). Documentation: [architecture/frontend/appearance.md](architecture/frontend/appearance.md).
+
+### Frontend Styling Ownership
+
+- **Markdown prose lives in `base.css`.** The admin shell does not load `public.css`, and the admin live preview renders `.prose` content, so prose rules in `public.css` are missing in the preview. `tests/test_css_contracts.py` enforces the ownership.
+- **The heading anchor is a child of the heading**, so the heading is its containing block and the `#` sits in the left gutter, revealed on hover or focus. It is never wrapped in a span — that broke the positioning rule and painted a `#` at the end of every title.
+- **The "no profile picture" portrait is one macro**, `app/templates/_default_avatar.html`, used by the account page, the author page, the post footer and the admin profile page.
 
 ### Frontend Corrective Roadmap (complete)
 

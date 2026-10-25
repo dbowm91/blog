@@ -308,13 +308,18 @@ per-token rationale live in `tests/test_css_contracts.py::DEAD_TOKEN_ALLOW_LIST`
 ### Font Self-Hosting
 
 Fonts are self-hosted in `app/static/fonts/` as woff2 files; nothing is fetched
-from a third party. Five families ship with the site:
+from a third party. Ten families ship with the site:
 
 - Inter (weights 300–700) for body text (`--font-sans`)
 - IBM Plex Sans (variable 100–700) as an alternative sans
+- Space Grotesk (variable 300–700) as an alternative sans
+- Atkinson Hyperlegible (weights 400, 700) as an alternative sans
 - JetBrains Mono (weights 400, 500) for code blocks (`--font-mono`)
 - IBM Plex Mono (weights 400, 600) as an alternative monospace
 - Fira Code (variable 300–700) as an alternative monospace
+- Cascadia Code (variable 200–700) as an alternative monospace
+- Spline Sans Mono (variable 300–700) as an alternative monospace
+- Meslo Nerd Font (weight 400) as a monospace with Nerd Font glyphs
 
 The `@font-face` rules live in `base.css`. Which family is actually used is a
 site setting, not a stylesheet decision: `app/appearance/service.py` emits the
@@ -327,11 +332,11 @@ the upstream sources for each family.
 ### Page Backdrops
 
 `app/static/img/backdrops/` holds the bundled page graphics: `default.svg`
-(soft arcs), `grid.svg` (blueprint grid) and `waves.svg` (flowing bands). Each
-one supplies a shape only. The colour is a theme-derived tint emitted per
-scheme as `--backdrop-tint`, and the graphic is applied through `mask-image`,
-so an operator's uploaded SVG matches the theme whatever colour it was drawn in.
-See [Appearance Layer](appearance.md).
+(a disc and a concentric ring), `grid.svg` (blueprint grid) and `waves.svg`
+(flowing bands). Each one supplies a shape only. The colour is a theme-derived
+tint emitted per scheme as `--backdrop-tint`, and the graphic is applied
+through `mask-image`, so an operator's uploaded SVG matches the theme whatever
+colour it was drawn in. See [Appearance Layer](appearance.md).
 
 ### Admin Prism CSS Theme
 

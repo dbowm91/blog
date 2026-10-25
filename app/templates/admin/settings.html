@@ -253,6 +253,15 @@
                 <p class="form-help">An SVG file, up to 1 MB. Scripting and external references are stripped before it is stored.</p>
             </div>
 
+            <div class="form-group">
+                <label>Preview</label>
+                <div class="font-specimen" id="font-specimen" data-font-families="{{ font_family_map | tojson | forceescape }}">
+                    <p class="font-specimen-row"><span class="font-specimen-label">Sans</span><span class="font-specimen-sample" id="font-specimen-sans">Handgloves 0123 — the quick brown fox</span></p>
+                    <p class="font-specimen-row"><span class="font-specimen-label">Mono</span><span class="font-specimen-sample font-specimen-sample-mono" id="font-specimen-mono">const greeting = "hello, world";</span></p>
+                </div>
+                <p class="form-help">A sample of the selected typefaces. The change applies to the whole site once the settings are saved.</p>
+            </div>
+
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Save Appearance Settings</button>
             </div>
@@ -317,13 +326,40 @@
 </div>
 
 <style nonce="{{ csp_nonce }}">
+    .font-specimen {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-surface);
+        padding: 12px 16px;
+    }
+    .font-specimen-row {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        margin: 0 0 8px;
+    }
+    .font-specimen-row:last-child {
+        margin-bottom: 0;
+    }
+    .font-specimen-label {
+        flex: 0 0 40px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-dim);
+    }
+    .font-specimen-sample {
+        font-size: 1rem;
+    }
+    .font-specimen-sample-mono {
+        font-size: 0.9rem;
+    }
     .theme-meta {
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
         margin-top: 4px;
-    }
-    .theme-meta-badge {
+    }    .theme-meta-badge {
         display: inline-block;
         padding: 2px 8px;
         border-radius: 12px;
@@ -694,6 +730,50 @@ document.querySelector('input[name="custom_css_enabled"]').addEventListener('cha
         select.addEventListener('change', sync);
         sync();
     });
+})();
+
+(function() {
+    var specimen = document.getElementById('font-specimen');
+    if (!specimen) return;
+
+    var families = {};
+    try {
+        families = JSON.parse(specimen.getAttribute('data-font-families') || '{}');
+    } catch (err) {
+        return;
+    }
+
+    var sansSample = document.getElementById('font-specimen-sans');
+    var monoSample = document.getElementById('font-specimen-mono');
+    var sansText = sansSample ? sansSample.textContent : '';
+    var monoText = monoSample ? monoSample.textContent : '';
+
+    function apply(select, sample, fallback, defaultText) {
+        if (!select || !sample) return;
+        var family = families[select.value];
+        if (!family) {
+            sample.style.fontFamily = '';
+            sample.textContent = select.options[select.selectedIndex]
+                ? select.options[select.selectedIndex].text
+                : defaultText;
+            return;
+        }
+        sample.style.fontFamily = "'" + family + "', " + fallback;
+        sample.textContent = defaultText;
+    }
+
+    function sync() {
+        var sansSelect = document.getElementById('font_sans');
+        var monoSelect = document.getElementById('font_mono');
+        apply(sansSelect, sansSample, 'sans-serif', sansText);
+        apply(monoSelect, monoSample, 'monospace', monoText);
+    }
+
+    var sansSelect = document.getElementById('font_sans');
+    var monoSelect = document.getElementById('font_mono');
+    if (sansSelect) sansSelect.addEventListener('change', sync);
+    if (monoSelect) monoSelect.addEventListener('change', sync);
+    sync();
 })();
 </script>
 

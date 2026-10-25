@@ -71,6 +71,67 @@ included. Any modified version must not use the name "Plex".
 > This license is copied below, and is also available with a FAQ at:
 > http://scripts.sil.org/OFL
 
+## Space Grotesk
+
+- **Files:** `space-grotesk-latin.woff2`
+- **Upstream project:** <https://github.com/floriankarsten/space-grotesk>
+- **Copyright:** Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk) — read from the font binary `name` table (ID 0)
+- **License:** SIL Open Font License, Version 1.1
+
+> This Font Software is licensed under the SIL Open Font License, Version 1.1.
+> This license is copied below, and is also available with a FAQ at:
+> http://scripts.sil.org/OFL
+
+## Atkinson Hyperlegible
+
+- **Files:** `atkinson-hyperlegible-400-latin.woff2`, `atkinson-hyperlegible-700-latin.woff2`
+- **Upstream project:** <https://github.com/googlefonts/atkinson-hyperlegible>
+- **Copyright:** Copyright 2020 Braille Institute of America, Inc. — read from the font binary `name` table (ID 0)
+- **License:** SIL Open Font License, Version 1.1
+
+> This Font Software is licensed under the SIL Open Font License, Version 1.1.
+> This license is copied below, and is also available with a FAQ at:
+> http://scripts.sil.org/OFL
+
+## Cascadia Code
+
+- **Files:** `cascadia-code-latin.woff2`
+- **Upstream project:** <https://github.com/microsoft/cascadia-code>
+- **Copyright:** © 2021 Microsoft Corporation. All Rights Reserved. — read from the font binary `name` table (ID 0)
+- **License:** SIL Open Font License, Version 1.1
+
+> This Font Software is licensed under the SIL Open Font License, Version 1.1.
+> This license is copied below, and is also available with a FAQ at:
+> http://scripts.sil.org/OFL
+
+## Spline Sans Mono
+
+- **Files:** `spline-sans-mono-latin.woff2`
+- **Upstream project:** <https://github.com/SorkinType/SplineSansMono>
+- **Copyright:** Copyright 2022 The Spline Sans Mono Project Authors (https://github.com/SorkinType/SplineSansMono) — read from the font binary `name` table (ID 0)
+- **License:** SIL Open Font License, Version 1.1
+
+> This Font Software is licensed under the SIL Open Font License, Version 1.1.
+> This license is copied below, and is also available with a FAQ at:
+> http://scripts.sil.org/OFL
+
+## MesloLGS Nerd Font
+
+- **Files:** `meslo-nerd-font-latin.woff2`
+- **Upstream project:** <https://github.com/ryanoasis/nerd-fonts>
+- **Copyright:** Copyright © 2009 Apple Inc. Copyright © 2006 by Tavmjong Bah. Copyright © 2003 by Bitstream, Inc. All Rights Reserved. — read from the font binary `name` table (ID 0)
+- **License:** SIL Open Font License, Version 1.1
+
+> This Font Software is licensed under the SIL Open Font License, Version 1.1.
+> This license is copied below, and is also available with a FAQ at:
+> http://scripts.sil.org/OFL
+
+The `.woff2` file is a reduced subset of the upstream `MesloLGS NF` (Nerd Fonts
+3.5.1): the latin range plus the Powerline and Seti-UI/Devicons Private Use
+Area glyphs only. The Nerd Fonts patcher itself is distributed under the Apache
+License 2.0 (`Copyright 2009, 2010, 2013 André Berg`), and the upstream
+`license-audit.md` lists the Meslo family itself as `Apache-2.0`.
+
 ---
 
 ## SIL Open Font License Version 1.1

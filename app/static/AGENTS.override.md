@@ -22,7 +22,9 @@ app/static/
 │   ├── utilities.css     # Helper classes
 │   ├── prism.css         # Syntax highlighting theme (base)
 │   └── prism-*.css       # Additional Prism themes (coy, dark, funky, okaidia, tomorrow)
-├── fonts/                # Self-hosted fonts (Inter, IBM Plex Sans, JetBrains Mono, IBM Plex Mono, Fira Code)
+├── fonts/                # Self-hosted fonts (Inter, IBM Plex Sans, Space Grotesk,
+│                         # Atkinson Hyperlegible, JetBrains Mono, IBM Plex Mono,
+│                         # Fira Code, Cascadia Code, Spline Sans Mono, Meslo Nerd Font)
 ├── img/                  # Static images
 └── dist/                 # Vite build output
 ```
@@ -96,10 +98,11 @@ For `backdrop-filter: blur()`, use `will-change: backdrop-filter` in CSS:
 ## CSS Architecture
 
 - Dark mode is default; light theme toggled via `data-color-scheme` attribute (migrated from `data-theme` in Phase 08)
-- Self-hosted fonts (Inter, IBM Plex Sans, JetBrains Mono, IBM Plex Mono, Fira Code) via `@font-face`
+- Self-hosted fonts (Inter, IBM Plex Sans, Space Grotesk, Atkinson Hyperlegible, JetBrains Mono, IBM Plex Mono, Fira Code, Cascadia Code, Spline Sans Mono, Meslo Nerd Font) via `@font-face`
 - No external font CDNs
 - The page background is three layers: the theme `bg` on the canvas, a gradient mixed from `bg` and `bg-surface` (`body::before`), and the backdrop shape (`body::after`, masked by `--backdrop-image`)
 - Panels are translucent via `color-mix(in srgb, var(--bg-surface) 94%, transparent)` with a plain `var(--bg-surface)` fallback first
+- The Markdown prose rules live in `base.css`, not `public.css`: the admin shell does not load `public.css`, and the admin live preview renders `.prose` content
 
 ## Syntax Highlighting Themes
 
@@ -176,6 +179,31 @@ is a literal prefix of `/admin/newsletter/preview`.
 
 Exactly one module produces heading IDs: `shared/heading-slug.js`. `public/toc.js`
 and `public/anchor-links.js` both import it. Do not add a second slugger.
+
+### Heading Anchors
+
+`public/anchor-links.js` appends the anchor to the heading itself — the heading
+is its containing block, so the `#` sits in the left gutter and is revealed on
+hover or focus. It must not be wrapped in a span: the wrapper made the anchor a
+sibling of the wrapper rather than a descendant, the positioning rule stopped
+matching, and the `#` was painted inline at the end of every title.
+
+The anchor is transparent until the heading is hovered or the anchor is
+focused, on every breakpoint.
+
+### Markdown Prose
+
+The `.prose` typography is owned by `base.css`. The admin live preview renders
+`.prose` content and the admin shell does not load `public.css`, so prose rules
+in `public.css` are missing in the preview. `tests/test_css_contracts.py`
+enforces that `base.css` owns them and `public.css` does not.
+
+### Default Profile Image
+
+The "no profile picture" portrait is one macro in
+`app/templates/_default_avatar.html`. The account page, the author page, the
+post footer and the admin profile page all use it. Do not draw a second
+placeholder, and do not fall back to the first letter of the name.
 
 ### Flash Messages
 

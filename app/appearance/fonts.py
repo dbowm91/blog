@@ -87,6 +87,44 @@ BUNDLED_FONTS: tuple[FontFamily, ...] = (
         "Fira Code",
         ("fira-code-latin.woff2",),
     ),
+    _bundled(
+        "space-grotesk",
+        "Space Grotesk",
+        CATEGORY_SANS,
+        "Space Grotesk",
+        ("space-grotesk-latin.woff2",),
+    ),
+    _bundled(
+        "atkinson-hyperlegible",
+        "Atkinson Hyperlegible",
+        CATEGORY_SANS,
+        "Atkinson Hyperlegible",
+        (
+            "atkinson-hyperlegible-400-latin.woff2",
+            "atkinson-hyperlegible-700-latin.woff2",
+        ),
+    ),
+    _bundled(
+        "cascadia-code",
+        "Cascadia Code",
+        CATEGORY_MONO,
+        "Cascadia Code",
+        ("cascadia-code-latin.woff2",),
+    ),
+    _bundled(
+        "spline-sans-mono",
+        "Spline Sans Mono",
+        CATEGORY_MONO,
+        "Spline Sans Mono",
+        ("spline-sans-mono-latin.woff2",),
+    ),
+    _bundled(
+        "meslo-nerd-font",
+        "Meslo Nerd Font",
+        CATEGORY_MONO,
+        "MesloLGS Nerd Font",
+        ("meslo-nerd-font-latin.woff2",),
+    ),
 )
 
 
@@ -144,6 +182,20 @@ class FontRegistry:
             logger.warning("font registry: storage backend unavailable", exc_info=True)
             return None
 
+    def _in_storage(self, filename: str) -> bool:
+        """Whether an uploaded font file is still present in storage."""
+        storage = self._storage_backend()
+        if storage is None:
+            return False
+        exists = getattr(storage, "exists", None)
+        if exists is None:
+            return True
+        try:
+            return bool(exists(filename))
+        except Exception:
+            logger.warning("font registry: could not check %r", filename, exc_info=True)
+            return False
+
     def _discover_custom(self) -> tuple[FontFamily, ...]:
         storage = self._storage_backend()
         if storage is None:
@@ -193,12 +245,21 @@ class FontRegistry:
         return families
 
     def resolve(self, key: str) -> FontFamily | None:
-        """Find a family by its stored key."""
+        """Find a family by its stored key.
+
+        An uploaded family whose file has since been removed from storage is
+        reported as missing, so the caller falls back to a bundled family
+        instead of emitting a font stack whose first entry never loads.
+        """
         if not key:
             return None
         for family in self.list_families():
-            if family.key == key:
-                return family
+            if family.key != key:
+                continue
+            if family.source == SOURCE_CUSTOM and not self._in_storage(family.files[0]):
+                logger.warning("font registry: %r is no longer in storage", key)
+                return None
+            return family
         return None
 
     def resolve_for_slot(self, key: str, category: str) -> FontFamily | None:

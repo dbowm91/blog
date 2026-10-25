@@ -109,6 +109,7 @@ def settings() -> ResponseReturnValue:
         custom_mono_fonts=[f for f in mono_families if f.source == SOURCE_CUSTOM],
         bundled_backdrops=[b for b in backdrops if b.source != SOURCE_CUSTOM],
         custom_backdrops=[b for b in backdrops if b.source == SOURCE_CUSTOM],
+        font_family_map={f.key: f.css_family for f in [*sans_families, *mono_families]},
         custom_option=CUSTOM_OPTION,
     )
 

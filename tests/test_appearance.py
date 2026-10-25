@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.appearance.backdrops import BackdropRegistry
+from app.appearance.backdrops import CUSTOM_BACKDROP_PREFIX, BackdropRegistry
 from app.appearance.fonts import (
     BUNDLED_FONTS,
     CUSTOM_FONT_PREFIX,
@@ -45,6 +45,12 @@ class _FakeStorage:
         self.files[filename] = data
         return filename
 
+    def delete(self, filename: str) -> bool:
+        return self.files.pop(filename, None) is not None
+
+    def exists(self, filename: str) -> bool:
+        return filename in self.files
+
     def list_files(self, prefix: str = "") -> list[str]:
         return [name for name in self.files if name.startswith(prefix)]
 
@@ -66,8 +72,35 @@ def test_bundled_fonts_cover_sans_and_mono():
     sans = [f for f in BUNDLED_FONTS if f.category == CATEGORY_SANS]
     mono = [f for f in BUNDLED_FONTS if f.category == CATEGORY_MONO]
 
-    assert {f.key for f in sans} == {"inter", "ibm-plex-sans"}
-    assert {f.key for f in mono} == {"jetbrains-mono", "ibm-plex-mono", "fira-code"}
+    assert {f.key for f in sans} == {
+        "inter",
+        "ibm-plex-sans",
+        "space-grotesk",
+        "atkinson-hyperlegible",
+    }
+    assert {f.key for f in mono} == {
+        "jetbrains-mono",
+        "ibm-plex-mono",
+        "fira-code",
+        "cascadia-code",
+        "spline-sans-mono",
+        "meslo-nerd-font",
+    }
+
+
+def test_the_bundled_fonts_are_distinctly_named():
+    families = [f for f in BUNDLED_FONTS if f.category == CATEGORY_SANS]
+
+    assert len({f.css_family for f in families}) == len(families)
+    assert len({f.key for f in BUNDLED_FONTS}) == len(BUNDLED_FONTS)
+
+
+def test_the_nerd_font_is_bundled_for_the_mono_slot():
+    nerd = [f for f in BUNDLED_FONTS if f.key == "meslo-nerd-font"]
+
+    assert len(nerd) == 1
+    assert nerd[0].category == CATEGORY_MONO
+    assert nerd[0].css_family == "MesloLGS Nerd Font"
 
 
 def test_bundled_font_files_exist_on_disk():
@@ -106,6 +139,32 @@ def test_font_registry_rejects_a_custom_font_in_the_wrong_slot():
 
     assert registry.resolve_for_slot("jetbrains-mono", CATEGORY_SANS) is None
     assert registry.resolve_for_slot("jetbrains-mono", CATEGORY_MONO) is not None
+
+
+def test_font_registry_forgets_a_custom_font_whose_file_was_removed():
+    storage = _FakeStorage()
+    filename = f"{CUSTOM_FONT_PREFIX}my-font-1234abcd.woff2"
+    storage.save(filename, b"wOF2")
+    registry = FontRegistry(storage=storage)
+
+    assert registry.resolve(filename) is not None
+
+    storage.delete(filename)
+
+    assert registry.resolve(filename) is None
+
+
+def test_backdrop_registry_forgets_a_custom_backdrop_whose_file_was_removed():
+    storage = _FakeStorage()
+    filename = f"{CUSTOM_BACKDROP_PREFIX}shape-1234abcd.svg"
+    storage.save(filename, b"<svg></svg>")
+    registry = BackdropRegistry(storage=storage)
+
+    assert registry.resolve(filename) is not None
+
+    storage.delete(filename)
+
+    assert registry.resolve(filename) is None
 
 
 def test_font_stack_leads_with_the_chosen_family():
@@ -428,6 +487,26 @@ def test_appearance_service_falls_back_when_the_choice_is_unknown(app, db):
     assert context["appearance_font_sans"] == "inter"
     assert context["appearance_font_mono"] == "jetbrains-mono"
     assert context["appearance_backdrop"] == ""
+
+
+def test_appearance_service_falls_back_when_the_custom_font_file_is_gone(app, db):
+    storage = _FakeStorage()
+    name = f"{CUSTOM_FONT_PREFIX}my-font-1234abcd.woff2"
+    storage.save(name, b"wOF2")
+    _set_site_settings(font_sans=name, font_mono="jetbrains-mono", backdrop="default")
+    service = AppearanceService()
+    service.get_font_registry()._storage = storage
+    service.get_font_registry().invalidate()
+
+    assert service.get_context()["appearance_font_sans"] == name
+
+    storage.delete(name)
+
+    service.invalidate_settings_cache()
+
+    context = service.get_context()
+    assert context["appearance_font_sans"] == "inter"
+    assert "DevLog Custom my-font-1234abcd" not in context["appearance_css"]
 
 
 def test_appearance_service_tint_differs_between_schemes(app, db):

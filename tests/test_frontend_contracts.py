@@ -211,6 +211,48 @@ def test_anchor_href_resolves_to_an_absolute_url():
     assert out["href"].count("https://") == 1
 
 
+def test_the_anchor_is_appended_to_the_heading_itself():
+    src = read_js("public", "anchor-links.js")
+
+    assert "heading.appendChild(anchor)" in src
+    assert "heading-anchor" not in src
+
+
+def test_the_heading_text_helper_strips_the_anchor():
+    src = read_js("shared", "heading-slug.js")
+
+    assert ".anchor-link" in src
+    assert "heading-anchor" not in src
+
+
+# ---------------------------------------------------------------------------
+# The empty profile picture
+# ---------------------------------------------------------------------------
+
+AVATAR_TEMPLATES = ("account.html", "author.html", "_post_content.html", "admin/user_profile.html")
+
+OLD_INLINE_ICON = "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+
+
+def test_the_empty_profile_picture_has_one_shared_owner():
+    partial = read_template("_default_avatar.html")
+
+    assert "macro default_avatar" in partial
+    assert "<svg" in partial
+
+    for template in AVATAR_TEMPLATES:
+        source = read_template(template)
+        assert "default_avatar" in source, f"{template} does not use the shared placeholder"
+        assert OLD_INLINE_ICON not in source, f"{template} still draws its own avatar icon"
+
+
+def test_the_empty_profile_picture_is_not_a_letter():
+    source = read_template("account.html")
+
+    assert "profile_name[:1]|upper" not in source
+    assert "account-avatar-placeholder" in source
+
+
 # ---------------------------------------------------------------------------
 # FE-INT-04 / FE-INT-05 — module routing
 # ---------------------------------------------------------------------------

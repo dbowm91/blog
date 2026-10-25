@@ -59,6 +59,20 @@ class BackdropRegistry:
             logger.warning("backdrop registry: storage backend unavailable", exc_info=True)
             return None
 
+    def _in_storage(self, filename: str) -> bool:
+        """Whether an uploaded backdrop file is still present in storage."""
+        storage = self._storage_backend()
+        if storage is None:
+            return False
+        exists = getattr(storage, "exists", None)
+        if exists is None:
+            return True
+        try:
+            return bool(exists(filename))
+        except Exception:
+            logger.warning("backdrop registry: could not check %r", filename, exc_info=True)
+            return False
+
     def _bundled_url(self, filename: str) -> str:
         from app.vite import vite_asset
 
@@ -111,12 +125,21 @@ class BackdropRegistry:
         return bundled + list(self._custom)
 
     def resolve(self, key: str) -> BackdropDescriptor | None:
-        """Find a backdrop by its stored key."""
+        """Find a backdrop by its stored key.
+
+        An uploaded backdrop whose file has since been removed from storage is
+        reported as missing, so the caller stops pointing the page mask at a
+        file that no longer exists.
+        """
         if not key:
             return None
         for descriptor in self.list_backdrops():
-            if descriptor.key == key:
-                return descriptor
+            if descriptor.key != key:
+                continue
+            if descriptor.source == SOURCE_CUSTOM and not self._in_storage(descriptor.key):
+                logger.warning("backdrop registry: %r is no longer in storage", key)
+                return None
+            return descriptor
         return None
 
     def invalidate(self) -> None:

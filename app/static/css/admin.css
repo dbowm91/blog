@@ -555,8 +555,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow-y: auto;
-    font-size: 0.95rem;
-    line-height: 1.6;
 }
 
 .editor-split.preview-hidden .markdown-preview {

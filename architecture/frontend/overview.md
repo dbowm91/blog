@@ -32,6 +32,9 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Lightbox visibility | the `hidden` class | `hidden` is visibility; `open` is animation state |
 | CSRF header name | `app/csrf.py` (`CSRF_HEADER_NAME`) | Read it from `data-csrf-header` or `csrfHeaders()`; never hard-code it |
 | Heading IDs | `shared/heading-slug.js` | One generator only |
+| Heading anchor | `public/anchor-links.js` | The anchor is a child of the heading, never wrapped; it is transparent until the heading is hovered or the anchor focused |
+| Markdown prose | `app/static/css/base.css` | The admin shell does not load `public.css` and the live preview renders `.prose`; `public.css` must not own the prose rules |
+| Default profile image | `app/templates/_default_avatar.html` | One macro for every "no profile picture" surface; never fall back to the first letter of the name |
 | Route → module set | `main.js` | Match on a path-segment boundary, longest match first |
 | Theme colour | the theme runtime | Static CSS consumes tokens; every referenced token is emitted or defined |
 | Typeface | the appearance runtime | `--font-sans` and `--font-mono` are emitted by `app/appearance/service.py`; stylesheets never name a family directly |

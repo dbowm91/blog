@@ -4,9 +4,6 @@ export function initAnchorLinks() {
     ensureHeadingIds();
 
     getProseHeadings().forEach((heading) => {
-        const wrapper = document.createElement('span');
-        wrapper.className = 'heading-anchor';
-
         const anchor = document.createElement('a');
         anchor.className = 'anchor-link';
         anchor.href = `#${heading.id}`;
@@ -30,11 +27,6 @@ export function initAnchorLinks() {
             }
         });
 
-        while (heading.firstChild) {
-            wrapper.appendChild(heading.firstChild);
-        }
-
-        heading.appendChild(wrapper);
         heading.appendChild(anchor);
     });
 }
