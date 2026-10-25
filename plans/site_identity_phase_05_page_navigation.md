@@ -1,5 +1,7 @@
 # Site Identity Phase 05 — Making Static Pages Reachable
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/routes/public-routes.md](../architecture/routes/public-routes.md); this file is the historical record.
+
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
 **Status:** Complete

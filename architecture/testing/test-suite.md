@@ -229,6 +229,8 @@ post = db.session.get(Post, post_id)
 
 ## See Also
 - [CI/CD](../deployment/cicd.md) - CI test execution
+- [E2E Testing Skill](../../.skills/e2e_testing/skill.md) - Running the Playwright suite, its fixtures and its rules
+- [Release Validation Skill](../../.skills/release_validation/skill.md) - The full pre-release gate and the known failure baseline
 
 ## CI and Benchmark Policy
 

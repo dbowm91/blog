@@ -1,5 +1,7 @@
 # Halloy Theme Phase 02 — Parser and Color Primitives
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Implement a typed, deterministic, and security-conscious parser for the supported Halloy TOML subset plus the color utilities required by the later translation and accessibility phases.

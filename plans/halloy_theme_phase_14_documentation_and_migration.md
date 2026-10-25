@@ -1,5 +1,7 @@
 # Halloy Theme Phase 14 — Documentation, Migration, and Operator Guidance
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Complete the user, operator, contributor, and release documentation for the Halloy-compatible theme system so that deployment, migration, customization, troubleshooting, and extension do not require reading implementation code.

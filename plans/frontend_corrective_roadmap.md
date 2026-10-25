@@ -1,5 +1,7 @@
 # Frontend Corrective Roadmap
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/frontend/overview.md](../architecture/frontend/overview.md); this file is the historical record.
+
 **Date:** 2026-10-23
 **Status:** Complete — all 5 phases closed, all 50 findings resolved
 **Scope:** Public + admin frontend (templates, CSS, JS, Vite build pipeline)

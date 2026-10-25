@@ -1,5 +1,7 @@
 # Halloy Theme Phase 06 — Configuration and Persistence Migration
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Replace the legacy single preset setting with durable Halloy theme configuration while preserving existing installations and keeping runtime rendering behavior unchanged until Phase 07.

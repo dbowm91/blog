@@ -1,5 +1,7 @@
 # Site Identity, Authorship and Layout Roadmap
 
+> **Plan status: ACTIVE — the series is open.** Phases 01–05 shipped; Phase 06 has not started. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+
 **Date:** 2026-10-24
 **Status:** Open — Phases 01 (both parts), 02, 03, 04 and 05 shipped; Phase 06 planned
 **Origin:** operator review of the running instance (2026-10-24)

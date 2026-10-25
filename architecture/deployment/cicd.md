@@ -102,3 +102,4 @@ Required environment variables:
 ## See Also
 - [Docker](docker.md) - Docker setup
 - [Testing](../testing/test-suite.md) - Test infrastructure
+- [Release Validation Skill](../../.skills/release_validation/skill.md) - The local equivalent of the CI gate, and how to diagnose a failing stage

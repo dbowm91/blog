@@ -1,5 +1,7 @@
 # Halloy Theme Phase 08 — Visitor Color-Scheme Behavior
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Replace the current ambiguous dark-mode toggle with a color-scheme preference model that works cleanly with administrator-selected Halloy dark/light theme pairs and avoids first-paint flashing.

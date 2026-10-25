@@ -20,7 +20,7 @@ ruff format --check .
 
 echo ""
 echo "--- Mypy type check ---"
-mypy app/
+mypy app/ devlog_cli/
 
 echo ""
 echo "--- Pytest (unit/integration) ---"

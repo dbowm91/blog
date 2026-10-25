@@ -1,5 +1,7 @@
 # Halloy Theme Phase 04 — Safe Registry and External Overrides
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 > **Status: COMPLETE**
 
 ## Objective

@@ -38,7 +38,7 @@ This mapping was used by `migrate_legacy_preset()` when upgrading from the old s
 
 ### Visitor dark/light preference
 
-The visitor dark/light toggle was migrated in Phase 08 to a `blog-color-scheme` localStorage key with `system`/`dark`/`light` semantics. The CSS selector was updated from `[data-theme]` to `[data-color-scheme]`. The `dark-mode.js` module now re-exports from `color-scheme.js` for backward compatibility.
+The visitor dark/light toggle was migrated in Phase 08 to a `blog-color-scheme` localStorage key with `system`/`dark`/`light` semantics. The CSS selector was updated from `[data-theme]` to `[data-color-scheme]`. The implementation lives in `app/static/js/shared/color-scheme.js`; there is no separate `dark-mode.js` module.
 
 ## Section C: Migration Path (Completed)
 
@@ -58,90 +58,119 @@ The `theme_preset` column was dropped from `SiteSettings` via Alembic migration.
 
 | Phase | Action |
 |---|---|
-| 06 | Legacy presets available as `legacy_kept` entries in registry alongside Halloy themes |
+| 06 | Legacy presets kept in the registry alongside Halloy themes |
 | 10 | Admin UI shows registry-based theme selector (legacy presets no longer in selector) |
 | 14 | `THEME_PRESETS` dict removed; emergency fallback uses `EMERGENCY_DEFAULT` |
 | 15 | `theme_preset` column dropped; `LEGACY_PRESET_MAP` and `migrate_legacy_preset()` removed |
 
+The registry still resolves lower-case *name* aliases — for example
+`solarized-dark` resolves to the `Solarized Dark` theme — through `_THEME_ALIASES`
+in `app/themes/registry.py`. These are theme-name spellings, not the removed
+preset system.
+
 ## Section D: Identified Visual Differences
 
-### `solarized-dark` → `Solarized Dark.toml` (Halloy)
+The differences below were recorded when the presets were still live. The
+translator now derives `BlogTheme` from the Halloy source files directly, so the
+"Halloy translation" column is what the current translator actually produces.
 
-This is the only legacy preset with a near-match Halloy file. Key differences:
+### `solarized-dark` → `Solarized Dark.toml`
+
+`themes/Solarized Dark.toml` is the only catalog file built from a legacy preset.
+Key differences:
 
 | Token | Legacy preset | Halloy translation | Notes |
 |---|---|---|---|
-| `accent` | `#268BD2` (blue) | `#2AA198` (teal) | Mapped from `[buffer].url`; this is the primary visual change |
-| `bg-surface` | `#073642` | `#073642` | Matches `[buffer].background_text_input` |
-| `bg-elevated` | `#094857` | `#073642` | Halloy has no distinct elevated value; `[buffer].background_title_bar` = `#073642` |
-| `border` | `#586e75` | `#93A1A1` | Mapped from `[general].border`; lighter in Halloy |
+| `accent` | `#268BD2` (blue) | `#93A1A1` | Mapped from `[text].tertiary` |
+| `text-link` | — | `#2AA198` (teal) | Mapped from `[buffer].url` |
+| `bg-page` | `#002B36` | `#002B36` | Matches `[general].background` |
+| `bg-surface` | `#073642` | `#002B36` | Mapped from `[buffer].background` |
+| `bg-elevated` | `#094857` | `#073642` | Mapped from `[buffer].background_title_bar` |
+| `border` | `#586e75` | `#93A1A1` | Mapped from `[general].border`; lighter in the Halloy file |
 | `text` | `#839496` | `#839496` | Exact match — `[text].primary` |
 | `text-muted` | `#586e75` | `#586E75` | Case-insensitive match — `[text].secondary` |
 | `green` | `#859900` | `#859900` | Exact match — `[text].success` |
 | `red` | `#dc322f` | `#DC322F` | Case-insensitive match — `[text].error` |
-| `yellow` | `#b58900` | — | Not directly mapped from Halloy; would need derivation |
-| `purple` | `#6c71c4` | — | Not directly mapped; would need derivation |
-| `coral` | `#cb4b16` | `#CB4B16` | Case-insensitive match — `[buffer].action` |
+| `yellow` | `#b58900` | — | Not mapped from Halloy; the warning fill uses a fixed hue |
+| `purple` | `#6c71c4` | — | Not mapped from Halloy; the info fill uses a fixed hue |
+| `coral` | `#cb4b16` | `#F78166` | Fixed constant in the translator; not read from Halloy |
 
-**Summary**: The accent color shift from blue (`#268BD2`) to teal (`#2AA198`) is the most visually significant difference. After Phase 05, the legacy "solarized-dark" preset should be deleted and operators should select `Solarized Dark.toml` from the registry, accepting the accent color change.
+**Summary**: the accent shift from blue (`#268BD2`) to the muted slate
+(`#93A1A1`) is the most visually significant difference. Operators who want the
+old blue accent should select a theme whose `[text].tertiary` is blue.
 
-### `github-dark` → `<future Halloy file>`
+### `github-dark` → no catalog file
 
-No Halloy equivalent exists. Authoring a GitHub-Dark-themed TOML file is out of scope for this phase. Phase 14 cleanup may deprecate the `legacy_kept` entry in favor of an authored file if one is added to the catalog.
-
-Key palette reference for future authoring:
+No Halloy equivalent exists. The closest reference is `Catppuccin Mocha.toml`,
+which uses a different palette. The GitHub Dark palette survives as the
+`EMERGENCY_DEFAULT` emergency fallback in `app/themes/model.py`:
 
 | Token | Value |
 |---|---|
-| `bg` | `#0d1117` |
-| `bg-surface` | `#161b22` |
-| `text` | `#e6edf3` |
+| `bg-page` | `#0d1117` |
+| `surface-default` | `#161b22` |
+| `text-primary` | `#e6edf3` |
 | `accent` | `#58a6ff` |
-| `green` | `#3fb950` |
-| `red` | `#f85149` |
+| `success-fg` | `#3fb950` |
+| `error-fg` | `#f85149` |
 
-### `github-light` → `<future Halloy file>`
+### `github-light` → no catalog file
 
-No Halloy equivalent exists. `Catppuccin Latte.toml` and `Noctis Lilac.toml` are the closest light themes but differ substantially in palette.
-
-Key palette reference for future authoring:
+No Halloy equivalent exists. `Catppuccin Latte.toml` and `Noctis Lilac.toml` are
+the closest light themes but differ substantially in palette. The GitHub Light
+palette reference:
 
 | Token | Value |
 |---|---|
-| `bg` | `#f6f8fa` |
-| `bg-surface` | `#ffffff` |
-| `text` | `#1f2328` |
+| `bg-page` | `#f6f8fa` |
+| `surface-default` | `#ffffff` |
+| `text-primary` | `#1f2328` |
 | `accent` | `#0969da` |
-| `green` | `#1a7f37` |
-| `red` | `#cf222e` |
+| `success-fg` | `#1a7f37` |
+| `error-fg` | `#cf222e` |
 
-### `monokai` → `<future Halloy file>`
+### `monokai` → no catalog file
 
-No Halloy equivalent exists. `Sonokai.toml` is the closest neighbor (Sonokai is a Monokai variant by Eldar Tukhvatullin) but uses a distinct palette.
-
-Key palette reference for future authoring:
+No Halloy equivalent exists. `Sonokai.toml` is the closest neighbour (Sonokai is
+a Monokai variant by Eldar Tukhvatullin) but uses a distinct palette. The Monokai
+palette reference:
 
 | Token | Value |
 |---|---|
-| `bg` | `#272822` |
-| `bg-surface` | `#3e3d32` |
-| `text` | `#f8f8f2` |
+| `bg-page` | `#272822` |
+| `surface-default` | `#3e3d32` |
+| `text-primary` | `#f8f8f2` |
 | `accent` | `#66d9ef` |
-| `green` | `#a6e22e` |
-| `red` | `#f92672` |
+| `success-fg` | `#a6e22e` |
+| `error-fg` | `#f92672` |
 
 ## Section E: Compatibility Aliases Summary
 
-All 22+ CSS custom properties previously emitted by `THEME_PRESETS` have direct equivalents in the `BlogTheme` semantic token contract. The mapping is 1:1 for existing tokens — no CSS variable names are changed. The `BlogTheme` model extends the set with additional derived tokens (e.g., `text-on-accent`, `overlay`, `shadow`) but all legacy `theme_vars` keys are preserved as compatibility aliases via the `ALIASES` dict in `app/themes/model.py`.
+Every CSS custom property previously emitted by `THEME_PRESETS` has a direct
+equivalent in the `BlogTheme` semantic token contract. The `ALIASES` dict in
+`app/themes/model.py` preserves all **38** legacy variable names, so no CSS
+variable name the stylesheets consume was changed. The `BlogTheme` model extends
+the set with additional derived tokens (`text-on-accent`, `overlay-bg`,
+`shadow-color`) that the aliases also expose.
 
-Refer to the token contract defined in `docs/themes/blog-theme-contract.md` for the complete token matrix and derivation rules.
+Refer to the token contract defined in [the BlogTheme token contract](blog-theme-contract.md)
+for the complete token matrix, derivation rules and the full alias table.
 
 ## Appendix: Halloy Theme Files Referenced
 
 | File | Role in this document |
 |---|---|
-| `"Solarized Dark.toml"` | Near-match for `solarized-dark` preset |
+| `"Solarized Dark.toml"` | Built from the legacy `solarized-dark` preset |
 | `Catppuccin Mocha.toml` | Closest dark theme reference for `github-dark` |
 | `Catppuccin Latte.toml` | Closest light theme reference for `github-light` |
 | `Noctis Lilac.toml` | Alternative light theme reference for `github-light` |
-| `Sonokai.toml` | Closest neighbor for `monokai` (Monokai variant) |
+| `Sonokai.toml` | Closest neighbour for `monokai` (Monokai variant) |
+
+## See Also
+
+- [BlogTheme token contract](blog-theme-contract.md) — the token matrix and the
+  full alias table
+- [Migration boundary](migration-boundary.md) — the Alembic migrations that removed
+  the legacy preset column
+- [Theme architecture](../../architecture/core/themes.md) — the module reference
+  for `app/themes/`

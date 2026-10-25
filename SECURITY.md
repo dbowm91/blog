@@ -29,14 +29,14 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 
 ### What the Application Covers
 
-- CSRF protection on all POST requests (enabled by default)
+- CSRF protection on all browser POST requests (enabled by default). API-key authenticated requests on the `api` blueprint are exempt — they are protected by token secrecy, HTTPS, scopes, rate limits, and audit logging instead of browser CSRF tokens
 - Rate limiting via `flask-limiter` on the API (writes: 10/min, reads: 20/min), comments and public browse routes
 - SSRF protection on webhook delivery targets
 - HTML/CSS/SQL injection prevention via parameterized queries and input sanitization
 - Session fixation prevention and secure cookie attributes (HttpOnly, SameSite=Lax)
 - Password hashing via `werkzeug.security` (pbkdf2:sha256)
 - Encrypted webhooks and backups at rest (AES-256-GCM)
-- Security headers: CSP (with nonces), HSTS, X-Frame-Options, X-Content-Type-Options
+- Security headers: CSP (with nonces), HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
 - Login failure delay and account lockout after failed attempts
 
 ### What the Application Does NOT Cover
@@ -62,9 +62,9 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 
 ### Authentication
 - Password hashing via `werkzeug.security` (pbkdf2:sha256)
-- TOTP-based 2FA for admin accounts
+- TOTP-based 2FA for admin accounts, with single-use backup codes
 - Session fixation prevention
-- Admin session tracking with IP binding
+- Admin session tracking with IP binding (`SESSION_IP_BINDING`: `off`, `warn` or `enforce`; default `warn` logs the change but keeps the session)
 
 ### API Security
 - API key authentication with timing-safe comparison
@@ -85,6 +85,9 @@ DevLog is a **self-hosted** application. Security depends on proper deployment c
 - Strict-Transport-Security (HSTS)
 - X-Frame-Options: DENY
 - X-Content-Type-Options: nosniff
+- Referrer-Policy: strict-origin-when-cross-origin
+- Permissions-Policy: camera, microphone and geolocation disabled
+- Cross-Origin-Opener-Policy: same-origin
 
 ## Configuration Recommendations
 
@@ -124,7 +127,7 @@ SESSION_COOKIE_SECURE=true
 - [ ] `METRICS_SECRET` set and `ENABLE_METRICS=true` to gate `/metrics` endpoint
 - [ ] Static files served by nginx/Caddy, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
-- [ ] `instance/blog.db` not in web-accessible directory
-- [ ] `static/uploads/` permissions restricted
+- [ ] `data/devlog.sqlite3` not in a web-accessible directory
+- [ ] `app/static/uploads/` permissions restricted
 - [ ] SMTP credentials via environment variables (not in config.toml)
 - [ ] Regular backups configured and tested

@@ -71,7 +71,6 @@ UID/GID is fixed at 1000:1000 (`blog:blog`).
 ./data/backups/
 ./data/exports/
 ./logs/
-./instance/
 ```
 
 ## Path Resolution
@@ -88,6 +87,8 @@ Paths are resolved via `RuntimePaths.for_mode(mode)` or `RuntimePaths.resolve(mo
 
 ## Environment Variable Overrides
 
+`app/filesystem/layout.py` consults these variables directly when it resolves a path:
+
 | Variable | Maps To | Example |
 |----------|---------|---------|
 | `DEVLOG_DATA_DIR` | `data_dir` | `/srv/data` |
@@ -95,17 +96,24 @@ Paths are resolved via `RuntimePaths.for_mode(mode)` or `RuntimePaths.resolve(mo
 | `DEVLOG_ENV_FILE` | `env_file` | `/etc/devlog/.env` |
 | `DEVLOG_LOG_DIR` | `log_dir` | `/var/log/devlog` |
 | `DEVLOG_RUNTIME_DIR` | `runtime_dir` | `/run/devlog` |
-| `DEVLOG_DATABASE_PATH` | `database` | `/data/mydb.sqlite3` |
-| `DEVLOG_UPLOADS_DIR` | `uploads_dir` | `/data/uploads` |
-| `DEVLOG_THEMES_DIR` | `themes_dir` | `/data/themes` |
-| `DEVLOG_BACKUPS_DIR` | `backups_dir` | `/data/backups` |
-| `DEVLOG_EXPORTS_DIR` | `exports_dir` | `/data/exports` |
 
-Precedence: explicit CLI/config > env var > installation metadata > mode default.
+The database, uploads, themes, backups and exports directories are derived from
+`data_dir` and are not individually settable through an environment variable in
+`layout.py`. The typed configuration package exposes separate variables for them
+(`DEVLOG_DATABASE_PATH`, `DEVLOG_UPLOADS_DIR`, `DEVLOG_THEMES_DIR`,
+`DEVLOG_BACKUPS_DIR`, `DEVLOG_EXPORTS_DIR`); they populate the `[paths]` section of
+the typed config, not `RuntimePaths`.
+
+Precedence for a resolved path: explicit override > environment variable > mode
+default. Installation metadata is read as an explicit override by
+`RuntimePaths.from_metadata()`, so a recorded installation wins over the
+environment.
 
 ## Configuration Override
 
-Paths can also be overridden in `config.toml`:
+Paths can also be overridden in `config.toml` under the `[paths]` section, which
+accepts `data_dir`, `log_dir`, `runtime_dir`, `database_path`, `uploads_dir`,
+`themes_dir`, `backups_dir` and `exports_dir`:
 
 ```toml
 [paths]
@@ -117,12 +125,17 @@ runtime_dir = "/run/devlog"
 ## CLI Commands
 
 ```bash
-devlog paths status              # Show resolved paths and provenance
-devlog paths status --json       # JSON output
-devlog paths discover-legacy     # Find legacy repository-local state
-devlog paths migrate --dry-run   # Plan migration (dry-run only)
-devlog paths check               # Verify layout integrity
+devlog paths status               # Show resolved paths and provenance
+devlog paths status --json        # JSON output
+devlog paths discover-legacy      # Find legacy repository-local state
+devlog paths migrate --from-mode development --to-mode system  # Plan a migration
+devlog paths check                # Verify layout integrity
 ```
+
+`devlog paths migrate` only produces a plan. It accepts `--from-mode` and
+`--to-mode` (each `system`, `user`, `docker` or `development`) and never moves
+files; the executor in `app/filesystem/migration.py` is a service API, not a CLI
+command.
 
 ## Lifecycle Categories
 
@@ -139,3 +152,13 @@ Paths are categorized for backup/uninstall policy (see `app/filesystem/lifecycle
 | Logs | No | No | Yes | Yes |
 | Runtime | No | No | Yes | Yes |
 | Installation metadata | Yes | Yes | Yes | No |
+
+## See Also
+
+- [Filesystem architecture](../architecture/core/filesystem.md) — the module-by-module
+  reference for `app/filesystem/`
+- [Migration from a repository-local layout](migration-from-checkout.md) — the
+  operator workflow for moving an existing checkout
+- [Typed configuration](../architecture/core/configuration.md) — how `[paths]`
+  interacts with the rest of the config system
+

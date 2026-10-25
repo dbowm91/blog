@@ -14,14 +14,16 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Template Filters](#template-filters)
 - [Encryption Modules](#encryption-modules)
 - [S3 Storage Gotchas](#s3-storage-gotchas)
-- [Task Line Numbers](#task-line-numbers)
+- [Task Names](#task-names)
 - [Test Structure](#test-structure)
 - [Misc Implementation Notes](#misc-implementation-notes)
 - [Verifying Frontend Visual Defects](#verifying-frontend-visual-defects)
 - [Second Frontend Review Pass (2026-10-23)](#second-frontend-review-pass-2026-10-23)
 - [Code Block Line Numbers (2026-10-23)](#code-block-line-numbers-2026-10-23)
 - [Admin Theme Preview Placement (2026-10-24)](#admin-theme-preview-placement-2026-10-24)
+- [Site Identity, Authorship and Page Navigation (2026-10-24)](#site-identity-authorship-and-page-navigation-2026-10-24)
 - [Editor Layout, Markdown Toolbar and Footer Subscribe (2026-10-24)](#editor-layout-markdown-toolbar-and-footer-subscribe-2026-10-24)
+- [See Also](#see-also)
 
 ---
 
@@ -112,15 +114,15 @@ Phase 02 of the Halloy theme migration is complete. The `app/themes/` package pr
 
 ### Rate Limiting
 
-- `ADMIN_RATE_LIMITS` defined in `app/config.py`
+- `ADMIN_RATE_LIMITS` defined in `app/config_legacy.py`
 - `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
 - Flask-Limiter already integrated with `key_func=get_client_ip`
 
 ### Session IP Binding
 
-- `SESSION_IP_BINDING` config in `app/config.py:89` (default: `"warn"`)
+- `SESSION_IP_BINDING` config in `app/config_legacy.py` (default: `"warn"`)
 - `"warn"`: logs warning on IP change during session
-- `"enforce"`: invalidates session and requires re-login (implemented in `app/routes/admin/__init__.py:32`)
+- `"enforce"`: invalidates session and requires re-login (implemented in `app/routes/admin/__init__.py`)
 
 ### Search Abstraction
 
@@ -194,7 +196,7 @@ The health check endpoint (`GET /health`) determines overall status using only c
 
 ### python-dotenv Auto-Loading
 
-`python-dotenv` is included in `requirements.txt` and called via `load_dotenv()` in both `run.py` and `app/config.py`. The app auto-loads `.env` without requiring manual `source` commands.
+`python-dotenv` is included in `requirements.txt` and called via `load_dotenv()` in both `run.py` and `app/config_legacy.py`. The app auto-loads `.env` without requiring manual `source` commands.
 
 ### Email Retry Count
 
@@ -206,7 +208,8 @@ The `critical.css` file at `app/static/css/critical.css` provides above-the-fold
 
 ### Celery Queue Names
 
-Tasks use specific queues: `images`, `newsletter`, `webhooks`, `email`, `backup` (see `app/tasks.py:32,140,208,384,405,426`)
+Tasks declare the queue they are dispatched to in the `shared_task` decorator:
+`images`, `newsletter`, `webhooks`, `email`, `backup`. See `app/tasks.py`.
 
 ### User Model `__repr__`
 
@@ -234,13 +237,9 @@ critical_checks = {
 
 ### Snippet Batching
 
-For SQLite parameter limits, batch post_ids:
-
-```python
-chunk_size = 500
-for i in range(0, len(post_ids), chunk_size):
-    chunk = post_ids[i:i + chunk_size]
-```
+For SQLite parameter limits, batch post_ids. The limit is the module constant
+`_SQLITE_MAX_VARS = 500` in `app/search.py`; `get_search_snippets()` splits the
+id list into chunks of that size before querying FTS5.
 
 ### Backup Isolation
 
@@ -303,7 +302,7 @@ Tag and series pages include feed discovery links in `<head>` for RSS readers to
 
 ### Webhook Secret Storage
 
-`Webhook.secret` is a property that decrypts `webhook_secret_encrypted` (LargeBinary column) using AES-256-GCM via `app/webhook_encryption.py` (see `app/models.py:490-517`). Do not document `secret` as a plain-text column.
+`Webhook.secret` is a property that decrypts `webhook_secret_encrypted` (LargeBinary column) using AES-256-GCM via `app/webhook_encryption.py` (see the `Webhook.secret` getter and setter in `app/models.py`). Do not document `secret` as a plain-text column.
 
 ### WebhookEvent Delivery Status
 
@@ -326,10 +325,16 @@ Use `get_search_provider()` factory function to get configured provider based on
 
 ### Comment Submission Rate Limiting
 
-Comments are rate limited at 10 per minute and require CSRF protection via the global `before_request` hook (route-level `validate_csrf_token()` was removed in Phase 3).
+Comments are rate limited by configuration and require CSRF protection via the
+global `before_request` hook (route-level `validate_csrf_token()` was removed in
+Phase 3).
 
 - Route: `POST /post/<slug>/comment` in `app/routes/public/comments.py`
-- Rate limit: `@limiter.limit("10 per minute")`
+- Limits: `@limiter.limit(COMMENT_RATE_LIMIT_PER_IP, ...)` and
+  `@limiter.limit(COMMENT_RATE_LIMIT_PER_POST, ...)`. The defaults are
+  `COMMENT_RATE_LIMIT_PER_IP="5 per minute"` and
+  `COMMENT_RATE_LIMIT_PER_POST="3 per minute"`, both overridable through the
+  typed `[comments]` config section.
 - CSRF: Hidden `csrf_token` field in form, validated before processing
 
 ---
@@ -342,7 +347,7 @@ Comments are rate limited at 10 per minute and require CSRF protection via the g
 
 ### S3 Credential Clearing Bug
 
-`_clear_credentials()` method in `S3StorageBackend` was removed because it broke client recreation. The method was called after client initialization in `storage.py:168-174`.
+`_clear_credentials()` method in `S3StorageBackend` was removed because it broke client recreation. The method was called after client initialization in the `S3StorageBackend` constructor path in `app/storage.py`.
 
 ### CSRF Token Rotation Is On Every Use
 
@@ -376,8 +381,11 @@ Actual context processor function names (not the injected variable names):
 - `inject_csrf()` - Injects `csrf_token` and `csp_nonce`
 - `inject_config()` - Injects site config variables
 - `inject_theme()` - Injects theme settings and `custom_css`
+- `inject_appearance()` - Injects the appearance layer settings (typeface, backdrop)
 - `inject_footer_data()` - Injects footer links and data
 - `inject_show_footer_posts()` - Injects `show_footer_posts` boolean
+- `inject_site_settings()` - Injects the site settings row
+- `inject_page_menu()` - Injects the resolved page menu
 
 ---
 
@@ -412,27 +420,34 @@ S3StorageBackend stores credentials at client creation time (not per-request). C
 S3 settings are read from environment variables, NOT from config.toml or config files:
 
 - `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_PUBLIC_URL`
-- See `app/storage.py:41` for direct env var reading
+- See the module-level `_S3_*` constants in `app/storage.py` for direct env var reading
 
 ---
 
-## Task Line Numbers
+## Task Names
 
-Actual line numbers in `app/tasks.py`:
+The Celery tasks in `app/tasks.py`, by function name:
 
-- `generate_image_variants`: 32
-- `send_newsletter_task`: 140
-- `deliver_webhook_task`: 208
-- `send_confirmation_task`: 384
-- `send_password_reset_task`: 405
-- `run_backup_task`: 426
+| Task | Queue |
+|------|-------|
+| `generate_image_variants` | `images` |
+| `send_newsletter_task` | `newsletter` |
+| `deliver_webhook_task` | `webhooks` |
+| `send_confirmation_task` | `email` |
+| `send_password_reset_task` | `email` |
+| `run_backup_task` | `backup` |
+
+`deliver_webhook_task` dispatches to `deliver_single_webhook_task`, which carries
+the per-webhook retry logic.
 
 ---
 
 ## Test Structure
 
-- Tests are organized across 36 test files covering models, routes, API, search, security, and more
-- Run `ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --collect-only` to get current count
+- Tests live under `tests/`, with subdirectories for `benchmarks`, `cli`, `config`,
+  `deployment`, `e2e`, `filesystem`, `installer`, `onboarding`, `packaging` and
+  `services`
+- Run `ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 python -m pytest tests/ --collect-only` to get the current count
 - E2E tests use `pytest-playwright`, NOT `@playwright/test`
 - All E2E tests are in `tests/e2e/test_e2e.py` with 4 classes: `TestAdminLogin`, `TestPostCreation`, `TestNewsletterSubscription`, `TestMobileResponsiveness`
 - RSS/Atom feed tests are in `tests/test_coverage.py`, NOT in a separate `test_rss.py` file
@@ -502,7 +517,7 @@ Where the limit now lives:
 
 ### nginx Security Headers
 
-Present in `nginx/conf.d/blog.conf:25-32`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Content-Security-Policy`, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy`. Missing: `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`.
+Present in the `add_header` directives of `nginx/conf.d/blog.conf`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Content-Security-Policy`, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy`. Missing: `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`.
 
 ### Template Context Variables
 
@@ -814,11 +829,14 @@ the admin sign-in share a session cookie. Three things keep them apart:
    `logout_user()`, exactly as the admin logout does. Without this, an admin
    who signs out from the public site leaves an orphaned row.
 
-The public login applies the same controls as the admin login: a 5-per-minute
-rate limit, the shared lockout counters on the `User` row, the
-`LOGIN_FAILURE_DELAY` sleep on every failure, `session.clear()` before
-`login_user()`, and a second factor for accounts that have one. A public
-sign-in must never be a weaker path than the admin sign-in.
+The public login applies the same controls as the admin login: the shared lockout
+counters on the `User` row, the `LOGIN_FAILURE_DELAY` sleep on every failure,
+`session.clear()` before `login_user()`, and a second factor for accounts that
+have one. A public sign-in must never be a weaker path than the admin sign-in.
+
+There is **no per-IP rate limit in the application** on either login route — the
+per-IP limit lives in the reverse proxy, as described under
+[Login Rate Limiting Lives in the Proxy](#login-rate-limiting-lives-in-the-proxy-not-the-application).
 
 The `?next=` parameter is validated by `is_safe_next_url()` in
 `app/routes/public/auth.py`: a single leading slash, no scheme, no netloc, no
@@ -1052,3 +1070,16 @@ never loads, and every editor control silently does nothing.
 **Restart the Flask server after every frontend build** before you trust a
 browser check. The symptom is a page that renders but whose JavaScript is
 dead, which looks like a bug in the code you just wrote.
+
+---
+
+## See Also
+
+- [Architecture overview](../../architecture/overview.md) — the authoritative
+  system design index
+- [App factory and configuration](../../architecture/core/app-factory.md)
+- [Data models](../../architecture/core/models.md)
+- [API routes](../../architecture/routes/api-routes.md)
+- [Operations services](../../architecture/services/operations.md)
+- [Operator CLI](../../architecture/deployment/cli.md)
+

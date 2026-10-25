@@ -1,5 +1,7 @@
 # Release 1 Phase B — Typed Configuration Core, Validation, and Path Resolution
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/configuration.md](../architecture/core/configuration.md); this file is the historical record.
+
 ## Objective
 
 Create one authoritative, typed, versioned configuration system used by the Flask application, standalone CLI, tests, and all later onboarding/deployment work.

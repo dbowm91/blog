@@ -1,5 +1,7 @@
 # Release 2 Phase F — Production Filesystem Layout and State Migration
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/filesystem.md](../architecture/core/filesystem.md); this file is the historical record.
+
 ## Objective
 
 Separate DevLog application code from mutable runtime state and establish predictable, standards-aligned filesystem layouts for system-native, user-native, Docker, and development modes.

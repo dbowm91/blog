@@ -17,7 +17,15 @@ The theme system uses two in-process caches: a **catalog cache** (registry-level
 - **Changes become visible after explicit registry refresh/invalidation.** External theme files are discovered from a configurable directory (`external_root`). The catalog records `mtime` and `size` at discovery time, but does not re-stat the filesystem on subsequent loads.
 - **No automatic filesystem polling.** There is no background thread, inotify watcher, or periodic re-stat. External file edits, additions, or deletions remain invisible until the caller triggers invalidation.
 - **Admin and CLI refresh are authoritative.** The admin settings page and CLI commands call `service.invalidate_registry()` or `service.refresh_registry()`, which rebuild the catalog and evict affected cache entries.
-- **Cache entries validated against current mtime/size/fingerprint.** On each `load()` call, the registry checks the cache entry's stored fingerprint against the catalog's current file metadata. For external themes, the fingerprint is `"{mtime}:{size}"`. A mismatch causes a re-parse from disk.
+- **Cache entries are validated against the current mtime and size.** On each `load()` call the registry compares the cache entry's stored `file_mtime` and `file_size` with the catalog's current file metadata. A mismatch causes a re-parse from disk.
+
+> **The fingerprint is not on the load path.** `_compute_fingerprint()` is still
+> computed and stored on the cache entry as `source_fingerprint` — SHA-256 of the
+> file content for bundled sources, `"{mtime}:{size}"` for external ones — but
+> `ThemeRegistry.load()` compares mtime and size, not the fingerprint. The
+> fingerprint is only consulted by `ThemeCache.validate_entry()`, which the
+> registry does not call. Do not rely on a content change being detected through
+> the fingerprint; rely on explicit invalidation.
 
 ## Hot Path Behavior
 
@@ -33,7 +41,7 @@ Ordinary warm requests for an already-loaded theme perform no I/O. The cache ent
 
 The `ThemeService` maintains a separate **settings context cache** that caches the fully-resolved context dict (dark/light theme names, CSS variables, scheme, etc.) consumed by the template context processor.
 
-- **TTL-based fallback.** The cache has a 300-second TTL (`_SETTINGS_CACHE_TTL` in `service.py:29`). After expiry, the next `get_context()` call re-reads `SiteSettings` from the database.
+- **TTL-based fallback.** The cache has a 300-second TTL (`_SETTINGS_CACHE_TTL` in `app/themes/service.py`). After expiry, the next `get_context()` call re-reads `SiteSettings` from the database.
 - **Explicit invalidation.** `service.invalidate_settings_cache()` immediately clears the cache, forcing a fresh database read on the next request.
 - **Distinct from the registry cache.** The settings cache stores the final rendered context; the registry cache stores parsed theme data. Invalidating one does not automatically invalidate the other.
 
@@ -69,7 +77,7 @@ The `ThemeService` maintains a separate **settings context cache** that caches t
 | `cache.invalidate()` | Full | Clears all entries (`dict.clear()`). |
 | `cache.invalidate_prefix(prefix)` | Name-based | Removes all entries whose key ends with `":{prefix}"`. Used to evict both `bundled:{name}` and `external:{name}` variants. |
 | `cache.clear()` | Full | Alias for `invalidate(None)`. |
-| `cache.validate_entry(key, mtime, size, fingerprint)` | Validation | Returns `True` if the stored entry's `source_fingerprint` matches the provided `current_fingerprint`. For external themes where `current_fingerprint` is `None`, falls back to mtime+size comparison. |
+| `cache.validate_entry(key, current_mtime, current_size, current_fingerprint)` | Validation | Returns `True` if the stored entry's `source_fingerprint` matches the provided `current_fingerprint`. When `current_fingerprint` is `None`, falls back to comparing `file_mtime` and `file_size`. Not called by `ThemeRegistry.load()`, which compares mtime and size directly. |
 
 ## Fallback Chain
 
@@ -97,6 +105,7 @@ Cache behavior should be verified by the following test patterns:
 | **Warm path does no I/O** | Load a theme, then mock `_compute_fingerprint` and `parse_halloy_theme_bytes`. Load again. Mocks are not called — no bytes are read and no parsing occurs. |
 | **Invalidation forces re-read** | Load a theme, call `invalidate(name)`, load again. The second load reads bytes from disk (mock `read_bytes` to assert call count). |
 | **Fingerprint mismatch triggers re-parse** | Load a theme, modify the file's mtime/size, call `invalidate(name)`, load again. The cache entry is rebuilt. |
+| **Fingerprint is not consulted on the load path** | Load a theme, then change the file content without changing its mtime or size, and rebuild the catalog. The stale cached result is returned. This is why explicit invalidation is required. |
 | **Fallback chain** | Configure a nonexistent theme name. Verify `get_fallback()` returns the default, then emergency if the default is also broken. |
 | **Concurrent reads are safe** | Load the same theme from multiple threads simultaneously. No exceptions, no corruption, all threads receive valid `LoadedTheme` results. |
 | **Settings cache TTL** | Call `get_context()`, advance time past `_SETTINGS_CACHE_TTL`, call again. Verify the second call re-reads from the database. |
@@ -113,3 +122,10 @@ Cache behavior should be verified by the following test patterns:
 | `service.refresh_registry()` | Yes (replaces registry) | N/A (new instance) | No | No |
 | `service.invalidate_settings_cache()` | No | No | Yes | No |
 | Process restart | Yes (new process) | Yes (new process) | Yes (new process) | Yes |
+
+## See Also
+
+- [Theme architecture](../../architecture/core/themes.md#the-cache) — the module
+  reference for `app/themes/registry.py` and `app/themes/cache.py`
+- [BlogTheme token contract](blog-theme-contract.md) — what is cached
+- [Theme operator guide](operator-guide.md) — the commands that trigger invalidation

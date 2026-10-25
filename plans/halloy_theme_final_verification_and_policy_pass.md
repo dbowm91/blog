@@ -1,5 +1,7 @@
 # Halloy Theme System Final Verification and Policy Pass
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Purpose
 
 Perform the final release-candidate verification and policy review for the Halloy theme roadmap. This pass does not introduce another feature phase. Its purpose is to establish whether the completed theme subsystem is safe, supportable, accessible, migration-correct, reproducibly packaged, and ready to be treated as closed production infrastructure.

@@ -27,7 +27,7 @@ Detailed documentation for blog administration and content management.
 ### Creating a New Post
 
 1. Navigate to `/admin/` (Dashboard)
-2. Click **New Post** button
+2. Click **+ New Post** button
 3. Fill in the post fields:
 
 | Field | Description |
@@ -35,11 +35,16 @@ Detailed documentation for blog administration and content management.
 | Title | Post title (shown in browser tab, social shares) |
 | Body | Markdown content (see Markdown Tips below) |
 | Tags | Comma-separated tag names |
-| Summary | Optional excerpt (if not set, auto-generated from body) |
-| Image | Featured image filename |
-| Publish At | Schedule for future publishing (leave empty to publish immediately) |
+| Summary | Optional excerpt, up to 500 characters. When empty, listings fall back to the start of the body |
+| Image | Featured image (uploaded with a file picker) |
+| Author | Post author, when more than one author exists |
+| Publish immediately | Checkbox. Leave unchecked to keep the post as a draft |
+| Schedule publication | Optional date/time. Publishes automatically once that time passes |
 
-4. Click **Publish** to publish immediately, or **Save Draft** to save without publishing.
+4. Click **Create Post** to save. Leave **Publish immediately** unchecked for a draft.
+
+Authors (non-admin accounts) can only create and edit their own drafts;
+publishing and scheduling are administrator decisions.
 
 ### Markdown Tips
 
@@ -50,14 +55,13 @@ Detailed documentation for blog administration and content management.
 #### Sub-subsection   → H4 heading (not in TOC)
 ```
 
-**Summary Divider:**
-```markdown
-First paragraph (summary shown in listings).
+The table of contents is built from the `h2` and `h3` headings of the post
+body and only appears when the post has at least three of them.
 
----
-
-Rest of content (only shown on post page).
-```
+**Excerpt:**
+The **Summary** field holds the excerpt used in listings, feeds and share
+cards. There is no in-body divider — the excerpt is a separate field in the
+editor, capped at 500 characters.
 
 **Code Blocks:**
 ````markdown
@@ -80,12 +84,17 @@ def hello():
 
 ### Previewing Posts
 
-Click the **Preview** button to see how your post will look. The preview:
+While editing, the live preview pane under the editor renders the post body
+as you type. It can be collapsed with the **Hide Preview** / **Show Preview**
+toggle. The preview:
 
 - Renders Markdown to HTML
 - Sanitizes HTML via nh3 (strips dangerous tags/attributes)
 - Shows table of contents from h2/h3 headings
 - Uses current theme styling
+
+For a saved post, the **Preview** link opens the full post preview at
+`/admin/preview/<post_id>` in a new tab.
 
 ### Editing Posts
 
@@ -98,7 +107,8 @@ Click the **Preview** button to see how your post will look. The preview:
 
 ### Post Revisions
 
-Every time you publish a post, a revision is saved:
+A revision is saved when a post is first published and again on every later
+update to an already-published post:
 
 1. While editing, click **Revisions** tab
 2. View previous versions with author and timestamp
@@ -113,6 +123,7 @@ From `/admin/`:
 2. Select a bulk action from the dropdown:
    - **Publish** — Publish selected drafts
    - **Unpublish** — Take selected posts offline
+   - **Unschedule** — Clear the scheduled publication time
    - **Delete** — Permanently remove (with confirmation)
 3. Click **Apply**
 
@@ -152,18 +163,15 @@ Go to `/admin/tags` to see all tags with post counts.
 ### Creating Tags
 
 1. Go to `/admin/tags`
-2. Click **New Tag**
-3. Enter:
-   - **Name** — Display name (e.g., "Python")
-   - **Slug** — URL-friendly version (auto-generated from name)
-4. Click **Save**
+2. Type the tag name in the **New tag name** field at the top of the page
+3. The slug is generated from the name automatically
+4. Click **Create**
 
 ### Editing Tags
 
 1. Go to `/admin/tags`
-2. Click on a tag name
-3. Modify name or slug
-4. Click **Save**
+2. Edit the name in the inline field next to the tag
+3. Click **Rename** — the slug is regenerated from the new name
 
 **Note:** Changing a tag's slug may break existing links to posts filtered by that tag.
 
@@ -179,13 +187,8 @@ Go to `/admin/tags` to see all tags with post counts.
 
 The sidebar shows all tags with post counts. Click a tag to filter posts.
 
-**Sidebar Configuration:**
-In `config.toml`:
-```toml
-[app]
-show_tags = true              # Show tags in sidebar (default: true)
-tags_per_sidebar = 20         # Maximum tags to show (default: 20)
-```
+The footer tag column is controlled separately, from **Settings → Site**:
+`footer_show_tags` toggles the "Browse by tag" column.
 
 ### Tag Cloud
 
@@ -199,15 +202,17 @@ Post series let you group related posts into ordered collections with sequential
 
 ### Workflow
 1. Go to `/admin/series`
-2. Click **New Series**
+2. Click **+ New Series**
 3. Enter:
-   - **Name** — Display name (e.g., "Flask Tutorials")
-   - **Slug** — URL-friendly version (auto-generated from name)
+   - **Series Name** — Display name (e.g., "Flask Tutorials")
+   - **Slug** — URL-friendly version (auto-generated if empty)
    - **Description** — Optional summary
-4. Click **Save**
-5. Add posts to a series:
-   - Edit a post, select the series from the **Series** dropdown
-   - Or go to the series page, click **Add Post** to select posts and set order
+4. Click **Create Series**
+5. Add posts to a series from the series page:
+   - Go to `/admin/series/<id>/posts` (**Manage Posts** on the series list)
+   - Pick a post in the **Add Posts to Series** select
+   - Click **Add Post to Series**
+   - Reorder entries from the same page if needed
 
 ### Example
 Create a "Python Basics" series, add 3 posts in order: "Variables", "Loops", "Functions". The series page at `/series/python-basics` shows all posts in order with previous/next navigation.
@@ -233,11 +238,19 @@ Preview links use HMAC-SHA256 signed tokens to prevent unauthorized access:
 - Tokens are validated on every access
 
 ### Expiry
-Tokens expire after 7 days by default. Configure `PREVIEW_TOKEN_EXPIRY_DAYS` in `config.toml` to customize expiry time.
+Tokens expire after 7 days by default. Configure the expiry in `config.toml`:
+
+```toml
+[app]
+preview_token_expiry_days = 7
+```
+
+The equivalent environment variable is `PREVIEW_TOKEN_EXPIRY_DAYS`.
 
 ### Programmatic Generation
-Generate preview links via the admin panel or code:
-1. **Admin panel**: Edit a post, click the **Preview** button to open the preview
+Generate preview links via the admin API or code:
+1. **Admin endpoint**: `GET /admin/preview/<post_id>?share=1` returns the signed
+   preview URL and its expiry timestamp as JSON
 2. **Code**:
 ```python
 import hmac
@@ -265,29 +278,19 @@ def generate_preview_link(post_id):
 The blog uses Prism.js for syntax highlighting of code blocks in posts.
 
 ### Available Themes
-| Theme | Description |
+| Theme ID | Label |
 |-------|-------------|
-| GitHub Dark | Default dark theme |
-| GitHub Light | Light theme matching GitHub's style |
-| Solarized Dark | Low-contrast dark theme for reduced eye strain |
-| Monokai | High-contrast colorful theme |
-| Atom One Dark | Inspired by Atom editor's dark theme |
-| VS Code Light | Light theme matching VS Code's default |
+| `prism` | Prism Default |
+| `prism-coy` | Prism Coy |
+| `prism-dark` | Prism Dark |
+| `prism-funky` | Prism Funky |
+| `prism-okaidia` | Prism Okaidia |
+| `prism-tomorrow` | Prism Tomorrow |
 
 Change themes in `/admin/settings` under **Syntax Highlighting Theme**.
 
-### Main.js Hardcoding Bug & Fix
-**Bug:** Previously, `app/static/js/main.js` used variable-based dynamic imports (`import(moduleName)`) to load syntax highlighting themes, which Vite could not bundle correctly.
-
-**Fix:** Replaced with `import.meta.glob()` to explicitly pre-declare theme modules, making them compatible with Vite's build system:
-```javascript
-const themeModules = import.meta.glob('/node_modules/prismjs/themes/*.css', { import: 'default' });
-// Load theme by name
-function loadTheme(themeName) {
-  const path = `/node_modules/prismjs/themes/prism-${themeName}.css`;
-  return themeModules[path]();
-}
-```
+The selected theme is applied as a stylesheet link whose URL is published to
+the page as `data-prism-css-url`, so switching themes needs no rebuild.
 
 ---
 
@@ -305,8 +308,8 @@ RSS 2.0 compliant feed with:
 - Category tags
 - Author name
 
-**Parameters:**
-- `?limit=N` — Number of items (default: all published posts)
+The feed contains the 20 most recent published posts. There is no `?limit=`
+parameter; the item count is fixed.
 
 **Usage:**
 ```xml
@@ -320,6 +323,12 @@ RSS 2.0 compliant feed with:
 </item>
 ```
 
+### Atom Feed
+
+**URL:** `/atom`
+
+Atom 1.0 feed with the same content as the RSS feed.
+
 ### JSON Feed
 
 **URL:** `/json`
@@ -330,8 +339,8 @@ JSON Feed 1.1 compliant feed with:
 - Author information
 - Tags as categories
 
-**Parameters:**
-- `?limit=N` — Number of items (default: all published posts)
+The feed contains the 20 most recent published posts. There is no `?limit=`
+parameter; the item count is fixed.
 
 **Usage:**
 ```json
@@ -353,12 +362,18 @@ JSON Feed 1.1 compliant feed with:
 
 ### Feed Discovery
 
-Add feed links to your `<head>` for automatic feed reader detection:
+The built-in base template already publishes the Atom feed link. To offer the
+other formats as well, add these to your `<head>`:
 
 ```html
 <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/atom">
 <link rel="alternate" type="application/json" title="JSON Feed" href="/json">
 ```
+
+Per-tag and per-series feeds are also available:
+`/tag/<slug>/rss`, `/tag/<slug>/atom`, `/tag/<slug>/json` and the matching
+`/series/<slug>/…` paths.
 
 ### Conditional GET (ETag Support)
 
@@ -370,7 +385,7 @@ Both feeds support conditional GET:
 ### Cache-Control Headers
 
 Feeds include cache headers to control caching:
-- `Cache-Control: private, max-age=300` (5 minutes)
+- `Cache-Control: public, max-age=3600` (1 hour)
 - Varies on `Accept-Encoding` for compression
 
 ### Feed Validation
@@ -386,12 +401,20 @@ Validate your feeds at:
 ### How Newsletter Works
 
 1. You publish a post with `newsletter_sent_at = NULL`
-2. You click **Send Newsletter** in the admin
-3. The scheduler sends emails to all **confirmed** subscribers
+2. The scheduler picks it up at the configured send time
+3. Emails go to all **confirmed** subscribers
 4. Each subscriber gets an email with:
    - Post title and summary
    - Link to full post
    - One-click unsubscribe link
+
+When the send succeeds, `newsletter_sent_at` is stamped on each post so it is
+not sent again. When it fails, `newsletter_attempts` is incremented and the
+post is retried on the next run, up to `max_retry_attempts` times.
+
+The daily newsletter job is only scheduled when `SMTP_HOST` is configured.
+The other scheduled jobs (scheduled publishing, subscriber cleanup, daily
+backup) run regardless.
 
 ### Configuring Newsletter
 
@@ -399,8 +422,8 @@ Edit `config.toml`:
 
 ```toml
 [newsletter]
-send_time = "08:00"              # HH:MM (24h) - time to send daily digest
-confirmation_expiry_hours = 48   # Hours until confirmation link expires
+send_time = "08:00"              # HH:MM (24h) - time to send the daily digest
+confirmation_expiry_hours = 1    # Hours until a confirmation link expires
 max_retry_attempts = 5           # Retry attempts on failure
 ```
 
@@ -416,16 +439,23 @@ from_address = "blog@example.com"
 smtp_timeout = 30
 ```
 
-Or set via environment variables: `SMTP_USER`, `SMTP_PASSWORD`.
+Or set via environment variables: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`.
 
 ### Sending a Newsletter
 
-1. Publish your post
-2. Go to `/admin/subscribers`
-3. Click **Send Newsletter**
-4. Confirm the action
+The daily digest is sent automatically by the scheduler — there is no manual
+"send to all subscribers" button. From the dashboard you can:
 
-The newsletter sends asynchronously. Check `logs/blog.log` for progress.
+- **Preview Newsletter** — renders the newsletter email with the 3 most recent
+  published posts, without sending anything
+- **Test Newsletter** — sends the same 3 posts to an address you choose
+  (defaults to the configured `from_address`)
+
+To include a specific post in the next digest, publish it and leave
+`newsletter_sent_at` empty. The dashboard shows a **Reset NL** button on posts
+that were already sent, which clears the flag so they go out again.
+
+Progress is logged to `logs/blog.log`.
 
 ### Subscriber Confirmation Flow
 
@@ -445,9 +475,9 @@ Unconfirmed subscribers don't receive newsletters.
 
 ### Unsubscribe Flow
 
-Every newsletter email includes:
+Every newsletter email includes an unsubscribe link of the form:
 ```
-To unsubscribe, click here: /unsubscribe/<subscriber-token>
+{base_url}/unsubscribe/<subscriber-token>
 ```
 
 Clicking the link:
@@ -466,11 +496,12 @@ The newsletter email template is in `app/templates/email/newsletter.html`. Custo
 
 The dashboard at `/admin/` shows:
 
-- **Traffic Chart** — Page views over the last 30 days
-- **Top Shares** — Most-shared posts this week
-- **Trending** — Posts with most views this week
-- **Recent Posts** — Latest published posts
-- **Stats** — Total views, posts, shares, subscribers
+- **Stat cards** — Total Views, Published Posts, Total Shares, Subscribers (and Scheduled & Ready when there are scheduled posts)
+- **Traffic (30 days)** — Page views over the last 30 days
+- **Top Shares (30 days)** — Most-shared posts over the last 30 days
+- **Trending (30 days)** — Posts with the most views over the last 30 days
+- **Recent Posts** — Latest published posts, with bulk actions
+- **Newsletter actions** — Preview Newsletter, Test Newsletter, + New Post
 
 ### Backup and Restore
 
@@ -489,6 +520,12 @@ The dashboard at `/admin/` shows:
 
 **Backup location:** `instance/backups/`
 
+**Backup database path:** the **Create Backup** button resolves the database
+from the configured URI (`data/devlog.sqlite3` by default). The scheduled daily
+backup, the Celery backup task and `devlog backup create` still look for
+`instance/blog.db`; use the admin button, or keep the database at
+`instance/blog.db`, until those paths are aligned.
+
 **Backup encryption:**
 ```bash
 export BACKUP_ENCRYPTION_KEY="your-secure-passphrase"
@@ -498,13 +535,20 @@ Encrypted backups use AES-256-GCM encryption with PBKDF2 key derivation.
 
 ### Database Integrity Check
 
-1. Go to `/admin/backup`
-2. Click **Check Integrity**
+The backup page offers Create Backup, Download, Restore and Delete per
+backup. Integrity checking is done from the CLI:
 
-Or run via CLI:
 ```bash
+# Database integrity
 flask check-integrity
+devlog db check
+
+# Verify one backup file
+devlog backup verify instance/backups/blog_20260429.db
 ```
+
+The same verification is reachable over HTTP at
+`/admin/backup/verify-all` and `/admin/backup/verify/<filename>`.
 
 ### Static Pages
 
@@ -517,22 +561,39 @@ Create static pages (accessible at `/page/<slug>`):
    - **Slug** — URL slug (auto-generated if empty)
    - **Content** — Markdown content
 4. Toggle **Published** as needed
-5. Click **Save**
+5. Click **Create Page** (or **Save Changes** when editing)
 
-**Built-in pages:**
-- `/about` — Created automatically if a page with slug "about" exists
+Published pages are listed at `/pages`. Individual pages are served from
+`/page/<slug>`; there are no fixed built-in page URLs.
 
 ### Settings
 
-Navigate to `/admin/settings` for:
+The admin settings live on one page, `/admin/settings`, split into sections:
+
+| Section | Contents |
+|---------|----------|
+| Theme Preview | Live preview of the selected dark/light theme pair |
+| Theme | Dark theme, light theme, default colour scheme, syntax highlighting theme, logo text, custom CSS |
+| Theme Registry | The bundled theme catalogue, with warnings |
+| Typography & Background | Sans and mono font families, and the page backdrop |
+| Site | Comments toggle, footer text, footer columns, page menu |
 
 | Setting | Description |
 |---------|-------------|
-| Theme Preset | Visual theme (GitHub Dark, GitHub Light, Solarized Dark, Monokai) |
-| Logo Text | Text to display as logo (uses site title if empty) |
-| Logo Type | Image logo or text logo |
+| Dark theme / Light theme | Halloy theme names, chosen from the bundled catalogue of 50 |
+| Default scheme | Which theme applies when the visitor has no saved colour-scheme preference (`system`, `dark` or `light`) |
+| Syntax Highlighting Theme | Prism.js theme used for code blocks |
+| Logo Text | Text to display as logo (uses the site title if empty) |
 | Custom CSS | Additional CSS (sanitized before saving) |
-| Footer HTML | HTML to show in footer |
+| Font (sans / mono) | Font families from the appearance registry |
+| Backdrop | Page backdrop from the appearance registry |
+| Comments | Enables or disables the comment form |
+| Footer Text | Plain-text footer line (HTML is not accepted) |
+| Footer columns | Show the posts column, the tags column, or both |
+| Page menu | Which published pages appear in the navigation bar |
+
+Each section posts to its own endpoint: `/admin/settings/theme`,
+`/admin/settings/appearance` and `/admin/settings/site`.
 
 **CSS Custom Properties:**
 ```css
@@ -554,9 +615,29 @@ The REST API uses API key authentication. Set via environment variable:
 export API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 ```
 
-Use as `X-API-Key` header in requests. See `docs/openapi.yaml` for API documentation.
+Send it as an `X-API-Key` header. The legacy `API_KEY` environment variable
+grants every scope. Scoped tokens (`ApiToken` records) carry an explicit scope
+list:
+
+| Category | Scopes |
+|----------|---------|
+| posts | `posts:read`, `posts:write`, `posts:*` |
+| pages | `pages:read`, `pages:write`, `pages:*` |
+| series | `series:read`, `series:write`, `series:*` |
+| tags | `tags:read`, `tags:write`, `tags:*` |
+| media | `media:read`, `media:write`, `media:*` |
+| subscribers | `subscribers:read`, `subscribers:write`, `subscribers:*` |
+| newsletter | `newsletter:send`, `newsletter:*` |
+| analytics | `analytics:read`, `analytics:*` |
+| all | `admin:*` |
+
+An exact scope grants that operation; a category wildcard grants every scope
+in that category; `admin:*` grants everything. See `docs/openapi.yaml` for
+the API documentation.
 
 ### CLI Commands
+
+Flask CLI commands (compatibility wrappers over the same services):
 
 ```bash
 # Export all data
@@ -574,8 +655,8 @@ flask cleanup-orphaned-images
 # Check database integrity
 flask check-integrity
 
-# Create admin user
-flask create-admin username
+# Create admin user (prompts for the username and password)
+flask create-admin
 
 # Promote to admin
 flask promote-admin username
@@ -586,6 +667,24 @@ flask seed
 # Shell access
 flask shell
 ```
+
+The standalone `devlog` CLI covers the same ground with structured output and
+extra operator tooling:
+
+```bash
+devlog admin create              # Create an admin account
+devlog admin list                # List accounts
+devlog data export data.json     # Export posts, subscribers, tags and pages
+devlog data import data.json     # Import them back
+devlog db rebuild-search         # Rebuild the FTS index
+devlog media cleanup             # Remove orphaned uploads
+devlog db check                  # Database integrity check
+devlog backup verify <path>      # Verify a backup file
+devlog doctor                    # Run the full diagnostic suite
+devlog themes list --warnings    # Inspect the theme catalogue
+```
+
+See [DEPLOY.md](DEPLOY.md#17-operator-cli) for the full command list.
 
 ---
 
@@ -623,7 +722,10 @@ When a visitor shares a post via the share buttons, a `ShareEvent` is recorded.
 - `linkedin` — LinkedIn
 - `hackernews` — Hacker News
 - `reddit` — Reddit
-- `copy` — Copy link
+- `link` — Copy link (the **Copy** button) or the short `/s/<code>` URL
+
+Only those six values are accepted by `/api/track-share`; anything else is
+rejected with `400`.
 
 **Viewing share data:**
 Top shares appear on the dashboard at `/admin/`.
@@ -633,8 +735,8 @@ Top shares appear on the dashboard at `/admin/`.
 #### Traffic Sources
 Traffic sources are captured from the `referrer` header of page views:
 - **Direct**: No referrer (user typed URL or used bookmark)
-- **Search Engines**: Google, Bing, DuckDuckGo (referrer contains `google.com`, `bing.com`, etc.)
-- **Social**: Twitter/X, Facebook, LinkedIn, Reddit, Hacker News (referrer matches share platforms)
+- **Search**: Google, Bing, Yahoo, DuckDuckGo
+- **Social**: Twitter/X, Facebook, LinkedIn, Reddit
 - **Other**: All other referrers
 
 Use traffic sources to identify which channels drive the most engagement.
@@ -649,10 +751,18 @@ High share counts correlate with increased traffic from social channels.
 ### Analytics API
 
 ```bash
-# Get posts with view counts
-GET /api/posts?sort=views
+# Blog-wide counters (requires the analytics:read scope)
+GET /api/stats
 
-# View counts included in post response
+# Response fields: total_views, total_posts, total_shares,
+# total_subscribers, views_this_month, new_subscribers_this_month
+```
+
+Post listings are paginated with `page` and `per_page` (default 20, maximum
+100); the post payload does not include a view count.
+
+```bash
+GET /api/posts?page=1&per_page=20
 ```
 
 ---
@@ -663,24 +773,31 @@ GET /api/posts?sort=views
 
 | Role | Description |
 |------|-------------|
-| User | Can view dashboard stats only |
-| Admin | Full access to admin panel |
-| Owner | Admin + can manage other admins |
+| Author | Signed-in, non-admin account. Reaches the post editor and their own profile only, and may only open their own posts. Cannot publish |
+| Admin | Full access to the admin panel, including publishing, scheduling, users, settings and media |
 
-Only owners can promote/demote users and transfer ownership.
+There is no separate stored "owner" role. Ownership is expressed by the
+**Transfer Owner** action, which promotes one account to admin and demotes
+every other admin. Every admin can promote, demote and delete users.
 
 ### Creating Users
 
 **Via CLI:**
 ```bash
-flask create-admin username
+flask create-admin
 ```
-Prompts for password.
+Prompts for the username and password.
+
+The standalone CLI does the same with structured output:
+```bash
+devlog admin create
+```
 
 **Via Admin Panel:**
 1. Go to `/admin/users`
-2. Click **Add User**
-3. Enter username and password
+2. Fill in the **Create User** form at the bottom of the page
+3. Enter username and password, and tick the **Admin** box if needed
+4. Click **Create**
 
 ### Password Requirements
 
@@ -699,9 +816,9 @@ Prompts for password.
 
 1. Go to `/admin/users`
 2. Find the new owner
-3. Click **Make Owner**
+3. Click **Transfer Owner** and enter your own password to confirm
 
-This demotes all other admins and promotes the selected user to owner.
+This demotes all other admins and promotes the selected user to admin.
 
 ### Password Reset
 
@@ -735,9 +852,9 @@ Go to `/admin/media`
 
 ### Uploading Images
 
-1. Click **Upload** button
-2. Select file (JPEG, PNG, GIF, WebP)
-3. Wait for upload to complete
+1. Go to `/admin/media`
+2. Drag & drop images onto the upload zone, or click it to browse
+3. Wait for the upload to complete
 
 **Limits:**
 - Max file size: 10 MB
@@ -747,7 +864,7 @@ Go to `/admin/media`
 
 On upload, images are automatically resized to create variants:
 - 400w, 800w, 1200w widths
-- WebP format when supported
+- WebP and AVIF format when supported
 
 Templates use `srcset` for responsive loading:
 ```html
@@ -766,7 +883,8 @@ Templates use `srcset` for responsive loading:
    ![Alt text](/static/uploads/filename.png)
    ```
 
-Or drag and drop directly into the post editor.
+For the post's featured image, use the **Featured image** file picker in the
+post editor instead.
 
 ### Deleting Images
 
@@ -780,7 +898,8 @@ Or drag and drop directly into the post editor.
 ### Image Storage
 
 **Local storage (default):**
-Images are stored in `app/static/uploads/`. This directory should be included in backups.
+Images are stored in `app/static/uploads/`. This directory should be included in
+backups. Override the location with the `UPLOAD_FOLDER` environment variable.
 
 **S3 storage:**
 Images are stored in S3-compatible storage. See [S3 Storage](#s3-storage) section.
@@ -791,14 +910,15 @@ Images are stored in S3-compatible storage. See [S3 Storage](#s3-storage) sectio
 flask cleanup-orphaned-images
 ```
 
-This removes images not referenced by any post.
+This removes images not referenced by any post. The standalone CLI equivalent
+is `devlog media cleanup`.
 
 ### How Image Uploads Work
 
 1. File uploaded to storage
 2. Magic bytes detected to verify file type
 3. Extension set based on detected type (not user-provided)
-4. Filename: `YYYYMMDD_HHMMSS_<random>.<ext>`
+4. Filename: `<random-uuid-hex>.<ext>`
 
 ---
 
@@ -843,14 +963,17 @@ export S3_PUBLIC_URL=https://cdn.example.com      # Custom CDN URL
 ### How S3 Storage Works
 
 1. Image uploaded via admin panel
-2. Saved to temp directory locally
+2. Saved to a temporary file locally
 3. Responsive variants generated
 4. All variants uploaded to S3
-5. Local temp files deleted
+5. Local temporary files deleted
 
 **Reading images:**
 - The `post_image_url` filter uses `storage.url()` to generate URLs
-- For private buckets, signed URLs are generated
+- With `S3_PUBLIC_URL` set, URLs are built from that CDN base; otherwise the
+  S3 virtual-hosted URL (`https://<bucket>.s3.<region>.amazonaws.com/<key>`)
+  is used
+- URLs are not signed — a private bucket needs a CDN or a public-read policy
 
 ### Storage Backend Detection
 
@@ -860,14 +983,18 @@ The app auto-detects storage backend from `STORAGE_BACKEND`:
 
 ### Local Storage Fallback
 
-If S3 is unavailable, the app falls back to local storage at `app/static/uploads/`.
+If `STORAGE_BACKEND=s3` but `S3_BUCKET`, `S3_ACCESS_KEY` or `S3_SECRET_KEY`
+is missing, the app logs a warning at startup and falls back to local storage
+at `app/static/uploads/`. This decision is made once, at startup — it is not a
+runtime retry when S3 becomes unreachable.
 
 ### Migration from Local to S3
 
 1. Configure S3 environment variables
 2. Restart the app
 3. New uploads go to S3
-4. Existing local uploads remain in place
+4. Existing local uploads remain in place — copy them across if you want them
+   served from S3
 
 ---
 
@@ -886,6 +1013,16 @@ export PAGE_VIEW_FLUSH_INTERVAL=10
 ```
 
 Set `PAGE_VIEW_BUFFER_SIZE=0` to disable buffering (default behavior).
+
+The buffer size can also be set in `config.toml`:
+
+```toml
+[app]
+page_view_buffer_size = 100
+```
+
+`PAGE_VIEW_FLUSH_INTERVAL` is an environment variable only; it has no
+`config.toml` key.
 
 ### How It Works
 
@@ -906,8 +1043,8 @@ Set `PAGE_VIEW_BUFFER_SIZE=0` to disable buffering (default behavior).
 
 Check logs for buffer activity:
 ```
-PageViewBuffer: flushed 100 views to database
-PageViewBuffer: shutdown - flushed 23 remaining views
+PageViewBuffer started (max_size=100, flush_interval=10s)
+PageViewBuffer stopped (flushed=123, dropped=0)
 ```
 
 ### Manual Flush
@@ -951,12 +1088,15 @@ This recreates the FTS5 table and reindexes all posts.
 ### Search API
 
 ```bash
-# Get search suggestions
-GET /api/posts?q=search+term
+# Full-text search page (HTML)
+GET /search?q=search+term&page=1
 
-# Search with pagination
-GET /api/posts?q=search+term&page=1&per_page=20
+# Live-search suggestions (JSON)
+GET /search/suggest?q=search+term
 ```
+
+`/search/suggest` returns up to five matching posts as
+`{"suggestions": [{"title": ..., "slug": ..., "summary": ...}]}`.
 
 ### FTS5 Limitations
 
@@ -972,8 +1112,8 @@ Each post has a short URL at `/s/<code>` where `<code>` is a base62-encoded post
 
 **Examples:**
 - Post ID 1 → `/s/1`
-- Post ID 100 → `/s/1K`
-- Post ID 1000 → `/s/S0`
+- Post ID 100 → `/s/1C`
+- Post ID 1000 → `/s/g8`
 
 **Benefits:**
 - Never changes (even if slug changes)
@@ -985,11 +1125,11 @@ Find the short URL in the post edit page.
 **Encoding:**
 ```python
 from app.base62 import encode
-code = encode(post_id)  # e.g., 1000 -> "S0"
+code = encode(post_id)  # e.g., 1000 -> "g8"
 ```
 
 **Decoding:**
 ```python
 from app.base62 import decode
-post_id = decode(code)  # e.g., "S0" -> 1000
+post_id = decode(code)  # e.g., "g8" -> 1000
 ```

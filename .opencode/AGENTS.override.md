@@ -4,15 +4,18 @@ Specialized handling for agent tool configuration.
 
 ## Skills Directory
 
-The `.opencode/skills/` directory contains specialized skills:
+The canonical skills live in `.skills/`. `.opencode/skills/<name>/SKILL.md` is a
+**symlink** to `.skills/<name>/skill.md`, so the opencode agent and every other
+agent read the same file. Never edit a copy — edit the file in `.skills/`.
 
 | Skill | Description | Triggers |
 |-------|-------------|----------|
-| `blog_cms` | Blog CMS - Flask-based blogging platform | Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler |
-| `e2e_testing` | End-to-end browser testing with Playwright | E2E tests, playwright, browser tests, pytest-playwright, UI testing |
-| `architecture_review` | Architecture documentation review and improvement workflow | architecture, review, documentation, verify, cross-reference |
+| `blog_cms` | The codebase map, hard rules, gotchas and known defects | Flask app, SQLAlchemy, CSRF, newsletter, APScheduler, FTS5, REST API, 2FA, comments, themes, appearance layer, `devlog` CLI, config.toml, onboarding, filesystem paths, systemd, compose, nginx |
+| `release_validation` | The pre-release gate and how to diagnose a failing stage | release, tag, version bump, release check, lint, mypy, pytest, vite build, docker build, compose config |
+| `e2e_testing` | Browser-level testing with Playwright | E2E tests, playwright, pytest-playwright, UI testing |
+| `architecture_review` | Architecture documentation review workflow | architecture, review, documentation, verify, cross-reference |
 
-Load a skill using the `skill` tool with the skill name (e.g., `skill: blog_cms`).
+Load a skill using the `skill` tool with the skill name (e.g. `skill: blog_cms`).
 
 ## Agent Override Convention
 
@@ -27,29 +30,36 @@ When an agent operates within a module, it should:
 
 Minimal Node.js configuration for Vite frontend build.
 
-## Implementation Planning
+## Planning
 
-When working on the consolidated improvement plan (`plans/plan.md`):
+Plan status is tracked in `plans/AGENTS.override.md`. Read it before planning
+new work — it declares which plan series are active and which are historical,
+and points at the architecture document that now holds each outcome.
 
-### Parallelization Strategy
-- **Wave 1A (Backend Bugs)**: BUG-1 through BUG-5, P0-1, P0-2 - Can run in parallel
-- **Wave 1B (Frontend Bugs)**: FE-BUG-1, FE-BUG-2, FE-BUG-3 - Can run in parallel (separate agent)
-- **Wave 2 (Security)**: SEC-1 through SEC-6 - Can run in parallel
-- **Wave 3 (Config)**: CFG-1 through CFG-4 - Can run in parallel
-- **Wave 4, 5, 6, 7**: Can be split across 4 sub-agents working in parallel
-- **Wave 8, 9, 10**: Sequential work, can have 1 sub-agent handle all
+Do not derive a plan from a phase file in isolation: the phase files are
+historical records of work that has already shipped, and the roadmap files
+supersede them.
 
-### Critical Path Dependencies
-1. Wave 1 (Bugs) must complete before Wave 4+ (Code Quality)
-2. Wave 2 (Security) can run in parallel with Wave 1
-3. Wave 3 (Config) can run in parallel with Wave 1-2
-4. Wave 8 (Docs) can run anytime (informational)
-5. Wave 9 (Features) and Wave 10 (Tech Debt) are independent
+## Known Implementation Issues
 
-### Known Implementation Issues
-- `app/static/js/main.js:4` uses variable-based `import(path).then(...)` instead of `import.meta.glob()` - Vite cannot statically analyze
-- `app/routes/admin/series.py` has multiple `flash(f"Error ...: {str(e)}")` exposing exception details
-- Admin templates use `url_for('static', ...)` instead of `vite_asset()` - bypasses Vite cache-busting
-- Nested anchor tags in post cards (`app/templates/index.html:22,40`) - invalid HTML5
-- `app/__init__.py:186` uses wrong config key `RATELIMIT_STORAGE_URL` instead of `RATELIMIT_STORAGE_URI`
-- `app/scheduler.py` has 8 lock file deletion locations that are dangerous on Linux
+Verified against the source on 2026-10-25. These are the defects the code
+review surfaced and that are **not yet fixed**:
+
+- `app/routes/admin/series.py` — the create, update and delete handlers call
+  `flash(f"Error …: {str(e)}")`, which exposes internal exception text to the
+  operator.
+- `app/themes/colors.py` — `shift_lightness()` computes `q` with an identical
+  expression in both branches of the `lightness < 0.5` test, so dark colours
+  take the light-colour path. `#161b22` shifted by `+0.06` returns `#002459`
+  where a reference HSL conversion gives `#222a35`.
+- `app/services/operations/deploy.py` — `_build_context()` reads
+  `current_app.config["DEVLOG_CONFIG"]`, which the app factory never sets, so
+  the whole `devlog deploy` group raises `KeyError` outside the test suite.
+- `devlog_cli/commands/deploy.py` — `deploy render` defaults `--target` to
+  `["all"]`, but the service dispatches only on concrete target names, so it
+  renders zero files by default.
+- `devlog_cli/commands/config.py` — `config explain` raises `TypeError` for at
+  least `admin.username`, `database.pool_size` and `logging.level`.
+
+Each has a "Notes and Gotchas" entry in the relevant document under
+`architecture/`.

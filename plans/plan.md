@@ -1,10 +1,12 @@
 # Consolidated Improvement Plan
 
+> **Plan status: HISTORICAL — superseded (2026-05-01).** The checkboxes below were never maintained; nearly all of this work shipped under later series. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md) for the residual items and [`release_1_closure.md`](release_1_closure.md) for the Release 1 closure record.
+
 **Date:** 2026-05-01
-**Status:** Active
+**Status:** Historical — superseded; the checkboxes below were never maintained
 **Consolidated From:** multiple source plans
 
-This plan serves as the single source of truth for all identified improvements, bug fixes, and features for the DevLog Blog Platform.
+This plan was the single source of truth for all identified improvements, bug fixes, and features for the DevLog Blog Platform as of 2026-05-01. It has since been superseded by the four plan series in this directory; see the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md) for what is still open.
 
 ---
 

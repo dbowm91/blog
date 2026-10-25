@@ -1,8 +1,12 @@
 # DevLog Configuration, Installation, and Operator CLI Roadmap
 
+> **Plan status: MIXED — Releases 1–3 shipped, Release 4 still open.** The `## Status` section below predates the implementation and is stale. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+
 ## Status
 
-Proposed implementation roadmap for converting DevLog from a repository-oriented Flask deployment into an installable, validated, operator-friendly self-hosted application.
+Implementation roadmap for converting DevLog from a repository-oriented Flask deployment into an installable, validated, operator-friendly self-hosted application.
+
+Releases 1–3 have shipped; Release 4 is still open. This section was written before the implementation began and originally read "Proposed implementation roadmap". For the current position — including which Release 4 work is outstanding — see the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
 
 ## Problem statement
 

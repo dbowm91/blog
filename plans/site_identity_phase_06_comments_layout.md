@@ -1,8 +1,10 @@
 # Site Identity Phase 06 — Comment Section Layout and Readability
 
+> **Plan status: ACTIVE — not started.** The `## Completion` section at the end of this file records `**Status:** Not started.` Nothing in this plan has shipped. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
-**Status:** Planned
+**Status:** Not started
 **Severity:** High — the comment column does not line up with the post column, and the comment UI has no styling at all.
 
 ## Objective

@@ -1,5 +1,7 @@
 # Site Identity Phase 01 — Admin Settings Reorganisation and Site Customisation
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/routes/admin-routes.md](../architecture/routes/admin-routes.md); this file is the historical record.
+
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
 **Status:** Complete — Part A (theme preview placement) and Part B (comments switch, editable footer, page menu) shipped

@@ -39,10 +39,10 @@ Always back up the database before upgrading:
 
 ```bash
 # SQLite
-cp instance/blog.db instance/blog.db.pre-halloy-backup
+cp data/devlog.sqlite3 data/devlog.sqlite3.pre-halloy-backup
 
 # Or use the built-in backup command
-flask create-backup
+devlog backup create
 ```
 
 ### Upgrade Command
@@ -57,24 +57,21 @@ This applies all pending migrations including the three Halloy theme revisions.
 
 ```bash
 # Verify theme columns exist
-flask shell -c "
-from app.models import SiteSettings
-s = SiteSettings.get_instance()
-print(f'Dark: {s.theme_dark_name}')
-print(f'Light: {s.theme_light_name}')
-print(f'Scheme: {s.theme_default_scheme}')
-"
+flask shell
+>>> from app.models import SiteSettings
+>>> s = SiteSettings.get_instance()
+>>> print(f'Dark: {s.theme_dark_name}')
+>>> print(f'Light: {s.theme_light_name}')
+>>> print(f'Scheme: {s.theme_default_scheme}')
 
 # Verify theme_preset column is gone
-flask shell -c "
-import sqlalchemy as sa
-from app.extensions import db
-insp = sa.inspect(db.engine)
-cols = {c['name'] for c in insp.get_columns('site_settings')}
-assert 'theme_preset' not in cols, 'theme_preset still exists!'
-assert 'theme_dark_name' in cols, 'theme_dark_name missing!'
-print('OK: migration verified')
-"
+>>> import sqlalchemy as sa
+>>> from app.extensions import db
+>>> insp = sa.inspect(db.engine)
+>>> cols = {c['name'] for c in insp.get_columns('site_settings')}
+>>> assert 'theme_preset' not in cols, 'theme_preset still exists!'
+>>> assert 'theme_dark_name' in cols, 'theme_dark_name missing!'
+>>> print('OK: migration verified')
 
 # Verify theme system works
 flask themes list
@@ -108,7 +105,7 @@ The downgrade path restores the `theme_preset` column but **does not** restore t
 flask db downgrade -1
 
 # Downgrade to before Halloy (removes all Halloy columns)
-flask db downgrade <3328a74db69b>
+flask db downgrade 3328a74db69b
 ```
 
 ### What Happens on Downgrade
@@ -125,10 +122,18 @@ flask db downgrade <3328a74db69b>
 
 If an external theme that was previously selected is no longer available after upgrade:
 
-1. The application renders with `EMERGENCY_DEFAULT` (Catppuccin Mocha palette)
+1. The application renders with `EMERGENCY_DEFAULT` (the GitHub Dark palette)
 2. Check the application logs for theme resolution warnings
 3. Restore the missing `.toml` file to the external themes directory
 4. Run `flask themes refresh` to re-scan
 5. Or select a different theme via `/admin/settings`
 
 The emergency fallback is safe and renders a complete CSS variable set. No page will fail to render due to a missing theme.
+
+## See Also
+
+- [Legacy compatibility](legacy-compatibility.md) — what the preset system was and
+  what replaced it
+- [Theme operator guide](operator-guide.md) — the commands used above
+- [Migration chain tests](../../tests/test_migration_chain.py) — the automated
+  coverage for this revision chain

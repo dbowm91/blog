@@ -1,5 +1,7 @@
 # Release 2 Phase D — Interactive and Non-Interactive Onboarding
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/onboarding.md](../architecture/core/onboarding.md); this file is the historical record.
+
 ## Objective
 
 Implement `devlog onboard` as the authoritative first-run and reconfiguration workflow for both native and Docker installations.

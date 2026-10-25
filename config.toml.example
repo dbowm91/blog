@@ -102,8 +102,9 @@ default_scheme = "system"        # "system", "dark", or "light"
 # =============================================================================
 
 [database]
-# Default: SQLite at instance/blog.db. Override with SQLALCHEMY_DATABASE_URI
-# env var or set uri here for PostgreSQL/MySQL.
+# Default: SQLite at data/devlog.sqlite3 (relative to the working directory).
+# Override with the SQLALCHEMY_DATABASE_URI env var, set uri here for
+# PostgreSQL/MySQL, or point DEVLOG_DATA_DIR at a different data directory.
 uri = ""
 pool_size = 10
 max_overflow = 20

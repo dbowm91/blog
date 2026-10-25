@@ -290,6 +290,29 @@ and `advisory_warnings`, and exposes `passed` (no mandatory failures) and
 The manifest's current summary for the bundled catalogue: 50 themes, 45 with
 exceptions, 5 recommended, 33 compatible-with-exceptions, 12 experimental.
 
+### The Automated Policy Gate
+
+`scripts/theme_accessibility_report.py` validates a catalogue against this
+policy, and the `theme-policy` CI job runs it in strict mode:
+
+```bash
+python scripts/theme_accessibility_report.py --strict
+```
+
+Strict mode exits non-zero when either of these holds:
+
+- A theme's computed eligibility is **worse** than the class the manifest
+  declares for it. That covers both a theme with undocumented mandatory
+  failures and a theme that has regressed below a previously recorded class.
+- A theme's classification disagrees with the darkness implied by its filename.
+
+`find_policy_violations()` implements the comparison; the classes are ranked
+`recommended` < `compatible-with-exceptions` < `experimental`. A theme with no
+manifest entry is treated as `recommended`, so any mandatory failure it has is
+a violation.
+
+Running without `--strict` prints the same report and always exits 0.
+
 ### How a Failing Theme Surfaces
 
 Accessibility findings are **not** load failures. A theme that fails a
@@ -417,17 +440,31 @@ Both CLIs expose the same operations, backed by `app/services/operations/themes.
 
 ## Notes and Gotchas
 
-- **Token and alias counts in the surrounding docs are stale.** `AGENTS.md` and
-  `docs/themes/blog-theme-contract.md` describe the model as "44 semantic
-  tokens + 6 RGBA fields" and "26 aliases". The code has 50 fields
-  (41 `RGB` + 9 `RGBA`), 50 entries in `CSS_VARS`, and 38 entries in
-  `ALIASES`. The contract's own Section A table lists all 50 tokens even though
-  its summary line says 44, and its Section E lists 27 alias keys including a
-  `name` metadata key that `ALIASES` no longer contains; the code instead adds
-  12 aliases the contract does not mention (`code-bg`, `error-bg`, `info-bg`,
-  `info-fg`, `navbar-bg`, `overlay-bg`, `shadow-color`, `success-bg`,
-  `text-on-accent`, `warning-bg`, `warning-fg`, `yellow-dim`). This document
-  reports the code values.
+- **Token and alias counts in the surrounding docs were stale, and have been
+  corrected.** `AGENTS.md` and `docs/themes/blog-theme-contract.md` used to
+  describe the model as "44 semantic tokens + 6 RGBA fields" and "26 aliases".
+  The code has 50 fields (41 `RGB` + 9 `RGBA`), 50 entries in `CSS_VARS`, and 38
+  entries in `ALIASES`. The contract's own Section A table lists all 50 tokens
+  even though its summary line said 44, and its Section E lists 27 alias keys
+  including a `name` metadata key that `ALIASES` no longer contains; the code
+  instead adds 12 aliases the contract does not mention (`code-bg`, `error-bg`,
+  `info-bg`, `info-fg`, `navbar-bg`, `overlay-bg`, `shadow-color`, `success-bg`,
+  `text-on-accent`, `warning-bg`, `warning-fg`, `yellow-dim`). Both documents now
+  report the code values.
+
+- **The bundled Catppuccin Latte link colour failed WCAG AA.** `buffer.url`
+  maps to the `text_link` token, and the upstream Catppuccin blue `#1E66F5`
+  reaches only 3.71:1 against the theme's own page background and 4.04:1 against
+  its surface background, against a mandatory requirement of 4.5:1 for link
+  text. Because Catppuccin Latte is the default *light* theme, the project
+  policy does not allow the failure to be documented as a manifest exception —
+  `tests/themes/test_accessibility.py` asserts that the default themes carry no
+  `mandatory_defect` entries. The token is therefore `#0A52E1` in both
+  `themes/Catppuccin Latte.toml` and `app/themes/bundled/Catppuccin Latte.toml`
+  — the same hue as upstream, darkened to 4.80:1 on the page background and
+  5.22:1 on the surface background. `buffer.url` feeds nothing else, so the
+  change is confined to link text. Catppuccin Mocha, the default dark theme,
+  was already compliant at 7.79:1.
 
 - **`shift_lightness()` diverges from a reference HSL conversion for dark
   colours.** In `app/themes/colors.py`, `_hsl_to_rgb()` computes `q` with the

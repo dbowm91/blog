@@ -1,5 +1,7 @@
 # Halloy Theme Phase 12 — Accessibility and Theme Quality Validation
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Establish enforceable accessibility and usability quality gates for every bundled theme and actionable diagnostics for external themes.

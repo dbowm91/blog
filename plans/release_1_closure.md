@@ -1,5 +1,7 @@
 # Release 1 Closure
 
+> **Plan status: HISTORICAL — Release 1 closed 2026-07-16.** The shipped outcome is documented in [`architecture/overview.md`](../architecture/overview.md); this file is the closure record.
+
 **Date:** 2026-07-16 (updated)
 
 ## Summary

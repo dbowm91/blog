@@ -1,8 +1,10 @@
 # Halloy Theme Phase 04–05 Small Closure Pass
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 **Status: Complete**
 
-Completed: $(date +%Y-%m-%d)
+Completed: date not recorded in this file
 
 ## Objective
 

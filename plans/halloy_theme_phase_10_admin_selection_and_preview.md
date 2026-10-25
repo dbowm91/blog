@@ -1,5 +1,7 @@
 # Halloy Theme Phase 10 — Admin Theme Selection, Preview, and Refresh
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Provide a safe administrative workflow for selecting Halloy dark/light themes, previewing changes, viewing warnings, and refreshing external themes without exposing filesystem details or allowing arbitrary theme paths.

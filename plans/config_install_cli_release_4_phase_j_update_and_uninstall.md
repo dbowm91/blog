@@ -1,5 +1,7 @@
 # Release 4 Phase J — Updates, Rollback, and Uninstall
 
+> **Plan status: ACTIVE — not started.** There is no `devlog update` and no `devlog uninstall` command, and no update, rollback or uninstall service in the codebase. The scope is in this file.
+
 ## Objective
 
 Provide a safe application lifecycle for checking, planning, applying, validating, and rolling back DevLog application updates, plus a predictable uninstall path that preserves operator-owned data by default.

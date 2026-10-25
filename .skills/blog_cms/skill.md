@@ -1,462 +1,312 @@
 ---
 name: blog_cms
-description: "Blog CMS - Flask-based blogging platform with admin dashboard, newsletter scheduling, FTS5 search, multi-admin sessions, custom CSS theming, syntax highlighting themes, post series, Atom feed, 2FA, Comments, Audit Log, Post Revision Diff, operations service layer, filesystem layout, deployment module. Use when working with Flask app, SQLAlchemy, session management, CSRF, newsletter, APScheduler, FTS5, REST API, password reset, post revisions, preview links, toasts, dashboard charts, graceful shutdown, Docker deployment, Vite bundler, 2FA, Comments, Audit Log, deployment, systemd, compose, docker-compose, caddy, nginx, logrotate, lifecycle, service management."
+description: "DevLog — self-hosted Flask blog CMS with an admin dashboard, newsletter scheduling, FTS5 search, REST API, 2FA, comments, post series, a Halloy TOML theme system, an appearance layer for fonts and backdrops, an operations service layer, a standalone `devlog` CLI, filesystem path management and a managed deployment module. Use when working with the Flask app, SQLAlchemy models, session management, CSRF, newsletters, APScheduler, Celery, FTS5, the REST API, 2FA, comments, audit logs, post revisions, webhooks, themes, the appearance layer, the `devlog` CLI, config.toml, onboarding, filesystem paths, systemd, compose, nginx, logrotate or service lifecycle."
 ---
 
-# Blog CMS Skill
+# DevLog Blog CMS Skill
 
-Specialized knowledge for working with this Flask-based blog CMS codebase.
+Operational knowledge for working in this codebase. For structure and design
+rationale, read `architecture/overview.md` — it is the index to every module's
+deep dive. This skill covers what you need to *know before editing*, plus the
+gotchas that are easy to get wrong.
 
-## Architecture Overview
+## Orientation
 
-This is a Flask-based blog CMS with:
-- SQLAlchemy 2.0 with SQLite (WAL mode)
-- APScheduler for background jobs
-- Celery for async tasks
-- FTS5 full-text search
-- Custom CSS theming with theme presets
-- 2FA via pyotp
-- RSS/Atom/JSON feed endpoints
-- Webhook delivery system
+| Module | Source | Deep dive |
+|---|---|---|
+| App factory | `app/__init__.py` | `architecture/core/app-factory.md` |
+| Typed configuration | `app/config/` | `architecture/core/configuration.md` |
+| Legacy config globals | `app/config_legacy.py` | — |
+| Data models (17) | `app/models.py` | `architecture/core/models.md` |
+| Filesystem paths | `app/filesystem/` | `architecture/core/filesystem.md` |
+| Onboarding | `app/onboarding/` | `architecture/core/onboarding.md` |
+| Theme system | `app/themes/` | `architecture/core/themes.md` |
+| Appearance layer | `app/appearance/` | `architecture/frontend/appearance.md` |
+| Routes | `app/routes/` | `architecture/routes/` |
+| Services | `app/services/` | `architecture/services/overview.md` |
+| Operations services | `app/services/operations/` | `architecture/services/operations.md` |
+| Tasks | `app/tasks.py`, `app/scheduler.py` | `architecture/tasks/` |
+| Infrastructure | `app/search.py`, `app/email.py`, `app/storage.py`, `app/webhooks.py` | `architecture/infrastructure/` |
+| Standalone CLI | `devlog_cli/` | `architecture/deployment/cli.md` |
+| Managed deployment | `app/deployment/` | `architecture/deployment/managed-deployment.md` |
+| Middleware | `app/middleware/rate_limit.py` | `architecture/deployment/security.md` |
 
-## Key File Locations
+## Hard Rules
 
-| Component | Location |
-|-----------|----------|
-| App factory | `app/__init__.py` |
-| Typed config | `app/config/` (model, loader, validation, provenance, secrets, profiles, serialization, migration) |
-| Legacy config | `app/config_legacy.py` (re-exported via `app/config/__init__.py`) |
-| Models | `app/models.py` |
-| Routes (API) | `app/routes/api/` |
-| Routes (Admin) | `app/routes/admin/` |
-| Routes (Public) | `app/routes/public/` |
-| Routes (RSS) | `app/routes/rss.py` |
-| Services | `app/services/` |
-| Tasks | `app/tasks.py` |
-| Webhooks | `app/webhooks.py` |
-| Email | `app/email.py` |
-| Search | `app/services/search/` |
-| Storage | `app/storage.py` |
-| Templates | `app/templates/` |
-| Static CSS | `app/static/css/` |
-| CLI package | `devlog_cli/` — standalone Click CLI (entry point: `devlog_cli.main:main`, registered as `devlog` in `pyproject.toml`) |
-| Operations services | `app/services/operations/` — business logic for CLI commands |
-| Deploy service | `app/services/operations/deploy.py` — deployment rendering, install, drift, lifecycle |
-| Deployment module | `app/deployment/` (model, systemd, compose, proxy, logrotate, install, drift, lifecycle) |
-| Onboarding package | `app/onboarding/` (model, state, steps, planner, secrets, metadata, rendering) |
+These are the contracts most easily broken by an otherwise-correct change.
 
-## Operations Service Layer
+1. **The theme system owns colour.** Static CSS consumes theme tokens only
+   (`var(--bg-surface)`, `var(--border)`, `var(--text-dim)`, `var(--radius)`,
+   `var(--space-*)`). No colour literals in a stylesheet, no token renames.
+2. **`base.css` owns the shared prose rules**, because the admin shell does not
+   load `public.css`. `public.css` must not define `.prose` rules.
+3. **One default profile image.** `app/templates/_default_avatar.html` exports a
+   single `default_avatar()` macro. Never fall back to the first letter of a
+   name.
+4. **One markdown producer.** `app/markdown_renderer.py` / the `markdown_safe`
+   filter. Do not add a second markdown path.
+5. **One heading ID generator** (`app/static/js/shared/heading-slug.js`) and one
+   heading-anchor producer (`app/static/js/public/anchor-links.js`). The anchor
+   is a direct child of the heading — no wrapper element.
+6. **One path resolver.** `RuntimePaths` in `app/filesystem/layout.py`. Never
+   derive a path independently.
+7. **Services never import Click.** `app/services/operations/` functions take no
+   Click, no terminal output and no process exit; they return a typed
+   `OperationResult` and use `commit_with_rollback()` for transaction
+   boundaries.
+8. **Log the user id, never the username or the raw user object.**
+9. **Never log or return `SECRET_KEY`, `ADMIN_PASSWORD`, API keys, TOTP
+   secrets or backup codes.**
+10. **CSRF applies to every POST except the API blueprint.** `should_skip_csrf()`
+    in `app/csrf.py` is the only exemption.
 
-Business logic for CLI commands lives in `app/services/operations/`:
+## The Operations Service Layer
 
-- `admin.py` — create_admin, promote_admin, reset_admin_password, list_admins
-- `database.py` — check_database_integrity, rebuild_search_index, get_migration_status, run_migrations
-- `media.py` — scan_orphaned_media, apply_orphaned_media_cleanup
-- `transfer.py` — export_site_data, validate_import, import_site_data
-- `themes.py` — list_theme_descriptors, validate_theme, inspect_theme, refresh_theme_registry, get_theme_paths, run_accessibility_check
-- `backup.py` — create_backup_operation, verify_backup
-- `deploy.py` — deploy_render, deploy_install, deploy_check, lifecycle_start, lifecycle_stop, lifecycle_restart, lifecycle_status, lifecycle_logs
-- `onboard.py` — detect_installation, generate_plan, apply_onboarding
-- `doctor.py` — diagnostic check registry, execution engine, safe fixes, 76 check implementations across 14 categories
+`app/services/operations/` holds operational logic so it can be called from the
+standalone CLI, from the Flask CLI wrappers in `app/cli.py`, and from tests.
 
-Service functions:
-- Never depend on Click or terminal output
-- Return typed OperationResult subclasses
-- Require Flask application context
-- Use commit_with_rollback() for transactions
+| Module | Public functions |
+|---|---|
+| `results.py` | `OperationResult` plus 27 typed subclasses with stable operation codes |
+| `admin.py` | `create_admin`, `promote_admin`, `reset_admin_password`, `list_admins` |
+| `database.py` | `check_database_integrity`, `rebuild_search_index`, `get_migration_status`, `run_migrations` |
+| `media.py` | `scan_orphaned_media`, `apply_orphaned_media_cleanup` |
+| `transfer.py` | `export_site_data`, `validate_import`, `import_site_data` |
+| `themes.py` | `list_theme_descriptors`, `validate_theme`, `inspect_theme`, `refresh_theme_registry`, `get_theme_paths`, `run_accessibility_check` |
+| `backup.py` | `create_backup_operation`, `verify_backup` |
+| `deploy.py` | `deploy_render`, `deploy_install`, `deploy_check` |
+| `onboard.py` | `detect_installation`, `generate_plan`, `apply_onboarding` |
+| `doctor.py` | Diagnostic registry — **76 checks across 20 categories** |
 
-Standalone CLI commands in `devlog_cli/commands/` call these services.
-Flask commands in `app/cli.py` are compatibility wrappers.
+Two consumer flows:
 
-### CLI Commands (`devlog`)
-
-Entry point: `devlog_cli.main:main` registered as `devlog` in `pyproject.toml [project.scripts]`.
-
-| Command group | Module | Purpose |
-|---------------|--------|---------|
-| `devlog config` | `devlog_cli/commands/config.py` | check, show, explain, paths, init, migrate |
-| `devlog admin` | `devlog_cli/commands/admin.py` | Admin user management |
-| `devlog db` | `devlog_cli/commands/db.py` | Database operations (check, rebuild-search, status, migrate) |
-| `devlog data` | `devlog_cli/commands/data.py` | Import/export |
-| `devlog media` | `devlog_cli/commands/media.py` | Media scan and cleanup |
-| `devlog themes` | `devlog_cli/commands/themes.py` | Theme operations |
-| `devlog backup` | `devlog_cli/commands/backup.py` | Backup operations |
-| `devlog onboard` | `devlog_cli/commands/onboard.py` | detect, plan, run, resume — first-run and reconfiguration onboarding |
-| `devlog deploy` | `devlog_cli/commands/deploy.py` | render, install, check — deployment artifact generation and installation |
-| `devlog doctor` | `devlog_cli/commands/doctor.py` | Diagnostic checks: `doctor`, `doctor --production`, `doctor --check CHECK_ID`, `doctor --category CATEGORY`, `doctor --fix-safe`, `doctor --list-checks` |
-| `devlog start/stop/restart/status/logs` | `devlog_cli/commands/lifecycle.py` | Backend-aware service lifecycle commands |
-
-CLI onboarding options:
-- `--mode native|docker` — installation mode
-- `--scope system|user` — native installation scope (system or user directories)
-- `--profile development|native-production|docker-production|minimal|full`
-- `--non-interactive` — requires all values via options
-- `--dry-run` — show plan without applying
-- `--admin-password-file` — read admin password from file
-
-## Verified Routes
-
-| Route | Path | Method |
-|-------|------|--------|
-| New post | `/admin/new` | GET/POST |
-| Edit post | `/admin/edit/<id>` | GET/POST |
-| Tag delete | `/admin/tags/delete/<id>` | POST |
-| Comment submission | `/POST /post/<slug>/comment` | POST |
-| Subscribe | `/subscribe` | POST only |
-| API post publish | `PUT /api/posts/<id>` | PUT with `{"published": true}` |
-
-## Important Patterns
-
-### Feed Endpoints
-Three feed endpoints available at `/atom`, `/rss`, `/json`:
-- `/atom` - Atom 1.0 feed
-- `/rss` - RSS 2.0 feed
-- `/json` - JSON Feed 1.1
-
-Implementation in `app/routes/rss.py`.
-
-### Webhook Event Triggering
-Events are triggered at these points:
-```python
-# Post publish/unpublish - app/routes/api/posts.py
-if "published" in data and was_published != post.published:
-    from app.webhooks import create_webhook_event
-    create_webhook_event(
-        event_type="post.published" if post.published else "post.unpublished",
-        payload={"post_id": post.id, "title": post.title, "slug": post.slug},
-        target_id=post.id,
-        target_type="post"
-    )
-
-# Subscriber confirmation - app/routes/public/subscribe.py
-create_webhook_event(
-    event_type="subscriber.confirmed",
-    payload={"subscriber_id": sub.id, "email": sub.email},
-    target_id=sub.id,
-    target_type="subscriber"
-)
+```
+CLI handler → CliContext.ensure_app_context() → service function → render Result
+Flask command wrapper → service function → render compatibility output
 ```
 
-### Page View Buffer
-The page view buffer (`app/page_view_buffer.py`) can cause test interference. Disable in tests:
+## The `devlog` CLI
+
+Entry point `devlog_cli.main:main`, registered as the `devlog` console script in
+`pyproject.toml`.
+
+| Group | Module | Subcommands |
+|---|---|---|
+| `config` | `commands/config.py` | check, show, explain, paths, init, migrate |
+| `admin` | `commands/admin.py` | create, promote, reset-password, list |
+| `db` | `commands/db.py` | check, rebuild-search, status, migrate |
+| `themes` | `commands/themes.py` | list, validate, inspect, refresh, paths, accessibility |
+| `backup` | `commands/backup.py` | create, verify, inspect |
+| `data` | `commands/data.py` | export, import |
+| `media` | `commands/media.py` | scan, cleanup |
+| `onboard` | `commands/onboard.py` | detect, plan, run, resume |
+| `paths` | `commands/paths.py` | status, discover-legacy, migrate, check |
+| `deploy` | `commands/deploy.py` | render, install, check |
+| `doctor` | `commands/doctor.py` | doctor — `--production`, `--check`, `--category`, `--fix-safe`, `--list-checks` |
+| lifecycle | `commands/lifecycle.py` | start, stop, restart, status, logs |
+
+Global flags: `--config`, `--env-file`, `--json`, `--quiet`, `--verbose`,
+`--no-color`.
+
+### Known CLI defects
+
+Verified against the source; see the deep dives for detail.
+
+- `devlog deploy render|install|check` all raise `KeyError: 'DEVLOG_CONFIG'`.
+  `_build_context()` reads `current_app.config["DEVLOG_CONFIG"]`, which
+  `create_app()` never sets — only `tests/deployment/conftest.py` does.
+- `devlog deploy render` renders **zero** files by default: `--target` defaults
+  to `["all"]` but `_render_target()` dispatches only on concrete names.
+- `devlog config explain` raises `TypeError` for at least `admin.username`,
+  `database.pool_size` and `logging.level`.
+- `--quiet` and `--no-color` are stored on `CliContext` but never read.
+- `devlog deploy render --output DIR` creates `DIR` and writes nothing: the
+  service emits `filename`, not `path`, and the CLI reads `path`.
+
+## Theme System
+
+Halloy-compatible TOML themes. The full contract is in `docs/themes/`; the
+architecture is in `architecture/core/themes.md`.
+
+- 50 bundled themes in `app/themes/bundled/`, packaged via `importlib.resources`.
+- The **root `themes/` directory is the authoring catalogue** — the source the
+  bundled package is generated from. It is *not* a runtime override directory.
+  Runtime overrides come from `themes.external_dir` in `config.toml` or
+  `THEME_EXTERNAL_DIR`.
+- `BlogTheme` — frozen dataclass, **50 fields: 41 `RGB` + 9 `RGBA`**.
+  `CSS_VARS` has **50 entries**, `ALIASES` has **38 entries**.
+- Legacy `THEME_PRESETS` and the `SiteSettings.theme_preset` column were
+  removed. `EMERGENCY_DEFAULT` is the emergency fallback.
+- Runtime authority: `SiteSettings.theme_dark_name` (default `Catppuccin
+  Mocha`), `theme_light_name` (default `Catppuccin Latte`),
+  `theme_default_scheme` (`system`).
+- `ThemeService` is per-process, stored on `app.extensions["theme_service"]`.
+  `inject_theme()` in `app/context_processors.py` builds the `theme_vars` dict.
+- Cache freshness requires an explicit `invalidate()` / `invalidate(name)`;
+  there is no automatic mtime refresh. Entries carry a `source_fingerprint`
+  computed with `hashlib.sha256()`.
+- Accessibility policy is three-tier: `recommended`, `compatible-with-exceptions`,
+  `experimental`. Exceptions live in `app/themes/ACCESSIBILITY_EXCEPTIONS.json`.
+
+### Known theme defect
+
+`shift_lightness()` in `app/themes/colors.py` computes `q` with an identical
+expression in both branches of the `lightness < 0.5` test, so dark colours take
+the light-colour path. `shift_lightness(from_hex('#161b22'), 0.06)` returns
+`#002459` where a reference HSL conversion gives `#222a35`. This affects the
+derived tokens `surface_hover`, `surface_active`, `border_strong` and, for a
+dark accent, `accent_hover` / `text_link_hover`. Existing colour tests only
+exercise grey, white and black, which take the unaffected path.
+
+## Appearance Layer
+
+`app/appearance/` answers "which typeface?" and "which graphic sits behind the
+page?" — the questions the theme registry does not answer. It mirrors the theme
+system's shape: registry → service → settings → runtime CSS.
+
+- 10 bundled font families (4 sans, 6 mono) as `woff2` in `app/static/fonts/`.
+- 3 bundled backdrops in `app/static/img/backdrops/`.
+- A custom font or backdrop whose file has been **deleted** is treated as
+  missing: both registries check that the file still exists, so the runtime
+  falls back to a bundled asset instead of emitting a 404-backed stack.
+- `app/appearance/svg.py` sanitises an uploaded backdrop so it stays inert.
+
+## Onboarding and Installation
+
+The installer installs **code artifacts only**. Onboarding creates
+**configuration, secrets, database and admin state**. The two never overlap.
+
+- 17 steps in `app/onboarding/steps.py`, driven by `StepContext` / `StepResult`.
+- Metadata file: `onboarding-metadata.json` in the data directory (not
+  `.devlog-installation.json`).
+- `devlog onboard detect|plan|run|resume`.
+- Omitting `--scope` falls back to `InstallMode.DEVELOPMENT` — it does **not**
+  detect the scope from the current installation.
+- Dry-run skips the file writes, but `step_resolve_paths()` still creates the
+  config and data directories.
+- The env file is rewritten from a fixed key set, so a re-run **drops any
+  hand-added `.env` key**. Onboarding is re-runnable, but not idempotent in the
+  strict sense.
+
+## Configuration
+
+`app/config/` is the typed system; `app/config_legacy.py` re-exports the legacy
+module-level globals for backward compatibility. Precedence is
+**env vars > config.toml > defaults**.
+
+- `app/config/model.py` — 23 frozen dataclasses (`DevLogConfig` + 22 sections).
+  This is the canonical source of truth for every field and its default.
+- `app/config/loader.py` — `load_effective_config()`.
+- `app/config/validation.py` — schema, security, filesystem, dependency and
+  compatibility layers.
+- `app/config/provenance.py` — tracks which source supplied each value.
+- `app/config/secrets.py` — secret identification and redaction.
+- `app/config/profiles.py` — development, native-production, docker-production,
+  minimal, full.
+- `app/config/serialization.py` — TOML/JSON output with redaction.
+
+`config.toml.example` mirrors the dataclass defaults. `config.toml` is
+gitignored. `devlog config explain <field>` documents a field.
+
+## Gotchas
+
+**Test interference.** `app/page_view_buffer.py` batches page views and can
+break tests. Disable it:
+
 ```python
 app.config["PAGE_VIEW_BUFFER_SIZE"] = 0
 from app.page_view_buffer import shutdown_page_view_buffer
 shutdown_page_view_buffer()
 ```
 
-### Snippet Batching for SQLite
-When batching post_ids for SQLite, use 500 at a time:
-```python
-chunk_size = 500
-for i in range(0, len(post_ids), chunk_size):
-    chunk = post_ids[i:i + chunk_size]
-```
+The `ensure_buffer_disabled` autouse fixture already does this in
+`tests/conftest.py`, `tests/e2e/conftest.py`, `tests/benchmarks/conftest.py`
+and `tests/test_api.py`.
 
-### Configuration Priority
-env vars > config.toml > defaults
+**Session refresh.** `db.session.refresh()` fails if the object is not in the
+current session — re-query from the database instead.
 
-### Typed Configuration System
+**SQLite batching.** When batching `post_ids` for SQLite, use chunks of 500.
 
-The codebase has a typed configuration system at `app/config/`:
-- `app/config/model.py` — 20 frozen dataclasses (`DevLogConfig` + 19 section classes)
-- `app/config/loader.py` — `load_effective_config()` with precedence chain
-- `app/config/validation.py` — Multi-layer validation (schema, security, filesystem, dependencies, compatibility)
-- `app/config/provenance.py` — Source tracking for config values
-- `app/config/secrets.py` — Secret field identification and redaction
-- `app/config/profiles.py` — Deployment profiles (development, native-production, docker-production, minimal, full)
-- `app/config/serialization.py` — TOML/JSON output with redaction
-- `app/config/migration.py` — Config version migration support
+**Newsletter retries.** Default is 5, not 3. The Celery task does not apply
+that limit — it sends for all requested post IDs. The scheduler path does.
 
-CLI commands: `devlog config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate`
+**Scheduler cadence.** `cleanup_expired_subscribers` and
+`publish_scheduled_posts` run every 5 minutes; `run_daily_backup` runs at
+02:00, not midnight.
 
-### Newsletter Retry Count
-Default is 5 (not 3)
+**APScheduler is in-process.** It uses a FileLock with `timeout=0`, so it only
+works on a single machine. Set `ENABLE_SCHEDULER=true` on exactly one
+container. It is disabled by default.
 
-### APScheduler Schedules
-- `cleanup_expired_subscribers`: `minute="*/5"` (NOT hourly)
-- `run_daily_backup`: `hour=2, minute=0` (NOT midnight)
+**FTS init is silent.** `app/__init__.py` catches `OperationalError` during FTS
+initialisation and rolls back without telling the user. If the FTS table cannot
+be created, search silently returns nothing.
 
-### Celery Queue Names
-- `images` - Image processing
-- `newsletter` - Newsletter delivery
-- `webhooks` - Webhook delivery
-- `email` - Transactional email
-- `backup` - Backup tasks
+**`SiteSettings.get_instance()` flushes.** Creating the singleton flushes any
+other uncommitted changes in the session. Use `db.session.merge()` or
+`SELECT FOR UPDATE` instead.
 
-### Comment Model Relationships
-```python
-parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
-replies = db.relationship("Comment", back_populates="parent", lazy="select")
-```
+**Legacy config globals live in `app/config_legacy.py`.** `app/config.py` no
+longer exists. `_env_str()` there treats an empty string as unset.
 
-### Health Check Critical Checks
-```python
-critical_checks = {
-    k: v for k, v in checks.items()
-    if k in ("database", "scheduler", "search", "disk_space", "db_integrity")
-}
-```
+**CSRF header name.** Read it from `data-csrf-header` or `csrfHeaders()` —
+never hard-code it.
+
+**Post image URLs.** Use the `post_image_url` filter; never re-wrap it with
+`url_for('static', ...)`. Guard `srcset` — the filter returns `None` when no
+variants exist.
+
+**Route → JS modules.** `app/static/js/main.js` matches on a path-segment
+boundary, longest prefix first.
+
+**Vite build required.** `npm run build` must run before production.
+`app/static/dist/.vite/manifest.json` must exist or JS assets resolve to
+hashed paths that do not exist. Docker builds handle this in the
+`frontend-builder` stage. **Restart the Flask server after every build** —
+`app/vite.py` caches the manifest process-wide.
+
+**Model count.** Exactly 17 models in `app/models.py`. `OperationResult` and its
+subclasses in `app/services/operations/results.py` are plain dataclasses, not
+models.
+
+## Security
+
+- Passwords hashed with `werkzeug.security` (pbkdf2:sha256).
+- TOTP secrets encrypted at rest with AES-256-GCM (`app/services/encryption.py`).
+  `User.totp_secret` decrypts on access; `set_totp_secret()` encrypts first.
+- Backup codes are SHA-256 hashed and single-use (8 codes).
+- Account lockout after 5 failed attempts for 15 minutes.
+- `LOGIN_FAILURE_DELAY` has a 0.1 s floor (`app/config_legacy.py`).
+- Webhook URLs validated by `is_safe_webhook_url()` in `app/utils.py`.
+- Webhook payloads signed with HMAC-SHA256 in the `X-Webhook-Signature` header.
+- `SESSION_IP_BINDING` is enforced by the `admin_required` decorator in
+  `app/routes/admin/__init__.py`, not in the global `before_request` handler.
+- API auth is two-tier: the legacy `API_KEY` env var (all scopes) and scoped
+  `ApiToken` objects. `scope_allows()` supports exact match, `admin:*` for
+  everything, and category wildcards such as `posts:*`.
+- `app/storage.py:get_storage()` uses double-checked locking.
 
 ## Deployment
 
-- Docker with Granian ASGI server
-- Celery worker requires `PYTHONPATH=/home/blog`
-- nginx runs as `nginx` user (not `blog`)
-- Backup encryption uses AES-256-GCM (NOT GPG)
-
-## Security Rules
-
-1. **Log ID, not Username** - When logging user actions, always use `user.id`
-2. **Credential Protection** - Never log `SECRET_KEY`, `ADMIN_PASSWORD`, or API keys
-3. **SSRF Protection** - Webhook URLs validated via `app/utils.py:is_safe_webhook_url()`
-4. **CSRF** - Sliding window of 5 valid tokens with `hmac.compare_digest`, API blueprint exempt via `should_skip_csrf()`
-
-### 2FA Implementation
-- TOTP secrets encrypted at rest using AES-256-GCM (`app/services/encryption.py`)
-- `User.totp_secret` is a property that decrypts on access
-- `User.set_totp_secret()` encrypts before storage
-- Backup codes are SHA-256 hashed and single-use
-- Routes:
-  - `GET/POST /admin/2fa/setup` - Generate TOTP secret
-  - `GET/POST /admin/2fa/verify` - Verify code and enable 2FA
-  - `GET /admin/2fa/backup-codes` - Display one-time backup codes
-  - `GET/POST /admin/2fa/disable` - Disable 2FA
-  - `GET/POST /admin/login-2fa` - TOTP verification during login
-
-### LOGIN_FAILURE_DELAY
-Minimum enforced at 0.1s in `app/config.py` to prevent brute force.
-
-### Thread-Safe Storage
-`app/storage.py:get_storage()` uses double-checked locking with `threading.Lock()`.
-
-### Security Headers
-- Flask sets `X-Frame-Options: DENY` and `Cross-Origin-Opener-Policy: same-origin`
-- nginx aligned to use `DENY` and `Cross-Origin-Opener-Policy: same-origin`
-
-## Rate Limiting
-
-- `ADMIN_RATE_LIMITS` in `app/config.py`:
-  - `login`: 5 per 60 seconds
-  - `api_write`: 100 per 60 seconds
-  - `api_read`: 500 per 60 seconds
-  - `settings`: 50 per 60 seconds
-- `app/middleware/rate_limit.py` provides `AdminRateLimiter` class
-- Flask-Limiter already integrated with `key_func=get_client_ip`
-
-## Typed Config Package
-
-The `app/config/` package provides structured configuration management:
-- **Model**: 20 frozen dataclasses in `app/config/model.py` (`DevLogConfig` + 19 section classes)
-- **Loader**: `load_effective_config()` in `app/config/loader.py` with precedence chain (env vars > config.toml > defaults)
-- **Validation**: Multi-layer validation in `app/config/validation.py` (schema, security, filesystem, dependencies, compatibility)
-- **Provenance**: Source tracking for config values in `app/config/provenance.py`
-- **Secrets**: Secret field identification and redaction in `app/config/secrets.py`
-- **Profiles**: Deployment profiles in `app/config/profiles.py` (development, native-production, docker-production, minimal, full)
-- **Serialization**: TOML/JSON output with redaction in `app/config/serialization.py`
-- **Migration**: Config version migration support in `app/config/migration.py`
-
-CLI commands: `devlog config check`, `config show`, `config explain`, `config paths`, `config init`, `config migrate`
-
-## Testing Fixtures
-
-All test fixtures should disable page view buffer:
-- `tests/conftest.py` - has `ensure_buffer_disabled` autouse fixture
-- `tests/e2e/conftest.py` - has `ensure_buffer_disabled` autouse fixture
-- `tests/benchmarks/conftest.py` - has `ensure_buffer_disabled` autouse fixture
-- `tests/test_api.py` - has `ensure_buffer_disabled` autouse fixture
-
-### Test Database Session
-`db.session.refresh()` fails if object isn't in current session. Re-query from database instead.
-
-## Template Filters
-
-Actual filters in `app/filters.py`:
-- `markdown_safe` - Render markdown to HTML with nh3 sanitization
-- `reading_time` - Calculate reading time from text content
-- `sanitize_css` - Sanitize custom CSS input
-- `post_image_url` - Get post image URL with request-level caching
-- `post_image_srcset` - Generate srcset for responsive images
-- `post_image_avif_url_stub` - DEPRECATED: stub, always returns None
-
-Note: `truncate` is Jinja2's built-in filter, not defined in app/filters.py
-Note: `custom_css` is a context variable (from `inject_theme()`), not a filter
-
-## Context Processors
-
-From `app/context_processors.py`:
-- `inject_config()` - site_title, site_description, author_name, etc.
-- `inject_theme()` - theme settings including `custom_css`
-- `inject_footer_data()` - recent_posts_footer, footer_tags, etc.
-- `inject_csrf()` - csrf_token and csp_nonce
-- `inject_show_footer_posts()` - show_footer_posts boolean
-
-## Backup Implementations
-
-Two separate backup implementations (both use `blog_*.db` naming):
-- `app/services/backup.py:create_backup()` - Celery task, supports AES-256-GCM encryption/compression
-- `app/scheduler.py:run_daily_backup()` - APScheduler, no encryption/compression
-
-`cleanup_old_backups()` correctly handles both since May 2026 fix.
-
-## Slug Generation
-
-Slug collision limit hardcoded to 100 tries before UUID suffix fallback (`app/services/slug.py`).
-
-## Search Abstraction
-
-- `app/services/search/__init__.py` - `SearchProvider` abstract class
-- `app/services/search/sqlite.py` - `SQLiteSearchProvider` (current FTS5)
-- `app/services/search/postgresql.py` - `PostgreSQLSearchProvider` (stub for future)
-- `get_search_provider()` factory selects by `SEARCH_PROVIDER` config
-- `SEARCH_PROVIDER` defaults to 'sqlite', can be set to 'postgresql'
-
-## Frontend
-
-- Vite configured for code splitting in `vite.config.js`
-- `manualChunks`: vendor, admin, public chunks
-- `post_image_avif_url` filter in `app/filters.py` (stub - returns None until AVIF enabled)
-
-## Brotli
-
-- `nginx/nginx.conf` includes commented Brotli configuration
-- Requires custom nginx image with `--with-http_brotli_module`
-- To enable: uncomment Brotli module load and settings sections
-
-## Maintenance
-
-Project is in maintenance mode. No active implementation plans.
-- See `docs/internals/agent-maintainer-notes.md` for detailed implementation history
-
-## Halloy Theme Migration
-
-All 15 phases of the Halloy theme migration are complete, plus a final verification pass. Phases: 01 (catalog inventory + token contract), 02 (parser + color primitives), 03 (blog translation layer), 04 (safe registry and external overrides), 05 (packaging), 06 (runtime integration), 07 (Flask and Jinja runtime integration), 08 (visitor color-scheme behavior), 09 (CSS and generated-markup audit), 10 (admin selection and preview), 11 (operator CLI), 12 (accessibility validation), 13 (performance and reliability), 14 (documentation and legacy removal), and 15 (legacy removal and release closure — THEME_PRESETS removed, theme_preset column dropped, emergency fallback uses EMERGENCY_DEFAULT).
-
-**Small closure pass contracts:**
-- Cache freshness: external theme changes require explicit `invalidate()` or `invalidate(name)`; no automatic mtime-based refresh
-- Fingerprint: `_compute_fingerprint()` uses `hashlib.sha256()` (64-char hex) for bundled resources
-- CI: 9 jobs including `theme-policy` (accessibility strict check) and `migration-chain` (real Alembic Operations context tests)
-
-**Accessibility policy:** Three-tier classification system — `recommended` (zero failures), `compatible-with-exceptions` (failures covered by manifest), `experimental` (uncovered failures). Exception manifest at `app/themes/ACCESSIBILITY_EXCEPTIONS.json` with `schema_version: 2`. CI enforces via `theme-policy` job and `flask themes accessibility --strict`.
-
-### Theme Source Locations
-
-| Component | Location | Notes |
-|-----------|----------|-------|
-| Source catalog | `themes/*.toml` | 50 files; ignore macOS `._*.toml` metadata files |
-| Bundled themes | `app/themes/bundled/*.toml` | Packaged copy of source catalog; accessible via `importlib.resources` |
-| Runtime authority | `app/models.py` | Theme configuration via `theme_dark_name`, `theme_light_name`, `theme_default_scheme` columns |
-| Context injection | `app/context_processors.py:67-76` | `inject_theme()` builds `theme_vars` dict via `ThemeService` |
-| Template consumption | `app/templates/base.html:42-48`, `app/templates/admin/base.html:17-23` | CSS variable injection into `<style>` blocks |
-| Color scheme | `app/static/js/shared/color-scheme.js` | 3-state scheme manager, localStorage key `blog-color-scheme` |
-| CSS selectors | `base.css`, `public.css`, `prism-okaidia.css` | Use `[data-color-scheme="light"]` (not `[data-theme]`) |
-
-### Planned Module Layout
-
-Phases 05+ will create these modules:
-
-| Module | Purpose | Phase | Status |
-|--------|---------|-------|--------|
-| `app/themes/halloy.py` | Typed parser models for Halloy TOML schema | 02 | Done |
-| `app/themes/colors.py` | Color primitives (hex parsing, luminance, contrast) | 02 | Done |
-| `app/themes/model.py` | `BlogTheme` frozen dataclass (50 fields, CSS_VARS, ALIASES, EMERGENCY_DEFAULT) | 03 | Done |
-| `app/themes/translate.py` | `translate_halloy_theme()`, `to_css_variables()`, `to_theme_vars()`, `to_legacy_vars()` | 03 | Done |
-| `app/themes/diagnostics.py` | `check_blog_theme_contrast()`, `ContrastWarning`, `TranslationDiagnostics` | 03 | Done |
-| `app/themes/resources.py` | `ThemeResource` protocol, `_PathResource`/`_TraversableResource`, `normalize_theme_name()`, `ThemeFileInfo.read_bytes()` | 04 | Done |
-| `app/themes/cache.py` | `ThemeCache` in-process cache, `ThemeCacheEntry` with `source_fingerprint`, `invalidate_prefix()`, `validate_entry()` | 04 | Done |
-| `app/themes/registry.py` | `ThemeRegistry`, `ThemeDescriptor`, `LoadedTheme`, `_CatalogEntry`, structured exceptions, `_THEME_ALIASES`, `_compute_fingerprint()`, default `Catppuccin Mocha` | 04 | Done |
-| `app/themes/bundled/*.toml` | Packaged theme files shipped with the app | 05 | Done |
-| `app/services/theme_settings.py` | Theme validation, effective name resolution | 06 | Done |
-| `app/themes/service.py` | `ThemeService` class, app-scoped via `app.extensions["theme_service"]`, context builder (Phase 07) | 07 | Done |
-| `app/static/js/shared/color-scheme.js` | 3-state color scheme manager (system/dark/light), bootstrap, toggle | 08 | Done |
-| `app/static/js/shared/dark-mode.js` | Backward-compatible re-export from color-scheme.js | 08 | Done |
-
-### Phase 02 API
-
-#### Entry Points
-
-- `parse_halloy_theme_bytes(data: bytes, *, source_name: str) -> HalloyTheme`
-- `parse_halloy_theme(source: str | Path | IO[bytes] | bytes) -> HalloyTheme`
-
-#### Dataclass Models
-
-- `HalloyTheme` — top-level container
-- `HalloyGeneral` — general theme settings
-- `HalloyText` — text color settings
-- `HalloyBuffer` — buffer color settings
-- `HalloyBufferServerMessages` — server message colors
-- `HalloyButtons` — button color settings
-
-#### Exception Classes
-
-- `ThemeParseError` — TOML parse failure (has `.source` attribute)
-- `ThemeSchemaError` — structural/schema violation (has `.source` and `.field_path` attributes)
-- `ThemeColorError` — invalid color value (has `.source` and `.field_path` attributes)
-
-#### Color Primitives (`app/themes/colors.py`)
-
-- `RGB`, `RGBA` — immutable color containers
-- `from_hex`, `to_hex`, `to_css` — conversion utilities
-- `alpha_composite` — alpha blending
-- `relative_luminance`, `contrast_ratio`, `wcag_level` — WCAG contrast helpers
-- `is_dark_background`, `is_light_background` — classification
-- `mix`, `adjust_lightness`, `shift_lightness` — color manipulation
-
-**Note:** The parser has zero Flask/SQLAlchemy/templates/registry coupling. It depends only on Python stdlib `tomllib`.
-
-### Phase 04 API
-
-#### ThemeRegistry (`app/themes/registry.py`)
-
-- `ThemeRegistry(bundled_root=None, external_root=None, default_theme="Catppuccin Mocha")`
-- `list_themes()` -> sorted list of `ThemeDescriptor`
-- `resolve(name)` -> `ThemeDescriptor | None`
-- `load(name)` -> `LoadedTheme` (with caching)
-- `invalidate(name=None)` -> clear cache/catalog
-- `get_fallback(configured=None)` -> `LoadedTheme` (emergency fallback chain)
-
-Structured exceptions: `ThemeNotFoundError`, `ThemeParseFailure`, `ThemeLoadError`, `ThemeValidationError`.
-
-`_CatalogEntry` pairs descriptor + file_info internally. `_THEME_ALIASES` maps legacy names to Halloy equivalents. `_compute_fingerprint()` validates cache entries against current source state.
-
-#### ThemeDescriptor (frozen dataclass)
-
-Safe public metadata: `canonical_name`, `display_name`, `source`, `overrides_bundled`, `is_dark`, `status`, `warnings`. No absolute paths exposed.
-
-#### LoadedTheme (frozen dataclass)
-
-Complete loaded result: `descriptor`, `blog_theme`, `halloy_theme`, `css`, `is_dark`, `diagnostics`, `css_vars`, `legacy_vars`.
-
-#### Resources (`app/themes/resources.py`)
-
-- `ThemeResource` protocol with `_PathResource` and `_TraversableResource` implementations
-- `normalize_theme_name(name)` -> canonical stem or raises ValueError
-- `discover_bundled_package(root)` -> `_TraversableResource` via `importlib.resources`
-- `ThemeFileInfo.read_bytes()` method for safe content access
-
-#### Cache (`app/themes/cache.py`)
-
-- `ThemeCache` in-process cache with `source_fingerprint` validation
-- `ThemeCacheEntry` stores halloy_theme, blog_theme, css, diagnostics, css_vars, legacy_vars, `source_fingerprint`
-- `invalidate_prefix()` for bulk invalidation
-- `validate_entry()` accepts current metadata from caller to check freshness
-
-### Hard Rules for Agents
-
-1. All 15 phases of the Halloy theme migration are complete, plus final verification pass.
-2. `THEME_PRESETS` has been removed from `app/models.py`; `theme_preset` column dropped from `SiteSettings`.
-3. Bundled resources must use `importlib.resources`, not cwd-relative paths.
-4. CSS variables emitted via `theme_vars` are the current API.
-5. Accessibility policy uses three-tier classification: `recommended`, `compatible-with-exceptions`, `experimental`.
-
-### Token Contract Summary
-
-44 semantic BlogTheme tokens organized into Backgrounds, Borders, Text, Accent, States, Inputs/Code, Navbar/Chrome, and Overlays categories. 26 aliases preserve existing CSS variable names (`--bg`, `--accent`, etc.) for backward compatibility. See `docs/themes/blog-theme-contract.md` for the full matrix.
-
-### Audit Summary
-
-128 frontend color literals audited: 0 REPLACE (all 34 converted in Phase 09), 71 RETAIN (structural defaults, print stylesheet, brand colors, neutral shadows, intentionally-dark overlays), 9 FALSE_POS (font-face URLs, `currentColor` SVGs). Phase 08 removed 23 static light-palette literals; palette is now provided by inline theme injection. Phase 09 replaced all hardcoded CSS literals with semantic CSS custom properties. See `docs/themes/frontend-literal-audit.md` for the line-by-line audit.
-
-### Phase 02+ Reference
-
-All 15 phases are complete plus final verification pass. The phased plan is at `plans/halloy_theme_system_roadmap.md`.
+- Docker Compose requires explicit profiles — there is no default profile.
+  `--profile production` runs blog, celery and redis; `--profile reverse-proxy`
+  adds nginx; `--profile backup` adds the backup service.
+- The app binds `127.0.0.1:5000` in Docker. Terminate TLS with a host-level
+  reverse proxy.
+- Celery worker needs `PYTHONPATH=/home/blog`.
+- nginx runs as the `nginx` user.
+- Backup encryption is AES-256-GCM, not GPG.
+- CI runs **11 jobs**: `lint-and-type`, `test`, `theme-policy`,
+  `migration-chain`, `theme-package-verification`, `frontend-build`,
+  `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`,
+  `release1-package-smoke`.
+
+## Where The Work Is Tracked
+
+- `plans/AGENTS.override.md` — which plan series are active and which are
+  historical. Read it before planning new work.
+- `architecture/overview.md` — the module index and deep-dive map.
+- `docs/` — operator and user documentation.
+- `docs/internals/agent-maintainer-notes.md` — implementation history and
+  deprecated-feature caveats.

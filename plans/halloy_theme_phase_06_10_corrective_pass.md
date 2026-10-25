@@ -1,5 +1,7 @@
 # Halloy Theme Phase 06–10 Corrective Pass
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Close the remaining correctness and lifecycle gaps in the persisted theme configuration, runtime service, visitor color-scheme behavior, and admin endpoints before moving into operator tooling and release hardening.

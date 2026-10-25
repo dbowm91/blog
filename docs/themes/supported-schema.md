@@ -1,10 +1,18 @@
-# Supported Halloy Theme Schema — Phase 01 Catalog Snapshot
+# Supported Halloy Theme Schema
 
-> Version: `0.1.0` (Phase 01 inventory snapshot)
-> Intent: Authoritative input contract for Phase 02 parser implementation and Phase 03 translator consumption.
-> Source catalog: 50 checked-in Halloy TOML files under `themes/`.
+> Intent: the input contract for the theme parser in `app/themes/halloy.py` and the
+> translator in `app/themes/translate.py`.
+> Source catalog: the 50 checked-in Halloy TOML files under `themes/`.
 
-This document defines the Halloy TOML schema subset that Phase 02's parser must accept and Phase 03's translator must consume. It is not a general Halloy reference. Only fields confirmed across the 50-file source catalog are specified here.
+This document defines the Halloy TOML schema subset that the parser accepts and the
+translator consumes. It is not a general Halloy reference. Only fields confirmed
+across the 50-file source catalog are specified here.
+
+> **Where the catalogue lives.** The repository-root `themes/` directory is the
+> *authoring catalogue*. The runtime loads the packaged copy in
+> `app/themes/bundled/` through `importlib.resources`. The two trees hold the same
+> 50 files. The runtime *external override* directory is a third, separate path,
+> configured by `themes.external_dir` in `config.toml` or `THEME_EXTERNAL_DIR`.
 
 ---
 
@@ -104,7 +112,7 @@ All 50 catalog files provide all 5 fields. No optional fields were observed.
 | `topic` | hex color | yes | — | Channel topic text color. |
 | `url` | hex color | yes | — | URL link text color. |
 
-All 50 catalog files provide all 14 fields. No optional fields were observed.
+All 50 catalog files provide all 13 fields. No optional fields were observed.
 
 ### `[buffer.server_messages]`
 
@@ -113,7 +121,7 @@ This section is nested inside `[buffer]` using TOML dotted-key syntax.
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `default` | hex color | yes | — | Default server message text color. Present in all 50 themes. |
-| `join` | hex color | no | — | Join message color. Present in 3 themes. |
+| `join` | hex color | no | — | Join message color. Present in 5 themes. |
 | `part` | hex color | no | — | Part message color. Present in 3 themes. |
 | `quit` | hex color | no | — | Quit message color. Present in 3 themes. |
 | `monitored_online` | hex color | no | — | Monitored user online color. Present in 2 themes. |
@@ -122,13 +130,20 @@ This section is nested inside `[buffer]` using TOML dotted-key syntax.
 | `standard_reply_warn` | hex color | no | — | Standard reply warn color. Present in 2 themes. |
 | `standard_reply_note` | hex color | no | — | Standard reply note color. Present in 2 themes. |
 
-**Phase 02 parser behavior:** The `default` key is the only required key. All other keys are optional and will be parsed if present but not consumed by Phase 03's initial translator. They should be silently ignored with no warning. See "Defaults and tolerance" below.
+**Parser behaviour:** the `default` key is the only required key. The other keys
+are optional. They are parsed and stored but not consumed by the translator, and
+they are accepted silently — no warning is logged, because they are valid Halloy
+schema fields that the translator simply does not use. See "Defaults and
+tolerance" below.
 
-**Distribution across catalog:**
-- 45 themes contain only `default` (no extra keys)
-- 3 themes contain `default` + `join` + `part` + `quit`: `base16-atelier-forest-light.toml`, `Discord.toml`, `Discord (80_ Saturation).toml`
-- 2 themes contain the full 9-key set: `Discord.toml`, `Discord (80_ Saturation).toml`
-- 1 theme contains `default` + `join`: `Dark Green.toml`, `plum.toml`
+**Distribution across the catalog:**
+
+| Key set | Count | Files |
+|---------|-------|-------|
+| `default` only | 45 | — |
+| `default`, `join` | 2 | `Dark Green.toml`, `plum.toml` |
+| `default`, `join`, `part`, `quit` | 1 | `base16-atelier-forest-light.toml` |
+| All 9 keys | 2 | `Discord.toml`, `Discord (80_ Saturation).toml` |
 
 ### `[buttons.primary]`
 
@@ -167,7 +182,7 @@ Alpha byte semantics: `00` = fully transparent, `FF` = fully opaque. The alpha c
 
 ### Rejected formats
 
-The parser must reject and raise `ThemeColorError` for:
+The parser rejects a value and raises `ThemeColorError` for:
 
 - Named colors (`red`, `tomato`, etc.)
 - CSS functions (`rgb(...)`, `rgba(...)`, `hsl(...)`, `hsla(...)`, `oklab(...)`)
@@ -189,7 +204,9 @@ All color normalization is lowercase hex. Mixed-case input (`#AAbbCC`) is normal
 
 ## Filename acceptance rules
 
-Phase 02 does not implement filename validation, but this contract defines the rules for Phase 04's safe-name logic and Phase 05's packaging.
+The runtime enforces the name rules in `validate_theme_name()` in
+`app/themes/resources.py`. The canonical name is the file stem with `_` and `-`
+treated as spaces, so `my-theme.toml` becomes `My Theme`.
 
 ### Allowed characters
 
@@ -210,14 +227,14 @@ Phase 02 does not implement filename validation, but this contract defines the r
 | `..` | Directory traversal component. |
 | Control characters (U+0000–U+001F, U+007F) | Non-printable, injection risk. |
 | Empty names | No filename to resolve. |
-| Leading `.` | Hidden files, could collide with macOS metadata `._*.toml` pattern. |
-| Names exceeding 100 characters | Safety limit. Longest catalog filename is `black but with important highlights.toml` (46 characters). |
+| Absolute paths | Rejected by `os.path.isabs()`. |
+| Names exceeding 200 characters | `_MAX_THEME_NAME_LEN` in `app/themes/resources.py`. The longest catalog filename is `black but with important highlights.toml` (40 characters). |
 
 ### Filename edge cases observed in catalog
 
 | Pattern | Example | Count |
 |---|---|---|
-| Spaces in name | `black but with important highlights.toml`, `Catppuccin Mocha.toml`, etc. | 32 |
+| Spaces in name | `black but with important highlights.toml`, `Catppuccin Mocha.toml`, etc. | 21 |
 | Parentheses | `Discord (80_ Saturation).toml` | 1 |
 | Mixed case | `Booberry.toml`, `Catppuccin Latte.toml`, `VESPER.toml` | 32 uppercase-start, 18 lowercase-start |
 | Dots in stem | None observed (hyphens used instead) | 0 |
@@ -229,28 +246,38 @@ Phase 02 does not implement filename validation, but this contract defines the r
 
 ### Required fields
 
-All fields marked `Required: yes` in the tables above must be present in the parsed TOML. If a required field is missing, the parser raises `ThemeSchemaError` with the missing field path.
+All fields marked `Required: yes` in the tables above must be present in the parsed
+TOML. If a required section or field is missing, the parser raises
+`ThemeSchemaError` with the missing field path.
 
-Across the 50-file catalog, every required field is present in every file. There are no themes that rely on defaults for any required section or field.
+Across the 50-file catalog, every required field is present in every file. There
+are no themes that rely on defaults for any required section or field.
 
 ### Optional fields
 
-No optional fields were observed in the catalog. The only optional concept is the extra `buffer.server_messages` keys (`join`, `part`, `quit`, `monitored_online`, `monitored_offline`, `standard_reply_fail`, `standard_reply_warn`, `standard_reply_note`).
+No optional fields were observed in the catalog. The only optional concept is the
+extra `buffer.server_messages` keys (`join`, `part`, `quit`, `monitored_online`,
+`monitored_offline`, `standard_reply_fail`, `standard_reply_warn`,
+`standard_reply_note`).
 
-If future Halloy versions add new fields, the parser must tolerate them (log a debug-level notice) without raising errors.
+Fields added by a future Halloy version are tolerated: unknown keys are parsed
+and stored without raising an error, and no warning is logged.
 
 ### Behavior for unknown sections or fields
 
 | Scenario | Behavior |
 |---|---|
-| Unknown top-level section (e.g., `[metadata]`) | Parsed but ignored. No warning. |
+| Unknown top-level section (e.g., `[metadata]`) | Parsed and kept in `HalloyTheme.extra_top_sections`. No warning. |
 | Unknown field in a known section (e.g., `[general] unknown_field = "..."`) | Parsed but ignored. No warning. |
-| Unknown nested section (e.g., `[buffer.server_messages.join]` if it were a table) | Parsed but ignored. |
+| Unknown key in `[buffer.server_messages]` | Parsed and kept in `HalloyBufferServerMessages.extras`. |
 | Known section with wrong type (e.g., `[text]` containing a string instead of a table) | Raise `ThemeSchemaError`. |
 
 ### Behavior for `[buffer.server_messages]` extras
 
-Extra keys in `[buffer.server_messages]` beyond `default` are parsed and stored in the model but not consumed by Phase 03's translator. The parser should silently accept them. No warning is logged for their presence, because they are valid Halloy schema fields — just not yet translated.
+Extra keys in `[buffer.server_messages]` beyond `default` are parsed and stored in
+the model but not consumed by the translator. They are accepted silently — no
+warning is logged, because they are valid Halloy schema fields that the
+translator simply does not use.
 
 ---
 
@@ -260,24 +287,27 @@ Extra keys in `[buffer.server_messages]` beyond `default` are parsed and stored 
 
 | Condition | Result |
 |---|---|
-| Invalid TOML syntax | **Parse failure.** Raise `ThemeParseError` with line/column context. |
-| Missing required section (e.g., `[general]` absent) | **Parse failure.** Raise `ThemeSchemaError` with missing section path. |
-| Missing required field (e.g., `[text].primary` absent) | **Parse failure.** Raise `ThemeSchemaError` with missing field path. |
-| Invalid color value (e.g., `rgb(0,0,0)`) | **Parse failure.** Raise `ThemeColorError` with field path and raw value. |
-| Unknown section or field present | **Successful parse.** Unknown data silently discarded. |
-| Extra `buffer.server_messages` keys | **Successful parse.** Keys accepted, not translated in Phase 03. |
-| Empty file (no content) | **Parse failure.** Raise `ThemeParseError`. |
-| Non-TOML file content | **Parse failure.** Raise `ThemeParseError`. |
+| Invalid TOML syntax | **Parse failure.** Raises `ThemeParseError` with line/column context. |
+| Missing required section (e.g., `[general]` absent) | **Parse failure.** Raises `ThemeSchemaError` with missing section path. |
+| Missing required field (e.g., `[text].primary` absent) | **Parse failure.** Raises `ThemeSchemaError` with missing field path. |
+| Invalid color value (e.g., `rgb(0,0,0)`) | **Parse failure.** Raises `ThemeColorError` with field path and raw value. |
+| Unknown section or field present | **Successful parse.** Unknown data is retained or discarded, never an error. |
+| Extra `buffer.server_messages` keys | **Successful parse.** Keys accepted, not translated. |
+| Empty file (no content) | **Parse failure.** Raises `ThemeParseError`. |
+| Non-TOML file content | **Parse failure.** Raises `ThemeParseError`. |
 
 ### Schema-version string
 
-The parser must embed a schema version in every parsed `HalloyTheme` model:
+The parser embeds a schema version in every parsed `HalloyTheme` model:
 
 ```
 schema_version = "halloy-supported-v1"
 ```
 
-This version string identifies the schema subset defined by this document. It is not the upstream Halloy schema version. It must be included in model metadata for traceability and future migration.
+This version string identifies the schema subset defined by this document. It is
+not the upstream Halloy schema version. It is included in model metadata for
+traceability and future migration, and is exported as `SCHEMA_VERSION` from
+`app/themes/halloy.py`.
 
 ---
 
@@ -327,13 +357,15 @@ This version string identifies the schema subset defined by this document. It is
 | `ferra.toml` | `#00000000` |
 | `plum.toml` | `#00000000`, `#242424B4`, `#27273DE2`, `#C5B15CAA` |
 
-Note: 18 of these 26 files use only `#00000000` (fully transparent). The remaining 8 files use non-trivial alpha values.
+Note: 22 of these 26 files use only `#00000000` (fully transparent). The remaining
+4 files — `Cyber Red.toml`, `Noctis Lilac.toml`, `Tokyo Night Storm.toml` and
+`plum.toml` — use non-trivial alpha values.
 
 ### Filename edge cases in catalog
 
 | Character pattern | Example filenames | Count |
 |---|---|---|
-| Spaces | `black but with important highlights.toml`, `Catppuccin Mocha.toml` | 32 |
+| Spaces | `black but with important highlights.toml`, `Catppuccin Mocha.toml` | 21 |
 | Parentheses | `Discord (80_ Saturation).toml` | 1 |
 | Uppercase start | `Booberry.toml`, `Catppuccin Mocha.toml`, `VESPER.toml` | 32 |
 | Lowercase start | `acton.toml`, `bam.toml`, `ferra.toml` | 18 |
@@ -355,4 +387,14 @@ Sections not present in the catalog and therefore **not supported** include (but
 - `[scrollbar]` (scrollbar styling)
 - Any `[buffer.*]` subsections beyond `server_messages`
 
-When the upstream Halloy schema evolves, this document must be updated to reflect any new fields that appear in the catalog. Do not assume upstream fields are supported unless confirmed by catalog inspection.
+When the upstream Halloy schema evolves, this document must be updated to reflect
+any new fields that appear in the catalog. Do not assume upstream fields are
+supported unless confirmed by catalog inspection.
+
+## See Also
+
+- [BlogTheme token contract](blog-theme-contract.md) — what the translator emits
+  from this schema
+- [Theme operator guide](operator-guide.md) — installing and validating themes
+- [Theme architecture](../../architecture/core/themes.md) — the module reference
+  for `app/themes/`

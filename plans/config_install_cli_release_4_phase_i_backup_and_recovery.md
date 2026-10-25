@@ -1,5 +1,7 @@
 # Release 4 Phase I — Backup, Verification, and Recovery Lifecycle
 
+> **Plan status: ACTIVE — partially implemented.** `devlog backup create`, `verify` and `inspect` shipped; the versioned manifest, backup listing, restore planner and restore transaction did not. The remaining scope is in this file.
+
 ## Objective
 
 Turn the existing backup primitives into a complete, verifiable, automation-safe backup and restore lifecycle that protects configuration, secrets, database state, uploads, themes, installation metadata, and other persistent operator-owned data.

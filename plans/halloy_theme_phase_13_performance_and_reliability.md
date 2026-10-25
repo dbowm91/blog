@@ -1,5 +1,7 @@
 # Halloy Theme Phase 13 — Performance, Caching, and Reliability
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Make the Halloy theme subsystem operationally cheap, deterministic, and resilient under normal request load, external theme changes, database failures, and multi-worker deployment.

@@ -1,5 +1,7 @@
 # Release 1 Phase C — Operational Service Extraction and Flask CLI Migration
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/services/operations.md](../architecture/services/operations.md); this file is the historical record.
+
 ## Objective
 
 Extract operational business logic from the existing large Flask CLI module into reusable, testable services, then expose the highest-value maintenance operations through the new standalone `devlog` CLI while preserving transitional Flask command compatibility.

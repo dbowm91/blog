@@ -1,5 +1,7 @@
 # Site Identity Phase 02 — User Profiles
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/models.md](../architecture/core/models.md); this file is the historical record.
+
 **Roadmap:** [site_identity_authoring_roadmap.md](site_identity_authoring_roadmap.md)
 **Date:** 2026-10-24
 **Status:** Complete

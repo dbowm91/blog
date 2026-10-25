@@ -1,5 +1,7 @@
 # Release 2 Closure and Acceptance Pass
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/deployment/installation.md](../architecture/deployment/installation.md); this file is the historical record.
+
 ## Objective
 
 Close Release 2 by proving that onboarding, release artifacts, the installer, filesystem layouts, legacy migration, and runtime path resolution work together from clean published artifacts outside the source checkout.

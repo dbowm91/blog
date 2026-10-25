@@ -1,5 +1,7 @@
 # Release 1 Phase A — CLI Packaging and Command Infrastructure
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/deployment/cli.md](../architecture/deployment/cli.md); this file is the historical record.
+
 ## Objective
 
 Turn DevLog into a cleanly installable Python application with a first-class `devlog` executable, stable command infrastructure, centralized output/error handling, and a packaging contract suitable for later onboarding and deployment work.

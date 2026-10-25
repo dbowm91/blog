@@ -4,7 +4,9 @@ Guide for administrators managing Halloy themes in the DevLog admin dashboard an
 
 ## CLI Commands
 
-All theme management can be done via the Flask CLI:
+Theme management is available through two CLIs with the same command names: the
+Flask CLI (`flask themes ...`) and the standalone operator CLI (`devlog themes
+...`).
 
 ```bash
 flask themes list [--source all|bundled|external] [--json] [--warnings] [--verbose]
@@ -12,7 +14,14 @@ flask themes validate PATH [--json]
 flask themes inspect NAME [--json] [--css]
 flask themes refresh
 flask themes paths
-flask themes accessibility [--source all|bundled|external]
+flask themes accessibility [--source all|bundled|external] [--strict] [--json]
+
+devlog themes list
+devlog themes validate PATH [--json]
+devlog themes inspect NAME [--json] [--css]
+devlog themes refresh
+devlog themes paths
+devlog themes accessibility [--source all|bundled|external] [--strict] [--json]
 ```
 
 ### Listing Themes
@@ -195,7 +204,9 @@ Copy the validated `.toml` file into the configured external themes directory:
 cp my-theme.toml /path/to/external-themes/
 ```
 
-The external directory path is configured via `THEME_EXTERNAL_DIR` in `config.toml` under `[themes]`. Check with:
+The external directory is configured as `external_dir` under `[themes]` in
+`config.toml`, or via the `THEME_EXTERNAL_DIR` environment variable. Check the
+effective value with:
 
 ```bash
 flask themes paths
@@ -276,7 +287,7 @@ The theme cache follows an explicit-invalidation model:
 - Admin and CLI refresh are authoritative
 - Warm requests perform no filesystem reads or TOML parsing
 
-See `docs/themes/cache-contract.md` for the full cache freshness contract.
+See the [cache freshness contract](cache-contract.md) for the full cache model.
 
 ## Troubleshooting
 
@@ -290,7 +301,7 @@ See `docs/themes/cache-contract.md` for the full cache freshness contract.
 
 **Emergency fallback activated**: If the theme service encounters an error, the site falls back to `EMERGENCY_DEFAULT` (same palette as the former `github-dark` preset). Check logs for the specific error and run `flask themes refresh` to reinitialize.
 
-**Legacy preset names no longer work**: The `THEME_PRESETS` dict was removed in Phase 14, and the `theme_preset` database column was dropped in Phase 15. Legacy preset names (`github-dark`, `github-light`, `solarized-dark`, `monokai`) are no longer available. Select a Halloy theme name from the admin settings page instead.
+**Legacy preset names no longer work**: The `THEME_PRESETS` dict was removed in Phase 14, and the `theme_preset` database column was dropped in Phase 15. The preset names `github-dark`, `github-light` and `monokai` no longer resolve to anything. `solarized-dark` does still resolve, as a theme *name alias* to the `Solarized Dark` theme. Select a Halloy theme name from the admin settings page instead.
 
 ## Accessibility Policy
 
@@ -300,7 +311,7 @@ Every bundled and external theme is classified into one of three eligibility tie
 
 | Tier | Meaning | Operator guidance |
 |------|---------|-------------------|
-| **recommended** | Zero mandatory failures, zero expected exceptions. All 24 contrast pairs pass WCAG thresholds. | Safe for production use with no caveats. |
+| **recommended** | Zero mandatory failures, zero expected exceptions. All 29 contrast pairs (18 mandatory, 11 advisory) pass WCAG thresholds. | Safe for production use with no caveats. |
 | **compatible-with-exceptions** | Mandatory failures exist but every one is covered by a documented exception in the exception manifest. The theme is usable but has known contrast deviations. | Safe for production. Review the exception reasons to understand the trade-offs (e.g., decorative input borders, composited-pair edge cases). |
 | **experimental** | One or more mandatory failures with no matching exception. The theme has contrast issues that have not been reviewed or accepted. | Not recommended for production. Use at your own risk; run `flask themes accessibility --strict` to identify the specific failures. |
 
@@ -344,7 +355,7 @@ Documented exceptions are maintained in `app/themes/ACCESSIBILITY_EXCEPTIONS.jso
 }
 ```
 
-Top-level fields: `schema_version` (integer, bumps on structural changes), `policy_version` (semantic version of the accessibility policy), `reviewed_date` (ISO date of last review). Each theme entry lists its failing contrast pairs with a `policy_class`, `rationale`, applicable WCAG criteria, and rendered context.
+Top-level fields: `schema_version` (integer, bumps on structural changes), `validator_version`, `policy_version` (semantic version of the accessibility policy), `reviewed_date` (ISO date of last review), `owner`, `version`, `description` and a `summary` block with aggregate counts. Each theme entry lists its failing contrast pairs with a `policy_class`, `rationale`, applicable WCAG criteria, and rendered context.
 
 ### Running accessibility checks
 
@@ -355,7 +366,15 @@ flask themes accessibility --source bundled  # Bundled themes only
 flask themes accessibility --json            # Structured JSON output
 ```
 
-The `--strict` flag causes the command to fail if any theme is classified as `experimental`. This is useful for CI gates. Themes classified as `compatible-with-exceptions` pass under `--strict` because all their failures are documented.
+The `--strict` flag rejects **external** themes that have unexpected mandatory
+failures: it makes the command exit non-zero and list each rejected theme.
+Bundled themes are never rejected by `--strict`, and themes whose failures are
+all covered by the exception manifest pass under `--strict`. This is useful as a
+CI gate against shipping a broken operator-supplied theme.
+
+Use `python scripts/theme_accessibility_report.py` when you want a gate over the
+whole bundled catalogue — that script exits non-zero when any theme has a
+mandatory accessibility failure.
 
 ### Catalog summary
 
@@ -369,22 +388,38 @@ Run `flask themes accessibility --json` to see per-theme eligibility and catalog
 
 ## Migration from Legacy Presets
 
-If upgrading from a version that used `THEME_PRESETS`:
+If upgrading from a version that used `THEME_PRESETS`, the database migrations
+handled the schema change:
 
-1. The database migration `preserve_legacy_scheme` preserves your visual mode setting
-2. The `theme_preset` column is dropped by the `drop_theme_preset_column` migration
-3. Legacy preset names are mapped to Halloy equivalents:
-   - `github-dark` → `Catppuccin Mocha`
-   - `github-light` → `Catppuccin Latte`
-   - `solarized-dark` → `Solarized Dark`
-   - `monokai` → `Sonokai`
-3. Navigate to **Settings > Theme** to select different themes if desired
-4. Custom CSS is preserved unchanged
-5. Syntax highlighting theme is preserved unchanged
+1. The `preserve_legacy_scheme` migration preserves your visual mode setting
+2. The `theme_preset` column is dropped by the `drop_theme_preset_column`
+   migration
+3. The `add_theme_config_to_sitesettings` migration added `theme_dark_name`,
+   `theme_light_name` and `theme_default_scheme`
+
+The preset-to-Halloy name mapping was applied by `migrate_legacy_preset()`, which
+was removed in Phase 15. It mapped:
+
+| Legacy preset | Halloy equivalent |
+|---|---|
+| `github-dark` | `Catppuccin Mocha` |
+| `github-light` | `Catppuccin Latte` |
+| `solarized-dark` | `Solarized Dark` |
+| `monokai` | `Sonokai` |
+
+After upgrading, navigate to **Settings > Theme** to choose different themes.
+Custom CSS and the syntax highlighting theme are preserved unchanged.
 
 ## Database Support
 
 - **SQLite** (recommended): Fully supported. All migrations use `batch_alter_table` for SQLite-safe DDL. FTS5 search and WAL mode are production-ready.
 - **PostgreSQL**: Not currently supported. The `PostgreSQLSearchProvider` is a stub for future use. While Alembic migrations are dialect-neutral, the application has not been tested or documented for PostgreSQL. Do not use PostgreSQL in production without first validating FTS5 search compatibility and deployment configuration.
 
-For full migration details, rollback procedures, and recovery steps, see [docs/themes/migration-boundary.md](migration-boundary.md).
+For full migration details, rollback procedures, and recovery steps, see [the migration boundary guide](migration-boundary.md).
+
+## See Also
+
+- [Supported theme schema](supported-schema.md) — the input contract for theme files
+- [BlogTheme token contract](blog-theme-contract.md) — the tokens and aliases themes emit
+- [Accessibility policy](accessibility-policy.md) — the policy behind the eligibility tiers
+- [Theme architecture](../../architecture/core/themes.md) — the module reference for `app/themes/`

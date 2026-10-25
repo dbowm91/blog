@@ -1,5 +1,7 @@
 # Halloy Theme Phase 07 — Flask and Jinja Runtime Integration
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Make the Halloy theme registry and persisted settings the sole runtime source of frontend palette variables while preserving CSP, custom CSS ordering, syntax-theme independence, and safe fallback behavior.

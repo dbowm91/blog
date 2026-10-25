@@ -1,5 +1,7 @@
 # Halloy Theme Phase 11 — Operator CLI and External Theme Workflow
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Provide a complete command-line workflow for listing, validating, inspecting, refreshing, and troubleshooting bundled and external Halloy-compatible themes without requiring direct Python use or admin UI access.

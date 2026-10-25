@@ -11,7 +11,7 @@ Comprehensive guide for deploying DevLog in production.
 - [Granian ASGI Server](#5-granian-asgi-server)
 - [Docker Deployment](#6-docker-deployment)
 - [Backup and Restore](#7-backup-and-restore)
-- [PostgreSQL Migration](#8-postgresql-migration)
+- [PostgreSQL Migration](#8-postgresql-migration-experimental)
 - [Reverse Proxy Setup](#9-reverse-proxy-setup)
 - [Rate Limiting](#10-rate-limiting)
 - [Systemd Service](#11-systemd-service)
@@ -20,6 +20,7 @@ Comprehensive guide for deploying DevLog in production.
 - [Security Checklist](#14-security-checklist)
 - [Dependencies](#15-dependencies)
 - [Vite for Admins](#16-vite-for-admins)
+- [Operator CLI](#17-operator-cli)
 
 ---
 
@@ -116,6 +117,7 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | Variable | Default | Description |
 |---|---|---|
 | `ADMIN_USERNAME` | `admin` | Admin username |
+| `SMTP_HOST` | — | SMTP server hostname. Unset disables the daily newsletter job |
 | `SMTP_USER` | — | SMTP auth username for newsletter/email |
 | `SMTP_PASSWORD` | — | SMTP auth password |
 | `SESSION_COOKIE_SECURE` | `true` | Require HTTPS for session cookies. Set `false` only for local HTTP development |
@@ -209,11 +211,20 @@ smtp_timeout = 30
 
 [newsletter]
 send_time = "08:00"               # HH:MM (24h)
-confirmation_expiry_hours = 48
+confirmation_expiry_hours = 1
 max_retry_attempts = 5
 ```
 
 The app validates `config.toml` on startup and raises `RuntimeError` for invalid values.
+
+Every configuration field is documented by the standalone CLI:
+
+```bash
+devlog config explain app.session_lifetime_hours
+devlog config check
+```
+
+Configuration is resolved from three layers, highest precedence first: environment variables, then `config.toml`, then the built-in defaults. The typed schema lives in `app/config/model.py` (one frozen dataclass per section); `app/config_legacy.py` re-exports the historical flat names for backwards compatibility.
 
 ---
 
@@ -319,7 +330,7 @@ Admin at `http://localhost:5000/admin/login`.
 |---|---|---|
 | `production` | blog, celery, redis | Core production stack (app on `127.0.0.1:5000`) |
 | `reverse-proxy` | nginx | Optional nginx reverse proxy — requires certificate configuration |
-| `backup` | backup | Standalone backup runner |
+| `backup` | backup | Standalone backup runner (`backup.py`), writing to `./backups` on the host |
 
 ```bash
 # Core production stack (blog + celery + redis)
@@ -336,6 +347,14 @@ docker compose --profile backup run --rm backup
 docker compose --profile production --profile backup up -d
 ```
 
+The `backup` profile runs `backup.py`, which defaults to a database at
+`instance/blog.db`. Pass the container's actual database explicitly when
+overriding the entrypoint:
+
+```bash
+docker compose --profile backup run --rm backup --db /data/devlog.sqlite3
+```
+
 ### Environment Variables in Docker
 
 Copy `.env.example` and fill in your values:
@@ -345,11 +364,13 @@ Copy `.env.example` and fill in your values:
 | `SECRET_KEY` | Yes | Flask session signing key |
 | `ADMIN_PASSWORD` | Yes | Admin login password |
 | `ADMIN_USERNAME` | No | Admin username (default: `admin`) |
+| `SMTP_HOST` | No | SMTP server. Unset disables the daily newsletter job |
 | `SMTP_USER` | No | SMTP username |
 | `SMTP_PASSWORD` | No | SMTP password |
 | `API_KEY` | No | REST API authentication key |
 | `STORAGE_BACKEND` | No | `local` or `s3` |
 | `S3_*` | No | S3 configuration |
+| `UPLOAD_FOLDER` | No | Media directory. Set to `/data/uploads` to keep uploads in the `blog_data` volume |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler (default: `false`, set on ONE container) |
 | `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |
 | `METRICS_SECRET` | No | Secret for `/metrics` endpoint (required with `ENABLE_METRICS`) |
@@ -359,13 +380,29 @@ Copy `.env.example` and fill in your values:
 
 Docker Compose uses named volumes:
 
-| Volume | Contents |
-|---|---|
-| `blog_data` | SQLite database (`instance/`) |
-| `blog_logs` | Application logs (`logs/`) |
-| `blog_uploads` | Uploaded media (`app/static/uploads/`) |
+| Volume | Mount point | Contents |
+|---|---|---|
+| `blog_data` | `/data` | Runtime data directory (`DEVLOG_DATA_DIR`): the SQLite database and the filesystem-layout subdirectories |
+| `blog_config` | `/etc/devlog` | `config.toml` and `.env` (`DEVLOG_CONFIG_FILE`, `DEVLOG_ENV_FILE`) |
+| `blog_logs` | `/var/log/devlog` | Log directory (`DEVLOG_LOG_DIR`) |
 
 These persist across container restarts and upgrades.
+
+The database lives at `/data/devlog.sqlite3` in the container. The application
+resolves that path from `DEVLOG_DATA_DIR`; outside Docker the same default
+resolves to `data/devlog.sqlite3` relative to the working directory. Override
+it with `DEVLOG_DATABASE_PATH`, `SQLALCHEMY_DATABASE_URI`, or `DATABASE_URL`.
+
+Two paths sit outside the volumes by default and need attention:
+
+- **Media.** The local storage backend writes to `app/static/uploads/`, which
+  is inside the image, not the `blog_data` volume. Set
+  `UPLOAD_FOLDER=/data/uploads` on the `blog` and `celery` services to keep
+  uploads in the volume, or use the S3 backend.
+- **Logs.** The Flask file log handler writes to `logs/blog.log` inside the
+  application directory rather than to `DEVLOG_LOG_DIR`. If you rely on the
+  `blog_logs` volume for log retention, also collect `/home/blog/logs/` (the
+  container's working directory) or forward stdout to your log collector.
 
 ### Updating the Container
 
@@ -393,8 +430,10 @@ Response:
 ```json
 {
   "status": "ok",
-  "database": "connected",
-  "scheduler": "running",
+  "checks": {
+    "database": "ok",
+    "scheduler": "running"
+  },
   "timestamp": "2026-04-29T12:00:00+00:00"
 }
 ```
@@ -404,7 +443,11 @@ Response:
 curl -H "X-Health-Secret: YOUR_HEALTH_CHECK_SECRET" "http://localhost:5000/health?detailed=true"
 ```
 
-Response includes: database, scheduler, search, disk_space, db_integrity, backup_freshness, email, redis, celery — with status and detail for each. Only critical checks (database, scheduler, search, disk_space, db_integrity) affect overall status.
+The secret may also be sent as a `Bearer` token or as `?secret=`. If
+`HEALTH_CHECK_SECRET` is unset and the app runs in production mode, detailed
+health returns `403`; a wrong secret returns `401`.
+
+Response includes: database, scheduler, search, disk_space, db_integrity, redis, celery, backup_freshness — with status and detail for each. Only critical checks (database, scheduler, search, disk_space, db_integrity) affect overall status.
 
 The container health check uses the basic endpoint:
 ```bash
@@ -477,34 +520,58 @@ Never commit `.env` to version control.
 
 **Backup location:** `instance/backups/`
 
+**Backup database path:** the **Create Backup** button resolves the database
+from the configured URI (`data/devlog.sqlite3` by default). The scheduled
+daily backup, the Celery backup task and `devlog backup create` still look
+for `instance/blog.db` — see the note in
+[Section 13: Maintenance](#13-maintenance).
+
 ### Built-in Backup (CLI)
 
-Backups are created via the admin UI (`/admin/backup`) or the backup service. The following Flask CLI commands are available for maintenance:
+Backups are created via the admin UI (`/admin/backup`), the standalone
+`devlog backup create` command, or the scheduled daily job. The following
+Flask CLI commands are available for maintenance:
 
 ```bash
 flask rebuild-search          # Rebuild full-text search index
 flask cleanup-orphaned-images # Remove orphaned uploaded images
-flask create-admin            # Create a new admin user
-flask promote-admin           # Promote a user to admin
+flask create-admin            # Create a new admin user (prompts for username)
+flask promote-admin USERNAME  # Promote a user to admin
 flask check-integrity         # Verify database integrity
-flask export-data             # Export data to JSON
+flask export-data out.json    # Export data to JSON
 flask import-data backup.json # Import data from JSON
 flask seed                    # Seed database with sample content
 ```
 
+See [Section 17: Operator CLI](#17-operator-cli) for the equivalent
+`devlog` commands.
+
 ### Manual SQLite Backup
+
+The SQLite database lives at `data/devlog.sqlite3` by default (override with
+`DEVLOG_DATABASE_PATH`, `SQLALCHEMY_DATABASE_URI`, or `DATABASE_URL`).
 
 ```bash
 # Live backup (safe during writes with WAL mode)
-sqlite3 /opt/blog/instance/blog.db ".backup '/var/backups/blog/backup-$(date +%Y%m%d).db'"
+sqlite3 /opt/blog/data/devlog.sqlite3 ".backup '/var/backups/blog/backup-$(date +%Y%m%d).db'"
 
 # Portable SQL dump
-sqlite3 /opt/blog/instance/blog.db ".dump" | gzip > /var/backups/blog/backup-$(date +%Y%m%d).sql.gz
+sqlite3 /opt/blog/data/devlog.sqlite3 ".dump" | gzip > /var/backups/blog/backup-$(date +%Y%m%d).sql.gz
 ```
 
 ### Off-site Backup Sync
 
 The `scripts/sync_backups.sh` script syncs backups to remote storage.
+
+It reads two environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `BACKUP_DIR` | `<project>/backups` | Local backup directory to sync |
+| `RCLONE_REMOTE` | — | rclone remote, e.g. `s3-backup:my-blog-backups` |
+
+The application writes its own backups to `instance/backups/`, so point
+`BACKUP_DIR` at that directory unless you also copy the backups elsewhere.
 
 **Install rclone:**
 ```bash
@@ -568,8 +635,8 @@ Adjust based on storage costs and compliance requirements.
 
 Include in your backup strategy:
 
-1. **Database:** `instance/blog.db` and `instance/backups/`
-2. **Uploads:** `app/static/uploads/`
+1. **Database:** `data/devlog.sqlite3` (plus its `-wal` / `-shm` sidecars) and `instance/backups/`
+2. **Uploads:** `app/static/uploads/` (or the object store, when using S3)
 3. **Configuration:** `config.toml` (not secrets)
 4. **Environment variables** (document separately)
 
@@ -586,7 +653,7 @@ Include in your backup strategy:
 sudo systemctl stop blog
 
 # Restore database
-cp /var/backups/blog/backup-20260429.db /opt/blog/instance/blog.db
+cp /var/backups/blog/backup-20260429.db /opt/blog/data/devlog.sqlite3
 
 # Restart
 sudo systemctl start blog
@@ -666,18 +733,18 @@ export DATABASE_URL="postgresql://blog_user:your_secure_password@localhost/blog"
 Or add to `config.toml`:
 ```toml
 [database]
-url = "postgresql://blog_user:your_secure_password@localhost/blog"
+uri = "postgresql://blog_user:your_secure_password@localhost/blog"
 ```
 
 ### Step 4: Export SQLite Data
 
 ```bash
 # Backup SQLite
-cp instance/blog.db instance/blog.db.sq3-backup
+cp data/devlog.sqlite3 data/devlog.sqlite3.sq3-backup
 
 # Export to CSV
 mkdir -p migration_temp
-sqlite3 instance/blog.db << 'EOF'
+sqlite3 data/devlog.sqlite3 << 'EOF'
 .mode csv
 .headers on
 .output migration_temp/users.csv
@@ -699,7 +766,20 @@ flask db upgrade
 
 ### Step 6: Import Data
 
-Use the SQL script in the migration_temp directory (see full script in the codebase comments).
+Prefer the built-in export/import tooling over hand-written SQL, because it
+carries the column mapping with it:
+
+```bash
+# Export from SQLite before the cut-over
+flask export-data migration_temp/export.json
+
+# Import into PostgreSQL after the cut-over
+flask import-data migration_temp/export.json
+```
+
+The standalone CLI offers the same two operations (`devlog data export`,
+`devlog data import`); `devlog data import --dry-run` validates a file without
+writing to the database.
 
 ### Step 7: Configure Search
 
@@ -877,7 +957,7 @@ StandardError=journal
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/opt/blog/instance /opt/blog/logs
+ReadWritePaths=/opt/blog/data /opt/blog/instance /opt/blog/logs
 PrivateTmp=true
 
 [Install]
@@ -910,13 +990,15 @@ Basic response:
 ```json
 {
   "status": "ok",
-  "database": "connected",
-  "scheduler": "running",
+  "checks": {
+    "database": "ok",
+    "scheduler": "running"
+  },
   "timestamp": "2026-04-29T12:00:00+00:00"
 }
 ```
 
-Detailed response includes all checks: database, scheduler, search, disk_space, db_integrity, backup_freshness, email, redis, celery.
+Detailed response includes all checks: database, scheduler, search, disk_space, db_integrity, redis, celery, backup_freshness.
 
 ### Metrics
 
@@ -966,7 +1048,29 @@ Use `/health` endpoint with:
 
 ### Newsletter Scheduler
 
-The newsletter scheduler runs in-process via APScheduler—no external cron needed. It wakes every 5 minutes to check for scheduled posts and newsletters. Requires `ENABLE_SCHEDULER=true` (default: `false`). Set it on exactly ONE container in multi-container deployments.
+The scheduler runs in-process via APScheduler — no external cron needed. It is gated by the `ENABLE_SCHEDULER` environment variable (default: `false`); set it on exactly ONE container in multi-container deployments.
+
+When enabled it runs four jobs:
+
+| Job | Schedule | Notes |
+|---|---|---|
+| Scheduled post publishing | Every 5 minutes | Publishes posts whose `scheduled_publish_at` has passed |
+| Subscriber cleanup | Every 5 minutes | Deletes unconfirmed subscribers past their confirmation window |
+| Daily newsletter | `08:00` (`[newsletter] send_time`) | Only scheduled when `SMTP_HOST` is set |
+| Daily backup | `02:00` | Writes to `instance/backups/` — see the note below |
+
+Each job takes a file lock first, so multiple workers on one host do not
+duplicate work.
+
+> **Known limitation.** The scheduled daily backup, the Celery
+> `run_backup_task` and `devlog backup create` all look for the database at
+> `instance/blog.db`. With the default `data/devlog.sqlite3` path they cannot
+> find it, and the scheduled job logs
+> `Database file not found at .../instance/blog.db, skipping backup`. Only the
+> **Create Backup** button in `/admin/backup` resolves the database from the
+> configured URI. Until the backup paths are aligned with
+> `app/config/loader.py`, either keep the database at `instance/blog.db` or
+> create backups from the admin UI.
 
 ### Background Jobs: Celery vs APScheduler
 
@@ -995,8 +1099,8 @@ DevLog uses two complementary systems for background work:
 - [ ] `METRICS_SECRET` set and `ENABLE_METRICS=true` to gate `/metrics` endpoint
 - [ ] Static files served by nginx, not proxied
 - [ ] Rate limiting configured for `/admin/login` (5 req/min)
-- [ ] `instance/blog.db` not in web-accessible directory
-- [ ] `static/uploads/` permissions restricted
+- [ ] `data/devlog.sqlite3` not in a web-accessible directory
+- [ ] `app/static/uploads/` permissions restricted
 - [ ] SMTP credentials via environment variables
 - [ ] Regular backups configured
 
@@ -1057,7 +1161,83 @@ test -f app/static/dist/.vite/manifest.json && echo "Build OK"
 
 ---
 
-## 17. GitHub Repository Settings
+## 17. Operator CLI
+
+`devlog` is the standalone operator CLI. It is installed with the package
+(`pip install -e .` in a checkout, or from a wheel) and is the primary
+interface for inspecting and repairing a deployment. The Flask CLI commands
+(`flask ...`) remain available as compatibility wrappers over the same
+underlying services, and still cover a few things `devlog` does not expose
+(`flask seed`, `flask shell`, `flask create-admin`).
+
+```bash
+devlog --help
+devlog --config /etc/devlog/config.toml --env-file /etc/devlog/.env <command>
+```
+
+Global flags: `--config`, `--env-file`, `--json`, `--quiet`, `--verbose`,
+`--no-color`.
+
+### Command Groups
+
+| Group | Commands | Purpose |
+|---|---|---|
+| `config` | `check`, `show`, `explain`, `paths`, `init`, `migrate` | Inspect, validate and scaffold `config.toml` |
+| `admin` | `create`, `promote`, `reset-password`, `list` | Manage admin accounts |
+| `db` | `check`, `rebuild-search`, `status`, `migrate` | Database integrity, FTS rebuild, migrations |
+| `themes` | `list`, `validate`, `inspect`, `refresh`, `paths`, `accessibility` | Manage the Halloy theme catalogue |
+| `backup` | `create`, `verify`, `inspect` | Create and verify backups |
+| `data` | `export`, `import` | Export/import posts, subscribers, tags and pages |
+| `media` | `scan`, `cleanup` | Find and remove orphaned uploads |
+| `onboard` | `detect`, `plan`, `run`, `resume` | First-run and reconfiguration onboarding |
+| `paths` | `status`, `discover-legacy`, `migrate`, `check` | Inspect and migrate the filesystem layout |
+| `deploy` | `render`, `install`, `check` | Render and install systemd/compose/proxy units |
+| `doctor` | `doctor` | Run 76 diagnostic checks across 20 categories |
+| lifecycle | `start`, `stop`, `restart`, `status`, `logs` | Manage the service |
+
+### Common Operations
+
+```bash
+# Validate the effective configuration
+devlog config check --production
+
+# Explain a single field, with its source
+devlog config explain app.session_lifetime_hours
+
+# Show resolved values and where each came from
+devlog config show --effective
+
+# Run every diagnostic check
+devlog doctor
+
+# Run one check, or one category, and apply safe fixes
+devlog doctor --check db.sqlite_integrity
+devlog doctor --category security
+devlog doctor --fix-safe
+
+# Create, verify and inspect backups
+devlog backup verify instance/backups/blog_20260429.db
+devlog backup inspect instance/backups/blog_20260429.db
+
+# Inspect the filesystem layout
+devlog paths status
+devlog paths check
+
+# Theme catalogue
+devlog themes list --warnings
+devlog themes validate "themes/Catppuccin Mocha.toml"
+devlog themes accessibility --strict
+```
+
+`devlog doctor --list-checks` prints the full check registry. Checks are
+grouped into 20 categories (`installation`, `configuration`, `secrets`,
+`filesystem`, `database`, `search`, `assets`, `themes`, `storage`, `email`,
+`redis`, `celery`, `scheduler`, `backup`, `deployment`, `service`, `proxy`,
+`health`, `capacity`, `security`).
+
+---
+
+## 18. GitHub Repository Settings
 
 These settings must be configured via the GitHub web UI (not files):
 

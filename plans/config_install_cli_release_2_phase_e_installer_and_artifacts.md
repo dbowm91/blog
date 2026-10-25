@@ -1,5 +1,7 @@
 # Release 2 Phase E — One-Shot Installer and Production Release Artifacts
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/deployment/installation.md](../architecture/deployment/installation.md); this file is the historical record.
+
 ## Objective
 
 Provide a small, auditable one-shot installer for native and Docker modes, backed by versioned release artifacts that contain all runtime code and frontend assets required for production.

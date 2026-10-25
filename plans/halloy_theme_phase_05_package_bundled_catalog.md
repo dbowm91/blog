@@ -1,5 +1,7 @@
 # Halloy Theme Phase 05 — Package the Bundled Halloy Catalog
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Convert the checked-in top-level Halloy theme collection into reliable Python package resources and prove that bundled theme discovery/loading works from release artifacts rather than only from a source checkout.

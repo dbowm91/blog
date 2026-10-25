@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.s
 This downloads the latest verified release, installs it to `/opt/devlog/`, and creates a `devlog` launcher at `/usr/local/bin/devlog`. Then run onboarding:
 
 ```bash
-devlog onboard --mode native
+devlog onboard run --mode native
 ```
 
 ### Install Options
@@ -70,7 +70,7 @@ The installer verifies SHA-256 checksums before installation. Artifacts are down
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --docker
 cd /opt/devlog
-devlog onboard --mode docker
+devlog onboard run --mode docker
 docker compose --profile production up -d
 ```
 
@@ -136,11 +136,18 @@ Global options:
 
 ```bash
 devlog --json version       # JSON output
-devlog --verbose config     # Verbose help
-devlog --quiet db           # Minimal output
+devlog --verbose config --help  # Verbose help
+devlog --quiet db status    # Minimal output
 ```
 
-Command groups: `config`, `admin`, `db`, `data`, `themes`, `backup`, `onboard`.
+Command groups: `config`, `admin`, `db`, `data`, `media`, `themes`, `backup`,
+`onboard`, `paths`, `deploy`.
+
+Top-level commands: `version`, `doctor`, `start`, `stop`, `restart`, `status`,
+`logs`.
+
+See [the CLI reference](../architecture/deployment/cli.md) for every command and
+option.
 
 ## Onboarding System
 
@@ -201,7 +208,7 @@ Check if an installation already exists:
 
 ```bash
 devlog onboard detect
-devlog onboard detect --json
+devlog --json onboard detect
 ```
 
 ### Resume Interrupted Onboarding
@@ -215,6 +222,20 @@ devlog onboard resume --data-path /path/to/data
 
 The resume command reads metadata from the data directory to determine the last completed step and continues from there.
 
+### What Onboarding Writes
+
+Onboarding is not additive. Two behaviours matter when re-running it against an
+existing installation:
+
+- **The `.env` file is rewritten from a fixed key set.** `write_env_file()` emits
+  `SECRET_KEY`, `ADMIN_PASSWORD`, `HEALTH_CHECK_SECRET`, `METRICS_SECRET` and,
+  when applicable, `SMTP_PASSWORD`, `BACKUP_ENCRYPTION_KEY`, `S3_ACCESS_KEY` and
+  `S3_SECRET_KEY`. A key you added by hand is not in that set and is dropped on the
+  next run. Keep extra settings in `config.toml`, or re-add them afterwards.
+- **Progress is recorded in `onboarding-metadata.json`** in the data directory. This
+  is a different file from the `.devlog-installation.json` that the filesystem
+  layout uses to describe an installed instance.
+
 ## Configuration
 
 ### Typed Configuration System
@@ -222,12 +243,12 @@ The resume command reads metadata from the data directory to determine the last 
 DevLog uses a typed configuration system at `app/config/` with 20 frozen dataclasses:
 
 ```bash
-devlog config check              # Validate configuration
-devlog config show --effective   # Show resolved values with sources
-devlog config explain            # Explain all config fields
-devlog config paths              # Show config file locations
-devlog config init               # Generate config.toml from defaults
-devlog config migrate            # Migrate config to latest version
+devlog config check                    # Validate configuration
+devlog config show --effective         # Show resolved values with sources
+devlog config explain email.smtp_host  # Explain one field (section.field)
+devlog config paths                    # Show config file locations
+devlog config init                     # Generate config.toml from defaults
+devlog config migrate                  # Migrate config to latest version
 ```
 
 ### Configuration Precedence
@@ -244,11 +265,15 @@ Key environment variables:
 |----------|---------|---------|
 | `SECRET_KEY` | Flask session signing | — (required) |
 | `ADMIN_PASSWORD` | Admin user password | — (required) |
-| `DATABASE_URL` | Database URI | `sqlite:///data/blog.db` |
+| `DATABASE_URL` | Database URI | `sqlite:///<cwd>/data/devlog.sqlite3` |
 | `REDIS_URL` | Redis connection | `redis://localhost:6379/0` |
+| `SERVER_PORT` | HTTP listen port | `5000` |
 | `SESSION_COOKIE_SECURE` | Secure cookies | `true` |
 | `ENABLE_SCHEDULER` | APScheduler jobs | `false` |
 | `ENABLE_METRICS` | Metrics endpoint | `false` |
+
+`DATABASE_URL` is only the fallback: `SQLALCHEMY_DATABASE_URI` takes precedence over
+it, and `DEVLOG_DATABASE_PATH` selects a SQLite file directly.
 
 ### config.toml
 
@@ -298,9 +323,9 @@ devlog db rebuild-search # Rebuild FTS5 search index
 ### Backup and Restore
 
 ```bash
-devlog backup create                  # Create backup
-devlog backup verify --path backup.db # Verify backup integrity
-devlog backup inspect --path backup.db # Show backup details
+devlog backup create           # Create backup
+devlog backup verify BACKUP   # Verify backup integrity
+devlog backup inspect BACKUP  # Show backup details
 ```
 
 Encrypted backups require `BACKUP_ENCRYPTION_KEY` in `.env`.
@@ -324,9 +349,9 @@ Docker builds handle this automatically via the multi-stage `Dockerfile`.
 DevLog ships with 50 Halloy-compatible themes:
 
 ```bash
-devlog themes list                        # List available themes
-devlog themes validate --name "Catppuccin Mocha"  # Validate theme
-devlog themes inspect --name "Catppuccin Mocha"   # Show theme details
+devlog themes list                          # List available themes
+devlog themes validate "Catppuccin Mocha"   # Validate a theme file or name
+devlog themes inspect "Catppuccin Mocha"    # Show theme details
 ```
 
 Themes are selected in the admin dashboard at `/admin/settings`.
@@ -355,8 +380,19 @@ docker compose --profile production up -d  # Set ENABLE_SCHEDULER=true on one co
 
 ### Port Already in Use
 
-Change the port in `config.toml` or via environment variable:
+Change the port in `config.toml` under `[server]`, or via the `SERVER_PORT`
+environment variable:
 
 ```bash
-PORT=8080 python run.py
+SERVER_PORT=8080 python run.py
 ```
+
+## See Also
+
+- [Filesystem layout](filesystem-layout.md) — where each mode keeps its state
+- [Migration from a repository-local layout](migration-from-checkout.md) — moving a
+  checkout to a production layout
+- [Operator CLI reference](../architecture/deployment/cli.md) — every `devlog` command
+- [Installation architecture](../architecture/deployment/installation.md) — how the
+  installer and onboarding fit together
+

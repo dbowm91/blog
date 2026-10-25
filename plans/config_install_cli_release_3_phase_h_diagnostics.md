@@ -1,5 +1,7 @@
 # Release 3 Phase H — Diagnostics, Health, and Operational Readiness
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/services/doctor.md](../architecture/services/doctor.md); this file is the historical record.
+
 ## Objective
 
 Create a single diagnostic framework and `devlog doctor` command that can identify configuration, filesystem, database, service, dependency, and deployment failures before operators resort to manual debugging.

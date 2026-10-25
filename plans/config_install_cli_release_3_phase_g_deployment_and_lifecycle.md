@@ -1,5 +1,7 @@
 # Release 3 Phase G — Deployment Generation and Service Lifecycle
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/deployment/managed-deployment.md](../architecture/deployment/managed-deployment.md); this file is the historical record.
+
 ## Objective
 
 Provide supported, backend-aware deployment artifacts and lifecycle commands for systemd and Docker installations, with secure defaults, dry-run/print/install modes, and no dependence on repository-local commands.

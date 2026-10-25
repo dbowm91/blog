@@ -1,5 +1,7 @@
 # Halloy Theme Phase 09 — CSS Token Completion and Hardcoded Color Removal
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Complete the frontend migration to semantic Halloy-derived tokens so all supported bundled themes render coherently across public, admin, authentication, responsive, and interactive surfaces.

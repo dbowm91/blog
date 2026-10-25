@@ -14,9 +14,10 @@ info:
     wildcards (e.g. `posts:*` grants `posts:read` and `posts:write`).
 
     ## Rate Limiting
-    API endpoints are rate-limited by Flask-Limiter. Limits are configured per
-    endpoint group (e.g., `api_write: 100/minute`, `api_read: 500/minute`).
-    A reverse proxy (e.g., nginx, Cloudflare WAF) may apply additional limits.
+    API endpoints are rate-limited by Flask-Limiter with per-endpoint limits:
+    read endpoints allow 20 requests per minute and write endpoints allow 10
+    requests per minute. A reverse proxy (e.g., nginx, Cloudflare WAF) may apply
+    additional limits.
   version: 1.0.0
   contact:
     name: Blog Admin
@@ -324,6 +325,1017 @@ paths:
               example:
                 error: "Post not found"
 
+  /api/pages:
+    get:
+      summary: List pages
+      description: Retrieve all pages, optionally filtered by published status.
+      operationId: listPages
+      tags:
+        - Pages
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: published
+          in: query
+          description: Filter by published status
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Page list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageListResponse"
+              example:
+                pages:
+                  - id: 1
+                    title: "About"
+                    slug: "about"
+                    body: "About this site"
+                    created_at: "2026-04-15T10:30:00Z"
+                    updated_at: "2026-04-15T10:30:00Z"
+                    published: true
+                total: 1
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the pages:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+    post:
+      summary: Create a page
+      description: Create a new page. The slug is generated from the title when it is not supplied.
+      operationId: createPage
+      tags:
+        - Pages
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageCreateRequest"
+      responses:
+        "201":
+          description: Page created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "400":
+          description: Invalid request body or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "title is required"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the pages:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "409":
+          description: Duplicate slug or database constraint violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Duplicate slug or database constraint violation"
+
+  /api/pages/{page_id}:
+    get:
+      summary: Get a page
+      description: Retrieve a single page by its ID.
+      operationId: getPage
+      tags:
+        - Pages
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          description: Page ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Page details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the pages:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Page not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Page not found"
+    put:
+      summary: Update a page
+      description: Update an existing page. Only the supplied fields are changed.
+      operationId: updatePage
+      tags:
+        - Pages
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          description: Page ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageUpdateRequest"
+      responses:
+        "200":
+          description: Updated page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid JSON body"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the pages:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Page not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Page not found"
+        "409":
+          description: Duplicate slug or database constraint violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Duplicate slug or database constraint violation"
+    delete:
+      summary: Delete a page
+      description: Delete a page.
+      operationId: deletePage
+      tags:
+        - Pages
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          description: Page ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Page deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Page 'About' deleted successfully"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the pages:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Page not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Page not found"
+
+  /api/series:
+    get:
+      summary: List series
+      description: Retrieve a paginated list of series.
+      operationId: listSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: per_page
+          in: query
+          description: Items per page (default 20, max 100)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: include_posts
+          in: query
+          description: Include the ordered post list for each series
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Series list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeriesListResponse"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+    post:
+      summary: Create a series
+      description: Create a new series. The slug is generated from the name when it is not supplied.
+      operationId: createSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeriesCreateRequest"
+      responses:
+        "201":
+          description: Series created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Series"
+        "400":
+          description: Invalid request body or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "name is required"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "409":
+          description: A series with this slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "A series with this slug already exists"
+
+  /api/series/{series_id}:
+    get:
+      summary: Get a series
+      description: Retrieve a single series by its ID.
+      operationId: getSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          description: Series ID
+          schema:
+            type: integer
+        - name: include_posts
+          in: query
+          description: Include the ordered post list
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Series details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Series"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Series not found"
+    put:
+      summary: Update a series
+      description: Update an existing series. Only the supplied fields are changed.
+      operationId: updateSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          description: Series ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeriesUpdateRequest"
+      responses:
+        "200":
+          description: Updated series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Series"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid JSON body"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Series not found"
+        "409":
+          description: A series with this slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "A series with this slug already exists"
+    delete:
+      summary: Delete a series
+      description: Delete a series and its post associations. The posts themselves are not deleted.
+      operationId: deleteSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          description: Series ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Series deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Series 'Building Things' deleted successfully"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Series not found"
+
+  /api/series/{series_id}/posts:
+    post:
+      summary: Add a post to a series
+      description: Add a post to a series, optionally at a specific position.
+      operationId: addPostToSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          description: Series ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeriesPostRequest"
+      responses:
+        "201":
+          description: Post added to series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Post added to series"
+        "400":
+          description: Invalid request body or missing post_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "post_id is required"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Series or post not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Post not found"
+        "409":
+          description: The post is already in this series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Post is already in this series"
+
+  /api/series/{series_id}/posts/{post_id}:
+    delete:
+      summary: Remove a post from a series
+      description: Remove a post's association with a series. The post itself is not deleted.
+      operationId: removePostFromSeries
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          description: Series ID
+          schema:
+            type: integer
+        - name: post_id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post removed from series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Post removed from series"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Series not found, or the post is not in the series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Post not found in this series"
+
+  /api/series/{series_id}/reorder:
+    post:
+      summary: Reorder posts within a series
+      description: Set the order of the posts in a series.
+      operationId: reorderSeriesPosts
+      tags:
+        - Series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          description: Series ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeriesReorderRequest"
+      responses:
+        "200":
+          description: Series posts reordered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Series posts reordered"
+        "400":
+          description: Invalid request body or missing order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "order is required"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the series:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Series not found"
+
+  /api/tags:
+    get:
+      summary: List tags
+      description: Retrieve all tags, optionally with the number of posts on each.
+      operationId: listTags
+      tags:
+        - Tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: include_count
+          in: query
+          description: Include the post count for each tag
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Tag list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagListResponse"
+              example:
+                tags:
+                  - id: 1
+                    name: "python"
+                    slug: "python"
+                    post_count: 3
+                total: 1
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the tags:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+    post:
+      summary: Create a tag
+      description: Create a tag. If a tag with the same slug already exists, the existing tag is returned.
+      operationId: createTag
+      tags:
+        - Tags
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagCreateRequest"
+      responses:
+        "201":
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "200":
+          description: A tag with the same slug already exists; the existing tag is returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "400":
+          description: Invalid request body or missing name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "name is required"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the tags:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+
+  /api/tags/{tag_id}:
+    get:
+      summary: Get a tag
+      description: Retrieve a single tag by its ID.
+      operationId: getTag
+      tags:
+        - Tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: tag_id
+          in: path
+          required: true
+          description: Tag ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tag details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the tags:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Tag not found"
+    put:
+      summary: Update a tag
+      description: Rename a tag. The slug is regenerated from the new name.
+      operationId: updateTag
+      tags:
+        - Tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: tag_id
+          in: path
+          required: true
+          description: Tag ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagUpdateRequest"
+      responses:
+        "200":
+          description: Updated tag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "400":
+          description: Invalid request body or missing name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "name is required"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the tags:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Tag not found"
+        "409":
+          description: A tag with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "A tag with this name already exists"
+    delete:
+      summary: Delete a tag
+      description: Delete a tag.
+      operationId: deleteTag
+      tags:
+        - Tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: tag_id
+          in: path
+          required: true
+          description: Tag ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tag deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tag 'python' deleted successfully"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the tags:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Tag not found"
+
   /api/subscribers:
     get:
       summary: List subscribers
@@ -388,14 +1400,6 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Invalid API key"
-        "503":
-          description: API not configured
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "API key not configured"
     post:
       summary: Create a subscriber
       description: Create a new subscriber. If the email already exists, returns the existing subscriber.
@@ -512,29 +1516,26 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Invalid API key"
-        "503":
-          description: API not configured
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "API key not configured"
 
   /api/track-share:
     post:
       summary: Track a share event
       description: |
         Track social share events for published posts.
-        This endpoint does not require authentication.
+        This endpoint does not require API key authentication, but it is served
+        by the `public` blueprint, so global CSRF validation applies. Send the
+        token as the `X-CSRF-Token` header (JSON requests) or as a `csrf_token`
+        form field (multipart/form-data requests).
+
+        Rate limited to 20 requests per minute.
       operationId: trackShare
       tags:
         - Sharing
       parameters:
         - name: X-CSRF-Token
           in: header
-          description: CSRF token for protection (auto-read from page meta tag by frontend JS)
-          required: false
+          description: CSRF token (auto-read from page meta tag by frontend JS)
+          required: true
           schema:
             type: string
       requestBody:
@@ -543,6 +1544,20 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/TrackShareRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                post_id:
+                  type: integer
+                platform:
+                  type: string
+                csrf_token:
+                  type: string
+              required:
+                - post_id
+                - platform
+                - csrf_token
       responses:
         "200":
           description: Share tracked successfully
@@ -564,6 +1579,16 @@ paths:
                   error:
                     type: string
                     example: "missing post_id or platform"
+        "403":
+          description: CSRF token missing or invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "CSRF token missing or invalid"
         "404":
           description: Post not found or not published
           content:
@@ -678,6 +1703,22 @@ components:
           items:
             type: string
           description: List of tag names
+        author:
+          type: object
+          description: The post author
+          properties:
+            username:
+              type: string
+              nullable: true
+              description: Author username, or null for a config-level author
+            name:
+              type: string
+              nullable: true
+              description: Display name
+            url:
+              type: string
+              nullable: true
+              description: Public path of the author page
       required:
         - id
         - title
@@ -782,6 +1823,278 @@ components:
         - pages
         - page
         - per_page
+
+    Page:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Page ID
+          readOnly: true
+        title:
+          type: string
+          description: Page title
+        slug:
+          type: string
+          description: URL-friendly slug
+        body:
+          type: string
+          description: Page content (markdown)
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Creation timestamp (ISO 8601)
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last update timestamp (ISO 8601)
+          readOnly: true
+        published:
+          type: boolean
+          description: Publication status
+      required:
+        - id
+        - title
+        - slug
+        - body
+        - published
+
+    PageCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Page title (required, max 200 characters)
+        body:
+          type: string
+          description: Page content (required, max 50000 characters)
+        slug:
+          type: string
+          description: URL slug; generated from the title when omitted
+        published:
+          type: boolean
+          description: Publication status (default false)
+      required:
+        - title
+        - body
+
+    PageUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Page title (max 200 characters)
+        body:
+          type: string
+          description: Page content (max 50000 characters)
+        slug:
+          type: string
+          description: URL slug
+        published:
+          type: boolean
+          description: Publication status
+
+    PageListResponse:
+      type: object
+      properties:
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Page"
+        total:
+          type: integer
+          description: Total number of pages
+      required:
+        - pages
+        - total
+
+    Series:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Series ID
+          readOnly: true
+        name:
+          type: string
+          description: Series name
+        slug:
+          type: string
+          description: URL-friendly slug
+        description:
+          type: string
+          description: Series description
+        image:
+          type: string
+          nullable: true
+          description: Series image filename
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Creation timestamp (ISO 8601)
+          readOnly: true
+        posts:
+          type: array
+          description: The ordered posts in the series; present when include_posts is requested
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: Post ID
+              title:
+                type: string
+                description: Post title
+              slug:
+                type: string
+                description: Post slug
+              order_index:
+                type: integer
+                description: Position of the post within the series
+      required:
+        - id
+        - name
+        - slug
+
+    SeriesCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Series name (required, max 100 characters)
+        description:
+          type: string
+          description: Series description (max 500 characters)
+        slug:
+          type: string
+          description: URL slug; generated from the name when omitted
+      required:
+        - name
+
+    SeriesUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Series name (max 100 characters)
+        description:
+          type: string
+          description: Series description (max 500 characters)
+        slug:
+          type: string
+          description: URL slug
+
+    SeriesListResponse:
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/Series"
+        total:
+          type: integer
+          description: Total number of series
+        page:
+          type: integer
+          description: Current page number
+        per_page:
+          type: integer
+          description: Items per page
+      required:
+        - series
+        - total
+        - page
+        - per_page
+
+    SeriesPostRequest:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          description: ID of the post to add (required)
+        order_index:
+          type: integer
+          description: Position in the series; appended to the end when omitted
+      required:
+        - post_id
+
+    SeriesReorderRequest:
+      type: object
+      properties:
+        order:
+          type: array
+          description: The new order of the posts (required, max 500 entries)
+          items:
+            type: object
+            properties:
+              post_id:
+                type: integer
+                description: Post ID
+              order_index:
+                type: integer
+                description: New position of the post
+            required:
+              - post_id
+              - order_index
+      required:
+        - order
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Tag ID
+          readOnly: true
+        name:
+          type: string
+          description: Tag name
+        slug:
+          type: string
+          description: URL-friendly slug
+        post_count:
+          type: integer
+          description: Number of posts on this tag; present when include_count is requested
+      required:
+        - id
+        - name
+        - slug
+
+    TagCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Tag name (required, max 50 characters)
+      required:
+        - name
+
+    TagUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: New tag name (required, max 50 characters)
+      required:
+        - name
+
+    TagListResponse:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+        total:
+          type: integer
+          description: Total number of tags
+      required:
+        - tags
+        - total
 
     Subscriber:
       type: object
@@ -896,6 +2209,7 @@ components:
           description: |
             Social platform identifier (required).
             Allowed values: twitter, facebook, linkedin, reddit, hackernews, link
+          enum: [twitter, facebook, linkedin, reddit, hackernews, link]
       required:
         - post_id
         - platform

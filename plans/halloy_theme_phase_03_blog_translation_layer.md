@@ -1,5 +1,7 @@
 # Halloy Theme Phase 03 — Blog Translation Layer
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Translate normalized Halloy themes into a complete, blog-specific semantic palette and deterministic CSS custom-property output.

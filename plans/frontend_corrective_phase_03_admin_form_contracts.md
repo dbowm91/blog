@@ -1,5 +1,7 @@
 # Frontend Corrective Phase 03 — Admin Form and Control Contracts
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/frontend/overview.md](../architecture/frontend/overview.md); this file is the historical record.
+
 **Roadmap:** [frontend_corrective_roadmap.md](frontend_corrective_roadmap.md)
 **Date:** 2026-10-23
 **Status:** Complete

@@ -24,7 +24,7 @@ nickname = "#04A5E5"
 selection = "#B5CCF5"
 timestamp = "#9EA1B6"
 topic = "#8C8FA1"
-url = "#1E66F5"
+url = "#0A52E1"
 
   [buffer.server_messages]
   default = "#DF8E1D"

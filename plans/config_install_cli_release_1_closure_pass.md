@@ -1,5 +1,7 @@
 # Release 1 Closure Pass — Packaging, CI, and Legacy Configuration Containment
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/deployment/cicd.md](../architecture/deployment/cicd.md); this file is the historical record.
+
 ## Objective
 
 Close the remaining Release 1 gaps before beginning onboarding and installation work. The implementation is architecturally complete, but the package boundary, CI verification, unknown-key policy, and legacy configuration compatibility layer still need explicit closure.

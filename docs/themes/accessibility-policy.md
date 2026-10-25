@@ -4,7 +4,7 @@ This document defines the accessibility requirements, exception classification, 
 
 ## 1. Mandatory Accessibility Requirements
 
-DevLog enforces WCAG 2.1 Level AA compliance for all bundled themes. The following success criteria and project-level thresholds are mandatory and non-negotiable:
+DevLog targets WCAG 2.1 Level AA for all bundled themes. The following success criteria and project-level thresholds are the mandatory policy for the bundled catalog and for any external theme an operator chooses to install:
 
 | Category | WCAG Criterion | Threshold | Notes |
 |----------|---------------|-----------|-------|
@@ -110,15 +110,15 @@ Bundled themes are classified into three tiers based on their accessibility comp
 
 ### 3.3 Experimental
 
-**Gate:** Known mandatory failures exist. These are themes where the translation or source palette produces contrast ratios below mandatory thresholds for essential content.
+**Gate:** Known mandatory failures exist that are *not* covered by a documented exception. These are themes where the translation or source palette produces contrast ratios below mandatory thresholds for essential content.
 
 **Default selection:** Never. These themes are excluded from default selection and clearly marked as experimental.
 
 **Requirements:**
-- All mandatory failures are documented in the exception manifest
-- Each mandatory failure includes remediation guidance
+- Each mandatory failure must have remediation guidance in the report
 - The theme owner must acknowledge the failures
 - The theme must not be offered as a default or recommended option
+- An exception entry should be added, or the theme fixed, to move it out of this tier
 
 ## 4. Exception Manifest Structure
 
@@ -174,6 +174,30 @@ The exception manifest (`app/themes/ACCESSIBILITY_EXCEPTIONS.json`) follows this
 4. The exception manifest is validated against the actual rendered theme output
 5. Changes to the exception manifest require updating `reviewed_date`
 
+## 5.1 The Automated Gate
+
+`scripts/theme_accessibility_report.py` validates the bundled catalogue against
+this policy. The `theme-policy` CI job runs it in strict mode:
+
+```bash
+python scripts/theme_accessibility_report.py --strict
+```
+
+In strict mode the run **fails** when either of these is true:
+
+- A theme's computed eligibility is worse than the class the manifest declares
+  for it. This covers both undocumented mandatory failures and a regression
+  below a previously recorded class.
+- A theme's classification disagrees with the darkness implied by its filename.
+
+A theme is compliant when every mandatory failure it has is recorded in the
+manifest. Running without `--strict` prints the same report but always exits 0,
+which is useful when inspecting a catalogue locally.
+
+The report also prints the policy tier counts, so a change in the distribution
+across `recommended`, `compatible-with-exceptions` and `experimental` is visible
+between runs.
+
 ## 6. Scope
 
 This policy applies to:
@@ -185,3 +209,9 @@ This policy does not apply to:
 - External themes installed by operators (outside the bundled catalog)
 - Custom CSS overrides applied on top of bundled themes
 - Themes in development or testing states
+
+## See Also
+
+- [Theme operator guide](operator-guide.md) — the commands that report eligibility
+- [BlogTheme token contract](blog-theme-contract.md) — the tokens the checks compare
+- [Theme architecture](../../architecture/core/themes.md) — the module reference for `app/themes/`

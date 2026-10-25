@@ -1,5 +1,7 @@
 # Halloy Theme Phase 01 — Catalog Inventory and Semantic Token Contract
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Establish the authoritative input catalog, supported Halloy subset, frontend color-token surface, packaging direction, and compatibility constraints before runtime code changes begin.

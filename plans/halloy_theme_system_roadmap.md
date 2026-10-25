@@ -1,5 +1,7 @@
 # Halloy-Compatible Theme System Roadmap
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Purpose
 
 Replace the blog's manually maintained theme preset system with a Halloy-compatible theme subsystem. The finished system must package the Halloy themes currently present in the repository, translate Halloy TOML palettes into the blog's semantic CSS variables, and allow operators to add or override themes from an external directory without modifying application code.

@@ -1,5 +1,7 @@
 # Halloy Theme Phases 04–05 Corrective Closure Plan
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Completion Status
 
 **Status: COMPLETE** — 2026-07-13

@@ -2,21 +2,123 @@
 
 All notable changes to DevLog will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Release status
+
+**DevLog has no tagged releases yet.** The package version in `pyproject.toml`
+is `1.0.0`, but no `vX.Y.Z` tag has been pushed, so there is no published
+release history to record.
+
+Everything below therefore sits under **[Unreleased]** and describes the work
+accumulated for the current version. When the first release is tagged, move the
+`[Unreleased]` section under a `[X.Y.Z]` heading with its date, as described in
+[RELEASE.md](RELEASE.md).
 
 ## [Unreleased]
 
 ### Added
-- Public release preparation with documentation and packaging
-- Release checklist (RELEASE.md)
+
+**Blog and content**
+- Posts, pages, tags, post series, comments, media library and short URLs
+  (`/s/<base62>`) with permanent per-post codes
+- SQLite with WAL journalling and FTS5 full-text search — prefix matching
+  (2–4 characters), did-you-mean suggestions and highlighted snippets
+- Feeds: RSS 2.0 (`/rss`), Atom 1.0 (`/atom`), JSON Feed 1.1 (`/json`), plus
+  per-tag and per-series variants, all with ETag conditional GET
+- Newsletter with double opt-in confirmation, scheduled daily digest, retry
+  handling and one-click unsubscribe
+- Analytics: page views, share events, traffic-source categorisation
+  (Direct / Search / Social / Other), a dashboard and `/admin/analytics`
+- Multi-admin support with admin session tracking, IP binding, per-role
+  access (admin and author) and a full audit log
+- TOTP two-factor authentication with single-use backup codes
+- Public site identity: visitor login and account pages, author pages, a
+  pages index, per-page navigation entries, footer column toggles, a profile
+  editor and a post author selector
+
+**Halloy theme system**
+- 50 bundled Halloy `.toml` themes, with the root `themes/` directory acting
+  as the authoring catalogue
+- Typed theme model (`BlogTheme`) of 50 colour tokens — 41 `RGB` and 9
+  `RGBA` — emitting 50 CSS custom properties and 38 backwards-compatible
+  aliases
+- Theme registry with caching, external override directory, accessibility
+  diagnostics with severity classification, and a visitor colour-scheme
+  switcher (system / dark / light)
+- Appearance layer for font families and page backdrops
+
+**Operations**
+- Typed configuration package (`app/config/`) with 22 section dataclasses plus
+  the top-level `DevLogConfig`, resolved as environment variables >
+  `config.toml` > built-in defaults
+- Standalone `devlog` operator CLI: `config`, `admin`, `db`, `themes`,
+  `backup`, `data`, `media`, `onboard`, `paths`, `deploy`, `doctor`, and the
+  `start` / `stop` / `restart` / `status` / `logs` lifecycle commands
+- `devlog doctor` diagnostics: 76 checks across 20 categories, with parallel
+  execution, category filtering and safe fixes
+- Filesystem layout system with install modes, legacy discovery and a
+  migration planner/executor
+- First-run and reconfiguration onboarding (`devlog onboard detect|plan|run|resume`)
+- Deployment rendering for systemd, Compose, reverse proxy and logrotate, with
+  drift detection (`devlog deploy render|install|check`)
+- One-shot installer with versioned layout, atomic symlink, SHA-256 checksum
+  verification and release artifacts
+- Docker Compose deployment with explicit `production`, `reverse-proxy` and
+  `backup` profiles, a multi-stage image and a non-root user
+- Celery and Redis for newsletter delivery, webhook delivery, image variants
+  and backups
+- Webhooks with per-target SSRF protection, HMAC signing, retries and
+  encrypted secrets at rest
+- Backups with optional gzip compression, AES-256-GCM encryption, PBKDF2 key
+  derivation and integrity verification
+- Pluggable media storage: local filesystem by default, or S3-compatible
+  object storage with `STORAGE_BACKEND=s3`
+- Health endpoints: unauthenticated basic `/health` and secret-gated
+  detailed mode, plus an opt-in Prometheus `/metrics` endpoint
 
 ### Changed
-- Consolidated CI workflows
-- Improved documentation consistency across README, DEPLOY, and SECURITY
-- Normalized config.toml.example with generic placeholders
-- Softened production-ready claims in README
+
+- Login rate limiting moved from the application to the reverse proxy; the
+  per-account lockout remains in the application
+- `app/config.py` was replaced by `app/config_legacy.py` plus the typed
+  `app/config/` package; the legacy flat names are still re-exported
+- The legacy `THEME_PRESETS` list and the `theme_preset` column were removed
+  in favour of the Halloy registry
+- The default theme is `Catppuccin Mocha`
+- Operational logic was extracted from the Flask CLI into
+  `app/services/operations/`; the Flask commands remain as compatibility
+  wrappers over the same services
+- The SQLite database resolves to `data/devlog.sqlite3` by default
+  (override with `DEVLOG_DATABASE_PATH`, `SQLALCHEMY_DATABASE_URI` or
+  `DATABASE_URL`)
+- Editorial tooling expanded: undo/redo in the editor, a markdown toolbar, a
+  stacked live preview pane, and numbered code blocks
+- Markdown renderer supports strikethrough
+- Documentation reorganised: `DEPLOY.md` is the operator reference,
+  `USAGE.md` the administration guide
 
 ### Fixed
-- Docker build path issues
-- Documentation drift across deployment guides
-- Environment variable documentation alignment (DATABASE_URL fallback chain, REDIS_URL, ENABLE_SCHEDULER)
+
+- A fresh install now runs migrations successfully end to end
+- The test suite no longer overwrites the developer's local configuration
+- Corrected backdrop shape, font selection, profile picture rendering, editor
+  preview layout and heading anchor navigation
+- Heading anchors are applied consistently across rendered posts
+
+### Security
+
+- CSRF validation on every browser POST request, with API-key requests exempt
+  and protected by token secrecy, scopes, rate limits and audit logging
+- Security headers on every response: CSP with nonces, HSTS,
+  X-Frame-Options, X-Content-Type-Options, Referrer-Policy and
+  Permissions-Policy
+- Password hashing via `werkzeug.security` (pbkdf2:sha256), with complexity
+  rules enforced on the user creation, password change and password reset
+  routes
+- Login failure delay and per-account lockout on both the admin and public
+  login routes
+- Constant-time comparison for API keys, CSRF tokens and health-check secrets
+- HTML sanitisation via `nh3` and CSS sanitisation via `tinycss2`
+- Webhook and backup secrets encrypted at rest with AES-256-GCM

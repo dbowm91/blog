@@ -878,10 +878,25 @@ blog/
 
 ## Related Documents
 
+**Start here:** [README.md](../README.md) for the quickstart, then
+[DEPLOY.md](../DEPLOY.md) for production deployment and
+[USAGE.md](../USAGE.md) for the admin features.
+
+**Architecture:**
 - [AGENTS.md](../AGENTS.md) — Agent guidelines and codebase conventions
-- [Architecture Review Skill](../.skills/architecture_review/skill.md) — The review workflow these documents follow
-- [DEPLOY.md](../DEPLOY.md) — Deployment documentation
-- [USAGE.md](../USAGE.md) — Usage documentation
+- [ARCHITECTURE.md](../ARCHITECTURE.md) — The entry point for this directory
+- [Plans](../plans/AGENTS.override.md) — Which plan series are active and which are historical
+
+**Agent skills** (canonical copies in `.skills/`):
+- [blog_cms](../.skills/blog_cms/skill.md) — The codebase map, hard rules, gotchas and known defects
+- [release_validation](../.skills/release_validation/skill.md) — The pre-release gate and how to diagnose a failing stage
+- [e2e_testing](../.skills/e2e_testing/skill.md) — Browser-level testing with Playwright
+- [architecture_review](../.skills/architecture_review/skill.md) — The review workflow these documents follow
+
+**Operator and user documentation:**
+- [docs/index.md](../docs/index.md) — The documentation entry point
 - [Operator Guide](../docs/themes/operator-guide.md) — Theme operation
 - [Filesystem Layout](../docs/filesystem-layout.md) — Path layout reference
 - [API docs](../docs/api/posts.md) — API usage
+- [OpenAPI spec](../docs/openapi.yaml) — also served at `/api/docs`
+

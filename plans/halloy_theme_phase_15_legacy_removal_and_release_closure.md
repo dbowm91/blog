@@ -1,5 +1,7 @@
 # Halloy Theme Phase 15 — Legacy Removal and Release Closure
 
+> **Plan status: HISTORICAL — shipped.** The outcome is documented in [architecture/core/themes.md](../architecture/core/themes.md); this file is the historical record.
+
 ## Objective
 
 Remove obsolete preset infrastructure, prove the Halloy system is the sole runtime theme authority, and complete release-readiness validation for the entire theming roadmap.
