@@ -40,7 +40,7 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Typeface | the appearance runtime | `--font-sans` and `--font-mono` are emitted by `app/appearance/service.py`; stylesheets never name a family directly |
 | Page backdrop | the appearance runtime | `--backdrop-image` and `--backdrop-tint` are emitted per scheme; the SVG supplies shape only, never colour |
 | Admin theme preview | `admin/settings.html` (inline script) | Triggers stay with the selects; `min-height` equals `max-height`; clear restores the placeholder; preview CSS stays scoped to `#theme-preview-container` |
-| Breakpoint visibility | one stylesheet per breakpoint | Rules that must win must not tie on specificity |
+| Breakpoint visibility | one stylesheet per breakpoint | A media query adds no specificity: the sheet that owns an element's base rule owns its breakpoint override too |
 | Stylesheet order | `app/templates/base.html` | `main.js` must not import a stylesheet, or dev and production diverge |
 
 `app/static/AGENTS.override.md` documents each contract with its rationale.

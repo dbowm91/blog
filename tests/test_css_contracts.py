@@ -197,9 +197,16 @@ class TestTokenCompleteness:
 
 class TestTitleContrast:
     def test_post_title_uses_text_token(self) -> None:
-        rules = {rule.selector: rule for rule in _parse_rules(_read("public.css"))}
-        hero_title = rules[".post-hero-title"].declarations()
-        assert hero_title.get("color") == "var(--text)"
+        # Every rule that paints the hero title has to use the text token,
+        # including the one inside the mobile breakpoint. Looking the rule up
+        # by selector alone would only see the last one declared.
+        colours = [
+            rule.declarations()["color"]
+            for rule in _parse_rules(_read("public.css"))
+            if rule.selector.strip() == ".post-hero-title" and "color" in rule.declarations()
+        ]
+        assert colours, "public.css has no .post-hero-title colour rule"
+        assert set(colours) == {"var(--text)"}
 
     def test_light_scheme_override_removed(self) -> None:
         selectors = {rule.selector for rule in _parse_rules(_read("base.css"))}

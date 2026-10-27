@@ -68,6 +68,14 @@ All JavaScript modules must export a default function for initialization. When a
 
 The mobile hamburger menu button is **created dynamically in JavaScript** (`shared/mobile-menu.jsx`), not in HTML templates.
 
+The scrim that dims the page behind an open menu is a **body-level element**
+created by the same module (`.mobile-menu-backdrop`), not a pseudo-element of
+`.nav-links`. The menu panel sits inside the navbar's stacking context, so a
+scrim declared on the panel would paint over the menu links, and a tap on it
+would count as a click inside the menu, leaving the menu impossible to dismiss
+by tapping away from it. The backdrop sits at z-index 99, under the navbar's
+100, so it dims the page but leaves the panel and the toggle clickable.
+
 ## Admin Page Detection in JS
 
 Use `document.body.classList.contains('admin-body')` to scope admin-only JS handlers.
@@ -267,6 +275,35 @@ enabled, the numbering has to move into a Prism plugin.
 Exactly one stylesheet owns a given element's visibility at each breakpoint.
 `layout.css` and `base.css` both setting `.nav-links { display }` is a cascade tie
 resolved by document order, not by intent — scope the rule instead.
+
+**A media query adds no specificity.** An `@media (max-width: 768px)` rule ties
+with the unconditional rule for the same element in a later stylesheet and loses
+on document order, so the breakpoint has no effect at all. The sheet that owns an
+element's base rule therefore owns its breakpoint override too:
+
+| Sheet | Owns |
+|---|---|
+| `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle` |
+| `layout.css` | `.container`, `.content-layout`, `.sidebar`, the navbar and `.nav-links` |
+| `public.css` | `.hero`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
+| `forms.css` | the form controls, including their iOS-zoom font sizes |
+| `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
+
+`base.css` loads before all of them, so it may only override a rule for an
+element it owns outright.
+
+### Post Tile
+
+`.post-full` is the article tile: a translucent `--bg-surface` with a border and
+a radius, with the hero image flush against its top edge and everything below
+the image inside `.post-content`, which supplies the tile's inner gutter. The
+panels inside the tile — the table of contents, the share bar, the TL;DR and the
+author card — use `--bg-elevated`, not `--bg-surface`; on the tile's own surface
+they would be the same colour as the tile and would read as nothing at all.
+
+The `.post-toc-container` lives inside the article, directly under the hero
+image, so the contents list shares the post's width and reads as part of the
+post. It is rendered by `public/toc.js`.
 
 ### Vite Build
 

@@ -16,14 +16,28 @@ export function initMobileMenu() {
         mobileMenuToggle.setAttribute('aria-controls', navLinks.id);
         navContainer.appendChild(mobileMenuToggle);
 
+        // The scrim that dims the page behind the open menu. It is a
+        // body-level element rather than a pseudo-element of the menu: the
+        // panel sits inside the navbar stacking context, so a scrim declared
+        // on the panel would paint over the menu links, and a tap on it
+        // would count as a click inside the menu.
+        const backdrop = document.createElement('div');
+        backdrop.className = 'mobile-menu-backdrop';
+        document.body.appendChild(backdrop);
+
         const setMenuOpen = (isOpen) => {
             navLinks.classList.toggle('open', isOpen);
+            backdrop.classList.toggle('open', isOpen);
             mobileMenuToggle.setAttribute('aria-expanded', isOpen.toString());
             mobileMenuToggle.setAttribute('aria-label', isOpen ? 'Close navigation menu' : 'Open navigation menu');
         };
 
         mobileMenuToggle.addEventListener('click', () => {
             setMenuOpen(!navLinks.classList.contains('open'));
+        });
+
+        backdrop.addEventListener('click', () => {
+            setMenuOpen(false);
         });
 
         document.addEventListener('click', (e) => {

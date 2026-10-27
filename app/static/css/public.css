@@ -280,19 +280,34 @@
     color: var(--accent);
 }
 
-/* --- Post Hero (article page) --- */
+/* --- Post Tile (article page) --- */
+/* The article is one tile. The hero image is flush with its top edge and the
+   prose sits on the tile surface, so the post reads as a single object rather
+   than a column of loose blocks. The surface is translucent, so the page
+   backdrop bleeds through it. */
 .post-full {
     max-width: 760px;
     margin: 0 auto;
-    padding: 0 0 64px;
+    background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
 }
 
+/* Everything below the hero image. The horizontal padding is the tile's
+   inner gutter; it is wide enough to hold the heading anchors, which sit in
+   the left gutter of the prose. */
+.post-content {
+    padding: 24px 32px 32px;
+}
+
+/* The tile clips the hero image to its rounded corners, so the image needs
+   no radius of its own. */
 .post-hero {
     position: relative;
     width: 100%;
     height: 400px;
-    margin-bottom: 32px;
-    border-radius: var(--radius-lg);
     overflow: hidden;
 }
 
@@ -306,7 +321,7 @@
 .post-hero-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, var(--bg) 0%, rgba(0, 0, 0, 0.4) 100%);
+    background: linear-gradient(to top, var(--bg-surface) 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 .post-hero-content {
@@ -327,14 +342,17 @@
 }
 
 /* --- Share Bar --- */
+/* The share bar, the TL;DR and the author card sit inside the post tile, so
+   they take the elevated surface: on the tile's own surface they would be
+   the same colour as the tile and would read as nothing at all. */
 .share-bar {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 12px;
     margin-bottom: 24px;
-    background: var(--bg-surface);
-    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     flex-wrap: wrap;
@@ -449,8 +467,8 @@
 .tldr {
     padding: 16px 20px;
     margin-bottom: 32px;
-    background: var(--bg-surface);
-    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     border-left: 3px solid var(--accent);
     border-radius: 0 var(--radius) var(--radius) 0;
     font-size: 0.95rem;
@@ -473,8 +491,8 @@
     gap: var(--space-md);
     padding: 20px;
     margin: 40px 0;
-    background: var(--bg-surface);
-    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
 }
@@ -601,17 +619,20 @@ a.related-card {
 }
 
 /* --- Table of Contents --- */
+/* The container sits inside the post tile, directly under the hero image, so
+   the contents list shares the post's width and reads as part of the post
+   rather than a floating panel above it. */
 .post-toc-container {
     display: none;
+    padding: 24px 32px 0;
 }
 
 .post-toc {
-    background: var(--bg-surface);
-    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px 20px;
-    margin-bottom: 24px;
 }
 
 .post-toc-title {
@@ -1169,6 +1190,99 @@ a.related-card {
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 2px;
+}
+
+/* --- Mobile breakpoint --- */
+/* The public pages own their own mobile rules. They used to live in base.css,
+   which loads earlier than this sheet: a media query adds no specificity, so
+   every one of them was being overridden by the base rule further down this
+   file and the phone layout silently inherited the desktop one. */
+@media (max-width: 768px) {
+    .hero {
+        padding: 40px 0 24px;
+    }
+
+    .hero-title {
+        font-size: 1.8rem;
+    }
+
+    .hero-description {
+        font-size: 0.95rem;
+    }
+
+    .post-card-img {
+        height: 160px;
+    }
+
+    .post-card-body {
+        padding: 14px 16px;
+    }
+
+    .post-card-title {
+        font-size: 1.15rem;
+    }
+
+    .post-card-summary {
+        font-size: 0.88rem;
+    }
+
+    .post-hero {
+        height: 250px;
+    }
+
+    .post-hero-title {
+        font-size: 1.5rem;
+    }
+
+    .post-hero-content {
+        padding: 20px;
+    }
+
+    .post-toc-container {
+        padding: 16px 20px 0;
+    }
+
+    .post-content {
+        padding: 16px 20px 24px;
+    }
+
+    /* The network buttons carry the `share-<network>` class; the mobile rule
+       used to name them `share-btn-<network>`, which matched nothing, so every
+       button stayed on the phone and the bar wrapped onto a second row. */
+    .share-linkedin,
+    .share-hn,
+    .share-reddit {
+        display: none;
+    }
+
+    .share-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+
+    .tldr {
+        padding: 14px 16px;
+        font-size: 0.9rem;
+    }
+
+    .author-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .tag {
+        padding: 6px 14px;
+        font-size: 14px;
+    }
+
+    .related-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Prevent iOS zoom on input focus (16px minimum) */
+    .subscribe-form input[type="email"] {
+        font-size: 16px;
+    }
 }
 
 @media (max-width: 560px) {

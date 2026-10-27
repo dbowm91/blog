@@ -1404,6 +1404,49 @@
     padding: var(--space-xl);
 }
 
+/* The mobile layout for the admin surfaces this sheet owns.
+
+   These rules used to live in base.css, which loads earlier: a media query
+   adds no specificity, so the base rules above kept winning and the admin
+   kept its desktop layout on a phone. They belong next to the rules they
+   override. */
+@media (max-width: 768px) {
+    .editor-form {
+        padding: 20px;
+    }
+
+    .post-list-header {
+        display: none;
+    }
+
+    .post-list-item {
+        grid-template-columns: 1fr;
+        gap: var(--space-sm-md);
+    }
+
+    .post-list-slug,
+    .post-list-status {
+        display: none;
+    }
+
+    .post-list-metrics {
+        margin: 0;
+    }
+
+    .post-list-actions {
+        width: 100%;
+    }
+
+    .post-list-actions .btn {
+        flex: 1;
+    }
+
+    /* Prevent iOS zoom on input focus (16px minimum) */
+    .filter-select {
+        font-size: 16px;
+    }
+}
+
 /* --- Preview Banner --- */
 .preview-banner {
     background: var(--warning-bg);

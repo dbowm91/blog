@@ -20,6 +20,9 @@
         </div>
     </div>
 
+    <div class="post-toc-container"></div>
+
+    <div class="post-content">
     {% if show_full_share %}
     <div class="share-bar" data-post-id="{{ post.id }}" data-share-url="{{ share_url }}">
         <span class="share-label">Share</span>
@@ -101,4 +104,5 @@
         <a href="{{ url_for('public.index') }}" class="back-link">&larr; Back to posts</a>
         {% endif %}
     </footer>
+    </div>
 </article>

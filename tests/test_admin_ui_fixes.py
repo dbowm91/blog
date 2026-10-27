@@ -89,7 +89,14 @@ def test_nav_link_labels_are_wrapped_in_the_positioning_span():
 
 
 def test_nav_underline_mobile_override_targets_the_new_selector():
-    assert ".nav-links a.active .nav-link-text::after" in read_css("base.css")
+    # The nav is owned by layout.css, so the breakpoint that hides the active
+    # tick belongs there too. A media query adds no specificity, so a copy in
+    # base.css would tie with the base rule in layout.css and lose on
+    # document order — the tick would survive on the phone.
+    css = read_css("layout.css")
+    assert ".nav-links a.active .nav-link-text::after" in css
+    assert ".nav-links a.active::after" not in css
+    assert ".nav-links" not in read_css("base.css")
 
 
 # ---------------------------------------------------------------------------

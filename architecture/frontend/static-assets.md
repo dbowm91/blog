@@ -248,6 +248,46 @@ visibility at a given breakpoint**.
 specificity, so document order decided the outcome and the mobile navigation could
 never collapse. `layout.css` now scopes its rule to `@media (min-width: 769px)`.
 
+The same defect has a second form, and it is the more common one. **A media query
+adds no specificity.** A `@media (max-width: 768px)` rule in `base.css` therefore
+ties with the unconditional rule for the same element in `layout.css` or
+`public.css`, and loses on document order — the breakpoint silently has no effect.
+`base.css` carried the whole mobile breakpoint for the public site while every
+rule it touched was declared again, unconditionally, further down `layout.css` or
+`public.css`; the phone layout inherited the desktop one.
+
+The rule that follows from this: **the stylesheet that owns an element's base rule
+also owns that element's breakpoint override.**
+
+| Sheet | Owns |
+|---|---|
+| `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle` |
+| `layout.css` | `.container`, `.content-layout`, `.sidebar`, the navbar and `.nav-links` |
+| `public.css` | `.hero`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
+| `forms.css` | the form controls, including their iOS-zoom font sizes |
+| `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
+
+`base.css` loads before all of them, so it may only override a rule for an
+element it owns outright.
+
+### The Post Tile
+
+The article page is one tile. `.post-full` is the tile — a translucent
+`--bg-surface` with a border and a radius — and the hero image is flush with its
+top edge, clipped by the tile's `overflow: hidden`. Everything below the image
+lives in `.post-content`, which supplies the tile's inner gutter.
+
+The panels *inside* the tile (the table of contents, the share bar, the TL;DR and
+the author card) use `--bg-elevated`, not `--bg-surface`: on the tile's own
+surface they would be the same colour as the tile and would read as nothing at
+all.
+
+The table of contents is rendered by `public/toc.js` into a
+`.post-toc-container` that lives **inside** the article, directly under the hero
+image. It used to sit outside the article, as a sibling of it, which made it
+float above the post and span the whole container width instead of the post's
+own.
+
 ### Code Block Line Numbers
 
 Code blocks are numbered on the left by a CSS counter. `app/markdown_renderer.py`

@@ -241,3 +241,20 @@ textarea::placeholder {
 .remove-image-label input[type="checkbox"] {
     accent-color: var(--red);
 }
+
+/* --- Mobile --- */
+/* Prevent iOS zoom on input focus (16px minimum). These live here because
+   this sheet owns the controls and loads after base.css, so a rule in
+   base.css would lose to the base rule below. */
+@media (max-width: 768px) {
+    .search-input,
+    .form-group input[type="text"],
+    .form-group input[type="password"],
+    .form-group input[type="email"],
+    .form-group input[type="url"],
+    .form-group input[type="number"],
+    .form-group textarea,
+    .form-group select {
+        font-size: 16px;
+    }
+}
