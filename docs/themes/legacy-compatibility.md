@@ -30,7 +30,13 @@ This mapping was used by `migrate_legacy_preset()` when upgrading from the old s
 
 ### Prism syntax themes
 
-`SiteSettings.syntax_theme` (values: `prism`, `prism-coy`, `prism-dark`, `prism-funky`, `prism-okaidia`, `prism-tomorrow`) remains a completely separate system. Prism themes are independent of the page color theme. A dark page theme may use a light Prism theme and vice versa. Halloy migration does not affect syntax highlighting.
+The syntax theme setting is retired. `SiteSettings.syntax_theme` and the six
+vendored Prism palettes (`prism`, `prism-coy`, `prism-dark`, `prism-funky`,
+`prism-okaidia`, `prism-tomorrow`) no longer exist — the column was dropped by
+the `drop_syntax_theme_column` migration. Syntax highlighting is no longer a
+system of its own: the Prism token colours in `app/static/css/prism.css` are
+mapped onto the theme's own tokens, so they follow the page colour theme rather
+than running independently of it.
 
 ### Custom CSS
 
@@ -148,10 +154,10 @@ palette reference:
 
 Every CSS custom property previously emitted by `THEME_PRESETS` has a direct
 equivalent in the `BlogTheme` semantic token contract. The `ALIASES` dict in
-`app/themes/model.py` preserves all **38** legacy variable names, so no CSS
+`app/themes/model.py` preserves all **40** legacy variable names, so no CSS
 variable name the stylesheets consume was changed. The `BlogTheme` model extends
 the set with additional derived tokens (`text-on-accent`, `overlay-bg`,
-`shadow-color`) that the aliases also expose.
+`shadow-color`, `text-caption`, `accent-text`) that the aliases also expose.
 
 Refer to the token contract defined in [the BlogTheme token contract](blog-theme-contract.md)
 for the complete token matrix, derivation rules and the full alias table.

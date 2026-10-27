@@ -676,13 +676,17 @@ unnumbered code blocks. `base.css` is the only stylesheet both shells load.
 
 **Prism would destroy the line spans.** `Prism.highlightElement()` replaces
 the `<code>` element's `innerHTML` with its own token markup, which removes
-the `code-line` spans and with them the numbering. Prism is currently inert:
-`nh3` strips the `class` attribute from `<code>` (there is no `code` entry in
-`MARKDOWN_ALLOWED_ATTRIBUTES`), so the `pre[class*="language-"]` selector that
-loads Prism never matches. The same stripping is why the syntax theme
-selector and the copy button in `public/code-copy.js` do nothing today. If
-Prism is ever switched on, the numbering has to move to a Prism plugin or be
-re-applied after highlighting — it cannot stay a server-side markup contract.
+the `code-line` spans and with them the numbering. Prism used to be inert:
+`nh3` stripped the `class` attribute from `<code>` (there was no `code` entry
+in `MARKDOWN_ALLOWED_ATTRIBUTES`), so the `pre[class*="language-"]` selector
+that loads Prism never matched, and the copy button in `public/code-copy.js`
+did nothing either. The renderer now re-attaches the fence language after
+sanitisation, writing `class="language-<slug>"` onto both the `<pre>` and its
+`<code>`, so Prism does run. `app/static/js/shared/prism-blocks.js` is the
+repair for the line spans: it reads the existing spans from `code.children`,
+splits the highlighted markup into one fragment per line and rebalances the
+tags, so a token that spans lines keeps its colour on every line. The renderer
+is still the only producer of the `code-line` spans.
 
 **`getComputedStyle(el, '::before').content` returns the unresolved
 expression.** Chrome reports `counter(code-line)`, not `"1"`. To prove a

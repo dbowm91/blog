@@ -174,8 +174,8 @@ def test_settings_page_has_preview_button(authenticated_client):
 # --- Theme save with validation ---
 
 
-def test_settings_theme_save_preserves_syntax_and_custom_css(authenticated_client, db):
-    """Saving theme names preserves syntax_theme and custom_css settings."""
+def test_settings_theme_save_preserves_custom_css(authenticated_client, db):
+    """Saving theme names preserves the custom_css settings."""
     from app.models import SiteSettings
 
     custom_css = "body { color: #ff6600; background: #000; }"
@@ -185,7 +185,6 @@ def test_settings_theme_save_preserves_syntax_and_custom_css(authenticated_clien
             "theme_dark_name": DARK_THEME,
             "theme_light_name": LIGHT_THEME,
             "theme_default_scheme": "system",
-            "syntax_theme": "prism-dark",
             "custom_css_enabled": "on",
             "custom_css": custom_css,
             "logo_text": "My Blog",
@@ -194,7 +193,6 @@ def test_settings_theme_save_preserves_syntax_and_custom_css(authenticated_clien
 
     settings_obj = db.session.execute(db.select(SiteSettings).filter_by(id=1)).scalar_one()
 
-    assert settings_obj.syntax_theme == "prism-dark"
     assert settings_obj.custom_css_enabled is True
     assert "color" in settings_obj.custom_css
     assert settings_obj.logo_text == "My Blog"
@@ -208,7 +206,6 @@ def test_settings_theme_rejects_invalid_names(authenticated_client):
             "theme_dark_name": "Totally Fake Theme",
             "theme_light_name": LIGHT_THEME,
             "theme_default_scheme": "system",
-            "syntax_theme": "prism",
         },
         follow_redirects=True,
     )
@@ -389,7 +386,6 @@ def test_settings_theme_save_invalidates_cache(authenticated_client, db):
                 "theme_dark_name": LIGHT_THEME,
                 "theme_light_name": DARK_THEME,
                 "theme_default_scheme": "dark",
-                "syntax_theme": "prism",
             },
         )
         mock_invalidate.assert_called_once()

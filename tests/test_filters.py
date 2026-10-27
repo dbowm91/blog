@@ -116,7 +116,9 @@ Regular text.
 """
         result = app.jinja_env.filters["markdown_safe"](md_text)
         assert "<h1" in result
-        assert "<code>" in result or "<pre>" in result
+        assert "<pre" in result and "<code" in result
+        assert 'class="language-python"' in result
+        assert '<span class="code-line">' in result
 
 
 def test_markdown_safe_filter_tables():

@@ -96,7 +96,6 @@ class TestDatabaseUnavailableDuringContextGeneration:
             "theme_dark_css",
             "theme_light_css",
             "theme_warnings",
-            "syntax_theme",
             "custom_css_enabled",
             "custom_css",
             "logo_text",

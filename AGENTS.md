@@ -303,7 +303,7 @@ See [architecture/infrastructure/storage.md](architecture/infrastructure/storage
 
 The project migrated from a 4-preset hardcoded theme system to a Halloy-compatible system with 50 bundled themes. The migration is complete.
 
-- `BlogTheme` is a frozen dataclass with **50 fields: 41 `RGB` + 9 `RGBA`**. `CSS_VARS` has **50 entries**, `ALIASES` has **38 entries**.
+- `BlogTheme` is a frozen dataclass with **52 fields: 43 `RGB` + 9 `RGBA`**. `CSS_VARS` has **52 entries**, `ALIASES` has **40 entries**.
 - `THEME_PRESETS` and the `SiteSettings.theme_preset` column were removed. The emergency fallback is `EMERGENCY_DEFAULT`.
 - `SiteSettings.theme_dark_name` (default `Catppuccin Mocha`), `theme_light_name` (default `Catppuccin Latte`), `theme_default_scheme` (`system`).
 - `ThemeService` is per-process, stored on `app.extensions["theme_service"]`. `inject_theme()` in `app/context_processors.py` builds `theme_vars`.

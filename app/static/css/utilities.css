@@ -34,7 +34,7 @@
     gap: 8px;
     margin-top: 8px;
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
 }
 
 .editor-status-sep {

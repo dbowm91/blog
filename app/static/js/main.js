@@ -164,17 +164,9 @@ function loadPrismIfNeeded() {
     if (window.Prism) return;
     const codeBlocks = document.querySelectorAll('pre[class*="language-"]');
     if (codeBlocks.length === 0) return;
-    const prismCSS = document.createElement('link');
-    prismCSS.rel = 'stylesheet';
-    prismCSS.href = document.documentElement.dataset.prismCssUrl;
-    document.head.appendChild(prismCSS);
     const prismJS = document.createElement('script');
+    prismJS.type = 'module';
     prismJS.src = document.documentElement.dataset.prismJsUrl;
-    prismJS.onload = () => {
-        const langJS = document.createElement('script');
-        langJS.src = document.documentElement.dataset.prismLangsUrl;
-        document.body.appendChild(langJS);
-    };
     document.body.appendChild(prismJS);
 }
 

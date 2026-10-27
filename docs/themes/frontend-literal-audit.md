@@ -1,10 +1,10 @@
 # Frontend Hardcoded Colour Literal Audit
 
-An audit of hardcoded colour literals in the non-Prism stylesheets, templates and
+An audit of hardcoded colour literals in the stylesheets, templates and
 JavaScript, and the record of which ones were converted to semantic theme tokens
 and which were deliberately kept.
 
-**Scope**: `app/static/css/` (excluding `prism*.css`), templates (excluding
+**Scope**: `app/static/css/` (including `prism.css`), templates (excluding
 email templates), and JavaScript under `app/static/js/`.
 
 **Method**: regex search for `#RRGGBB`, `#RRGGBBAA` and `rgb()`/`rgba()` across the
@@ -25,25 +25,25 @@ colours, invariant brand colours, and theme-agnostic shadows.
 
 | File | Literals | Category |
 |------|----------|----------|
-| `app/static/css/base.css` | 50 | 25 structural fallback variables, 3 `var()` fallbacks, 1 hero gradient, 21 print stylesheet |
+| `app/static/css/base.css` | 54 | 27 structural fallback variables, 3 `var()` fallbacks, 1 hero gradient, 23 print stylesheet |
 | `app/static/css/public.css` | 17 | 1 hero gradient, 15 social share brand colours, 1 lightbox backdrop |
-| `app/static/css/critical.css` | 7 | Structural fallback variables in `:root` |
+| `app/static/css/critical.css` | 9 | Structural fallback variables in `:root` |
 | `app/static/css/layout.css` | 1 | Neutral box shadow |
 | `app/static/css/admin.css` | 0 | — |
 | `app/static/css/forms.css` | 0 | — |
 | `app/static/css/utilities.css` | 0 | — |
+| `app/static/css/prism.css` | 0 | Prism token colours resolve to theme tokens only |
 | `app/static/js/**` | 0 | — |
 | Templates (non-email) | 0 | — |
-| `app/static/css/prism*.css` | not audited | Prism syntax highlighting, separate system |
 | Email templates | not audited | Email clients do not support CSS custom properties |
 
 ### Retained Literals and Why
 
 | Group | Count | Reason |
 |-------|-------|--------|
-| `:root` structural fallback palette in `base.css` and `critical.css` | 25 + 7 | Fallback values for the CSS custom properties, used before the inline theme style is applied and if the theme service fails. Overwritten at runtime by the injected `theme_vars`. |
+| `:root` structural fallback palette in `base.css` and `critical.css` | 27 + 9 | Fallback values for the CSS custom properties, used before the inline theme style is applied and if the theme service fails. Overwritten at runtime by the injected `theme_vars`. |
 | `var()` fallback values | 3 | `.btn-warning` uses `var(--amber-dim, #5c4a00)`, `var(--amber, #f59e0b)`. The fallback keeps the button readable if the variable is unset. |
-| Print stylesheet | 21 | Forced print colours, including a `[data-color-scheme="light"]` variable block scoped to `@media print`. Not themeable. |
+| Print stylesheet | 23 | Forced print colours, including a `[data-color-scheme="light"]` variable block scoped to `@media print`. Not themeable. |
 | Social share brand colours | 15 | Twitter, LinkedIn, Hacker News, Reddit and Facebook brand colours. Invariant brand identity, not themeable. |
 | Hero overlay gradient | 2 | `rgba(0, 0, 0, 0.4)` in `base.css` and `public.css`. Intentionally near-black for text contrast over the hero image. |
 | Lightbox backdrop | 1 | `rgba(0, 0, 0, 0.9)`. Intentionally darker than the standard overlay. |
@@ -58,7 +58,7 @@ colours, invariant brand colours, and theme-agnostic shadows.
 | **REPLACE** | Literal became a semantic theme token. None remain. |
 | **RETAIN** | Invariant brand or structural value that cannot or should not be themed. |
 | **REMOVED** | Block or literal removed during the migration (for example the screen-level static light palette, moved to inline theme injection). |
-| **SYNTAX** | Belongs to Prism syntax highlighting; a separate system, out of scope. |
+| **SYNTAX** | Belongs to Prism syntax highlighting. The vendored Prism palettes are gone and `prism.css` carries no literal, so nothing is classified this way. |
 | **COMPAT** | Temporary compatibility value kept during the migration. None remain. |
 | **FALSE_POSITIVE** | Not actually a colour — URL fragments, `currentColor`, brightness filter values, ID selectors. |
 
@@ -80,15 +80,19 @@ The themeable literals were replaced with CSS custom properties backed by the
 - **`public.css`** — shadows use `var(--shadow-color)`; the active tag uses
   `var(--accent-dim)`; the lightbox caption uses `var(--text-on-accent)`.
 
-All 38 legacy CSS variables are now emitted for every theme by
+All 40 legacy CSS variables are now emitted for every theme by
 `to_legacy_vars()`. `tests/themes/test_phase09_css_tokens.py` verifies the
 completeness of the emitted set.
 
-Every `var(--…)` reference in the stylesheets resolves to one of the 38 aliases.
+Every `var(--…)` reference in the stylesheets resolves to one of the 40 aliases.
 The only other custom properties in use are non-colour layout tokens
 (`--space-*`, `--radius*`, `--transition`, `--font-sans`, `--font-mono`,
 `--post-list-cols`) and the appearance-layer tokens `--backdrop-image` and
 `--backdrop-tint`.
+
+The two derived text roles are exposed as aliases in the same set:
+`--text-caption` for text a reader must read and `--accent-text` for the
+accent used as text.
 
 ---
 
@@ -98,7 +102,7 @@ The only other custom properties in use are non-colour layout tokens
 delayed. `base.css`, `layout.css`, `public.css`, `forms.css` and
 `utilities.css` are loaded asynchronously with `media="print"` and switched to
 `media="all"` on load. `critical.css` carries its own `:root` fallback palette,
-which is why it holds 7 hardcoded values rather than depending on `base.css`.
+which is why it holds 9 hardcoded values rather than depending on `base.css`.
 
 The no-flash problem is addressed by the bootstrap script in the page head: it
 reads `blog-color-scheme` from `localStorage`, resolves `system` through
@@ -125,7 +129,7 @@ overrides still win.
 
 ## See Also
 
-- [BlogTheme token contract](blog-theme-contract.md) — the tokens and the 38
+- [BlogTheme token contract](blog-theme-contract.md) — the tokens and the 40
   aliases the stylesheets consume
 - [Theme architecture](../../architecture/core/themes.md) — the module reference
   for `app/themes/`

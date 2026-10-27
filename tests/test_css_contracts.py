@@ -555,3 +555,126 @@ class TestAppearanceLayer:
         assert sources, "base.css declares no font files"
         for source in sources:
             assert (CSS_DIR.parent / source).is_file(), f"{source} is declared but missing"
+
+
+DECORATIVE_TEXT_MUTED = {
+    ("admin.css", ".md-tool"): "color",
+    ("admin.css", ".md-tool:disabled:hover"): "color",
+    ("admin.css", ".preset-card:hover"): "border-color",
+    ("base.css", ".theme-toggle"): "color",
+    ("base.css", ".back-to-top"): "color",
+    ("base.css", ".mobile-menu-toggle"): "color",
+    ("public.css", ".search-clear"): "color",
+}
+
+
+def _selector_parts(selector: str) -> set[str]:
+    return {" ".join(part.split()) for part in selector.split(",")}
+
+
+class TestTextRoleRule:
+    """``--text-muted`` is for decoration. Text a reader must read is a caption."""
+
+    def test_no_text_muted_outside_the_decorative_allowlist(self) -> None:
+        offenders = []
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                declarations = rule.declarations()
+                parts = _selector_parts(rule.selector)
+                allowed = {
+                    DECORATIVE_TEXT_MUTED[(path.name, part)]
+                    for part in parts
+                    if (path.name, part) in DECORATIVE_TEXT_MUTED
+                }
+                for prop, value in declarations.items():
+                    if "var(--text-muted)" not in value:
+                        continue
+                    if prop in allowed:
+                        continue
+                    offenders.append(f"{path.name}: {rule.selector} -> {prop}")
+        assert offenders == [], offenders
+
+    def test_every_decorative_use_is_still_present(self) -> None:
+        found = set()
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                declarations = rule.declarations()
+                for part in _selector_parts(rule.selector):
+                    key = (path.name, part)
+                    if key not in DECORATIVE_TEXT_MUTED:
+                        continue
+                    prop = DECORATIVE_TEXT_MUTED[key]
+                    if "var(--text-muted)" in declarations.get(prop, ""):
+                        found.add(key)
+        assert found == set(DECORATIVE_TEXT_MUTED), set(DECORATIVE_TEXT_MUTED) - found
+
+    def test_the_caption_role_is_used_for_content(self) -> None:
+        count = 0
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                if "var(--text-caption)" in rule.declarations().get("color", ""):
+                    count += 1
+        assert count >= 40, count
+
+    def test_no_stylesheet_paints_accent_text_with_the_accent(self) -> None:
+        offenders = []
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                value = rule.declarations().get("color", "")
+                if "var(--accent)" in value or "var(--accent-hover)" in value:
+                    offenders.append(f"{path.name}: {rule.selector} -> {value}")
+        assert offenders == [], offenders
+
+    def test_the_tag_chip_uses_the_accent_text_role(self) -> None:
+        colours = [
+            rule.declarations().get("color", "")
+            for rule in _parse_rules(_read("public.css"))
+            if " ".join(rule.selector.split()) == ".tag"
+        ]
+        assert colours, "no .tag rule found"
+        assert "var(--accent-text)" in colours
+
+    def test_the_accent_keeps_its_fills_and_borders(self) -> None:
+        count = 0
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                for prop, value in rule.declarations().items():
+                    if prop == "color":
+                        continue
+                    if "var(--accent)" in value or "var(--accent-hover)" in value:
+                        count += 1
+        assert count >= 20, count
+
+
+class TestTheFallbackBlocks:
+    """The emergency fallback has to carry the new roles too."""
+
+    def _fallback_blocks(self) -> list[tuple[str, str]]:
+        blocks = []
+        for name in ("base.css", "critical.css"):
+            for rule in _parse_rules(_read(name)):
+                if rule.selector in (":root", ':root,\n[data-color-scheme="dark"]'):
+                    blocks.append((name, rule.body))
+                if rule.selector.startswith("[data-color-scheme=") and ":root" in rule.selector:
+                    blocks.append((name, rule.body))
+        return blocks
+
+    def test_every_fallback_block_declares_both_roles(self) -> None:
+        blocks = self._fallback_blocks()
+        assert blocks, "no emergency fallback block found"
+        for name, body in blocks:
+            assert "--text-caption" in body, name
+            assert "--accent-text" in body, name
+
+    def test_the_fallback_values_clear_the_floor(self) -> None:
+        from app.themes.colors import contrast_ratio, from_hex
+
+        for name, body in self._fallback_blocks():
+            declarations = {}
+            for prop, value in re.findall(r"(--[a-z-]+)\s*:\s*([^;{}]+)", body):
+                declarations[prop] = value.strip()
+            caption = from_hex(declarations["--text-caption"])
+            accent_text = from_hex(declarations["--accent-text"])
+            page = from_hex(declarations.get("--bg", declarations.get("--bg-surface")))
+            assert contrast_ratio(caption, page) >= 4.5, name
+            assert contrast_ratio(accent_text, page) >= 4.5, name

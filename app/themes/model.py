@@ -21,6 +21,7 @@ CSS_VARS: dict[str, str] = {
     "text_secondary": "--blog-text-secondary",
     "text_muted": "--blog-text-muted",
     "text_dim": "--blog-text-dim",
+    "text_caption": "--blog-text-caption",
     "text_on_accent": "--blog-text-on-accent",
     "text_on_success": "--blog-text-on-success",
     "text_on_error": "--blog-text-on-error",
@@ -33,6 +34,7 @@ CSS_VARS: dict[str, str] = {
     "accent_dim": "--blog-accent-dim",
     "accent_link": "--blog-accent-link",
     "accent_focus_ring": "--blog-accent-focus-ring",
+    "accent_text": "--blog-accent-text",
     "success_fg": "--blog-success-fg",
     "success_bg": "--blog-success-bg",
     "error_fg": "--blog-error-fg",
@@ -65,12 +67,14 @@ ALIASES: dict[str, str] = {
     "text": "--blog-text-primary",
     "text-muted": "--blog-text-muted",
     "text-dim": "--blog-text-dim",
+    "text-caption": "--blog-text-caption",
     "text-dim-strong": "--blog-text-dim",
     "text-secondary": "--blog-text-secondary",
     "text-on-accent": "--blog-text-on-accent",
     "accent": "--blog-accent",
     "accent-hover": "--blog-accent-hover",
     "accent-dim": "--blog-accent-dim",
+    "accent-text": "--blog-accent-text",
     "green": "--blog-success-fg",
     "green-dim": "--blog-success-bg",
     "red": "--blog-error-fg",
@@ -117,6 +121,7 @@ class BlogTheme:
     text_secondary: RGB
     text_muted: RGB
     text_dim: RGB
+    text_caption: RGB
     text_on_accent: RGB
     text_on_success: RGB
     text_on_error: RGB
@@ -129,6 +134,7 @@ class BlogTheme:
     accent_dim: RGBA
     accent_link: RGB
     accent_focus_ring: RGB
+    accent_text: RGB
     success_fg: RGB
     success_bg: RGBA
     error_fg: RGB
@@ -174,6 +180,7 @@ EMERGENCY_DEFAULT = BlogTheme(
     text_secondary=_rgb("#c9d1d9"),
     text_muted=_rgb("#8b949e"),
     text_dim=_rgb("#7d8590"),
+    text_caption=_rgb("#9aa4ae"),
     text_on_accent=_rgb("#ffffff"),
     text_on_success=_rgb("#ffffff"),
     text_on_error=_rgb("#ffffff"),
@@ -186,6 +193,7 @@ EMERGENCY_DEFAULT = BlogTheme(
     accent_dim=RGBA(88, 166, 255, 0.1),
     accent_link=_rgb("#58a6ff"),
     accent_focus_ring=_rgb("#58a6ff"),
+    accent_text=_rgb("#79c0ff"),
     success_fg=_rgb("#3fb950"),
     success_bg=RGBA(63, 185, 80, 0.15),
     error_fg=_rgb("#f85149"),

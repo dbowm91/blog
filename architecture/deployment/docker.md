@@ -289,7 +289,7 @@ Operational scripts in `scripts/` for development and deployment tasks:
 |--------|----------|---------|
 | `build_assets.py` | Python | Basic CSS/JS minification (removes whitespace and comments). Creates `.orig` backups of modified files. |
 | `dev.sh` | Bash | Local development setup: checks Python ≥ 3.12, creates venv, installs deps, runs migrations, prints env var instructions. |
-| `update-assets.sh` | Bash | Downloads latest CDN assets (marked.js, Prism.js) into `app/static/js/lib/`. |
+| `update-assets.sh` | Bash | Downloads the latest CDN build of marked.js into `app/static/js/lib/`. |
 | `sync_backups.sh` | Bash | Syncs local backups to off-site storage via rclone or native AWS S3 CLI. Supports `--dry-run`, `--verify`, and `--cleanup` flags. |
 
 ### `build_assets.py`
@@ -302,7 +302,7 @@ Full local development bootstrap. Verifies Python ≥ 3.12, creates virtualenv, 
 
 ### `update-assets.sh`
 
-Fetches marked.js and Prism.js from jsDelivr CDN into `app/static/js/lib/`. Run after dependency updates to refresh vendored libraries.
+Fetches marked.js from the jsDelivr CDN into `app/static/js/lib/`. Run after dependency updates to refresh the vendored library. Prism is not vendored — it is an npm dependency built through Vite as `app/static/js/prism.js`, so `npm install && npm run build` refreshes it.
 
 ### `sync_backups.sh`
 

@@ -25,7 +25,6 @@ class TestFreshDatabaseDefaults:
 
     def test_new_instance_preserves_existing_columns(self, db):
         settings = SiteSettings.get_instance()
-        assert settings.syntax_theme == "prism"
         assert settings.custom_css_enabled is False
         assert settings.custom_css == ""
 
@@ -265,14 +264,12 @@ class TestCustomCssAndSyntaxPreservation:
         settings = SiteSettings.get_instance()
         settings.custom_css = "body { color: red; }"
         settings.custom_css_enabled = True
-        settings.syntax_theme = "dracula"
         settings.theme_dark_name = "Solarized Dark"
         db.session.commit()
 
         reloaded = SiteSettings.get_instance()
         assert reloaded.custom_css == "body { color: red; }"
         assert reloaded.custom_css_enabled is True
-        assert reloaded.syntax_theme == "dracula"
         assert reloaded.theme_dark_name == "Solarized Dark"
 
 

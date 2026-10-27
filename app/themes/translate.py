@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from app.themes.colors import (
@@ -8,6 +9,7 @@ from app.themes.colors import (
     alpha_composite,
     contrast_ratio,
     is_dark_background,
+    mix,
     shift_lightness,
     to_css,
     to_hex,
@@ -19,6 +21,8 @@ from app.themes.diagnostics import (
 )
 from app.themes.halloy import HalloyTheme
 from app.themes.model import ALIASES, CSS_VARS, BlogTheme
+
+CONTRAST_FLOOR = 4.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +91,103 @@ def _select_foreground_on_state(state_fg: RGB, page_bg: RGB) -> RGB:
     return _select_foreground_on_accent(composited)
 
 
+def _clears(candidate: RGB, surfaces: Sequence[RGB], floor: float) -> bool:
+    return all(contrast_ratio(candidate, surface) >= floor for surface in surfaces)
+
+
+def _smallest_clearing_weight(
+    candidate: Callable[[float], RGB],
+    surfaces_for: Callable[[float], Sequence[RGB]],
+    floor: float,
+) -> float | None:
+    """Return the smallest weight whose candidate clears the floor everywhere.
+
+    A scan finds the first weight that clears the floor and a refinement
+    narrows it down. The refined value is verified, because the contrast
+    against a surface is not monotonic in the mix factor: the mix may pass
+    through the surface's own luminance on its way from one colour to another.
+    """
+    steps = 200
+    previous = 0.0
+    for index in range(1, steps + 1):
+        weight = index / steps
+        if not _clears(candidate(weight), surfaces_for(weight), floor):
+            previous = weight
+            continue
+        low, high = previous, weight
+        for _ in range(20):
+            middle = (low + high) / 2.0
+            if _clears(candidate(middle), surfaces_for(middle), floor):
+                high = middle
+            else:
+                low = middle
+        if _clears(candidate(high), surfaces_for(high), floor):
+            return high
+        return weight
+    return None
+
+
+def _derive_text_caption(muted: RGB, primary: RGB, surfaces: Sequence[RGB], is_dark: bool) -> RGB:
+    """Return a caption colour that clears 4.5:1 on every surface it lands on.
+
+    The caption role is for text a reader has to read: the table of contents,
+    the share label, the post metadata, the footer and the navigation. The
+    muted role it replaces is a decorative one, and in most of the bundled
+    catalogue it measures below the floor for content that size.
+
+    The caption is derived, never authored. It is the muted colour moved
+    toward the primary colour until it clears the floor, and when the primary
+    itself is below the floor it is the muted colour moved toward the
+    readable extreme instead.
+    """
+    if _clears(muted, surfaces, CONTRAST_FLOOR):
+        return muted
+
+    weight = _smallest_clearing_weight(
+        lambda w: mix(muted, primary, w),
+        lambda _w: surfaces,
+        CONTRAST_FLOOR,
+    )
+    if weight is not None:
+        return mix(muted, primary, weight)
+
+    extreme = RGB(255, 255, 255) if is_dark else RGB(0, 0, 0)
+    weight = _smallest_clearing_weight(
+        lambda w: mix(muted, extreme, w),
+        lambda _w: surfaces,
+        CONTRAST_FLOOR,
+    )
+    if weight is not None:
+        return mix(muted, extreme, weight)
+    return extreme
+
+
+def _derive_accent_text(accent: RGB, surfaces: Sequence[RGB], is_dark: bool) -> RGB:
+    """Return an accent that clears 4.5:1 on the chip it tints.
+
+    The chip is the accent at ten per cent over the surface it sits on, and a
+    chip lands on the page, on a card and on an elevated panel. Moving the
+    accent moves the chip too, so the derivation recomputes the chip at every
+    step and holds against the worst of the three.
+    """
+
+    def chip(value: RGB, surface: RGB) -> RGB:
+        return alpha_composite(RGBA(value.red, value.green, value.blue, 0.10), surface)
+
+    if all(contrast_ratio(accent, chip(accent, surface)) >= CONTRAST_FLOOR for surface in surfaces):
+        return accent
+
+    extreme = RGB(255, 255, 255) if is_dark else RGB(0, 0, 0)
+    weight = _smallest_clearing_weight(
+        lambda w: mix(accent, extreme, w),
+        lambda w: [chip(mix(accent, extreme, w), surface) for surface in surfaces],
+        CONTRAST_FLOOR,
+    )
+    if weight is not None:
+        return mix(accent, extreme, weight)
+    return extreme
+
+
 def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
     general = theme.general
     text = theme.text
@@ -117,6 +218,17 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
     border_subtle = _resolve_bg(general.horizontal_rule)
 
     text_on_accent = _select_foreground_on_accent(accent)
+    text_caption = _derive_text_caption(
+        text_muted,
+        text_primary,
+        (bg_page, surface_default, surface_elevated),
+        is_dark,
+    )
+    accent_text = _derive_accent_text(
+        accent,
+        (bg_page, surface_default, surface_elevated),
+        is_dark,
+    )
     text_on_success = _select_foreground_on_accent(
         alpha_composite(_derive_state_bg(success_fg, bg_page), bg_page)
     )
@@ -148,6 +260,7 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
         text_secondary=text_secondary,
         text_muted=text_muted,
         text_dim=text_dim,
+        text_caption=text_caption,
         text_on_accent=text_on_accent,
         text_on_success=text_on_success,
         text_on_error=text_on_error,
@@ -160,6 +273,7 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
         accent_dim=_derive_accent_dim(accent, surface_default, is_dark),
         accent_link=accent,
         accent_focus_ring=accent,
+        accent_text=accent_text,
         success_fg=success_fg,
         success_bg=alpha_composite(_derive_state_bg(success_fg, bg_page), bg_page),
         error_fg=error_fg,

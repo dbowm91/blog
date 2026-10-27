@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}" data-prism-js-url="{{ vite_asset('js/prism.min.js') }}" data-prism-langs-url="{{ vite_asset('js/prism-languages.js') }}" data-csrf-header="{{ csrf_header_name }}" data-default-scheme="{{ theme_default_scheme | e }}">
+<html lang="en" data-prism-js-url="{{ vite_asset('js/prism.js') }}" data-csrf-header="{{ csrf_header_name }}" data-default-scheme="{{ theme_default_scheme | e }}">
 <head>
     <script nonce="{{ csp_nonce }}">
         (function() {
@@ -41,14 +41,14 @@
     <link rel="stylesheet" href="{{ vite_asset('css/public.css') }}" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ vite_asset('css/forms.css') }}" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ vite_asset('css/prism.css') }}" media="print" onload="this.media='all'">
     <noscript>
         <link rel="stylesheet" href="{{ vite_asset('css/base.css') }}">
         <link rel="stylesheet" href="{{ vite_asset('css/layout.css') }}">
         <link rel="stylesheet" href="{{ vite_asset('css/public.css') }}">
         <link rel="stylesheet" href="{{ vite_asset('css/forms.css') }}">
         <link rel="stylesheet" href="{{ vite_asset('css/utilities.css') }}">
-        <link rel="stylesheet" href="{{ vite_asset('css/' + syntax_theme + '.css') }}">
+        <link rel="stylesheet" href="{{ vite_asset('css/prism.css') }}">
     </noscript>
     {% for preload_font in appearance_preload_fonts | default([], true) %}
     <link rel="preload" href="{{ preload_font.url }}" as="font" type="{{ preload_font.type }}" crossorigin>

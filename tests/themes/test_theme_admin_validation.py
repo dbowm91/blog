@@ -18,7 +18,6 @@ class TestAdminSettingsValidation:
                 "theme_dark_name": "../../../etc/passwd",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "system",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )
@@ -33,7 +32,6 @@ class TestAdminSettingsValidation:
                 "theme_dark_name": "theme\x00name",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "system",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )
@@ -46,7 +44,6 @@ class TestAdminSettingsValidation:
                 "theme_dark_name": "A" * 500,
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "system",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )
@@ -106,7 +103,6 @@ class TestAdminMalformedExternalOverride:
                     "theme_dark_name": "Malformed External",
                     "theme_light_name": "Catppuccin Latte",
                     "theme_default_scheme": "system",
-                    "syntax_theme": "prism",
                 },
                 follow_redirects=True,
             )
@@ -150,7 +146,6 @@ class TestAdminMalformedExternalOverride:
                     "theme_dark_name": "Unloading Theme",
                     "theme_light_name": "Catppuccin Latte",
                     "theme_default_scheme": "system",
-                    "syntax_theme": "prism",
                 },
                 follow_redirects=True,
             )

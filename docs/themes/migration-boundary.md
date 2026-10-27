@@ -86,7 +86,7 @@ flask themes accessibility --strict
 | `theme_light_name` | `String(128)` | `Catppuccin Latte` | Light theme name in Halloy registry |
 | `theme_default_scheme` | `String(16)` | `system` | `system`, `dark`, or `light` |
 
-The `theme_preset` column is removed. The `syntax_theme`, `custom_css_enabled`, `custom_css`, and `logo_text` columns are unchanged.
+The `theme_preset` column is removed. The `custom_css_enabled`, `custom_css`, and `logo_text` columns are unchanged. The `syntax_theme` column was dropped later, by the `drop_syntax_theme_column` revision (`down_revision` = `add_appearance_settings_to_sitesettings`).
 
 ## Rollback Procedure
 

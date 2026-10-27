@@ -20,7 +20,7 @@ component internals, see [the architecture index](../architecture/overview.md).
 |----------|--------|
 | [Theme operator guide](themes/operator-guide.md) | Admin selection, external theme workflow, CLI commands |
 | [Supported theme schema](themes/supported-schema.md) | The Halloy TOML input contract for theme authors |
-| [BlogTheme token contract](themes/blog-theme-contract.md) | The 50 semantic tokens and 38 legacy aliases the translator emits |
+| [BlogTheme token contract](themes/blog-theme-contract.md) | The 52 semantic tokens and 40 legacy aliases the translator emits |
 | [Cache freshness contract](themes/cache-contract.md) | Invalidation semantics and multi-worker behaviour |
 | [Accessibility policy](themes/accessibility-policy.md) | Exception classes and the three eligibility tiers |
 | [Legacy compatibility](themes/legacy-compatibility.md) | What changed when the legacy preset system was removed |

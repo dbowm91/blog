@@ -193,6 +193,4 @@ class TestStylesheetContract:
 
     def test_no_javascript_takes_part_in_the_numbering(self):
         for path in JS_DIR.rglob("*.js"):
-            if path.name == "prism.min.js":
-                continue
             assert CODE_LINE_CLASS not in path.read_text(), path

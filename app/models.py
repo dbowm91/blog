@@ -373,7 +373,6 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
     __tablename__ = "site_settings"
 
     id = db.Column(db.Integer, primary_key=True)
-    syntax_theme = db.Column(db.String(50), default="prism", nullable=False)
     custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
     custom_css = db.Column(db.Text, default="", nullable=False)
     logo_text = db.Column(db.String(100), default="", nullable=False)
@@ -404,7 +403,7 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
         return instance
 
     def __repr__(self) -> str:
-        return f"<SiteSettings syntax={self.syntax_theme!r} dark={self.theme_dark_name!r} light={self.theme_light_name!r} scheme={self.theme_default_scheme!r}>"
+        return f"<SiteSettings dark={self.theme_dark_name!r} light={self.theme_light_name!r} scheme={self.theme_default_scheme!r}>"
 
 
 class AdminAuditLog(db.Model):  # type: ignore[name-defined]

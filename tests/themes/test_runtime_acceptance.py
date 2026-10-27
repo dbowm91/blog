@@ -116,7 +116,6 @@ class TestDefaultBehavior:
             "theme_dark_css",
             "theme_light_css",
             "theme_warnings",
-            "syntax_theme",
             "custom_css_enabled",
             "custom_css",
             "logo_text",
@@ -251,14 +250,14 @@ class TestEmergencyFallbackAcceptance:
             ctx = service.get_context()
         assert ctx["theme_default_scheme"] == "dark"
 
-    def test_emergency_context_syntax_theme_is_prism(self):
+    def test_emergency_context_has_no_syntax_theme(self):
         service = ThemeService()
         with patch(
             "app.themes.service.ThemeService._build_context_from_db",
             side_effect=RuntimeError("fail"),
         ):
             ctx = service.get_context()
-        assert ctx["syntax_theme"] == "prism"
+        assert "syntax_theme" not in ctx
 
     def test_emergency_context_custom_css_disabled(self):
         service = ThemeService()

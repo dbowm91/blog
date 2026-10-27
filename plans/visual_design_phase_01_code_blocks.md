@@ -1,10 +1,10 @@
 # Visual Design Phase 01 — Code Blocks
 
-> **Plan status: ACTIVE — not started.** Nothing in this plan has shipped. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+> **Plan status: COMPLETE — shipped 2026-10-27.** The outcome is documented in [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md) and [`architecture/core/themes.md`](../architecture/core/themes.md). This file is the historical record of what was planned and why.
 
 **Roadmap:** [visual_design_roadmap.md](visual_design_roadmap.md)
 **Date:** 2026-10-27
-**Status:** Not started
+**Status:** Complete
 **Severity:** Critical — no code block on the site has ever been syntax-highlighted, and none has ever had a copy button.
 
 ## Objective
@@ -450,4 +450,98 @@ First in the series. Independent of every other phase, but Phase 03 edits the sa
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete — shipped 2026-10-27.
+
+### What changed
+
+**The fence language survives sanitisation.** `app/markdown_renderer.py` gained
+`extract_fence_languages()` and `apply_fence_languages()`. The renderer reads the
+language out of the unsanitised markup and writes it back after `nh3.clean()`, as
+`class="language-<slug>"` on **both** the `<pre>` and its `<code>`. The sanitiser
+allowlist did not move: `MARKDOWN_ALLOWED_ATTRIBUTES` still permits `class` on
+`span` and `div` only, and `tests/test_markdown_code_languages.py` asserts it.
+
+The slug is validated against `^[a-z0-9_+-]{1,32}$`; a value that does not match is
+dropped, not escaped. The function fails closed: if the number of code blocks in
+the sanitised markup does not match the number of languages, the markup is returned
+unchanged, because an unhighlighted block is correct and a block labelled with the
+wrong language is not.
+
+**The grammar bundle is built, not hand-assembled.** `app/static/js/prism-languages.js`
+and the vendored `app/static/js/prism.min.js` are deleted. Prism is now the
+`prismjs` npm devDependency and a second Vite entry, `app/static/js/prism.js`, which
+imports the core plus eighteen grammars and calls `highlightCodeBlocks(Prism)`. A
+syntax error in a grammar is now a build failure rather than a browser console
+error. The built chunk is 64 kB, about 20 kB gzipped, and is fetched only on a page
+that has a code block.
+
+`app/static/js/main.js` `loadPrismIfNeeded()` injects one module script pointing at
+`data-prism-js-url`. It no longer injects a stylesheet — `base.html` already links
+`css/prism.css` — and it no longer injects a separate grammar script after Prism
+had already scheduled its highlight pass.
+
+**The line numbering survives the highlighter.** Prism replaces the code element's
+content wholesale, which would have destroyed the renderer's per-line spans and
+with them the CSS counter that numbers them. `app/static/js/shared/prism-blocks.js`
+restores the renderer's structure: it reads the existing line spans, splits the
+highlighted markup into one fragment per line, and rebalances the tags so a token
+that spans lines keeps its colour on every line it covers. It does not name the
+`code-line` class — the renderer remains the only producer of those spans, and
+`tests/test_code_line_numbers.py` still asserts that no JavaScript takes part in
+the numbering.
+
+**One palette, mapped onto the theme.** The six vendored stylesheets
+`prism-{coy,dark,funky,okaidia,tomorrow}.css` are deleted, and `prism.css` is
+rewritten to contain only `.token.*` colour rules mapped onto theme tokens, with no
+colour literal. `base.css` owns the code block's layout, its surface and the copy
+button; `prism.css` owns the token colours and nothing else.
+
+**The light-scheme chip no longer leaks.** The inline-code override was narrowed
+from `[data-color-scheme="light"] .prose code` to
+`[data-color-scheme="light"] .prose :not(pre) > code`, and the light-scheme
+`.prose pre` rule was deleted, so the code block paints `--code-bg` in both
+schemes.
+
+**The setting is retired.** `SiteSettings.syntax_theme`, the `syntax_theme` context
+key, the `syntax_theme` argument on the theme service, the admin selector and the
+`data-syntax-theme` attribute are all gone. `migrations/versions/drop_syntax_theme_column.py`
+drops the column and round-trips.
+
+### Deviations from the plan
+
+Two, both recorded here rather than left implicit.
+
+**The highlighter had to restore the line structure.** The plan did not account for
+Prism replacing the code element's content, which destroys the spans the CSS
+counter numbers. Restoring them in the highlighter is what keeps the numbering
+alive; the alternative — highlighting each line separately — loses multi-line
+strings and block comments.
+
+**`prism.min.js` was deleted as well.** The plan listed `prism-languages.js` for
+deletion but not the vendored core. With Prism coming from npm, the vendored copy
+had no remaining caller.
+
+### Verification
+
+- `tests/test_markdown_code_languages.py` — 28 tests: the language survives
+  sanitisation, the allowlist is unchanged, the slug is validated, the count
+  mismatch fails closed, and raw HTML cannot smuggle a class past the slug check.
+- `tests/test_code_block_contracts.py` — 25 tests: the block paints `--code-bg`,
+  the light override is narrowed, no vendored palette survives, `prism.css` has no
+  colour literal and uses only theme tokens, the copy button is styled by
+  `base.css` and by no vendored palette, the setting is gone from the model, the
+  routes and the templates, and the bundle is a Vite entry.
+- `tests/e2e/test_code_blocks.py` — 9 browser tests: the highlighter loads and
+  tokenises, the copy button appears and copies the exact source including its
+  trailing newline, the inline chip does not leak in either scheme, the block has
+  a surface measurably distinct from the page and the tile, the line numbering
+  survives the highlighting, a token that spans lines keeps its colour on every
+  line, and the admin settings page offers no syntax theme.
+- `tests/test_migration_chain.py` — the new revision is the single head, the
+  column is dropped and restored, and the fresh-install schema still matches the
+  models.
+- Chromium on the running instance: `window.Prism` is defined with 41 languages
+  registered, `Prism.languages.python` resolves, a Python block produced 17 tokens
+  and 3 keywords, the `<pre>` and `<code>` both carry `language-python`, the copy
+  button measured 44x29 px and reported "Copied!", and the clipboard held the code
+  source byte for byte.

@@ -229,9 +229,9 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `POST /admin/settings/theme`
 - **Route**: `POST /admin/settings/theme/preview`
 - **Route**: `POST /admin/settings/theme/refresh`
-- **Purpose**: View and update theme, syntax theme, custom CSS
+- **Purpose**: View and update theme, custom CSS
 - **Theme Selection**: Registry-based dark/light theme pair from 50+ bundled Halloy themes; external themes override bundled with same name
-- **Syntax Themes (Prism-based)**: `prism`, `prism-coy`, `prism-dark`, `prism-funky`, `prism-okaidia`, `prism-tomorrow` — defined in `app/routes/admin/settings.py:24-36`
+- **Syntax Themes (Prism-based)**: Retired — there is no syntax theme setting, and `app/routes/admin/settings.py` carries no Prism palette list. The Prism token colours follow the selected theme through `app/static/css/prism.css`.
 
 ### Theme Preview (`settings.py`)
 - **Route**: `POST /admin/settings/theme/preview`

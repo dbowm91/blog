@@ -262,7 +262,7 @@ CLI: `devlog onboard detect` · `plan` · `run` · `resume`
 The theme system owns **colour**. Static CSS may only consume the tokens it emits; it may never name a colour directly.
 
 ```
-Halloy .toml → halloy.py parser → translate.py → BlogTheme (44 semantic tokens + 6 RGBA)
+Halloy .toml → halloy.py parser → translate.py → BlogTheme (52 fields: 43 RGB + 9 RGBA)
              → to_css_variables() → theme_vars → templates
 ```
 
@@ -450,7 +450,7 @@ Webhook delivery is two-level: `deliver_webhook_task` fans out to one `deliver_s
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | Templates | `app/templates/` | Jinja2 — public pages, admin pages, email bodies |
-| CSS | `app/static/css/` | `base.css` (tokens, prose, reset), `layout.css`, `forms.css`, `admin.css`, `public.css`, `utilities.css`, `critical.css`, Prism themes |
+| CSS | `app/static/css/` | `base.css` (tokens, prose, reset), `layout.css`, `forms.css`, `admin.css`, `public.css`, `utilities.css`, `critical.css`, `prism.css` (Prism token colours) |
 | JavaScript | `app/static/js/` | Vanilla ES modules: `shared/`, `public/`, `admin/`, `lib/` |
 | Fonts | `app/static/fonts/` | Self-hosted `woff2` families |
 | Images | `app/static/img/` | Favicon, default post image, backdrops |

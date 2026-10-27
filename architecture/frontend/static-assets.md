@@ -29,13 +29,13 @@ app/static/
 │   │   ├── modal.js
 │   │   ├── nav-dropdown.js
 │   │   ├── prefetch.js
+│   │   ├── prism-blocks.js  # Restores per-line structure after Prism highlighting
 │   │   ├── toast.js
 │   │   └── utils.js
 │   ├── lib/            # Third-party libraries
 │   │   ├── marked-wrapper.js
 │   │   └── marked.min.js
-│   ├── prism.min.js
-│   ├── prism-languages.js
+│   ├── prism.js        # Second Vite entry: Prism core + 18 grammars
 │   ├── image-preview.js
 │   ├── main.js         # Entry point with route-based code splitting
 │   └── upload.js
@@ -235,13 +235,20 @@ Stylesheets in `app/static/css/`:
 - `forms.css` — Form styles
 - `utilities.css` — Utility classes
 - `critical.css` — Above-the-fold CSS for fast initial paint
+- `admin.css` — Admin dashboard styles
+- `prism.css` — Prism token colours, mapped onto the theme tokens
+
+`prism.css` contains only `.token.*` colour rules and no colour literal of any
+kind: every Prism token resolves to a theme token, so the syntax colours follow
+the selected theme. `base.css` owns the code block's own layout and the copy
+button.
 
 ### Cascade Ownership
 
 The stylesheets are linked in DOM order: `critical.css` → `base.css` →
-`layout.css` → `public.css` → `forms.css` → `utilities.css`. At equal specificity
-the later stylesheet wins, so **exactly one stylesheet may own an element's
-visibility at a given breakpoint**.
+`layout.css` → `public.css` → `forms.css` → `utilities.css` → `prism.css`. At
+equal specificity the later stylesheet wins, so **exactly one stylesheet may own
+an element's visibility at a given breakpoint**.
 
 `.nav-links` is the worked example: `base.css` hid it below 769px while
 `layout.css` set `display: flex` unconditionally. Both declarations had equal
@@ -304,8 +311,27 @@ The newlines stay between the spans rather than inside them, so the code text
 wrote. `base.css` owns the rules because the admin shell does not load
 `public.css` and the admin live preview renders `.prose` code blocks too. No
 JavaScript takes part in the numbering.
-- `admin.css` — Admin dashboard styles
-- Prism.js themes: `prism.css`, `prism-dark.css`, `prism-coy.css`, `prism-funky.css`, `prism-okaidia.css`, `prism-tomorrow.css`
+
+### Syntax Highlighting
+
+Prism is an npm devDependency (`prismjs` 1.30.0), not a vendored file. The
+hand-assembled grammar bundle and the vendored core are gone; `app/static/js/prism.js`
+is a second Vite entry that imports the core, imports 18 grammars and calls
+`highlightCodeBlocks(Prism)`. A syntax error in the bundle therefore fails
+`npm run build` rather than reaching the browser. The built chunk is roughly
+64 kB (about 20 kB gzipped) and is named `prism-<hash>.js`.
+
+`loadPrismIfNeeded()` in `main.js` injects a single module script pointing at
+`document.documentElement.dataset.prismJsUrl`, and only when the page contains
+`pre[class*="language-"]`.
+
+`app/static/js/shared/prism-blocks.js` restores the renderer's per-line
+structure after the highlighter replaces the code element's content: it reads
+the existing line spans from `code.children`, splits the highlighted markup into
+one fragment per line (`splitHighlightedLines`), and rebalances the tags so a
+token that spans lines keeps its colour on every line. It deliberately does not
+name the `code-line` class — the renderer remains the only producer of those
+spans.
 
 ### Dark Mode
 
@@ -378,20 +404,18 @@ tint emitted per scheme as `--backdrop-tint`, and the graphic is applied
 through `mask-image`, so an operator's uploaded SVG matches the theme whatever
 colour it was drawn in. See [Appearance Layer](appearance.md).
 
-### Admin Prism CSS Theme
-
-`admin/base.html` uses `syntax_theme` variable for dynamic Prism CSS theme selection via `vite_asset('css/' + syntax_theme + '.css')`.
-
 ### Syntax Highlighting Themes
 
-Six Prism.js themes available via `SiteSettings.syntax_theme`. Theme CSS is loaded dynamically using the `syntax_theme` context variable. Prism.js itself is lazy-loaded by `main.js` only when code blocks are present.
+There is no syntax theme setting any more. The `SiteSettings.syntax_theme`
+column was dropped, and the admin cannot choose a highlighting palette: the
+token colours in `prism.css` follow the selected theme.
 
 ## Vite Configuration
 
 Located at `vite.config.js`:
-- Entry point: `app/static/js/main.js`
+- Entry points: `app/static/js/main.js` and `app/static/js/prism.js`
 - Output: `app/static/dist/`
-- Code splitting via `manualChunks` (vendor, admin, public)
+- Code splitting via `manualChunks` (shared, admin, public)
 - JSX support via esbuildOptions for `.jsx` files
 - Dev server on port 3000 with proxy to Flask on port 5000
 
@@ -415,11 +439,14 @@ In production:
 ### Chunk Split
 
 Actual chunks via `manualChunks` in `vite.config.js`:
-- `vendor` — Prism.js libraries (`prism.min.js`, `prism-languages.js`)
 - `shared` — `shared/utils.js`, assigned explicitly so a failure inside an
   admin-only module cannot abort a shared module on a public page
 - `admin` — Admin editor (`admin/editor.js`)
 - `public` — Public search (`public/search.js`)
+
+Prism is no longer a `vendor` chunk: it is its own Vite entry
+(`app/static/js/prism.js`), so the Prism core and its grammars are fetched only
+when a page actually has code blocks.
 
 `shared/utils.js` must be assigned to the `shared` chunk **before** the
 `/admin/editor.js` rule. `admin/editor.js` imports it, and without the explicit

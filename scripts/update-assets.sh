@@ -1,5 +1,8 @@
 #!/bin/bash
-# Update assets from CDNs (marked.js, Prism.js)
+# Update vendored assets from CDNs (marked.js)
+#
+# Prism is not vendored: it is an npm dependency built through Vite as
+# `app/static/js/prism.js`. Run `npm install && npm run build` to refresh it.
 
 set -e
 
@@ -8,10 +11,5 @@ mkdir -p "$ASSETS_DIR"
 
 # Update marked.js
 curl -sL https://cdn.jsdelivr.net/npm/marked/marked.min.js -o "$ASSETS_DIR/marked.min.js"
-
-# Update Prism.js
-curl -sL https://cdn.jsdelivr.net/npm/prismjs/prism.min.js -o "$ASSETS_DIR/prism.min.js"
-curl -sL https://cdn.jsdelivr.net/npm/prismjs/components/prism-ruby.min.js -o "$ASSETS_DIR/prism-ruby.min.js"
-curl -sL https://cdn.jsdelivr.net/npm/prismjs/components/prism-swift.min.js -o "$ASSETS_DIR/prism-swift.min.js"
 
 echo "Assets updated successfully"

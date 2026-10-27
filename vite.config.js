@@ -11,12 +11,10 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'app/static/js/main.js'),
+        prism: resolve(__dirname, 'app/static/js/prism.js'),
       },
       output: {
         manualChunks(id) {
-          if (id.includes('prism.min.js') || id.includes('prism-languages.js')) {
-            return 'vendor';
-          }
           if (id.includes('/shared/utils.js')) {
             return 'shared';
           }

@@ -149,12 +149,13 @@ Roadmap: [`visual_design_roadmap.md`](visual_design_roadmap.md)
 
 Origin: an operator review of the running instance on 2026-10-27, measured in
 Chromium in both colour schemes at 390px, 768px and 1280px. **18 findings**:
-2 critical, 7 high, 7 medium, 2 low. Nothing in this series has shipped.
+2 critical, 7 high, 7 medium, 2 low. **Phases 01 and 02 have shipped**; phases 03
+to 06 remain open.
 
 | Phase | File | Status |
 |---|---|---|
-| 01 | `visual_design_phase_01_code_blocks.md` | **Not started.** No code block on the site has ever been syntax-highlighted or had a copy button. Four independent faults, each of which alone is sufficient to kill the feature. |
-| 02 | `visual_design_phase_02_text_roles_and_contrast.md` | **Not started.** `--text-muted` styles body-size content and measures 2.47:1 in the active dark theme; 26 of 43 dark themes and 6 of 7 light themes fail 4.5:1. The accent styles the tag chips and fails the same way. |
+| 01 | `visual_design_phase_01_code_blocks.md` | **Complete.** Code blocks are syntax-highlighted, copyable, and coloured by the active theme. The fence language survives sanitisation, Prism is a built npm dependency, the `syntax_theme` setting and the six vendored palettes are gone. |
+| 02 | `visual_design_phase_02_text_roles_and_contrast.md` | **Complete.** Two derived roles — `--text-caption` and `--accent-text` — carry the text a reader must read and hold 4.5:1 in every bundled theme. The decorative allowlist is documented; eight themes were given a distinguishable code surface. |
 | 03 | `visual_design_phase_03_prose_measure.md` | **Not started.** The reading column is 85.5 characters wide at 1280px and 94.4 at 768px. |
 | 04 | `visual_design_phase_04_imagery.md` | **Not started.** The post placeholder hard-codes the GitHub dark palette; the card band crops a fifth off every source image. |
 | 05 | `visual_design_phase_05_index_layout.md` | **Not started.** The sidebar repeats the main list; one headline is visible per screen. |
@@ -183,10 +184,18 @@ below the article; the index sidebar's "Recent posts" block is dropped.
 `span` and `div` only. The renderer re-attaches the fence language *after*
 `nh3.clean()`, and a test asserts the allowlist is unchanged.
 
-Shipped outcome: none yet. When the series closes, the outcome belongs in
-[`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md),
-[`architecture/frontend/overview.md`](../architecture/frontend/overview.md) and
-[`architecture/core/themes.md`](../architecture/core/themes.md).
+Shipped outcome so far: [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md)
+and [`architecture/core/themes.md`](../architecture/core/themes.md). When the series
+closes, the outcome also belongs in
+[`architecture/frontend/overview.md`](../architecture/frontend/overview.md).
+
+**The text roles established by Phase 02.** `--text-muted` is decoration — icon
+strokes, separators, disabled states — and its allowlist is seven rules across
+three stylesheets. `--text-caption` is the text a reader must read, and
+`--accent-text` is the accent on a tinted chip. Both are derived by the theme
+runtime, so no theme file declares them and the gate holds them at 4.5:1. Phases
+03 to 06 style text at content size: they use these roles and must not
+reintroduce `--text-muted` for content.
 
 ## Historical Plans
 

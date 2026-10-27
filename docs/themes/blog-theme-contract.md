@@ -1,10 +1,10 @@
 # BlogTheme Semantic Token Contract
 
 The token model that `app/themes/model.py` defines and `app/themes/translate.py`
-produces. `BlogTheme` is a frozen dataclass with **50 fields**: 41 `RGB` and 9
-`RGBA`. `CSS_VARS` maps each field to a `--blog-*` CSS custom property (50
+produces. `BlogTheme` is a frozen dataclass with **52 fields**: 43 `RGB` and 9
+`RGBA`. `CSS_VARS` maps each field to a `--blog-*` CSS custom property (52
 entries) and `ALIASES` maps the legacy CSS variable names to those custom
-properties (38 entries).
+properties (40 entries).
 
 ---
 
@@ -35,6 +35,7 @@ formula it derives the value from.
 | `--blog-text-secondary` | Secondary/emphasized text (bylines, strong inline) | `[buffer].topic` | D | `#c9d1d9` | `--text-secondary` |
 | `--blog-text-muted` | Muted/tertiary text (meta, timestamps in prose) | `[text].secondary` | D | `#8b949e` | `--text-muted` |
 | `--blog-text-dim` | Dimmest text (anchors, inactive labels) | `[buffer].timestamp` | D | `#7d8590` | `--text-dim`, `--text-dim-strong` |
+| `--blog-text-caption` | Caption text a reader must read (metadata, share label, footer) | muted moved toward the primary until it clears 4.5:1 | DER | `#9aa4ae` | `--text-caption` |
 | `--blog-text-on-accent` | Text on accent-coloured fills (buttons, badges) | foreground selected against `accent` | DER | `#ffffff` | `--text-on-accent` |
 | `--blog-text-on-success` | Text on success-coloured fills | foreground selected against `success-bg` | DER | `#ffffff` | — |
 | `--blog-text-on-error` | Text on error-coloured fills | foreground selected against `error-bg` | DER | `#ffffff` | — |
@@ -48,6 +49,7 @@ formula it derives the value from.
 | `--blog-accent-dim` | Subtle accent background (badges, active nav items) | `accent` at 0.10 alpha | DER | `rgba(88,166,255,0.1)` | `--accent-dim` |
 | `--blog-accent-link` | Accent used for interactive links | `= accent` | DER | `#58a6ff` | — |
 | `--blog-accent-focus-ring` | Focus ring colour | `= accent` | DER | `#58a6ff` | — |
+| `--blog-accent-text` | Accent used as text on an accent-tinted chip | accent moved until it clears 4.5:1 on the chip it tints | DER | `#79c0ff` | `--accent-text` |
 | **States** | | | | | |
 | `--blog-success-fg` | Success foreground (checkmarks, positive indicators) | `[text].success` | D | `#3fb950` | `--green` |
 | `--blog-success-bg` | Success background (subtle success fill) | `success-fg` at 0.15 alpha over `bg-page` | DER | `rgba(63,185,80,0.15)` | `--green-dim`, `--success-bg` |
@@ -76,7 +78,7 @@ formula it derives the value from.
 | `--blog-coral` | Coral accent (syntax, secondary accent) | fixed | DER | `#f78166` | `--coral` |
 | `--blog-coral-dim` | Subtle coral background | fixed at 0.15 alpha | DER | `rgba(247,129,102,0.15)` | `--coral-dim` |
 
-**Token count:** 50 unique semantic tokens (excluding aliases).
+**Token count:** 52 unique semantic tokens (excluding aliases).
 
 The "Emergency default" column is the value in `EMERGENCY_DEFAULT` in
 `app/themes/model.py`. It is the palette the site falls back to when the theme
@@ -196,6 +198,32 @@ accent-hover    = shift_lightness(accent, +0.10)   # dark themes
 accent-hover    = shift_lightness(accent, -0.10)   # light themes
 text-link-hover = accent-hover
 ```
+
+### text-caption
+
+```
+text-caption = mix(text-muted, text-primary, w)   # smallest w that clears 4.5:1
+```
+
+The caption role replaces `text-muted` wherever a reader has to read the text.
+It is derived, never authored: the muted colour is moved toward the primary
+colour until it clears 4.5:1 against `bg-page`, `surface-default` and
+`surface-elevated` — the page, a card and an elevated panel. When the primary
+itself is below the floor, the muted colour is mixed toward white (dark
+themes) or black (light themes) instead.
+
+### accent-text
+
+```
+accent-text = mix(accent, extreme, w)   # smallest w that clears 4.5:1
+```
+
+The accent role used as text, for example on an accent-tinted chip. The chip is
+the accent at 10% alpha over the surface it sits on, and a chip lands on the
+page, on a card and on an elevated panel. Moving the accent moves the chip, so
+the derivation recomputes the chip at every step and holds the result against
+all three surfaces. The extreme is white for dark themes and black for light
+themes.
 
 ### text-on-accent and text-on-state
 
@@ -352,10 +380,12 @@ through `CSS_VARS` and emits it as a `--<legacy key>` declaration.
 | `text-muted` | `--blog-text-muted` |
 | `text-dim` | `--blog-text-dim` |
 | `text-dim-strong` | `--blog-text-dim` (same target as `text-dim`) |
+| `text-caption` | `--blog-text-caption` |
 | `text-on-accent` | `--blog-text-on-accent` |
 | `accent` | `--blog-accent` |
 | `accent-hover` | `--blog-accent-hover` |
 | `accent-dim` | `--blog-accent-dim` |
+| `accent-text` | `--blog-accent-text` |
 | `green` | `--blog-success-fg` |
 | `green-dim` | `--blog-success-bg` |
 | `success-bg` | `--blog-success-bg` |
@@ -381,8 +411,8 @@ through `CSS_VARS` and emits it as a `--<legacy key>` declaration.
 | `noscript-bg` | `--blog-noscript-bg` |
 | `noscript-text` | `--blog-noscript-text` |
 
-**Alias count:** 38. Every alias resolves to a `--blog-*` custom property, so
-`to_legacy_vars()` emits all 38 legacy variables for every theme.
+**Alias count:** 40. Every alias resolves to a `--blog-*` custom property, so
+`to_legacy_vars()` emits all 40 legacy variables for every theme.
 
 The `THEME_PRESETS` dict and the `theme_preset` database column were removed in
 phases 14 and 15 of the Halloy migration; the `name` metadata key is no longer
@@ -401,10 +431,10 @@ Every legacy CSS variable key the stylesheets consume is accounted for in the
 
 | Coverage | Count |
 |---|---|
-| `BlogTheme` fields | 50 |
-| `CSS_VARS` entries | 50 |
-| `ALIASES` entries | 38 |
-| Legacy CSS variables emitted by `to_legacy_vars()` | 38 |
+| `BlogTheme` fields | 52 |
+| `CSS_VARS` entries | 52 |
+| `ALIASES` entries | 40 |
+| Legacy CSS variables emitted by `to_legacy_vars()` | 40 |
 
 No legacy key is left without a semantic replacement, and every alias maps to
 exactly one `BlogTheme` token.

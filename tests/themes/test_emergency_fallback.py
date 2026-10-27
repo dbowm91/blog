@@ -30,7 +30,6 @@ class TestEmergencyFallbackCompleteness:
             "theme_dark_css",
             "theme_light_css",
             "theme_warnings",
-            "syntax_theme",
             "custom_css_enabled",
             "custom_css",
             "logo_text",
@@ -65,10 +64,10 @@ class TestEmergencyFallbackCompleteness:
         ctx = service._emergency_context()
         assert any("emergency" in w.lower() for w in ctx["theme_warnings"])
 
-    def test_emergency_context_syntax_theme_is_prism(self):
+    def test_emergency_context_has_no_syntax_theme(self):
         service = ThemeService()
         ctx = service._emergency_context()
-        assert ctx["syntax_theme"] == "prism"
+        assert "syntax_theme" not in ctx
 
     def test_emergency_context_custom_css_disabled(self):
         service = ThemeService()
@@ -119,7 +118,6 @@ class TestDatabaseFailureFallback:
             ctx = service.get_context()
         assert "theme_dark_css" in ctx
         assert "theme_light_css" in ctx
-        assert "syntax_theme" in ctx
 
     def test_operational_error_triggers_emergency(self):
         from sqlalchemy.exc import OperationalError

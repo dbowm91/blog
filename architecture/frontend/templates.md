@@ -125,7 +125,7 @@ From `app/context_processors.py`:
   - `site_description` (not site_tagline)
   - `author_name`, `author_role`, `author_avatar`
   - `base_url`, `current_year`, `canonical_url`
-- `inject_theme()` - Theme settings via centralized `ThemeService` (dark/light CSS variables, scheme, syntax theme, custom CSS)
+- `inject_theme()` - Theme settings via centralized `ThemeService` (dark/light CSS variables, scheme, custom CSS)
 - `inject_footer_data()` - Footer links and data
 - `inject_show_footer_posts()` - `show_footer_posts` boolean (hides footer posts on search/tag pages)
 
@@ -161,15 +161,15 @@ The `markdown_editor` macro renders the whole markdown body field for both admin
 ### `_sidebar.html`
 Admin sidebar partial with navigation links to dashboard sections (posts, pages, media, subscribers, tags, series, settings, audit, backup).
 
-### `data-prism-css-url` Attribute
+### `data-prism-js-url` Attribute
 
-The `<html>` element in `base.html` includes a `data-prism-css-url` attribute set to the Vite-resolved URL for the configured syntax theme CSS:
+The `<html>` element in `base.html`, `admin/base.html` and `admin/login_base.html` carries a `data-prism-js-url` attribute set to the Vite-resolved URL of the Prism entry chunk:
 
 ```html
-<html lang="en" data-syntax-theme="{{ syntax_theme or 'okaidia' }}" data-prism-css-url="{{ vite_asset('css/' + syntax_theme + '.css') }}">
+<html lang="en" data-prism-js-url="{{ vite_asset('js/prism.js') }}" ...>
 ```
 
-This attribute is consumed by `loadPrismIfNeeded()` in `main.js` to dynamically inject the Prism CSS stylesheet only when code blocks are present on the page. This enables lazy loading of syntax highlighting CSS — the stylesheet is fetched and applied only when needed, avoiding unnecessary CSS overhead on pages without code blocks.
+`loadPrismIfNeeded()` in `main.js` reads the attribute and injects **one** module script, but only when the page actually contains code blocks — it looks for `pre[class*="language-"]` and returns early when there are none. The Prism core, the 18 grammars and the highlighting call all live in that single chunk, so there is no separate grammar script and no dynamic stylesheet injection: the templates link `css/prism.css` directly (`base.html` loads it with the same `media="print"` / `onload` pattern as the other stylesheets, plus a plain link inside `<noscript>`; the admin templates link it plainly).
 
 ### `_breadcrumbs.html`
 Admin breadcrumb navigation partial for nested admin pages.

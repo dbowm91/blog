@@ -230,7 +230,7 @@ migrate = Migrate()         # Database migrations
 Provides template variables for all templates:
 - `csrf_token`, `csp_nonce` - CSRF token and CSP nonce (from `inject_csrf()`)
 - `site_title`, `site_description`, `author_name`, `author_role`, `author_avatar`, `base_url`, `current_year`, `canonical_url` - Site configuration (from `inject_config()`)
-- `theme_preset`, `theme_vars`, `syntax_theme`, `custom_css_enabled`, `custom_css`, `logo_text` - Theme settings via centralized `ThemeService` (all phases complete). Provides Halloy TOML parsing, `BlogTheme` translation, registry resolution, caching, and dark/light CSS variable emission. `ThemeService` is the sole runtime palette source.
+- `theme_preset`, `theme_vars`, `custom_css_enabled`, `custom_css`, `logo_text` - Theme settings via centralized `ThemeService` (all phases complete). Provides Halloy TOML parsing, `BlogTheme` translation, registry resolution, caching, and dark/light CSS variable emission. `ThemeService` is the sole runtime palette source.
 - `recent_posts_footer`, `recent_posts_sidebar`, `footer_tags`, `footer_tag_counts` - Footer data (from `inject_footer_data()`)
 - `show_footer_posts` - Boolean controlling footer post display (from `inject_show_footer_posts()`)
 

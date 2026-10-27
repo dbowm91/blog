@@ -8,6 +8,7 @@ Specialized handling for JavaScript, CSS, and Vite build system.
 app/static/
 ├── js/
 │   ├── main.js           # Route-based dynamic imports loader
+│   ├── prism.js          # Second Vite entry: Prism core + 18 grammars
 │   ├── lib/              # Third-party JS libraries (marked.js for markdown preview)
 │   ├── shared/           # Shared JS modules (utils, dark-mode, modal, mobile-menu, toast, etc.)
 │   ├── public/           # Public-facing JS modules (share, lightbox, toc, search, etc.)
@@ -20,8 +21,7 @@ app/static/
 │   ├── admin.css         # Admin-specific styles
 │   ├── public.css        # Public-facing page styles
 │   ├── utilities.css     # Helper classes
-│   ├── prism.css         # Syntax highlighting theme (base)
-│   └── prism-*.css       # Additional Prism themes (coy, dark, funky, okaidia, tomorrow)
+│   └── prism.css         # Prism token colours, mapped onto the theme tokens
 ├── fonts/                # Self-hosted fonts (Inter, IBM Plex Sans, Space Grotesk,
 │                         # Atkinson Hyperlegible, JetBrains Mono, IBM Plex Mono,
 │                         # Fira Code, Cascadia Code, Spline Sans Mono, Meslo Nerd Font)
@@ -112,16 +112,23 @@ For `backdrop-filter: blur()`, use `will-change: backdrop-filter` in CSS:
 - Panels are translucent via `color-mix(in srgb, var(--bg-surface) 94%, transparent)` with a plain `var(--bg-surface)` fallback first
 - The Markdown prose rules live in `base.css`, not `public.css`: the admin shell does not load `public.css`, and the admin live preview renders `.prose` content
 
-## Syntax Highlighting Themes
+## Syntax Highlighting
 
-Configurable via `SiteSettings.syntax_theme`:
-- Admin: `/admin/settings` has theme selector with 6 Prism themes
-- Themes: prism (default), prism-coy, prism-dark, prism-funky, prism-okaidia, prism-tomorrow
+There is no syntax theme setting. `SiteSettings.syntax_theme` was retired and
+the six vendored Prism palettes are gone; `prism.css` maps every Prism token
+onto a theme token, so the syntax colours follow the selected theme.
+
+Prism itself is an npm devDependency (`prismjs` 1.30.0), not a vendored file.
+`app/static/js/prism.js` is a second Vite entry that imports the core, imports
+18 grammars and calls `highlightCodeBlocks(Prism)`, so a syntax error in the
+bundle fails `npm run build` rather than reaching the browser. `main.js`
+injects that one module script only when the page contains
+`pre[class*="language-"]`.
 
 ## Assets Policy
 
 - **No external assets**—all fonts are self-hosted in `app/static/fonts/`
-- **Prism.js** is self-hosted with extended language definitions
+- **Prism.js** ships from the npm package and is bundled by Vite — no CDN
 - Do not add external CDN links (Google Fonts, CDNs, etc.)
 
 ## Cross-Layer Contracts
@@ -266,9 +273,11 @@ part in it.
 
 Prism is the one thing that would break the contract: `highlightElement()`
 replaces the `<code>` element's `innerHTML`, which removes the `code-line`
-spans. Prism does not load today (`nh3` strips the `class` attribute from
-`<code>`, so `pre[class*="language-"]` never matches) — if it is ever
-enabled, the numbering has to move into a Prism plugin.
+spans. `shared/prism-blocks.js` is the repair: it reads the existing line spans
+from `code.children`, splits the highlighted markup into one fragment per line
+(`splitHighlightedLines`), and rebalances the tags so a token that spans lines
+keeps its colour on every line. It deliberately does not name the `code-line`
+class — the renderer remains the only producer of those spans.
 
 ### Stylesheet Ownership
 
@@ -283,14 +292,45 @@ element's base rule therefore owns its breakpoint override too:
 
 | Sheet | Owns |
 |---|---|
-| `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle` |
+| `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle`, the code block's layout and `.copy-code-btn` |
 | `layout.css` | `.container`, `.content-layout`, `.sidebar`, the navbar and `.nav-links` |
 | `public.css` | `.hero`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
 | `forms.css` | the form controls, including their iOS-zoom font sizes |
 | `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
+| `prism.css` | the Prism `.token.*` colours, and nothing else |
 
 `base.css` loads before all of them, so it may only override a rule for an
 element it owns outright.
+
+`prism.css` is a theme-token stylesheet owned by itself: it carries only the
+`.token.*` colour rules and no colour literal of any kind, so every Prism
+token resolves to a theme token. It does not own the code block's appearance —
+`base.css` owns that, including the `position: relative` on `.prose pre`, the
+line-number counter and the `.copy-code-btn`.
+
+### Text Roles
+
+`--text-caption` and `--accent-text` are the two text roles the theme runtime
+derives (`app/themes/translate.py`); no theme file declares them. Text a
+reader must read uses `--text-caption`, and the accent used as text uses
+`--accent-text`. The accent keeps its non-text uses — fills, focus rings,
+borders.
+
+Seven uses of `var(--text-muted)` are deliberately left in place, because that
+text is decorative rather than read:
+
+| Stylesheet | Selector |
+|---|---|
+| `admin.css` | `.md-tool` |
+| `admin.css` | `.md-tool:disabled:hover` |
+| `admin.css` | `.preset-card:hover` (a `border-color`) |
+| `base.css` | `.theme-toggle` |
+| `base.css` | `.back-to-top` |
+| `base.css` | `.mobile-menu-toggle` |
+| `public.css` | `.search-clear` |
+
+Do not convert these to `--text-caption`, and do not add a new one without
+deciding whether the text is read.
 
 ### Post Tile
 

@@ -37,17 +37,22 @@ accumulated for the current version. When the first release is tagged, move the
 - Public site identity: visitor login and account pages, author pages, a
   pages index, per-page navigation entries, footer column toggles, a profile
   editor and a post author selector
+- Syntax highlighting for fenced code blocks, with a copy button and token
+  colours taken from the active theme
 
 **Halloy theme system**
 - 50 bundled Halloy `.toml` themes, with the root `themes/` directory acting
   as the authoring catalogue
-- Typed theme model (`BlogTheme`) of 50 colour tokens — 41 `RGB` and 9
-  `RGBA` — emitting 50 CSS custom properties and 38 backwards-compatible
+- Typed theme model (`BlogTheme`) of 52 colour tokens — 43 `RGB` and 9
+  `RGBA` — emitting 52 CSS custom properties and 40 backwards-compatible
   aliases
 - Theme registry with caching, external override directory, accessibility
   diagnostics with severity classification, and a visitor colour-scheme
   switcher (system / dark / light)
 - Appearance layer for font families and page backdrops
+- Two derived text roles — `--text-caption` for small-but-readable text and
+  `--accent-text` for accent-coloured text — each guaranteed to clear the
+  WCAG AA 4.5:1 floor on every surface it can land on
 
 **Operations**
 - Typed configuration package (`app/config/`) with 22 section dataclasses plus
@@ -95,6 +100,10 @@ accumulated for the current version. When the first release is tagged, move the
   `DATABASE_URL`)
 - Editorial tooling expanded: undo/redo in the editor, a markdown toolbar, a
   stacked live preview pane, and numbered code blocks
+- The `syntax_theme` setting and the six vendored Prism palettes were removed.
+  Prism's token classes are remapped onto the active theme's own colours, and
+  Prism itself is now a built npm dependency rather than a hand-assembled
+  grammar bundle
 - Markdown renderer supports strikethrough
 - Documentation reorganised: `DEPLOY.md` is the operator reference,
   `USAGE.md` the administration guide
@@ -106,6 +115,10 @@ accumulated for the current version. When the first release is tagged, move the
 - Corrected backdrop shape, font selection, profile picture rendering, editor
   preview layout and heading anchor navigation
 - Heading anchors are applied consistently across rendered posts
+- Small text — the table of contents, the share label, the post metadata, the
+  footer links and the navigation links — now clears the WCAG AA 4.5:1 floor
+  in every bundled theme, and the eight themes whose code surface was
+  indistinguishable from their own card surface were repaired
 
 ### Security
 

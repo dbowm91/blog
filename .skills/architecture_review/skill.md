@@ -85,7 +85,7 @@ subagent owns exactly one output file so they can run in parallel.
 - CI jobs: 11 (lint-and-type, test, theme-policy, migration-chain, theme-package-verification, frontend-build, security-audit, docker-build, e2e-tests, dependency-consistency, release1-package-smoke)
 - Template filters: 6 (markdown_safe, reading_time, sanitize_css, post_image_url, post_image_srcset, post_image_avif_url_stub [deprecated])
 - Doctor checks: 76 across 20 categories
-- BlogTheme fields: 50 (41 RGB + 9 RGBA); CSS_VARS: 50 entries; ALIASES: 38 entries
+- BlogTheme fields: 52 (43 RGB + 9 RGBA); CSS_VARS: 52 entries; ALIASES: 40 entries
 - Bundled themes: 50 in `app/themes/bundled/`
 - Appearance layer: 10 font families (4 sans, 6 mono), 3 backdrops
 - Onboarding steps: 17

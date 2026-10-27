@@ -390,7 +390,6 @@ class SiteSettings(db.Model):
     theme_dark_name = db.Column(db.String(128), default="Catppuccin Mocha", nullable=False)
     theme_light_name = db.Column(db.String(128), default="Catppuccin Latte", nullable=False)
     theme_default_scheme = db.Column(db.String(16), default="system", nullable=False)
-    syntax_theme = db.Column(db.String(50), default="prism", nullable=False)
     custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
     custom_css = db.Column(db.Text, default="", nullable=False)
     logo_text = db.Column(db.String(100), default="", nullable=False)

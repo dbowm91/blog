@@ -14,7 +14,7 @@ error = "#FF530F"
 [buffer]
 action = "#FE640B"
 background = "#F2F1F8"
-background_text_input = "#F2F1F8"
+background_text_input = "#E4E2F2"
 background_title_bar = "#E2DFF6"
 border = "#B5ADEB"
 border_selected = "#7060EB"

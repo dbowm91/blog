@@ -36,7 +36,7 @@ Specialized handling for the admin dashboard and management routes.
 - `/admin/sessions` - Active session viewing/revocation
 - `/admin/media` - Media library with upload/delete
 - `/admin/backup` - Database backup/restore with encryption support
-- `/admin/settings` - Theme presets, custom CSS, logo, syntax highlighting theme
+- `/admin/settings` - Theme presets, custom CSS, logo
 - `/admin/pages` - Static pages CRUD
 - `/admin/series` - Post series/collections management
 - `/admin/newsletter` - Newsletter with preview feature

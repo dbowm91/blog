@@ -50,7 +50,6 @@ class TestAdminThemeSave:
                 "theme_dark_name": "Dracula",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "dark",
-                "syntax_theme": "prism",
                 "logo_text": "Test Blog",
             },
             follow_redirects=True,
@@ -70,7 +69,6 @@ class TestAdminThemeSave:
                 "theme_dark_name": "Totally Invalid Theme XYZ",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "system",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )
@@ -86,7 +84,6 @@ class TestAdminThemeSave:
                 "theme_dark_name": "Catppuccin Mocha",
                 "theme_light_name": "Nonexistent Theme",
                 "theme_default_scheme": "system",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )
@@ -103,7 +100,6 @@ class TestAdminThemeSave:
                 "theme_dark_name": "Catppuccin Mocha",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "invalid-value",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )
@@ -119,7 +115,6 @@ class TestAdminThemeSave:
                 "theme_dark_name": "Catppuccin Mocha",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "system",
-                "syntax_theme": "prism",
                 "custom_css_enabled": "on",
                 "custom_css": "body { color: red; } <script>alert(1)</script>",
             },
@@ -138,7 +133,6 @@ class TestAdminThemeSave:
                 "theme_dark_name": "Dracula",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "dark",
-                "syntax_theme": "prism-okaidia",
                 "logo_text": "My Blog",
             },
             follow_redirects=True,
@@ -148,7 +142,6 @@ class TestAdminThemeSave:
         assert settings.theme_dark_name == "Dracula"
         assert settings.theme_light_name == "Catppuccin Latte"
         assert settings.theme_default_scheme == "dark"
-        assert settings.syntax_theme == "prism-okaidia"
         assert settings.logo_text == "My Blog"
 
         resp = authenticated_client.get("/admin/settings")
@@ -237,7 +230,6 @@ class TestAdminThemeRefresh:
                 "theme_dark_name": "Dracula",
                 "theme_light_name": "Catppuccin Latte",
                 "theme_default_scheme": "dark",
-                "syntax_theme": "prism",
             },
             follow_redirects=True,
         )

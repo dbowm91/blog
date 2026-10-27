@@ -133,8 +133,8 @@ architecture is in `architecture/core/themes.md`.
   bundled package is generated from. It is *not* a runtime override directory.
   Runtime overrides come from `themes.external_dir` in `config.toml` or
   `THEME_EXTERNAL_DIR`.
-- `BlogTheme` — frozen dataclass, **50 fields: 41 `RGB` + 9 `RGBA`**.
-  `CSS_VARS` has **50 entries**, `ALIASES` has **38 entries**.
+- `BlogTheme` — frozen dataclass, **52 fields: 43 `RGB` + 9 `RGBA`**.
+  `CSS_VARS` has **52 entries**, `ALIASES` has **40 entries**.
 - Legacy `THEME_PRESETS` and the `SiteSettings.theme_preset` column were
   removed. `EMERGENCY_DEFAULT` is the emergency fallback.
 - Runtime authority: `SiteSettings.theme_dark_name` (default `Catppuccin

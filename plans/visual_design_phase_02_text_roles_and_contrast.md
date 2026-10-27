@@ -1,10 +1,10 @@
 # Visual Design Phase 02 — Text Roles and the Contrast Floor
 
-> **Plan status: ACTIVE — not started.** Nothing in this plan has shipped. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+> **Plan status: COMPLETE — shipped 2026-10-27.** The outcome is documented in [`architecture/core/themes.md`](../architecture/core/themes.md) and [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md). This file is the historical record of what was planned and why.
 
 **Roadmap:** [visual_design_roadmap.md](visual_design_roadmap.md)
 **Date:** 2026-10-27
-**Status:** Not started
+**Status:** Complete
 **Severity:** High — muted grey styles body-size text and measures below WCAG AA in most of the bundled catalogue.
 
 ## Objective
@@ -440,4 +440,109 @@ measurement must be taken after Phase 05 as well.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete — shipped 2026-10-27.
+
+### What changed
+
+**Two derived roles, no authored values.** `app/themes/model.py` gained two fields,
+`text_caption` and `accent_text`, taking `BlogTheme` to **52 fields — 43 `RGB` and
+9 `RGBA`** — with `CSS_VARS` at 52 entries and `ALIASES` at 40. Both are derived in
+`app/themes/translate.py` by `_derive_text_caption()` and `_derive_accent_text()`.
+No theme file declares either one, so a theme cannot opt out of the floor and a
+theme cannot hand-author a caption the gate would then have to trust.
+
+The caption is the muted colour moved toward the primary colour until it clears
+4.5:1 against `bg_page`, `surface_default` and `surface_elevated`; where the primary
+itself is below the floor it mixes toward white in a dark theme and black in a
+light one instead. The accent text is the accent moved until it clears 4.5:1
+against the chip it tints — the accent at ten per cent over the surface — with the
+chip recomputed at every step and held against all three surfaces.
+
+**The derivation was measured, not assumed.** Over the whole catalogue: 18 themes
+need no change at all, 29 resolve by mixing toward the primary with a median factor
+of **0.131**, and exactly **three** — Cyber Red, Rose Pine Dawn and Solarized Dark
+— need the extreme fallback, Rose Pine Dawn at a factor of 0.098 toward black. That
+is the plan's own reference measurement, reproduced exactly.
+
+**The role rule was applied.** Sixty `color: var(--text-muted)` uses across
+`app/static/css/` became `color: var(--text-caption)`: the table of contents, the
+share label, the post metadata, the footer, the navigation, the breadcrumb, the
+sidebar titles, the form labels and help text, the inline declarations in
+`login.html`, `account.html` and `admin/settings.html`, and the `text-muted`
+utility class. Seven uses remain on the decorative role and are documented as an
+allowlist: the two admin icon-button rules, the disabled-tool hover, the preset
+card's border, the theme toggle, the back-to-top button, the mobile menu toggle
+and the search clear button. All of them are icon strokes or borders.
+
+**The accent lost its job as a text colour.** Every `color: var(--accent)` and
+`color: var(--accent-hover)` became `color: var(--accent-text)`, so no stylesheet
+paints accent-coloured text with the accent any more. The accent keeps its 43
+non-text uses: the search button's fill, the focus ring, the accent borders. The
+inline-code chip is the one exception and it moved to `--text-caption` rather than
+`--accent-text`, because the chip is the code surface and the accent text is
+derived against the tinted chip, not against the code surface.
+
+**The gate now holds the floor.** `app/themes/diagnostics.py` gained four mandatory
+4.5:1 pairs: `text_caption` against `bg_page`, `surface_default` and
+`surface_elevated`, and `accent_text` against `surface_default`. Every bundled
+theme passes all four, so `scripts/theme_accessibility_report.py --strict` still
+exits 0 and `app/themes/ACCESSIBILITY_EXCEPTIONS.json` is unchanged — 45 entries,
+schema version 2. The manifest was not edited, because the new checks pass
+everywhere.
+
+**Eight themes were repaired.** Flexor Dark, Noctis Lilac, Tokyo Night Storm,
+VESPER, Dark Green, Rose Pine Dawn, bam and vanimo had a code surface
+indistinguishable from the card surface. Each was given a code surface at least
+eight units away from its card in the largest channel, in both the authoring copy
+and the runtime copy, which remain byte-identical.
+
+### Deviations from the plan
+
+Three, all recorded here.
+
+**The accent text is held against three surfaces, not one.** The plan derived it
+against the chip over `surface_default` alone. Measured in Chromium, the tag chip
+on the post page sits on the page background rather than on a card, and the page
+carries a gradient, so the chip was 3.98:1 against the text where the
+single-surface model predicted 4.71:1. The derivation now holds against the chip
+on all three surfaces; the dark tag chip measures 5.79:1 and the light one 5.24:1.
+
+**The inline code chip took the caption role, not the accent-text role.** The plan
+did not say which. The accent text is derived against the tinted chip and the
+inline chip is the code surface, so moving the inline code to the accent text
+would have *lowered* the dark scheme's contrast from 4.48:1 to 3.69:1. The
+caption role gives 6.52:1 in the dark scheme and 4.72:1 in the light one.
+
+**The code surface moved the code text below the floor in three themes.** Those
+three — Cyber Red, Rose Pine Dawn and Solarized Dark — already declare
+`code-text on code-bg` as a mandatory defect in the exception manifest, so the
+shortfall was known and recorded before this series. Phase 01 made it visible by
+pointing the code block at the code surface. The manifest was not edited; a test
+now asserts that any theme whose code text falls below the floor declares it, and
+that no theme declares a failure it no longer has.
+
+### Verification
+
+- `tests/themes/test_text_roles.py` — 19 tests: the caption clears the floor
+  against all three surfaces in every bundled theme, the accent text clears the
+  floor on the chip in every bundled theme, neither derived role is ever worse
+  than the token it replaces, a theme that already cleared the floor keeps its
+  muted colour, no theme file declares either role, the token counts are 52/52/40,
+  every bundled theme distinguishes its code surface by at least eight units, the
+  authoring and runtime theme copies are byte-identical, the gate carries the
+  mandatory pairs, and the exception manifest is unchanged.
+- `tests/test_css_contracts.py` — the role-rule contracts: no muted text outside the
+  documented allowlist, every allowlisted use still present, the accent paints no
+  text, the tag chip uses the accent-text role, the accent keeps its fills and
+  borders, and every emergency fallback block declares both roles with values
+  that clear the floor.
+- `tests/e2e/test_text_roles.py` — 8 browser tests measuring the painted result in
+  both schemes: the caption role on the post metadata, the footer, the navigation
+  and the share label; the inline code; and the derived tokens being emitted.
+- Chromium on the running instance, both schemes, with the foreground composited
+  over every layer it is actually painted on — the translucent tile, the page
+  gradient and the theme's page colour: the post metadata, the footer link, the
+  navigation link, the share label and the breadcrumb measure **4.61:1** to
+  **6.07:1** in the dark theme and **4.55:1** to **5.06:1** in the light one; the
+  inline code measures **6.52:1** and **4.72:1**; the tag chip measures
+  **5.79:1** and **5.24:1**. Every one of them clears 4.5:1.

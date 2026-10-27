@@ -285,6 +285,48 @@ def test_full_chain_round_trip(app):
             conn.execute(sa.text("DROP TABLE site_settings"))
 
 
+def test_drop_syntax_theme_removes_the_column(app):
+    """drop_syntax_theme_column removes the retired syntax_theme column."""
+    with app.app_context():
+        from app.extensions import db
+
+        engine = db.engine
+        _create_pre_halloy_schema(engine)
+
+        with engine.begin() as conn:
+            conn.execute(sa.text("INSERT INTO site_settings DEFAULT VALUES"))
+
+        from migrations.versions.drop_syntax_theme_column import (
+            downgrade as downgrade_drop,
+            upgrade as upgrade_drop,
+        )
+
+        columns = _get_columns(engine, "site_settings")
+        assert "syntax_theme" in columns
+
+        _run_migration(engine, upgrade_drop)
+
+        columns = _get_columns(engine, "site_settings")
+        assert "syntax_theme" not in columns
+        assert "custom_css_enabled" in columns
+
+        _run_migration(engine, downgrade_drop)
+
+        restored = _get_columns(engine, "site_settings")
+        assert "syntax_theme" in restored
+
+        rows = _get_all_rows(engine, "site_settings")
+        assert rows[0]["syntax_theme"] == "prism"
+
+        with engine.begin() as conn:
+            conn.execute(sa.text("DROP TABLE site_settings"))
+
+
+def test_the_syntax_theme_migration_is_the_head(app):
+    """The new revision is the single head of the migration graph."""
+    assert _expected_head() == "drop_syntax_theme_column"
+
+
 def test_fresh_install_creates_correct_schema(app):
     """Fresh database gets correct defaults without any legacy data."""
     with app.app_context():

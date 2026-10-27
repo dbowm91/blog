@@ -86,7 +86,7 @@ textarea::placeholder {
     font-size: 0.85rem;
     font-weight: 500;
     margin-bottom: 6px;
-    color: var(--text-muted);
+    color: var(--text-caption);
 }
 
 .label-hint {
@@ -96,7 +96,7 @@ textarea::placeholder {
 }
 
 .form-help {
-    color: var(--text-muted);
+    color: var(--text-caption);
     font-size: 0.85rem;
     margin-top: var(--space-xs);
     margin-bottom: var(--space-md);

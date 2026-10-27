@@ -144,7 +144,6 @@ def _get_cached_settings() -> dict[str, Any]:
         if not settings:
             return {
                 "theme_vars": emergency_vars,
-                "syntax_theme": "prism",
                 "custom_css_enabled": False,
                 "custom_css": "",
                 "logo_text": "",
@@ -152,7 +151,6 @@ def _get_cached_settings() -> dict[str, Any]:
 
         return {
             "theme_vars": emergency_vars,
-            "syntax_theme": settings.syntax_theme,
             "custom_css_enabled": settings.custom_css_enabled,
             "custom_css": settings.custom_css if settings.custom_css_enabled else "",
             "logo_text": settings.logo_text,
@@ -162,7 +160,6 @@ def _get_cached_settings() -> dict[str, Any]:
         invalidate_settings_cache()
         return {
             "theme_vars": emergency_vars,
-            "syntax_theme": "prism",
             "custom_css_enabled": False,
             "custom_css": "",
             "logo_text": "",

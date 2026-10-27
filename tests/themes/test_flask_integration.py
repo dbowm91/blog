@@ -68,7 +68,6 @@ class TestThemeServiceContext:
             "theme_dark_css",
             "theme_light_css",
             "theme_warnings",
-            "syntax_theme",
             "custom_css_enabled",
             "custom_css",
             "logo_text",
@@ -190,16 +189,16 @@ class TestCustomCSSOrdering:
         assert custom_pos > var_pos
 
 
-class TestSyntaxThemeIndependence:
-    def test_syntax_theme_in_html_attr(self, client, db):
+class TestSyntaxHighlightingIsThemeOwned:
+    def test_no_syntax_theme_attribute(self, client, db):
         resp = client.get("/")
         html = resp.data.decode()
-        assert "data-syntax-theme=" in html
+        assert "data-syntax-theme=" not in html
 
     def test_syntax_css_link_present(self, client, db):
         resp = client.get("/")
         html = resp.data.decode()
-        assert "prism" in html.lower()
+        assert "prism.css" in html
 
 
 class TestMissingThemeFallback:
@@ -281,7 +280,6 @@ class TestContextProcessorUsesService:
                 "theme_dark_css": "",
                 "theme_light_css": "",
                 "theme_warnings": [],
-                "syntax_theme": "prism",
                 "custom_css_enabled": False,
                 "custom_css": "",
                 "logo_text": "",

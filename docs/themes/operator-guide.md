@@ -257,7 +257,6 @@ The system displays warnings for:
 
 Theme settings are saved atomically with other site settings. Saving preserves:
 
-- Syntax highlighting theme
 - Custom CSS (if enabled)
 - Logo text
 
@@ -408,7 +407,7 @@ was removed in Phase 15. It mapped:
 | `monokai` | `Sonokai` |
 
 After upgrading, navigate to **Settings > Theme** to choose different themes.
-Custom CSS and the syntax highlighting theme are preserved unchanged.
+Custom CSS is preserved unchanged.
 
 ## Database Support
 

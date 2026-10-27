@@ -65,14 +65,6 @@ def settings() -> ResponseReturnValue:
     Requires: Admin authentication.
     """
     settings_obj = SiteSettings.get_instance()
-    syntax_themes = [
-        ("prism", "Prism Default"),
-        ("prism-coy", "Prism Coy"),
-        ("prism-dark", "Prism Dark"),
-        ("prism-funky", "Prism Funky"),
-        ("prism-okaidia", "Prism Okaidia"),
-        ("prism-tomorrow", "Prism Tomorrow"),
-    ]
 
     service = get_theme_service()
     registry = service.get_registry()
@@ -94,7 +86,6 @@ def settings() -> ResponseReturnValue:
     return render_template(
         "admin/settings.html",
         settings=settings_obj,
-        syntax_themes=syntax_themes,
         theme_dark_name=settings_obj.theme_dark_name,
         theme_light_name=settings_obj.theme_light_name,
         theme_default_scheme=settings_obj.theme_default_scheme,
@@ -121,13 +112,12 @@ def settings_theme() -> ResponseReturnValue:
     Update theme and site settings.
 
     Methods: POST
-    POST: Updates theme names, syntax theme, custom CSS (sanitized), and logo text.
+    POST: Updates theme names, custom CSS (sanitized), and logo text.
     Requires: Admin authentication.
     Form params:
         theme_dark_name: Dark theme name (must be in registry)
         theme_light_name: Light theme name (must be in registry)
         theme_default_scheme: Default color scheme (system, dark, or light)
-        syntax_theme: Syntax highlighting theme
         custom_css_enabled: Checkbox to enable custom CSS
         custom_css: Custom CSS text (sanitized before storage)
         logo_text: Site logo text (max 100 chars)
@@ -162,23 +152,9 @@ def settings_theme() -> ResponseReturnValue:
         flash("Invalid theme scheme selected.", "error")
         return redirect(url_for("admin.settings"))
 
-    valid_syntax_themes = [
-        "prism",
-        "prism-coy",
-        "prism-dark",
-        "prism-funky",
-        "prism-okaidia",
-        "prism-tomorrow",
-    ]
-    syntax_theme = request.form.get("syntax_theme", "prism")
-    if syntax_theme not in valid_syntax_themes:
-        flash("Invalid syntax theme selected.", "error")
-        return redirect(url_for("admin.settings"))
-
     settings_obj.theme_dark_name = dark_name
     settings_obj.theme_light_name = light_name
     settings_obj.theme_default_scheme = scheme
-    settings_obj.syntax_theme = syntax_theme
     settings_obj.custom_css_enabled = request.form.get("custom_css_enabled") == "on"
     settings_obj.custom_css = sanitize_css(request.form.get("custom_css", "").strip())
     settings_obj.logo_text = request.form.get("logo_text", "").strip()[:100]

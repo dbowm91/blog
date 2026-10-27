@@ -216,7 +216,7 @@
     display: inline-block;
     padding: 4px 12px;
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
     border-radius: var(--radius);
     transition: all var(--transition);
 }
@@ -227,7 +227,7 @@
 }
 
 .filter-link.active {
-    color: var(--accent);
+    color: var(--accent-text);
     background: var(--accent-dim);
     font-weight: 500;
 }
@@ -333,7 +333,7 @@
 }
 
 .upload-zone.dragover .upload-zone-content svg {
-    color: var(--accent);
+    color: var(--accent-text);
 }
 
 .upload-progress {
@@ -402,7 +402,7 @@
 
 .media-name {
     font-size: 0.78rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
     font-family: var(--font-mono);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -523,7 +523,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    color: var(--text-muted);
+    color: var(--text-caption);
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
@@ -647,7 +647,7 @@
 
 .login-subtitle {
     text-align: center;
-    color: var(--text-muted);
+    color: var(--text-caption);
     margin-bottom: 24px;
     font-size: 0.95rem;
 }
@@ -659,7 +659,7 @@
 }
 
 .login-footer-links a {
-    color: var(--accent);
+    color: var(--accent-text);
     text-decoration: none;
 }
 
@@ -716,7 +716,7 @@
 .stat-label {
     display: block;
     font-size: 13px;
-    color: var(--text-muted);
+    color: var(--text-caption);
     margin-top: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -757,7 +757,7 @@
     font-size: 0.85rem;
     font-weight: 600;
     margin-bottom: 16px;
-    color: var(--text-muted);
+    color: var(--text-caption);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -789,7 +789,7 @@
 }
 
 .trending-list a:hover {
-    color: var(--accent);
+    color: var(--accent-text);
 }
 
 .trending-views {
@@ -825,7 +825,7 @@
     font-size: 0.85rem;
     font-weight: 600;
     margin-bottom: 16px;
-    color: var(--text-muted);
+    color: var(--text-caption);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -976,7 +976,7 @@
 
 .date-range-selector label {
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
 }
 
 .date-range-selector select {
@@ -1018,7 +1018,7 @@
     font-size: 0.9rem;
     font-weight: 600;
     margin-bottom: 16px;
-    color: var(--text-muted);
+    color: var(--text-caption);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -1118,7 +1118,7 @@
 
 .source-count {
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
     font-family: var(--font-mono);
 }
 
@@ -1154,7 +1154,7 @@
 }
 
 .analytics-table a:hover {
-    color: var(--accent);
+    color: var(--accent-text);
 }
 
 .analytics-table .text-right {
@@ -1163,7 +1163,7 @@
 
 .analytics-table .mono {
     font-family: var(--font-mono);
-    color: var(--text-muted);
+    color: var(--text-caption);
 }
 
 /* Responsive Analytics */
@@ -1263,7 +1263,7 @@
 }
 
 .post-list-info h3 a:hover {
-    color: var(--accent);
+    color: var(--accent-text);
 }
 
 .post-list-meta {
@@ -1271,7 +1271,7 @@
     gap: var(--space-sm-md);
     align-items: center;
     font-size: 0.78rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
     flex-wrap: wrap;
 }
 
@@ -1294,7 +1294,7 @@
     gap: 6px;
     font-size: 0.85rem;
     font-weight: 500;
-    color: var(--text-muted);
+    color: var(--text-caption);
     font-family: var(--font-mono);
 }
 
@@ -1355,7 +1355,7 @@
 
 .post-list-slug {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
     flex-shrink: 0;
     margin: 0 var(--space-md);
 }
@@ -1379,7 +1379,7 @@
     font-size: 0.7rem;
     font-weight: 600;
     background: var(--accent-dim);
-    color: var(--accent);
+    color: var(--accent-text);
     letter-spacing: 0.02em;
 }
 
@@ -1518,7 +1518,7 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 4px;
-    color: var(--text-muted);
+    color: var(--text-caption);
     min-width: 24px;
     text-align: center;
 }
@@ -1535,7 +1535,7 @@
 }
 
 .shortcut-desc {
-    color: var(--text-muted);
+    color: var(--text-caption);
     font-size: 0.9rem;
 }
 
@@ -1544,7 +1544,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-muted);
+    color: var(--text-caption);
     margin-top: 16px;
     margin-bottom: 8px;
 }
@@ -1619,7 +1619,7 @@
 
 .bulk-progress-text {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--text-caption);
     margin-top: 4px;
     display: block;
 }
@@ -1657,12 +1657,12 @@
 }
 
 .admin-footer a {
-    color: var(--text-muted);
+    color: var(--text-caption);
     text-decoration: none;
 }
 
 .admin-footer a:hover {
-    color: var(--accent);
+    color: var(--accent-text);
 }
 
 .admin-footer-sep {

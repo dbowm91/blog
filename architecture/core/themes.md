@@ -64,7 +64,7 @@ themes/*.toml  or  app/themes/bundled/*.toml
 
 ## The Token Model
 
-`BlogTheme` is a frozen, slotted dataclass with **50 fields**: 41 `RGB` values and
+`BlogTheme` is a frozen, slotted dataclass with **52 fields**: 43 `RGB` values and
 9 `RGBA` values. `CSS_VARS` maps every one of those field names to a `--blog-*`
 custom property, so the two are exactly parallel — there is no token that has no
 field and no field that has no token.
@@ -75,8 +75,8 @@ field and no field that has no token.
 |---|---|---|
 | Backgrounds and surfaces | `bg_page`, `surface_default`, `surface_elevated`, `surface_hover`, `surface_active`, `navbar_bg`, `overlay_bg` | `--blog-bg-page`, `--blog-surface-default`, `--blog-surface-elevated`, `--blog-surface-hover`, `--blog-surface-active`, `--blog-navbar-bg`, `--blog-overlay-bg` |
 | Borders | `border_primary`, `border_subtle`, `border_strong`, `border_focus`, `navbar_border` | `--blog-border-primary`, `--blog-border-subtle`, `--blog-border-strong`, `--blog-border-focus`, `--blog-navbar-border` |
-| Text | `text_primary`, `text_secondary`, `text_muted`, `text_dim`, `text_on_accent`, `text_on_success`, `text_on_error`, `text_on_warning`, `text_on_info`, `text_link`, `text_link_hover` | `--blog-text-primary` … `--blog-text-link-hover` |
-| Accent | `accent`, `accent_hover`, `accent_dim`, `accent_link`, `accent_focus_ring` | `--blog-accent`, `--blog-accent-hover`, `--blog-accent-dim`, `--blog-accent-link`, `--blog-accent-focus-ring` |
+| Text | `text_primary`, `text_secondary`, `text_muted`, `text_dim`, `text_caption`, `text_on_accent`, `text_on_success`, `text_on_error`, `text_on_warning`, `text_on_info`, `text_link`, `text_link_hover` | `--blog-text-primary` … `--blog-text-link-hover` |
+| Accent | `accent`, `accent_hover`, `accent_dim`, `accent_link`, `accent_focus_ring`, `accent_text` | `--blog-accent`, `--blog-accent-hover`, `--blog-accent-dim`, `--blog-accent-link`, `--blog-accent-focus-ring`, `--blog-accent-text` |
 | Status | `success_fg`, `success_bg`, `error_fg`, `error_bg`, `warning_fg`, `warning_bg`, `info_fg`, `info_bg` | `--blog-success-fg` … `--blog-info-bg` |
 | Inputs and code | `input_bg`, `input_border`, `input_text`, `code_bg`, `code_border`, `code_text` | `--blog-input-bg` … `--blog-code-text` |
 | Chrome and misc | `selection_bg`, `navbar_text`, `navbar_text_muted`, `shadow_color`, `noscript_bg`, `noscript_text`, `coral`, `coral_dim` | `--blog-selection-bg` … `--blog-coral-dim` |
@@ -97,16 +97,31 @@ The nine alpha-bearing fields are `navbar_bg`, `overlay_bg`, `accent_dim`,
 | `[text].primary` / `.secondary` / `.tertiary` / `.success` / `.error` | `text_primary`, `text_muted`, `accent`, `success_fg`, `error_fg` |
 | `[buffer].background` / `.background_title_bar` / `.background_text_input` / `.selection` | `surface_default`, `surface_elevated`, `input_bg` and `code_bg`, `selection_bg` |
 | `[buffer].topic` / `.timestamp` / `.url` | `text_secondary`, `text_dim`, `text_link` |
-| Derived in the translator | `surface_hover`, `surface_active`, `accent_hover`, `text_link_hover`, `accent_dim`, `border_strong`, `text_on_*`, `success_bg`, `error_bg`, `warning_*`, `info_*`, `shadow_color` |
+| Derived in the translator | `surface_hover`, `surface_active`, `accent_hover`, `text_link_hover`, `accent_dim`, `border_strong`, `text_caption`, `accent_text`, `text_on_*`, `success_bg`, `error_bg`, `warning_*`, `info_*`, `shadow_color` |
 
 Dark/light polarity is decided once, by `is_dark_background(general.background)`
 — relative luminance below 0.5 means dark — and it drives the sign of every
 lightness shift and the shadow alpha.
 
+### The Two Derived Text Roles
+
+`text_caption` and `accent_text` are derived, never declared: no theme file
+contains either name.
+
+| Role | Derivation | Gate |
+|---|---|---|
+| `text_caption` | `_derive_text_caption()` moves the muted colour toward the primary colour until it clears 4.5:1 against `bg_page`, `surface_default` and `surface_elevated`. When the primary itself is below the floor, the muted colour mixes toward white (dark theme) or black (light theme) instead. | 4.5:1 on all three surfaces |
+| `accent_text` | `_derive_accent_text()` moves the accent until it clears 4.5:1 against the chip it tints — the accent at 10% over the surface — recomputing the chip at every step, and holds the result against all three surfaces. | 4.5:1 on all three surfaces |
+
+Measured over the whole catalogue, 18 themes need no change to `text_caption`,
+29 resolve by mixing toward the primary colour, and exactly three — Cyber Red,
+Rose Pine Dawn and Solarized Dark — need the extreme fallback. Across the 47
+themes the primary path resolves, the median mix factor is 0.131.
+
 ### The Two Compatibility Layers
 
 `CSS_VARS` is the semantic layer (`--blog-*`). `ALIASES` is the backward
-compatibility layer: 38 legacy variable names mapped onto the semantic
+compatibility layer: 40 legacy variable names mapped onto the semantic
 properties, used by `to_legacy_vars()` and therefore by every runtime
 stylesheet.
 
@@ -114,8 +129,8 @@ stylesheet.
 |---|---|---|
 | Surfaces and backgrounds | `bg`, `bg-surface`, `bg-elevated`, `bg-hover`, `navbar-bg`, `overlay-bg` | 6 |
 | Borders | `border` | 1 |
-| Text | `text`, `text-secondary`, `text-muted`, `text-dim`, `text-dim-strong`, `text-on-accent` | 6 |
-| Accent and coral | `accent`, `accent-hover`, `accent-dim`, `coral`, `coral-dim` | 5 |
+| Text | `text`, `text-secondary`, `text-muted`, `text-dim`, `text-dim-strong`, `text-on-accent`, `text-caption` | 7 |
+| Accent and coral | `accent`, `accent-hover`, `accent-dim`, `accent-text`, `coral`, `coral-dim` | 6 |
 | Status colours | `green`, `green-dim`, `success-bg`, `red`, `red-dim`, `error-bg`, `yellow`, `yellow-dim`, `warning-fg`, `warning-bg`, `purple`, `purple-dim`, `amber`, `amber-dim`, `info-fg`, `info-bg` | 16 |
 | Chrome and code | `noscript-bg`, `noscript-text`, `shadow-color`, `code-bg` | 4 |
 
@@ -253,8 +268,8 @@ still loads and still renders.
 ### Policy Validation
 
 `validate_theme_accessibility(blog_theme, theme_name, filename_dark)` returns a
-`ThemeAccessibilityReport` built from the `_CONTRAST_PAIRS` table — 29 token
-pairs (18 mandatory, 11 advisory), each with a required ratio, a severity and a
+`ThemeAccessibilityReport` built from the `_CONTRAST_PAIRS` table — 33 token
+pairs (22 mandatory, 11 advisory), each with a required ratio, a severity and a
 remediation hint. Findings
 are `AccessibilityFinding` records carrying the token, the two colours, the
 measured and required ratios, the WCAG level, the severity, the remediation
@@ -385,7 +400,7 @@ The context dict contains:
 | `theme_dark_css`, `theme_light_css` | The same values serialised as CSS declaration lines by `to_legacy_css()` |
 | `theme_vars` | The dark alias dictionary under its historical name |
 | `theme_warnings` | Warning strings collected from the two descriptors |
-| `syntax_theme`, `custom_css_enabled`, `custom_css`, `logo_text` | Site settings the templates need |
+| `custom_css_enabled`, `custom_css`, `logo_text` | Site settings the templates need |
 
 ### Into the Templates
 
@@ -401,7 +416,7 @@ The context dict contains:
 
 Because the emitted names are the legacy aliases (`--bg`, `--text`,
 `--accent`, …), the stylesheets in `app/static/css/` consume those names.
-`app/static/css/` contains 725 `var(--…)` references and **zero**
+`app/static/css/` contains 730 `var(--…)` references and **zero**
 `var(--blog-*)` references: the semantic `--blog-*` layer is produced for
 inspection and tooling (`LoadedTheme.css`, `themes inspect --css`), while the
 runtime consumes the alias layer.
@@ -443,14 +458,14 @@ Both CLIs expose the same operations, backed by `app/services/operations/themes.
 - **Token and alias counts in the surrounding docs were stale, and have been
   corrected.** `AGENTS.md` and `docs/themes/blog-theme-contract.md` used to
   describe the model as "44 semantic tokens + 6 RGBA fields" and "26 aliases".
-  The code has 50 fields (41 `RGB` + 9 `RGBA`), 50 entries in `CSS_VARS`, and 38
-  entries in `ALIASES`. The contract's own Section A table lists all 50 tokens
-  even though its summary line said 44, and its Section E lists 27 alias keys
-  including a `name` metadata key that `ALIASES` no longer contains; the code
-  instead adds 12 aliases the contract does not mention (`code-bg`, `error-bg`,
-  `info-bg`, `info-fg`, `navbar-bg`, `overlay-bg`, `shadow-color`, `success-bg`,
-  `text-on-accent`, `warning-bg`, `warning-fg`, `yellow-dim`). Both documents now
-  report the code values.
+  The code has 52 fields (43 `RGB` + 9 `RGBA`), 52 entries in `CSS_VARS`, and 40
+  entries in `ALIASES`. The contract's own Section A table lists all 52 tokens
+  even though its summary line said 44, and its Section E once listed 27 alias
+  keys including a `name` metadata key that `ALIASES` no longer contains; the
+  code instead had 12 aliases the contract did not mention (`code-bg`,
+  `error-bg`, `info-bg`, `info-fg`, `navbar-bg`, `overlay-bg`, `shadow-color`,
+  `success-bg`, `text-on-accent`, `warning-bg`, `warning-fg`, `yellow-dim`).
+  Both documents now report the code values.
 
 - **The bundled Catppuccin Latte link colour failed WCAG AA.** `buffer.url`
   maps to the `text_link` token, and the upstream Catppuccin blue `#1E66F5`
@@ -481,9 +496,10 @@ Both CLIs expose the same operations, backed by `app/services/operations/themes.
 - **The emergency fallback's palette and its emitted CSS are not the same
   object.** `get_fallback()` sets `LoadedTheme.blog_theme` to
   `EMERGENCY_DEFAULT` but derives `css`, `css_vars` and `legacy_vars` from
-  `translate_halloy_theme(_emergency_halloy_theme())`. The two disagree on 17
-  of the 50 fields (for example `text_muted`, `text_on_accent`,
-  `text_on_warning`, `text_on_info`, `code_bg` and every `*_bg` state colour),
+  `translate_halloy_theme(_emergency_halloy_theme())`. The two disagree on 19
+  of the 52 fields (for example `text_muted`, `text_caption`, `accent_text`,
+  `text_on_accent`, `text_on_warning`, `text_on_info`, `code_bg` and every
+  `*_bg` state colour),
   so the values that reach the browser are the translated ones, not
   `EMERGENCY_DEFAULT`.
 

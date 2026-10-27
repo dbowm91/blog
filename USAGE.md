@@ -277,20 +277,10 @@ def generate_preview_link(post_id):
 
 The blog uses Prism.js for syntax highlighting of code blocks in posts.
 
-### Available Themes
-| Theme ID | Label |
-|-------|-------------|
-| `prism` | Prism Default |
-| `prism-coy` | Prism Coy |
-| `prism-dark` | Prism Dark |
-| `prism-funky` | Prism Funky |
-| `prism-okaidia` | Prism Okaidia |
-| `prism-tomorrow` | Prism Tomorrow |
-
-Change themes in `/admin/settings` under **Syntax Highlighting Theme**.
-
-The selected theme is applied as a stylesheet link whose URL is published to
-the page as `data-prism-css-url`, so switching themes needs no rebuild.
+There is no syntax highlighting theme setting. The Prism token colours are
+mapped onto the site's own theme tokens, so a code block follows the theme it
+is read in. Prism itself is bundled from the npm package and is only fetched
+when a page actually contains a code block.
 
 ---
 
@@ -573,7 +563,7 @@ The admin settings live on one page, `/admin/settings`, split into sections:
 | Section | Contents |
 |---------|----------|
 | Theme Preview | Live preview of the selected dark/light theme pair |
-| Theme | Dark theme, light theme, default colour scheme, syntax highlighting theme, logo text, custom CSS |
+| Theme | Dark theme, light theme, default colour scheme, logo text, custom CSS |
 | Theme Registry | The bundled theme catalogue, with warnings |
 | Typography & Background | Sans and mono font families, and the page backdrop |
 | Site | Comments toggle, footer text, footer columns, page menu |
@@ -582,7 +572,6 @@ The admin settings live on one page, `/admin/settings`, split into sections:
 |---------|-------------|
 | Dark theme / Light theme | Halloy theme names, chosen from the bundled catalogue of 50 |
 | Default scheme | Which theme applies when the visitor has no saved colour-scheme preference (`system`, `dark` or `light`) |
-| Syntax Highlighting Theme | Prism.js theme used for code blocks |
 | Logo Text | Text to display as logo (uses the site title if empty) |
 | Custom CSS | Additional CSS (sanitized before saving) |
 | Font (sans / mono) | Font families from the appearance registry |

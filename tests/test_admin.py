@@ -666,7 +666,6 @@ def test_settings_theme_update(authenticated_client, db):
             "theme_dark_name": "Catppuccin Mocha",
             "theme_light_name": "Catppuccin Latte",
             "theme_default_scheme": "light",
-            "syntax_theme": "prism",
             "custom_css_enabled": "on",
             "custom_css": "body { color: red; }",
             "logo_text": "Test Logo",
@@ -689,7 +688,6 @@ def test_settings_invalid_theme_name(authenticated_client, db):
             "theme_dark_name": "Nonexistent Theme XYZ",
             "theme_light_name": "Catppuccin Latte",
             "theme_default_scheme": "system",
-            "syntax_theme": "prism",
         },
         follow_redirects=True,
     )

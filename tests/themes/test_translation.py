@@ -222,7 +222,7 @@ class TestForegroundSelection:
 
 class TestEmergencyDefault:
     def test_emergency_default_covers_all_fields(self) -> None:
-        assert len(dataclasses.fields(EMERGENCY_DEFAULT)) == 50
+        assert len(dataclasses.fields(EMERGENCY_DEFAULT)) == 52
 
     def test_emergency_default_deterministic(self) -> None:
         assert EMERGENCY_DEFAULT == EMERGENCY_DEFAULT

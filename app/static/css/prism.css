@@ -1,91 +1,60 @@
-/* Prism Default Theme */
-code[class*="language-"],
-pre[class*="language-"] {
-    color: #333;
-    background: none;
-    font-family: 'JetBrains Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-    font-size: 0.88rem;
-    text-align: left;
-    white-space: pre;
-    word-spacing: normal;
-    word-break: normal;
-    word-wrap: normal;
-    line-height: 1.6;
-    tab-size: 4;
-    hyphens: none;
-}
-
-pre[class*="language-"] {
-    padding: 1.5em;
-    margin: 0;
-    overflow: auto;
-    border-radius: 8px;
-    background: var(--bg-surface) !important;
-    border: 1px solid var(--border);
-}
-
-:not(pre) > code[class*="language-"] {
-    padding: 0.1em 0.3em;
-    border-radius: 4px;
-    white-space: normal;
-    background: var(--bg-elevated);
-}
+/* Prism token palette.
+ *
+ * The tokens are mapped onto the active theme's own palette, so a code block
+ * follows the theme it is read in. There is no third-party palette here and no
+ * colour literal: every colour is a theme token.
+ *
+ * The mapping lives in this one file on purpose. A future theme schema with
+ * dedicated code tokens replaces this mapping without touching any other
+ * stylesheet.
+ */
 
 .token.comment,
 .token.prolog,
 .token.doctype,
 .token.cdata {
-    color: #708090;
+    color: var(--text-dim);
 }
 
-.token.punctuation {
-    color: #999;
+.token.punctuation,
+.token.operator {
+    color: var(--text-caption);
 }
 
-.token.namespace {
-    opacity: 0.7;
-}
-
+.token.keyword,
+.token.atrule,
+.token.important,
+.token.namespace,
 .token.property,
-.token.tag,
-.token.boolean,
-.token.number,
-.token.constant,
-.token.symbol,
-.token.deleted {
-    color: #905;
-}
-
 .token.selector,
 .token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted {
-    color: #690;
-}
-
-.token.operator,
-.token.entity,
-.token.url {
-    color: #9a6e3a;
-}
-
-.token.atrule,
-.token.attr-value,
-.token.keyword {
-    color: #07a;
+.token.tag {
+    color: var(--accent-text);
 }
 
 .token.function,
-.token.class-name {
-    color: #dd4a68;
+.token.class-name,
+.token.builtin,
+.token.attr-value,
+.token.string,
+.token.char,
+.token.regex,
+.token.url,
+.token.symbol,
+.token.variable,
+.token.constant {
+    color: var(--green);
 }
 
-.token.regex,
-.token.important,
-.token.variable {
-    color: #e90;
+.token.number,
+.token.boolean,
+.token.entity,
+.token.inserted {
+    color: var(--yellow);
+}
+
+.token.deleted {
+    color: var(--red);
 }
 
 .token.important,
