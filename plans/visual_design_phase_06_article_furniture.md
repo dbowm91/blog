@@ -1,10 +1,12 @@
 # Visual Design Phase 06 — Article Furniture
 
-> **Plan status: ACTIVE — not started.** Nothing in this plan has shipped. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+> **Plan status: COMPLETE — shipped 2026-10-27.** The outcome is documented in
+> [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md#the-structural-voice).
+> See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
 
 **Roadmap:** [visual_design_roadmap.md](visual_design_roadmap.md)
 **Date:** 2026-10-27
-**Status:** Not started
+**Status:** Complete — shipped 2026-10-27
 **Severity:** Medium — the share panel occupies the top of the article, and the page has no visual hierarchy between its structure and its content.
 
 ## Objective
@@ -214,4 +216,103 @@ sit around.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete. Shipped 2026-10-27.
+
+### What changed
+
+- `app/templates/_post_content.html` — the `.share-bar` moved. It was the first
+  child of `.post-content`, above the TL;DR and above the article body; it now
+  sits after `.post-body` and before the author card. Its markup, its
+  `data-post-id` and `data-share-url` attributes, its six network links and its
+  copy button are unchanged, so `app/static/js/public/share.js` is unaffected.
+- `app/static/css/public.css` — `.share-bar`'s spacing changed from
+  `margin-bottom: 24px` to `margin-top: 24px`, because the bar is no longer
+  the first child of the tile. `.share-label` and `.post-toc-title` take the
+  structural treatment. `.post-toc a` is now underlined. A new
+  `.post-footer-tags` rule spaces the post's own tag list.
+- `app/static/css/layout.css` — `.sidebar-title` takes the same structural
+  treatment.
+- `app/templates/_post_content.html` — the post's full tag list is rendered in
+  the `.post-footer`, so the tags a card counts are reachable.
+- `tests/test_css_contracts.py` — a `TestStructuralVoice` class: each label is
+  declared once, the labels take the structural treatment, none of them uses
+  the decorative role, the share bar is spaced from the top, and the contents
+  entries keep the link treatment.
+- `tests/test_frontend_contracts.py` — the share bar follows the article body
+  and precedes the author card, and it keeps every network and the copy
+  button.
+- `tests/e2e/test_article_furniture.py` — 11 browser tests: the panel stands
+  below the article, the article starts higher, the panel keeps every control,
+  the share label, the contents title and the sidebar heading take the
+  structural voice, the contents entries look like links and clear 4.5:1, they
+  keep a focus ring, the page does not overflow on a phone, the panel wraps
+  rather than overflows, and the post lists every tag.
+
+### Deviations from the plan
+
+1. **The article starts 94px higher, not 100px.** The plan's target was 100px
+   against a panel it measured at 76px. The panel is 70px: `.share-btn` has
+   `min-height: 44px` and an 18px icon, so the panel is 44 + 24 (padding) +
+   2 (border) = 70px, and its block is 70 + 24 = 94px. The plan's spacing —
+   `margin-bottom: 24px` becomes `margin-top: 24px` — is implemented exactly,
+   so the gain is the panel's block and the panel is 6px shorter than the plan
+   assumed. The test asserts the block is at least 90px and that nothing stands
+   between the TL;DR and the first paragraph.
+
+2. **The table-of-contents entries were not underlined, and now are.** The plan
+   says they "keep their underline or its distinct link treatment", on the
+   assumption that they already had one. They did not: `.post-toc a` declared
+   `text-decoration: none`, and because the public sheet loads after the base
+   sheet and the two rules have equal specificity, the base sheet's
+   `a:where(:not(.btn):not(.skip-link)):hover { text-decoration: underline }`
+   was overridden too. The entries are links, so the underline was added.
+
+3. **The post page lists every tag.** Phase 05 caps a card at four tags and
+   counts the rest, and its `+N` label says the full list is on the post page.
+   The post page did not have one — it listed only the primary tag in its
+   breadcrumb — so the label would have been promising something the page did
+   not deliver, and the tags would have been unreachable from the index. The
+   post now renders its whole set of tags in the footer.
+
+4. **The structural elements already carried the caption role, and two of the
+   three already carried the uppercase treatment.** The plan's finding table
+   lists all five kinds of text at `--text-muted`; the stylesheets said
+   `--text-caption`, and `.post-toc-title` and `.sidebar-title` were already
+   uppercase with a letter-spacing. What the phase actually changed is the
+   **face** — the mono stack — and the size: 12.8px and 13.6px down to 11.5px,
+   with the letter-spacing opened from 0.06em to 0.08em. The shared
+   declaration is implemented as the plan specifies it, so the three labels
+   now match each other exactly rather than only approximating each other.
+
+### Verification
+
+Measured in Chromium against the running instance at 1280px:
+
+| Property | Before | After |
+|---|---|---|
+| Share panel's position | above the TL;DR | below the article body |
+| Article's first paragraph | 206px below the tile's top | 112px below it |
+| The room the panel took | 94px above the article | 0px |
+| Share label | 12.8px sans, sentence case | 11.5px mono, uppercase |
+| Contents title | 12.8px sans, uppercase, 0.06em | 11.5px mono, uppercase, 0.08em |
+| Sidebar heading | 13.6px sans, uppercase, 0.06em | 11.5px mono, uppercase, 0.08em |
+| Contents entries | not underlined | underlined |
+
+- The panel keeps all six networks and the copy button; its data attributes
+  travel with it, so the share JavaScript is unaffected.
+- A contents entry clears 4.5:1 against its background and keeps its
+  `:focus-visible` outline.
+- The post page has no horizontal scrollbar at 390px, and the panel wraps
+  rather than overflowing.
+- `pytest tests/e2e/test_article_furniture.py` — 11 passed.
+- `pytest tests/test_css_contracts.py tests/test_frontend_contracts.py` —
+  passed.
+- `ruff check .` and `ruff format --check .` — clean.
+- Full-suite comparison against the pre-phase baseline: the failure sets are
+  identical apart from `tests/test_phase8.py::TestBackupRestore::test_download_backup`,
+  which is a pre-existing order-dependent failure - `tests/services/test_operations_backup.py`
+  writes `blog_verify_<uuid>.db` into the shared `instance/backups` directory and the
+  phase 8 test downloads the first entry of an unsorted listing, which the route
+  refuses when the name is not `blog_<timestamp>.db`. It failed 10 runs out of 10 on an
+  unmodified checkout when those two modules shared a session, and the backup code is
+  untouched by this phase.

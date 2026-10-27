@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import post_tag_row %}
 
 {% block title %}#{{ tag.name | escape }} | {{ site_title }}{% endblock %}
 {% block meta_description %}Posts tagged with {{ tag.name | escape }}{% endblock %}
@@ -51,11 +52,7 @@
                     {% if post.summary %}
                         <p class="post-card-summary">{{ post.summary }}</p>
                     {% endif %}
-                    <div class="post-tags">
-                        {% for t in post.tags %}
-                            <a href="{{ url_for('public.tag', slug=t.slug) }}" class="tag">#{{ t.name }}</a>
-                        {% endfor %}
-                    </div>
+                    {{ post_tag_row(post) }}
                 </div>
             </div>
         {% else %}

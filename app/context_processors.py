@@ -178,13 +178,6 @@ def _get_footer_data() -> dict[str, Any]:
         .scalars()
         .all()
     )
-    recent_posts_sidebar = (
-        db.session.execute(
-            select(Post).filter_by(published=True).order_by(Post.created_at.desc()).limit(5)
-        )
-        .scalars()
-        .all()
-    )
     footer_tags = db.session.execute(select(Tag).order_by(Tag.name)).scalars().all()
 
     tag_counts = _get_tag_counts()
@@ -194,7 +187,6 @@ def _get_footer_data() -> dict[str, Any]:
 
     return {
         "recent_posts_footer": list(recent_posts),
-        "recent_posts_sidebar": list(recent_posts_sidebar),
         "footer_tags": list(footer_tags),
         "footer_tag_counts": footer_tag_counts,
     }
@@ -264,7 +256,6 @@ def register_context_processors(app: Any) -> None:
         if path.startswith("/admin") or path.startswith("/api") or path.startswith("/rss"):
             return {
                 "recent_posts_footer": [],
-                "recent_posts_sidebar": [],
                 "footer_tags": [],
                 "footer_tag_counts": {},
             }
@@ -276,7 +267,6 @@ def register_context_processors(app: Any) -> None:
             invalidate_footer_cache()
             return {
                 "recent_posts_footer": [],
-                "recent_posts_sidebar": [],
                 "footer_tags": [],
                 "footer_tag_counts": {},
             }

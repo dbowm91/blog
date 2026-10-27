@@ -1,12 +1,4 @@
 <aside class="sidebar" id="sidebar" aria-label="Sidebar">
-    <div class="sidebar-section">
-        <h3 class="sidebar-title">Recent posts</h3>
-        <ul class="sidebar-links">
-            {% for post in recent_posts_sidebar %}
-            <li><a href="{{ url_for('public.post', slug=post.slug) }}">{{ post.title }}</a></li>
-            {% endfor %}
-        </ul>
-    </div>
     {% if series_nav %}
     <div class="sidebar-section">
         <h3 class="sidebar-title">Series navigation</h3>

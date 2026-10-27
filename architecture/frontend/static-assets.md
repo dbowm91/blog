@@ -269,13 +269,102 @@ also owns that element's breakpoint override.**
 | Sheet | Owns |
 |---|---|
 | `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle` |
-| `layout.css` | `.container`, `.content-layout`, `.sidebar`, the navbar and `.nav-links` |
-| `public.css` | `.hero`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
+| `layout.css` | `.container`, `.content-layout`, `.sidebar`, `.sidebar-title`, the navbar and `.nav-links` |
+| `public.css` | `.hero`, `.posts-list`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.tag-more`, `.post-footer-tags`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
 | `forms.css` | the form controls, including their iOS-zoom font sizes |
 | `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
 
 `base.css` loads before all of them, so it may only override a rule for an
 element it owns outright.
+
+### The Post List Grid
+
+The index, the search results and the tag archive render the same markup — a
+`<section class="posts-list">` of `.post-card` tiles — so the list is laid out
+once, as a grid, in `public.css`:
+
+```css
+.posts-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-lg);
+}
+
+@media (min-width: 1024px) {
+    .posts-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+```
+
+One column below 1024px, two above it. The grid replaced a flex column: a
+column of full-width cards showed one headline per screen.
+
+**The tracks are `minmax(0, 1fr)`, not `1fr`.** A `1fr` track has an automatic
+minimum of `min-content`, so a long unbroken title in a card widens its track,
+the grid grows past the container it sits in and the page scrolls sideways.
+`minmax(0, 1fr)` lets the track shrink below its content, so the title wraps
+instead. The two-column case is `repeat(2, minmax(0, 1fr))` for the same
+reason — one long title must not widen the pair. The main column of
+`.content-layout` is `minmax(0, 1fr)` too, for exactly the same failure.
+
+The sidebar column of `.content-layout` is a fixed `200px`, and the main column
+is `minmax(0, 1fr)`. The sidebar was `260px` while it carried a "Recent posts"
+list; that block is gone, so the column it needed is gone with it. The tag
+cloud is now the widest thing in the sidebar, and 200px holds it.
+
+The card came down with the grid: `.post-card-body` is `20px 22px` rather than
+`24px 28px`, and the summary is clamped to two lines with
+`-webkit-line-clamp: 2` and the standard `line-clamp: 2`, keeping
+`overflow: hidden`. A card is a summary of a post, not the post; the reader opens the post
+for the rest of it.
+
+Measured at 1280px the grid computes `420px 420px`, a card is 420px wide, the
+sidebar column is 200px and the card's image band is 418×235 (16:9). At 768px
+the list is one 736px column; at 390px the card is 358px and nothing overflows
+horizontally.
+
+**`critical.css` paints the same grid.** The critical sheet is the first
+paint, and a first paint of one column followed by a two-column reflow is a
+visible jump. It therefore repeats the `.posts-list` rule and its 1024px media
+query. This is the documented exception to the one-owner rule:
+`critical.css` duplicates a small subset of the layout by design, and the
+duplicate must match the sheet it shadows.
+
+### The Tag Row
+
+A card shows at most **four** tags and counts the rest. The cap lives in one
+place — the `post_tag_row` macro in `app/templates/macros.html` — because the
+index, the search results and the tag archive render the same card, and a cap
+declared three times would drift. See
+[Templates](templates.md#the-card-tag-row).
+
+The chips are `.tag` links; the count is a `.tag.tag-more` label:
+
+```html
+<span class="tag tag-more" aria-label="3 more tags; this post has 7 tags in total, and the full list is on the post page">+3</span>
+```
+
+The count is a **label, not a link**, and it is styled as one. `.tag-more`
+takes `--bg-elevated` for its surface, `--text-caption` for its ink, a
+`1px solid var(--border)` edge, `cursor: default`, and no lift (`transform:
+none`, `box-shadow: none`).
+
+That is why the chip's hover lift is scoped to `a.tag:hover` and not to
+`.tag:hover`. The lift is a link affordance: it says "this goes somewhere". The
+count chip goes nowhere, so under the pointer it must stay still.
+
+The accessible name is not optional either. A bare "+3" tells a screen reader
+three of nothing; the `aria-label` says how many tags are hidden, how many the
+post has in total, and that the full list is on the post page.
+
+### The Post's Own Tag List
+
+A card counts the tags it does not show, so the post itself is where the whole
+list is found. `_post_content.html` renders every tag of the post in the post
+footer, as `<div class="post-footer-tags post-tags">`, and `public.css` gives
+that block a `margin-bottom: 16px` so it is separated from the back link below
+it. The card and the post therefore never disagree about a post's tags.
 
 ### The Post Tile
 
@@ -294,6 +383,51 @@ The table of contents is rendered by `public/toc.js` into a
 image. It used to sit outside the article, as a sibling of it, which made it
 float above the post and span the whole container width instead of the post's
 own.
+
+The share bar follows the article body: it sits after `.post-body` and before
+the `.author-card`, so the reader finishes the article and is then offered
+sharing. Its spacing moved with it — `margin-top: 24px` where it used to be
+`margin-bottom: 24px` — because the bar is no longer the first child of
+`.post-content`. The margin is the same size, so the block it occupies is
+unchanged at 94px (a 70px panel plus the 24px margin); the article's first
+paragraph simply starts that much higher on the page.
+
+### The Structural Voice
+
+Three labels name the parts of a page rather than reading as content: the
+table-of-contents title, the share label and the sidebar headings. They take
+one shared treatment:
+
+```css
+font-family: var(--font-mono);
+font-size: 0.72rem;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+color: var(--text-caption);
+```
+
+The mono face is the point: structure on a technical page reads as
+machine-facing, and the metadata already used it. The uppercase treatment with
+letter-spacing makes a label read as a label rather than as a heading, and the
+caption role gives it the contrast the muted role did not.
+
+Each label is declared in **exactly one** stylesheet, and the sheet that owns
+an element owns it completely:
+
+| Label | Owner |
+|---|---|
+| `.post-toc-title` | `public.css` |
+| `.share-label` | `public.css` |
+| `.sidebar-title` | `layout.css` |
+
+The table-of-contents **entries** (`.post-toc a`) are a different matter. They
+keep the body face and their own size — they are links — but they take the
+caption role for colour and they are underlined, with
+`text-underline-offset: 3px`. The rule used to declare `text-decoration: none`,
+and because the public sheet loads after the base sheet at equal specificity,
+that declaration won over the base sheet's own link treatment: the entries
+never underlined, not even on hover or focus. They are links, so they now read
+as links.
 
 ### The Reading Measure
 
@@ -371,6 +505,10 @@ the height of a 16:9 screenshot — the prompt at the top and the output at the
 bottom. The ratio removes the crop, and no breakpoint may reintroduce a fixed
 height.
 
+The band's height follows the card's width, so a narrower card has a shorter
+band: in the two-column grid a 420px card carries a 235px band. That is the
+ratio doing its job, not a cropped image.
+
 The post hero keeps its own 760×400 banner. A hero is a banner by convention,
 and the placeholder mark is letterboxed inside it rather than cropped.
 
@@ -425,6 +563,10 @@ Dark mode follows OS preference by default via `prefers-color-scheme: dark`. The
 ### Critical CSS
 
 `critical.css` provides above-the-fold styles for fast initial paint. It mirrors the actual navbar, hero, container, and post-card classes so the first paint uses the same dark theme as the full stylesheets. It is loaded immediately; the remaining stylesheets use `media="print" onload="this.media='all'"` for deferred loading.
+
+The `.posts-list` grid is one of the mirrored rules: the first paint of the
+index shows two columns at a wide viewport, not one column that reflows a
+moment later. See [The Post List Grid](#the-post-list-grid).
 
 ### Design Tokens
 

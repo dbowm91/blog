@@ -84,10 +84,18 @@ body {
     font-size: 1.1rem;
 }
 
+/* The list is a grid on a wide viewport, and this sheet is the first paint,
+   so it has to paint the same grid the full sheet does. */
 .posts-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
+}
+
+@media (min-width: 1024px) {
+    .posts-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .post-card {

@@ -1,10 +1,12 @@
 # Visual Design Phase 05 — Index Layout
 
-> **Plan status: ACTIVE — not started.** Nothing in this plan has shipped. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+> **Plan status: COMPLETE — shipped 2026-10-27.** The outcome is documented in
+> [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md#the-post-list-grid).
+> See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
 
 **Roadmap:** [visual_design_roadmap.md](visual_design_roadmap.md)
 **Date:** 2026-10-27
-**Status:** Not started
+**Status:** Complete — shipped 2026-10-27
 **Severity:** Medium — the index shows one headline per screen, and the sidebar repeats the list it sits beside.
 
 ## Objective
@@ -240,4 +242,122 @@ Runs before Phase 06.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete. Shipped 2026-10-27.
+
+### What changed
+
+- `app/templates/_sidebar.html` — the "Recent posts" section is gone. The
+  sidebar holds, in order, "Series navigation" (only when the post belongs to
+  a series), "Tags" and the RSS Feed link.
+- `app/context_processors.py` — the `recent_posts_sidebar` query is gone from
+  `_get_footer_data()`, and the key is gone from all three branches of
+  `inject_footer_data()`.
+- `app/static/css/public.css` — `.posts-list` is a grid: one column by
+  default, two columns from 1024px, with `minmax(0, 1fr)` tracks.
+  `.post-card-body`'s padding is `20px 22px`. `.post-card-summary` is clamped
+  to two lines. The tag chip's hover lift moved from `.tag:hover` to
+  `a.tag:hover`, and a new `.tag-more` rule styles the count chip.
+- `app/static/css/layout.css` — `.content-layout` is
+  `minmax(0, 1fr) 200px`.
+- `app/static/css/critical.css` — `.posts-list` paints the same grid, because
+  critical.css is the first paint.
+- `app/templates/macros.html` — a new `post_tag_row(post, max_tags=4)` macro
+  renders a card's tag row: at most four tag links, then a
+  `<span class="tag tag-more">+N</span>` label.
+- `app/templates/index.html`, `search.html` and `tag.html` — the three cards
+  call the macro rather than looping over the tags themselves.
+- `app/templates/_post_content.html` — the post page lists its whole set of
+  tags in the footer, so the count a card hides is reachable.
+- `tests/test_css_contracts.py` — a `TestIndexLayout` class: the list is a
+  grid, the grid holds two columns from 1024px, the tracks can shrink, no
+  stylesheet paints the list as a column, the sidebar column is 200px, the
+  card's padding is tightened, the summary is clamped, the lift belongs to the
+  link, and the count chip is a label.
+- `tests/test_frontend_contracts.py` — the sidebar does not repeat the list,
+  the sidebar keeps its own sections, the three cards share one tag row, and
+  the post page lists every tag.
+- `tests/test_context_processors.py` — the context processor no longer queries
+  for the sidebar's list, the sidebar renders no post list, and the footer
+  keeps its own.
+- `tests/e2e/test_index_layout.py` — 13 browser tests: the index is two
+  columns at 1280px and one at 768px, two cards sit side by side, a card is
+  narrower than it was, the tag row is capped, the count chip carries an
+  accessible name, the summary is clamped to two lines, no width overflows,
+  the sidebar is 200px, the sidebar keeps its sections, and the index shows
+  more than one headline per screen.
+
+### Deviations from the plan
+
+1. **The density target of three headlines in the first 900px is not reachable
+   with the plan's own layout.** A two-column grid shows headlines in pairs,
+   so three would have to mean four: the second row's two headlines would have
+   to land above 900px. At 1280px the first row's headlines sit at 598px and
+   the second row's at 972px, so the count is two. For the second row to fit,
+   a card would have to be shorter than 278px, and the 16:9 band that Phase 04
+   established is 235px of that on its own, before the metadata and the title.
+   The count is **two, up from one**, and the test asserts that the first row
+   holds two headlines and that a second row of headlines starts inside the
+   next 300px. Reaching three would mean giving up the 16:9 band or replacing
+   the full-width band with a side column, both of which are outside this
+   phase.
+
+2. **The card is 420px wide, not the 490px the plan expected.** At 1280px the
+   main column is 864px wide once the 200px sidebar and the 48px gap are
+   taken out, so two cards with a 24px gap are 420px each. The plan's 490px
+   does not follow from its own measurements of the container.
+
+3. **The tag cap lives in a macro.** The plan shows the cap inline in each
+   template, but three templates render the same card. `post_tag_row(post)`
+   in `app/templates/macros.html` is the single owner of the cap, so the
+   three cards cannot drift apart.
+
+4. **The plan lists `search.html` for the cap "if it renders the same card"
+   but not `tag.html`.** `tag.html` renders the same card, so all three use
+   the macro.
+
+5. **`critical.css` also declares `.posts-list`, and the plan does not list
+   it.** It is the first paint and it declared the list as a flex column, so
+   it now paints the same grid. critical.css deliberately duplicates a small
+   subset of the layout; it is a documented exception, not a second owner.
+
+6. **The post page had no tag list.** The plan says the `+N` label must say
+   "that the full list is on the post page", but the post page listed only the
+   primary tag in its breadcrumb. Without a list there, the tags a card hides
+   would have been unreachable from the index, which the cap would have made
+   worse rather than better. The post page now renders its whole set of tags
+   in the footer.
+
+7. **The hover lift is scoped to `a.tag:hover`.** The plan says the count
+   chip "must also not pick up the `.tag:hover` lift". The lift is a link
+   affordance and every real `.tag` is an anchor, so the rule is now
+   `a.tag:hover` and the chip is excluded by construction rather than by an
+   override.
+
+### Verification
+
+Measured in Chromium against the running instance:
+
+| Property | Before | After |
+|---|---|---|
+| List at 1280px | one 804px column | two 420px columns |
+| List at 768px | one 736px column | one 736px column |
+| Sidebar column | 260px | 200px |
+| Card body padding | `24px 28px` | `20px 22px` |
+| Card image band at 1280px | 802×451 | 418×235, ratio 1.778 |
+| Headlines in the first 900px at 1280px | 1 | 2 |
+| Card's tags | all of them | 4 and a labelled count |
+| Summary | unclamped | two lines |
+
+- The horizontal scrollbar is gone at 390px, 768px and 1280px.
+- `pytest tests/e2e/test_index_layout.py` — 13 passed.
+- `pytest tests/test_css_contracts.py tests/test_frontend_contracts.py
+  tests/test_context_processors.py` — passed.
+- `ruff check .` and `ruff format --check .` — clean.
+- Full-suite comparison against the pre-phase baseline: the failure sets are
+  identical apart from `tests/test_phase8.py::TestBackupRestore::test_download_backup`,
+  which is a pre-existing order-dependent failure - `tests/services/test_operations_backup.py`
+  writes `blog_verify_<uuid>.db` into the shared `instance/backups` directory and the
+  phase 8 test downloads the first entry of an unsorted listing, which the route
+  refuses when the name is not `blog_<timestamp>.db`. It failed 10 runs out of 10 on an
+  unmodified checkout when those two modules shared a session, and the backup code is
+  untouched by this phase.

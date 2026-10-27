@@ -317,8 +317,8 @@ element's base rule therefore owns its breakpoint override too:
 | Sheet | Owns |
 |---|---|
 | `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle`, the code block's layout and `.copy-code-btn` |
-| `layout.css` | `.container`, `.content-layout`, `.sidebar`, the navbar and `.nav-links` |
-| `public.css` | `.hero`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
+| `layout.css` | `.container`, `.content-layout`, `.sidebar`, `.sidebar-title`, the navbar and `.nav-links` |
+| `public.css` | `.hero`, `.posts-list`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.tag-more`, `.post-footer-tags`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
 | `forms.css` | the form controls, including their iOS-zoom font sizes |
 | `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
 | `prism.css` | the Prism `.token.*` colours, and nothing else |
@@ -368,6 +368,86 @@ they would be the same colour as the tile and would read as nothing at all.
 The `.post-toc-container` lives inside the article, directly under the hero
 image, so the contents list shares the post's width and reads as part of the
 post. It is rendered by `public/toc.js`.
+
+### Post List Grid
+
+`.posts-list` is a grid, not a column, and `public.css` owns it. One track on
+a narrow viewport and two from 1024px:
+
+```css
+.posts-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-lg);
+}
+
+@media (min-width: 1024px) {
+    .posts-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+```
+
+The tracks are `minmax(0, 1fr)` rather than `1fr` because a `1fr` track has an
+automatic minimum: a card whose title is one long unbroken word sets that
+minimum, and the grid grows wider than the container holding it. `minmax(0, 1fr)`
+lets the title shrink its own column and wrap instead.
+
+The breakpoint belongs to the same sheet as the base rule — a media query adds
+no specificity, so a breakpoint override in another sheet ties with the base
+rule and loses on document order.
+
+### Card Tag Row
+
+`app/templates/macros.html` holds `post_tag_row(post, max_tags=4)`, the single
+owner of a post card's tag cap. It renders at most four tag links and, when
+the post carries more, a `<span class="tag tag-more">` label whose `aria-label`
+says how many tags were hidden, how many the post has in total, and that the
+full list is on the post page.
+
+The count chip is a **label, not a link**. The hover lift therefore belongs to
+`a.tag:hover`, not to `.tag:hover` — a chip that rises under the pointer
+implies a destination it does not have, and it is the only element in the row
+that is not clickable. `public.css` owns `.tag-more`: a muted surface, the
+caption role, and no lift.
+
+The cap is the card's, not the post's. `_post_content.html` renders every tag
+in the post's footer, so a card never holds the only copy of a tag.
+
+### Structural Voice
+
+Three labels share one voice — the mono face, an uppercase treatment, the
+caption role:
+
+```css
+font-family: var(--font-mono);
+font-size: 0.72rem;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+color: var(--text-caption);
+```
+
+They are not one shared class. Each label is declared in exactly one
+stylesheet, and that stylesheet owns it:
+
+| Label | Owner |
+|---|---|
+| `.post-toc-title` | `app/static/css/public.css` |
+| `.share-label` | `app/static/css/public.css` |
+| `.sidebar-title` | `app/static/css/layout.css` |
+
+A structural label names the group beneath it — a list of contents, a row of
+controls, a section of a page. It is not a heading in the page's hierarchy,
+and it must not take the body face.
+
+### First Paint
+
+`app/static/css/critical.css` paints the same `.posts-list` grid, because
+`base.html` loads that sheet with `media="screen"` and it is the first paint.
+A column of cards that is visible for a moment and then becomes a grid is a
+visible reflow. `critical.css` deliberately duplicates a small subset of the
+layout; it is a documented exception, not a second owner — the full sheet
+still owns the rule.
 
 ### Vite Build
 

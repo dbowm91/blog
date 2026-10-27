@@ -26,10 +26,20 @@
 }
 
 /* --- Post Cards (with image) --- */
+/* The list is a grid rather than a column, so a wide viewport shows two cards
+   per row instead of one. The tracks are minmax(0, 1fr) rather than 1fr: a
+   long unbroken title then shrinks its own column instead of forcing the
+   grid wider than the container it sits in. */
 .posts-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-lg);
+}
+
+@media (min-width: 1024px) {
+    .posts-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .post-card {
@@ -86,7 +96,7 @@
 }
 
 .post-card-body {
-    padding: 24px 28px;
+    padding: 20px 22px;
 }
 
 .post-meta {
@@ -118,11 +128,18 @@
     color: var(--accent-text);
 }
 
+/* The summary is clamped to two lines. A card is a summary of a post, not the
+   post: the reader opens the post for the rest of it. */
 .post-card-summary {
     color: var(--text-caption);
     font-size: 0.95rem;
     margin-bottom: 14px;
     line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .post-card-snippet {
@@ -241,9 +258,23 @@
     min-width: 44px;
 }
 
-.tag:hover {
+/* The lift is a link affordance, so it is scoped to the anchor. The count
+   chip is a label and must stay still under the pointer. */
+a.tag:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+/* The chip that counts the tags a card did not show. It is a label, not a
+   link: it carries a muted surface, no lift, and a name that says what the
+   count means rather than announcing a bare "+3". */
+.tag-more {
+    background: var(--bg-elevated);
+    color: var(--text-caption);
+    border: 1px solid var(--border);
+    cursor: default;
+    transform: none;
+    box-shadow: none;
 }
 
 .tag-count {
@@ -362,13 +393,16 @@
 /* --- Share Bar --- */
 /* The share bar, the TL;DR and the author card sit inside the post tile, so
    they take the elevated surface: on the tile's own surface they would be
-   the same colour as the tile and would read as nothing at all. */
+   the same colour as the tile and would read as nothing at all.
+
+   The bar follows the article body, so it is spaced from the top: it is no
+   longer the first child of the post tile. */
 .share-bar {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 12px;
-    margin-bottom: 24px;
+    margin-top: 24px;
     background: var(--bg-elevated);
     background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     border: 1px solid var(--border);
@@ -376,9 +410,14 @@
     flex-wrap: wrap;
 }
 
+/* The label is structural: it names the group of controls below it rather
+   than reading as content. It takes the same voice as the other structural
+   elements — the mono face, an uppercase treatment and the caption role. */
 .share-label {
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--text-caption);
     margin-right: 4px;
 }
@@ -654,11 +693,15 @@ a.related-card {
     padding: 16px 20px;
 }
 
+/* The title is a structural label: it names the contents list rather than
+   reading as a heading in the article. It takes the same voice as the other
+   structural elements — the mono face, an uppercase treatment and the caption
+   role. */
 .post-toc-title {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--text-caption);
     margin-bottom: 12px;
 }
@@ -673,10 +716,14 @@ a.related-card {
     margin-bottom: 6px;
 }
 
+/* The entries are links, so they keep their link treatment: they stay in the
+   body face, they carry the caption role for colour, and they are underlined
+   so that they read as links rather than as a list of labels. */
 .post-toc a {
     color: var(--text-caption);
     font-size: 0.875rem;
-    text-decoration: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
     transition: color var(--transition);
 }
 
@@ -827,6 +874,12 @@ a.related-card {
     margin-top: 48px;
     padding-top: 24px;
     border-top: 1px solid var(--border);
+}
+
+/* The post's whole tag list. A card shows at most four tags and counts the
+   rest, so the post itself is where the full list is found. */
+.post-footer-tags {
+    margin-bottom: 16px;
 }
 
 .back-link {

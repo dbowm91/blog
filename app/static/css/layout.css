@@ -261,9 +261,12 @@
 }
 
 /* --- Layout --- */
+/* The main column is minmax(0, 1fr) rather than 1fr, so that a long unbroken
+   title in a card cannot push the grid wider than its container. The sidebar
+   is 200px: the block that needed the extra width is gone. */
 .content-layout {
     display: grid;
-    grid-template-columns: 1fr 260px;
+    grid-template-columns: minmax(0, 1fr) 200px;
     gap: var(--space-2xl);
     padding: var(--space-lg) 0 var(--space-3xl);
 }
@@ -286,11 +289,14 @@
     padding: var(--space-lg);
 }
 
+/* The sidebar heading is a structural label, not a heading in the page's
+   hierarchy: it takes the same voice as the other structural elements — the
+   mono face, an uppercase treatment and the caption role. */
 .sidebar-title {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--text-caption);
     margin-bottom: 16px;
 }

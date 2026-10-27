@@ -24,6 +24,7 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Site Identity, Authorship and Page Navigation (2026-10-24)](#site-identity-authorship-and-page-navigation-2026-10-24)
 - [Editor Layout, Markdown Toolbar and Footer Subscribe (2026-10-24)](#editor-layout-markdown-toolbar-and-footer-subscribe-2026-10-24)
 - [Themed SVG Art (2026-10-27)](#themed-svg-art-2026-10-27)
+- [Index Layout and Article Furniture (2026-10-27)](#index-layout-and-article-furniture-2026-10-27)
 - [See Also](#see-also)
 
 ---
@@ -56,6 +57,36 @@ These files have been flagged for exception handling issues (all now fixed):
 
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`
+
+### The Backup Tests Share One Directory
+
+`tests/test_phase8.py::TestBackupRestore::test_download_backup` downloads
+`backups[0]` — the first entry of an **unsorted** `os.listdir()` of
+`app.instance_path/backups`. The admin route validates the name against
+`BACKUP_FILENAME_RE` (`^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$`) and answers
+400 for anything else.
+
+`tests/services/test_operations_backup.py::TestVerifyBackup::test_verify_backup_valid`
+writes `blog_verify_<uuid>.db` into that same directory — its `backup_dir`
+fixture is `app.instance_path/backups`, not a tmp path. That name starts with
+`blog_`, so the other test's filter keeps it, and it does not match the
+regex, so the download is refused.
+
+The two tests therefore pass or fail depending on the directory's listing
+order, which depends on the random uuid. Measured on 2026-10-27: with
+`tests/services/test_operations_backup.py` running earlier in the same
+session, `test_download_backup` failed **10 runs out of 10** on an unmodified
+checkout. It fails intermittently in a full-suite run, and the failure set of
+a full-suite run is not reproducible run to run.
+
+Nothing about the backup code is wrong — `app/routes/admin/backup.py` and
+`app/services/backup.py` behave correctly. The defect is in the tests: one
+writes an invalidly named file into a shared directory, and the other assumes
+the first entry of an unsorted listing is downloadable. Comparing a
+before-and-after failure set needs this in mind: a single differing test in
+this area is not a regression. Fixing it means sorting the listing and
+filtering it to the names the route accepts, and giving the verify test a
+tmp directory of its own.
 
 ### The Test Suite Used to Overwrite the Developer's `.env`
 
@@ -1107,6 +1138,47 @@ it, not an `<img>`.
 A plan is a specification, not evidence. The `currentColor` claim was plausible
 enough to read as established, and it would have shipped a black-on-black
 placeholder in fifty themes.
+
+---
+
+## Index Layout and Article Furniture (2026-10-27)
+
+Two findings from the Visual Design phases that a future maintainer would
+otherwise rediscover the hard way. Neither is visible by reading one rule.
+
+### Equal specificity is decided by document order, not by intent
+
+The table-of-contents entries never underlined. `base.css` gives every anchor
+`text-decoration: none` and restores the underline on hover and focus with
+`a:where(:not(.btn):not(.skip-link)):hover`, while `public.css` declared
+`.post-toc a { text-decoration: none }`.
+
+The two selectors have the **same** specificity. `:where()` contributes
+nothing, so the hover rule counts as `a` (one type) plus `:hover` (one class)
+— and `.post-toc a` counts as one class plus one type. `base.html` links
+`public.css` after `base.css`, so the later sheet won the tie and the
+entries never underlined, not even on hover, where the colour changed to the
+accent but the underline did not appear.
+
+**Equal-specificity conflicts are decided by document order, not by which
+sheet "feels" more specific.** A rule that reads as more specific because it
+names an element more precisely does not outrank a rule from a later sheet.
+`public.css` now declares `text-decoration: underline` on `.post-toc a`
+itself, so the entries read as links whatever the cascade does.
+
+### The share panel's height comes from its buttons, not its label
+
+The panel is 70px tall, and that number is set by the buttons. `.share-btn`
+declares `min-height: 44px` and carries an 18px icon, so the bar's content
+box is 44px; `.share-bar` adds `padding: 12px` above and below and a 1px
+border on each side — 44 + 24 + 2 = 70px. The label is not what sets the
+height, and the padding alone does not either.
+
+**Any plan or issue that quotes the panel's height has to measure it.** The
+same is true of the 94px the move gained: the panel stood above the article
+body and is now below it, so the article's first paragraph starts 94px higher
+— the 70px panel plus the 24px margin that used to separate it from the body.
+Neither figure can be derived from the label.
 
 ---
 

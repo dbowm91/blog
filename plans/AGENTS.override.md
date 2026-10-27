@@ -149,8 +149,7 @@ Roadmap: [`visual_design_roadmap.md`](visual_design_roadmap.md)
 
 Origin: an operator review of the running instance on 2026-10-27, measured in
 Chromium in both colour schemes at 390px, 768px and 1280px. **18 findings**:
-2 critical, 7 high, 7 medium, 2 low. **Phases 01 to 04 have shipped**; phases 05
-and 06 remain open.
+2 critical, 7 high, 7 medium, 2 low. **All six phases have shipped.**
 
 | Phase | File | Status |
 |---|---|---|
@@ -158,8 +157,8 @@ and 06 remain open.
 | 02 | `visual_design_phase_02_text_roles_and_contrast.md` | **Complete.** Two derived roles — `--text-caption` and `--accent-text` — carry the text a reader must read and hold 4.5:1 in every bundled theme. The decorative allowlist is documented; eight themes were given a distinguishable code surface. |
 | 03 | `visual_design_phase_03_prose_measure.md` | **Complete.** The prose column is capped at 34 em and centred, so it carries 70 characters per line at 1280px and at 768px, and the phone layout is unchanged. |
 | 04 | `visual_design_phase_04_imagery.md` | **Complete.** The placeholder is a themed mark with no palette of its own, and the card and related bands are 16:9, so a 16:9 screenshot is no longer cropped. |
-| 05 | `visual_design_phase_05_index_layout.md` | **Not started.** The sidebar repeats the main list; one headline is visible per screen. |
-| 06 | `visual_design_phase_06_article_furniture.md` | **Not started.** The share panel occupies the top of the article; structure and content share one voice. |
+| 05 | `visual_design_phase_05_index_layout.md` | **Complete.** The index is a two-column grid from 1024px, the sidebar's duplicate "Recent posts" block and the query behind it are gone, and a card shows four tags and names the count it hides. |
+| 06 | `visual_design_phase_06_article_furniture.md` | **Complete.** The share panel stands below the article, and the structural elements take one shared voice — the mono face, an uppercase treatment and the caption role. |
 
 **Run the phases in order.** Phases 01, 02, 03 and 06 all edit
 `app/static/css/base.css`, and phases 04 and 05 both edit
@@ -180,23 +179,28 @@ below the article; the index sidebar's "Recent posts" block is dropped.
 | The caption colour and the accent-text colour | The theme runtime (`app/themes/translate.py`) |
 | The prose measure | `app/static/css/base.css` |
 | The post placeholder mark | `app/static/css/public.css` — the `.img-placeholder` mask rule; the SVG is never loaded as an image |
+| The post list grid | `app/static/css/public.css` — `.posts-list`; `app/static/css/critical.css` paints the same grid because it is the first paint |
+| The card's tag row and its cap | `app/templates/macros.html` — `post_tag_row`; the chip's styling is `app/static/css/public.css` (`.tag-more`) |
+| The structural voice | the stylesheet that owns each label — `app/static/css/public.css` for `.post-toc-title` and `.share-label`, `app/static/css/layout.css` for `.sidebar-title` |
+| The share panel's position | `app/templates/_post_content.html` |
+| The post's own tag list | `app/templates/_post_content.html` — the footer row; a card never hides the only copy of a tag |
 
 **The sanitiser does not move.** `MARKDOWN_ALLOWED_ATTRIBUTES` keeps `class` on
 `span` and `div` only. The renderer re-attaches the fence language *after*
 `nh3.clean()`, and a test asserts the allowlist is unchanged.
 
-Shipped outcome so far: [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md),
-[`architecture/frontend/templates.md`](../architecture/frontend/templates.md)
-and [`architecture/core/themes.md`](../architecture/core/themes.md). When the series
-closes, the outcome also belongs in
-[`architecture/frontend/overview.md`](../architecture/frontend/overview.md).
+Shipped outcome: [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md),
+[`architecture/frontend/templates.md`](../architecture/frontend/templates.md),
+[`architecture/core/themes.md`](../architecture/core/themes.md) and
+[`architecture/frontend/overview.md`](../architecture/frontend/overview.md), which
+carries the series' cross-layer contracts.
 
 **The text roles established by Phase 02.** `--text-muted` is decoration — icon
 strokes, separators, disabled states — and its allowlist is seven rules across
 three stylesheets. `--text-caption` is the text a reader must read, and
 `--accent-text` is the accent on a tinted chip. Both are derived by the theme
-runtime, so no theme file declares them and the gate holds them at 4.5:1. Phases
-05 and 06 style text at content size: they use these roles and must not
+runtime, so no theme file declares them and the gate holds them at 4.5:1.
+Phases 05 and 06 style text at content size: they use these roles and did not
 reintroduce `--text-muted` for content.
 
 ## Historical Plans

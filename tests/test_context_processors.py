@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from bs4 import BeautifulSoup
 
 
@@ -90,3 +92,29 @@ class TestInjectConfig:
         response = client.get("/")
         assert response.status_code == 200
         assert str(datetime.now().year).encode() in response.data
+
+
+class TestSidebarContext:
+    """The sidebar no longer carries a copy of the list beside it."""
+
+    def test_the_context_processor_no_longer_queries_for_the_sidebar_list(self):
+        source = Path(__file__).resolve().parents[1] / "app" / "context_processors.py"
+        assert "recent_posts_sidebar" not in source.read_text(encoding="utf-8")
+
+    def test_the_sidebar_renders_no_post_list(self, client, sample_post):
+        response = client.get("/")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        sidebar = soup.find("aside", class_="sidebar")
+        assert sidebar is not None
+        assert "Recent posts" not in sidebar.get_text()
+        assert not sidebar.find("ul", class_="sidebar-links")
+
+    def test_the_footer_still_carries_its_own_list(self, client, sample_post):
+        """The footer keeps the three most recent posts; only the sidebar lost its copy."""
+        response = client.get("/")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        footer = soup.find("footer")
+        assert footer is not None
+        assert "Latest from the blog" in str(footer)

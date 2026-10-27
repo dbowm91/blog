@@ -43,6 +43,12 @@ accumulated for the current version. When the first release is tagged, move the
   line of text is 65–75 characters long instead of 85–94, at every viewport
 - A themed placeholder for posts with no cover image — a line-art mark that
   takes its colour from the active theme instead of hard-coding one
+- A two-column post list: the index shows two cards per row from 1024px, with
+  a tighter card and a summary clamped to two lines
+- A capped tag row on post cards: a card shows at most four tags and names the
+  number it hides, and the post page lists the whole set
+- One shared voice for the structural elements — the table-of-contents title,
+  the share label and the sidebar headings
 
 **Halloy theme system**
 - 50 bundled Halloy `.toml` themes, with the root `themes/` directory acting
@@ -109,8 +115,14 @@ accumulated for the current version. When the first release is tagged, move the
   Prism itself is now a built npm dependency rather than a hand-assembled
   grammar bundle
 - Markdown renderer supports strikethrough
+- The share panel moved below the article body, so the article's first
+  paragraph starts higher on the page
 - Documentation reorganised: `DEPLOY.md` is the operator reference,
   `USAGE.md` the administration guide
+
+### Removed
+
+- The sidebar's duplicate "Recent posts" list, and the query behind it
 
 ### Fixed
 

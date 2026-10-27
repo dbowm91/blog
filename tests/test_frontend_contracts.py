@@ -866,3 +866,61 @@ def test_color_scheme_toggle_exposes_its_state():
     assert out["afterLight"]["label"] != out["afterDark"]["label"]
 
     assert out["storedDark"]["pressed"] == "true"
+
+
+def test_the_sidebar_does_not_repeat_the_list_beside_it(client, sample_post):
+    """The index shows the same posts the sidebar used to copy."""
+    response = client.get("/")
+    assert response.status_code == 200
+    sidebar = sidebar_region(response.data.decode("utf-8"))
+    assert "Recent posts" not in sidebar
+
+
+def test_the_sidebar_keeps_its_other_sections(client, sample_post):
+    """Only the duplicate list goes; the tag cloud and the feed link stay."""
+    response = client.get("/")
+    assert response.status_code == 200
+    sidebar = sidebar_region(response.data.decode("utf-8"))
+    assert "Tags" in sidebar
+    assert "/rss" in sidebar or "rss" in sidebar
+
+
+def test_the_sidebar_template_has_no_recent_posts_block():
+    assert "Recent posts" not in read_template("_sidebar.html")
+    assert "recent_posts_sidebar" not in read_template("_sidebar.html")
+
+
+def test_the_cards_share_one_tag_row():
+    """The cap is a property of the card, so it is declared once."""
+    for name in ("index.html", "search.html", "tag.html"):
+        template = read_template(name)
+        assert "post_tag_row(post)" in template, name
+
+    macros = read_template("macros.html")
+    assert "post.tags[:max_tags]" in macros
+    assert 'class="tag tag-more"' in macros
+    assert "aria-label=" in macros
+
+
+def test_the_share_bar_follows_the_article_body():
+    """The reader finishes the article and is offered sharing."""
+    template = read_template("_post_content.html")
+    body = template.index("post-body prose")
+    bar = template.index('class="share-bar"')
+    author = template.index('class="author-card"')
+    assert body < bar < author
+
+
+def test_the_share_bar_keeps_every_network_and_the_copy_button():
+    template = read_template("_post_content.html")
+    for network in ("twitter", "linkedin", "hackernews", "reddit", "facebook", "email"):
+        assert f'data-platform="{network}"' in template, network
+    assert template.count('class="share-btn share-copy"') == 2
+    assert 'title="Copy link (Press C to copy)"' in template
+
+
+def test_the_post_page_lists_every_tag():
+    """A card shows four tags and counts the rest; the post holds the list."""
+    template = read_template("_post_content.html")
+    assert "post-footer-tags" in template
+    assert "{% for tag in post.tags %}" in template

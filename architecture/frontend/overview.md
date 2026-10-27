@@ -37,6 +37,10 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Reading measure | `app/static/css/base.css` | `max-width: 34em` on `.prose`, in `em` so it scales with the prose font size; `public.css` sets no width on `.post-body` |
 | Post placeholder mark | `app/static/css/public.css` | The `.img-placeholder` rule applies the SVG as a mask and takes the ink from `--text-dim`; the mark is never loaded as an image |
 | Default profile image | `app/templates/_default_avatar.html` | One macro for every "no profile picture" surface; never fall back to the first letter of the name |
+| Post list grid | `app/static/css/public.css` (`.posts-list`), mirrored in `critical.css` | Two tracks from 1024px; the tracks are `minmax(0, 1fr)` so a long title shrinks its own column; `critical.css` paints the same grid because it is the first paint |
+| Card tag row | `post_tag_row` macro (`app/templates/macros.html`) | One owner for the cap: at most four tags, then a `+N` label with an accessible name; a card never holds the only copy of a tag — the post footer carries the full list |
+| Structural voice | `app/static/css/public.css` (`.post-toc-title`, `.share-label`) and `app/static/css/layout.css` (`.sidebar-title`) | One shared treatment — mono face, uppercase, caption role; each label is declared in exactly one sheet, and the table-of-contents entries keep the body face and read as links |
+| Share bar position | `app/templates/_post_content.html` | The bar follows `.post-body` and precedes `.author-card`; its markup and data attributes are unchanged, so the share JavaScript is unaffected |
 | Route → module set | `main.js` | Match on a path-segment boundary, longest match first |
 | Theme colour | the theme runtime | Static CSS consumes tokens; every referenced token is emitted or defined |
 | Typeface | the appearance runtime | `--font-sans` and `--font-mono` are emitted by `app/appearance/service.py`; stylesheets never name a family directly |

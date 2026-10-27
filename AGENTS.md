@@ -147,6 +147,10 @@ These are the seams where a second producer is the defect. Each has one owner.
 | Markdown prose typography | `app/static/css/base.css` (the admin shell does not load `public.css`) |
 | The reading measure | `app/static/css/base.css` — `max-width: 34em` on `.prose`, never a pixel width |
 | The post placeholder mark | `app/static/css/public.css` — the `.img-placeholder` mask rule; the SVG is never loaded as an image |
+| The post list grid | `app/static/css/public.css` — the `.posts-list` grid and its 1024px breakpoint |
+| The card's tag row | `app/templates/macros.html` — `post_tag_row` owns the cap; `app/static/css/public.css` owns `.tag-more` |
+| The structural voice | The stylesheet that owns the label — `app/static/css/public.css` for `.post-toc-title` and `.share-label`, `app/static/css/layout.css` for `.sidebar-title` |
+| The share bar's position | `app/templates/_post_content.html` |
 | The "no profile picture" portrait | `app/templates/_default_avatar.html` — one macro, never an initial letter |
 | Heading IDs | `app/static/js/shared/heading-slug.js` |
 | Heading anchors | `app/static/js/public/anchor-links.js` — a direct child of the heading, never wrapped |
@@ -339,6 +343,7 @@ See [architecture/frontend/appearance.md](architecture/frontend/appearance.md).
 - **Markdown prose lives in `base.css`.** The admin shell does not load `public.css`, and the admin live preview renders `.prose` content, so prose rules in `public.css` are missing in the preview.
 - **The heading anchor is a child of the heading**, so the heading is its containing block and the `#` sits in the left gutter, revealed on hover or focus. It is never wrapped in a span — that broke the positioning rule and painted a `#` at the end of every title.
 - **The "no profile picture" portrait is one macro**, `app/templates/_default_avatar.html`, used by the account page, the author page, the post footer and the admin profile page.
+- **The post page owns the full tag list.** A post card shows at most four tags and counts the rest in a `+N` label; `_post_content.html` renders every tag in the post's footer, so a card never hides the only copy of a tag.
 - `main.js` must not import a stylesheet — Flask links them so dev and production share one cascade order.
 - Every `var(--x)` a stylesheet references must be emitted by the theme runtime or defined in a stylesheet. `tests/test_css_contracts.py` enforces this.
 
@@ -432,6 +437,7 @@ Verified against the source on 2026-10-25 and **not yet fixed**. Each has a
 | Defect | Where |
 |---|---|
 | **The scheduled backup looks for the wrong database file.** `app/services/backup.py`, `app/tasks.py` and `app/services/operations/backup.py` all resolve `os.path.join(app.instance_path, "blog.db")`, but the app resolves the database to `data/devlog.sqlite3`. The 02:00 job logs "Database file not found … skipping backup" and `devlog backup create` finds nothing. Only the admin backup route uses the configured URI | `app/services/backup.py`, `app/tasks.py`, `app/services/operations/backup.py` |
+| **The backup tests share one directory, so `test_download_backup` fails at random.** `tests/services/test_operations_backup.py` writes `blog_verify_<uuid>.db` into `app.instance_path/backups`; `tests/test_phase8.py` downloads the first entry of an *unsorted* listing, and the route refuses a name that is not `blog_<timestamp>.db`. On an unmodified checkout the test failed 10 runs out of 10 when the two modules shared a session — so a full-suite failure set is not reproducible run to run, and one differing test in this area is not a regression | `tests/services/test_operations_backup.py`, `tests/test_phase8.py` |
 | `shift_lightness()` computes `q` identically in both branches of the `lightness < 0.5` test, so dark colours take the light-colour path (`#161b22` +0.06 → `#002459`, not `#222a35`) | `app/themes/colors.py` |
 | `_build_context()` reads `current_app.config["DEVLOG_CONFIG"]`, which the app factory never sets — the whole `devlog deploy` group raises `KeyError` outside the test suite | `app/services/operations/deploy.py` |
 | `deploy render` defaults `--target` to `["all"]`, but the service dispatches only on concrete names, so it renders zero files | `devlog_cli/commands/deploy.py` |

@@ -126,7 +126,10 @@ From `app/context_processors.py`:
   - `author_name`, `author_role`, `author_avatar`
   - `base_url`, `current_year`, `canonical_url`
 - `inject_theme()` - Theme settings via centralized `ThemeService` (dark/light CSS variables, scheme, custom CSS)
-- `inject_footer_data()` - Footer links and data
+- `inject_footer_data()` - Footer data: `recent_posts_footer`, `footer_tags` and
+  `footer_tag_counts`. There is no `recent_posts_sidebar` key — the sidebar's
+  "Recent posts" section and the query behind it were removed, and the key is
+  gone from every branch of the processor.
 - `inject_show_footer_posts()` - `show_footer_posts` boolean (hides footer posts on search/tag pages)
 
 ## Cache Invalidation
@@ -144,13 +147,49 @@ Intelligent link prefetching that observes link visibility via IntersectionObser
 Reusable Jinja2 macros:
 - `paginate(pagination)` — Renders pagination controls with page numbers, prev/next links
 - `field_error(field)` — Renders inline validation error messages for form fields
+- `post_tag_row(post, max_tags=4)` — Renders a post card's tag row — see [The Card Tag Row](#the-card-tag-row)
+
+### The Card Tag Row
+
+`post_tag_row(post, max_tags=4)` is the single owner of a post card's tag row.
+It renders at most `max_tags` tag links and, when the post carries more, a
+`+N` label whose `aria-label` says how many tags were hidden, how many the
+post has in total, and that the full list is on the post page.
+
+The cap lives in a macro because the index, the search results and the tag
+archive render **the same card**: the cap is a property of the card, so it is
+declared once. A template that loops over `post.tags` itself is a second
+producer of the cap and will drift from the other two.
+
+The cap is the card's, not the post's. `_post_content.html` renders the post's
+full tag list in its footer, so a card never holds the only copy of a tag and
+the reader can always find the whole list. See
+[Static Assets](static-assets.md#the-tag-row) for the chip's styling.
 
 ### `_post_content.html`
 Post content partial with:
-- Post hero section (title, date, tags, reading time)
-- Share bar (social sharing buttons)
+- Post hero section (title, date, reading time) and the table-of-contents container
 - TL;DR summary block
 - Markdown body content
+- Share bar (social sharing buttons)
+- Author card
+- Post footer (the post's full tag list and the back link)
+
+### Article Furniture
+
+The share bar follows the article body. In `_post_content.html` the
+`.share-bar` sits **after** `.post-body` and **before** the `.author-card`, so
+the reader finishes the article and is then offered sharing; the TL;DR stays
+above the article body.
+
+Only the position changed. The bar's markup, its `data-post-id` and
+`data-share-url` attributes, its six network links and its copy button are
+unchanged, so `app/static/js/public/share.js` — which finds the bar by class
+and reads those data attributes — is unaffected by the move.
+
+The post's own tag list is rendered in the `.post-footer` as
+`.post-footer-tags.post-tags`: every tag of the post, not the capped set the
+cards show.
 
 ### `_error.html`
 Error page partial used by `404.html`, `429.html`, and `500.html`. Renders error code, message, and back link.
@@ -159,7 +198,22 @@ Error page partial used by `404.html`, `429.html`, and `500.html`. Renders error
 The `markdown_editor` macro renders the whole markdown body field for both admin editors: the undo/redo buttons, the formatting toolbar, the full-width textarea, the collapsible live preview and the word/character counter. `admin/editor.html` and `admin/page_editor.html` both call it, so the two editors cannot drift apart. The preview sits **below** the textarea and is collapsed through `#toggle-preview-btn`, which is the single owner of the `preview-visible` / `preview-hidden` classes and of `aria-expanded`. The undo and redo buttons carry `data-history-action`, are disabled when there is nothing to undo or redo, and are driven by `app/static/js/admin/editor-history.js`.
 
 ### `_sidebar.html`
-Admin sidebar partial with navigation links to dashboard sections (posts, pages, media, subscribers, tags, series, settings, audit, backup).
+The **public** sidebar partial. It is included by `index.html`, `search.html`,
+`tag.html` and `archive.html`; the admin dashboard has no such partial.
+
+It holds three sections, in this order:
+
+1. **Series navigation** — only when the post belongs to a series; the partial
+   is `_series_nav.html` and the context key is `series_nav`.
+2. **Tags** — the tag cloud, built from `tags` and `tag_counts`.
+3. **RSS Feed** — a link to the Atom feed.
+
+The sidebar used to carry a fourth section, "Recent posts", backed by the
+`recent_posts_sidebar` context key. That key **no longer exists**: the query
+behind it was removed from `app/context_processors.py` and the key was dropped
+from every branch of `inject_footer_data()`. The block was a copy of the list
+sitting immediately to the left of it, and it cost the sidebar 260px of column
+width; the column is now 200px.
 
 ### `data-prism-js-url` Attribute
 

@@ -116,7 +116,7 @@ When `PAGE_VIEW_BUFFER_SIZE <= 0`, `init_page_view_buffer()` returns `None` and 
 
 **Tag Cache:** Tag counts are cached via `flask-caching` with configurable TTL (`TAG_CACHE_TTL_SECONDS`). The `_get_tag_counts()` function in `app/tag_cache.py` uses `@cache.memoize()` for request-context queries and falls back to uncached queries for non-request contexts (e.g., CLI). Cache is invalidated via `invalidate_tag_cache()` after tag-modifying operations.
 
-**Footer Exclusion:** The `inject_footer_data()` context processor (`app/context_processors.py:158-178`) returns empty footer data for `/admin`, `/api`, and `/rss` paths, avoiding unnecessary database queries for pages that don't render the public footer.
+**Footer Exclusion:** The `inject_footer_data()` context processor returns empty footer data for `/admin`, `/api`, and `/rss` paths, avoiding unnecessary database queries for pages that don't render the public footer. It supplies `recent_posts_footer`, `footer_tags` and `footer_tag_counts`; there is no `recent_posts_sidebar` key — the sidebar's "Recent posts" section and the query behind it were removed.
 
 ### 9. CLI Commands
 
@@ -231,7 +231,7 @@ Provides template variables for all templates:
 - `csrf_token`, `csp_nonce` - CSRF token and CSP nonce (from `inject_csrf()`)
 - `site_title`, `site_description`, `author_name`, `author_role`, `author_avatar`, `base_url`, `current_year`, `canonical_url` - Site configuration (from `inject_config()`)
 - `theme_preset`, `theme_vars`, `custom_css_enabled`, `custom_css`, `logo_text` - Theme settings via centralized `ThemeService` (all phases complete). Provides Halloy TOML parsing, `BlogTheme` translation, registry resolution, caching, and dark/light CSS variable emission. `ThemeService` is the sole runtime palette source.
-- `recent_posts_footer`, `recent_posts_sidebar`, `footer_tags`, `footer_tag_counts` - Footer data (from `inject_footer_data()`)
+- `recent_posts_footer`, `footer_tags`, `footer_tag_counts` - Footer data (from `inject_footer_data()`)
 - `show_footer_posts` - Boolean controlling footer post display (from `inject_show_footer_posts()`)
 
 ## See Also

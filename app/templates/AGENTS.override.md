@@ -122,6 +122,52 @@ Override in templates via `{% block og_image %}` and `{% block twitter_image %}`
 
 Note: `site_title` and `site_description` are the correct variable names (NOT `site_name` or `site_tagline`).
 
+`inject_footer_data()` injects `recent_posts_footer`, `footer_tags` and
+`footer_tag_counts`. There is no `recent_posts_sidebar` key — the sidebar's
+"Recent posts" section and the query behind it were removed, and the key is
+gone from every branch of the processor.
+
+## Sidebar Contents
+
+`app/templates/_sidebar.html` holds three sections, in this order:
+
+1. **Series navigation** — only when the post belongs to a series; the
+   partial is `_series_nav.html`.
+2. **Tags** — the tag cloud, built from `tags` and `tag_counts`.
+3. **RSS Feed** — a link to the Atom feed.
+
+The sidebar used to carry a fourth section, "Recent posts", backed by the
+`recent_posts_sidebar` context key. That key no longer exists and the query
+behind it is gone from `app/context_processors.py`. The index list is now the
+only list of posts on a page; the footer's own three-post list is a separate
+thing, carried by `recent_posts_footer`.
+
+## Card Tag Row
+
+`app/templates/macros.html` holds `post_tag_row(post, max_tags=4)`, the single
+owner of a post card's tag row. It renders at most four tag links and, when
+the post carries more, a `+N` label whose `aria-label` says how many tags were
+hidden, how many the post has in total, and that the full list is on the post
+page.
+
+`index.html`, `search.html` and `tag.html` all call the macro. A template that
+loops over `post.tags` itself is a second producer of the cap — call the
+macro instead.
+
+The cap is the card's, not the post's: `_post_content.html` renders the post's
+full tag list in its footer, so a card never holds the only copy of a tag.
+
+## Article Furniture
+
+`_post_content.html` owns the article's furniture. The `.share-bar` follows
+`.post-body` and precedes the author card; the TL;DR stays above the article
+body. The bar's markup, its data attributes, its six network links and its
+copy button are unchanged, so `app/static/js/public/share.js` is unaffected by
+the move.
+
+The post's own tag list is rendered in the `.post-footer` as
+`.post-footer-tags.post-tags`.
+
 ## Critical CSS
 
 The `critical.css` file at `app/static/css/critical.css` is loaded in `base.html:22` for above-the-fold content styling.

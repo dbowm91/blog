@@ -1,9 +1,9 @@
 # Visual Design and Readability Roadmap
 
-> **Plan status: ACTIVE — phases 01 to 04 shipped 2026-10-27.** Phases 05 and 06 are open. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+> **Plan status: COMPLETE — all six phases shipped 2026-10-27.** The series is closed. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
 
 **Date:** 2026-10-27
-**Status:** In progress — phases 01 to 04 shipped, 2 phases open, 18 findings recorded
+**Status:** Complete — all six phases shipped 2026-10-27, 18 findings recorded
 **Scope:** Public site rendering — markdown output, code blocks, text roles, prose measure, imagery, index and article furniture
 **Origin:** an operator review of the running instance on 2026-10-27. Every finding was confirmed by rendering the application in Chromium and measuring computed styles, not by reading templates. The measurement tables are in the phase files.
 
@@ -119,8 +119,8 @@ These extend the [Frontend Corrective principles](frontend_corrective_roadmap.md
 | 02 | [Text roles and the contrast floor](visual_design_phase_02_text_roles_and_contrast.md) | 4 | 4 high | Complete |
 | 03 | [Prose measure](visual_design_phase_03_prose_measure.md) | 1 | 1 medium | Complete |
 | 04 | [Imagery](visual_design_phase_04_imagery.md) | 2 | 2 medium | Complete |
-| 05 | [Index layout](visual_design_phase_05_index_layout.md) | 2 | 1 medium, 1 low | Not started |
-| 06 | [Article furniture](visual_design_phase_06_article_furniture.md) | 2 | 1 medium, 1 low | Not started |
+| 05 | [Index layout](visual_design_phase_05_index_layout.md) | 2 | 1 medium, 1 low | Complete |
+| 06 | [Article furniture](visual_design_phase_06_article_furniture.md) | 2 | 1 medium, 1 low | Complete |
 
 The finding identifiers are `VD-01` through `VD-18` and are unique across the
 series. Phase 01 owns `VD-01` to `VD-07`, phase 02 owns `VD-08` to `VD-11`,
@@ -212,4 +212,4 @@ The roadmap is complete when:
 
 ## Completion
 
-**Status:** In progress. Phases 01 to 04 shipped on 2026-10-27; phases 05 and 06 are open.
+**Status:** Complete. All six phases shipped on 2026-10-27.

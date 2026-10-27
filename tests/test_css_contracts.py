@@ -782,3 +782,156 @@ class TestTheFallbackBlocks:
             page = from_hex(declarations.get("--bg", declarations.get("--bg-surface")))
             assert contrast_ratio(caption, page) >= 4.5, name
             assert contrast_ratio(accent_text, page) >= 4.5, name
+
+
+class TestIndexLayout:
+    """The index shows more posts per screen.
+
+    The list is a grid rather than a column, the card is tighter, and the tag
+    row is capped. Each of those is a property of one stylesheet, and the
+    sheet that owns an element owns it completely.
+    """
+
+    def _posts_list_rules(self) -> list[StyleRule]:
+        return [r for r in _parse_rules(_read("public.css")) if r.selector == ".posts-list"]
+
+    def test_the_post_list_is_a_grid(self) -> None:
+        rules = self._posts_list_rules()
+        assert rules, "no .posts-list rule found"
+        unconditional = [r for r in rules if not r.media_queries]
+        assert unconditional, "the .posts-list grid has no unconditional rule"
+        assert any(r.declarations().get("display") == "grid" for r in unconditional)
+        assert not any(r.declarations().get("display") == "flex" for r in unconditional), (
+            "the post list is still a flex column"
+        )
+
+    def test_the_grid_holds_two_columns_from_1024px(self) -> None:
+        wide = [
+            r
+            for r in self._posts_list_rules()
+            if any("min-width: 1024px" in media for media in r.media_queries)
+        ]
+        assert wide, "the two-column rule is missing"
+        columns = wide[0].declarations().get("grid-template-columns", "")
+        assert "repeat(2" in columns, columns
+        assert "minmax(0, 1fr)" in columns, columns
+
+    def test_the_narrow_column_can_shrink(self) -> None:
+        """A long unbroken title must not widen the grid past its container."""
+        for rule in self._posts_list_rules():
+            columns = rule.declarations().get("grid-template-columns", "")
+            if not columns:
+                continue
+            assert "minmax(0, 1fr)" in columns, f"{rule.selector}: {columns}"
+
+    def test_no_stylesheet_lays_the_post_list_out_as_a_column(self) -> None:
+        """The critical sheet paints the first frame; it must not paint a column."""
+        owners = []
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                if rule.selector != ".posts-list":
+                    continue
+                declarations = rule.declarations()
+                if not declarations:
+                    continue
+                owners.append(path.name)
+                assert declarations.get("display") != "flex", f"{path.name}: {rule.selector}"
+        assert "public.css" in owners, owners
+
+    def test_the_sidebar_column_is_200px(self) -> None:
+        rules = [r for r in _parse_rules(_read("layout.css")) if r.selector == ".content-layout"]
+        assert rules, "no .content-layout rule found"
+        columns = rules[0].declarations().get("grid-template-columns", "")
+        assert columns == "minmax(0, 1fr) 200px", columns
+
+    def test_the_card_body_padding_is_tightened(self) -> None:
+        rules = [r for r in _parse_rules(_read("public.css")) if r.selector == ".post-card-body"]
+        assert rules, "no .post-card-body rule found"
+        assert rules[0].declarations().get("padding") == "20px 22px"
+
+    def test_the_summary_is_clamped_to_two_lines(self) -> None:
+        rules = [r for r in _parse_rules(_read("public.css")) if r.selector == ".post-card-summary"]
+        assert rules, "no .post-card-summary rule found"
+        declarations = rules[0].declarations()
+        assert declarations.get("-webkit-line-clamp") == "2"
+        assert declarations.get("line-clamp") == "2"
+        assert declarations.get("overflow") == "hidden"
+
+    def test_the_tag_lift_belongs_to_the_link(self) -> None:
+        """The count chip is a label: it must not lift under the pointer."""
+        selectors = {
+            " ".join(rule.selector.split())
+            for rule in _parse_rules(_read("public.css"))
+            if rule.declarations()
+        }
+        assert ".tag:hover" not in selectors, "the lift still applies to the label"
+        assert "a.tag:hover" in selectors
+
+    def test_the_count_chip_is_a_label(self) -> None:
+        rules = [r for r in _parse_rules(_read("public.css")) if r.selector == ".tag-more"]
+        assert rules, "no .tag-more rule found"
+        declarations = rules[0].declarations()
+        assert declarations.get("transform") == "none"
+        assert declarations.get("box-shadow") == "none"
+        assert declarations.get("cursor") == "default"
+        assert "var(--text-caption)" in declarations.get("color", "")
+        assert "var(--bg-elevated)" in declarations.get("background", "")
+
+
+class TestStructuralVoice:
+    """Structure reads as structure.
+
+    The table-of-contents title, the share label and the sidebar headings name
+    the parts of a page rather than reading as content. They take one shared
+    treatment: the mono face, an uppercase label and the caption role.
+    """
+
+    OWNERS = {
+        ".post-toc-title": "public.css",
+        ".share-label": "public.css",
+        ".sidebar-title": "layout.css",
+    }
+
+    def _declarations(self, selector: str) -> dict[str, str]:
+        sheet = self.OWNERS[selector]
+        rules = [r for r in _parse_rules(_read(sheet)) if r.selector == selector]
+        assert rules, f"{selector} is not declared in {sheet}"
+        return rules[0].declarations()
+
+    def test_each_label_is_declared_once(self) -> None:
+        counts = dict.fromkeys(self.OWNERS, 0)
+        for path in _stylesheet_files():
+            for rule in _parse_rules(path.read_text()):
+                if rule.selector in counts:
+                    counts[rule.selector] += 1
+        assert counts == dict.fromkeys(self.OWNERS, 1), counts
+
+    def test_the_labels_take_the_structural_treatment(self) -> None:
+        for selector in self.OWNERS:
+            declarations = self._declarations(selector)
+            assert declarations.get("font-family") == "var(--font-mono)", selector
+            assert declarations.get("text-transform") == "uppercase", selector
+            assert declarations.get("letter-spacing") == "0.08em", selector
+            assert declarations.get("color") == "var(--text-caption)", selector
+            assert declarations.get("font-size") == "0.72rem", selector
+
+    def test_the_labels_do_not_use_the_decorative_role(self) -> None:
+        for selector in self.OWNERS:
+            declarations = self._declarations(selector)
+            assert "var(--text-muted)" not in declarations.get("color", ""), selector
+
+    def test_the_share_bar_is_spaced_from_the_top(self) -> None:
+        """It is no longer the first child of the post tile."""
+        rules = [r for r in _parse_rules(_read("public.css")) if r.selector == ".share-bar"]
+        assert rules, "no .share-bar rule found"
+        declarations = rules[0].declarations()
+        assert declarations.get("margin-top") == "24px"
+        assert "margin-bottom" not in declarations
+
+    def test_the_contents_entries_keep_the_link_treatment(self) -> None:
+        """The entries are links, so they read as links."""
+        rules = [r for r in _parse_rules(_read("public.css")) if r.selector == ".post-toc a"]
+        assert rules, "no .post-toc a rule found"
+        declarations = rules[0].declarations()
+        assert declarations.get("text-decoration") == "underline"
+        assert "var(--text-caption)" in declarations.get("color", "")
