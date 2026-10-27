@@ -23,7 +23,7 @@ that banner first; it names the authoritative document for that work.
 
 ## Active Plans
 
-Two series still have work outstanding, plus a short residual list. Everything
+Three series still have work outstanding, plus a short residual list. Everything
 else in `plans/` is history.
 
 ### 1. Site Identity, Authorship and Layout — Phase 06 open
@@ -142,6 +142,51 @@ not treat the file's file paths as current — several have since been renamed o
 split into packages (`app/config.py` → `app/config_legacy.py` plus the
 `app/config/` package; `app/routes/public.py` → `app/routes/public/`;
 `app/routes/admin/posts.py` → `app/routes/admin/posts/`).
+
+### 4. Visual Design and Readability — 2026-10-27
+
+Roadmap: [`visual_design_roadmap.md`](visual_design_roadmap.md)
+
+Origin: an operator review of the running instance on 2026-10-27, measured in
+Chromium in both colour schemes at 390px, 768px and 1280px. **18 findings**:
+2 critical, 7 high, 7 medium, 2 low. Nothing in this series has shipped.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | `visual_design_phase_01_code_blocks.md` | **Not started.** No code block on the site has ever been syntax-highlighted or had a copy button. Four independent faults, each of which alone is sufficient to kill the feature. |
+| 02 | `visual_design_phase_02_text_roles_and_contrast.md` | **Not started.** `--text-muted` styles body-size content and measures 2.47:1 in the active dark theme; 26 of 43 dark themes and 6 of 7 light themes fail 4.5:1. The accent styles the tag chips and fails the same way. |
+| 03 | `visual_design_phase_03_prose_measure.md` | **Not started.** The reading column is 85.5 characters wide at 1280px and 94.4 at 768px. |
+| 04 | `visual_design_phase_04_imagery.md` | **Not started.** The post placeholder hard-codes the GitHub dark palette; the card band crops a fifth off every source image. |
+| 05 | `visual_design_phase_05_index_layout.md` | **Not started.** The sidebar repeats the main list; one headline is visible per screen. |
+| 06 | `visual_design_phase_06_article_furniture.md` | **Not started.** The share panel occupies the top of the article; structure and content share one voice. |
+
+**Run the phases in order.** Phases 01, 02, 03 and 06 all edit
+`app/static/css/base.css`, and phases 04 and 05 both edit
+`app/static/css/public.css` at `.post-card-img`. Phase 01 is also the only
+phase that retires a setting and the only one that carries a migration.
+
+**Operator decisions of 2026-10-27**, binding on this series: code blocks are
+theme-aware and the `syntax_theme` setting is retired; the share bar moves
+below the article; the index sidebar's "Recent posts" block is dropped.
+
+**Single-owner rules for this series** (one value, one producer):
+
+| Value | Owner |
+|---|---|
+| The fence language on a code block | `app/markdown_renderer.py` |
+| The code block's surface | `app/static/css/base.css` |
+| The syntax token colours | `app/static/css/prism.css` |
+| The caption colour and the accent-text colour | The theme runtime (`app/themes/translate.py`) |
+| The prose measure | `app/static/css/base.css` |
+
+**The sanitiser does not move.** `MARKDOWN_ALLOWED_ATTRIBUTES` keeps `class` on
+`span` and `div` only. The renderer re-attaches the fence language *after*
+`nh3.clean()`, and a test asserts the allowlist is unchanged.
+
+Shipped outcome: none yet. When the series closes, the outcome belongs in
+[`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md),
+[`architecture/frontend/overview.md`](../architecture/frontend/overview.md) and
+[`architecture/core/themes.md`](../architecture/core/themes.md).
 
 ## Historical Plans
 
