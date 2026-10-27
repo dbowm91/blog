@@ -254,6 +254,12 @@ body::after {
     font-size: 1.05rem;
     line-height: 1.75;
     color: var(--text);
+    /* The reading measure. The cap is expressed in `em` so it scales with the
+       prose font size, which changes at the mobile breakpoint, and the character
+       count therefore stays the same at every viewport. The column is centred in
+       its container; the hero image above it keeps the full width of the tile. */
+    max-width: 34em;
+    margin-inline: auto;
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {

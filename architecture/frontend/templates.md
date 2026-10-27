@@ -171,6 +171,26 @@ The `<html>` element in `base.html`, `admin/base.html` and `admin/login_base.htm
 
 `loadPrismIfNeeded()` in `main.js` reads the attribute and injects **one** module script, but only when the page actually contains code blocks — it looks for `pre[class*="language-"]` and returns early when there are none. The Prism core, the 18 grammars and the highlighting call all live in that single chunk, so there is no separate grammar script and no dynamic stylesheet injection: the templates link `css/prism.css` directly (`base.html` loads it with the same `media="print"` / `onload` pattern as the other stylesheets, plus a plain link inside `<noscript>`; the admin templates link it plainly).
 
+### The Placeholder Image Element
+
+Where a post has no cover image, the templates render a placeholder element
+rather than an `<img>`:
+
+```html
+<span class="post-card-img img-placeholder" role="img" aria-label="{{ post.title }}"></span>
+```
+
+The markup lives in `index.html`, `tag.html`, `search.html`, `post.html` (the
+related-post thumbnail) and `_post_content.html` (the hero). The element is not
+an image because the colour of an `<img>`'s content cannot be changed by CSS:
+the placeholder mark is themed, and the theme supplies the ink. The `role` and
+the `aria-label` reproduce what `alt` gave the old image. See
+[Static Assets](static-assets.md#the-post-placeholder).
+
+The social preview metadata (`og:image`, `twitter:image`) and the newsletter
+cover point at `/static/img/default-post-social.png`, a self-contained raster,
+because a social platform and a mail client render neither an SVG nor a theme.
+
 ### `_breadcrumbs.html`
 Admin breadcrumb navigation partial for nested admin pages.
 

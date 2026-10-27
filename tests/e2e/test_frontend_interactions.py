@@ -97,7 +97,7 @@ def test_lightbox_opens_and_restores_page_scroll(browser, app_server, app):
         app,
         "Lightbox Post",
         "lightbox-post",
-        body="# Heading\n\n![An image](/static/img/default-post.svg)\n",
+        body="# Heading\n\n![An image](/static/img/default-post-social.png)\n",
     )
 
     context = browser.new_context()

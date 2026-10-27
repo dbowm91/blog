@@ -9,7 +9,7 @@ Frontend assets and templating.
 | JavaScript | `app/static/js/` | Vanilla JS modules |
 | CSS | `app/static/css/` | Stylesheets |
 | Fonts | `app/static/fonts/` | Self-hosted woff2 families |
-| Images | `app/static/img/` | Favicon, default post image, page backdrops |
+| Images | `app/static/img/` | Favicon, the post placeholder mark and its social raster, page backdrops |
 | Uploads | `app/static/uploads/` | User media, custom fonts and backdrops |
 | Vite Build | `app/static/dist/` | Built assets |
 | Templates | `app/templates/` | Jinja2 templates |
@@ -34,6 +34,8 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Heading IDs | `shared/heading-slug.js` | One generator only |
 | Heading anchor | `public/anchor-links.js` | The anchor is a child of the heading, never wrapped; it is transparent until the heading is hovered or the anchor focused |
 | Markdown prose | `app/static/css/base.css` | The admin shell does not load `public.css` and the live preview renders `.prose`; `public.css` must not own the prose rules |
+| Reading measure | `app/static/css/base.css` | `max-width: 34em` on `.prose`, in `em` so it scales with the prose font size; `public.css` sets no width on `.post-body` |
+| Post placeholder mark | `app/static/css/public.css` | The `.img-placeholder` rule applies the SVG as a mask and takes the ink from `--text-dim`; the mark is never loaded as an image |
 | Default profile image | `app/templates/_default_avatar.html` | One macro for every "no profile picture" surface; never fall back to the first letter of the name |
 | Route → module set | `main.js` | Match on a path-segment boundary, longest match first |
 | Theme colour | the theme runtime | Static CSS consumes tokens; every referenced token is emitted or defined |

@@ -13,7 +13,7 @@
         {% set img_abs = img if img.startswith('http') else base_url ~ img %}
         <img src="{{ img_abs }}" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="{{ post.title }} cover image">
         {% else %}
-        <img src="{{ base_url }}/static/img/default-post.svg" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="Default post cover image">
+        <img src="{{ base_url }}/static/img/default-post-social.png" width="520" style="width:100%;max-width:520px;border-radius:8px;margin-bottom:16px;" alt="Default post cover image">
         {% endif %}
         <h2 style="margin:0 0 8px;">
             <a href="{{ base_url }}/post/{{ post.slug }}" style="color:#24292f;text-decoration:none;font-size:18px;">{{ post.title }}</a>

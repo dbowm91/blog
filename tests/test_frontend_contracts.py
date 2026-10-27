@@ -647,7 +647,7 @@ def test_post_page_keeps_its_own_social_metadata(client, sample_post):
 
     og_image = meta_content(html, 'property="og:image"')
     twitter_image = meta_content(html, 'name="twitter:image"')
-    assert og_image and og_image.endswith("/static/img/default-post.svg")
+    assert og_image and og_image.endswith("/static/img/default-post-social.png")
     assert twitter_image == og_image
 
 

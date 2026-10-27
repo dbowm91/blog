@@ -7,6 +7,7 @@ editor preview).
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,10 @@ from app.utils import utc_now
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
 PUBLIC_CSS = STATIC_DIR / "css" / "public.css"
 LAZY_LOAD_JS = STATIC_DIR / "js" / "shared" / "lazy-load.js"
+PLACEHOLDER_SVG = STATIC_DIR / "img" / "default-post.svg"
+
+SVG_NS = "{http://www.w3.org/2000/svg}"
+CONTAINER_TAGS = ("svg", "g", "defs", "title", "desc")
 
 DOUBLE_PREFIX = "/static/uploads//static/uploads/"
 IMAGE_NAME = "test-image-rendering.png"
@@ -74,6 +79,43 @@ def _meta_content(html, attribute, value):
     match = re.search(pattern, html)
     assert match is not None, f"meta {attribute}={value} not found"
     return match.group(1)
+
+
+def _parse_svg(path: Path) -> ET.ElementTree:
+    return ET.parse(path)
+
+
+def _paint_elements(path: Path) -> list[dict]:
+    """Every drawn element with its effective fill and stroke.
+
+    ``fill`` and ``stroke`` are inherited, so the values are resolved by
+    walking the tree rather than read off the element.
+    """
+    root = _parse_svg(path).getroot()
+    elements: list[dict] = []
+
+    def walk(node, inherited: dict) -> None:
+        attrs = node.attrib
+        fill = attrs.get("fill", inherited["fill"])
+        stroke = attrs.get("stroke", inherited["stroke"])
+        for child in node:
+            walk(child, {"fill": fill, "stroke": stroke})
+        tag = node.tag.replace(SVG_NS, "")
+        if tag in CONTAINER_TAGS:
+            return
+        elements.append({**attrs, "tag": tag, "fill": fill, "stroke": stroke})
+
+    walk(root, {"fill": "black", "stroke": "none"})
+    return elements
+
+
+def _rule_body(css: str, selector: str) -> str:
+    """The declaration body of the first rule with exactly this selector."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+    for match in re.finditer(r"([^{}]+)\{([^{}]*)\}", css):
+        if match.group(1).strip() == selector:
+            return match.group(2)
+    raise AssertionError(f"no rule for {selector}")
 
 
 def test_no_double_prefix_in_rendered_pages(client, db, tagged_post):
@@ -210,5 +252,75 @@ def test_social_metadata_default_image(client, db, sample_post):
     og_image = _meta_content(html, "property", "og:image")
     twitter_image = _meta_content(html, "name", "twitter:image")
 
-    assert og_image.endswith("/static/img/default-post.svg")
+    assert og_image.endswith("/static/img/default-post-social.png")
     assert twitter_image == og_image
+
+
+def test_the_social_preview_target_is_a_raster_image(client, db, sample_post):
+    """A social platform does not render an SVG, so the metadata needs a raster."""
+    html = client.get("/post/test-post").get_data(as_text=True)
+    og_image = _meta_content(html, "property", "og:image")
+
+    target = STATIC_DIR / "img" / "default-post-social.png"
+    assert target.exists(), "the social preview image does not exist"
+    assert og_image.endswith("/static/img/default-post-social.png")
+    assert target.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", "the social preview image is not a PNG"
+
+
+def test_the_placeholder_mark_has_no_palette():
+    """The mark carries no colour of its own; the stylesheet supplies the ink."""
+    text = PLACEHOLDER_SVG.read_text()
+
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", text), "the placeholder contains a hex colour"
+    assert "rgb(" not in text and "hsl(" not in text, "the placeholder contains a colour function"
+
+    for element in _paint_elements(PLACEHOLDER_SVG):
+        assert element["fill"] in ("currentColor", "none"), (
+            f"<{element['tag']}> fills with {element['fill']}"
+        )
+        assert element["stroke"] in ("currentColor", "none"), (
+            f"<{element['tag']}> strokes with {element['stroke']}"
+        )
+
+
+def test_the_placeholder_mark_is_transparent():
+    """Nothing paints the whole canvas, so the tile shows through the mark."""
+    root = _parse_svg(PLACEHOLDER_SVG).getroot()
+    view_box = [float(value) for value in root.get("viewBox").split()]
+
+    for element in _paint_elements(PLACEHOLDER_SVG):
+        if element["fill"] == "none" or element["tag"] != "rect":
+            continue
+        geometry = (
+            float(element.get("x", 0)),
+            float(element.get("y", 0)),
+            float(element.get("width", 0)),
+            float(element.get("height", 0)),
+        )
+        assert geometry != tuple(view_box), f"a filled rect covers the whole canvas: {geometry}"
+
+
+def test_the_placeholder_is_themed_by_the_stylesheet():
+    """The mark is applied as a mask, so the ink comes from the theme token."""
+    css = PUBLIC_CSS.read_text()
+
+    assert ".img-placeholder" in css, "public.css has no placeholder rule"
+    assert "default-post.svg" in css, "the placeholder is not masked by the mark"
+    assert "mask-image" in css, "the placeholder is not masked"
+
+    rule = _rule_body(css, ".img-placeholder")
+    assert "var(--text-dim)" in rule, "the placeholder does not take its ink from the theme"
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", rule), (
+        "the placeholder rule contains a colour literal"
+    )
+
+
+def test_a_post_without_a_cover_renders_the_themed_placeholder(client, db, sample_post):
+    """The card renders the themed placeholder instead of a fixed image."""
+    html = client.get("/").get_data(as_text=True)
+
+    assert 'class="post-card-img img-placeholder"' in html, (
+        "the index card does not render the themed placeholder"
+    )
+    assert 'role="img"' in html, "the placeholder carries no image role"
+    assert "default-post.svg" not in html, "the placeholder is still loaded as an image"

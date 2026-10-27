@@ -3,7 +3,7 @@
 
 {% set truncated_desc = (post.summary or post.body) | truncate(160) %}
 {% set og_img = post|post_image_url %}
-{% set og_abs = og_img if og_img and og_img.startswith('http') else (base_url ~ og_img if og_img else base_url ~ '/static/img/default-post.svg') %}
+{% set og_abs = og_img if og_img and og_img.startswith('http') else (base_url ~ og_img if og_img else base_url ~ '/static/img/default-post-social.png') %}
 {% set post_author = resolve_author(post) %}
 
 {% block title %}{{ post.title }} | {{ site_title }}{% endblock %}
@@ -109,9 +109,9 @@
         <a href="{{ url_for('public.post', slug=rp.slug) }}" class="related-card">
             {% set img = rp|post_image_url %}
             {% if img %}
-                <img src="{{ img }}" alt="{{ rp.title }}" class="related-card-img" loading="lazy" decoding="async" width="400" height="120">
+                <img src="{{ img }}" alt="{{ rp.title }}" class="related-card-img" loading="lazy" decoding="async" width="400" height="225">
             {% else %}
-                <img src="{{ url_for('static', filename='img/default-post.svg') }}" alt="{{ rp.title }}" class="related-card-img" loading="lazy" decoding="async" width="400" height="120">
+                <span class="related-card-img img-placeholder" role="img" aria-label="{{ rp.title }}"></span>
             {% endif %}
             <div class="related-card-body">
                 <h3>{{ rp.title }}</h3>
@@ -128,6 +128,6 @@
     <button type="button" class="lightbox-nav lightbox-prev" aria-label="Previous image">&lsaquo;</button>
     <button type="button" class="lightbox-nav lightbox-next" aria-label="Next image">&rsaquo;</button>
     <div class="lightbox-caption"></div>
-    <img class="lightbox-img" src="{{ url_for('static', filename='img/default-post.svg') }}" alt="">
+    <img class="lightbox-img" src="{{ url_for('static', filename='img/default-post-social.png') }}" alt="">
 </div>
 {% endblock %}

@@ -41,7 +41,7 @@ app/static/
 │   └── upload.js
 ├── css/                # CSS files
 ├── fonts/              # Web fonts (woff2)
-├── img/                # Static images (favicon, default-post, backdrops/)
+├── img/                # Static images (favicon, default-post, default-post-social, backdrops/)
 ├── uploads/            # User-uploaded media (local fallback; production may use S3)
 └── dist/               # Vite build output
 ```
@@ -294,6 +294,85 @@ The table of contents is rendered by `public/toc.js` into a
 image. It used to sit outside the article, as a sibling of it, which made it
 float above the post and span the whole container width instead of the post's
 own.
+
+### The Reading Measure
+
+The prose column is capped at `34em` and centred in its container. `base.css` owns
+the rule, because the admin live preview renders `.prose` too and the preview
+must match the published post.
+
+The cap is expressed in `em` and not in pixels on purpose. The prose font size
+changes at the mobile breakpoint — `1.05rem` above 768px and `0.95rem` at and
+below it — so a pixel cap would hold a fixed column width and change the number
+of characters per line with it. An `em` cap scales with the text: the column
+measures 34 em at 1280px and at 768px, and the character count is the same at
+both.
+
+At 390px the cap does not bind: the column is 316px, narrower than the cap, so
+the phone layout is unchanged.
+
+**The measure is a unit, not a character count.** The number of characters a
+column holds depends on the typeface, and the typeface is an operator choice
+(`app/appearance/service.py` emits the `--font-sans` stack). The four bundled
+sans families measure 61.5 (Space Grotesk), 67.5 (IBM Plex Sans), 70.4
+(Atkinson Hyperlegible) and 74.1 (Inter) characters at `34em`. No single cap
+puts all four inside the 65–75 band, because the spread between the widest and
+the narrowest face is wider than the band itself. `34em` is the cap that
+centres the range. `tests/e2e/test_prose_measure.py` pins both contracts: the
+em measure, which is typeface-independent, and the character count for the face
+the page actually renders with.
+
+The cap narrows the text, never the page. The hero image above it keeps the
+full width of the tile, and the table of contents — which is a navigation block
+rather than prose — stays full tile width too.
+
+### The Post Placeholder
+
+`app/static/img/default-post.svg` is the mark shown where a post has no cover
+image. It carries **no palette of its own**: every `fill` and `stroke` is
+`currentColor` or `none`, and the background is transparent.
+
+An SVG loaded through `<img>` cannot read the page's colour — it is an isolated
+document, and `currentColor` inside it resolves against the SVG's own root
+element, not against the `<img>`. The mark is therefore applied as a **CSS
+mask** instead: `public.css` sets `mask-image: url("../img/default-post.svg")`
+on `.img-placeholder` and paints the element's background with `var(--text-dim)`,
+so only the mark's alpha is used and the ink comes from the theme. This is the
+same mechanism the page backdrops use.
+
+The placeholder is not an `<img>`. It is a `<span class="post-card-img
+img-placeholder" role="img" aria-label="…">`, because the colour of an
+`<img>`'s content cannot be changed by CSS. The `role` and the `aria-label`
+reproduce what `alt` gave the old image.
+
+`app/static/img/default-post-social.png` is a separate, self-contained 1200×630
+raster. The social preview metadata points at it, because a social platform
+renders neither an SVG nor a theme. The newsletter cover points at it too: most
+mail clients block SVG.
+
+### Image Bands
+
+The card image band and the related-post thumbnail are sized by an aspect ratio,
+not by a fixed height:
+
+```css
+.post-card-img,
+.related-card-img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    object-fit: cover;
+}
+```
+
+`object-fit: cover` crops whatever does not match the box. A fixed `height:
+200px` on an 804px-wide card made the band 4:1, which cut roughly a quarter off
+the height of a 16:9 screenshot — the prompt at the top and the output at the
+bottom. The ratio removes the crop, and no breakpoint may reintroduce a fixed
+height.
+
+The post hero keeps its own 760×400 banner. A hero is a banner by convention,
+and the placeholder mark is letterboxed inside it rather than cropped.
 
 ### Code Block Line Numbers
 

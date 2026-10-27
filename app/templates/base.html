@@ -23,11 +23,11 @@
     <meta property="og:description" content="{% block og_description %}{{ site_description }}{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{{ base_url }}{{ request.path }}">
-    {% block og_image %}<meta property="og:image" content="{{ base_url }}/static/img/default-post.svg">{% endblock %}
+    {% block og_image %}<meta property="og:image" content="{{ base_url }}/static/img/default-post-social.png">{% endblock %}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}{{ site_title }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ site_description }}{% endblock %}">
-    {% block twitter_image %}<meta name="twitter:image" content="{{ base_url }}/static/img/default-post.svg">{% endblock %}
+    {% block twitter_image %}<meta name="twitter:image" content="{{ base_url }}/static/img/default-post-social.png">{% endblock %}
     <link rel="canonical" href="{{ canonical_url }}">
     {% block feed_links %}
     <link rel="alternate" type="application/atom+xml" title="{{ site_title }} (Atom)" href="{{ url_for('rss.atom_feed') }}">

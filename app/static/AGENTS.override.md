@@ -213,6 +213,30 @@ The `.prose` typography is owned by `base.css`. The admin live preview renders
 in `public.css` are missing in the preview. `tests/test_css_contracts.py`
 enforces that `base.css` owns them and `public.css` does not.
 
+### Reading Measure
+
+The prose column's measure is `max-width: 34em` on `.prose`, owned by `base.css`
+for the same reason the prose typography is: the admin live preview renders
+`.prose`. The cap is in `em` because the prose font size changes at the mobile
+breakpoint; a pixel cap would change the character count with it.
+
+`public.css` must not set a width or a max-width on `.post-body`. The measure
+narrows the text, never the page: the hero image keeps the full width of the
+tile and the table of contents stays full tile width.
+
+### Placeholder Image
+
+`app/static/img/default-post.svg` is the mark shown where a post has no cover
+image, and it has exactly one owner: the `.img-placeholder` rule in
+`public.css`, which applies it as a CSS mask and paints the ink with
+`var(--text-dim)`.
+
+An SVG loaded through `<img>` cannot read the page's colour, so the placeholder
+is a `<span role="img" aria-label="…">`, not an `<img>`. Do not load the mark as
+an image: it would render in black on a dark theme. The social preview and the
+newsletter cover use `app/static/img/default-post-social.png`, a separate
+self-contained raster, because those renderers execute no CSS.
+
 ### Default Profile Image
 
 The "no profile picture" portrait is one macro in

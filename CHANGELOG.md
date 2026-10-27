@@ -39,6 +39,10 @@ accumulated for the current version. When the first release is tagged, move the
   editor and a post author selector
 - Syntax highlighting for fenced code blocks, with a copy button and token
   colours taken from the active theme
+- A capped reading measure: the prose column is 34 em wide and centred, so a
+  line of text is 65–75 characters long instead of 85–94, at every viewport
+- A themed placeholder for posts with no cover image — a line-art mark that
+  takes its colour from the active theme instead of hard-coding one
 
 **Halloy theme system**
 - 50 bundled Halloy `.toml` themes, with the root `themes/` directory acting
@@ -119,6 +123,9 @@ accumulated for the current version. When the first release is tagged, move the
   footer links and the navigation links — now clears the WCAG AA 4.5:1 floor
   in every bundled theme, and the eight themes whose code surface was
   indistinguishable from their own card surface were repaired
+- The post placeholder no longer renders as an opaque black band in the light
+  scheme, and the card image band no longer crops a quarter off the height of
+  a 16:9 screenshot
 
 ### Security
 

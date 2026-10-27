@@ -468,6 +468,110 @@ class TestProseOwnership:
         assert duplicated == {}, f"a prose rule has more than one owner: {duplicated}"
 
 
+class TestReadingMeasure:
+    """The reading column is capped, and the cap scales with the prose font size.
+
+    The cap is expressed in ``em`` because the prose font size changes at the
+    mobile breakpoint; a pixel cap would hold a fixed column width and change
+    the number of characters per line with it.
+    """
+
+    def test_the_measure_is_capped_on_the_prose_column(self) -> None:
+        rules = [
+            rule
+            for rule in _parse_rules(_read("base.css"))
+            if rule.selector.strip() == ".prose" and not rule.media_queries
+        ]
+        assert rules, "base.css has no base .prose rule"
+        declarations = rules[0].declarations()
+        assert "max-width" in declarations, "the prose column has no maximum width"
+        assert declarations["max-width"].endswith("em"), (
+            f"the measure is not expressed in em: {declarations['max-width']}"
+        )
+
+    def test_the_measure_is_centred_in_its_container(self) -> None:
+        rules = [
+            rule
+            for rule in _parse_rules(_read("base.css"))
+            if rule.selector.strip() == ".prose" and not rule.media_queries
+        ]
+        declarations = rules[0].declarations()
+        assert declarations.get("margin-inline") == "auto", (
+            "the narrower column is not centred in its tile"
+        )
+
+    def test_no_other_stylesheet_caps_the_prose_column(self) -> None:
+        owners = {
+            path.name
+            for path in _stylesheet_files()
+            for rule in _parse_rules(path.read_text())
+            if rule.selector.strip() == ".prose" and "max-width" in rule.declarations()
+        }
+        assert owners == {"base.css"}, f"the measure has more than one owner: {sorted(owners)}"
+
+    def test_the_public_sheet_does_not_set_a_width_on_the_post_body(self) -> None:
+        rules = [
+            rule
+            for rule in _parse_rules(_read("public.css"))
+            if rule.selector.strip() == ".post-body"
+        ]
+        for rule in rules:
+            declarations = rule.declarations()
+            assert "width" not in declarations, (
+                f"public.css sets a width on .post-body: {declarations}"
+            )
+            assert "max-width" not in declarations, (
+                f"public.css sets a max-width on .post-body: {declarations}"
+            )
+
+
+class TestImageBands:
+    """The card band keeps a ratio instead of a fixed height.
+
+    A fixed height with ``object-fit: cover`` crops a 16:9 screenshot to a 4:1
+    band, which removes the top and the bottom of the image.
+    """
+
+    BANDS = (".post-card-img", ".related-card-img")
+
+    def test_the_bands_declare_an_aspect_ratio(self) -> None:
+        rules = {rule.selector.strip(): rule for rule in _parse_rules(_read("public.css"))}
+        for selector in self.BANDS:
+            assert selector in rules, f"public.css has no {selector} rule"
+            declarations = rules[selector].declarations()
+            assert declarations.get("aspect-ratio") == "16 / 9", (
+                f"{selector} has no 16:9 band: {declarations}"
+            )
+            assert declarations.get("height") == "auto", (
+                f"{selector} still has a fixed height: {declarations}"
+            )
+
+    def test_no_breakpoint_overrides_the_band_with_a_fixed_height(self) -> None:
+        for rule in _parse_rules(_read("public.css")):
+            if rule.selector.strip() not in self.BANDS:
+                continue
+            declarations = rule.declarations()
+            assert "height" not in declarations or declarations["height"] == "auto", (
+                f"a breakpoint fixes the height of {rule.selector.strip()}: {declarations}"
+            )
+
+    def test_the_placeholder_takes_its_ink_from_the_theme(self) -> None:
+        rules = [
+            rule
+            for rule in _parse_rules(_read("public.css"))
+            if rule.selector.strip() == ".img-placeholder"
+        ]
+        assert rules, "public.css has no .img-placeholder rule"
+        declarations = rules[0].declarations()
+        assert "mask-image" in declarations, f"the placeholder is not masked: {declarations}"
+        assert "default-post.svg" in declarations["mask-image"], (
+            f"the placeholder is not masked by the mark: {declarations}"
+        )
+        assert declarations.get("background-color") == "var(--text-dim)", (
+            f"the placeholder does not take its ink from the theme: {declarations}"
+        )
+
+
 class TestHeadingAnchor:
     """The heading anchor is a link to the section, not a stray '#' after the title."""
 

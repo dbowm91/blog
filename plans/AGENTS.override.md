@@ -149,15 +149,15 @@ Roadmap: [`visual_design_roadmap.md`](visual_design_roadmap.md)
 
 Origin: an operator review of the running instance on 2026-10-27, measured in
 Chromium in both colour schemes at 390px, 768px and 1280px. **18 findings**:
-2 critical, 7 high, 7 medium, 2 low. **Phases 01 and 02 have shipped**; phases 03
-to 06 remain open.
+2 critical, 7 high, 7 medium, 2 low. **Phases 01 to 04 have shipped**; phases 05
+and 06 remain open.
 
 | Phase | File | Status |
 |---|---|---|
 | 01 | `visual_design_phase_01_code_blocks.md` | **Complete.** Code blocks are syntax-highlighted, copyable, and coloured by the active theme. The fence language survives sanitisation, Prism is a built npm dependency, the `syntax_theme` setting and the six vendored palettes are gone. |
 | 02 | `visual_design_phase_02_text_roles_and_contrast.md` | **Complete.** Two derived roles — `--text-caption` and `--accent-text` — carry the text a reader must read and hold 4.5:1 in every bundled theme. The decorative allowlist is documented; eight themes were given a distinguishable code surface. |
-| 03 | `visual_design_phase_03_prose_measure.md` | **Not started.** The reading column is 85.5 characters wide at 1280px and 94.4 at 768px. |
-| 04 | `visual_design_phase_04_imagery.md` | **Not started.** The post placeholder hard-codes the GitHub dark palette; the card band crops a fifth off every source image. |
+| 03 | `visual_design_phase_03_prose_measure.md` | **Complete.** The prose column is capped at 34 em and centred, so it carries 70 characters per line at 1280px and at 768px, and the phone layout is unchanged. |
+| 04 | `visual_design_phase_04_imagery.md` | **Complete.** The placeholder is a themed mark with no palette of its own, and the card and related bands are 16:9, so a 16:9 screenshot is no longer cropped. |
 | 05 | `visual_design_phase_05_index_layout.md` | **Not started.** The sidebar repeats the main list; one headline is visible per screen. |
 | 06 | `visual_design_phase_06_article_furniture.md` | **Not started.** The share panel occupies the top of the article; structure and content share one voice. |
 
@@ -179,12 +179,14 @@ below the article; the index sidebar's "Recent posts" block is dropped.
 | The syntax token colours | `app/static/css/prism.css` |
 | The caption colour and the accent-text colour | The theme runtime (`app/themes/translate.py`) |
 | The prose measure | `app/static/css/base.css` |
+| The post placeholder mark | `app/static/css/public.css` — the `.img-placeholder` mask rule; the SVG is never loaded as an image |
 
 **The sanitiser does not move.** `MARKDOWN_ALLOWED_ATTRIBUTES` keeps `class` on
 `span` and `div` only. The renderer re-attaches the fence language *after*
 `nh3.clean()`, and a test asserts the allowlist is unchanged.
 
-Shipped outcome so far: [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md)
+Shipped outcome so far: [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md),
+[`architecture/frontend/templates.md`](../architecture/frontend/templates.md)
 and [`architecture/core/themes.md`](../architecture/core/themes.md). When the series
 closes, the outcome also belongs in
 [`architecture/frontend/overview.md`](../architecture/frontend/overview.md).
@@ -194,7 +196,7 @@ strokes, separators, disabled states — and its allowlist is seven rules across
 three stylesheets. `--text-caption` is the text a reader must read, and
 `--accent-text` is the accent on a tinted chip. Both are derived by the theme
 runtime, so no theme file declares them and the gate holds them at 4.5:1. Phases
-03 to 06 style text at content size: they use these roles and must not
+05 and 06 style text at content size: they use these roles and must not
 reintroduce `--text-muted` for content.
 
 ## Historical Plans

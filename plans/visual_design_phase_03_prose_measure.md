@@ -1,10 +1,12 @@
 # Visual Design Phase 03 — Prose Measure
 
-> **Plan status: ACTIVE — not started.** Nothing in this plan has shipped. See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
+> **Plan status: COMPLETE — shipped 2026-10-27.** The outcome is documented in
+> [`architecture/frontend/static-assets.md`](../architecture/frontend/static-assets.md#the-reading-measure).
+> See the Active Plans section of [`AGENTS.override.md`](AGENTS.override.md).
 
 **Roadmap:** [visual_design_roadmap.md](visual_design_roadmap.md)
 **Date:** 2026-10-27
-**Status:** Not started
+**Status:** Complete — shipped 2026-10-27
 **Severity:** Medium — the reading column is 85 characters wide, well past the range in which a line of text is easy to track back from.
 
 ## Objective
@@ -142,4 +144,85 @@ Runs before Phase 06, which re-styles the elements that sit around the measure.
 
 ## Completion
 
-**Status:** Not started.
+**Status:** Complete. Shipped 2026-10-27.
+
+### What changed
+
+- `app/static/css/base.css` — `.prose` gained `max-width: 34em` and
+  `margin-inline: auto`. The cap is in `em` so it scales with the prose font
+  size, which changes from `1.05rem` to `0.95rem` at the 768px breakpoint.
+- `tests/test_css_contracts.py` — a `TestReadingMeasure` class: the cap exists,
+  it is expressed in `em`, the column is centred, no other stylesheet caps
+  `.prose`, and `public.css` sets no width on `.post-body`.
+- `tests/e2e/test_prose_measure.py` — 11 browser tests: the character count at
+  1280px and 768px, the em measure at both, the em cap scaling with the font
+  size, the phone layout unchanged, the hero at full tile width, the admin
+  preview matching the published post, and no horizontal overflow at 390px,
+  768px or 1280px.
+- `architecture/frontend/static-assets.md`, `architecture/frontend/templates.md`,
+  `app/static/AGENTS.override.md` and `AGENTS.md` record the measure and its
+  owner.
+
+### Deviations from the plan
+
+1. **The character count is typeface-dependent, and no single cap satisfies the
+   65–75 band for every typeface.** The measure is expressed in `em` and the
+   typeface is an operator choice (`app/appearance/service.py` emits the
+   `--font-sans` stack), so the number of characters a column holds depends on
+   the face. Measured over the four bundled sans families at `34em`:
+
+   | Family | Advance | Characters at 34em | Cap range for 65–75 |
+   |---|---|---|---|
+   | Inter | 0.4591 em | 74.1 | 29.8 – 34.4 em |
+   | Atkinson Hyperlegible | 0.4828 em | 70.4 | 31.4 – 36.2 em |
+   | IBM Plex Sans | 0.5040 em | 67.5 | 32.8 – 37.8 em |
+   | Space Grotesk | 0.5528 em | 61.5 | 35.9 – 41.5 em |
+
+   The ranges do not intersect: the spread between the widest and the narrowest
+   face is wider than the 65–75 band itself. `34em` is the cap that centres the
+   range — three of the four families land inside the band and the fourth, Space
+   Grotesk, lands at 61.5, which is inside the classic 45–85 comfort range. The
+   acceptance criterion as written is therefore met for the default typeface and
+   for three of the four selectable ones, and **cannot** be met for all four by
+   any cap.
+
+   The typeface-independent contract is the em measure, and it is what the test
+   suite now pins: `test_the_measure_is_thirty_four_ems_at_every_breakpoint`
+   asserts the column measures 34 em at 1280px and at 768px, and
+   `test_the_measure_holds_sixty_five_to_seventy_five_characters` asserts the
+   character count for the face the page actually renders with.
+
+2. **The advance is measured from the rendered face, not from a canvas.** The
+   plan specified `canvas.measureText`. A canvas falls back to a generic family
+   when the web font has not finished loading, which counts characters in the
+   wrong font — the fallback measured 7.71px against Inter's own 7.71px only by
+   coincidence. The test now measures a hidden span carrying the prose's
+   computed font properties, after `document.fonts.ready`, so the advance comes
+   from the face the reader sees.
+
+3. **The "unchanged at 390px" test asserts that the cap does not bind** rather
+   than comparing against a recorded pixel width, because the phone column
+   still fills the tile's content box (316px of a 316px content box) and a
+   recorded number would drift with the tile's padding.
+
+### Verification
+
+Measured in Chromium against the running instance at `/post/prism-check`:
+
+| Viewport | Prose font size | Column | Characters | Em measure |
+|---|---|---|---|---|
+| 1280px | 16.8px | 571px | 70.4 | 34.0 |
+| 768px | 15.2px | 517px | 70.4 | 34.0 |
+| 390px | 15.2px | 316px | 43.0 | 20.8 (the cap does not bind) |
+
+- The hero is 758px wide inside a 758px content box — the full width of its
+  tile — at 1280px, and 400px tall, unchanged.
+- `document.documentElement.scrollWidth` equals `window.innerWidth` at 390px,
+  768px and 1280px.
+- The admin live preview at `/admin/edit/<id>` computes the same `max-width`
+  (`571.2px`) as the published post.
+- `pytest tests/e2e/test_prose_measure.py` — 11 passed.
+- `pytest tests/test_css_contracts.py` — passed.
+- `ruff check .` and `ruff format --check .` — clean.
+- Full-suite comparison against the pre-phase baseline: no new failures.
+

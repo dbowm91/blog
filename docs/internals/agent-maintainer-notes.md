@@ -23,6 +23,7 @@ Historical implementation caveats, known gotchas, and maintainer context for AI 
 - [Admin Theme Preview Placement (2026-10-24)](#admin-theme-preview-placement-2026-10-24)
 - [Site Identity, Authorship and Page Navigation (2026-10-24)](#site-identity-authorship-and-page-navigation-2026-10-24)
 - [Editor Layout, Markdown Toolbar and Footer Subscribe (2026-10-24)](#editor-layout-markdown-toolbar-and-footer-subscribe-2026-10-24)
+- [Themed SVG Art (2026-10-27)](#themed-svg-art-2026-10-27)
 - [See Also](#see-also)
 
 ---
@@ -1074,6 +1075,38 @@ never loads, and every editor control silently does nothing.
 **Restart the Flask server after every frontend build** before you trust a
 browser check. The symptom is a page that renders but whose JavaScript is
 dead, which looks like a bug in the code you just wrote.
+
+---
+
+## Themed SVG Art (2026-10-27)
+
+**An SVG loaded through `<img>` cannot read the page's colour.** The plan for
+Visual Design Phase 04 assumed it could: that `currentColor` inside the SVG
+would resolve against the `<img>` element's own `color` property. It does not.
+An SVG loaded as an image is an isolated document with no access to the host
+page's cascade, and `currentColor` inside it resolves against the SVG
+document's own root element — which is black.
+
+Measured in Chromium: a page whose `<img>` sets `color: rgb(255, 0, 0)` and
+whose SVG fills with `currentColor` renders **black**, both read back through a
+canvas and sampled from a screenshot. Under that assumption the placeholder
+would have rendered black in every theme, including the dark ones.
+
+**Two mechanisms work, and they are not interchangeable.**
+
+| Need | Mechanism |
+|---|---|
+| The colour comes from the theme | `mask-image` with the SVG as the mask, and `background-color` for the ink — the page backdrops already do this |
+| The SVG stays an `<img>` | The SVG carries its own palette and cannot be themed |
+
+Because the colour of an `<img>`'s content cannot be changed by CSS, the themed
+mark has to be a `<span role="img" aria-label="…">` with the mask applied to
+it, not an `<img>`.
+
+**When a plan describes a browser mechanism, measure it before building on it.**
+A plan is a specification, not evidence. The `currentColor` claim was plausible
+enough to read as established, and it would have shipped a black-on-black
+placeholder in fifty themes.
 
 ---
 

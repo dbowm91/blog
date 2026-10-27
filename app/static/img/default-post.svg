@@ -1,17 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#0d1117"/>
-  <defs>
-    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#161b22" stroke-width="1"/>
-    </pattern>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#58a6ff;stop-opacity:0.15"/>
-      <stop offset="50%" style="stop-color:#58a6ff;stop-opacity:0.05"/>
-      <stop offset="100%" style="stop-color:#58a6ff;stop-opacity:0.0"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="630" fill="url(#grid)"/>
-  <rect width="1200" height="630" fill="url(#glow)"/>
-  <text x="600" y="280" text-anchor="middle" font-family="monospace" font-size="80" font-weight="700" fill="#1c2128">{ }</text>
-  <text x="600" y="380" text-anchor="middle" font-family="monospace" font-size="28" fill="#30363d">DevLog</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <!-- The placeholder mark carries no palette of its own. It is applied as a CSS
+       mask, so only its alpha is read; the colour comes from the element that
+       displays it. -->
+  <g fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="240" y="150" width="720" height="375" rx="24"/>
+    <path d="M 240 250 H 960"/>
+    <path d="M 555 320 L 530 320 Q 500 320 500 350 L 500 365 Q 500 385 478 385 Q 500 385 500 405 L 500 420 Q 500 450 530 450 L 555 450"/>
+    <path d="M 645 320 L 670 320 Q 700 320 700 350 L 700 365 Q 700 385 722 385 Q 700 385 700 405 L 700 420 Q 700 450 670 450 L 645 450"/>
+  </g>
+  <g fill="currentColor" stroke="none">
+    <circle cx="300" cy="200" r="10"/>
+    <circle cx="344" cy="200" r="10"/>
+    <circle cx="388" cy="200" r="10"/>
+  </g>
 </svg>

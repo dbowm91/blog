@@ -145,6 +145,8 @@ These are the seams where a second producer is the defect. Each has one owner.
 | Colour | The theme runtime — static CSS consumes tokens only |
 | Typeface and backdrop | `app/appearance/service.py` |
 | Markdown prose typography | `app/static/css/base.css` (the admin shell does not load `public.css`) |
+| The reading measure | `app/static/css/base.css` — `max-width: 34em` on `.prose`, never a pixel width |
+| The post placeholder mark | `app/static/css/public.css` — the `.img-placeholder` mask rule; the SVG is never loaded as an image |
 | The "no profile picture" portrait | `app/templates/_default_avatar.html` — one macro, never an initial letter |
 | Heading IDs | `app/static/js/shared/heading-slug.js` |
 | Heading anchors | `app/static/js/public/anchor-links.js` — a direct child of the heading, never wrapped |

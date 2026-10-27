@@ -62,9 +62,27 @@
 
 .post-card-img {
     width: 100%;
-    height: 200px;
+    aspect-ratio: 16 / 9;
+    height: auto;
     object-fit: cover;
     display: block;
+}
+
+/* The placeholder mark is an SVG with no palette of its own. An SVG loaded
+   through <img> cannot read the page's colour, so the mark is applied as a CSS
+   mask instead: only its alpha is used, and the ink comes from the element's
+   own background. The placeholder is decoration, so it takes the dim role. */
+.img-placeholder {
+    display: block;
+    background-color: var(--text-dim);
+    -webkit-mask-image: url("../img/default-post.svg");
+    mask-image: url("../img/default-post.svg");
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
 }
 
 .post-card-body {
@@ -560,7 +578,8 @@ a.related-card {
 
 .related-card-img {
     width: 100%;
-    height: 120px;
+    aspect-ratio: 16 / 9;
+    height: auto;
     object-fit: cover;
     display: block;
 }
@@ -1208,10 +1227,6 @@ a.related-card {
 
     .hero-description {
         font-size: 0.95rem;
-    }
-
-    .post-card-img {
-        height: 160px;
     }
 
     .post-card-body {

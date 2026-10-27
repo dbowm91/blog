@@ -101,7 +101,8 @@ Dynamic sitemap.xml generation at `/sitemap.xml`:
 
 Templates include Open Graph and Twitter Card meta tags:
 - `og:image` and `twitter:image` in `post.html`, `page.html`, `index.html`
-- Defaults to `/static/img/default-post.svg` when no image set
+- Defaults to `/static/img/default-post-social.png` when no image set. The social
+  preview is a raster because a social platform does not render an SVG.
 
 ## Token Enumeration Prevention
 
