@@ -23,8 +23,8 @@ that banner first; it names the authoritative document for that work.
 
 ## Active Plans
 
-The active work and proposed series below are tracked here, alongside a short
-residual list. Other series in `plans/` are history.
+This index tracks open series, a residual backlog, and recently completed work.
+Use the per-phase status banners and tables below to distinguish work from history.
 
 ### 1. Site Identity, Authorship and Layout — Phase 06 open
 
@@ -223,6 +223,20 @@ Origin: repository source review of the current Pages, navigation, themes, Markd
 **Ownership:** `app/services/navigation.py` remains the single site-navigation producer (do not build a separate project nav resolver); `app/markdown_renderer.py` remains the Markdown sanitization producer; `app/themes/` owns colors and named theme resolution; `app/static/js/main.js` owns route module registration; a new GitHub client owns source reads; a distinct streaming artifact backend, **not** image media upload/storage byte-buffer methods, would own future binary mirrors.
 
 **Compatibility:** blog remains the default homepage, Projects navbar is off by default, all existing Pages/Post URLs remain functional, all external integrations are optional. Page menu ownership stays with Site Identity Phase 05. New Alembic revisions must use the **actual current head** when coded, not a revision copied from this date.
+
+### 6. Optional AI-Assisted Post Authoring — 2026-10-28
+
+Roadmap: [`ai_authoring_roadmap.md`](ai_authoring_roadmap.md)
+
+Operator request: optional **AI write TL;DR** and **AI suggest tags** on the post new/edit editor, with candidate generation followed by conditional existing-tag semantic reconciliation. All three phases are **planned; none has shipped**. No database migrations, automatic publishing, public AI, or inference without an API key.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | `ai_authoring_phase_01_provider_summary.md` | **Open — not started.** Env-only, secret-safe provider configuration, bounded authenticated endpoint, summary |
+| 02 | `ai_authoring_phase_02_tag_reconciliation.md` | **Open — not started.** Candidate tags, exact reuse, conditional second pass and catalog privacy |
+| 03 | `ai_authoring_phase_03_editor_acceptance.md` | **Open — not started.** Conditional buttons, explicit review/apply, editor drafts, E2E and release closure |
+
+**Implementation order: 01 → 02 → 03.** Missing key means absent buttons and no provider requests. Post Save remains the sole persistence step. Provider-policy release gate: Go documentation currently describes coding-agent traffic; confirm editorial summarization/classification use is permitted or use an authorized alternative before enabling it. After implementation, the canonical behavior must be documented in `architecture/routes/admin-routes.md`, `architecture/services/tag.md` and `architecture/frontend/overview.md`, and the series moved to Historical with actual verification.
 
 
 ## Historical Plans
