@@ -72,20 +72,23 @@ def test_run_daily_backup(monkeypatch):
         app.instance_path = os.path.join(tmpdir, "instance")
         app.logger = MagicMock()
         # Create dummy db
-        db_path = os.path.join(app.instance_path, "blog.db")
+        db_path = os.path.join(app.instance_path, "devlog.sqlite3")
         os.makedirs(app.instance_path, exist_ok=True)
         import sqlite3
 
         conn = sqlite3.connect(db_path)
         conn.close()
-        # Patch create_backup to return a path
-        with patch("app.services.backup.create_backup", return_value="/tmp/backup.db"):
-            from app.services.backup import run_daily_backup
+        # The backup services read the live database URI from the app config.
+        app.config = {"SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}"}
 
-            run_daily_backup(app)
-            # Should have called create_backup
-            # Check that backup was attempted
-            assert True  # If no exception, test passes
+        from app.services.backup import run_daily_backup
+
+        run_daily_backup(app)
+
+        # The backup lands beside the database, in the resolved backup dir.
+        backup_dir = os.path.join(app.instance_path, "backups")
+        backups = os.listdir(backup_dir)
+        assert any(name.startswith("blog_") for name in backups)
 
 
 def test_encrypt_backup_file_missing_key():

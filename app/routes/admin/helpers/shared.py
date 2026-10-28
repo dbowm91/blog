@@ -71,5 +71,26 @@ def _check_password_complexity(password: str) -> bool:
     return sum((has_lower, has_upper, has_digit, has_special)) >= 3
 
 
+def _resolve_database_path() -> str:
+    """Return the SQLite file the application actually uses.
+
+    The admin backup actions and the backup services have to act on the same
+    file, so the path is resolved once, from the live configuration.
+    """
+    from app.services.backup import resolve_database_file
+
+    db_path = resolve_database_file(current_app)
+    if db_path:
+        return db_path
+    return os.path.join(current_app.instance_path, "blog.db")
+
+
 def _get_backup_dir() -> str:
-    return os.path.join(current_app.instance_path, "backups")
+    """Return the directory that holds database backups.
+
+    The admin UI and the backup services must agree on one directory, so this
+    resolves it the same way they do.
+    """
+    from app.services.backup import resolve_backup_dir
+
+    return resolve_backup_dir(current_app)

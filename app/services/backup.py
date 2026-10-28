@@ -19,6 +19,54 @@ logger = logging.getLogger(__name__)
 BACKUP_RETENTION_COUNT = 7
 
 
+def resolve_database_file(app: Any) -> str | None:
+    """Resolve the SQLite database file the running app actually uses.
+
+    The app resolves its database to ``<data_dir>/devlog.sqlite3``; it is not
+    at ``instance/blog.db``. ``create_app`` records the live URI in
+    ``SQLALCHEMY_DATABASE_URI``, so that is the authoritative answer.
+
+    Returns ``None`` when the database is not a SQLite file, because there is
+    then nothing for ``sqlite3.backup()`` to copy.
+    """
+    uri = ""
+    try:
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "") or ""
+    except (AttributeError, RuntimeError):
+        uri = ""
+
+    if not isinstance(uri, str):
+        return None
+
+    if uri.startswith("sqlite:///"):
+        return uri[len("sqlite:///") :]
+
+    if uri:
+        logger.warning("Database is not a SQLite file (%s) — skipping file backup", uri)
+    return None
+
+
+def resolve_backup_dir(app: Any) -> str:
+    """Resolve the directory that holds database backups.
+
+    A relative ``backup.data_backup_dir`` is resolved against the data
+    directory, so backups land beside the database rather than in whichever
+    directory the service happened to start in.
+    """
+    from app.config import DATA_BACKUP_DIR
+
+    configured = DATA_BACKUP_DIR or "backups"
+    if os.path.isabs(configured):
+        return configured
+
+    db_file = resolve_database_file(app)
+    base = os.path.dirname(db_file) if db_file else ""
+    if not base:
+        instance_path = getattr(app, "instance_path", "")
+        base = instance_path if isinstance(instance_path, str) else ""
+    return os.path.join(base, configured)
+
+
 def create_backup(
     db_path: str,
     backup_dir: str,
@@ -173,14 +221,14 @@ def run_daily_backup(app: Any) -> None:
         or compression. For encrypted/compressed backups, use the
         Celery task `run_backup_task` which calls `create_backup()`.
     """
-    from app.config import DATA_BACKUP_DIR
+    from app.config import DATA_BACKUP_DIR  # noqa: F401
 
-    backup_dir = os.path.join(app.instance_path, DATA_BACKUP_DIR)
+    backup_dir = resolve_backup_dir(app)
     os.makedirs(backup_dir, exist_ok=True)
 
-    db_path = os.path.join(app.instance_path, "blog.db")
+    db_path = resolve_database_file(app)
 
-    if not os.path.exists(db_path):
+    if not db_path or not os.path.exists(db_path):
         app.logger.warning("Database file not found at %s, skipping backup", db_path)
         return
 

@@ -24,13 +24,12 @@ def create_backup_operation(
 
     Returns path and verification status. Never prints encryption keys.
     """
-    from app.config import DATA_BACKUP_DIR
-    from app.services.backup import create_backup
+    from app.config import DATA_BACKUP_DIR  # noqa: F401
+    from app.services.backup import create_backup, resolve_backup_dir, resolve_database_file
 
-    instance_path: str = current_app.instance_path
-    db_path = os.path.join(instance_path, "blog.db")
+    db_path = resolve_database_file(current_app)
 
-    if not os.path.exists(db_path):
+    if not db_path or not os.path.exists(db_path):
         return BackupCreateResult(
             ok=False,
             code="backup.create.db_not_found",
@@ -39,7 +38,7 @@ def create_backup_operation(
             remediation=["Ensure the database has been initialized before creating backups."],
         )
 
-    backup_dir = os.path.join(instance_path, DATA_BACKUP_DIR)
+    backup_dir = resolve_backup_dir(current_app)
 
     warnings: list[str] = []
     if encrypt:

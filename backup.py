@@ -14,13 +14,22 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 
 
 def get_db_path():
-    """Get the database path."""
-    return os.path.join("instance", "blog.db")
+    """Resolve the database file the application actually uses.
+
+    The app resolves its database to ``<data_dir>/devlog.sqlite3`` — not to
+    ``instance/blog.db`` — so the effective configuration is the only honest
+    source for the path. ``DEVLOG_DATA_DIR`` and the config file both feed it.
+    """
+    from app.config.loader import load_effective_config
+
+    uri = load_effective_config().database.uri
+    if uri.startswith("sqlite:///"):
+        return uri[len("sqlite:///") :]
+    return uri
 
 
 def main():
@@ -39,7 +48,9 @@ def main():
     parser.add_argument(
         "--keep", type=int, default=7, help="Number of backups to retain (default: 7)"
     )
-    parser.add_argument("--db", type=str, help="Path to database file (default: instance/blog.db)")
+    parser.add_argument(
+        "--db", type=str, help="Path to database file (default: the configured database)"
+    )
     parser.add_argument(
         "--dir", type=str, default="backups", help="Backup directory (default: backups)"
     )

@@ -439,11 +439,14 @@ def run_backup_task(self: Any) -> bool:
     from app.services.backup import create_backup
 
     try:
-        from app.config import DATA_BACKUP_DIR
         from flask import current_app
 
-        backup_dir = os.path.join(current_app.instance_path, DATA_BACKUP_DIR)
-        db_path = os.path.join(current_app.instance_path, "blog.db")
+        from app.services.backup import resolve_backup_dir, resolve_database_file
+
+        backup_dir = resolve_backup_dir(current_app)
+        db_path = resolve_database_file(current_app)
+        if not db_path:
+            return False
 
         result = create_backup(db_path, backup_dir, compress=True, keep=7, encrypt=False)
         return result is not None

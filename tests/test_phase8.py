@@ -6,6 +6,8 @@ from sqlalchemy import select
 from app.models import User, Post
 from app.utils import utc_now, UTCDateTime
 
+from app.services.backup import resolve_backup_dir
+
 
 # --- Phase 8.1: Timezone-aware datetimes ---
 
@@ -317,7 +319,7 @@ class TestBackupRestore:
         """Creating a backup produces a backup file."""
         response = authenticated_client.post("/admin/backup/create", follow_redirects=True)
         assert response.status_code == 200
-        backup_dir = os.path.join(app.instance_path, "backups")
+        backup_dir = resolve_backup_dir(app)
         assert os.path.isdir(backup_dir)
         backups = [f for f in os.listdir(backup_dir) if f.startswith("blog_")]
         assert len(backups) >= 1
@@ -328,14 +330,14 @@ class TestBackupRestore:
             "/admin/backup/create", data={"compress": "1"}, follow_redirects=True
         )
         assert response.status_code == 200
-        backup_dir = os.path.join(app.instance_path, "backups")
+        backup_dir = resolve_backup_dir(app)
         backups = [f for f in os.listdir(backup_dir) if f.endswith(".gz")]
         assert len(backups) >= 1
 
     def test_download_backup(self, client, db, authenticated_client, app):
         """Can download a created backup."""
         authenticated_client.post("/admin/backup/create")
-        backup_dir = os.path.join(app.instance_path, "backups")
+        backup_dir = resolve_backup_dir(app)
         backups = [f for f in os.listdir(backup_dir) if f.startswith("blog_")]
         assert len(backups) >= 1
         response = authenticated_client.get(f"/admin/backup/download/{backups[0]}")
@@ -350,7 +352,7 @@ class TestBackupRestore:
     def test_delete_backup(self, client, db, authenticated_client, app):
         """Can delete a backup."""
         # Clean up any stale backups
-        backup_dir = os.path.join(app.instance_path, "backups")
+        backup_dir = resolve_backup_dir(app)
         if os.path.isdir(backup_dir):
             for f in os.listdir(backup_dir):
                 os.remove(os.path.join(backup_dir, f))
@@ -380,7 +382,7 @@ class TestBackupRestore:
         authenticated_client.post("/admin/backup/create")
 
         # Get the backup filename
-        backup_dir = os.path.join(app.instance_path, "backups")
+        backup_dir = resolve_backup_dir(app)
         backups = [f for f in os.listdir(backup_dir) if f.startswith("blog_")]
         assert len(backups) >= 1
         filename = backups[0]

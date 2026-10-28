@@ -3,6 +3,8 @@ import pytest
 from app.models import Post
 from app.utils import utc_now
 
+from app.services.backup import resolve_backup_dir
+
 pytestmark = pytest.mark.slow
 
 
@@ -12,7 +14,7 @@ def test_backup_creation_uncompressed(app, db, authenticated_client):
     assert response.status_code == 302
     assert response.headers["Location"] == "/admin/backup"
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     assert os.path.isdir(backup_dir)
     files = [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     assert len(files) >= 1
@@ -23,7 +25,7 @@ def test_backup_creation_compressed(app, db, authenticated_client):
     response = authenticated_client.post("/admin/backup/create", data={"compress": "on"})
     assert response.status_code == 302
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     files = [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     assert len(files) >= 1
 
@@ -39,7 +41,7 @@ def test_backup_download_uncompressed(app, db, authenticated_client):
     """Test downloading an uncompressed backup."""
     authenticated_client.post("/admin/backup/create", data={"compress": "on"})
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     files = sorted(
         [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     )
@@ -55,7 +57,7 @@ def test_backup_download_compressed(app, db, authenticated_client):
     """Test downloading a compressed backup."""
     authenticated_client.post("/admin/backup/create", data={"compress": "on"})
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     files = sorted(
         [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     )
@@ -82,7 +84,7 @@ def test_backup_delete(app, db, authenticated_client):
     """Test deleting a backup."""
     authenticated_client.post("/admin/backup/create")
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     files = sorted([f for f in os.listdir(backup_dir) if f.startswith("blog_")])
     if not files:
         pytest.skip("No backup created")
@@ -108,7 +110,7 @@ def test_backup_restore(app, db, authenticated_client, admin_user):
 
     authenticated_client.post("/admin/backup/create")
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     files = sorted(
         [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     )
@@ -141,7 +143,7 @@ def test_backup_restore_compressed(app, db, authenticated_client, admin_user):
 
     authenticated_client.post("/admin/backup/create", data={"compress": "on"})
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     files = sorted(
         [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     )
@@ -162,7 +164,7 @@ def test_backup_restore_compressed(app, db, authenticated_client, admin_user):
 
 def test_backup_restore_corrupted_file(app, db, authenticated_client):
     """Test that restoring a corrupted backup file overwrites the DB (no validation at route level)."""
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     os.makedirs(backup_dir, exist_ok=True)
 
     corrupted_name = "blog_20260101_120000.db"
@@ -180,7 +182,7 @@ def test_backup_restore_corrupted_file(app, db, authenticated_client):
 
 def test_backup_restore_corrupted_compressed(app, db, authenticated_client):
     """Test that restoring a corrupted compressed backup returns error redirect."""
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     os.makedirs(backup_dir, exist_ok=True)
 
     corrupted_name = "blog_20260101_120000.db.gz"
@@ -206,7 +208,7 @@ def test_backup_retention_policy(app, db):
     """Test that old backups are cleaned up when retention limit is exceeded."""
     from app.services.backup import create_backup
 
-    backup_dir = os.path.join(app.instance_path, "backups")
+    backup_dir = resolve_backup_dir(app)
     os.makedirs(backup_dir, exist_ok=True)
 
     db_path = os.path.join(app.instance_path, "blog.db")

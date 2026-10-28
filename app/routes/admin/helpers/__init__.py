@@ -34,6 +34,7 @@ from app.routes.admin.helpers.shared import (
     _categorize_referrer,
     _check_password_complexity,
     _get_backup_dir,
+    _resolve_database_path,
 )
 
 __all__ = [
@@ -44,6 +45,7 @@ __all__ = [
     "_categorize_referrer",
     "_check_password_complexity",
     "_get_backup_dir",
+    "_resolve_database_path",
     "invalidate_analytics_cache",
     "invalidate_dashboard_cache",
     "_get_posts_query",

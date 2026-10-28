@@ -6,12 +6,12 @@ import gzip
 import tempfile
 from datetime import datetime, timezone
 
-from flask import render_template, redirect, url_for, request, flash, send_file, abort, current_app
+from flask import render_template, redirect, url_for, request, flash, send_file, abort
 from flask.typing import ResponseReturnValue
 
 from app.extensions import db
 from app.routes.admin import admin, admin_required
-from app.routes.admin.helpers import _get_backup_dir
+from app.routes.admin.helpers import _get_backup_dir, _resolve_database_path
 from app.utils import safe_delete_file
 from app.routes.admin.helpers.shared import validate_backup_filename
 from sqlalchemy.exc import SQLAlchemyError
@@ -64,11 +64,7 @@ def create_backup() -> ResponseReturnValue:
 
     compress = "compress" in request.form
     encrypt = "encrypt" in request.form
-    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if db_uri.startswith("sqlite:///"):
-        db_path = db_uri.replace("sqlite:///", "/")
-    else:
-        db_path = os.path.join(current_app.instance_path, "blog.db")
+    db_path = _resolve_database_path()
     backup_dir = _get_backup_dir()
     result = _create_backup(db_path, backup_dir, compress=compress, keep=10, encrypt=encrypt)
     if result:
@@ -123,11 +119,7 @@ def restore_backup(filename) -> ResponseReturnValue:
         abort(400)
     if not os.path.exists(real_path):
         abort(404)
-    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if db_uri.startswith("sqlite:///"):
-        db_path = db_uri.replace("sqlite:///", "/")
-    else:
-        db_path = os.path.join(current_app.instance_path, "blog.db")
+    db_path = _resolve_database_path()
     db.engine.dispose()
 
     is_encrypted = filename.endswith(".gpg")

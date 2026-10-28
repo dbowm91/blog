@@ -26,7 +26,6 @@ from app.config import (
     METRICS_SECRET,
     ENABLE_METRICS,
     REDIS_URL,
-    DATA_BACKUP_DIR,
     is_production,
 )
 from app.scheduler import get_scheduler_health
@@ -56,6 +55,13 @@ def _secret_matches(expected: str, header_name: str) -> bool:
         return False
     provided = _provided_secret(header_name)
     return bool(provided) and hmac.compare_digest(provided, expected)
+
+
+def _database_path_detail() -> str:
+    """Return the resolved SQLite path, or a marker for other backends."""
+    from app.services.backup import resolve_database_file
+
+    return resolve_database_file(current_app) or "non-sqlite"
 
 
 def _generate_sitemap():
@@ -320,7 +326,9 @@ Sitemap: {BASE_URL}/sitemap.xml
                 checks["celery"] = "disabled"
 
             try:
-                backup_dir = Path(current_app.instance_path) / DATA_BACKUP_DIR
+                from app.services.backup import resolve_backup_dir
+
+                backup_dir = Path(resolve_backup_dir(current_app))
                 if backup_dir.exists():
                     backups = sorted(
                         backup_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True
@@ -356,17 +364,7 @@ Sitemap: {BASE_URL}/sitemap.xml
                 "timestamp": utc_now().isoformat(),
                 "details": {
                     "database_latency_ms": round(db_latency_ms, 2),
-                    "database_path": str(
-                        Path(
-                            current_app.config.get("SQLALCHEMY_DATABASE_URI", "").replace(
-                                "sqlite:///", "/"
-                            )
-                        )
-                        if current_app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith(
-                            "sqlite:///"
-                        )
-                        else "non-sqlite"
-                    ),
+                    "database_path": _database_path_detail(),
                     "scheduler_next_run": health.get("next_run"),
                     "scheduler_last_newsletter_send": health.get("last_newsletter_send"),
                 },

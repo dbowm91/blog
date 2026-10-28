@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from app.services.backup import resolve_backup_dir, resolve_database_file
 from app.services.operations.results import (
     BackupCreateResult,
     BackupVerifyResult,
@@ -18,7 +19,7 @@ from app.services.operations.results import (
 @pytest.fixture()
 def backup_dir(app):
     """Return a temporary backup directory within the app instance."""
-    d = os.path.join(app.instance_path, "backups")
+    d = resolve_backup_dir(app)
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -26,7 +27,7 @@ def backup_dir(app):
 @pytest.fixture()
 def db_path(app):
     """Return the path to the test database."""
-    return os.path.join(app.instance_path, "blog.db")
+    return resolve_database_file(app)
 
 
 class TestCreateBackupOperation:
