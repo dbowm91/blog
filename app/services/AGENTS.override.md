@@ -15,7 +15,7 @@ Centralized service layer for shared logic between CLI, API, and Admin routes.
 
 ## Optional AI Authoring Service
 
-`ai_assist.py` owns the single provider adapter and is a pure suggestion path: bounded inputs/output, fixed endpoint, short timeout, no retries, no prompt logging, no database writes, and sanitized provider errors. It must never create/attach tags or modify posts, revisions, indexes, or caches. Tag reconciliation must use canonical tag validation and only a bounded role-authorized catalog; send no prior post bodies or unpublished titles. Keep the explicit OpenCode Go coding-agent-only compatibility/policy gate documented; no real provider request is permitted without authorization for this use or an approved alternate provider.
+`ai_assist.py` owns the provider adapters for local OpenAI-compatible endpoints and OpenCode Go. Keep inputs/output bounded, use the configurable inference timeout, retry only transient failures once, do not log prompts or secrets, do not write to the database, and sanitize provider errors for display. It must never create/attach tags or modify posts, revisions, indexes, or caches. Tag reconciliation must use canonical tag validation and only a bounded role-authorized catalog; send no prior post bodies or unpublished titles. Real provider requests require explicit user authorization and synthetic content unless the user authorizes editorial content for a provider.
 
 ## Operations Service Layer (`app/services/operations/`)
 

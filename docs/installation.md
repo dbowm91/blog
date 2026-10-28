@@ -124,7 +124,7 @@ Docker builds frontend assets (Vite) automatically inside the container. No loca
 
 The app binds to `127.0.0.1:5000` (localhost only). For public access, terminate TLS with a host-level reverse proxy (Caddy, nginx, Traefik) and proxy to `http://127.0.0.1:5000`.
 
-> **Local HTTP testing:** Set `SESSION_COOKIE_SECURE=false` in your `.env` when testing at `http://localhost:5000`, otherwise admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
+> **Local HTTP testing:** Set `SESSION_COOKIE_SECURE=false` in your `.env` when testing at `http://localhost:5000`, otherwise admin login cookies will not persist. The app refuses to start with that setting unless debug mode is on, so run the local server with `DEBUG=true` as well — it enables the Werkzeug debugger, so keep it bound to `127.0.0.1`. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
 
 ### Docker Compose Profiles
 
@@ -403,7 +403,7 @@ Themes are selected in the admin dashboard at `/admin/settings`.
 
 ### Admin Login Cookies Not Persisting
 
-Set `SESSION_COOKIE_SECURE=false` in `.env` when testing at `http://localhost:5000`.
+Set `SESSION_COOKIE_SECURE=false` in `.env` when testing at `http://localhost:5000`. The server also needs `DEBUG=true` to start with that setting — without it, startup fails with `RuntimeError: SESSION_COOKIE_SECURE must be True in production`.
 
 ### Search Not Working
 

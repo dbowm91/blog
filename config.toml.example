@@ -175,10 +175,15 @@ provider = "sqlite"
 config = {}
 
 [ai]
-# This optional feature sends the current unsaved post only after an explicit editor action.
-# OpenCode Go documents coding-agent traffic; do not use it for editorial drafts unless
-# OpenCode explicitly permits this use or you replace it with an authorized adapter.
-provider = "opencode_go"
-model = "glm-5.3-flash"
-# Credentials are accepted only from OPENCODE_GO_API_KEY in the server environment/.env.
+# The editor sends draft text only after an author explicitly requests a suggestion.
+# Default: a local OpenAI-compatible server such as LM Studio.
+provider = "openai_compatible"
+base_url = "http://127.0.0.1:1234/v1"
+model = "google/gemma-4-e2b"
+timeout_seconds = 180
+# Empty means unlimited (default). Optional Flask-Limiter syntax, e.g. "20 per hour".
+rate_limit_per_user = ""
+# Optional for compatible endpoints that require authentication; set AI_API_KEY in the environment/.env.
 api_key = ""
+# For OpenCode Go, set provider = "opencode_go", select a Go model, and set OPENCODE_GO_API_KEY.
+# timeout_seconds can be lowered for remote services; credentials must never go in this file.

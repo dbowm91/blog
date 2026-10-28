@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -46,7 +47,11 @@ def test_ai_suggestions_require_review_and_merge_tags(browser, app_server, app) 
                 route.fulfill(
                     status=502,
                     content_type="application/json",
-                    body=json.dumps({"error": "The AI service is temporarily unavailable."}),
+                    body=json.dumps(
+                        {
+                            "error": "The configured AI provider could not be reached. Check its URL and ensure it is running."
+                        }
+                    ),
                 )
                 return
             if requests[-1]["payload"]["action"] == "summary":
@@ -112,7 +117,9 @@ def test_ai_suggestions_require_review_and_merge_tags(browser, app_server, app) 
 
         response_mode["error"] = True
         page.get_by_role("button", name="Suggest TL;DR").click()
-        page.get_by_text("The AI service is temporarily unavailable.").wait_for()
+        page.get_by_text(
+            "The configured AI provider could not be reached. Check its URL and ensure it is running."
+        ).wait_for()
         assert page.locator("#title").input_value() == "A newer title entered during inference"
         assert page.locator("#summary").input_value() == "A concise factual summary."
         deadline = time.monotonic() + 7
@@ -149,6 +156,46 @@ def test_ai_suggestions_require_review_and_merge_tags(browser, app_server, app) 
         assert "x-csrf-token" in requests[0]["headers"]
         assert "e2e-only-not-a-real-provider-key" not in str(requests[0])
         assert page.locator("#autosave-status").count() == 1
+    finally:
+        app.config["DEVLOG_CONFIG"] = typed_config
+        context.close()
+
+
+@requires_frontend_build
+def test_local_model_suggestion_through_editor(browser, app_server, app) -> None:
+    if os.environ.get("RUN_LOCAL_AI_E2E") != "1":
+        pytest.skip("set RUN_LOCAL_AI_E2E=1 to call the configured local model")
+
+    from app.config.model import AiConfig
+
+    typed_config = app.config["DEVLOG_CONFIG"]
+    app.config["DEVLOG_CONFIG"] = replace(
+        typed_config,
+        ai=AiConfig(
+            provider="openai_compatible",
+            model=os.environ.get("AI_E2E_MODEL", "google/gemma-4-e2b"),
+            base_url=os.environ.get("AI_E2E_BASE_URL", "http://127.0.0.1:1234/v1"),
+            timeout_seconds=180,
+        ),
+    )
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    try:
+        page.goto(f"{app_server}/admin/login")
+        page.fill('input[name="username"]', "admin")
+        page.fill('input[name="password"]', "test-password-123")
+        page.click('button[type="submit"]')
+        page.wait_for_url("**/admin/")
+        page.goto(f"{app_server}/admin/new")
+        page.fill("#title", "Synthetic local model E2E check")
+        page.fill(
+            "#body",
+            "This synthetic browser test checks that an authenticated editor can request a local Gemma summary. No editorial or private text is included.",
+        )
+        page.get_by_role("button", name="Suggest TL;DR").click()
+        page.get_by_role("button", name="Use this summary").wait_for(timeout=240_000)
+        assert page.locator("#summary").input_value() == ""
+        assert page.locator("#ai-summary-result").inner_text().startswith("Suggestion:")
     finally:
         app.config["DEVLOG_CONFIG"] = typed_config
         context.close()

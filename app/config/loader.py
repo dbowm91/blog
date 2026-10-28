@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import tomllib
-from dataclasses import fields
+from dataclasses import fields, replace
 from pathlib import Path
 from typing import Any
 
@@ -151,7 +151,14 @@ _TOML_TO_DATACLASS_FIELD: dict[str, dict[str, str]] = {
     "webhook": {"timeout": "timeout", "encryption_key": "encryption_key"},
     "logging": {"level": "level"},
     "search": {"provider": "provider", "config": "config"},
-    "ai": {"provider": "provider", "model": "model", "api_key": "api_key"},
+    "ai": {
+        "provider": "provider",
+        "model": "model",
+        "base_url": "base_url",
+        "timeout_seconds": "timeout_seconds",
+        "rate_limit_per_user": "rate_limit_per_user",
+        "api_key": "api_key",
+    },
     "paths": {
         "data_dir": "data_dir",
         "log_dir": "log_dir",
@@ -248,7 +255,13 @@ _ENV_OVERRIDE_MAP: dict[str, str] = {
     "S3_ENDPOINT": "storage_s3_endpoint",
     "S3_PUBLIC_URL": "storage_s3_public_url",
     "STORAGE_BACKEND": "storage_backend",
-    "OPENCODE_GO_API_KEY": "ai_api_key",
+    "AI_PROVIDER": "ai_provider",
+    "AI_MODEL": "ai_model",
+    "AI_BASE_URL": "ai_base_url",
+    "AI_TIMEOUT_SECONDS": "ai_timeout_seconds",
+    "AI_RATE_LIMIT_PER_USER": "ai_rate_limit_per_user",
+    "AI_API_KEY": "ai_api_key",
+    "OPENCODE_GO_API_KEY": "ai_opencode_go_api_key",
     "DEVLOG_DATA_DIR": "paths_data_dir",
     "DEVLOG_LOG_DIR": "paths_log_dir",
     "DEVLOG_RUNTIME_DIR": "paths_runtime_dir",
@@ -272,6 +285,7 @@ _SECRET_FIELDS = frozenset(
         "storage_s3_access_key",
         "storage_s3_secret_key",
         "ai_api_key",
+        "ai_opencode_go_api_key",
     }
 )
 
@@ -287,6 +301,7 @@ _DEFAULT_SECRETS: dict[str, str] = {
     "storage_s3_access_key": "",
     "storage_s3_secret_key": "",
     "ai_api_key": "",
+    "ai_opencode_go_api_key": "",
 }
 
 
@@ -512,6 +527,9 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
     )
     search_section = _build_section(SearchConfig, _TOML_TO_DATACLASS_FIELD["search"], raw, "search")
     ai_section = _build_section(AiConfig, _TOML_TO_DATACLASS_FIELD["ai"], raw, "ai")
+    opencode_key = secrets.get("ai_opencode_go_api_key", "")
+    if ai_section.provider == "opencode_go" and opencode_key:
+        ai_section = replace(ai_section, api_key=opencode_key)
     paths_section = _build_section(PathsConfig, _TOML_TO_DATACLASS_FIELD["paths"], raw, "paths")
 
     database_section = DatabaseConfig(

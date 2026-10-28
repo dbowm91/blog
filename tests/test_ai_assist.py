@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import re
+import os
 from dataclasses import replace
 from unittest.mock import Mock
 
@@ -34,19 +34,35 @@ def enabled_ai(authenticated_client):
     app.config["DEVLOG_CONFIG"] = original
 
 
-def _provider_response(content: str, *, status_code: int = 200) -> Mock:
+@pytest.fixture
+def disabled_ai(authenticated_client):
+    app = authenticated_client.application
+    original = app.config["DEVLOG_CONFIG"]
+    app.config["DEVLOG_CONFIG"] = replace(
+        original,
+        ai=AiConfig(provider="opencode_go"),
+    )
+    yield authenticated_client
+    app.config["DEVLOG_CONFIG"] = original
+
+
+def _provider_payload_response(payload: dict, *, status_code: int = 200) -> Mock:
     response = Mock()
     response.status_code = status_code
-    response.iter_content.return_value = iter(
-        [json.dumps({"choices": [{"message": {"content": content}}]}).encode()]
-    )
+    response.iter_content.return_value = iter([json.dumps(payload).encode()])
     response.close.return_value = None
     return response
 
 
-def test_ai_controls_are_hidden_without_key(authenticated_client) -> None:
-    response = authenticated_client.get("/admin/new")
-    page_editor = authenticated_client.get("/admin/pages/new")
+def _provider_response(content: str, *, status_code: int = 200) -> Mock:
+    return _provider_payload_response(
+        {"choices": [{"message": {"content": content}}]}, status_code=status_code
+    )
+
+
+def test_ai_controls_are_hidden_without_key(disabled_ai) -> None:
+    response = disabled_ai.get("/admin/new")
+    page_editor = disabled_ai.get("/admin/pages/new")
     assert response.status_code == 200
     assert page_editor.status_code == 200
     assert b"data-ai-action" not in response.data
@@ -54,9 +70,16 @@ def test_ai_controls_are_hidden_without_key(authenticated_client) -> None:
     assert b"data-ai-action" not in page_editor.data
 
 
-def test_ai_controls_are_hidden_for_existing_post_without_key(
-    authenticated_client, db, admin_user
-) -> None:
+def test_local_provider_is_available_without_api_key() -> None:
+    from app.config.model import DevLogConfig
+
+    assert ai_assist.is_ai_assist_available(DevLogConfig())
+    assert not ai_assist.is_ai_assist_available(
+        DevLogConfig(ai=AiConfig(provider="opencode_go", api_key=""))
+    )
+
+
+def test_ai_controls_are_hidden_for_existing_post_without_key(disabled_ai, db, admin_user) -> None:
     post = Post(
         title="Existing draft",
         slug="existing-ai-draft",
@@ -67,7 +90,7 @@ def test_ai_controls_are_hidden_for_existing_post_without_key(
     )
     db.session.add(post)
     db.session.commit()
-    response = authenticated_client.get(f"/admin/edit/{post.id}")
+    response = disabled_ai.get(f"/admin/edit/{post.id}")
     assert response.status_code == 200
     assert b"data-ai-action" not in response.data
 
@@ -82,10 +105,42 @@ def test_ai_controls_render_when_configured(enabled_ai) -> None:
     assert b"data-ai-action" not in public.data
 
 
-def test_endpoint_fails_closed_without_key(authenticated_client, monkeypatch) -> None:
+def test_local_model_route_end_to_end(enabled_ai) -> None:
+    if os.environ.get("RUN_LOCAL_AI_E2E") != "1":
+        pytest.skip("set RUN_LOCAL_AI_E2E=1 to call the configured local model")
+
+    app = enabled_ai.application
+    original = app.config["DEVLOG_CONFIG"]
+    app.config["DEVLOG_CONFIG"] = replace(
+        original,
+        ai=AiConfig(
+            provider="openai_compatible",
+            model=os.environ.get("AI_E2E_MODEL", "google/gemma-4-e2b"),
+            base_url=os.environ.get("AI_E2E_BASE_URL", "http://127.0.0.1:1234/v1"),
+            timeout_seconds=180,
+        ),
+    )
+    try:
+        response = enabled_ai.post(
+            "/admin/ai-assist",
+            json={
+                "action": "summary",
+                "title": "Synthetic local model check",
+                "body": "This synthetic test checks the authenticated DevLog route to a local model. No editorial or private text is included.",
+            },
+        )
+    finally:
+        app.config["DEVLOG_CONFIG"] = original
+
+    assert response.status_code == 200
+    assert isinstance(response.json.get("suggestion"), str)
+    assert 1 <= len(response.json["suggestion"]) <= 500
+
+
+def test_endpoint_fails_closed_without_key(disabled_ai, monkeypatch) -> None:
     outbound = Mock()
     monkeypatch.setattr(ai_assist.requests, "post", outbound)
-    response = authenticated_client.post(
+    response = disabled_ai.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "T", "body": "Some text"},
     )
@@ -115,7 +170,7 @@ def test_oversized_input_is_rejected_before_provider(enabled_ai, monkeypatch) ->
     outbound.assert_not_called()
 
 
-def test_rate_limit_is_12_requests_per_user_per_hour(enabled_ai, monkeypatch) -> None:
+def test_ai_rate_limit_is_unlimited_by_default(enabled_ai, monkeypatch) -> None:
     from app import limiter
 
     enabled_ai.application.config["RATELIMIT_ENABLED"] = True
@@ -134,12 +189,46 @@ def test_rate_limit_is_12_requests_per_user_per_hour(enabled_ai, monkeypatch) ->
                 "/admin/ai-assist",
                 json={"action": "summary", "title": "T", "body": "Body"},
             )
-            for _ in range(13)
+            for _ in range(105)
         ]
-        assert all(response.status_code == 200 for response in responses[:12])
-        assert responses[12].status_code == 429
-        assert outbound.call_count == 12
+        assert all(response.status_code == 200 for response in responses)
+        assert outbound.call_count == 105
     finally:
+        limiter.reset()
+        limiter.enabled = original_enabled
+
+
+def test_configured_ai_rate_limit_is_enforced(enabled_ai, monkeypatch) -> None:
+    from app import limiter
+
+    app = enabled_ai.application
+    original_config = app.config["DEVLOG_CONFIG"]
+    app.config["DEVLOG_CONFIG"] = replace(
+        original_config,
+        ai=replace(original_config.ai, rate_limit_per_user="2 per hour"),
+    )
+    app.config["RATELIMIT_ENABLED"] = True
+    original_enabled = limiter.enabled
+    limiter.enabled = True
+    limiter.reset()
+    outbound = Mock(
+        side_effect=lambda *args, **kwargs: _provider_response(
+            '{"suggestion":"A concise factual summary."}'
+        )
+    )
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    try:
+        responses = [
+            enabled_ai.post(
+                "/admin/ai-assist",
+                json={"action": "summary", "title": "T", "body": "Body"},
+            )
+            for _ in range(3)
+        ]
+        assert [response.status_code for response in responses] == [200, 200, 429]
+        assert outbound.call_count == 2
+    finally:
+        app.config["DEVLOG_CONFIG"] = original_config
         limiter.reset()
         limiter.enabled = original_enabled
 
@@ -195,7 +284,9 @@ def test_csrf_is_required_for_ai_endpoint(app, enabled_ai, monkeypatch) -> None:
     outbound.assert_called_once()
 
 
-def test_provider_request_is_bounded_and_uses_stable_session(enabled_ai, db, monkeypatch) -> None:
+def test_provider_request_uses_local_compatible_endpoint_and_long_timeout(
+    enabled_ai, db, monkeypatch
+) -> None:
     posts_before = db.session.execute(select(Post.id)).all()
     tags_before = db.session.execute(select(Tag.id)).all()
     post = Mock(
@@ -216,18 +307,178 @@ def test_provider_request_is_bounded_and_uses_stable_session(enabled_ai, db, mon
     assert first.json == {"suggestion": "A concise factual summary."}
     assert second.status_code == 200
     assert post.call_count == 2
+    assert post.call_args_list[0].args[0] == (
+        f"{ai_assist.DEFAULT_COMPATIBLE_BASE_URL}/chat/completions"
+    )
     first_headers = post.call_args_list[0].kwargs["headers"]
-    second_headers = post.call_args_list[1].kwargs["headers"]
-    assert re.fullmatch(r"[a-f0-9]{64}", first_headers["x-opencode-session"])
-    assert first_headers["x-opencode-session"] == second_headers["x-opencode-session"]
+    assert first_headers["Authorization"] == "Bearer test-private-key"
+    assert "x-opencode-session" not in first_headers
     assert first_headers["User-Agent"].startswith("DevLog-")
-    assert post.call_args_list[0].kwargs["timeout"] == (3, 20)
+    assert post.call_args_list[0].kwargs["timeout"] == (3, 180)
     assert post.call_args_list[0].kwargs["stream"] is True
     assert (
         "Current unsaved text." in post.call_args_list[0].kwargs["json"]["messages"][1]["content"]
     )
     assert db.session.execute(select(Post.id)).all() == posts_before
     assert db.session.execute(select(Tag.id)).all() == tags_before
+
+
+def test_chat_content_text_parts_are_extracted(enabled_ai, monkeypatch) -> None:
+    response = _provider_payload_response(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "content": [
+                            {"type": "text", "text": '{"suggestion":'},
+                            {"type": "text", "text": '"A concise factual summary."}'},
+                        ]
+                    },
+                    "finish_reason": "stop",
+                }
+            ]
+        }
+    )
+    monkeypatch.setattr(ai_assist.requests, "post", Mock(return_value=response))
+
+    result = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Body"},
+    )
+
+    assert result.status_code == 200
+    assert result.json == {"suggestion": "A concise factual summary."}
+
+
+def test_truncated_chat_completion_retries_with_larger_token_budget(
+    enabled_ai, monkeypatch
+) -> None:
+    truncated = _provider_payload_response(
+        {
+            "choices": [
+                {
+                    "message": {"content": '{"suggestion":"partial'},
+                    "finish_reason": "length",
+                }
+            ]
+        }
+    )
+    complete = _provider_response('{"suggestion":"A concise factual summary."}')
+    outbound = Mock(side_effect=[truncated, complete])
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
+
+    result = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Body"},
+    )
+
+    assert result.status_code == 200
+    assert result.json == {"suggestion": "A concise factual summary."}
+    assert outbound.call_count == 2
+    assert outbound.call_args_list[0].kwargs["json"]["max_tokens"] == 500
+    assert outbound.call_args_list[1].kwargs["json"]["max_tokens"] == 2048
+    truncated.close.assert_called_once()
+
+
+def test_invalid_model_value_retries_once(enabled_ai, monkeypatch) -> None:
+    outbound = Mock(
+        side_effect=[
+            _provider_response('{"suggestion":42}'),
+            _provider_response('{"suggestion":"A concise factual summary."}'),
+        ]
+    )
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
+
+    result = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Body"},
+    )
+
+    assert result.status_code == 200
+    assert result.json == {"suggestion": "A concise factual summary."}
+    assert outbound.call_count == 2
+
+
+def test_invalid_model_json_retries_once_without_logging_content(
+    enabled_ai, monkeypatch, caplog
+) -> None:
+    private_text = "Synthetic private draft marker"
+    outbound = Mock(
+        side_effect=[
+            _provider_response(f"not-json {private_text}"),
+            _provider_response('{"suggestion":"A concise factual summary."}'),
+        ]
+    )
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
+
+    result = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": private_text},
+    )
+
+    assert result.status_code == 200
+    assert result.json == {"suggestion": "A concise factual summary."}
+    assert outbound.call_count == 2
+    assert private_text not in caplog.text
+    assert "not-json" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("response_payload", "expected"),
+    [
+        (
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {"type": "output_text", "text": '{"suggestion":"A concise summary."}'}
+                        ],
+                    }
+                ]
+            },
+            '{"suggestion":"A concise summary."}',
+        ),
+        (
+            {"output_text": '{"suggestion":"A concise summary."}', "output": []},
+            '{"suggestion":"A concise summary."}',
+        ),
+    ],
+)
+def test_responses_model_uses_responses_endpoint_and_parses_output_text(
+    response_payload: dict, expected: str, monkeypatch
+) -> None:
+    response = Mock()
+    response.status_code = 200
+    response.iter_content.return_value = iter([json.dumps(response_payload).encode()])
+    response.close.return_value = None
+    post = Mock(return_value=response)
+    monkeypatch.setattr(ai_assist.requests, "post", post)
+
+    result = ai_assist._complete(
+        api_key="test-key",
+        model="muse-spark-1.3-contributor",
+        provider="opencode_go",
+        timeout_seconds=20,
+        instruction="Return a JSON suggestion.",
+        source='{"title":"Synthetic","body":"Synthetic input."}',
+    )
+
+    assert result == expected
+    assert post.call_args.args[0] == f"{ai_assist.OPENCODE_GO_BASE_URL}/responses"
+    request_payload = post.call_args.kwargs["json"]
+    assert request_payload["model"] == "muse-spark-1.3-contributor"
+    assert request_payload["instructions"] == "Return a JSON suggestion."
+    assert request_payload["input"] == '{"title":"Synthetic","body":"Synthetic input."}'
+    assert request_payload["max_output_tokens"] == 2048
+    assert request_payload["reasoning"] == {"effort": "low"}
+    assert "messages" not in request_payload
+    assert post.call_args.kwargs["headers"]["x-opencode-session"]
+    assert post.call_args.kwargs["timeout"] == (3, 20)
+    response.close.assert_called_once()
 
 
 def test_tag_candidates_validate_and_deduplicate_by_canonical_slug() -> None:
@@ -254,26 +505,90 @@ def test_summary_rejects_html_and_oversize_output(monkeypatch) -> None:
         ai_assist.suggest_summary(title="Title", body="Body", api_key="secret", model="model")
 
 
-def test_provider_failure_is_sanitized(enabled_ai, monkeypatch) -> None:
+def test_transient_provider_failure_retries_then_succeeds(enabled_ai, monkeypatch) -> None:
+    retry_after = _provider_response("temporary upstream failure", status_code=503)
+    success = _provider_response('{"suggestion":"A concise factual summary."}')
+    outbound = Mock(side_effect=[retry_after, success])
+    sleep = Mock()
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", sleep)
+
+    result = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Some text"},
+    )
+
+    assert result.status_code == 200
+    assert result.json == {"suggestion": "A concise factual summary."}
+    assert outbound.call_count == 2
+    sleep.assert_called_once_with(ai_assist.RETRY_DELAY_SECONDS)
+    retry_after.close.assert_called_once()
+
+
+def test_empty_local_completion_is_retried(enabled_ai, monkeypatch) -> None:
+    outbound = Mock(
+        side_effect=[
+            _provider_response(""),
+            _provider_response('{"suggestion":"A concise factual summary."}'),
+        ]
+    )
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
+
+    response = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Synthetic body"},
+    )
+
+    assert response.status_code == 200
+    assert response.json == {"suggestion": "A concise factual summary."}
+    assert outbound.call_count == 2
+
+
+def test_provider_failure_is_retried_and_sanitized(enabled_ai, monkeypatch) -> None:
     response = _provider_response("private upstream detail", status_code=429)
-    monkeypatch.setattr(ai_assist.requests, "post", Mock(return_value=response))
+    outbound = Mock(return_value=response)
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
     result = enabled_ai.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "T", "body": "Some text"},
     )
     assert result.status_code == 502
     assert "private upstream detail" not in result.get_data(as_text=True)
-    assert result.json["error"] == "The AI service is temporarily unavailable."
+    assert result.json["error"] == "The AI service is temporarily unavailable. Please try again."
+    assert outbound.call_count == ai_assist.MAX_PROVIDER_ATTEMPTS
 
 
-def test_provider_timeout_is_sanitized(enabled_ai, monkeypatch) -> None:
-    monkeypatch.setattr(ai_assist.requests, "post", Mock(side_effect=ai_assist.requests.Timeout))
+def test_nontransient_provider_error_is_not_retried(enabled_ai, monkeypatch) -> None:
+    outbound = Mock(return_value=_provider_response("private detail", status_code=401))
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+
+    response = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Body"},
+    )
+
+    assert response.status_code == 502
+    assert (
+        response.json["error"] == "The AI provider rejected the request. Check its configuration."
+    )
+    outbound.assert_called_once()
+
+
+def test_provider_timeout_retries_and_displays_reachability_error(enabled_ai, monkeypatch) -> None:
+    outbound = Mock(side_effect=ai_assist.requests.Timeout)
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
     response = enabled_ai.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "T", "body": "Body"},
     )
     assert response.status_code == 502
-    assert response.json["error"] == "The AI service could not be reached."
+    assert response.json["error"] == (
+        "The configured AI provider could not be reached. Check its URL and ensure it is running."
+    )
+    assert outbound.call_count == ai_assist.MAX_PROVIDER_ATTEMPTS
 
 
 def test_response_size_is_limited() -> None:
@@ -281,6 +596,51 @@ def test_response_size_is_limited() -> None:
     response.iter_content.return_value = iter([b"x" * (ai_assist.MAX_RESPONSE_BYTES + 1)])
     with pytest.raises(ai_assist.ProviderError, match="oversized"):
         ai_assist._read_bounded_response(response)
+
+
+def test_fenced_json_object_is_accepted(monkeypatch) -> None:
+    monkeypatch.setattr(
+        ai_assist,
+        "_complete",
+        lambda **kwargs: '```json\n{"suggestion":"A concise factual summary."}\n```',
+    )
+    summary = ai_assist.suggest_summary(title="Title", body="Body", api_key="secret", model="model")
+    assert summary == "A concise factual summary."
+
+
+def test_prose_wrapped_json_object_is_accepted(monkeypatch) -> None:
+    monkeypatch.setattr(
+        ai_assist,
+        "_complete",
+        lambda **kwargs: (
+            'Here is the result:\n{"suggestion":"A concise factual summary."}\nHope it helps.'
+        ),
+    )
+    summary = ai_assist.suggest_summary(title="Title", body="Body", api_key="secret", model="model")
+    assert summary == "A concise factual summary."
+
+
+def test_fenced_tag_suggestions_are_accepted() -> None:
+    candidates = ai_assist._tag_candidates(
+        '```json\n{"tags": ["Python", "Flask", "Web Security"]}\n```'
+    )
+    assert candidates == ["Python", "Flask", "Web Security"]
+
+
+def test_non_json_response_is_still_rejected(monkeypatch) -> None:
+    monkeypatch.setattr(ai_assist, "_complete", lambda **kwargs: "I cannot help with that.")
+    with pytest.raises(ai_assist.ProviderError):
+        ai_assist.suggest_summary(title="Title", body="Body", api_key="secret", model="model")
+
+
+def test_json_object_with_unexpected_keys_is_rejected(monkeypatch) -> None:
+    monkeypatch.setattr(
+        ai_assist,
+        "_complete",
+        lambda **kwargs: '{"suggestion":"A concise factual summary.","extra":true}',
+    )
+    with pytest.raises(ai_assist.ProviderError):
+        ai_assist.suggest_summary(title="Title", body="Body", api_key="secret", model="model")
 
 
 def test_empty_tag_catalog_needs_one_call_and_does_not_write(db, monkeypatch) -> None:
@@ -397,14 +757,18 @@ def test_semantic_tag_mapping_uses_only_catalog_ids(db, ai_admin_user, monkeypat
         calls.append(kwargs)
         if len(calls) == 1:
             return '{"tags":["ML","Flask","Web Security"]}'
-        return json.dumps(
-            {
-                "resolutions": [
-                    {"candidate": "ML", "tag_id": tag.id},
-                    {"candidate": "Flask", "new": True},
-                    {"candidate": "Web Security", "new": True},
-                ]
-            }
+        return (
+            "```json\n"
+            + json.dumps(
+                {
+                    "resolutions": [
+                        {"candidate": "ML", "tag_id": tag.id},
+                        {"candidate": "Flask", "new": True},
+                        {"candidate": "Web Security", "new": True},
+                    ]
+                }
+            )
+            + "\n```"
         )
 
     monkeypatch.setattr(ai_assist, "_complete", complete)
@@ -489,9 +853,11 @@ def test_tag_second_pass_timeout_falls_back_without_mutation(
         side_effect=[
             _provider_response('{"tags":["Python","Flask","Web Security"]}'),
             ai_assist.requests.Timeout,
+            ai_assist.requests.Timeout,
         ]
     )
     monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.time, "sleep", Mock())
     tags_before = db.session.execute(select(Tag.id)).all()
     result = ai_assist.suggest_tags(
         title="Title",
@@ -500,7 +866,7 @@ def test_tag_second_pass_timeout_falls_back_without_mutation(
         model="model",
         is_admin=True,
     )
-    assert outbound.call_count == 2
+    assert outbound.call_count == 3
     assert result["suggestions"] == ["Python", "Flask", "Web Security"]
     assert db.session.execute(select(Tag.id)).all() == tags_before
 

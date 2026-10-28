@@ -297,6 +297,8 @@ See [architecture/infrastructure/overview.md](architecture/infrastructure/overvi
 
 Defaults to `"true"` (read in `app/__init__.py`). In production behind HTTPS, keep it `true`. For local HTTP testing at `http://localhost:5000`, set it to `false` or admin login cookies will not persist. Never use `false` in production behind HTTPS.
 
+The startup guard is `if not app.debug and not app.testing`, so `SESSION_COOKIE_SECURE=false` also requires debug mode: the server raises `RuntimeError: SESSION_COOKIE_SECURE must be True in production` at boot otherwise. A plain-HTTP local server therefore needs `DEBUG=true` (which sets `app.config["DEBUG"]` from `cfg.server.debug` before the guard runs) together with `SESSION_COOKIE_SECURE=false`. `DEBUG=true` also enables the Werkzeug debugger, so keep such a server bound to `127.0.0.1`.
+
 ### STORAGE_BACKEND
 
 `STORAGE_BACKEND` (default `"local"`) controls media storage. Set to `"s3"` for S3-compatible storage, which requires `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`; optional `S3_REGION`, `S3_ENDPOINT`, `S3_PUBLIC_URL`. If the required vars are missing, it falls back to local storage with a warning.

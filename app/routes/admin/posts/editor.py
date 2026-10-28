@@ -365,11 +365,22 @@ def register_editor_routes(admin):
 
     from app import limiter
 
+    def _ai_assist_rate_limit() -> str:
+        config = current_app.config.get("DEVLOG_CONFIG")
+        ai_config = getattr(config, "ai", None)
+        limit = getattr(ai_config, "rate_limit_per_user", "")
+        return limit.strip() if isinstance(limit, str) else ""
+
+    @limiter.request_filter
+    def _skip_unconfigured_ai_rate_limit() -> bool:
+        return request.endpoint == "admin.ai_assist" and not _ai_assist_rate_limit()
+
     @admin.route("/ai-assist", methods=["POST"])
     @author_required
     @limiter.limit(
-        "12 per hour",
+        _ai_assist_rate_limit,
         key_func=lambda: f"ai-assist-user:{current_user.get_id() or 'unknown'}",
+        override_defaults=True,
     )
     def ai_assist() -> Any:
         from app.services.ai_assist import (
@@ -427,6 +438,9 @@ def register_editor_routes(admin):
                     body=body,
                     api_key=config.ai.api_key,
                     model=config.ai.model,
+                    provider=config.ai.provider,
+                    base_url=config.ai.base_url,
+                    timeout_seconds=config.ai.timeout_seconds,
                 )
                 return jsonify({"suggestion": suggestion})
             return jsonify(
@@ -436,6 +450,9 @@ def register_editor_routes(admin):
                     api_key=config.ai.api_key,
                     model=config.ai.model,
                     is_admin=bool(current_user.is_admin),
+                    provider=config.ai.provider,
+                    base_url=config.ai.base_url,
+                    timeout_seconds=config.ai.timeout_seconds,
                 )
             )
         except AiAssistError as exc:

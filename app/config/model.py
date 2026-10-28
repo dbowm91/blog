@@ -273,8 +273,11 @@ class SearchConfig:
 
 @dataclass(frozen=True)
 class AiConfig:
-    provider: str = "opencode_go"
-    model: str = "glm-5.3-flash"
+    provider: str = "openai_compatible"
+    model: str = "google/gemma-4-e2b"
+    base_url: str = "http://127.0.0.1:1234/v1"
+    timeout_seconds: int = 180
+    rate_limit_per_user: str = ""
     api_key: str = ""
 
     def __repr__(self) -> str:

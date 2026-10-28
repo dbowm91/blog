@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import secrets
+import time
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 from flask import has_request_context, session
@@ -15,9 +18,21 @@ from app.extensions import db
 from app.models import Post, Tag, post_tags
 from app.routes.admin.helpers.tags import validate_tag_name
 
-PROVIDER_URL = "https://opencode.ai/inference/go/openai/v1/chat/completions"
+DEFAULT_COMPATIBLE_BASE_URL = "http://127.0.0.1:1234/v1"
+OPENCODE_GO_BASE_URL = "https://opencode.ai/inference/go/openai/v1"
+RESPONSES_MODELS = frozenset({"muse-spark-1.2-contributor", "muse-spark-1.3-contributor"})
+RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
+MAX_PROVIDER_ATTEMPTS = 2
+RETRY_DELAY_SECONDS = 0.25
 MAX_RESPONSE_BYTES = 64 * 1024
+INITIAL_CHAT_MAX_TOKENS = 500
+RETRY_CHAT_MAX_TOKENS = 2048
+RETRY_RESPONSES_MAX_OUTPUT_TOKENS = 4096
+SAFE_COMPLETION_REASONS = frozenset(
+    {"length", "max_tokens", "max_output_tokens", "content_filter", "stop", "completed"}
+)
 MAX_CATALOG_ITEMS = 80
+logger = logging.getLogger(__name__)
 MAX_CATALOG_CHARS = 8_000
 
 
@@ -31,7 +46,21 @@ class ProviderError(AiAssistError):
 
 def is_ai_assist_available(config: Any) -> bool:
     ai = getattr(config, "ai", None)
-    return bool(ai and ai.provider == "opencode_go" and ai.model.strip() and ai.api_key.strip())
+    if not ai or not isinstance(ai.model, str) or not ai.model.strip():
+        return False
+    if ai.provider == "opencode_go":
+        return bool(ai.api_key.strip())
+    if ai.provider != "openai_compatible" or not isinstance(ai.base_url, str):
+        return False
+    parsed = urlparse(ai.base_url)
+    return bool(
+        parsed.scheme in {"http", "https"}
+        and parsed.hostname
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.query
+        and not parsed.fragment
+    )
 
 
 def _provider_session_id() -> str:
@@ -57,64 +86,327 @@ def _read_bounded_response(response: requests.Response) -> bytes:
     return b"".join(chunks)
 
 
-def _complete(*, api_key: str, model: str, instruction: str, source: str) -> str:
-    response: requests.Response | None = None
-    try:
-        response = requests.post(
-            PROVIDER_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "DevLog-AI-Authoring/1.0",
-                "x-opencode-session": _provider_session_id(),
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": instruction},
-                    {"role": "user", "content": source},
-                ],
-                "max_tokens": 500,
-                "temperature": 0.2,
-                "stream": False,
-            },
-            timeout=(3, 20),
-            stream=True,
+def _content_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        parts = [
+            part["text"]
+            for part in value
+            if isinstance(part, dict)
+            and part.get("type") in {"text", "output_text"}
+            and isinstance(part.get("text"), str)
+            and part["text"].strip()
+        ]
+        return "".join(parts).strip()
+    return ""
+
+
+def _extract_response_content(
+    response_payload: Any, *, uses_responses_api: bool
+) -> tuple[str, bool, str | None, str]:
+    if not isinstance(response_payload, dict):
+        raise ValueError("invalid response object")
+    if uses_responses_api:
+        output_text = response_payload.get("output_text")
+        content = _content_text(output_text)
+        content_shape = "output_text" if isinstance(output_text, str) else "missing"
+        if not content:
+            output = response_payload.get("output")
+            if isinstance(output, list):
+                content = "\n".join(
+                    text
+                    for item in output
+                    if isinstance(item, dict) and item.get("type") == "message"
+                    for text in [_content_text(item.get("content"))]
+                    if text
+                )
+                if content:
+                    content_shape = "output.message.text_parts"
+        incomplete = response_payload.get("status") == "incomplete"
+        details = response_payload.get("incomplete_details")
+        reason = details.get("reason") if isinstance(details, dict) else None
+        return (
+            content,
+            incomplete,
+            reason if isinstance(reason, str) else None,
+            content_shape,
         )
-        if response.status_code >= 400:
-            raise ProviderError("The AI service is temporarily unavailable.")
-        raw = _read_bounded_response(response)
+
+    choices = response_payload.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        raise ValueError("missing completion choice")
+    choice = choices[0]
+    message = choice.get("message")
+    if isinstance(message, dict):
+        raw_content = message.get("content")
+        content = _content_text(raw_content)
+        content_shape = (
+            "message.content.string"
+            if isinstance(raw_content, str)
+            else "message.content.text_parts"
+            if isinstance(raw_content, list)
+            else "message.content.other"
+        )
+    elif isinstance(choice.get("text"), str):
+        content = choice["text"].strip()
+        content_shape = "choice.text"
+    else:
+        raise ValueError("missing completion content")
+    finish_reason = choice.get("finish_reason")
+    incomplete = finish_reason in {"length", "max_tokens"}
+    return (
+        content,
+        incomplete,
+        finish_reason if isinstance(finish_reason, str) else None,
+        content_shape,
+    )
+
+
+def _complete(
+    *,
+    api_key: str,
+    model: str,
+    instruction: str,
+    source: str,
+    provider: str = "openai_compatible",
+    base_url: str = DEFAULT_COMPATIBLE_BASE_URL,
+    timeout_seconds: int = 180,
+    expected_key: str | None = None,
+) -> str:
+    if provider not in {"openai_compatible", "opencode_go"}:
+        raise ProviderError("The configured AI provider is not supported.")
+    uses_opencode = provider == "opencode_go"
+    if uses_opencode:
+        base_url = OPENCODE_GO_BASE_URL
+    parsed_base_url = urlparse(base_url)
+    if (
+        parsed_base_url.scheme not in {"http", "https"}
+        or not parsed_base_url.hostname
+        or parsed_base_url.username is not None
+        or parsed_base_url.password is not None
+        or parsed_base_url.query
+        or parsed_base_url.fragment
+    ):
+        raise ProviderError("The configured AI provider URL is invalid.")
+    uses_responses_api = uses_opencode and model in RESPONSES_MODELS
+    endpoint = f"{base_url.rstrip('/')}/{'responses' if uses_responses_api else 'chat/completions'}"
+    payload: dict[str, Any] = (
+        {
+            "model": model,
+            "instructions": instruction,
+            "input": source,
+            "max_output_tokens": 2048,
+            "reasoning": {"effort": "low"},
+            "temperature": 0.2,
+            "stream": False,
+        }
+        if uses_responses_api
+        else {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": source},
+            ],
+            "max_tokens": INITIAL_CHAT_MAX_TOKENS,
+            "temperature": 0.2,
+            "stream": False,
+        }
+    )
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "DevLog-AI-Authoring/1.0",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    if uses_opencode:
+        headers["x-opencode-session"] = _provider_session_id()
+
+    for attempt in range(MAX_PROVIDER_ATTEMPTS):
+        response: requests.Response | None = None
+        retry = False
         try:
-            payload = json.loads(raw)
-            content = payload["choices"][0]["message"]["content"]
-        except (ValueError, TypeError, KeyError, IndexError):
-            raise ProviderError("The AI service returned an invalid response.") from None
-        if not isinstance(content, str) or not content.strip():
-            raise ProviderError("The AI service returned an invalid response.")
-        return content.strip()
-    except ProviderError:
-        raise
-    except requests.RequestException:
-        raise ProviderError("The AI service could not be reached.") from None
-    finally:
-        if response is not None:
-            response.close()
+            response = requests.post(
+                endpoint,
+                headers=headers,
+                json=payload.copy(),
+                timeout=(3, timeout_seconds),
+                stream=True,
+            )
+            if response.status_code >= 400:
+                logger.warning(
+                    "AI provider returned an HTTP error",
+                    extra={"ai_provider": provider, "upstream_status": response.status_code},
+                )
+                if (
+                    response.status_code in RETRYABLE_STATUS_CODES
+                    and attempt + 1 < MAX_PROVIDER_ATTEMPTS
+                ):
+                    retry = True
+                elif response.status_code in RETRYABLE_STATUS_CODES:
+                    raise ProviderError(
+                        "The AI service is temporarily unavailable. Please try again."
+                    )
+                else:
+                    raise ProviderError(
+                        "The AI provider rejected the request. Check its configuration."
+                    )
+            else:
+                raw = _read_bounded_response(response)
+                try:
+                    response_payload = json.loads(raw)
+                    content, incomplete, completion_reason, content_shape = (
+                        _extract_response_content(
+                            response_payload, uses_responses_api=uses_responses_api
+                        )
+                    )
+                except (ValueError, TypeError, KeyError, IndexError):
+                    logger.warning(
+                        "AI provider returned a malformed response envelope",
+                        extra={"ai_provider": provider, "attempt": attempt + 1},
+                    )
+                    if attempt + 1 >= MAX_PROVIDER_ATTEMPTS:
+                        raise ProviderError(
+                            "The AI service returned an invalid response."
+                        ) from None
+                    retry = True
+                if not retry and incomplete:
+                    safe_reason = (
+                        completion_reason
+                        if completion_reason in SAFE_COMPLETION_REASONS
+                        else "other"
+                    )
+                    logger.warning(
+                        "AI provider marked completion incomplete",
+                        extra={
+                            "ai_provider": provider,
+                            "completion_reason": safe_reason,
+                            "attempt": attempt + 1,
+                        },
+                    )
+                    if attempt + 1 >= MAX_PROVIDER_ATTEMPTS:
+                        raise ProviderError(
+                            "The AI service returned an incomplete response. Please try again."
+                        )
+                    if uses_responses_api:
+                        payload["max_output_tokens"] = RETRY_RESPONSES_MAX_OUTPUT_TOKENS
+                    else:
+                        payload["max_tokens"] = RETRY_CHAT_MAX_TOKENS
+                    retry = True
+                if not retry and not content:
+                    logger.warning(
+                        "AI provider response contained no assistant text",
+                        extra={
+                            "ai_provider": provider,
+                            "content_shape": content_shape,
+                            "attempt": attempt + 1,
+                        },
+                    )
+                    if attempt + 1 >= MAX_PROVIDER_ATTEMPTS:
+                        raise ProviderError(
+                            "The AI provider returned an empty response. Please try again."
+                        )
+                    retry = True
+                if not retry and expected_key:
+                    try:
+                        _parse_json_object(content, expected_key)
+                    except ProviderError:
+                        logger.warning(
+                            "AI provider completion did not match the expected JSON shape",
+                            extra={"ai_provider": provider, "attempt": attempt + 1},
+                        )
+                        if attempt + 1 >= MAX_PROVIDER_ATTEMPTS:
+                            raise ProviderError(
+                                "The AI service returned an invalid suggestion."
+                            ) from None
+                        retry = True
+                if not retry:
+                    return content
+        except requests.RequestException as exc:
+            logger.warning(
+                "AI provider request failed",
+                extra={
+                    "ai_provider": provider,
+                    "failure_type": type(exc).__name__,
+                    "attempt": attempt + 1,
+                },
+            )
+            if attempt + 1 >= MAX_PROVIDER_ATTEMPTS:
+                raise ProviderError(
+                    "The configured AI provider could not be reached. Check its URL and ensure it is running."
+                ) from None
+            retry = True
+        finally:
+            if response is not None:
+                response.close()
+        if retry:
+            time.sleep(RETRY_DELAY_SECONDS * (attempt + 1))
+    raise ProviderError("The AI service is temporarily unavailable. Please try again.")
+
+
+_FENCED_BLOCK_RE = re.compile(r"```[A-Za-z0-9_+-]*[ \t]*\n?(.*?)```", re.DOTALL)
+
+
+def _json_candidates(content: str) -> list[str]:
+    """Return the JSON payload candidates a model response may contain.
+
+    Local and hosted models often wrap the requested object in a Markdown code
+    fence or in a short sentence of preamble. The shape of the object itself
+    stays the contract; only the wrapper is tolerated.
+    """
+    stripped = content.strip()
+    candidates = [stripped]
+    for match in _FENCED_BLOCK_RE.finditer(stripped):
+        block = match.group(1).strip()
+        if block:
+            candidates.append(block)
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(stripped[start : end + 1])
+    return candidates
 
 
 def _parse_json_object(content: str, expected_key: str) -> dict[str, Any]:
-    try:
-        parsed = json.loads(content)
-    except (ValueError, TypeError):
-        raise ProviderError("The AI service returned an invalid suggestion.") from None
+    parsed: Any = None
+    for candidate in _json_candidates(content):
+        try:
+            parsed = json.loads(candidate)
+        except (ValueError, TypeError):
+            continue
+        break
     if not isinstance(parsed, dict) or set(parsed) != {expected_key}:
+        raise ProviderError("The AI service returned an invalid suggestion.")
+    value = parsed[expected_key]
+    if expected_key == "suggestion" and not isinstance(value, str):
+        raise ProviderError("The AI service returned an invalid suggestion.")
+    if expected_key == "tags" and (
+        not isinstance(value, list)
+        or not 3 <= len(value) <= 6
+        or any(not isinstance(item, str) for item in value)
+    ):
+        raise ProviderError("The AI service returned an invalid suggestion.")
+    if expected_key == "resolutions" and not isinstance(value, list):
         raise ProviderError("The AI service returned an invalid suggestion.")
     return parsed
 
 
-def suggest_summary(*, title: str, body: str, api_key: str, model: str) -> str:
+def suggest_summary(
+    *,
+    title: str,
+    body: str,
+    api_key: str,
+    model: str,
+    provider: str = "openai_compatible",
+    base_url: str = DEFAULT_COMPATIBLE_BASE_URL,
+    timeout_seconds: int = 180,
+) -> str:
     content = _complete(
         api_key=api_key,
         model=model,
+        provider=provider,
+        base_url=base_url,
+        timeout_seconds=timeout_seconds,
         instruction=(
             "Return only a JSON object with one string field named suggestion. Write a factual, "
             "faithful plain-text TL;DR in one or two concise sentences, ideally 150-300 "
@@ -122,6 +414,7 @@ def suggest_summary(*, title: str, body: str, api_key: str, model: str) -> str:
             "Do not include HTML, Markdown, links, preambles, or control characters."
         ),
         source=json.dumps({"title": title, "body": body}, ensure_ascii=False),
+        expected_key="suggestion",
     )
     suggestion = _parse_json_object(content, "suggestion").get("suggestion")
     if not isinstance(suggestion, str):
@@ -231,11 +524,22 @@ def _catalog(*, is_admin: bool, candidates: list[str]) -> list[dict[str, Any]]:
 
 
 def suggest_tags(
-    *, title: str, body: str, api_key: str, model: str, is_admin: bool
+    *,
+    title: str,
+    body: str,
+    api_key: str,
+    model: str,
+    is_admin: bool,
+    provider: str = "openai_compatible",
+    base_url: str = DEFAULT_COMPATIBLE_BASE_URL,
+    timeout_seconds: int = 180,
 ) -> dict[str, list[str]]:
     first_content = _complete(
         api_key=api_key,
         model=model,
+        provider=provider,
+        base_url=base_url,
+        timeout_seconds=timeout_seconds,
         instruction=(
             "Return only a JSON object with one field tags containing 3-5 short, discriminative "
             "topical tag names (at most 6 candidates). Use only ASCII letters, digits, spaces, "
@@ -243,6 +547,7 @@ def suggest_tags(
             "the source text."
         ),
         source=json.dumps({"title": title, "body": body}, ensure_ascii=False),
+        expected_key="tags",
     )
     candidates = _tag_candidates(first_content)
     catalog = _catalog(is_admin=is_admin, candidates=candidates)
@@ -265,6 +570,9 @@ def suggest_tags(
         second_content = _complete(
             api_key=api_key,
             model=model,
+            provider=provider,
+            base_url=base_url,
+            timeout_seconds=timeout_seconds,
             instruction=(
                 "Map each candidate to an existing catalog id only when it is genuinely the same "
                 'concept; otherwise retain it as new. Return only JSON: {"resolutions":[{'
@@ -276,9 +584,10 @@ def suggest_tags(
                 ensure_ascii=False,
                 separators=(",", ":"),
             ),
+            expected_key="resolutions",
         )
-        parsed = json.loads(second_content)
-        resolutions = parsed.get("resolutions") if isinstance(parsed, dict) else None
+        parsed = _parse_json_object(second_content, "resolutions")
+        resolutions = parsed.get("resolutions")
         if not isinstance(resolutions, list) or len(resolutions) != len(unresolved):
             raise ValueError
         catalog_by_id = {item["id"]: item for item in catalog}

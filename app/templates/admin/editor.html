@@ -18,7 +18,7 @@
     <form method="POST" class="editor-form" enctype="multipart/form-data" data-post-id="{{ post.id if post else '' }}" data-ai-assist-url="{{ url_for('admin.ai_assist') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         {% if ai_assist_available %}
-            <p class="form-hint" role="note">AI actions send the current unsaved title and Markdown body to OpenCode Go. Review each suggestion before applying it; nothing is saved automatically.</p>
+            <p class="form-hint" role="note">AI actions send the current unsaved title and Markdown body to the configured model server. Review each suggestion before applying it; nothing is saved automatically.</p>
         {% endif %}
         <div class="form-group">
             <label for="title">Title</label>

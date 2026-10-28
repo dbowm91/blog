@@ -83,9 +83,13 @@ provider = "sqlite"  # or "postgresql"
 config = {}
 
 [ai]
-provider = "opencode_go"
-model = "glm-5.3-flash"
-api_key = "" # Must remain blank; use OPENCODE_GO_API_KEY in the server environment/.env.
+provider = "openai_compatible"
+base_url = "http://127.0.0.1:1234/v1"
+model = "google/gemma-4-e2b"
+timeout_seconds = 180
+rate_limit_per_user = "" # Unlimited by default; optionally set Flask-Limiter syntax (for example, "20 per hour").
+api_key = "" # Must remain blank; use AI_API_KEY in the server environment/.env if needed.
+# OpenCode Go: provider = "opencode_go"; use OPENCODE_GO_API_KEY in the server environment/.env.
 ```
 
 The optional `[ai]` section controls editor-only TL;DR and tag suggestions. The key is not accepted from TOML; config validation rejects a nonempty value, effective loading ignores it, and redacted serializers keep it secret. An unset key is valid and leaves the application unchanged. See [AI authoring](../services/overview.md#optional-ai-authoring) for the explicit external-data-transfer and provider-use gate.
