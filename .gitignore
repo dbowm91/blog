@@ -28,3 +28,10 @@ app/static/dist/
 build/
 dist/
 *.egg-info/
+# Local agent/tooling scratch directories
+.codegg/
+.harness-test/
+.h2/
+.h3/
+.h4/
+.worktrees/

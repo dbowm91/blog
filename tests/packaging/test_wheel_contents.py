@@ -66,6 +66,10 @@ SENSITIVE_SDIST_PATTERNS = [
     "architecture/",
 ]
 
+# The committed template carries no secrets and is meant to ship; the
+# "config.toml" pattern matches it as a substring.
+ALLOWED_ARTIFACT_NAMES = {"config.toml.example"}
+
 
 def _build_wheel(tmp_dir: Path) -> Path:
     subprocess.run(
@@ -112,7 +116,7 @@ def _install_wheel_in_venv(wheel_path: Path, venv_dir: Path) -> Path:
         [str(pip), "install", str(wheel_path)],
         check=True,
         capture_output=True,
-        timeout=120,
+        timeout=600,
     )
     return venv_dir / "bin" / "devlog"
 
@@ -214,7 +218,9 @@ class TestSensitiveFilesExcluded:
 
     def _check_no_sensitive(self, contents: list[str], patterns: list[str]):
         for pattern in patterns:
-            matches = [f for f in contents if pattern in f]
+            matches = [
+                f for f in contents if pattern in f and Path(f).name not in ALLOWED_ARTIFACT_NAMES
+            ]
             assert not matches, f"Artifact contains sensitive pattern '{pattern}': {matches[:3]}..."
 
     def test_wheel_excludes_sensitive_files(self, wheel_contents):

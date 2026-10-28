@@ -85,6 +85,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      # The blog container applies the schema on start; wait for it so the
+      # worker never starts against an empty database.
+      blog:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -131,12 +135,13 @@ services:
       org.opencontainers.image.title: "DevLog Backup"
       org.opencontainers.image.description: "Database and file backup service"
     volumes:
-      - blog_data:/data:ro
+      # Read-write: SQLite needs to read the -wal/-shm sidecar files to take a
+      # consistent snapshot of a WAL database.
+      - blog_data:/data
       - ./backups:/backups
     working_dir: /home/blog
-    entrypoint: ["python3", "backup.py"]
+    entrypoint: ["python3", "backup.py", "--dir", "/backups"]
     environment:
-      - BACKUP_DIR=/backups
       # Required for backup.py to import app.services:
       - PYTHONPATH=/home/blog
       # SECRET_KEY needed for Flask app config when importing app modules

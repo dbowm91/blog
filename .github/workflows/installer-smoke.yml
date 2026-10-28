@@ -38,9 +38,6 @@ jobs:
           WHEEL=$(ls dist/*.whl)
           echo "wheel-path=${WHEEL}" >> "$GITHUB_OUTPUT"
 
-      - name: Generate checksums
-        run: python scripts/generate_checksums.py --directory dist
-
       - name: Create Docker bundle
         run: |
           BUNDLE_NAME="docker-bundle-${{ steps.version.outputs.version }}.tar.gz"
@@ -48,9 +45,12 @@ jobs:
           for f in docker-compose.yml Dockerfile .env.example; do
             [ -f "$f" ] && cp "$f" /tmp/docker-bundle/
           done
+          cp -R nginx /tmp/docker-bundle/nginx
           tar -czf "dist/${BUNDLE_NAME}" -C /tmp docker-bundle
           rm -rf /tmp/docker-bundle
-          python scripts/generate_checksums.py --directory dist
+
+      - name: Generate checksums
+        run: python scripts/generate_checksums.py --directory dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

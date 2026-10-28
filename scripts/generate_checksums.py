@@ -22,7 +22,10 @@ def generate_checksums(directory: Path, output: Path | None = None) -> bool:
         print(f"ERROR: directory not found: {directory}", file=sys.stderr)
         return False
 
-    artifacts = sorted(p for p in directory.iterdir() if p.is_file())
+    output_path = output or directory / "checksums.txt"
+
+    # The manifest cannot contain its own hash — it would never match.
+    artifacts = sorted(p for p in directory.iterdir() if p.is_file() and p != output_path)
     if not artifacts:
         print(f"ERROR: no files found in {directory}", file=sys.stderr)
         return False
@@ -32,7 +35,6 @@ def generate_checksums(directory: Path, output: Path | None = None) -> bool:
         sha = compute_sha256(artifact)
         lines.append(f"{sha}  {artifact.name}")
 
-    output_path = output or directory / "checksums.txt"
     output_path.write_text("\n".join(lines) + "\n")
 
     print(f"Generated checksums for {len(artifacts)} files -> {output_path}")

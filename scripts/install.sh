@@ -29,11 +29,9 @@ NON_INTERACTIVE=false
 YES=false
 NO_ONBOARD=false
 RUN_ONBOARD=false
-BACKEND=""
 OS_NAME=""
 ARCH_NAME=""
 ARTIFACTS_DIR=""
-RELEASE_DIR=""
 PREV_CURRENT=""
 TEMP_DIR=""
 FAILURE_STAGE=""
@@ -75,6 +73,13 @@ trap cleanup EXIT
 
 require_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "$2"
+}
+
+# Expand a "%s" pattern with the target version. The pattern is never used as
+# a format string, so a version containing a percent sign cannot misbehave.
+artifact_name() {
+    local pattern="$1"
+    printf '%s' "${pattern//%s/$TARGET_VERSION}"
 }
 
 version_gte() {
@@ -170,7 +175,7 @@ parse_options() {
 
     if [ -z "$PREFIX" ]; then
         if [ "$INSTALL_SCOPE" = "user" ]; then
-            PREFIX="${XDG_LOCAL_HOME:-${HOME}/.local}"
+            PREFIX="${XDG_DATA_HOME:-${HOME}/.local/share}/devlog"
         else
             PREFIX="/opt/devlog"
         fi
@@ -211,6 +216,11 @@ Examples:
   curl -fsSL ... | bash -s -- --native --user --version 1.2.0
   curl -fsSL ... | bash -s -- --docker
   install.sh --native --onboard
+
+Note for --native --system:
+  The systemd units run as an unprivileged 'devlog' account. This installer
+  does not create system accounts, so create it before onboarding:
+    useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog
 EOF
 }
 
@@ -227,13 +237,10 @@ detect_platform() {
 
 select_backend() {
     if [ "$INSTALL_MODE" = "docker" ]; then
-        BACKEND="docker"
         return
     fi
 
-    if command -v python3 >/dev/null 2>&1; then
-        BACKEND="venv"
-    else
+    if ! command -v python3 >/dev/null 2>&1; then
         die "Python 3 is required for native installation but was not found."
     fi
 }
@@ -378,7 +385,7 @@ download_artifacts() {
     TEMP_DIR="$ARTIFACTS_DIR"
 
     local wheel_name
-    wheel_name="$(printf "$WHEEL_PATTERN" "$TARGET_VERSION")"
+    wheel_name="$(artifact_name "$WHEEL_PATTERN")"
     local wheel_url="${RELEASES_URL}/v${TARGET_VERSION}/${wheel_name}"
 
     info "Downloading ${wheel_name}..."
@@ -397,7 +404,7 @@ download_artifacts() {
 
     if [ "$INSTALL_MODE" = "docker" ]; then
         local bundle_name
-        bundle_name="$(printf "$DOCKER_BUNDLE_PATTERN" "$TARGET_VERSION")"
+        bundle_name="$(artifact_name "$DOCKER_BUNDLE_PATTERN")"
         local bundle_url="${RELEASES_URL}/v${TARGET_VERSION}/${bundle_name}"
 
         info "Downloading ${bundle_name}..."
@@ -431,8 +438,10 @@ verify_checksums() {
         local filepath="${ARTIFACTS_DIR}/${filename}"
 
         if [ ! -f "$filepath" ]; then
-            warn "Checksum file references ${filename} but it was not downloaded."
-            failed=1
+            # The manifest covers every release artefact; this install only
+            # downloaded some of them. Skipping is correct — a mismatch on a
+            # file we did fetch is what matters.
+            warn "Checksum file references ${filename} but it was not downloaded — skipping."
             continue
         fi
 
@@ -465,17 +474,15 @@ native_install() {
     local bin_dir
 
     if [ "$INSTALL_SCOPE" = "user" ]; then
-        bin_dir="${PREFIX}/bin"
+        bin_dir="${XDG_BIN_HOME:-${HOME}/.local}/bin"
     else
         bin_dir="/usr/local/bin"
     fi
 
     local wheel_name
-    wheel_name="$(printf "$WHEEL_PATTERN" "$TARGET_VERSION")"
+    wheel_name="$(artifact_name "$WHEEL_PATTERN")"
 
     detect_existing_install "$current_link" "$version_dir"
-
-    RELEASE_DIR="$version_dir"
 
     if [ "$DRY_RUN" = true ]; then
         info "[dry-run] Would create ${version_dir}"
@@ -538,7 +545,7 @@ except Exception:
 docker_install() {
     local install_root="${PREFIX}"
     local bundle_name
-    bundle_name="$(printf "$DOCKER_BUNDLE_PATTERN" "$TARGET_VERSION")"
+    bundle_name="$(artifact_name "$DOCKER_BUNDLE_PATTERN")"
 
     if [ "$DRY_RUN" = true ]; then
         info "[dry-run] Would create Docker installation at ${install_root}"
@@ -557,22 +564,25 @@ docker_install() {
     fi
 
     info "Extracting bundle..."
-    tar -xzf "$bundle_path" -C "$install_root"
+    # The bundle wraps its contents in a top-level "docker-bundle/" directory,
+    # so the leading path component is stripped to land the files at the root.
+    tar -xzf "$bundle_path" -C "$install_root" --strip-components=1
     ok "Bundle extracted"
 
-    local data_dirs=("data" "uploads" "themes" "backups" "logs")
+    # The compose file uses named volumes for data, config and logs; these are
+    # the host paths it bind-mounts.
+    local data_dirs=("backups" "logs/nginx")
     for dir in "${data_dirs[@]}"; do
         mkdir -p "${install_root}/${dir}"
     done
     ok "Data directories created"
 
-    if [ ! -f "${install_root}/.env" ] && [ ! -f "${install_root}/devlog.env" ]; then
+    if [ ! -f "${install_root}/.env" ]; then
         if [ -f "${install_root}/.env.example" ]; then
             cp "${install_root}/.env.example" "${install_root}/.env"
             ok "Created .env from template"
-        elif [ -f "${install_root}/devlog.env.example" ]; then
-            cp "${install_root}/devlog.env.example" "${install_root}/devlog.env"
-            ok "Created devlog.env from template"
+        else
+            warn "No .env.example in the bundle — create ${install_root}/.env before starting."
         fi
     fi
 
@@ -583,7 +593,7 @@ docker_install() {
     echo "" >&2
     log "Next steps:"
     log "  cd ${install_root}"
-    log "  devlog onboard --mode docker"
+    log "  devlog onboard run --mode docker --profile docker-production"
     log ""
     log "Or manually:"
     log "  docker compose --profile production up -d"
@@ -620,7 +630,7 @@ detect_existing_install() {
             if version_gte "$existing_version" "$TARGET_VERSION"; then
                 warn "Installed version ${existing_version} is newer than target ${TARGET_VERSION}."
                 if [ "$YES" = false ] && [ "$NON_INTERACTIVE" = false ]; then
-                    printf '\033[33mDowngrade to ${TARGET_VERSION}? [y/N] \033[0m' >&2
+                    printf "\033[33mDowngrade to %s? [y/N] \033[0m" "$TARGET_VERSION" >&2
                     read -r answer </dev/tty || answer="n"
                     case "$answer" in
                         [yY]|[yY][eE][sS]) ;;
@@ -740,12 +750,12 @@ maybe_run_onboard() {
         if [ -t 0 ] || [ -r /dev/tty ]; then
             info "Running onboarding..."
             if [ "$INSTALL_MODE" = "native" ]; then
-                "${PREFIX}/current/venv/bin/devlog" onboard run --mode native --scope "${INSTALL_SCOPE}" </dev/tty || true
+                "${PREFIX}/current/venv/bin/devlog" onboard run --mode native --scope "${INSTALL_SCOPE}" --profile native-production </dev/tty || true
             else
-                log "Run manually: cd ${PREFIX} && devlog onboard --mode docker"
+                log "Run manually: cd ${PREFIX} && devlog onboard run --mode docker --profile docker-production"
             fi
         else
-            warn "Onboarding requires a TTY. Run: devlog onboard --mode ${INSTALL_MODE}"
+            warn "Onboarding requires a TTY. Run: devlog onboard run --mode ${INSTALL_MODE} --scope ${INSTALL_SCOPE}"
             print_success
         fi
     else
@@ -756,18 +766,14 @@ maybe_run_onboard() {
 print_success() {
     local mode_flag
     if [ "$INSTALL_MODE" = "native" ]; then
-        if [ "$INSTALL_SCOPE" = "user" ]; then
-            mode_flag="native --user"
-        else
-            mode_flag="native"
-        fi
+        mode_flag="native --scope ${INSTALL_SCOPE} --profile native-production"
     else
-        mode_flag="docker"
+        mode_flag="docker --profile docker-production"
     fi
 
     echo "" >&2
     log "DevLog ${INSTALLED_VERSION} installed successfully."
-    log "Next: devlog onboard --mode ${mode_flag}"
+    log "Next: devlog onboard run --mode ${mode_flag}"
     echo "" >&2
 }
 

@@ -6,7 +6,12 @@ recursive-include app/static/js *
 recursive-include app/static/dist *
 recursive-include app/static/fonts *
 recursive-include app/static/img *
-recursive-include migrations *
+recursive-include migrations *.py *.mako
+include migrations/alembic.ini
+include migrations/README
 include config.toml.example
 include requirements.txt
 include requirements-dev.txt
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude .DS_Store

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+# Every path below is relative to the repository root, not to the caller's
+# working directory, so the script works from anywhere.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
 # Parse arguments
 DEV=false
 for arg in "$@"; do
@@ -17,7 +22,7 @@ PYTHON_VERSION=$(python3 --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
 PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d'.' -f1)
 PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d'.' -f2)
 
-if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 12 ]); then
+if [ "$PYTHON_MAJOR" -lt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 12 ]; }; then
     echo "Error: Python 3.12 or higher is required. Found: Python $PYTHON_VERSION"
     exit 1
 fi
@@ -71,8 +76,9 @@ else
     echo ".env file already exists. Skipping."
 fi
 
-# Create required directories
-mkdir -p instance logs app/static/uploads
+# Create required directories. The database lives in data/devlog.sqlite3 and
+# uploads in app/static/uploads; instance/ is created by the app factory.
+mkdir -p data app/static/uploads
 
 # Create config.toml from example if it doesn't exist
 if [ ! -f "config.toml" ] && [ -f "config.toml.example" ]; then
@@ -84,6 +90,7 @@ fi
 # Source .env so variables are available in the current shell
 if [ -f ".env" ]; then
     set -a
+    # shellcheck source=/dev/null
     source .env
     set +a
     echo "Environment variables loaded from .env."
@@ -91,16 +98,16 @@ fi
 
 # Run database migrations
 echo "Running database migrations..."
-if ! ( cd "$(dirname "$0")" && venv/bin/python -m flask db upgrade ); then
+if ! FLASK_APP=run:app venv/bin/python -m flask db upgrade; then
     echo "Error: Database migrations failed."
-    echo "Please fix the issue and run 'venv/bin/python -m flask db upgrade' manually before starting the app."
+    echo "Please fix the issue and run 'FLASK_APP=run:app venv/bin/python -m flask db upgrade' manually before starting the app."
     exit 1
 fi
 
 # Build frontend assets
 echo "Building frontend assets..."
 if command -v npm &> /dev/null; then
-    if ! ( cd "$(dirname "$0")" && npm ci && npm run build ); then
+    if ! ( npm ci && npm run build ); then
         echo "Warning: Frontend build failed. Admin UI may not work correctly."
         echo "Run 'npm ci && npm run build' manually to build frontend assets."
     fi
@@ -115,7 +122,7 @@ echo ""
 if [ "$DEV" = true ]; then
     echo "Dev dependencies installed (includes pytest)."
 else
-    echo "Production dependencies installed. For dev, rerun with: ./setup.sh --dev"
+    echo "Production dependencies installed. For dev, rerun with: ./scripts/setup-dev.sh --dev"
 fi
 echo ""
 echo "To start the application:"

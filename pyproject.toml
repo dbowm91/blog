@@ -34,7 +34,7 @@ dependencies = [
     "flask-swagger-ui>=4.0.0,<5.0",
     "werkzeug>=3.1.6,<4.0",
     "asgiref>=3.11.1,<4.0",
-    "granian>=1.0.0,<2.0",
+    "granian>=1.0.0,<3.0",
     "markdown>=3.7,<4.0",
     "apscheduler>=3.11.2,<4.0",
     "nh3>=0.2.0,<1.0",
@@ -83,6 +83,9 @@ include = ["app*", "devlog_cli*", "migrations*"]
 "app.themes" = ["ACCESSIBILITY_EXCEPTIONS.json"]
 "app" = ["templates/**/*", "static/css/**/*", "static/js/**/*", "static/dist/**/*", "static/fonts/**/*", "static/img/**/*", "config.toml.example"]
 "migrations" = ["**/*.py", "alembic.ini"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.pyc", "*.pyo", "__pycache__/*"]
 
 [tool.ruff]
 line-length = 100
