@@ -256,7 +256,7 @@ See [architecture/services/operations.md](architecture/services/operations.md).
 
 `app/config/` replaces the legacy globals in `app/config_legacy.py`:
 
-- `app/config/model.py` — 23 frozen dataclasses (`DevLogConfig` + 22 section classes)
+- `app/config/model.py` — 24 frozen dataclasses (`DevLogConfig` + 23 section classes)
 - `app/config/loader.py` — `load_effective_config()` with precedence chain (env vars > config.toml > defaults)
 - `app/config/paths.py` — path resolution with source tracking
 - `app/config/validation.py` — multi-layer validation (schema, security, filesystem, dependencies, compatibility)
@@ -266,7 +266,7 @@ See [architecture/services/operations.md](architecture/services/operations.md).
 - `app/config/serialization.py` — TOML/JSON output with redaction
 - `app/config/migration.py` — config version migration support
 
-**`app/config/model.py` is the canonical source of truth for all configuration fields and their defaults.** It defines 23 frozen dataclasses — `DevLogConfig` plus 22 section classes — one per `[section]` in `config.toml`. `config.toml.example` mirrors these defaults. When adding or modifying a config field, update the dataclass first — the loader and example file follow from it.
+**`app/config/model.py` is the canonical source of truth for all configuration fields and their defaults.** It defines 24 frozen dataclasses — `DevLogConfig` plus 23 section classes — one per `[section]` in `config.toml`. `config.toml.example` mirrors these defaults. When adding or modifying a config field, update the dataclass first — the loader and example file follow from it.
 
 Env var fallback chains, defined in `app/config/loader.py`:
 

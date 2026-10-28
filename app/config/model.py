@@ -58,6 +58,7 @@ SECRET_FIELDS = frozenset(
         "encryption_key",
         "s3_access_key",
         "s3_secret_key",
+        "api_key",
     }
 )
 
@@ -271,6 +272,16 @@ class SearchConfig:
 
 
 @dataclass(frozen=True)
+class AiConfig:
+    provider: str = "opencode_go"
+    model: str = "glm-5.3-flash"
+    api_key: str = ""
+
+    def __repr__(self) -> str:
+        return _safe_repr(self, frozenset({"api_key"}))
+
+
+@dataclass(frozen=True)
 class PathsConfig:
     data_dir: str = ""
     log_dir: str = ""
@@ -308,6 +319,7 @@ class DevLogConfig:
     webhook: WebhookConfig = field(default_factory=WebhookConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
+    ai: AiConfig = field(default_factory=AiConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
 
     secret_key: str = ""

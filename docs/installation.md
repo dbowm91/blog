@@ -276,8 +276,8 @@ existing installation:
 
 ### Typed Configuration System
 
-DevLog uses a typed configuration system at `app/config/` with 23 frozen dataclasses
-(`DevLogConfig` plus 22 section classes):
+DevLog uses a typed configuration system at `app/config/` with 24 frozen dataclasses
+(`DevLogConfig` plus 23 section classes):
 
 ```bash
 devlog config check                    # Validate configuration

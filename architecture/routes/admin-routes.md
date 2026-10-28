@@ -95,6 +95,13 @@ admin/
 - **Route**: `POST /admin/preview-markdown`
 - **Purpose**: Render markdown preview for live editing (AJAX endpoint)
 
+### Optional AI Authoring (`editor.py`)
+- **Route**: `POST /admin/ai-assist`
+- **Purpose**: Return an unsaved-post TL;DR or taxonomy-aware tag suggestions on explicit editor requests
+- **Access**: `@author_required`, global CSRF validation, per-user limit of 12 requests/hour; edit requests verify post ownership
+- **Data flow**: Current title and Markdown body are sent to the configured fixed OpenCode Go endpoint only after the author clicks a control. Missing credentials hide controls and fail the endpoint closed. Suggestions are reviewed and applied in the browser; only normal post Save persists them.
+- **Safety**: No stored post body is fetched, no provider response is persisted, and no tag rows are created by inference. See [AI authoring service](../services/overview.md#optional-ai-authoring) for bounds and provider-policy gate.
+
 ### Post Delete (`manage.py`)
 - **Route**: `POST /admin/delete/<int:post_id>`
 - **Purpose**: Delete a post

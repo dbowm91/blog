@@ -1,9 +1,9 @@
 # AI Authoring Phase 01 — Optional Provider, Authenticated Endpoint, TL;DR
 
-> **Plan status: ACTIVE — not implemented.** [Roadmap](ai_authoring_roadmap.md). Shipped behavior belongs in `architecture/routes/admin-routes.md` and `architecture/services/overview.md`.
+> **Plan status: IMPLEMENTED — provider-use approval and live smoke gate remain open.** [Roadmap](ai_authoring_roadmap.md). Behavior is documented in `architecture/routes/admin-routes.md` and `architecture/services/overview.md`.
 
 **Date:** 2026-10-28
-**Status:** Planned
+**Status:** Implemented; provider-use approval and live smoke gate open
 **Phase:** AIA-01
 **Prerequisites:** None
 
@@ -37,10 +37,11 @@ Generate an original, faithful, factual, **plain-text** 1–2 sentence TL;DR bas
 
 Add `tests/test_ai_assist.py` and `tests/config/test_ai_config.py`. Mock all remote requests in automated tests. Cover key absent/feature hidden, env precedence, illegal key in TOML, redaction (including serialization/diagnostics), author/admin and another-author-post access, CSRF, invalid JSON and bounds, per-user rate limits, no outbound on validation failure, valid summary, empty/oversize output, upstream HTTP failures/timeouts, no DB writes after success/failure. Confirm public API key alone does not access this session route. Follow `tests/AGENTS.override.md` for fixtures.
 
-- [ ] Config and diagnostics safe, no-key state invisible and functional.
-- [ ] Endpoint restricted to permitted authors, CSRF checked, per-user rate limited.
-- [ ] Provider request bounded, honest failures, no implicit persistence.
-- [ ] Deterministic mocked tests pass and provider usage is separately authorized before deployment.
+- [x] Config and diagnostics safe, no-key state invisible and functional.
+- [x] Endpoint restricted to permitted authors, CSRF checked, per-user rate limited.
+- [x] Provider request bounded, honest failures, no implicit persistence.
+- [x] Deterministic mocked tests pass.
+- [ ] Provider usage separately authorized and live compatibility smoke test completed before deployment.
 
 ## Expected files
 
@@ -48,4 +49,8 @@ Add `tests/test_ai_assist.py` and `tests/config/test_ai_config.py`. Mock all rem
 
 ## Completion
 
-**Status:** Not started. Enter actual code, verification and authorized provider smoke-test evidence here after implementation.
+**Status:** Implementation complete; external provider gate open.
+
+Implemented env-only `OPENCODE_GO_API_KEY` handling with redaction, fail-closed availability, authenticated/CSRF-protected post-editor endpoint, ownership checks, per-author throttling, bounded provider I/O and validated plain-text summaries. Provider behavior is covered by mocks; no key or draft content was sent to OpenCode. The published Go guidance describes coding-agent use, so editorial authorization and live compatibility remain unverified. Do not enable this provider for editorial drafts until explicitly permitted or replaced by an authorized adapter.
+
+**Verification:** `pytest tests/test_ai_assist.py tests/test_author_role.py tests/config/test_ai_config.py tests/config/test_model.py tests/config/test_serialization.py tests/e2e/test_ai_assist.py -q` — 104 passed (includes all phases; latest run). `ruff check .` and `ruff format --check .` passed; dependency-manifest consistency and `npm run build` passed. Full suite: 4,879 passed, 53 failed, 21 skipped; failures are in unrelated deployment/filesystem, storage/tasks, profile/webhook and theme tests. No AI-assist test failed. Mypy reports 17 errors across seven files; none are in the new AI service, route, or editor code (one is in the pre-existing config-model redaction helper).

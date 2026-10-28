@@ -1,9 +1,9 @@
 # AI Authoring Phase 02 — Candidate Tags and Taxonomy Reconciliation
 
-> **Plan status: ACTIVE — not implemented.** Requires [AIA-01](ai_authoring_phase_01_provider_summary.md). Shipped behavior belongs in `architecture/services/tag.md`.
+> **Plan status: IMPLEMENTED.** Requires [AIA-01](ai_authoring_phase_01_provider_summary.md). Behavior is documented in `architecture/services/tag.md`.
 
 **Date:** 2026-10-28
-**Status:** Planned
+**Status:** Implemented
 **Phase:** AIA-02
 
 ## Goal and invariants
@@ -52,12 +52,12 @@ Extend `tests/test_ai_assist.py` with network stubs, query spying and DB asserti
 
 ## Acceptance criteria
 
-- [ ] At most two calls; second skipped when pointless; no past post bodies sent.
-- [ ] Exact reuse deterministic and model mapping verified by existing IDs.
-- [ ] Meaningfully distinct new tag proposals retained.
-- [ ] Bounded catalog and role-safe privacy boundary.
-- [ ] Invalid or failed provider output never mutates tag data.
-- [ ] Tests cover failure fallback, taxonomy evolution and access boundaries.
+- [x] At most two calls; second skipped when pointless; no past post bodies sent.
+- [x] Exact reuse deterministic and model mapping verified by existing IDs.
+- [x] Meaningfully distinct new tag proposals retained.
+- [x] Bounded catalog and role-safe privacy boundary.
+- [x] Invalid or failed provider output never mutates tag data.
+- [x] Tests cover failure fallback, taxonomy evolution and access boundaries.
 
 ## Expected files
 
@@ -65,4 +65,8 @@ Extend `tests/test_ai_assist.py` with network stubs, query spying and DB asserti
 
 ## Completion
 
-**Status:** Not started. Record actual implementation and test evidence when shipped.
+**Status:** Implemented.
+
+Tag suggestions now validate against the existing tag policy, reuse exact persisted tags deterministically, and use a bounded role-safe catalog for conditional semantic reconciliation. The second pass receives only unresolved candidates and catalog metadata; failures fall back to first-pass candidates. No tag rows or post relationships are changed by inference.
+
+**Verification:** The AI authoring/config/access/E2E suite passed: `pytest tests/test_ai_assist.py tests/test_author_role.py tests/config/test_ai_config.py tests/config/test_model.py tests/config/test_serialization.py tests/e2e/test_ai_assist.py -q` — 104 passed. All provider interactions were mocked.

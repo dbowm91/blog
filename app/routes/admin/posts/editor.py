@@ -17,6 +17,7 @@ from flask import (
 )
 from typing import Any, cast
 from flask_login import current_user
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from app.extensions import db
 from app.markdown_renderer import render_markdown
@@ -86,11 +87,14 @@ def _author_options() -> list[Any]:
 
 def _render_editor(post: Post | None, tag_names: list[str]) -> Any:
     """Render the post editor with the available author options."""
+    from app.services.ai_assist import is_ai_assist_available
+
     return render_template(
         "admin/editor.html",
         post=post,
         tag_names=tag_names,
         author_options=_author_options(),
+        ai_assist_available=is_ai_assist_available(current_app.config.get("DEVLOG_CONFIG")),
     )
 
 
@@ -358,6 +362,84 @@ def register_editor_routes(admin):
 
         tag_names = [t.name for t in cast(list[Tag], post.tags)]
         return _render_editor(post, tag_names)
+
+    from app import limiter
+
+    @admin.route("/ai-assist", methods=["POST"])
+    @author_required
+    @limiter.limit(
+        "12 per hour",
+        key_func=lambda: f"ai-assist-user:{current_user.get_id() or 'unknown'}",
+    )
+    def ai_assist() -> Any:
+        from app.services.ai_assist import (
+            AiAssistError,
+            is_ai_assist_available,
+            suggest_summary,
+            suggest_tags,
+        )
+
+        request.max_content_length = 70 * 1024
+        if request.content_length and request.content_length > 70 * 1024:
+            return jsonify({"error": "Request is too large."}), 413
+        config = current_app.config.get("DEVLOG_CONFIG")
+        if config is None or not is_ai_assist_available(config):
+            return jsonify({"error": "AI assistance is not configured."}), 503
+        try:
+            data = request.get_json(silent=True)
+        except RequestEntityTooLarge:
+            return jsonify({"error": "Request is too large."}), 413
+        if not isinstance(data, dict) or set(data) - {"action", "title", "body", "post_id"}:
+            return jsonify({"error": "Invalid request."}), 400
+        action = data.get("action")
+        title = data.get("title")
+        body = data.get("body")
+        post_id = data.get("post_id")
+        try:
+            title_bytes = title.encode("utf-8") if isinstance(title, str) else b""
+            body_bytes = body.encode("utf-8") if isinstance(body, str) else b""
+        except UnicodeEncodeError:
+            return jsonify({"error": "Invalid request."}), 400
+        if (
+            action not in {"summary", "tags"}
+            or not isinstance(title, str)
+            or len(title) > 200
+            or len(title_bytes) > 800
+            or not isinstance(body, str)
+            or not body.strip()
+            or len(body_bytes) > 64 * 1024
+            or (
+                post_id is not None
+                and (isinstance(post_id, bool) or not isinstance(post_id, int) or post_id < 1)
+            )
+        ):
+            return jsonify({"error": "Invalid request."}), 400
+        if post_id is not None:
+            post = db.session.get(Post, post_id)
+            if post is None:
+                return jsonify({"error": "Post not found."}), 404
+            if not current_user.is_admin and post.author_id != current_user.id:
+                abort(403)
+        try:
+            if action == "summary":
+                suggestion = suggest_summary(
+                    title=title,
+                    body=body,
+                    api_key=config.ai.api_key,
+                    model=config.ai.model,
+                )
+                return jsonify({"suggestion": suggestion})
+            return jsonify(
+                suggest_tags(
+                    title=title,
+                    body=body,
+                    api_key=config.ai.api_key,
+                    model=config.ai.model,
+                    is_admin=bool(current_user.is_admin),
+                )
+            )
+        except AiAssistError as exc:
+            return jsonify({"error": str(exc)}), 502
 
     @admin.route("/preview-markdown", methods=["POST"])
     @author_required

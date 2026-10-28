@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config.model import (
+    AiConfig,
     AppConfig,
     AdminConfig,
     AuthorConfig,
@@ -59,6 +60,7 @@ _TOML_SECTION_MAP: dict[str, type] = {
     "webhook": WebhookConfig,
     "logging": LoggingConfig,
     "search": SearchConfig,
+    "ai": AiConfig,
 }
 
 _TOML_TO_DATACLASS_FIELD: dict[str, dict[str, str]] = {
@@ -149,6 +151,7 @@ _TOML_TO_DATACLASS_FIELD: dict[str, dict[str, str]] = {
     "webhook": {"timeout": "timeout", "encryption_key": "encryption_key"},
     "logging": {"level": "level"},
     "search": {"provider": "provider", "config": "config"},
+    "ai": {"provider": "provider", "model": "model", "api_key": "api_key"},
     "paths": {
         "data_dir": "data_dir",
         "log_dir": "log_dir",
@@ -245,6 +248,7 @@ _ENV_OVERRIDE_MAP: dict[str, str] = {
     "S3_ENDPOINT": "storage_s3_endpoint",
     "S3_PUBLIC_URL": "storage_s3_public_url",
     "STORAGE_BACKEND": "storage_backend",
+    "OPENCODE_GO_API_KEY": "ai_api_key",
     "DEVLOG_DATA_DIR": "paths_data_dir",
     "DEVLOG_LOG_DIR": "paths_log_dir",
     "DEVLOG_RUNTIME_DIR": "paths_runtime_dir",
@@ -267,6 +271,7 @@ _SECRET_FIELDS = frozenset(
         "backup_encryption_key",
         "storage_s3_access_key",
         "storage_s3_secret_key",
+        "ai_api_key",
     }
 )
 
@@ -281,6 +286,7 @@ _DEFAULT_SECRETS: dict[str, str] = {
     "backup_encryption_key": "",
     "storage_s3_access_key": "",
     "storage_s3_secret_key": "",
+    "ai_api_key": "",
 }
 
 
@@ -505,6 +511,7 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
         LoggingConfig, _TOML_TO_DATACLASS_FIELD["logging"], raw, "logging"
     )
     search_section = _build_section(SearchConfig, _TOML_TO_DATACLASS_FIELD["search"], raw, "search")
+    ai_section = _build_section(AiConfig, _TOML_TO_DATACLASS_FIELD["ai"], raw, "ai")
     paths_section = _build_section(PathsConfig, _TOML_TO_DATACLASS_FIELD["paths"], raw, "paths")
 
     database_section = DatabaseConfig(
@@ -569,6 +576,7 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
         webhook=webhook_section,
         logging=logging_section,
         search=search_section,
+        ai=ai_section,
         paths=paths_section,
         secret_key=secret_key,
         admin_password=admin_password,
@@ -596,6 +604,8 @@ def load_effective_config(
         for section_name, section_data in toml_data.items():
             if isinstance(section_data, dict):
                 for key, value in section_data.items():
+                    if section_name == "ai" and key == "api_key":
+                        continue
                     raw[key] = value
                     if section_name == "app":
                         pass

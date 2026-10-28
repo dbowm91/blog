@@ -10,7 +10,7 @@ The codebase has a typed configuration system at `app/config/` that provides str
 
 | Module | Purpose |
 |--------|---------|
-| `app/config/model.py` | 23 frozen dataclasses (`DevLogConfig` + 22 section classes) — the canonical source of truth for every field and its default |
+| `app/config/model.py` | 24 frozen dataclasses (`DevLogConfig` + 23 section classes) — the canonical source of truth for every field and its default |
 | `app/config/loader.py` | `load_effective_config()` with precedence chain |
 | `app/config/paths.py` | Path resolution with source tracking |
 | `app/config/validation.py` | Multi-layer validation (schema, security, filesystem, dependencies, compatibility) |
@@ -81,7 +81,14 @@ confirmation_expiry_hours = 1
 [search]
 provider = "sqlite"  # or "postgresql"
 config = {}
+
+[ai]
+provider = "opencode_go"
+model = "glm-5.3-flash"
+api_key = "" # Must remain blank; use OPENCODE_GO_API_KEY in the server environment/.env.
 ```
+
+The optional `[ai]` section controls editor-only TL;DR and tag suggestions. The key is not accepted from TOML; config validation rejects a nonempty value, effective loading ignores it, and redacted serializers keep it secret. An unset key is valid and leaves the application unchanged. See [AI authoring](../services/overview.md#optional-ai-authoring) for the explicit external-data-transfer and provider-use gate.
 
 ## Configuration Priority
 

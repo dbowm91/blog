@@ -21,6 +21,7 @@ REQUIRED_SECTIONS = frozenset(
 VALID_SESSION_IP_BINDING = frozenset({"off", "warn", "enforce"})
 VALID_DEFAULT_SCHEME = frozenset({"system", "dark", "light"})
 VALID_SEARCH_PROVIDER = frozenset({"sqlite", "meilisearch", "typesense"})
+VALID_AI_PROVIDER = frozenset({"opencode_go"})
 VALID_STORAGE_BACKEND = frozenset({"local", "s3"})
 VALID_LOGGING_LEVEL = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
@@ -145,6 +146,11 @@ SECTION_FIELD_TYPES: dict[str, dict[str, type | tuple[type, ...]]] = {
     "search": {
         "provider": str,
         "config": dict,
+    },
+    "ai": {
+        "provider": str,
+        "model": str,
+        "api_key": str,
     },
 }
 
@@ -364,6 +370,7 @@ def validate_schema(raw_toml: dict, *, strict: bool = False) -> list[Finding]:
         ("app", "session_ip_binding", VALID_SESSION_IP_BINDING),
         ("themes", "default_scheme", VALID_DEFAULT_SCHEME),
         ("search", "provider", VALID_SEARCH_PROVIDER),
+        ("ai", "provider", VALID_AI_PROVIDER),
         ("storage", "backend", VALID_STORAGE_BACKEND),
         ("logging", "level", VALID_LOGGING_LEVEL),
     ]
@@ -436,6 +443,18 @@ def validate_schema(raw_toml: dict, *, strict: bool = False) -> list[Finding]:
                     message=f"newsletter.send_time must be HH:MM (00:00-23:59), got: {send_time!r}",
                 )
             )
+
+    ai_section = raw_toml.get("ai")
+    if isinstance(ai_section, dict) and ai_section.get("api_key"):
+        findings.append(
+            Finding(
+                severity=Severity.ERROR,
+                code="security.ai_key_in_config_file",
+                field="ai.api_key",
+                message="AI provider credentials must be supplied through the server environment, not config.toml",
+                remediation="Remove ai.api_key and set OPENCODE_GO_API_KEY in the server environment or .env file",
+            )
+        )
 
     return findings
 

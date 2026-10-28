@@ -103,6 +103,8 @@ For a saved post, the **Preview** link opens the full post preview at
 3. Make changes
 4. Click **Save Changes** to save changes
 
+**Optional AI suggestions:** When the administrator has configured `OPENCODE_GO_API_KEY`, the post editor shows **Suggest TL;DR** and **Suggest tags** controls. Clicking either sends the current unsaved title and Markdown body to OpenCode Go. Read the suggestion and use the separate Apply control if you want it; the summary replace action asks for confirmation, tag suggestions merge without removing manually entered tags, and nothing is saved until the normal post save. Draft text is never sent automatically. Remove the key to hide and disable the feature. OpenCode Go’s [current documentation](https://opencode.ai/v2/docs/console/go/) describes coding-agent traffic; this editorial use is not verified or approved. Do not enable it for drafts unless OpenCode explicitly permits it or you use a separately authorized provider adapter. See [AI authoring architecture](architecture/services/overview.md#optional-ai-authoring).
+
 **Note:** If you see an "IntegrityError" message, a slug collision occurred. The system will auto-generate a new unique slug.
 
 ### Post Revisions

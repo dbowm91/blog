@@ -456,3 +456,7 @@ still owns the rule.
 `app/templates/base.html` so that the dev server and production share one cascade
 order. `shared/utils.js` is assigned to the `shared` chunk explicitly so a failure
 inside an admin-only module cannot abort a shared module on a public page.
+
+### Optional AI Post Authoring
+
+The post editor template owns conditional AI controls and the server-provided `admin.ai_assist` URL; `app/static/js/admin/editor.js` owns click-only requests and explicit review/apply behavior. Never trigger inference during load, preview, focus, typing, or save. Treat every response as untrusted plain text; use `textContent` and form values only, never HTML insertion. Snapshot source and destination values at request start and refuse stale applies. Tags append only after author approval, preserving existing entries and deduplicating. Applied tags and summary dispatch bubbling `input` and `change` so ordinary draft autosave and dirty-state paths stay authoritative; normal Post Save remains the only persistence path. Never place keys, prompts, catalogs or AI responses in localStorage.

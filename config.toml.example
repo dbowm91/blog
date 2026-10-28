@@ -173,3 +173,12 @@ provider = "sqlite"
 # [search.config]
 # index_path = "search_index"
 config = {}
+
+[ai]
+# This optional feature sends the current unsaved post only after an explicit editor action.
+# OpenCode Go documents coding-agent traffic; do not use it for editorial drafts unless
+# OpenCode explicitly permits this use or you replace it with an authorized adapter.
+provider = "opencode_go"
+model = "glm-5.3-flash"
+# Credentials are accepted only from OPENCODE_GO_API_KEY in the server environment/.env.
+api_key = ""

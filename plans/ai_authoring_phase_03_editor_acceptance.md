@@ -1,9 +1,9 @@
 # AI Authoring Phase 03 — Editor UX, Draft Semantics, and Acceptance
 
-> **Plan status: ACTIVE — not implemented.** Requires [AIA-01](ai_authoring_phase_01_provider_summary.md) and [AIA-02](ai_authoring_phase_02_tag_reconciliation.md). Shipped behavior belongs in `architecture/frontend/overview.md`.
+> **Plan status: IMPLEMENTED — provider-use approval and live smoke gate remain open.** Requires [AIA-01](ai_authoring_phase_01_provider_summary.md) and [AIA-02](ai_authoring_phase_02_tag_reconciliation.md). Behavior is documented in `architecture/frontend/overview.md`.
 
 **Date:** 2026-10-28
-**Status:** Planned
+**Status:** Implemented; provider-use authorization gate remains open
 **Phase:** AIA-03
 
 ## AIA-03A — Conditional Jinja controls
@@ -49,7 +49,7 @@ Update `architecture/routes/admin-routes.md`, `architecture/services/overview.md
 
 Run targeted pytest/config/security/route tests, `ruff check .`, `ruff format --check .`, `mypy app/ devlog_cli/`, `npm run build`, dependency manifest check and full suite/E2E as available. CI tests are fully stubbed. A real Go request is permitted only **after** external use for non-coding blog authoring has been confirmed acceptable; keep evidence free of keys and article text. Do not claim production readiness without that authorization and smoke evidence.
 
-On actual completion, write factual `## Completion` sections with test commands/results in all phases, update each status banner, move this series in `plans/AGENTS.override.md` to Historical and link to architecture outcome.
+Implementation and phase completion records are complete. Keep this series Active in `plans/AGENTS.override.md` until provider authorization and the live compatibility smoke gate are resolved; then move it to Historical and retain the architecture links.
 
 ## Expected files
 
@@ -57,12 +57,17 @@ On actual completion, write factual `## Completion` sections with test commands/
 
 ## Acceptance criteria
 
-- [ ] No-key installation has no visible AI UI or outbound provider traffic.
-- [ ] Suggestions are reviewable; no auto-overwriting, auto-saving or auto-publishing.
-- [ ] Manual/AI-applied tags share autosave, dirty and restoration semantics.
-- [ ] Errors, delays and stale requests do not lose user input.
-- [ ] Automated and browser tests pass; permitted-use and real provider compatibility verified before deployment.
+- [x] No-key installation has no visible AI UI or outbound provider traffic.
+- [x] Suggestions are reviewable; no auto-overwriting, auto-saving or auto-publishing.
+- [x] Manual/AI-applied tags share autosave, dirty and restoration semantics.
+- [x] Errors, delays and stale requests do not lose user input.
+- [x] Automated and browser tests pass.
+- [ ] Permitted-use and real provider compatibility verified before deployment.
 
 ## Completion
 
-**Status:** Not started. Record actual code and verification here when implemented.
+**Status:** Implemented; provider-use approval and live smoke gate remain open.
+
+Added conditional post-editor controls and an explicit review/apply flow that protects newer field edits, merges tags, and leaves persistence to normal Save. Existing draft autosave, recovery and dirty-state now include tags. Documentation and agent guidance describe external data transfer and provider limitations. Browser behavior uses a stubbed endpoint; no live provider request was made.
+
+**Verification:** `pytest tests/test_ai_assist.py tests/test_author_role.py tests/config/test_ai_config.py tests/config/test_model.py tests/config/test_serialization.py tests/e2e/test_ai_assist.py -q` — 104 passed. `ruff check .`, `ruff format --check .`, dependency-manifest consistency and `npm run build` passed. Full suite: 4,879 passed, 53 failed, 21 skipped; failures were outside the AI-assist tests, in unrelated deployment/filesystem, storage/tasks, profile/webhook and theme areas. Mypy reports 17 errors across seven files; none are in the new AI service, route, or editor code (one is in the pre-existing config-model redaction helper).

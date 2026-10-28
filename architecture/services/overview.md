@@ -14,6 +14,7 @@ Business logic layer for the blog application.
 | Slug | `app/services/slug.py` | Unique slug generation |
 | Tag | `app/services/tag.py` | Tag CRUD and count management |
 | Tag Cache | `app/tag_cache.py` | Tag count caching with TTL |
+| AI Authoring | `app/services/ai_assist.py` | Optional, bounded provider suggestions for the post editor; no persistence |
 | Search | `app/services/search/` | Search provider abstraction (SQLite FTS5, PostgreSQL stub) |
 | Search (FTS5) | `app/search.py` | Standalone FTS5 functions (search, sync, snippets, did-you-mean) |
 | Theme Registry | `app/themes/registry.py` | Authoritative theme registry: listing, resolution, loading, fallback, `_CatalogEntry` |
@@ -25,6 +26,16 @@ Business logic layer for the blog application.
 | Navigation | `app/services/navigation.py` | Published page/project navigation projection from `SiteSettings` |
 | Site Settings | `app/services/site_settings.py` | Homepage target validation and navigation/settings persistence |
 | Cache Contract | `docs/themes/cache-contract.md` | Cache freshness model, invalidation API, multi-worker deployment notes |
+
+## Optional AI Authoring
+
+`app/services/ai_assist.py` is the only provider HTTP client. It uses the fixed OpenCode Go OpenAI-compatible endpoint and the server-owned `ai.provider`/`ai.model` configuration. `OPENCODE_GO_API_KEY` is env-file/process-environment only; `ai.api_key` in TOML is rejected by config validation and ignored by effective loading. With no key, the editor controls are absent and the endpoint fails closed.
+
+Only an explicit action from an authenticated post editor sends the current unsaved title/body. The request is bounded to 64 KiB, uses 3-second connect and 20-second read timeouts, caps provider output at 64 KiB, does not retry or stream model output, and limits actions to 12 per user per hour. Provider errors are sanitized. Each authenticated browser session gets a stable random provider session header with no author identifier or draft content.
+
+Summary output is plain text, validated to at most 500 characters, and applied only after an explicit user action. Tag proposals use `Tag.generate_slug()` and `validate_tag_name()`, are exact-matched against a compact catalog before a conditional semantic pass, and fall back to first-pass proposals if mapping fails. Non-admin catalog data is limited to tags used by published posts; admin-only private taxonomy metadata has no unpublished post titles or bodies. The service never writes posts/tags, creates tags, updates indexes or caches, or logs prompt content. Normal post Save is the only persistence path.
+
+**Provider-use gate:** OpenCode Go’s [current Go documentation](https://opencode.ai/v2/docs/console/go/) says it is designed for OpenCode and other coding agents producing similar requests. This editorial summarization/classification client does not produce typical coding-agent traffic; Go use is therefore **not verified or approved here**. The feature is dormant without an operator-supplied key, and operators must not enable it for editorial data unless OpenCode explicitly permits this use or an authorized compatible provider adapter is selected. No provider smoke test or production-readiness claim is made.
 
 ## Operations Service Layer
 

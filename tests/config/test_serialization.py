@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from app.config.model import DevLogConfig
+from app.config.model import AiConfig, DevLogConfig
 from app.config.serialization import (
     config_summary,
     config_to_dict,
@@ -18,6 +18,7 @@ def sample_config() -> DevLogConfig:
     return DevLogConfig(
         secret_key="my-super-secret-key-12345678",
         admin_password="admin-pass-123",
+        ai=AiConfig(api_key="private-ai-key"),
     )
 
 
@@ -30,6 +31,7 @@ class TestConfigToDict:
         result = config_to_dict(sample_config)
         assert result["secret_key"] != "my-super-secret-key-12345678"
         assert result["admin_password"] != "admin-pass-123"
+        assert result["ai"]["api_key"] != "private-ai-key"
 
     def test_secrets_not_redacted(self, sample_config: DevLogConfig) -> None:
         result = config_to_dict(sample_config, redact_secrets=False)
@@ -70,6 +72,7 @@ class TestConfigToJson:
         json_str = config_to_json(sample_config)
         assert "my-super-secret-key" not in json_str
         assert "admin-pass-123" not in json_str
+        assert "private-ai-key" not in json_str
 
     def test_indentation(self, sample_config: DevLogConfig) -> None:
         json_str = config_to_json(sample_config, indent=4)

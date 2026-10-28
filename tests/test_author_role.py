@@ -7,9 +7,14 @@ author of.
 
 from __future__ import annotations
 
+from dataclasses import replace
+from unittest.mock import Mock
+
 import pytest
 
+from app.config.model import AiConfig
 from app.models import Post, User
+from app.services import ai_assist
 
 TEST_PASSWORD = "test-password-123"
 
@@ -171,3 +176,38 @@ def test_an_administrator_still_reaches_everything(authenticated_client):
     assert authenticated_client.get("/admin/").status_code == 200
     assert authenticated_client.get("/admin/settings").status_code == 200
     assert authenticated_client.get("/admin/users").status_code == 200
+
+
+def test_author_cannot_request_ai_for_another_authors_post(
+    app, db, author_client, author_user, monkeypatch
+):
+    other = User(username="ai-other-author", email="ai-other@example.com", is_admin=False)
+    other.set_password(TEST_PASSWORD)
+    db.session.add(other)
+    db.session.flush()
+    post = Post(
+        title="Another author's draft",
+        slug="another-authors-ai-draft",
+        body="Private body",
+        summary="",
+        published=False,
+        author_id=other.id,
+    )
+    db.session.add(post)
+    db.session.commit()
+    original_config = app.config["DEVLOG_CONFIG"]
+    app.config["DEVLOG_CONFIG"] = replace(original_config, ai=AiConfig(api_key="test-private-key"))
+    provider = Mock()
+    monkeypatch.setattr(ai_assist.requests, "post", provider)
+
+    _login(author_client, "author1")
+    response = author_client.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "T", "body": "Body", "post_id": post.id},
+    )
+
+    app.config["DEVLOG_CONFIG"] = original_config
+    assert author_user.is_admin is False
+    assert post.author_id != author_user.id
+    assert response.status_code == 403
+    provider.assert_not_called()

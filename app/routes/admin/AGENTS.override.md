@@ -80,6 +80,10 @@ In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rol
 
 The `new_page()` function in `pages.py` implements a retry loop with `max_attempts=100`. On `IntegrityError`, it rolls back, regenerates the slug, and retries the commit.
 
+## Optional AI Post Authoring
+
+`POST /admin/ai-assist` is an authenticated editor route, not a public API endpoint. Keep `@author_required`, global CSRF validation and the shared per-user rate limit. For edits, verify post ownership before inference; use only submitted unsaved text and never load a stored draft as model input. Missing provider configuration must hide the post-editor controls and fail the endpoint closed. Suggestions must not save posts, create tags, alter revisions, or bypass the normal post Save path. Keep provider errors sanitized and do not log title/body or credentials. See `app/services/ai_assist.py` and `architecture/services/overview.md` for the external provider-policy gate.
+
 ## CSRF Token Rotation on Privilege Change
 
 When promoting/demoting users or making an owner, the code sets `session["csrf_token"]` (singular) but the sliding window uses `session["csrf_tokens"]` (list). Must reset the list `session["csrf_tokens"]` = `[generate_csrf_token()]` not the singular token.

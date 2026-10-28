@@ -23,6 +23,7 @@ from app.config_legacy import (  # noqa: F401
 from app.config.model import (  # noqa: F401
     CONFIG_VERSION,
     SECRET_FIELDS,
+    AiConfig,
     AppConfig,
     AdminConfig,
     AuthorConfig,
@@ -126,6 +127,7 @@ _APP_CONFIG_FIELDS = [
 
 _TYPED_API = [
     "DevLogConfig",
+    "AiConfig",
     "AppConfig",
     "AdminConfig",
     "ServerConfig",

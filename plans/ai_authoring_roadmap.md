@@ -1,9 +1,9 @@
 # Optional AI-Assisted Post Authoring — Roadmap
 
-> **Plan status: ACTIVE — not implemented.** This roadmap registers three sequential implementation phases. Shipped behavior must later be documented under `architecture/`.
+> **Plan status: ACTIVE — implementation complete; provider authorization and live compatibility gate remain open.** The three phases are implemented and documented under `architecture/`; do not enable editorial provider traffic until the gate is resolved.
 
 **Date:** 2026-10-28
-**Status:** Planned
+**Status:** Implementation complete; provider gate open
 **Series prefix:** AIA
 **Origin:** operator request for narrowly scoped editor-only TL;DR and taxonomy-aware tag suggestions.
 
@@ -17,7 +17,7 @@ Do not add chat, agents, auto-publishing, search, embeddings, RAG, migrations, q
 
 - `app/routes/admin/posts/editor.py` owns new/edit post routes, `_render_editor()`, and Markdown preview.
 - `app/templates/admin/editor.html` already provides `#summary` and `#tags` inputs, and the Markdown body macro.
-- `app/static/js/admin/editor.js` is loaded for both routes by `app/static/js/main.js`; it already uses `csrfHeaders()`. Current draft autosave and dirty-state track title/body/summary but omit tags.
+- `app/static/js/admin/editor.js` is loaded for both routes by `app/static/js/main.js`; it already uses `csrfHeaders()`. Draft autosave, restore, and dirty-state now include tags alongside title/body/summary.
 - `Post.summary` is limited to 500 characters. `Tag` is a flat vocabulary with unique `name` and `slug`. `app/routes/admin/helpers/tags.py` validates ASCII letters, numbers, spaces and hyphens, length <=50, and matches existing tags by `Tag.generate_slug()`.
 - `app/config/` provides typed config, env precedence and secret redaction; `@author_required`, global CSRF checking, Flask-Limiter and `requests` are already in the project.
 
@@ -25,9 +25,9 @@ Do not add chat, agents, auto-publishing, search, embeddings, RAG, migrations, q
 
 | Phase | File | Deliverable | Status |
 |---|---|---|---|
-| 01 | [`ai_authoring_phase_01_provider_summary.md`](ai_authoring_phase_01_provider_summary.md) | Optional secret-safe provider config, authenticated bounded JSON endpoint, TL;DR | Not started |
-| 02 | [`ai_authoring_phase_02_tag_reconciliation.md`](ai_authoring_phase_02_tag_reconciliation.md) | Candidate tags, deterministic existing-tag reuse, conditional second model pass | Not started; requires 01 |
-| 03 | [`ai_authoring_phase_03_editor_acceptance.md`](ai_authoring_phase_03_editor_acceptance.md) | Conditional UI, explicit review/apply, draft/dirty state, testing and documentation | Not started; requires 01–02 |
+| 01 | [`ai_authoring_phase_01_provider_summary.md`](ai_authoring_phase_01_provider_summary.md) | Optional secret-safe provider config, authenticated bounded JSON endpoint, TL;DR | Implemented; provider-use approval/live smoke gate open |
+| 02 | [`ai_authoring_phase_02_tag_reconciliation.md`](ai_authoring_phase_02_tag_reconciliation.md) | Candidate tags, deterministic existing-tag reuse, conditional second model pass | Implemented; mocked tests pass |
+| 03 | [`ai_authoring_phase_03_editor_acceptance.md`](ai_authoring_phase_03_editor_acceptance.md) | Conditional UI, explicit review/apply, draft/dirty state, testing and documentation | Implemented; provider-use approval/live smoke gate open |
 
 ## Architecture and contracts
 
@@ -50,8 +50,12 @@ Initial proposed adapter: OpenCode Go using a server-side Console key, `glm-5.3-
 - Tag second pass only when unresolved candidates and existing relevant catalog entries exist; 2 provider calls maximum per tag action. No old post bodies are transmitted.
 - All proposals are reviewed by the author before field changes and persisted only on normal Save.
 - CI uses mocked provider responses; tests cover missing keys, auth, CSRF, privacy, normalization, malformed output, latency, failure and editor interactions.
-- Once implemented, update architecture docs and each phase's `## Completion` with real evidence, then move the series in `plans/AGENTS.override.md` from Active to Historical.
+- Implementation, architecture docs and phase completion records are complete. Keep this series Active until the provider authorizes editorial use (or an authorized alternate is selected) and the live compatibility smoke gate is completed.
 
 ## Completion
 
-**Status:** Not started. Planning only; no code changes or test results claimed.
+**Status:** Implementation complete; provider-use approval and live compatibility smoke gate remain open.
+
+Implemented phases 01–03: secret-safe optional config, bounded authenticated summary/tag inference, privacy-safe deterministic/semantic tag reconciliation, conditional review/apply editor controls, tag-aware drafts/dirty state, tests, architecture and operator guidance. Provider requests in CI are mocked. No live OpenCode request was made because its documented coding-agent-use policy does not establish permission for editorial summarization/tagging. Keep AI disabled for editorial traffic until OpenCode explicitly permits it or an authorized alternate provider is selected; run a live smoke only after that gate is approved.
+
+**Verification:** Focused AI/config/author/E2E suite: 104 passed. `ruff check .` passed; `ruff format --check .` passed (416 files); dependency-manifest consistency passed; `npm run build` passed. Full suite: 4,879 passed, 53 failed, 21 skipped, with failures in unrelated deployment/filesystem, storage/tasks, profile/webhook and theme areas; none were in the AI-assist tests. Mypy reports 17 errors across seven files; none are in the new AI service, route, or editor code (one is in the pre-existing config-model redaction helper). `git diff --check` passed.
