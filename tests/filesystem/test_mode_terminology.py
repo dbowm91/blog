@@ -146,4 +146,4 @@ class TestBuildConfigFromInput:
 
         inp = OnboardingInput(mode="docker")
         config = build_config_from_input(inp)
-        assert "data/blog.db" in config.database.uri
+        assert "/data/devlog.sqlite3" in config.database.uri

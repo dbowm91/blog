@@ -24,7 +24,7 @@ def render_logrotate(ctx: DeploymentContext) -> RenderResult | None:
     lines.append(f"    create 0640 {user} {group}")
     lines.append("    sharedscripts")
     lines.append("    postrotate")
-    lines.append("        invoke-rc.d devlog restart > /dev/null 2>&1 || true")
+    lines.append("        systemctl reload devlog-web > /dev/null 2>&1 || true")
     lines.append("    endscript")
     lines.append("}")
 
@@ -33,6 +33,7 @@ def render_logrotate(ctx: DeploymentContext) -> RenderResult | None:
     return RenderResult(
         content=content,
         filename="devlog",
+        target="logrotate",
         managed=True,
         warnings=[],
         permissions=0o644,

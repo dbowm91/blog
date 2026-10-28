@@ -162,6 +162,7 @@ volumes:
     return RenderResult(
         content=content,
         filename="docker-compose.yml",
+        target="compose",
         managed=True,
         warnings=warnings,
         permissions=0o644,
@@ -194,6 +195,7 @@ def render_compose_env(ctx: DeploymentContext) -> RenderResult:
     return RenderResult(
         content=content,
         filename="docker-compose.env",
+        target="compose",
         managed=True,
         warnings=warnings,
         permissions=0o600,

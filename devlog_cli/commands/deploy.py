@@ -105,7 +105,7 @@ def _add_render_command(group: click.Group) -> None:
         for f in result.files:
             entry: dict[str, Any] = {
                 "target": f.get("target", ""),
-                "path": f.get("path", ""),
+                "filename": f.get("filename", ""),
                 "description": f.get("description", ""),
             }
             if print_content and f.get("content"):
@@ -115,9 +115,9 @@ def _add_render_command(group: click.Group) -> None:
         if output and not print_content:
             output.mkdir(parents=True, exist_ok=True)
             for f in result.files:
-                if f.get("path") and f.get("content"):
+                if f.get("filename") and f.get("content"):
                     target = f.get("target", "unknown")
-                    fname = Path(f["path"]).name
+                    fname = Path(f["filename"]).name
                     dest = output / f"{target}-{fname}"
                     dest.write_text(f["content"])
 
@@ -128,7 +128,7 @@ def _add_render_command(group: click.Group) -> None:
 
         details: dict[str, Any] = {
             "mode": effective_mode,
-            "targets": list(targets),
+            "targets": result.details.get("targets", list(targets)),
             "files": files,
         }
 
@@ -231,8 +231,8 @@ def _add_install_command(group: click.Group) -> None:
             "dry_run": dry_run,
             "force": force,
             **result.details,
+            "installed_files": list(result.installed_files),
         }
-
         if result.ok:
             r = Result.success(
                 code=result.code,

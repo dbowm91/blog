@@ -117,6 +117,7 @@ def render_caddyfile(ctx: DeploymentContext) -> RenderResult:
     return RenderResult(
         content=content,
         filename="Caddyfile",
+        target="caddy",
         managed=True,
         warnings=warnings,
         permissions=0o644,
@@ -234,6 +235,7 @@ def render_nginx_config(ctx: DeploymentContext) -> RenderResult:
     return RenderResult(
         content=content,
         filename="devlog.conf",
+        target="nginx",
         managed=True,
         warnings=warnings,
         permissions=0o644,

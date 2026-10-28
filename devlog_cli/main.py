@@ -179,6 +179,11 @@ from devlog_cli.commands.lifecycle import register_lifecycle_commands  # noqa: E
 register_lifecycle_commands(main)
 
 
+from devlog_cli.commands.serve import register_serve_commands  # noqa: E402
+
+register_serve_commands(main)
+
+
 from devlog_cli.commands.doctor import register_doctor_commands  # noqa: E402
 
 register_doctor_commands(main)

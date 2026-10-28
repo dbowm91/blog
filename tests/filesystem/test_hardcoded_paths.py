@@ -19,6 +19,8 @@ APP_DIR = REPO_ROOT / "app"
 CLI_DIR = REPO_ROOT / "devlog_cli"
 
 # Patterns that indicate hard-coded production paths
+_DATA_FILENAME = r'(?:"blog\.db"|"backups"|DATA_BACKUP_DIR|"devlog\.sqlite3")'
+
 _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     (
         "upload_folder_file",
@@ -26,24 +28,14 @@ _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
         "Upload path derived from __file__; use RuntimePaths or app.config['UPLOAD_FOLDER']",
     ),
     (
-        "instance_blog_db",
-        re.compile(r'os\.path\.join\((?:app\.)?instance_path,\s*"blog\.db"\)'),
-        "Database path derived from instance_path; use RuntimePaths.database.path",
+        "instance_data_path",
+        re.compile(rf"instance_path.*{_DATA_FILENAME}|{_DATA_FILENAME}.*instance_path"),
+        "Data path derived from instance_path; use RuntimePaths (database.path, backups_dir.path)",
     ),
     (
-        "instance_backups",
-        re.compile(r'os\.path\.join\((?:current_)?app\.instance_path,\s*["\']backups["\']\)'),
-        "Backup dir derived from instance_path; use RuntimePaths.backups_dir.path",
-    ),
-    (
-        "hardcoded_blog_db",
-        re.compile(r'"blog\.db"'),
-        "Hard-coded 'blog.db' filename; use RuntimePaths.database or DatabaseConfig",
-    ),
-    (
-        "hardcoded_data_backup_dir_joined",
-        re.compile(r"Path\(.*instance_path\)\s*/\s*DATA_BACKUP_DIR"),
-        "Backup dir via instance_path / DATA_BACKUP_DIR; use RuntimePaths.backups_dir",
+        "hardcoded_data_filename",
+        re.compile(r'"blog\.db"|"devlog\.sqlite3"'),
+        "Hard-coded database filename; use RuntimePaths.database or DatabaseConfig",
     ),
 ]
 
@@ -55,10 +47,6 @@ _ALLOWLIST: set[str] = {
     "app/storage.py",
     # Scheduler — lock files in instance (runtime-only, no data)
     "app/scheduler.py",
-    # Health/metrics — disk usage check on instance_path
-    "app/routes/public/meta.py",
-    # Backup routes — parse existing DB URI (reads config, not constructing)
-    "app/routes/admin/backup.py",
     # Operations backup service — wraps existing backup logic
     "app/services/operations/backup.py",
     # Legacy backup service — same
@@ -71,16 +59,14 @@ _ALLOWLIST: set[str] = {
     "app/config/loader.py",
     # Onboarding — candidate search paths (discovery, not production)
     "app/onboarding/state.py",
-    # Onboarding steps — hardcoded system paths for detection
-    "app/onboarding/steps.py",
-    # Filesystem prepare — development mode defaults (uses Path.cwd())
-    "app/filesystem/prepare.py",
     # CLI config init — default output path
     "devlog_cli/commands/config.py",
     # Onboarding model — constructs database URI for config (legitimate: builds DevLogConfig)
     "app/onboarding/model.py",
     # Migration execution — checks DB filename for SQLite checkpoint (legitimate: runtime check)
     "app/filesystem/migration.py",
+    # RuntimePaths — the single authority for the canonical database filename
+    "app/filesystem/layout.py",
 }
 
 

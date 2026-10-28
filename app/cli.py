@@ -110,6 +110,38 @@ def register_cli_commands(app: Any) -> None:
         result = import_site_data(input_file, skip_confirmed=skip_confirmed)
         click.echo(result.summary)
 
+    @app.cli.command("scheduler-start")
+    def scheduler_start_command() -> None:
+        """Run the APScheduler jobs in the foreground."""
+        import signal
+        import threading
+
+        from app.scheduler import init_scheduler, shutdown_scheduler
+
+        scheduler = init_scheduler(app)
+        if scheduler is None:
+            click.echo("Scheduler could not be started.")
+            raise SystemExit(1)
+
+        app.logger.info("Scheduler started; waiting for a termination signal.")
+
+        stop = threading.Event()
+
+        def _handler(signum: int, frame: Any) -> None:
+            stop.set()
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                signal.signal(sig, _handler)
+            except ValueError:
+                pass
+
+        while not stop.is_set():
+            stop.wait(3600)
+
+        shutdown_scheduler(wait=True)
+        app.logger.info("Scheduler stopped.")
+
     @app.cli.command("seed")
     @click.option("--posts", default=10, help="Number of sample posts to create")
     @click.option("--subscribers", default=20, help="Number of sample subscribers")

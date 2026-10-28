@@ -520,12 +520,20 @@ def _resolve_system(
         provenance=resolved_data.provenance,
         source=resolved_data.source,
     )
-    release_root = root / "releases" / "current"
-    resolved_release = ResolvedPath(
-        path=release_root.resolve(),
-        provenance=PathProvenance.SYSTEM_DEFAULT,
-        source=f"system default {release_root}",
-    )
+    release_root = Path("/opt/devlog") / "current"
+    release_env = os.environ.get("DEVLOG_RELEASE_DIR", "")
+    if release_env:
+        resolved_release = ResolvedPath(
+            path=Path(release_env).resolve(),
+            provenance=PathProvenance.ENV_VAR,
+            source="environment variable DEVLOG_RELEASE_DIR",
+        )
+    else:
+        resolved_release = ResolvedPath(
+            path=release_root.resolve(),
+            provenance=PathProvenance.SYSTEM_DEFAULT,
+            source=f"system default {release_root}",
+        )
     return RuntimePaths(
         config_file=resolved_config,
         env_file=resolved_env,

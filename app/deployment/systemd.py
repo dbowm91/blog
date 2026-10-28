@@ -6,7 +6,9 @@ with the rendered unit content.
 
 from __future__ import annotations
 
+import os
 import re
+from pathlib import Path
 
 from app.deployment.model import DeploymentContext, RenderResult
 
@@ -29,14 +31,58 @@ def _read_write_paths(ctx: DeploymentContext) -> list[str]:
 
 
 def _working_directory(ctx: DeploymentContext) -> str:
+    """Return the directory the service runs from.
+
+    The application code lives in the release directory — ``app.asgi:asgi_app``
+    and the bundled ``migrations/`` are only importable from there — so a
+    system install runs from the release and not from the data directory.
+    """
+    release_dir = ctx.paths.release_dir
+    if release_dir is not None:
+        return str(release_dir.path)
     return str(ctx.paths.data_dir.path)
 
 
-def _release_exec_start(ctx: DeploymentContext) -> str:
+def _runtime_directory(ctx: DeploymentContext) -> str:
+    """Return the systemd ``RuntimeDirectory`` directive for the runtime path.
+
+    ``/run`` is a tmpfs, so the runtime directory has to be recreated on
+    every boot. ``RuntimeDirectory=`` is how systemd does that: it creates
+    the directory before ``ExecStartPre`` runs and removes it on stop, owned
+    by the service account.
+
+    The directive is derived from the resolved runtime directory, so it is
+    only emitted when that directory sits directly in the systemd runtime
+    root. A runtime directory elsewhere (a state-directory fallback, or a
+    development path) is left to the operator.
+    """
+    runtime_dir = ctx.paths.runtime_dir
+    if runtime_dir is None:
+        return ""
+    path = runtime_dir.path
+    if path.name != "devlog":
+        return ""
+    parent = path.parent
+    if parent == Path("/run"):
+        return "RuntimeDirectory=devlog"
+    xdg_runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if xdg_runtime and parent == Path(xdg_runtime):
+        return "RuntimeDirectory=devlog"
+    return ""
+
+
+def _release_venv(ctx: DeploymentContext) -> str | None:
+    """Return the virtualenv bin directory of the active release, if known."""
     release_dir = ctx.paths.release_dir
-    if release_dir is not None:
-        release_path = release_dir.path
-        return f"{release_path}/venv/bin/python -m granian --interface asgi --workers 4 --timeout 60 --host {ctx.bind_address} --port {ctx.bind_port} run:asgi_app"
+    if release_dir is None:
+        return None
+    return str(release_dir.path / "venv" / "bin")
+
+
+def _release_exec_start(ctx: DeploymentContext) -> str:
+    release_venv = _release_venv(ctx)
+    if release_venv is not None:
+        return f"{release_venv}/python -m granian --interface asgi --workers 4 --host {ctx.bind_address} --port {ctx.bind_port} app.asgi:asgi_app"
     return f"devlog serve --host {ctx.bind_address} --port {ctx.bind_port}"
 
 
@@ -56,10 +102,15 @@ def render_web_unit(
     rw_paths = _read_write_paths(ctx)
     working_dir = _working_directory(ctx)
     rw_paths_str = " ".join(rw_paths)
+    runtime_dir_line = _runtime_directory(ctx)
 
-    pre_start_lines = [
-        f"ExecStartPre=/opt/devlog/current/venv/bin/devlog config check --config {ctx.paths.config_file.path}",
-    ]
+    pre_start_lines = []
+
+    release_venv = _release_venv(ctx)
+    if release_venv is not None:
+        pre_start_lines.append(
+            f"ExecStartPre={release_venv}/devlog config check --config {ctx.paths.config_file.path}"
+        )
 
     for p in rw_paths:
         pre_start_lines.append(f"ExecStartPre=/usr/bin/test -d {p}")
@@ -78,6 +129,7 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 Umask=0027
+{runtime_dir_line}
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -99,6 +151,7 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 Umask=0027
+{runtime_dir_line}
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -121,6 +174,7 @@ Documentation=https://github.com/dbowm91/blog
     return RenderResult(
         content=content,
         filename=unit_name,
+        target="systemd",
         managed=True,
         warnings=warnings,
         permissions=0o644,
@@ -143,6 +197,7 @@ def render_worker_unit(
     rw_paths = _read_write_paths(ctx)
     working_dir = _working_directory(ctx)
     rw_paths_str = " ".join(rw_paths)
+    runtime_dir_line = _runtime_directory(ctx)
 
     if user_unit:
         exec_start = "devlog worker"
@@ -155,6 +210,7 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 Umask=0027
+{runtime_dir_line}
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -163,10 +219,9 @@ ProtectHome=true
 ReadWritePaths={rw_paths_str}"""
         install_section = "WantedBy=default.target"
     else:
-        release_venv = "/opt/devlog/current/venv/bin"
-        exec_start = (
-            f"{release_venv}/celery -A app.celery_app worker --loglevel=info --concurrency=1"
-        )
+        release_venv = _release_venv(ctx)
+        celery_bin = f"{release_venv}/celery" if release_venv else "celery"
+        exec_start = f"{celery_bin} -A app.celery_app worker --loglevel=info --concurrency=1"
         service_section = f"""[Service]
 Type=simple
 User={ctx.service_user}
@@ -178,6 +233,7 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 Umask=0027
+{runtime_dir_line}
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -200,6 +256,7 @@ Documentation=https://github.com/dbowm91/blog
     return RenderResult(
         content=content,
         filename=unit_name,
+        target="systemd",
         managed=True,
         warnings=warnings,
         permissions=0o644,
@@ -222,6 +279,7 @@ def render_scheduler_unit(
     rw_paths = _read_write_paths(ctx)
     working_dir = _working_directory(ctx)
     rw_paths_str = " ".join(rw_paths)
+    runtime_dir_line = _runtime_directory(ctx)
 
     if user_unit:
         exec_start = "devlog scheduler"
@@ -234,6 +292,7 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 Umask=0027
+{runtime_dir_line}
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -242,8 +301,9 @@ ProtectHome=true
 ReadWritePaths={rw_paths_str}"""
         install_section = "WantedBy=default.target"
     else:
-        release_venv = "/opt/devlog/current/venv/bin"
-        exec_start = f"{release_venv}/flask scheduler-start"
+        release_venv = _release_venv(ctx)
+        flask_bin = f"{release_venv}/flask" if release_venv else "flask"
+        exec_start = f"{flask_bin} scheduler-start"
         service_section = f"""[Service]
 Type=simple
 User={ctx.service_user}
@@ -255,6 +315,7 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 Umask=0027
+{runtime_dir_line}
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -277,6 +338,7 @@ Documentation=https://github.com/dbowm91/blog
     return RenderResult(
         content=content,
         filename=unit_name,
+        target="systemd",
         managed=True,
         warnings=warnings,
         permissions=0o644,

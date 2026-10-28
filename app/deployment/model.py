@@ -131,6 +131,7 @@ class RenderResult:
     warnings: list[str] = field(default_factory=list)
     permissions: int = 0o644
     description: str = ""
+    target: str = ""
 
 
 def validate_deployment_context(ctx: DeploymentContext) -> list[str]:

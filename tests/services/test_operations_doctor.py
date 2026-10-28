@@ -483,6 +483,40 @@ class TestInstallationChecks:
 
 
 class TestFilesystemChecksNew:
+    def test_service_account_is_skipped_outside_a_system_install(self, app, db):
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.service_account"])
+            assert result.checks[0].status in (
+                CheckStatus.PASS,
+                CheckStatus.SKIP,
+                CheckStatus.FAIL,
+            )
+
+    def test_a_missing_service_account_fails_with_remediation(self, app, db, monkeypatch):
+        """The rendered units run as ``devlog``; nothing creates that account."""
+        import pwd
+        from types import SimpleNamespace
+
+        from app.filesystem import layout
+
+        monkeypatch.setattr(
+            layout,
+            "detect_mode",
+            lambda: SimpleNamespace(detected_mode=layout.InstallMode.SYSTEM),
+        )
+
+        def _missing(name: str):
+            raise KeyError(name)
+
+        monkeypatch.setattr(pwd, "getpwnam", _missing)
+
+        with app.app_context():
+            result = run_doctor(check_ids=["fs.service_account"])
+
+        assert result.checks[0].status == CheckStatus.FAIL
+        assert result.checks[0].details.get("user") == "devlog"
+        assert result.checks[0].remediation
+
     def test_dir_ownership(self, app, db):
         with app.app_context():
             result = run_doctor(check_ids=["fs.ownership"])

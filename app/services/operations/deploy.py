@@ -105,8 +105,27 @@ def _render_logrotate(ctx) -> list:
 ALL_TARGETS = ["systemd", "compose", "caddy", "nginx", "logrotate"]
 
 
-def _rendered_to_dict(rendered) -> dict[str, Any]:
+def _resolve_targets(targets: list[str] | None) -> list[str]:
+    """Expand the ``all`` alias into the concrete target names.
+
+    The CLI offers ``--target all`` as the default, so the service has to
+    expand it: a renderer is registered per concrete name, and an unknown
+    name renders nothing at all.
+    """
+    if not targets:
+        return list(ALL_TARGETS)
+    resolved: list[str] = []
+    for target in targets:
+        names = ALL_TARGETS if target == "all" else [target]
+        for name in names:
+            if name not in resolved:
+                resolved.append(name)
+    return resolved
+
+
+def _rendered_to_dict(rendered, target: str) -> dict[str, Any]:
     return {
+        "target": target,
         "content": rendered.content,
         "filename": rendered.filename,
         "managed": rendered.managed,
@@ -131,7 +150,7 @@ def deploy_render(
             remediation=["Check that the deployment mode is valid and config is accessible."],
         )
 
-    active_targets = targets or ALL_TARGETS
+    active_targets = _resolve_targets(targets)
     all_rendered = []
     all_warnings: list[str] = []
 
@@ -139,7 +158,7 @@ def deploy_render(
         try:
             rendered_items = _render_target(ctx, target)
             for r in rendered_items:
-                all_rendered.append(_rendered_to_dict(r))
+                all_rendered.append(_rendered_to_dict(r, target))
                 all_warnings.extend(r.warnings)
         except ImportError:
             all_warnings.append(f"Deployment module for '{target}' is not available")
@@ -174,7 +193,7 @@ def deploy_install(
             remediation=["Check that the deployment mode is valid and config is accessible."],
         )
 
-    active_targets = targets or ALL_TARGETS
+    active_targets = _resolve_targets(targets)
     all_rendered = []
     all_warnings: list[str] = []
 

@@ -32,6 +32,15 @@ class InstallResult:
     warnings: list[str] = field(default_factory=list)
 
 
+DEFAULT_TARGET_DIRS: dict[str, str] = {
+    "systemd": "/etc/systemd/system",
+    "compose": "/etc/devlog",
+    "caddy": "/etc/caddy",
+    "nginx": "/etc/nginx/conf.d",
+    "logrotate": "/etc/logrotate.d",
+}
+
+
 def _resolve_install_path(
     rendered: RenderResult,
     base_dir: Path,
@@ -47,12 +56,25 @@ def plan_installation(
     force: bool = False,
     base_dir: Path | None = None,
 ) -> InstallPlan:
-    install_base = base_dir or Path("/etc/devlog")
+    """Plan where the rendered files are written.
+
+    Without an explicit ``base_dir`` each target goes to the directory its
+    consumer reads: systemd units into ``/etc/systemd/system``, the nginx
+    include into ``/etc/nginx/conf.d``, the logrotate file into
+    ``/etc/logrotate.d``. An explicit ``base_dir`` overrides that and sends
+    every file to one directory.
+    """
     managed: list[ManagedFile] = []
     warnings: list[str] = []
 
     for rendered in rendered_files:
-        target = _resolve_install_path(rendered, install_base)
+        if base_dir is not None:
+            target = _resolve_install_path(rendered, base_dir)
+        else:
+            default_dir = DEFAULT_TARGET_DIRS.get(rendered.target)
+            if default_dir is None:
+                default_dir = DEFAULT_TARGET_DIRS["compose"]
+            target = _resolve_install_path(rendered, Path(default_dir))
         backup: Path | None = None
 
         if target.exists():

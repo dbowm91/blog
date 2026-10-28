@@ -750,6 +750,46 @@ def _ctx_paths() -> Any | None:
     return ctx.paths if ctx else None
 
 
+def _service_account() -> tuple[str, str] | None:
+    """Return the account the service runs as, for a system installation.
+
+    A system install runs under a dedicated unprivileged account; a user,
+    Docker or development install runs as the account that owns the data.
+    """
+    ctx = _get_ctx()
+    if ctx is None or ctx.mode != "system":
+        return None
+    return ("devlog", "devlog")
+
+
+def _service_account_ids() -> tuple[int, int] | None:
+    """Return the uid/gid of the service account, or None if it is absent."""
+    account = _service_account()
+    if account is None:
+        return None
+    try:
+        import grp
+        import pwd
+
+        user, group = account
+        return pwd.getpwnam(user).pw_uid, grp.getgrnam(group).gr_gid
+    except (KeyError, ImportError):
+        return None
+
+
+def _writable_by(path: Path, uid: int, gid: int) -> bool:
+    """Return whether an account can write to a path, judged by mode bits."""
+    try:
+        st = path.stat()
+    except OSError:
+        return False
+    if st.st_uid == uid:
+        return bool(st.st_mode & stat.S_IWUSR)
+    if st.st_gid == gid:
+        return bool(st.st_mode & stat.S_IWGRP)
+    return bool(st.st_mode & stat.S_IWOTH)
+
+
 def _is_sqlite() -> bool:
     try:
         from app.db_utils import is_sqlite_database
@@ -1207,15 +1247,18 @@ def _check_dir_ownership(**kwargs: Any) -> CheckResult:
         paths = _ctx_paths()
         if paths is None:
             return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
-        my_uid = os.getuid()
+        service_ids = _service_account_ids()
+        expected_uid = service_ids[0] if service_ids else os.getuid()
         issues = []
         for name in ("data_dir", "uploads_dir", "backups_dir", "log_dir", "runtime_dir"):
             rp = getattr(paths, name)
             if rp.path.exists():
                 try:
                     file_uid = rp.path.stat().st_uid
-                    if file_uid != my_uid:
-                        issues.append({"name": name, "owner_uid": file_uid, "expected_uid": my_uid})
+                    if file_uid != expected_uid:
+                        issues.append(
+                            {"name": name, "owner_uid": file_uid, "expected_uid": expected_uid}
+                        )
                 except OSError:
                     pass
         if issues:
@@ -1231,11 +1274,43 @@ def _check_dir_ownership(**kwargs: Any) -> CheckResult:
         return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
+def _check_service_account(**kwargs: Any) -> CheckResult:
+    """Verify the account the systemd unit runs as exists on this host.
+
+    The rendered units run as ``devlog``. Nothing in the installer or in
+    onboarding creates a system account, so a missing one is the single most
+    common reason a freshly installed service will not start.
+    """
+    account = _service_account()
+    if account is None:
+        return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Not a system installation")
+    user, group = account
+    try:
+        import pwd
+
+        pwd.getpwnam(user)
+    except (KeyError, ImportError):
+        return _make_result(
+            **kwargs,
+            status=CheckStatus.FAIL,
+            summary=f"Service account '{user}' does not exist",
+            details={"user": user, "group": group},
+            remediation=[
+                f"useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin {user}",
+                f"chown -R {user}:{group} /var/lib/devlog /var/log/devlog",
+            ],
+        )
+    return _make_result(
+        **kwargs, status=CheckStatus.PASS, summary=f"Service account '{user}' exists"
+    )
+
+
 def _check_dir_writable(**kwargs: Any) -> CheckResult:
     try:
         paths = _ctx_paths()
         if paths is None:
             return _make_result(**kwargs, status=CheckStatus.SKIP, summary="Paths unavailable")
+        service_ids = _service_account_ids()
         not_writable = []
         for name in (
             "data_dir",
@@ -1246,7 +1321,13 @@ def _check_dir_writable(**kwargs: Any) -> CheckResult:
             "runtime_dir",
         ):
             rp = getattr(paths, name)
-            if rp.path.exists() and not os.access(rp.path, os.W_OK):
+            if not rp.path.exists():
+                continue
+            if service_ids:
+                writable = _writable_by(rp.path, service_ids[0], service_ids[1])
+            else:
+                writable = os.access(rp.path, os.W_OK)
+            if not writable:
                 not_writable.append(name)
         if not_writable:
             return _make_result(
@@ -3291,6 +3372,20 @@ def _register_all_checks() -> None:
                 timeout_seconds=5,
             ),
             _check_symlink_safety,
+        ),
+        (
+            CheckDefinition(
+                "fs.service_account",
+                CheckCategory.FILESYSTEM,
+                "Service account exists",
+                Severity.RECOMMENDED,
+                timeout_seconds=5,
+                remediation=[
+                    "useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog",
+                    "chown -R devlog:devlog /var/lib/devlog /var/log/devlog",
+                ],
+            ),
+            _check_service_account,
         ),
         (
             CheckDefinition(
