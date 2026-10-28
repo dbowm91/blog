@@ -31,6 +31,9 @@ from app.search import (
     get_indexed_terms,
 )
 from app import limiter, cache as flask_cache
+from app.routes.public.pages import render_page
+from app.routes.public.projects import render_project
+from app.services.site_settings import HOME_KIND_PAGE, HOME_KIND_PROJECT, resolve_homepage_target
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,34 @@ def _get_available_years():
 def invalidate_archive_cache():
     """Invalidate archive years cache."""
     flask_cache.delete("archive_available_years")
+
+
+def render_post_index(pagination_endpoint: str = "public.index") -> ResponseReturnValue:
+    """Render the paginated post index.
+
+    The renderer is shared by the homepage dispatcher and by ``/posts``, so
+    there is one post index and one set of queries. The pagination target is
+    passed in because the two routes live at different addresses.
+    """
+    page = request.args.get("page", 1, type=int)
+    pagination = db.paginate(
+        select(Post)
+        .options(joinedload(cast(QueryableAttribute, Post.tags)))
+        .filter_by(published=True)
+        .order_by(Post.created_at.desc()),
+        page=page,
+        per_page=POSTS_PER_PAGE,
+        error_out=False,
+    )
+    tags, tag_counts = _get_cached_tags_and_counts()
+    return render_template(
+        "index.html",
+        posts=pagination.items,
+        pagination=pagination,
+        tags=tags,
+        tag_counts=tag_counts,
+        pagination_endpoint=pagination_endpoint,
+    )
 
 
 def _get_related_posts(post):
@@ -99,25 +130,32 @@ def register_browse_routes(public):
     @public.route("/")
     @limiter.limit("60 per minute")
     def index() -> ResponseReturnValue:
-        """Paginated list of published posts with tag sidebar."""
-        page = request.args.get("page", 1, type=int)
-        pagination = db.paginate(
-            select(Post)
-            .options(joinedload(cast(QueryableAttribute, Post.tags)))
-            .filter_by(published=True)
-            .order_by(Post.created_at.desc()),
-            page=page,
-            per_page=POSTS_PER_PAGE,
-            error_out=False,
-        )
-        tags, tag_counts = _get_cached_tags_and_counts()
-        return render_template(
-            "index.html",
-            posts=pagination.items,
-            pagination=pagination,
-            tags=tags,
-            tag_counts=tag_counts,
-        )
+        """The homepage.
+
+        The homepage renders the blog index, one published page or one
+        published project, depending on the site settings. It never
+        redirects: the root is the address the operator selected, and the
+        selected target is the canonical address of its content.
+        """
+        target = resolve_homepage_target()
+
+        if target.kind == HOME_KIND_PAGE and target.page is not None:
+            return render_page(target.page, is_homepage=True)
+
+        if target.kind == HOME_KIND_PROJECT and target.project is not None:
+            return render_project(target.project, is_homepage=True)
+
+        return render_post_index(pagination_endpoint="public.index")
+
+    @public.route("/posts")
+    @limiter.limit("60 per minute")
+    def posts() -> ResponseReturnValue:
+        """The post index.
+
+        The blog stays reachable at its own address even when the homepage
+        renders something else.
+        """
+        return render_post_index(pagination_endpoint="public.posts")
 
     ARCHIVE_PER_PAGE = 200
 
@@ -229,7 +267,7 @@ def register_browse_routes(public):
         ).scalar_one_or_none()
         if not page_obj:
             abort(404)
-        return render_template("page.html", page=page_obj)
+        return render_page(page_obj)
 
     @public.route("/tag/<slug>")
     @limiter.limit("60 per minute")

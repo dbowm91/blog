@@ -108,6 +108,7 @@ const PUBLIC_MODULES = [
     './shared/toast.js',
     './shared/color-scheme.js',
     './shared/mobile-menu.jsx',
+    './shared/nav-dropdown.js',
     './shared/lazy-load.js',
     './shared/prefetch.js',
     './public/share.js',

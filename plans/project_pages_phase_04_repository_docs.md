@@ -1,10 +1,10 @@
 # Project Pages Phase 04 — GitHub Documentation Snapshots
 
-> **Plan status: PROPOSED — not implemented.** See [project_pages_roadmap.md](project_pages_roadmap.md).
+> **Plan status: PARTIALLY IMPLEMENTED.** See [project_pages_roadmap.md](project_pages_roadmap.md).
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-04
-**Status:** Not started
+**Status:** Partially implemented in this worktree
 **Prerequisite:** Phase 03 merged.
 
 ## Objective
@@ -53,4 +53,8 @@ Do not fetch release binaries, attempt repository writes, build artifacts, inges
 
 ## Completion
 
-**Status:** Not started. No implementation or verification has been performed.
+**Status:** Partially implemented; acceptance is not complete.
+
+**Implemented:** Fixed-host bounded GitHub API client with ETags, retry/rate-limit metadata and redirect rejection; owner/repository validation; manual public-repository sync of a bounded commit-pinned Markdown tree; path/body/count/aggregate limits; immutable snapshot rows with commit SHA and manifest digest; snapshot-bound docs; atomic active pointer update; local docs retained; failure state leaves previous active snapshot unchanged; admin sync/status; public reads use cached DB content only. Mocked GitHub sync and migration tests pass.
+
+**Not yet complete:** No cross-process DB lease/lock, scheduled opt-in reconciliation, GitHub image import/cache, tree-depth/request-budget configurable settings, or concurrency/rate-limit/mid-stream failure matrix. GitHub docs images are not automatically copied; they need a project-scoped uploaded asset. These gaps must be addressed before calling Phase 04 complete.

@@ -1,6 +1,6 @@
 # Project Pages, Documentation, and Distribution Roadmap
 
-> **Plan status: PROPOSED — no phase implemented.** This is a forward-looking specification, not a statement of shipped behavior. Once work ships, document its outcome in architecture/ and record verification in the corresponding phase file.
+> **Plan status: PARTIALLY IMPLEMENTED.** Phases 01–02 are implemented; Phases 03–05 have substantial but incomplete implementations in this worktree; Phase 06 remains gated by operator choice and protocol evidence. See per-phase completion records and `architecture/core/project-pages.md`.
 
 **Date:** 2026-10-28
 **Repository baseline:** main at 07fafb198a31948c51ec7dee75d0fa84c45bfe36
@@ -38,7 +38,8 @@ The present migration chain includes `drop_syntax_theme_column` after `add_appea
 | `GET /projects/<slug>/docs` | Documentation home, when enabled |
 | `GET /projects/<slug>/docs/<path:doc_path>` | Published document in selected version |
 | `GET /projects/<slug>/releases` | Synced GitHub release metadata, when enabled |
-| `GET /projects/<slug>/releases/<tag>` | Release detail; tag matching must be safely encoded |
+| `GET /projects/<slug>/releases/manifest.json` | Versioned DevLog-native metadata manifest; not an installer protocol |
+| `GET /projects/<slug>/releases/<release_id>` | Cached release detail keyed by local numeric release ID |
 | `GET /projects/<slug>/downloads/<asset-id>` | **Phase 06 only**: verified mirrored asset or canonical fallback |
 
 Keep `/posts` available even if `/` renders the blog; use canonical URL/redirect semantics that avoid duplicate search-engine content and redirect loops. Do not change `/post/<slug>`.
@@ -47,12 +48,12 @@ Keep `/posts` available even if `/` renders the blog; use canonical URL/redirect
 
 | Phase | Plan | Scope | Depends on | State |
 |---|---|---|---|---|
-| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | ORM, migration, admin, themes/layout presets, `/projects` and project landing | None | Not started |
-| 02 | [Navigation and home selection](project_pages_phase_02_navigation_home.md) | Navbar resolver, Projects dropdown, direct-project links, site homepage | 01 | Not started |
-| 03 | [Local documentation](project_pages_phase_03_local_docs.md) | Doc model, local authoring, viewer, safe Markdown routing | 01; merge after 02 | Not started |
-| 04 | [Repository documentation sync](project_pages_phase_04_repository_docs.md) | GitHub snapshot ingestion, asset/link handling, sync controls | 03 | Not started |
-| 05 | [Canonical release catalog](project_pages_phase_05_releases.md) | GitHub releases/asset metadata, direct GitHub downloads | 01; merge after 04 | Not started |
-| 06 | [Optional mirrors and installer interface](project_pages_phase_06_distribution.md) | Bounded binary mirrors, delivery, stable machine manifest adapter | 05 | Not started; opt-in |
+| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | ORM, migration, admin, themes/layout presets, `/projects` and project landing | None | Implemented; see completion evidence |
+| 02 | [Navigation and home selection](project_pages_phase_02_navigation_home.md) | Navbar resolver, Projects dropdown, direct-project links, site homepage | 01 | Implemented; see completion evidence |
+| 03 | [Local documentation](project_pages_phase_03_local_docs.md) | Doc model, local authoring, viewer, safe Markdown routing | 01; merge after 02 | Partially implemented; browser/accessibility gates open |
+| 04 | [Repository documentation sync](project_pages_phase_04_repository_docs.md) | GitHub snapshot ingestion, asset/link handling, sync controls | 03 | Partially implemented; lock/scheduler/image acceptance open |
+| 05 | [Canonical release catalog](project_pages_phase_05_releases.md) | GitHub releases/asset metadata, direct GitHub downloads | 01; merge after 04 | Partially implemented; refresh/UI/API tests remain |
+| 06 | [Optional mirrors and installer interface](project_pages_phase_06_distribution.md) | DevLog-native metadata manifest; bounded binary mirrors deferred | 05 | Manifest-only slice implemented; no installer compatibility claim |
 
 Merge in numeric order to avoid migrations, admin settings, navigation and route-file conflicts. Phase 05 is logically independent of documentation but deliberately scheduled after 04 for predictable ownership. Phase 06 can be deferred indefinitely without weakening the first five phases.
 
@@ -96,4 +97,4 @@ Each phase should be implemented on its own task branch and merge in the order a
 
 ## Completion
 
-**Status:** Not started — planning only. No implementation, migration, live verification, or test run is asserted by this plan.
+**Status:** Phases 01–02 implemented; Phases 03–05 partially implemented; Phase 06 has the DevLog-native manifest slice, while binary mirrors remain deferred. Current checks: focused project/docs/releases/GitHub/migration tests passed (140 passed); migration head, upgrade/downgrade, and fresh-schema checks passed; Ruff passed; frontend build passed. Targeted mypy reported no issues in five selected integration files when `--follow-imports=silent` was used; broader mypy remains affected by existing repository errors. No full test suite or browser E2E was run in this continuation. Detailed gaps and evidence are listed in each phase record. No commit or push was made.

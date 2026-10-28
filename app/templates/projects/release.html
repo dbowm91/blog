@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ release.title }} — {{ project.title }}{% endblock %}
+{% block meta_description %}{{ release.title }} release {{ release.tag_name }} for {{ project.title }}{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}" media="print" onload="this.media='all'">{% endblock %}
+{% block extra_styles_noscript %}<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}">{% endblock %}
+{% block content %}
+<main class="project-release-page" id="main-content">
+  <nav class="project-docs-breadcrumbs" aria-label="Breadcrumb"><a href="{{ url_for('public.project', slug=project.slug) }}">{{ project.title }}</a><span aria-hidden="true">/</span><a href="{{ url_for('public.project_releases', slug=project.slug) }}">Releases</a><span aria-hidden="true">/</span><span aria-current="page">{{ release.tag_name }}</span></nav>
+  <article class="prose">
+    <h1>{{ release.title }}</h1>
+    <p><code>{{ release.tag_name }}</code>{% if release.published_at %} · <time datetime="{{ release.published_at.isoformat() }}">{{ release.published_at.strftime('%Y-%m-%d') }}</time>{% endif %}{% if release.prerelease %} · Prerelease{% endif %}</p>
+    <a href="{{ release.html_url }}" target="_blank" rel="noopener noreferrer">View canonical release on GitHub</a>
+    <h2>Assets</h2>
+    {% if release.assets %}<ul>
+      {% for asset in release.assets %}
+      <li><a href="{{ asset.browser_download_url }}" target="_blank" rel="noopener noreferrer">{{ asset.filename }}</a> · {{ asset.size_bytes }} bytes{% if asset.provider_digest %} · GitHub-reported digest: <code>{{ asset.provider_digest }}</code>{% endif %}</li>
+      {% endfor %}
+    </ul>{% else %}<p>No downloadable assets are listed.</p>{% endif %}
+    {% if release.notes_markdown %}<section class="prose project-release-notes"><h2>Release notes</h2>{{ release.notes_markdown|markdown_safe }}</section>{% endif %}
+    <p class="label-hint">Assets are downloaded directly from GitHub. A listed provider digest has not been independently verified by DevLog.</p>
+  </article>
+</main>
+{% endblock %}

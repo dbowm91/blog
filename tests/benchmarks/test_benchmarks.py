@@ -215,8 +215,8 @@ class TestDatabaseQueryCounts:
                 response = client.get("/")
 
             assert response.status_code == 200
-            assert query_counter.count <= 10, (
-                f"Homepage used {query_counter.count} queries, expected <= 10"
+            assert query_counter.count <= 11, (
+                f"Homepage used {query_counter.count} queries, expected <= 11"
             )
 
 

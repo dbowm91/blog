@@ -1,10 +1,10 @@
 # Project Pages Phase 06 — Opt-in Binary Mirrors and Installer Distribution
 
-> **Plan status: PROPOSED — optional and not implemented.** See [project_pages_roadmap.md](project_pages_roadmap.md).
+> **Plan status: MANIFEST-ONLY; binary mirrors deferred.** See [project_pages_roadmap.md](project_pages_roadmap.md).
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-06
-**Status:** Not started; operator go/no-go required
+**Status:** DevLog-native metadata manifest implemented; mirrors deferred by operator decision
 **Prerequisite:** Phase 05 release metadata implemented and proven stable.
 
 ## Objective
@@ -63,4 +63,10 @@ Do not ship mirroring before streaming delivery, content integrity, safe canonic
 
 ## Completion
 
-**Status:** Not started. This is a conditional future capability, not a promise of current download hosting or installer compatibility.
+**Status:** Manifest-only slice implemented; mirroring remains deferred.
+
+**Operator decision:** Use a DevLog-native manifest only; do not mirror artifacts yet. No supported deployment hosting architecture was selected because mirroring is deferred.
+
+**Implemented:** `GET /projects/<slug>/releases/manifest.json` emits format `devlog-release-manifest`, schema version 1, cached GitHub release metadata, canonical GitHub URLs, optional provider-reported digest, `integrity_status: unverified`, and unknown platform/architecture fields as `null`. The payload explicitly sets `installer_compatibility: null`. It is not eggpack or eggup compatible by assertion.
+
+**Not implemented:** No binary download, mirror storage, streaming verification, platform inference, checksum verification, signature validation, or installer-specific adapter. No protocol fixtures or end-to-end installer tests are available; do not advertise installer compatibility. Reopen the hosting gate before implementing mirrors.

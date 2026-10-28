@@ -308,6 +308,48 @@
                 <p class="form-help">Ctrl-click to select several. Leave empty to use the pages marked "show in menu" on the pages list, ordered by title.</p>
             </div>
 
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="show_projects_in_menu" {% if settings.show_projects_in_menu %}checked{% endif %}>
+                    Show projects in the navigation menu
+                </label>
+                <p class="form-help">Adds a "Projects" entry that links to the project directory and lists the published projects that are not promoted directly.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="projects_menu_label">Projects Menu Label</label>
+                <input type="text" id="projects_menu_label" name="projects_menu_label" class="search-input" maxlength="64" value="{{ settings.projects_menu_label or 'Projects' }}" placeholder="Projects">
+                <p class="form-help">The label of the projects entry in the navigation menu. Plain text, up to 64 characters.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="homepage_kind">Homepage</label>
+                <select id="homepage_kind" name="homepage_kind" class="search-input">
+                    <option value="blog"{% if homepage_kind == 'blog' %} selected{% endif %}>The blog index</option>
+                    <option value="page"{% if homepage_kind == 'page' %} selected{% endif %}>A published page</option>
+                    <option value="project"{% if homepage_kind == 'project' %} selected{% endif %}>A published project</option>
+                </select>
+                <p class="form-help">What the root address renders. The blog stays reachable at /posts in every configuration.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="homepage_target_id">Homepage Target</label>
+                <select id="homepage_target_id" name="homepage_target_id" class="search-input">
+                    <option value="">No target</option>
+                    <optgroup label="Pages">
+                        {% for pg in homepage_pages %}
+                        <option value="{{ pg.id }}"{% if homepage_kind == 'page' and homepage_target_id == pg.id %} selected{% endif %}>{{ pg.title }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Projects">
+                        {% for project in homepage_projects %}
+                        <option value="{{ project.id }}"{% if homepage_kind == 'project' and homepage_target_id == project.id %} selected{% endif %}>{{ project.title }}</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+                <p class="form-help">Only published pages and projects can be selected. Unpublishing or deleting the target returns the homepage to the blog index.</p>
+            </div>
+
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Save Site Settings</button>
             </div>

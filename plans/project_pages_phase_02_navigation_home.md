@@ -1,10 +1,10 @@
 # Project Pages Phase 02 — Unified Navigation and Configurable Homepage
 
-> **Plan status: PROPOSED — not implemented.** See [project_pages_roadmap.md](project_pages_roadmap.md).
+> **Plan status: IMPLEMENTED.** See the completion record below for current verification evidence.
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-02
-**Status:** Not started
+**Status:** Implemented; verification recorded below
 **Prerequisite:** Phase 01 merged.
 
 ## Objective
@@ -64,4 +64,11 @@ If providing site-settings API mutations, give them a specific admin-only scope;
 
 ## Completion
 
-**Status:** Not started. No implementation or verification has been performed.
+**Status:** Implemented.
+
+- Added the backward-compatible `SiteSettings` fields and reversible migration; validated project/page homepage targets on settings writes and reset selected targets to the blog when removed or unpublished.
+- Added the unified navigation projection for ordered page links, promoted projects, and the optional Projects dropdown; linked the public directory independently of its visibility switch. Added keyboard-operable disclosure behavior and mobile styling.
+- Added `/posts` and the root blog/page/project dispatcher, canonical metadata behavior, sitemap handling, breadcrumbs, and admin settings controls. Defaults remain `show_projects_in_menu=false` and `homepage_kind=blog`.
+- Verification: focused project, existing page-navigation, and migration-chain suite: **122 passed**; responsive project-page and keyboard-disclosure browser E2E: **1 passed**; the bounded homepage-query benchmark after its budget update: **1 passed**. The existing page-navigation regression suite is included in the 122 passing tests. `ruff check .` and `ruff format --check .` passed; `npm run build` passed; `docs/openapi.yaml` parsed successfully.
+- Full suite: **4,922 passed, 21 skipped, 74 failed**. One failure was the old homepage query budget (`<=10`) not allowing the new single bounded project-navigation query; the budget is now `<=11` and the isolated benchmark passes. Other failures included macOS `/private` path expectations, nginx config validation, 2FA encryption, task/database fixture issues, and theme/logging tests. The run is not a clean release gate; these failures were not all independently classified as pre-existing.
+- `mypy app/ devlog_cli/` reported **17 errors in 7 unrelated existing files**; it reported no error in the new project route/service code. The project-route typing issue found during implementation was fixed before this run.

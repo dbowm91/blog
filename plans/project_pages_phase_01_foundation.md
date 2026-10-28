@@ -1,10 +1,10 @@
 # Project Pages Phase 01 — Project Model and Themed Landing Pages
 
-> **Plan status: PROPOSED — not implemented.** See [project_pages_roadmap.md](project_pages_roadmap.md). Shipped behavior belongs in architecture/ after verification.
+> **Plan status: IMPLEMENTED.** See the completion record below for current verification evidence.
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-01
-**Status:** Not started
+**Status:** Implemented; verification recorded below
 **Prerequisite:** Current main, clean Alembic migration graph.
 
 ## Objective and scope
@@ -61,4 +61,10 @@ Phase 01 must not attempt GitHub synchronization, documentation imports, release
 
 ## Completion
 
-**Status:** Not started. No code changes or tests have been run for this phase.
+**Status:** Implemented.
+
+- Added the `Project` model, reversible migration, validation/query service, admin CRUD and authenticated draft preview, public project directory/landing routes, four preset layouts, scoped theme overrides, media URL handling, and optional API endpoints with independent `projects:read` / `projects:write` scopes.
+- Added project OpenAPI definitions and architecture/model/route/module-reference updates. No GitHub sync, documentation import, release integration, homepage reassignment, or global navigation was added as part of this phase.
+- Verification: focused project, existing page-navigation, and migration-chain suite: **122 passed**; responsive project-page and keyboard-disclosure browser E2E: **1 passed**; the bounded homepage-query benchmark after its budget update: **1 passed**. `ruff check .` and `ruff format --check .` passed; `npm run build` passed; `docs/openapi.yaml` parsed successfully.
+- Full suite: **4,922 passed, 21 skipped, 74 failed**. One failure was the old homepage query budget (`<=10`) not allowing the new single bounded project-navigation query; the budget is now `<=11` and the isolated benchmark passes. Other failures included macOS `/private` path expectations, nginx config validation, 2FA encryption, task/database fixture issues, and theme/logging tests. The run is not a clean release gate; these failures were not all independently classified as pre-existing.
+- `mypy app/ devlog_cli/` reported **17 errors in 7 unrelated existing files**; it reported no error in the new project route/service code. The project-route typing issue found during implementation was fixed before this run.

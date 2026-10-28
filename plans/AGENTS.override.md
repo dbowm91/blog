@@ -203,20 +203,20 @@ runtime, so no theme file declares them and the gate holds them at 4.5:1.
 Phases 05 and 06 style text at content size: they use these roles and did not
 reintroduce `--text-muted` for content.
 
-### 5. Project Pages, Documentation and Distribution — proposed 2026-10-28
+### 5. Project Pages, Documentation and Distribution — roadmap and current worktree status
 
 Roadmap: [project_pages_roadmap.md](project_pages_roadmap.md).
 
-Origin: repository source review of the current Pages, navigation, themes, Markdown, storage, public/admin/API routes and migration chain. This new series is **planning only**; none of its project-specific features has shipped. GitHub stays canonical for releases; binary mirrors and eggpack/eggup support are separately gated optional work.
+Origin: repository source review of the current Pages, navigation, themes, Markdown, storage, public/admin/API routes and migration chain. Phases 01–02 are implemented; Phases 03–05 are partially implemented in this worktree with open acceptance gates recorded in their plans. GitHub stays canonical for releases; Phase 06 binary mirrors and any eggpack/eggup support remain gated optional work.
 
 | Phase | File | Status |
 |---|---|---|
-| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | **Proposed — not started**; Project ORM/admin, `/projects`, themed layout presets |
-| 02 | [Navigation and home selection](project_pages_phase_02_navigation_home.md) | **Proposed — not started**; configurable Projects menu, direct-link deduplication, Page/Project homepage, `/posts` |
-| 03 | [Local documentation](project_pages_phase_03_local_docs.md) | **Proposed — not started**; document authoring and safe viewer |
-| 04 | [Repository documentation sync](project_pages_phase_04_repository_docs.md) | **Proposed — not started**; bounded GitHub snapshot ingestion |
-| 05 | [Canonical release catalog](project_pages_phase_05_releases.md) | **Proposed — not started**; release metadata and direct GitHub asset links |
-| 06 | [Optional distribution](project_pages_phase_06_distribution.md) | **Proposed — not started, optional**; bounded verified mirrors, installer manifest adapter gated on protocol research |
+| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | **Implemented**; Project ORM/admin, `/projects`, themed layout presets |
+| 02 | [Navigation and home selection](project_pages_phase_02_navigation_home.md) | **Implemented**; configurable Projects menu, direct-link deduplication, Page/Project homepage, `/posts` |
+| 03 | [Local documentation](project_pages_phase_03_local_docs.md) | **Partial**; local authoring/viewer and assets implemented; browser/accessibility gates open |
+| 04 | [Repository documentation sync](project_pages_phase_04_repository_docs.md) | **Partial**; bounded snapshot sync implemented; locking/scheduler/image import gates open |
+| 05 | [Canonical release catalog](project_pages_phase_05_releases.md) | **Partial**; cached metadata and public catalog implemented; operational/API tests remain |
+| 06 | [Optional distribution](project_pages_phase_06_distribution.md) | **Manifest-only**; versioned DevLog JSON is implemented; binary mirrors deferred, no eggpack/eggup claim |
 
 **Order:** 01 → 02 → 03 → 04 → 05 → 06; 05 logically depends on 01 but merges after 04 to preserve a single migration chain. 06 may be deferred indefinitely. Each phase records its own `## Completion` evidence before status changes. Add the shipped architectural outcome to `architecture/` only as phases land.
 

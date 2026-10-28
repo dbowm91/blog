@@ -51,4 +51,8 @@ Do **not** implement GitHub fetching, external docs asset downloading, remote ve
 
 ## Completion
 
-**Status:** Not started. No implementation or verification has been performed.
+**Status:** Partially implemented and focused-tested; browser/responsive acceptance remains open.
+
+**Implemented in this worktree:** DB-backed local documents and image assets; docs disabled by default; path normalization; published-only public routes; shared Markdown renderer and parsed project-relative link/image rewriting; admin create/edit/delete, publish state, nav order, draft preview, image upload/removal, and source settings; viewer breadcrumbs, prev/next, mobile collapsible navigation, TOC hook, and heading-anchor integration. The migration chain round-trip is covered below.
+
+**Validation:** focused project/docs/release/GitHub tests; migration upgrade/downgrade and fresh-schema tests; Ruff and frontend build passed. See the current worktree tests. Browser E2E at 390/768/1280px, keyboard/no-JS behavior, and the complete malicious-path/sanitizer matrix remain unverified. No REST docs API or OpenAPI entries were added.

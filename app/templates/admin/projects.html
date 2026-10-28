@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% from "admin/_breadcrumbs.html" import breadcrumb %}
+
+{% block title %}Projects | Admin{% endblock %}
+
+{% block content %}
+{{ breadcrumb([{ 'label': 'Projects' }]) }}
+<div class="dashboard animate-in">
+    <div class="dashboard-header">
+        <h1>Projects</h1>
+        <a href="{{ url_for('admin.new_project') }}" class="btn btn-primary">New Project</a>
+    </div>
+
+    <div class="post-list post-list--projects">
+        <div class="post-list-header">
+            <span>Title</span>
+            <span>Slug</span>
+            <span>Status</span>
+            <span class="post-list-header-right">Actions</span>
+        </div>
+        {% for project in projects %}
+            <div class="post-list-item">
+                <div class="post-list-info">
+                    <a href="{{ url_for('admin.edit_project', project_id=project.id) }}" class="post-list-title">{{ project.title }}</a>
+                    <p class="post-list-meta">{{ project.landing_style }}{% if project.show_in_nav %} &middot; in the site menu{% endif %}</p>
+                </div>
+                <div class="post-list-slug">
+                    {% if project.published %}
+                        <a href="{{ url_for('public.project', slug=project.slug) }}" target="_blank" rel="noopener"><code>/projects/{{ project.slug }}</code></a>
+                    {% else %}
+                        <code>/projects/{{ project.slug }}</code>
+                    {% endif %}
+                </div>
+                <div class="post-list-status">
+                    {% if project.published %}
+                        <span class="badge badge-published">Published</span>
+                    {% else %}
+                        <span class="badge badge-draft">Draft</span>
+                    {% endif %}
+                </div>
+                <div class="post-list-actions">
+                    <a href="{{ url_for('admin.edit_project', project_id=project.id) }}" class="btn btn-small btn-ghost">Edit</a>
+                    <a href="{{ url_for('admin.preview_project', project_id=project.id) }}" class="btn btn-small btn-ghost" target="_blank" rel="noopener">Preview</a>
+                    <form method="POST" action="{{ url_for('admin.delete_project', project_id=project.id) }}" class="inline-form" data-confirm="Delete project '{{ project.title }}'? This cannot be undone.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <h3>No projects yet</h3>
+                <p>Create a project to give it its own landing page.</p>
+                <a href="{{ url_for('admin.new_project') }}" class="btn btn-primary btn-small">Create your first project</a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

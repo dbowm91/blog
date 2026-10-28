@@ -1,0 +1,143 @@
+{% extends "admin/base.html" %}
+{% block title %}Project documentation | Admin{% endblock %}
+{% block content %}
+<div class="editor-header">
+  <div>
+    <h1>Documentation: {{ project.title }}</h1>
+    <p class="label-hint">Markdown documents are stored locally in the database. No repository is fetched.</p>
+  </div>
+  <a class="btn btn-ghost" href="{{ url_for('admin.edit_project', project_id=project.id) }}">Back to project</a>
+</div>
+
+<section class="admin-section" aria-labelledby="docs-settings-heading">
+  <h2 id="docs-settings-heading">Documentation settings</h2>
+  <form method="post" action="{{ url_for('admin.project_docs_settings', project_id=project.id) }}" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-group form-checkbox">
+      <input id="docs-enabled" type="checkbox" name="docs_enabled" value="1"{% if project.docs_enabled %} checked{% endif %}>
+      <label for="docs-enabled">Enable public documentation</label>
+    </div>
+    <div class="form-group">
+      <label for="docs-source-kind">Documentation source</label>
+      <select id="docs-source-kind" name="docs_source_kind">
+        <option value="local"{% if project.docs_source_kind == 'local' %} selected{% endif %}>Locally authored</option>
+        <option value="github"{% if project.docs_source_kind == 'github' %} selected{% endif %}>Public GitHub snapshot</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="github-owner">GitHub owner</label>
+      <input id="github-owner" name="github_owner" maxlength="39" value="{{ project.github_owner or '' }}">
+    </div>
+    <div class="form-group">
+      <label for="github-repository">GitHub repository</label>
+      <input id="github-repository" name="github_repository" maxlength="100" value="{{ project.github_repository or '' }}">
+    </div>
+    <div class="form-group">
+      <label for="github-docs-ref">Branch or tag (optional)</label>
+      <input id="github-docs-ref" name="github_docs_ref" maxlength="256" value="{{ project.github_docs_ref or '' }}" placeholder="HEAD">
+    </div>
+    <div class="form-group">
+      <label for="github-docs-root">Repository documentation root</label>
+      <input id="github-docs-root" name="github_docs_root" maxlength="512" value="{{ project.github_docs_root or 'docs' }}">
+      <span class="label-hint">Markdown files under this directory and a root README.md are included.</span>
+    </div>
+    <div class="form-group">
+      <label for="docs-home-path">Documentation home path</label>
+      <select id="docs-home-path" name="docs_home_path">
+        <option value="">Automatic (index.md, README.md, then nav order)</option>
+        {% for document in documents if document.published %}
+        <option value="{{ document.path }}"{% if project.docs_home_path == document.path %} selected{% endif %}>{{ document.path }} — {{ document.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary" type="submit">Save settings</button>
+  </form>
+  {% if project.docs_sync_status == 'failed' %}<p class="field-error" role="status">Last sync failed: {{ project.docs_sync_error }}</p>{% endif %}
+  {% if project.docs_sync_status == 'success' %}<p class="label-hint" role="status">Last successful sync: {{ project.docs_synced_at }}{% if project.active_docs_snapshot_id %}; snapshot {{ project.active_docs_snapshot_id }}{% endif %}</p>{% endif %}
+  <form method="post" action="{{ url_for('admin.project_docs_sync', project_id=project.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-ghost" type="submit"{% if not project.github_owner or not project.github_repository %} disabled{% endif %}>Sync GitHub docs now</button>
+  </form>
+</section>
+
+<section class="admin-section" aria-labelledby="docs-list-heading">
+  <div class="editor-header">
+    <h2 id="docs-list-heading">Documents</h2>
+    <a class="btn btn-primary" href="{{ url_for('admin.project_doc_new', project_id=project.id) }}">Add document</a>
+  </div>
+  {% if documents %}
+  <ol class="post-list">
+    {% for document in documents %}
+    <li class="post-list-item">
+      <div class="post-list-main">
+        <strong>{{ document.title }}</strong>
+        <span class="label-hint">{{ document.path }} · order {{ document.nav_order }} · {{ 'Published' if document.published else 'Draft' }}</span>
+      </div>
+      <div class="post-list-actions">
+        <a class="btn btn-small btn-ghost" href="{{ url_for('admin.project_doc_edit', project_id=project.id, document_id=document.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin.project_doc_move', project_id=project.id, document_id=document.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="direction" value="up">
+          <button class="btn btn-small btn-ghost" type="submit" aria-label="Move {{ document.title }} up">↑</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.project_doc_move', project_id=project.id, document_id=document.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="direction" value="down">
+          <button class="btn btn-small btn-ghost" type="submit" aria-label="Move {{ document.title }} down">↓</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.project_doc_delete', project_id=project.id, document_id=document.id) }}" data-confirm="Delete this project document?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-small btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty-state">No documents yet. Add a Markdown document to begin.</p>
+  {% endif %}
+</section>
+
+<section class="admin-section" aria-labelledby="docs-assets-heading">
+  <h2 id="docs-assets-heading">Documentation images</h2>
+  <p class="label-hint">Upload PNG, JPG, GIF, or WebP images up to the configured 5 MiB maximum. Reference an image from Markdown using a relative path such as <code>![Diagram](images/diagram.png)</code>.</p>
+  <form method="post" action="{{ url_for('admin.project_doc_asset_upload', project_id=project.id) }}" enctype="multipart/form-data" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-group">
+      <label for="asset-path">Relative image path</label>
+      <input id="asset-path" name="path" required maxlength="512" placeholder="images/diagram.png">
+    </div>
+    <div class="form-group">
+      <label for="asset-file">Image file</label>
+      <input id="asset-file" name="asset" type="file" accept="image/png,image/jpeg,image/gif,image/webp" required>
+    </div>
+    <button class="btn btn-primary" type="submit">Upload image</button>
+  </form>
+  {% if assets %}
+  <ul class="post-list">
+    {% for asset in assets %}
+    <li class="post-list-item">
+      <span>{{ asset.path }} · {{ asset.file_size }} bytes · {{ asset.content_type }}</span>
+      <form method="post" action="{{ url_for('admin.project_doc_asset_delete', project_id=project.id, asset_id=asset.id) }}" data-confirm="Remove this documentation image?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-small btn-danger" type="submit">Remove</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<section class="admin-section" aria-labelledby="release-settings-heading">
+  <h2 id="release-settings-heading">GitHub release catalog</h2>
+  <p class="label-hint">GitHub remains the canonical release and download source. Visitor requests use only cached metadata.</p>
+  <form method="post" action="{{ url_for('admin.project_releases_settings', project_id=project.id) }}" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-group form-checkbox"><input id="releases-enabled" type="checkbox" name="releases_enabled" value="1"{% if project.releases_enabled %} checked{% endif %}><label for="releases-enabled">Enable public release catalog</label></div>
+    <div class="form-group form-checkbox"><input id="include-prereleases" type="checkbox" name="include_prereleases" value="1"{% if project.releases_include_prereleases %} checked{% endif %}><label for="include-prereleases">Include prereleases</label></div>
+    <button class="btn btn-primary" type="submit">Save release settings</button>
+  </form>
+  {% if project.releases_sync_status == 'failed' %}<p class="field-error" role="status">Last refresh failed: {{ project.releases_sync_error }}</p>{% elif project.releases_sync_status == 'success' %}<p class="label-hint" role="status">Last refreshed: {{ project.releases_synced_at }}</p>{% endif %}
+  <form method="post" action="{{ url_for('admin.project_releases_sync', project_id=project.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-ghost" type="submit"{% if not project.github_owner or not project.github_repository %} disabled{% endif %}>Refresh release metadata</button></form>
+</section>
+{% endblock %}

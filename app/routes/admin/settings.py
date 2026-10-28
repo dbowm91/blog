@@ -14,7 +14,7 @@ from app.config import (  # noqa: F401
     THEME_DEFAULT_SCHEME,
 )
 from app.extensions import db
-from app.models import Page, SiteSettings
+from app.models import Page, Project, SiteSettings
 from app.routes.admin import admin, admin_required
 from app.context_processors import invalidate_footer_cache, invalidate_settings_cache
 from app.appearance.model import CATEGORY_MONO, CATEGORY_SANS, SOURCE_CUSTOM
@@ -26,7 +26,11 @@ from app.services.appearance_settings import (
     resolve_font_key,
     validate_appearance_settings,
 )
-from app.services.site_settings import parse_menu_pages, validate_site_settings
+from app.services.site_settings import (
+    SiteSettingsValidationError,
+    parse_menu_pages,
+    validate_site_settings,
+)
 from app.storage import get_storage
 from app.themes.registry import (
     ThemeValidationError,
@@ -75,6 +79,21 @@ def settings() -> ResponseReturnValue:
 
     menu_choices = db.session.execute(select(Page).order_by(Page.title)).scalars().all()
 
+    homepage_pages = (
+        db.session.execute(select(Page).filter(Page.published.is_(True)).order_by(Page.title))
+        .scalars()
+        .all()
+    )
+    homepage_projects = (
+        db.session.execute(
+            select(Project)
+            .filter(Project.published.is_(True))
+            .order_by(Project.sort_order.asc(), Project.title.asc())
+        )
+        .scalars()
+        .all()
+    )
+
     appearance_service = get_appearance_service()
     font_registry = appearance_service.get_font_registry()
     backdrop_registry = appearance_service.get_backdrop_registry()
@@ -94,6 +113,10 @@ def settings() -> ResponseReturnValue:
         external_themes=external_themes,
         menu_choices=menu_choices,
         menu_pages_selected=parse_menu_pages(settings_obj.menu_pages),
+        homepage_pages=homepage_pages,
+        homepage_projects=homepage_projects,
+        homepage_kind=settings_obj.homepage_kind or "blog",
+        homepage_target_id=settings_obj.homepage_target_id,
         bundled_sans_fonts=[f for f in sans_families if f.source != SOURCE_CUSTOM],
         custom_sans_fonts=[f for f in sans_families if f.source == SOURCE_CUSTOM],
         bundled_mono_fonts=[f for f in mono_families if f.source != SOURCE_CUSTOM],
@@ -276,7 +299,8 @@ def settings_site() -> ResponseReturnValue:
 
     Methods: POST
     POST: Updates the comments switch, the footer text, the two footer column
-    switches and the page menu. Validation is owned by
+    switches, the page menu, the projects menu and the homepage selection.
+    Validation is owned by
     `app.services.site_settings.validate_site_settings`.
     Requires: Admin authentication.
     Form params:
@@ -286,8 +310,18 @@ def settings_site() -> ResponseReturnValue:
         footer_show_tags: Checkbox — show the "Browse by tag" column
         show_pages_in_menu: Checkbox — show the pages menu
         menu_pages: JSON array of page ids, in menu order
+        show_projects_in_menu: Checkbox — show the projects menu
+        projects_menu_label: Label of the projects menu entry
+        homepage_kind: blog, page or project
+        homepage_target_id: Id of the selected page or project
     """
-    payload = validate_site_settings(request.form)
+    try:
+        payload = validate_site_settings(request.form)
+    except SiteSettingsValidationError as exc:
+        for message in exc.messages:
+            flash(message, "error")
+        return redirect(url_for("admin.settings"))
+
     settings_obj = SiteSettings.get_instance()
 
     settings_obj.comments_enabled = payload.comments_enabled
@@ -296,6 +330,10 @@ def settings_site() -> ResponseReturnValue:
     settings_obj.footer_show_tags = payload.footer_show_tags
     settings_obj.show_pages_in_menu = payload.show_pages_in_menu
     settings_obj.menu_pages = payload.menu_pages
+    settings_obj.show_projects_in_menu = payload.show_projects_in_menu
+    settings_obj.projects_menu_label = payload.projects_menu_label
+    settings_obj.homepage_kind = payload.homepage_kind
+    settings_obj.homepage_target_id = payload.homepage_target_id
 
     try:
         db.session.commit()

@@ -59,6 +59,16 @@ def page_summary(body: str, limit: int = SUMMARY_CHAR_LIMIT) -> str:
     return text[:limit].rsplit(" ", 1)[0].rstrip() + "…"
 
 
+def render_page(page: Any, is_homepage: bool = False) -> ResponseReturnValue:
+    """Render an ordinary page.
+
+    The renderer is shared by the page route and by the homepage dispatcher,
+    so a page that is the homepage is rendered exactly like a page that is
+    not. The flag only changes the breadcrumb.
+    """
+    return render_template("page.html", page=page, is_homepage=is_homepage)
+
+
 def register_page_routes(public: Any) -> None:
     """Register the public page index route on the Blueprint.
 

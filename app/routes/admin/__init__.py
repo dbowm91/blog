@@ -161,6 +161,15 @@ from app.routes.admin.analytics import analytics  # noqa: E402, F401
 from app.routes.admin.newsletter import newsletter_test, newsletter_preview  # noqa: E402, F401
 from app.routes.admin.settings import settings, settings_theme, settings_appearance  # noqa: E402, F401
 from app.routes.admin.pages import pages_list, new_page, edit_page, delete_page  # noqa: E402, F401
+from app.routes.admin import project_docs  # noqa: E402, F401
+from app.routes.admin.projects import (  # noqa: E402, F401
+    projects_list,
+    new_project,
+    edit_project,
+    delete_project,
+    preview_project,
+    set_project_published,
+)
 from app.routes.admin.series import (  # noqa: E402, F401
     series_list,
     series_new,

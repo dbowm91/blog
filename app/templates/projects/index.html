@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Projects | {{ site_title }}{% endblock %}
+{% block meta_description %}Every project published on {{ site_title }}.{% endblock %}
+{% block og_title %}Projects | {{ site_title }}{% endblock %}
+{% block og_description %}Every project published on {{ site_title }}.{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}" media="print" onload="this.media='all'">
+{% endblock %}
+
+{% block extra_styles_noscript %}
+<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}">
+{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ url_for('public.index') }}">Home</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current">Projects</span>
+</nav>
+
+<h1 class="projects-index-heading">Projects</h1>
+
+{% if projects %}
+<ul class="projects-index-list">
+    {% for entry in projects %}
+    <li class="projects-index-item">
+        <h2 class="projects-index-title">
+            <a href="{{ url_for('public.project', slug=entry.slug) }}">{{ entry.title }}</a>
+        </h2>
+        {% if entry.summary %}
+        <p class="projects-index-summary">{{ entry.summary }}</p>
+        {% endif %}
+        {% if entry.repo_url %}
+        <a class="projects-index-repo" href="{{ entry.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">View repository</a>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="projects-index-empty">No projects have been published yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }} — {{ project.title }}{% endblock %}
+{% block meta_description %}{{ document.title }} — {{ project.title }} documentation{% endblock %}
+{% block og_title %}{{ document.title }} — {{ project.title }}{% endblock %}
+{% block og_description %}{{ document.title }} — {{ project.title }} documentation{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}" media="print" onload="this.media='all'">{% endblock %}
+{% block extra_styles_noscript %}<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}">{% endblock %}
+{% block content %}
+<main class="project-docs-layout" id="main-content">
+  <aside class="project-docs-rail" aria-label="Documentation navigation">
+    {% if not preview %}
+    <details class="project-docs-nav" open>
+      <summary>Documentation pages</summary>
+      <nav aria-label="Project documentation pages">
+        <ol>
+          {% for item in documents %}
+          <li class="project-docs-nav-item{% if item.id == document.id %} is-current{% endif %}" data-depth="{{ item.path.count('/') }}">
+            <a href="{{ url_for('public.project_doc', slug=project.slug, doc_path=item.path) }}"{% if item.id == document.id %} aria-current="page"{% endif %}>{{ item.nav_title or item.title }}</a>
+          </li>
+          {% endfor %}
+        </ol>
+      </nav>
+    </details>
+    {% endif %}
+    <div class="post-toc-container project-docs-toc-container" style="display:none"></div>
+  </aside>
+  <div class="project-docs-main">
+    <nav class="project-docs-breadcrumbs" aria-label="Breadcrumb">
+      <a href="{{ url_for('public.project', slug=project.slug) }}">{{ project.title }}</a>
+      <span aria-hidden="true">/</span>
+      <a href="{{ url_for('public.project_docs_home', slug=project.slug) }}">Documentation</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{{ document.title }}</span>
+      {% if preview %}<strong class="project-docs-preview-label">Draft preview</strong>{% endif %}
+    </nav>
+    <article class="prose project-docs-article">
+      <h1>{{ document.title }}</h1>
+      {{ rendered_body|safe }}
+    </article>
+    {% if not preview %}
+    <nav class="project-docs-pager" aria-label="Document sequence">
+      {% if document_index is not none and document_index > 0 %}
+      {% set previous_document = documents[document_index - 1] %}
+      <a rel="prev" href="{{ url_for('public.project_doc', slug=project.slug, doc_path=previous_document.path) }}">← {{ previous_document.nav_title or previous_document.title }}</a>
+      {% else %}<span></span>{% endif %}
+      {% if document_index is not none and document_index + 1 < documents|length %}
+      {% set next_document = documents[document_index + 1] %}
+      <a rel="next" href="{{ url_for('public.project_doc', slug=project.slug, doc_path=next_document.path) }}">{{ next_document.nav_title or next_document.title }} →</a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

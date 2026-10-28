@@ -5,6 +5,8 @@ __all__ = [
     "invalidate_footer_cache",
     "get_site_settings",
     "resolve_page_menu",
+    "resolve_navigation",
+    "resolve_canonical_path",
 ]
 
 import logging
@@ -27,7 +29,11 @@ from app.config import (
     BASE_URL,
 )
 from app.csrf import generate_csrf_token, CSRF_HEADER_NAME
-from app.services.site_settings import invalidate_site_settings_cache, read_site_settings
+from app.services.site_settings import (
+    invalidate_site_settings_cache,
+    read_site_settings,
+    resolve_homepage_target,
+)
 from app.tag_cache import _get_tag_counts
 
 logger = logging.getLogger(__name__)
@@ -118,6 +124,38 @@ def resolve_page_menu() -> list[Any]:
     except Exception:
         logger.exception("Failed to resolve the page menu")
         return []
+
+
+def resolve_navigation() -> Any:
+    """The resolved public navigation model."""
+    from app.services.navigation import resolve_navigation_safely
+
+    return resolve_navigation_safely()
+
+
+def resolve_canonical_path(path: str, view_args: dict[str, Any] | None = None) -> str:
+    """Return the canonical path of the current request.
+
+    The root is canonical for whatever the homepage renders. When the blog
+    is the homepage, ``/posts`` declares ``/`` as its canonical URL. When a
+    page or a project is the homepage, that target's own route declares ``/``
+    as well, so the two addresses never compete.
+    """
+    if path == "/":
+        return "/"
+
+    if path == "/posts":
+        return "/" if resolve_homepage_target().is_blog else path
+
+    if path.startswith("/page/") or path.startswith("/projects/"):
+        target = resolve_homepage_target()
+        if target.is_blog:
+            return path
+        slug = (view_args or {}).get("slug")
+        if slug and target.slug == slug:
+            return "/"
+
+    return path
 
 
 def _get_settings_cache_key() -> str:
@@ -221,7 +259,8 @@ def register_context_processors(app: Any) -> None:
             "author_avatar": AUTHOR_AVATAR,
             "base_url": BASE_URL,
             "current_year": datetime.now().year,
-            "canonical_url": BASE_URL.rstrip("/") + request.path,
+            "canonical_url": BASE_URL.rstrip("/")
+            + resolve_canonical_path(request.path, request.view_args),
         }
 
     @app.context_processor
@@ -286,3 +325,10 @@ def register_context_processors(app: Any) -> None:
         if path.startswith("/admin") or path.startswith("/api"):
             return {"page_menu": []}
         return {"page_menu": resolve_page_menu()}
+
+    @app.context_processor
+    def inject_navigation() -> dict[str, Any]:
+        path = request.path if request else ""
+        if path.startswith("/admin") or path.startswith("/api"):
+            return {"navigation": None}
+        return {"navigation": resolve_navigation()}

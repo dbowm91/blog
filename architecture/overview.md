@@ -24,7 +24,7 @@ Every deep-dive link in this file is relative and resolves from `architecture/`.
 |---|--------|----------------|-----------|
 | 1 | [Core Application](#1-core-application) | App factory, extensions, filters, context processors | [core/app-factory.md](core/app-factory.md) |
 | 2 | [Configuration](#2-configuration) | Typed config dataclasses, loader, validation, provenance | [core/configuration.md](core/configuration.md) |
-| 3 | [Data Models](#3-data-models) | 17 SQLAlchemy models and their relationships | [core/models.md](core/models.md) |
+| 3 | [Data Models](#3-data-models) | 23 SQLAlchemy models and their relationships | [core/models.md](core/models.md), [core/project-pages.md](core/project-pages.md) |
 | 4 | [Filesystem Layout](#4-filesystem-layout) | Path resolution, install modes, legacy migration | [core/filesystem.md](core/filesystem.md) |
 | 5 | [Onboarding](#5-onboarding) | First-run configuration, secrets, admin bootstrap | [core/onboarding.md](core/onboarding.md) |
 | 6 | [Theme System](#6-theme-system) | Halloy TOML themes → typed tokens → CSS variables | [core/themes.md](core/themes.md) |
@@ -89,7 +89,7 @@ Every deep-dive link in this file is relative and resolves from `architecture/`.
 │                        SQLite (WAL) / PostgreSQL                             │
 │                                                                              │
 │  Tables: users, posts, tags, subscribers, page_views, share_events,           │
-│          admin_sessions, site_settings, pages, post_revisions,                │
+│          admin_sessions, site_settings, pages, projects, post_revisions,      │
 │          webhooks, webhook_events, series, post_series, comments,             │
 │          admin_audit_logs, api_tokens                                         │
 │                                                                              │
@@ -192,7 +192,7 @@ Configuration is centralized in `config.toml` with environment variable override
 
 ## 3. Data Models
 
-**Source:** `app/models.py` — exactly 17 models
+**Source:** `app/models.py` — exactly 23 models
 
 | Model | Purpose |
 |-------|---------|

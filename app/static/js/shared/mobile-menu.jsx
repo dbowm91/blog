@@ -30,6 +30,10 @@ export function initMobileMenu() {
             backdrop.classList.toggle('open', isOpen);
             mobileMenuToggle.setAttribute('aria-expanded', isOpen.toString());
             mobileMenuToggle.setAttribute('aria-label', isOpen ? 'Close navigation menu' : 'Open navigation menu');
+            if (!isOpen) {
+                // Any open dropdown inside the panel has to close with it.
+                document.dispatchEvent(new CustomEvent('devlog:nav-closed'));
+            }
         };
 
         mobileMenuToggle.addEventListener('click', () => {

@@ -1,10 +1,10 @@
 # Project Pages Phase 05 — GitHub-Canonical Release Catalog
 
-> **Plan status: PROPOSED — not implemented.** See [project_pages_roadmap.md](project_pages_roadmap.md).
+> **Plan status: PARTIALLY IMPLEMENTED.** See [project_pages_roadmap.md](project_pages_roadmap.md).
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-05
-**Status:** Not started
+**Status:** Partially implemented in this worktree
 **Prerequisite:** Phase 01; merge after Phase 04 to keep migrations linear.
 
 ## Objective
@@ -54,4 +54,8 @@ No downloading or uploading release assets into the blog, server-side binary pro
 
 ## Completion
 
-**Status:** Not started. No implementation or verification has been performed.
+**Status:** Partially implemented; acceptance is not complete.
+
+**Implemented:** Reversible `ProjectRelease` / `ProjectReleaseAsset` schema; disabled-by-default public catalog; bounded three-page metadata sync using the restricted GitHub client and ETags; drafts excluded, optional prereleases; only HTTPS `github.com` release and asset URLs retained; sanitized Markdown release notes; admin enable/refresh/status; public cached-only catalog and details; GitHub download links are labeled canonical; provider digests are not described as independently verified. Focused sync/publication and migration tests pass.
+
+**Not yet complete:** No periodic reconciliation or explicit stale-but-usable UI; no release API/OpenAPI surface; no admin auth/CSRF regression matrix or rendered XSS browser test; no confidently parsed platform/architecture metadata; manual sync shares repository identity settings with docs. No binaries are mirrored and no installer manifest is emitted.

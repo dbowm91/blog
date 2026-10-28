@@ -23,6 +23,8 @@ admin/
 ├── newsletter.py        # Newsletter preview/test
 ├── settings.py          # Theme, custom CSS
 ├── pages.py             # Static page management
+├── projects.py          # Project management and draft preview
+├── project_docs.py      # Local docs, image assets, GitHub docs sync and release refresh
 ├── series.py            # Post series management
 ├── audit.py             # Audit log viewer
 ├── comments.py          # Comment moderation
@@ -274,6 +276,19 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `GET/POST /admin/pages/edit/<int:page_id>`
 - **Route**: `POST /admin/pages/delete/<int:page_id>`
 - **Purpose**: Create and manage static pages
+
+## Project Management (`projects.py`)
+
+- **Routes**: `GET /admin/projects`, `GET/POST /admin/projects/new`, `GET/POST /admin/projects/edit/<id>`, `POST /admin/projects/delete/<id>`
+- **Draft preview**: `GET /admin/projects/preview/<id>` is authenticated
+- **Purpose**: Manage project metadata, Markdown content, media, layout, and scoped theme choices
+
+## Project Documentation and Releases (`project_docs.py`)
+
+- **Routes**: Admin project docs page, local document create/edit/delete/preview, project asset upload/removal, docs source settings and manual GitHub snapshot sync, release catalog settings and metadata refresh
+- **Protection**: Admin-only handlers; POSTs receive global CSRF checks
+- **Purpose**: Manage local docs and cached public GitHub metadata; sync runs only from explicit admin actions
+- **Limits**: Release binaries remain on GitHub; no mirror or installer manifest is provided
 
 ## Series Management (`series.py`)
 

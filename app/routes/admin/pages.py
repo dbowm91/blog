@@ -10,6 +10,7 @@ from app.models import Page
 from app.routes.admin import admin, admin_required
 from app.routes.admin.helpers import _generate_unique_slug
 from app.services.navigation import get_menu_settings, resolve_page_menu
+from app.services.site_settings import HOME_KIND_PAGE, reset_homepage_target_if_needed
 from app.utils import generate_slug
 
 
@@ -178,6 +179,9 @@ def edit_page(page_id) -> ResponseReturnValue:
     page.published = published
     page.show_in_menu = show_in_menu
 
+    if not published:
+        reset_homepage_target_if_needed(HOME_KIND_PAGE, page_id)
+
     try:
         db.session.commit()
     except IntegrityError:
@@ -217,6 +221,7 @@ def delete_page(page_id) -> ResponseReturnValue:
         abort(404)
 
     title = page.title
+    reset_homepage_target_if_needed(HOME_KIND_PAGE, page_id)
     db.session.delete(page)
     try:
         db.session.commit()

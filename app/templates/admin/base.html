@@ -73,10 +73,11 @@
                     <a href="{{ url_for('admin.analytics') }}" {% if request.endpoint == 'admin.analytics' %}aria-current="page" class="active"{% endif %}><span class="nav-link-text">Analytics</span></a>
                     <span class="nav-separator" aria-hidden="true"></span>
                     <div class="nav-dropdown">
-                        <button class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true">More <span aria-hidden="true">▾</span></button>
-                        <div class="nav-dropdown-menu" role="menu">
+                        <button class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="admin-nav-more-menu">More <span aria-hidden="true">▾</span></button>
+                        <div class="nav-dropdown-menu" id="admin-nav-more-menu" role="menu">
                             <a href="{{ url_for('admin.subscribers') }}" {% if request.endpoint == 'admin.subscribers' %}aria-current="page" class="active"{% endif %} role="menuitem">Subscribers</a>
                             <a href="{{ url_for('admin.pages_list') }}" {% if request.endpoint and request.endpoint.startswith('admin.pages') %}aria-current="page" class="active"{% endif %} role="menuitem">Pages</a>
+                            <a href="{{ url_for('admin.projects_list') }}" {% if request.endpoint and request.endpoint.startswith('admin.projects') %}aria-current="page" class="active"{% endif %} role="menuitem">Projects</a>
                             <a href="{{ url_for('admin.media') }}" {% if request.endpoint == 'admin.media' %}aria-current="page" class="active"{% endif %} role="menuitem">Media</a>
                             <a href="{{ url_for('admin.tags_list') }}" {% if request.endpoint == 'admin.tags_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Tags</a>
                             <a href="{{ url_for('admin.users_list') }}" {% if request.endpoint == 'admin.users_list' %}aria-current="page" class="active"{% endif %} role="menuitem">Users</a>

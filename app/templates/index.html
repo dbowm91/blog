@@ -52,7 +52,7 @@
             {% endfor %}
 
             {% from "macros.html" import pagination as paginate_macro %}
-            {{ paginate_macro(pagination, 'public.index') }}
+            {{ paginate_macro(pagination, pagination_endpoint | default('public.index', true)) }}
         </section>
 
         {% include "_sidebar.html" %}

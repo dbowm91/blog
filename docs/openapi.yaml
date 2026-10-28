@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: DevLog REST API
   description: |
-    REST API for Post, Page, Tag, Series, and Subscriber Management.
+    REST API for Post, Page, Project, Tag, Series, and Subscriber Management.
 
     ## Authentication
     All endpoints (except `/api/track-share`) require API key authentication.
@@ -593,6 +593,293 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Page not found"
+
+  /api/projects:
+    get:
+      summary: List projects
+      description: |
+        Retrieve all projects, optionally filtered by published status.
+
+        Projects are administered with their own `projects:*` scopes. The
+        `pages:*` scopes never grant access to a project.
+      operationId: listProjects
+      tags:
+        - Projects
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: published
+          in: query
+          description: Filter by published status
+          schema:
+            type: string
+            enum: [true, false, yes, no, 1, 0]
+      responses:
+        "200":
+          description: Project list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+              example:
+                projects:
+                  - id: 1
+                    title: "DevLog"
+                    slug: "devlog"
+                    summary: "A static blog engine"
+                    body: "DevLog in Markdown"
+                    published: true
+                    sort_order: 0
+                    repo_url: "https://github.com/owner/devlog"
+                    landing_style: "product"
+                    theme_dark_name: null
+                    theme_light_name: null
+                    show_in_nav: false
+                    nav_label: null
+                    hero_image: null
+                    hero_image_alt: null
+                    screenshots: []
+                    created_at: "2026-10-28T10:30:00Z"
+                    updated_at: "2026-10-28T10:30:00Z"
+                total: 1
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the projects:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+    post:
+      summary: Create a project
+      description: |
+        Create a new project. The slug is generated from the title when it is
+        not supplied. The repository URL, when present, must be an https link
+        without credentials or a fragment.
+      operationId: createProject
+      tags:
+        - Projects
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreateRequest"
+      responses:
+        "201":
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid request body or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "The title is required."
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the projects:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "409":
+          description: Duplicate slug or database constraint violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Duplicate slug or database constraint violation"
+
+  /api/projects/{project_id}:
+    get:
+      summary: Get a project
+      description: Retrieve a single project by its ID.
+      operationId: getProject
+      tags:
+        - Projects
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the projects:read scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Project not found"
+    put:
+      summary: Update a project
+      description: Update an existing project. Only the supplied fields are changed.
+      operationId: updateProject
+      tags:
+        - Projects
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdateRequest"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "The title is required."
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the projects:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Project not found"
+        "409":
+          description: Duplicate slug or database constraint violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Duplicate slug or database constraint violation"
+    delete:
+      summary: Delete a project
+      description: Delete a project.
+      operationId: deleteProject
+      tags:
+        - Projects
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Project 'DevLog' deleted successfully"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid API key"
+        "403":
+          description: Token lacks the projects:write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Missing required scope"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Project not found"
 
   /api/series:
     get:
@@ -1909,6 +2196,206 @@ components:
           description: Total number of pages
       required:
         - pages
+        - total
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Project ID
+          readOnly: true
+        title:
+          type: string
+          description: Project title
+        slug:
+          type: string
+          description: URL-friendly slug
+        summary:
+          type: string
+          description: Short plain text shown on the project directory card
+        body:
+          type: string
+          description: Project content (markdown)
+        published:
+          type: boolean
+          description: Publication status
+        sort_order:
+          type: integer
+          description: Position in the project directory
+        repo_url:
+          type: string
+          nullable: true
+          description: Optional https repository link
+        landing_style:
+          type: string
+          description: Preset landing layout
+          enum: [product, documentation, minimal, terminal]
+        theme_dark_name:
+          type: string
+          nullable: true
+          description: Registry theme name scoped to the dark scheme of this project
+        theme_light_name:
+          type: string
+          nullable: true
+          description: Registry theme name scoped to the light scheme of this project
+        show_in_nav:
+          type: boolean
+          description: Whether the project is promoted into the site menu
+        nav_label:
+          type: string
+          nullable: true
+          description: Optional menu label
+        hero_image:
+          type: string
+          nullable: true
+          description: Media key of the hero image
+        hero_image_alt:
+          type: string
+          nullable: true
+          description: Description of the hero image
+        screenshots:
+          type: array
+          items:
+            type: string
+          description: Media keys of the project screenshots
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Creation timestamp (ISO 8601)
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last update timestamp (ISO 8601)
+          readOnly: true
+      required:
+        - id
+        - title
+        - slug
+        - body
+        - published
+
+    ProjectCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Project title (required, max 200 characters)
+        slug:
+          type: string
+          description: URL slug; generated from the title when omitted
+        summary:
+          type: string
+          description: Short plain text for the directory card (max 500 characters)
+        body:
+          type: string
+          description: Project content (markdown)
+        published:
+          type: boolean
+          description: Publication status (default false)
+        sort_order:
+          type: integer
+          description: Position in the project directory (default 0)
+        repo_url:
+          type: string
+          description: Optional https repository link without credentials or fragment
+        landing_style:
+          type: string
+          description: Preset landing layout
+          enum: [product, documentation, minimal, terminal]
+        theme_dark_name:
+          type: string
+          description: Optional registry theme name for the dark scheme
+        theme_light_name:
+          type: string
+          description: Optional registry theme name for the light scheme
+        show_in_nav:
+          type: boolean
+          description: Promote the project into the site menu (default false)
+        nav_label:
+          type: string
+          description: Optional menu label (max 120 characters)
+        hero_image:
+          type: string
+          description: Media key of the hero image
+        hero_image_alt:
+          type: string
+          description: Description of the hero image (max 256 characters)
+        screenshots:
+          type: array
+          items:
+            type: string
+          description: Media keys of the project screenshots (at most six)
+      required:
+        - title
+
+    ProjectUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Project title (max 200 characters)
+        slug:
+          type: string
+          description: URL slug
+        summary:
+          type: string
+          description: Short plain text for the directory card (max 500 characters)
+        body:
+          type: string
+          description: Project content (markdown)
+        published:
+          type: boolean
+          description: Publication status
+        sort_order:
+          type: integer
+          description: Position in the project directory
+        repo_url:
+          type: string
+          description: Optional https repository link without credentials or fragment
+        landing_style:
+          type: string
+          description: Preset landing layout
+          enum: [product, documentation, minimal, terminal]
+        theme_dark_name:
+          type: string
+          description: Optional registry theme name for the dark scheme
+        theme_light_name:
+          type: string
+          description: Optional registry theme name for the light scheme
+        show_in_nav:
+          type: boolean
+          description: Promote the project into the site menu
+        nav_label:
+          type: string
+          description: Optional menu label (max 120 characters)
+        hero_image:
+          type: string
+          description: Media key of the hero image
+        hero_image_alt:
+          type: string
+          description: Description of the hero image (max 256 characters)
+        screenshots:
+          type: array
+          items:
+            type: string
+          description: Media keys of the project screenshots (at most six)
+
+    ProjectListResponse:
+      type: object
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        total:
+          type: integer
+          description: Total number of projects
+      required:
+        - projects
         - total
 
     Series:

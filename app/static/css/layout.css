@@ -204,6 +204,25 @@
     transform: translateY(0);
 }
 
+/* The Projects entry is a link with a separate disclosure button, so the
+   project directory stays reachable without the dropdown. The button only
+   carries the caret, so it needs its own hit area. */
+.nav-dropdown-projects {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.nav-dropdown-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    line-height: 1;
+    min-height: 44px;
+    min-width: 44px;
+}
+
 .nav-shortcut-btn {
     background: var(--bg-elevated);
     border: 1px solid var(--border);
@@ -535,5 +554,22 @@
 
     .nav-dropdown.open .nav-dropdown-menu {
         display: block;
+    }
+
+    /* In the menu panel the Projects entry becomes a row of its own: the
+       label fills the row and the disclosure button sits at its right edge,
+       so nothing overflows the panel at 390px. */
+    .nav-dropdown-projects {
+        display: block;
+    }
+
+    .nav-dropdown-projects > a {
+        padding-right: 48px;
+    }
+
+    .nav-dropdown-projects .nav-dropdown-toggle {
+        position: absolute;
+        top: 0;
+        right: 8px;
     }
 }

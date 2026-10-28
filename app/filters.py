@@ -6,6 +6,15 @@ from flask import Flask, g, has_request_context
 from app.markdown_renderer import render_markdown
 
 
+def get_media_url(key: Any) -> str | None:
+    if not key or not isinstance(key, str):
+        return None
+    from app.storage import get_storage
+
+    storage = get_storage()
+    return storage.url(key) if storage.exists(key) else None
+
+
 def register_filters(app: Flask) -> None:
     @app.template_filter("markdown_safe")
     def markdown_safe_filter(text: str) -> str:
@@ -80,3 +89,8 @@ def register_filters(app: Flask) -> None:
         if not post or not post.image:
             return None
         return None
+
+    @app.template_filter("media_url")
+    def media_url_filter(key: Any) -> str | None:
+        """Return the URL of stored media through the storage backend."""
+        return get_media_url(key)

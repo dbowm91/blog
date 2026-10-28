@@ -1199,6 +1199,7 @@
 .post-list--with-metrics { --post-list-cols: minmax(0, 1fr) max-content max-content; }
 .post-list--posts { --post-list-cols: max-content minmax(0, 1fr) max-content max-content; }
 .post-list--pages { --post-list-cols: minmax(0, 1fr) max-content max-content max-content; }
+.post-list--projects { --post-list-cols: minmax(0, 1fr) max-content max-content max-content; }
 
 .post-list > * {
     grid-column: 1 / -1;

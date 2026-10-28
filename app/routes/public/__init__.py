@@ -15,6 +15,9 @@ from app.routes.public.subscribe import register_subscribe_routes  # noqa: E402,
 from app.routes.public.meta import register_meta_routes  # noqa: E402, F401
 from app.routes.public.authors import register_author_routes  # noqa: E402, F401
 from app.routes.public.pages import register_page_routes  # noqa: E402, F401
+from app.routes.public.projects import register_project_routes  # noqa: E402, F401
+from app.routes.public.project_docs import register_project_docs_routes  # noqa: E402, F401
+from app.routes.public.project_releases import register_project_release_routes  # noqa: E402, F401
 from app.routes.public.auth import register_auth_routes  # noqa: E402, F401
 from app.routes.public import comments  # noqa: E401, E402, F401
 
@@ -25,6 +28,9 @@ register_subscribe_routes(public)
 register_meta_routes(public)
 register_author_routes(public)
 register_page_routes(public)
+register_project_routes(public)
+register_project_docs_routes(public)
+register_project_release_routes(public)
 register_auth_routes(public)
 
 # For backwards compatibility - export helper functions used by other modules

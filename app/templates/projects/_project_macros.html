@@ -1,0 +1,32 @@
+{% macro project_links(project) %}
+    {% if project.repo_url or project.docs_enabled or project.releases_enabled %}
+    <p class="project-links">
+        {% if project.repo_url %}<a class="btn btn-primary" href="{{ project.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">View repository</a>{% endif %}
+        {% if project.docs_enabled %}<a class="btn btn-ghost" href="{{ url_for('public.project_docs_home', slug=project.slug) }}">Documentation</a>{% endif %}
+        {% if project.releases_enabled %}<a class="btn btn-ghost" href="{{ url_for('public.project_releases', slug=project.slug) }}">Releases</a>{% endif %}
+    </p>
+    {% endif %}
+{% endmacro %}
+
+{% macro project_hero(project) %}
+    {% set hero_url = project.hero_image | media_url %}
+    {% if hero_url %}
+    <img class="project-hero-image" src="{{ hero_url }}" alt="{{ project.hero_image_alt | default(project.title, true) | escape }}" loading="lazy">
+    {% endif %}
+{% endmacro %}
+
+{% macro project_screenshots(project) %}
+    {% set shots = project.screenshot_keys %}
+    {% if shots %}
+    <ul class="project-screenshots">
+        {% for key in shots %}
+        {% set shot_url = key | media_url %}
+        {% if shot_url %}
+        <li class="project-screenshot">
+            <img src="{{ shot_url }}" alt="{{ project.title | escape }} screenshot {{ loop.index }}" loading="lazy">
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+    {% endif %}
+{% endmacro %}
