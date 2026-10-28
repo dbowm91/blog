@@ -72,13 +72,13 @@ def build_config_from_input(inp: OnboardingInput, *, data_dir: Path | None = Non
         host = inp.bind_host
 
     db_uri = ""
-    if inp.mode == "docker":
-        db_uri = "sqlite:///data/blog.db"
-    elif data_dir is not None:
-        db_path = data_dir / "blog.db"
+    if data_dir is not None:
+        db_path = data_dir / "devlog.sqlite3"
         db_uri = f"sqlite:///{db_path.resolve()}"
+    elif inp.mode == "docker":
+        db_uri = "sqlite:////data/devlog.sqlite3"
     else:
-        db_path = Path("data") / "blog.db"
+        db_path = Path("data") / "devlog.sqlite3"
         db_uri = f"sqlite:///{db_path.resolve()}"
 
     redis_url = "redis://localhost:6379/0"

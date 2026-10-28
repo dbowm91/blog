@@ -21,7 +21,7 @@ class TestBuildConfigFromInput:
         assert config.server.debug is False
         assert config.flask_env == "production"
         assert config.session_cookie_secure is True
-        assert config.database.uri == "sqlite:///data/blog.db"
+        assert config.database.uri == "sqlite:////data/devlog.sqlite3"
 
     def test_native_production(self):
         inp = OnboardingInput(mode="native", profile="native-production")
@@ -161,14 +161,14 @@ class TestBuildConfigFromInput:
         inp = OnboardingInput(mode="docker", profile="development")
         config = build_config_from_input(inp)
 
-        assert config.database.uri == "sqlite:///data/blog.db"
+        assert config.database.uri == "sqlite:////data/devlog.sqlite3"
 
     def test_native_mode_db_uri(self):
         inp = OnboardingInput(mode="native", profile="development")
         config = build_config_from_input(inp)
 
         assert "sqlite:///" in config.database.uri
-        assert "blog.db" in config.database.uri
+        assert "devlog.sqlite3" in config.database.uri
 
 
 class TestOnboardingInputDefaults:

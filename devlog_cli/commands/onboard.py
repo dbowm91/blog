@@ -22,11 +22,9 @@ def _read_password_from_file(path: str) -> str:
 def _handle_onboard_detect(ctx: click.Context) -> None:
     cli_ctx: CliContext = ctx.obj
 
-    app = cli_ctx.ensure_app_context()
-    with app.app_context():
-        from app.services.operations.onboard import detect_installation
+    from app.services.operations.onboard import detect_installation
 
-        result = detect_installation()
+    result = detect_installation()
 
     details: dict[str, Any] = {
         "state": result.state,
@@ -53,13 +51,11 @@ def _handle_onboard_plan(
 ) -> None:
     cli_ctx: CliContext = ctx.obj
 
-    app = cli_ctx.ensure_app_context()
-    with app.app_context():
-        from app.onboarding.model import OnboardingInput
-        from app.services.operations.onboard import generate_plan
+    from app.onboarding.model import OnboardingInput
+    from app.services.operations.onboard import generate_plan
 
-        inp = OnboardingInput(mode=mode, scope=scope, profile=profile)
-        result = generate_plan(inp)
+    inp = OnboardingInput(mode=mode, scope=scope, profile=profile)
+    result = generate_plan(inp)
 
     if json_mode:
         details: dict[str, Any] = {
@@ -143,20 +139,20 @@ def _handle_onboard_run(
             render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
             raise SystemExit(r.exit_code)
 
-    app = cli_ctx.ensure_app_context()
-    with app.app_context():
-        from app.services.operations.onboard import apply_onboarding
+    # Onboarding creates the secret this app factory would otherwise demand, so
+    # the command must not build an app before it has run.
+    from app.services.operations.onboard import apply_onboarding
 
-        try:
-            result = apply_onboarding(input_dict)
-        except ValueError as e:
-            r = Result.failure(
-                code="onboard.run.failed",
-                summary=str(e),
-                exit_code=ExitCode.GENERAL_FAILURE,
-            )
-            render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
-            raise SystemExit(r.exit_code)
+    try:
+        result = apply_onboarding(input_dict)
+    except ValueError as e:
+        r = Result.failure(
+            code="onboard.run.failed",
+            summary=str(e),
+            exit_code=ExitCode.GENERAL_FAILURE,
+        )
+        render(r, json_mode=cli_ctx.json_mode, verbose=cli_ctx.verbose)
+        raise SystemExit(r.exit_code)
 
     details: dict[str, Any] = {
         "config_path": result.config_path,
@@ -185,11 +181,9 @@ def _handle_onboard_resume(
 
     resolved_data = Path(data_path) if data_path else None
 
-    app = cli_ctx.ensure_app_context()
-    with app.app_context():
-        from app.services.operations.onboard import resume_onboarding
+    from app.services.operations.onboard import resume_onboarding
 
-        result = resume_onboarding(data_path=resolved_data)
+    result = resume_onboarding(data_path=resolved_data)
 
     details: dict[str, Any] = {
         "last_step": result.last_step,

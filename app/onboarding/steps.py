@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import os
 import tempfile
-from dataclasses import dataclass, field
+from contextlib import contextmanager
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -157,6 +158,11 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
 
         ctx.config_dir.mkdir(parents=True, exist_ok=True)
         ctx.data_dir.mkdir(parents=True, exist_ok=True)
+
+        # The backup directory follows the resolved runtime paths rather than
+        # the relative default, so a service started from any working
+        # directory writes its backups to the same place.
+        ctx.input = replace(ctx.input, backup_dir=str(runtime_paths.backups_dir.path))
     except ImportError:
         if inp.mode == "docker":
             config_dir = Path("/etc/devlog")
@@ -187,6 +193,7 @@ def step_resolve_paths(ctx: StepContext) -> StepResult:
 
         config_dir.mkdir(parents=True, exist_ok=True)
         data_dir.mkdir(parents=True, exist_ok=True)
+        ctx.input = replace(ctx.input, backup_dir=str(data_dir / "backups"))
 
     return StepResult(
         ok=True,
@@ -299,6 +306,47 @@ def step_plan_changes(ctx: StepContext) -> StepResult:
     )
 
 
+def _validation_config(config: Any, secrets_map: dict[str, str]) -> Any:
+    """Overlay the pending secrets onto the proposed config.
+
+    Onboarding keeps secrets out of the config file — they are written to the
+    env file by a later step — so validating the raw config would report a
+    missing SECRET_KEY for an installation that is about to receive one.
+    """
+    secret_key = secrets_map.get("SECRET_KEY") or config.secret_key
+    admin_password = secrets_map.get("ADMIN_PASSWORD") or config.admin_password
+
+    health = config.health
+    check_secret = secrets_map.get("HEALTH_CHECK_SECRET")
+    if check_secret:
+        health = replace(health, check_secret=check_secret)
+
+    metrics = config.metrics
+    metrics_secret = secrets_map.get("METRICS_SECRET")
+    if metrics_secret:
+        metrics = replace(metrics, secret=metrics_secret)
+
+    email = config.email
+    smtp_password = secrets_map.get("SMTP_PASSWORD")
+    if smtp_password:
+        email = replace(email, smtp_password=smtp_password)
+
+    backup = config.backup
+    backup_key = secrets_map.get("BACKUP_ENCRYPTION_KEY")
+    if backup_key:
+        backup = replace(backup, encryption_key=backup_key)
+
+    return replace(
+        config,
+        secret_key=secret_key,
+        admin_password=admin_password,
+        health=health,
+        metrics=metrics,
+        email=email,
+        backup=backup,
+    )
+
+
 def step_validate_proposal(ctx: StepContext) -> StepResult:
     if ctx.config is None:
         return StepResult(ok=False, message="No config to validate")
@@ -306,7 +354,12 @@ def step_validate_proposal(ctx: StepContext) -> StepResult:
     from app.config.validation import validate_all
 
     config_path = ctx.config_dir / "config.toml"
-    result = validate_all(ctx.config, config_path=config_path)
+    effective = _validation_config(ctx.config, ctx.secrets or {})
+
+    # The config file is written by the next step, so its absence is not a
+    # defect. A pre-existing file is still checked for readability.
+    existing_path = config_path if config_path.exists() else None
+    result = validate_all(effective, config_path=existing_path)
 
     if not result.ok:
         error_msgs = [f.message for f in result.errors]
@@ -370,6 +423,69 @@ def step_write_env(ctx: StepContext) -> StepResult:
     )
 
 
+def _chown_to_service_account(path: Path, ctx: StepContext) -> bool:
+    """Give a directory to the service account when onboarding runs as root.
+
+    Onboarding is normally run as root, but the service runs as an
+    unprivileged account. Without the ownership change the service cannot
+    write the database, and the rendered unit fails its own directory checks.
+
+    A missing account is reported either way: it is the single most common
+    reason a freshly installed service will not start, and onboarding cannot
+    create it.
+    """
+    account = _service_account_for_paths(ctx)
+    if account is None:
+        return False
+
+    user, group = account
+    try:
+        uid, gid = _account_ids(user, group)
+    except KeyError:
+        _warn_missing_service_account(ctx, user, group)
+        return False
+
+    if os.geteuid() != 0:
+        return False
+
+    try:
+        os.chown(path, uid, gid)
+    except OSError:
+        return False
+    return True
+
+
+def _account_ids(user: str, group: str) -> tuple[int, int]:
+    """Return the uid/gid of an account, raising KeyError when it is absent."""
+    import grp
+    import pwd
+
+    return pwd.getpwnam(user).pw_uid, grp.getgrnam(group).gr_gid
+
+
+def _warn_missing_service_account(ctx: StepContext, user: str, group: str) -> None:
+    if any(user in warning for warning in ctx.warnings):
+        return
+    ctx.warnings.append(
+        f"Service account '{user}' does not exist on this host. Create it "
+        f"(useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin {user}) "
+        f"and give it ownership of the data and log directories "
+        f"(chown -R {user}:{group} /var/lib/devlog /var/log/devlog), "
+        "or the systemd unit will not start."
+    )
+
+
+def _service_account_for_paths(ctx: StepContext) -> tuple[str, str] | None:
+    """Return the service account for the resolved install scope."""
+    runtime_paths = ctx.runtime_paths
+    mode = getattr(runtime_paths, "mode", None)
+    if mode is None:
+        return None
+    if getattr(mode, "value", str(mode)) != "system":
+        return None
+    return ("devlog", "devlog")
+
+
 def step_create_directories(ctx: StepContext) -> StepResult:
     if ctx.dry_run:
         return StepResult(ok=True, message="Dry run: skipping directory creation")
@@ -380,18 +496,57 @@ def step_create_directories(ctx: StepContext) -> StepResult:
         Path(ctx.input.backup_dir),
     ]
 
+    runtime_paths = ctx.runtime_paths
+    if runtime_paths is not None:
+        for attr in ("log_dir", "runtime_dir"):
+            resolved = getattr(runtime_paths, attr, None)
+            if resolved is not None:
+                dirs.append(resolved.path)
+
     created: list[str] = []
+    chowned: list[str] = []
     for d in dirs:
         if not d.exists():
             d.mkdir(parents=True, exist_ok=True)
             created.append(str(d))
             ctx.created_dirs.append(d)
+        if _chown_to_service_account(d, ctx):
+            chowned.append(str(d))
 
     return StepResult(
         ok=True,
         message=f"Directories ready ({len(created)} created)",
-        details={"created": created},
+        details={"created": created, "chowned": chowned},
     )
+
+
+@contextmanager
+def _onboarding_environment(ctx: StepContext):
+    """Expose the installation being onboarded to the app factory.
+
+    Onboarding writes the secret and the config file itself, so the app the
+    migration step builds has to be told where they are: without this the
+    factory looks at the ambient environment, which on a fresh machine has
+    neither.
+    """
+    overrides: dict[str, str] = {}
+    config_path = ctx.config_dir / "config.toml"
+    if config_path.exists():
+        overrides["DEVLOG_CONFIG"] = str(config_path)
+    for key, value in ctx.secrets.items():
+        if value:
+            overrides.setdefault(key, value)
+
+    previous = {key: os.environ.get(key) for key in overrides}
+    os.environ.update(overrides)
+    try:
+        yield
+    finally:
+        for key, previous_value in previous.items():
+            if previous_value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = previous_value
 
 
 def step_run_migrations(ctx: StepContext) -> StepResult:
@@ -401,22 +556,23 @@ def step_run_migrations(ctx: StepContext) -> StepResult:
     try:
         from app import create_app
 
-        app = create_app()
-        with app.app_context():
-            from app.services.operations.database import run_migrations
+        with _onboarding_environment(ctx):
+            app = create_app()
+            with app.app_context():
+                from app.services.operations.database import run_migrations
 
-            result = run_migrations()
-            if not result.ok:
+                result = run_migrations()
+                if not result.ok:
+                    return StepResult(
+                        ok=False,
+                        message=f"Migration failed: {result.summary}",
+                        details={"error": result.summary},
+                    )
                 return StepResult(
-                    ok=False,
-                    message=f"Migration failed: {result.summary}",
-                    details={"error": result.summary},
+                    ok=True,
+                    message=result.summary,
+                    details={"head": result.current_head},
                 )
-            return StepResult(
-                ok=True,
-                message=result.summary,
-                details={"head": result.current_head},
-            )
     except Exception as e:
         return StepResult(
             ok=False,
@@ -443,16 +599,17 @@ def step_create_administrator(ctx: StepContext) -> StepResult:
     try:
         from app import create_app
 
-        app = create_app()
-        with app.app_context():
-            from app.services.operations.admin import create_admin
+        with _onboarding_environment(ctx):
+            app = create_app()
+            with app.app_context():
+                from app.services.operations.admin import create_admin
 
-            result = create_admin(inp.admin_username, inp.admin_password)
-            return StepResult(
-                ok=True,
-                message=result.summary,
-                details={"username": result.username},
-            )
+                result = create_admin(inp.admin_username, inp.admin_password)
+                return StepResult(
+                    ok=True,
+                    message=result.summary,
+                    details={"username": result.username},
+                )
     except Exception as e:
         return StepResult(
             ok=False,
@@ -462,38 +619,36 @@ def step_create_administrator(ctx: StepContext) -> StepResult:
 
 
 def step_verify_assets(ctx: StepContext) -> StepResult:
+    checks: dict[str, Any] = {}
+
     try:
-        from importlib.resources import as_file, files
+        from importlib.resources import files
 
         pkg = files("app")
-        checks = {
-            "themes_bundled": pkg.joinpath("themes", "bundled"),
-            "migrations": pkg.joinpath("migrations", "versions"),
-            "base_template": pkg.joinpath("templates", "base.html"),
-        }
+        checks["themes_bundled"] = pkg.joinpath("themes", "bundled")
+        checks["base_template"] = pkg.joinpath("templates", "base.html")
+        checks["vite_manifest"] = pkg.joinpath("static", "dist", ".vite", "manifest.json")
     except Exception:
-        checks = {
-            "themes_bundled": Path("app/themes/bundled"),
-            "migrations": Path("migrations/versions"),
-            "base_template": Path("app/templates/base.html"),
-        }
+        checks["themes_bundled"] = Path("app/themes/bundled")
+        checks["base_template"] = Path("app/templates/base.html")
+        checks["vite_manifest"] = Path("app/static/dist/.vite/manifest.json")
 
     try:
-        from importlib.resources import as_file, files
+        from importlib.resources import files
 
-        manifest = files("app.static").joinpath("dist", "manifest.json")
-        with as_file(manifest) as p:
-            checks["vite_manifest"] = Path(str(p))
+        checks["migrations"] = files("migrations").joinpath("versions")
     except Exception:
-        checks["vite_manifest"] = Path("app/static/dist/manifest.json")
+        checks["migrations"] = Path("migrations/versions")
 
     results: dict[str, bool] = {}
     warnings: list[str] = []
 
     for name, path_or_ref in checks.items():
         try:
-            p = Path(str(path_or_ref)) if not isinstance(path_or_ref, Path) else path_or_ref
-            exists = p.exists()
+            if isinstance(path_or_ref, Path):
+                exists = path_or_ref.exists()
+            else:
+                exists = path_or_ref.is_file() or path_or_ref.is_dir()
         except Exception:
             exists = False
         results[name] = exists
@@ -517,17 +672,18 @@ def step_readiness_check(ctx: StepContext) -> StepResult:
     try:
         from app import create_app
 
-        app = create_app()
-        with app.app_context():
-            from app.extensions import db
+        with _onboarding_environment(ctx):
+            app = create_app()
+            with app.app_context():
+                from app.extensions import db
 
-            db.session.execute(db.text("SELECT 1"))
+                db.session.execute(db.text("SELECT 1"))
 
-            return StepResult(
-                ok=True,
-                message="Readiness check passed",
-                details={"db": True, "models": True},
-            )
+                return StepResult(
+                    ok=True,
+                    message="Readiness check passed",
+                    details={"db": True, "models": True},
+                )
     except Exception as e:
         return StepResult(
             ok=False,

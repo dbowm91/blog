@@ -167,10 +167,11 @@ class TestStepVerifyAssets:
         original_exists = Path.exists
 
         def mock_exists(self):
-            if "app/static/dist/manifest.json" in str(self):
+            if "app/static/dist/.vite/manifest.json" in str(self):
                 return False
             return original_exists(self)
 
+        monkeypatch.setattr(Path, "exists", mock_exists)
         monkeypatch.chdir(Path("."))
 
         ctx = StepContext(
@@ -180,7 +181,7 @@ class TestStepVerifyAssets:
         result = step_verify_assets(ctx)
 
         assert result.ok is False
-        assert any("vite_manifest" in w for w in ctx.warnings) or not result.ok
+        assert any("vite_manifest" in w for w in ctx.warnings)
 
 
 class TestRunStepsDryRun:
