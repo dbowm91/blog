@@ -75,13 +75,15 @@ and `install_root`.
 | `log_dir` | `/var/log/devlog` | `$XDG_STATE_HOME/devlog/logs` | `/var/log/devlog` | `./logs` |
 | `runtime_dir` | `/run/devlog` | `$XDG_RUNTIME_DIR/devlog`, else `$XDG_STATE_HOME/devlog` | `/run/devlog` | `./instance` |
 | `installation_metadata` | `<data_dir>/.devlog-installation.json` | `<data_dir>/.devlog-installation.json` | `/data/.devlog-installation.json` | `./data/.devlog-installation.json` |
-| `release_dir` | `<install_root>/releases/current` | `None` | `None` | `None` |
+| `release_dir` | `/opt/devlog/current` | `None` | `None` | `None` |
 
 XDG base directories fall back to `~/.config`, `~/.local/share` and `~/.local/state` when
 the corresponding environment variable is unset. In `system` mode the config/env root is
-`install_root or /etc/devlog`, and `release_dir` is derived from the same root. The
-`data_dir`, `log_dir` and `runtime_dir` defaults in `system` mode are fixed regardless of
-`install_root`.
+`install_root or /etc/devlog`; `release_dir` is *not* derived from that root — it is a
+fixed `/opt/devlog/current`, matching the prefix `scripts/install.sh` uses for a
+`--system` install, and it can be overridden with the `DEVLOG_RELEASE_DIR` environment
+variable. The `data_dir`, `log_dir` and `runtime_dir` defaults in `system` mode are fixed
+regardless of `install_root`.
 
 ## Provenance
 
@@ -407,17 +409,13 @@ they honour the `DEVLOG_DATA_DIR`, `DEVLOG_CONFIG_FILE`, `DEVLOG_ENV_FILE`,
 | Finding | Detail |
 |---------|--------|
 | `docs/filesystem-layout.md` lists five derived-path environment variables that `layout.py` never reads | `DEVLOG_DATABASE_PATH`, `DEVLOG_UPLOADS_DIR`, `DEVLOG_THEMES_DIR`, `DEVLOG_BACKUPS_DIR` and `DEVLOG_EXPORTS_DIR` are consumed by the typed config loader, not by `app/filesystem/layout.py`, so they do not change `RuntimePaths` |
-| `docs/filesystem-layout.md` documents `devlog paths migrate --dry-run` | The command has no `--dry-run` option; it only accepts `--from-mode`, `--to-mode` and `--json`, and is always a plan |
 | `docs/filesystem-layout.md` presents `metadata` as a live provenance | `PathProvenance.METADATA` is defined but never assigned; `RuntimePaths.from_metadata()` passes metadata values as *explicit* overrides, so they resolve with provenance `explicit` |
-| `docs/filesystem-layout.md` places the release directory at `/opt/devlog/releases/current` | `_resolve_system()` computes `release_dir` as `<install_root>/releases/current`, i.e. `/etc/devlog/releases/current` by default |
-| `architecture/core/configuration.md` lists `paths.data_root` / `DEVLOG_DATA_ROOT` and `paths.config_dir` / `DEVLOG_CONFIG_DIR` | Neither key nor environment variable exists; `PathsConfig` has `data_dir`, `log_dir`, `runtime_dir`, `database_path`, `uploads_dir`, `themes_dir`, `backups_dir`, `exports_dir` |
-| The installer, the layout default and the systemd renderer disagree about the release path | `scripts/install.sh` creates `/opt/devlog/releases/<version>` with the `current` symlink at `/opt/devlog/current`; `_resolve_system()` defaults to `/etc/devlog/releases/current`; the rendered unit hardcodes `/opt/devlog/current/venv/bin/devlog` in `ExecStartPre` (`app/deployment/systemd.py`) instead of using `ctx.paths.release_dir` |
 
 ### Behavioural Surprises
 
 | Finding | Detail |
 |---------|--------|
-| The Flask runtime does not use `RuntimePaths` | `create_app()` sets `UPLOAD_FOLDER` to `app/static/uploads` and the SQLite fallback to `app.instance_path/blog.db`; the `DEVLOG_*` path variables change neither. `app/filesystem/` is an operations-layer authority |
+| The Flask runtime does not use `RuntimePaths` | `create_app()` sets `UPLOAD_FOLDER` to `app/static/uploads` regardless of the `DEVLOG_*` path variables, so `app/filesystem/` is an operations-layer authority. The database URI does come from the typed config (`cfg.database.uri`, which `load_effective_config()` resolves to `<data_dir>/devlog.sqlite3`); the `app.instance_path/blog.db` fallback in `create_app()` is only reached when the config carries no URI at all |
 | `execute_migration()` and `MigrationExecutionResult` are not exported from the package | `app/filesystem/__init__.py` re-exports `plan_migration` but not the executor, so callers must import from `app.filesystem.migration` |
 | `_check_parent_ownership()` never rejects | Every branch returns without raising, so a directory under a parent owned by another user is still created |
 | `_validate_path_safety()` is called with the target's own parent as the base | It therefore only rejects a target that resolves outside its parent (an escaping symlink); it is not a containment check against the data root |

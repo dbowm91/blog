@@ -11,6 +11,28 @@ Unified backup service for CLI, scheduler, and cron jobs.
 
 ## Core Functions
 
+### `resolve_database_file()` and `resolve_backup_dir()`
+
+```python
+def resolve_database_file(app: Any) -> str | None
+def resolve_backup_dir(app: Any) -> str
+```
+
+The single authority for the two data paths. `resolve_database_file()` reads the
+live `SQLALCHEMY_DATABASE_URI` (which `create_app()` sets from
+`cfg.database.uri`, i.e. `<data_dir>/devlog.sqlite3`) and returns the SQLite
+file, or `None` when the backend is not SQLite. `resolve_backup_dir()` resolves
+`backup.data_backup_dir` — absolute as configured, otherwise relative to the
+directory holding the database, so backups land beside the database.
+
+Every producer and consumer uses these: the admin backup routes
+(`_resolve_database_path()`, `_get_backup_dir()` in
+`app/routes/admin/helpers/shared.py`), the operational service in
+`app/services/operations/backup.py`, the Celery task in `app/tasks.py`, the
+scheduled job, and the `/health` backup-freshness check. Never derive either
+path independently — that is what previously made the admin UI and the
+scheduled job act on different files.
+
 ### `create_backup()`
 
 ```python
@@ -54,7 +76,7 @@ Service-level daily backup designed for scheduler and CLI use. **Creates plain (
 
 **Behavior:**
 - Creates plain `.db` backups (no encryption, no compression)
-- `create_backup()` proceeds to create an unencrypted backup if encryption fails (warning logged)
+- `create_backup()` deletes the unencrypted file and fails if encryption fails (error logged)
 - `run_daily_backup()` does NOT support encryption or compression
 
 ### Backup Type Summary
@@ -72,10 +94,13 @@ When `encrypt=True` is passed to `create_backup()`:
 
 1. Backup is created as unencrypted `.db` file
 2. `_encrypt_backup_file()` is called to encrypt in-place
-3. If encryption fails (key not loadable, cryptography library missing, or other error), a warning is logged and the unencrypted backup is retained
-4. Backup creation does NOT fail on encryption errors — the plain backup is preserved
+3. If encryption fails (key not loadable, cryptography library missing, or other error), the unencrypted file is **removed**, `create_backup()` returns `None`, and an error is logged
+4. Backup creation DOES fail on encryption errors — no unencrypted backup is left on disk
 
-**Note:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, two warnings are logged (one in `_encrypt_backup_file` at backup.py:107-110, one in `create_backup` at backup.py:69-71) and the backup proceeds unencrypted. To enforce encryption, use the Celery task which handles errors differently.
+**Note:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded, `_encrypt_backup_file()`
+logs a warning and returns `False`; `create_backup()` then removes the plain file and logs
+`Backup encryption failed, discarding unencrypted backup`. Encryption therefore never
+degrades silently to an unencrypted backup.
 
 ### `decrypt_backup_file()`
 
@@ -111,7 +136,7 @@ Three separate encryption modules exist with different key derivation strategies
 
 ### Key Configuration
 
-The backup encryption key is loaded from the `BACKUP_ENCRYPTION_KEY` environment variable only. If the key is set but cannot be loaded (cryptography library unavailable or key validation fails), two warnings are logged and the backup proceeds unencrypted.
+The backup encryption key is loaded from the `BACKUP_ENCRYPTION_KEY` environment variable only. If the key is set but cannot be loaded (cryptography library unavailable or key validation fails), the encryption attempt fails and the plain backup is discarded rather than kept.
 
 ### `app/services/encryption.py` — TOTP Secret Encryption
 

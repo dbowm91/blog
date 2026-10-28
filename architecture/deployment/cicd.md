@@ -6,42 +6,57 @@ GitHub Actions workflows for testing and deployment.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | push, pull_request, schedule | Full test suite |
+| `ci.yml` | push to `main`, pull_request, weekly schedule (Mondays 08:00 UTC) | Full test suite and release gates |
+| `release.yml` | push of a `v*` tag | Builds and publishes the wheel, sdist, Docker bundle and `checksums.txt` |
+| `installer-smoke.yml` | push to `main`, pull_request | Builds release artifacts and exercises `scripts/install.sh` (native install, Docker bundle extraction, dry run) and runs ShellCheck on the installer |
+| `test.yml` | push, pull_request | A minimal pytest run without the coverage gate |
 
 ## ci.yml Jobs
 
+`ci.yml` defines eleven jobs.
+
 ### 1. lint-and-type
-- **Tool**: `ruff` (linting), `mypy` (type checking)
+- **Tool**: `ruff` (linting and format check), `mypy` (type checking)
 - **Python**: 3.12
 
 ### 2. test
 - **Tool**: `pytest` with coverage
 - **Coverage**: Minimum 80%
-- **Python**: 3.12, 3.13
+- **Python**: 3.12 (single-version matrix)
 - **Database**: SQLite
 
-### 3. security-audit
+### 3. theme-policy
+- **Tool**: `python scripts/theme_accessibility_report.py --strict`
+- **Purpose**: Every bundled theme translates and has no unexpected mandatory accessibility failure
+
+### 4. migration-chain
+- **Tool**: `python -m pytest tests/test_migration_chain.py tests/test_migration_drop_theme_preset.py -v`
+- **Purpose**: The Halloy migration revisions apply, downgrade and re-apply cleanly
+- **Depends on**: `test`
+
+### 5. theme-package-verification
+- **Tool**: `python -m build` then `python scripts/verify_theme_package.py dist/*.whl`
+- **Purpose**: The built wheel carries the packaged theme resources
+
+### 6. frontend-build
+- **Tool**: Node.js 20, `npm ci` + `npm run build`
+- **Purpose**: Build frontend assets
+
+### 7. security-audit
 - **Tool**: `pip-audit`
 - **Purpose**: Vulnerability scanning
 - **Mode**: `--fail-on=all` (strict mode — fails on any known vulnerability, including informational)
 
-### 4. frontend-build
-- **Tool**: Node.js 20, `npm ci` + `npm run build`
-- **Purpose**: Build frontend assets
-
-### 5. docker-build
+### 8. docker-build
 - **Tool**: `docker build .`
-- **Purpose**: Verify Dockerfile builds successfully and the resulting image is functional
-- **Smoke test steps**:
-  1. Builds image with tag `devlog:ci-smoke`
-  2. Verifies `app/static/dist/.vite/manifest.json` exists in the image (confirms frontend builder stage produced assets)
-  3. Starts container with test env vars (`SECRET_KEY`, `ADMIN_PASSWORD`, `SESSION_COOKIE_SECURE=false`)
-  4. Polls the `/health` endpoint for up to 60 seconds (30 iterations × 2s sleep)
-  5. Cleans up the container on completion (always runs, even on failure)
+- **Purpose**: Verify the Dockerfile builds successfully and the resulting image contains the frontend assets
+- **Steps**:
+  1. Builds the image with tag `devlog:ci`
+  2. Verifies `app/static/dist/.vite/manifest.json` exists in the image (confirms the frontend builder stage produced assets)
 
-This job validates the full multi-stage build pipeline: Node.js frontend build → Python dependency install → runtime image assembly.
+This job validates the multi-stage build pipeline: Node.js frontend build → Python dependency install → runtime image assembly.
 
-### 6. e2e-tests
+### 9. e2e-tests
 - **Tool**: Playwright
 - **Environment**: Docker-based with `--profile production`
 - **Browser**: Chromium
@@ -50,19 +65,31 @@ This job validates the full multi-stage build pipeline: Node.js frontend build �
 - **Depends on**: `test`, `docker-build`
 - **Failure diagnostics**: Dumps logs for blog, redis, celery services
 
+### 10. dependency-consistency
+- **Tool**: `python scripts/check_dependency_manifest_consistency.py`
+- **Purpose**: `requirements.txt`, `pyproject.toml` and the lock/manifest files agree
+
+### 11. release1-package-smoke
+- **Tool**: `python -m build --wheel`, installed into an isolated virtualenv
+- **Purpose**: Smoke-tests the published wheel — the `devlog` CLI and an app-context operation
+
 ### Job Dependency Chain
 
 ```
-lint-and-type ──> test ──> e2e-tests
+lint-and-type ──> test ──> migration-chain
+                      └──> e2e-tests <── docker-build
+theme-policy
+theme-package-verification
 frontend-build
 security-audit
-docker-build ──> e2e-tests
+dependency-consistency
+release1-package-smoke
 ```
 
 - `lint-and-type` must pass before `test` runs
-- `test` must pass before `e2e-tests` runs
+- `test` must pass before `migration-chain` and `e2e-tests` run
 - `docker-build` must pass before `e2e-tests` runs (E2E needs the Docker image)
-- `frontend-build`, `security-audit`, and `docker-build` run in parallel with each other
+- The remaining jobs run in parallel with each other
 
 ### Schedule
 

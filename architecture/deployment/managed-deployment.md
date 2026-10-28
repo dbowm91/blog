@@ -71,11 +71,16 @@ The `ExecStart` differs by mode:
 
 | Unit | System mode | User mode |
 |---|---|---|
-| web | `<release_dir>/venv/bin/python -m granian --interface asgi --workers 4 --timeout 60 --host <bind> --port <port> run:asgi_app` | `devlog serve --host <bind> --port <port>` |
-| worker | `/opt/devlog/current/venv/bin/celery -A app.celery_app worker --loglevel=info --concurrency=1` | `devlog worker` |
-| scheduler | `/opt/devlog/current/venv/bin/flask scheduler-start` | `devlog scheduler` |
+| web | `<release_dir>/venv/bin/python -m granian --interface asgi --workers 4 --host <bind> --port <port> app.asgi:asgi_app` | `devlog serve --host <bind> --port <port>` |
+| worker | `<release_dir>/venv/bin/celery -A app.celery_app worker --loglevel=info --concurrency=1` | `devlog worker` |
+| scheduler | `<release_dir>/venv/bin/flask scheduler-start` | `devlog scheduler` |
 
-The worker and scheduler units carry `After=network.target devlog-web.service`. The web unit also emits `ExecStartPre=/opt/devlog/current/venv/bin/devlog config check --config <config_file>`.
+Every system-mode path comes from `ctx.paths.release_dir` via `_release_venv()`, so the
+units follow the resolved release instead of a hardcoded prefix. `release_dir` is `/opt/devlog/current`
+in system mode and `None` in the other three modes, in which case the renderer falls back
+to the bare command names.
+
+The worker and scheduler units carry `After=network.target devlog-web.service`. The web unit also emits `ExecStartPre=<release_dir>/venv/bin/devlog config check --config <config_file>`.
 
 `validate_unit(content)` returns a list of errors:
 
@@ -140,7 +145,7 @@ Validators:
 
 ### Logrotate Policy
 
-`render_logrotate(ctx)` emits a file named `devlog` (mode `0o644`) covering `<log_dir>/*.log`: `daily`, `rotate 14`, `compress`, `delaycompress`, `missingok`, `notifempty`, `create 0640 <service_user> <service_group>`, `sharedscripts`, and a `postrotate` hook that runs `invoke-rc.d devlog restart`.
+`render_logrotate(ctx)` emits a file named `devlog` (mode `0o644`) covering `<log_dir>/*.log`: `daily`, `rotate 14`, `compress`, `delaycompress`, `missingok`, `notifempty`, `create 0640 <service_user> <service_group>`, `sharedscripts`, and a `postrotate` hook that runs `systemctl reload devlog-web`.
 
 It returns `None` — no policy at all — when `ctx.log_to_file` is false, which happens when the logging level is `DEBUG` and the log directory does not yet exist.
 
@@ -156,8 +161,9 @@ It returns `None` — no policy at all — when `ctx.log_to_file` is false, whic
 
 `plan_installation(rendered_files, *, force=False, base_dir=None)` resolves each rendered file to a target and decides whether it should be written:
 
-- `install_base` is `base_dir` or `Path("/etc/devlog")`.
-- `_resolve_install_path()` uses an absolute `filename` as-is and joins a relative one onto `install_base`.
+- Without an explicit `base_dir`, each file goes to the directory its consumer reads, taken from `DEFAULT_TARGET_DIRS`: `systemd` → `/etc/systemd/system`, `compose` → `/etc/devlog`, `caddy` → `/etc/caddy`, `nginx` → `/etc/nginx/conf.d`, `logrotate` → `/etc/logrotate.d`. The target is carried on `RenderResult.target`.
+- An explicit `base_dir` overrides that and sends every file to one directory.
+- `_resolve_install_path()` uses an absolute `filename` as-is and joins a relative one onto the chosen base.
 - If the target exists and `force` is false, the file is dropped from the plan with the warning *File already exists, skipping: &lt;path&gt;* — it is never overwritten.
 - If the target exists and `force` is true, the warning is *Overwriting existing file: &lt;path&gt;* and the existing file is copied to `&lt;path&gt;.bak` first.
 
@@ -258,7 +264,7 @@ Only the web unit is managed by the lifecycle commands — the worker and schedu
 | `devlog deploy install` | `--target` (repeatable), `--force`, `--dry-run`, `--base-dir DIR` | `deploy_install(mode, targets=…, force=…, dry_run=…, base_dir=…)` | `install.py` |
 | `devlog deploy check` | `--base-dir DIR` | `deploy_check(mode, base_dir=…)` | `drift.py` |
 
-`render` returns the file contents in the result details; `--print` adds the content to each entry, and `--output` is intended to write the rendered files into a directory.
+`render` returns the file contents in the result details; `--print` adds the content to each entry. `--output DIR` writes the rendered files into `DIR`, each named `{target}-{basename}` — for example `systemd-devlog-web.service`. Writing is skipped when `--print` is given.
 
 The lifecycle commands are registered at the top level of the CLI rather than under `deploy`:
 
@@ -278,28 +284,6 @@ Exit codes follow the shared CLI result model: a clean result is `Result.success
 
 Findings verified against the source. Nothing here is fixed — these are recorded, not corrected.
 
-### The whole `devlog deploy` group fails outside the test suite
-
-`_build_context()` reads `current_app.config["DEVLOG_CONFIG"]`, and `deploy_check()` reads
-the same key. The app factory never assigns it — `create_app()` sets `SECRET_KEY`,
-`UPLOAD_FOLDER`, `SQLALCHEMY_DATABASE_URI`, `SESSION_COOKIE_*` and the rate-limit settings,
-but never `DEVLOG_CONFIG`. The only place the key is set is the test fixture
-`tests/deployment/conftest.py`, which injects `DevLogConfig()` into `app.config`.
-
-The result is that `devlog deploy render`, `devlog deploy install` and `devlog deploy check`
-all raise `KeyError: 'DEVLOG_CONFIG'` and are reported as
-`Error: Unexpected error: 'DEVLOG_CONFIG'`. The service layer is therefore reachable only
-from the tests, which supply the key themselves. This masks the two findings below, because
-the command exits before it reaches the rendering stage.
-
-### The `render` command renders nothing by default
-
-`devlog deploy render --target` defaults to `["all"]`, but `_render_target()` dispatches only on the five concrete names in `ALL_TARGETS`. `"all"` is not one of them, so `_render_target(ctx, "all")` returns `[]` and the command reports zero files. `devlog deploy install` is unaffected because its `--target` default is `None` and the service substitutes `ALL_TARGETS`. Verified: `_render_target(ctx, "all")` returns `[]` while `_render_target(ctx, "systemd")` returns one `RenderResult`.
-
-### `--output` never writes anything
-
-The service's `_rendered_to_dict()` emits `content`, `filename`, `managed`, `permissions`, `description` and `warnings` — there is no `target` and no `path` key. The CLI reads `f.get("target", "")` and `f.get("path", "")`, so every entry has an empty target and an empty path, and the `--output` loop is guarded by `if f.get("path") and f.get("content")`. The output directory is created and left empty.
-
 ### The rendered compose files name a command that does not exist
 
 Both `render_compose()` and `render_compose_env()` emit the header `# Do not edit manually; regenerate with: devlog deploy compose`. The `deploy` group registers only `render`, `install` and `check`.
@@ -307,38 +291,6 @@ Both `render_compose()` and `render_compose_env()` emit the header `# Do not edi
 ### The rendered compose file is not the repository's compose file
 
 The generated `docker-compose.yml` has no Compose profiles and uses the service names `web`, `redis`, `celery` and `scheduler` with `build: .`. The repository bundle in `docker-compose.yml` uses `blog`, `celery`, `redis`, `nginx` and `backup` behind explicit `--profile` selections. The two artifacts are unrelated and the generated one does not inherit the repository's profile requirement (see [Docker](docker.md)).
-
-### Hardcoded `/opt/devlog/current` in three units
-
-`render_web_unit()` emits `ExecStartPre=/opt/devlog/current/venv/bin/devlog config check`; `render_worker_unit()` emits `/opt/devlog/current/venv/bin/celery`; `render_scheduler_unit()` emits `/opt/devlog/current/venv/bin/flask`. These are literals rather than `ctx.paths.release_dir`, so a user-scope installation under `~/.local` still points at the system prefix.
-
-### The web unit and the other units disagree about the release path
-
-`_release_exec_start()` derives the interpreter from `ctx.paths.release_dir`, which in system mode is `<install_root>/releases/current` — `/etc/devlog/releases/current` by default — while the worker and scheduler units use `/opt/devlog/current`. No single host satisfies both.
-
-### `RuntimePaths.release_dir` and the installer disagree
-
-`scripts/install.sh` installs to `${PREFIX}/current` with `PREFIX=/opt/devlog` (system scope) or `${XDG_LOCAL_HOME:-$HOME/.local}` (user scope), with the virtualenv at `${PREFIX}/current/venv`. `RuntimePaths` resolves the system-mode `release_dir` to `/etc/devlog/releases/current` and leaves `release_dir` unset for user, docker and development modes. Neither prefix is derived from the other (see [Installation](installation.md)).
-
-### The web unit's `ExecStart` names a module its working directory cannot import
-
-`ExecStart` ends in `run:asgi_app` — `run.py` at the repository root defines `asgi_app = WsgiToAsgi(app)` — but `WorkingDirectory` is `ctx.paths.data_dir.path` (`/var/lib/devlog` in system mode) and the unit sets no `PYTHONPATH` pointing at the release directory.
-
-### The user-mode units reference CLI commands that do not exist
-
-`devlog serve`, `devlog worker` and `devlog scheduler` are emitted in user mode, but `devlog_cli/main.py` registers no `serve`, `worker` or `scheduler` command group.
-
-### `flask scheduler-start` is not a registered Flask command
-
-The system-mode scheduler unit and the generated compose `scheduler` service both run `flask scheduler-start`. `app/cli.py` registers `rebuild-search`, `cleanup-orphaned-images`, `create-admin`, `promote-admin`, `check-integrity`, `export-data`, `import-data`, `seed` and the `themes` group — there is no `scheduler-start`.
-
-### The logrotate `postrotate` hook targets a unit that is never produced
-
-`render_logrotate()` emits `invoke-rc.d devlog restart`, but the rendered units are `devlog-web.service`, `devlog-worker.service` and `devlog-scheduler.service`, and no SysV `devlog` init script is produced. The hook is guarded by `|| true`, so it fails silently.
-
-### The installer does not place artifacts where the host expects them
-
-`plan_installation()` resolves relative filenames against a single `base_dir` (default `/etc/devlog`). `devlog-web.service` therefore lands in `/etc/devlog/devlog-web.service` rather than `/etc/systemd/system/`, `devlog.conf` lands in `/etc/devlog/` rather than an nginx `conf.d` include directory, and the logrotate file lands in `/etc/devlog/devlog` rather than `/etc/logrotate.d/devlog`. `--base-dir` exists, but one directory cannot be both the systemd unit directory and the nginx include directory.
 
 ### The managed manifest is never written
 
@@ -397,7 +349,7 @@ Every service in the generated compose file sets `env_file: .env`, and the compo
 - [Security](security.md) — Proxy rate limiting, headers, TLS, encryption
 - [Filesystem Layout](../core/filesystem.md) — `RuntimePaths`, `InstallMode`, `InstallationMetadata`
 - [Configuration](../core/configuration.md) — The typed config model behind `DevLogConfig`
-- [App Factory](../core/app-factory.md) — Where the app factory installs its configuration, and where `DEVLOG_CONFIG` is not installed
+- [App Factory](../core/app-factory.md) — Where the app factory installs its configuration, including `DEVLOG_CONFIG`
 - [Operations Services](../services/operations.md) — The service layer pattern this module follows
 - [Services Overview](../services/overview.md) — The service inventory
 - [Scheduler Tasks](../tasks/scheduler.md) — What the scheduler unit is meant to run

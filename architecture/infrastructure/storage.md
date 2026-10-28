@@ -60,6 +60,14 @@ class S3StorageBackend(StorageBackend):
 | `S3_SECRET_KEY` | AWS secret key |
 | `S3_PUBLIC_URL` | Custom CDN URL |
 
+### The `[storage]` Section of `config.toml`
+
+`[storage]` in `config.toml` is **not** inert. `_storage_settings()` in `app/storage.py`
+starts from the environment snapshot taken at import time and then, when an application
+context is active, overrides each field with the typed configuration from
+`current_app.config["DEVLOG_CONFIG"].storage`. The typed configuration therefore wins over
+the environment; the environment remains the fallback for callers outside an app context.
+
 ## Module-Level Functions
 
 ### `init_storage()`

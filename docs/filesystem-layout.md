@@ -26,7 +26,7 @@ DevLog supports four deployment modes with distinct filesystem layouts. The layo
 /var/lib/devlog/exports/       devlog:devlog 0750
 /var/log/devlog/               devlog:devlog 0750
 /run/devlog/                   devlog:devlog 0700
-/opt/devlog/releases/current   symlink to versioned release
+/opt/devlog/current            symlink to /opt/devlog/releases/X.Y.Z
 ```
 
 ### User-native (XDG)
@@ -96,6 +96,7 @@ Paths are resolved via `RuntimePaths.for_mode(mode)` or `RuntimePaths.resolve(mo
 | `DEVLOG_ENV_FILE` | `env_file` | `/etc/devlog/.env` |
 | `DEVLOG_LOG_DIR` | `log_dir` | `/var/log/devlog` |
 | `DEVLOG_RUNTIME_DIR` | `runtime_dir` | `/run/devlog` |
+| `DEVLOG_RELEASE_DIR` | `release_dir` (system mode only) | `/opt/devlog/current` |
 
 The database, uploads, themes, backups and exports directories are derived from
 `data_dir` and are not individually settable through an environment variable in
@@ -126,11 +127,16 @@ runtime_dir = "/run/devlog"
 
 ```bash
 devlog paths status               # Show resolved paths and provenance
+devlog paths status --mode system # Report the paths a given mode resolves to
 devlog paths status --json        # JSON output
 devlog paths discover-legacy      # Find legacy repository-local state
 devlog paths migrate --from-mode development --to-mode system  # Plan a migration
-devlog paths check                # Verify layout integrity
+devlog paths check --mode system  # Verify layout integrity
 ```
+
+`devlog paths status` and `devlog paths check` accept `--mode` (`system`, `user`, `docker`
+or `development`; default `development`). `devlog paths discover-legacy` takes
+`--search-root` instead, and `devlog paths migrate` takes `--from-mode` and `--to-mode`.
 
 `devlog paths migrate` only produces a plan. It accepts `--from-mode` and
 `--to-mode` (each `system`, `user`, `docker` or `development`) and never moves

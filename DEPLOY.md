@@ -36,7 +36,10 @@ Comprehensive guide for deploying DevLog in production.
 
 - Python 3.12 or later (tested with 3.12 and 3.13)
 - pip
-- SQLite 3.35+ (for `PRAGMA journal_mode=WAL` and FTS5 support)
+- Node.js 20+ — **only** when deploying from a source checkout. A release install
+  uses the published wheel, which already contains the built frontend assets, so
+  Node.js is not needed. The Docker image compiles the frontend in the container.
+- SQLite built with FTS5 support (search falls back to `LIKE` without it; `scripts/install.sh` feature-detects FTS5 and warns)
 - A reverse proxy (nginx, Caddy recommended)
 - A domain with SSL certificate
 
@@ -47,8 +50,8 @@ Comprehensive guide for deploying DevLog in production.
 ### Docker Production
 
 ```bash
-git clone https://github.com/dbowm91/blog.git /opt/blog
-cd /opt/blog
+git clone https://github.com/dbowm91/blog.git /opt/devlog-src
+cd /opt/devlog-src
 cp .env.example .env
 # Edit .env: set SECRET_KEY and ADMIN_PASSWORD
 docker compose --profile production up -d --build
@@ -62,11 +65,57 @@ Admin panel: `http://localhost:5000/admin/login`.
 
 > **Local HTTP testing:** Set `SESSION_COOKIE_SECURE=false` in your `.env` when testing at `http://localhost:5000`, otherwise admin login cookies will not persist. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
 
+### Native Install (VPS)
+
+The one-command installer downloads a verified release, installs it and creates a
+`devlog` launcher:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native
+```
+
+This installs to `/opt/devlog/releases/<version>` with a `current` symlink at
+`/opt/devlog/current`, a launcher at `/usr/local/bin/devlog`, configuration at
+`/etc/devlog/config.toml` and data at `/var/lib/devlog`. Then run onboarding:
+
+```bash
+sudo devlog onboard run --mode native --scope system --profile native-production
+```
+
+Onboarding needs root for a system install — it writes `/etc/devlog/config.toml`
+and `/var/lib/devlog`. A `--user` install writes into your own home directory
+and needs neither root nor `--scope system`.
+
+Onboarding needs `--scope`: without it, `step_resolve_paths()` falls back to the
+development layout and writes `config.toml` and `data/` into the current working
+directory instead of the install prefix.
+
+Useful flags: `--user` installs under `~/.local/share/devlog` with the launcher
+at `~/.local/bin/devlog` — onboard that one with
+`--scope user`; `--version X.Y.Z` pins a release; `--onboard` runs onboarding
+immediately (needs a TTY); `--dry-run` previews the install.
+
+The service runs as an unprivileged `devlog` account, which nothing creates for
+you — make it before onboarding, then install the units:
+
+```bash
+sudo useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog
+sudo devlog deploy install --mode system
+sudo systemctl enable --now devlog-web
+```
+
+[Section 11: Systemd Service](#11-systemd-service) has the full sequence.
+
+The installer verifies the release's SHA-256 checksums before unpacking
+anything. The full guide — including the Docker bundle, the supply-chain
+checks and the layout of each scope — is in
+[docs/installation.md](docs/installation.md).
+
 ### Local Development (NOT for production)
 
 ```bash
-git clone https://github.com/dbowm91/blog.git /opt/blog
-cd /opt/blog
+git clone https://github.com/dbowm91/blog.git /opt/devlog-src
+cd /opt/devlog-src
 
 python3 -m venv venv
 source venv/bin/activate
@@ -89,11 +138,11 @@ The app listens on `0.0.0.0:5000` by default.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | SQLite with WAL | Supported | Default single-server database for v1 |
-| PostgreSQL | Experimental | Not recommended for v1 production; health checks report unsupported for SQLite-specific features |
+| PostgreSQL | Experimental | Not recommended for v1 production; health checks report unsupported for SQLite-specific features, and there is no PostgreSQL search provider |
 | Local filesystem media | Supported | Default media backend |
 | S3-compatible media | Experimental | Requires boto3; not CI-tested |
 | Redis (cache/rate limiting) | Supported | Used in Docker production profile |
-| Celery + Redis (async tasks) | Supported | Newsletter, webhooks, image variants; included in production compose profile |
+| Celery + Redis (async tasks) | Supported | Webhooks, image variants, transactional email, comment notifications; included in production compose profile |
 | External TLS reverse proxy | Supported/recommended | Caddy/nginx/Traefik/cloud proxy to localhost app |
 | Included nginx profile | Optional/advanced | Requires `--profile reverse-proxy` and certificate configuration |
 | Metrics endpoint | Supported when enabled | Disabled by default; secret required in production |
@@ -126,8 +175,8 @@ Environment variables override `config.toml` settings. **Required** variables mu
 | `DATABASE_URL` | — | PostgreSQL connection string (fallback for `SQLALCHEMY_DATABASE_URI` — see Section 8) |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Celery broker URL (fallback: `REDIS_URL`) |
 | `ENABLE_SCHEDULER` | `false` | Enable APScheduler (set `true` on exactly ONE container) |
-| `HEALTH_CHECK_SECRET` | — | Secret for detailed `/health?detailed=true` endpoint. When set, detailed health requires `?secret=` param |
-| `METRICS_SECRET` | — | Secret for `/metrics` endpoint. Required when `ENABLE_METRICS=true` (no fallback) |
+| `HEALTH_CHECK_SECRET` | — | Secret for detailed `/health?detailed=true` endpoint. When set, detailed health requires the secret, supplied as the `X-Health-Secret` header, an `Authorization: Bearer <secret>` header, or a `?secret=` parameter |
+| `METRICS_SECRET` | — | Secret for `/metrics` endpoint. Required in production when `ENABLE_METRICS=true` (no fallback) |
 | `ENABLE_METRICS` | `false` | Enable `/metrics` endpoint. Must be `true` with `METRICS_SECRET` in production |
 
 ### Storage Variables
@@ -157,7 +206,7 @@ Environment variables override `config.toml` settings. **Required** variables mu
 
 ### Example Production Environment File
 
-Create `/etc/blog/env` (chmod 600):
+Create `/etc/devlog/.env` (chmod 600):
 
 ```bash
 SECRET_KEY=your-64-char-hex-key-here
@@ -176,7 +225,7 @@ HEALTH_CHECK_SECRET=your-health-check-secret
 METRICS_SECRET=your-metrics-secret
 ```
 
-Load with `EnvironmentFile=/etc/blog/env` in systemd unit.
+Load with `EnvironmentFile=/etc/devlog/.env` in the systemd unit.
 
 ---
 
@@ -215,7 +264,12 @@ confirmation_expiry_hours = 1
 max_retry_attempts = 5
 ```
 
-The app validates `config.toml` on startup and raises `RuntimeError` for invalid values.
+Configuration validation is a separate step, not a startup gate: the app factory
+does not validate `config.toml`, so an invalid value is not rejected at boot.
+Run the validator explicitly with `devlog config check` (or `devlog doctor`,
+which includes a `config.validate` check). The one startup `RuntimeError` the
+app does raise is the production metrics gate — `ENABLE_METRICS=true` with no
+`METRICS_SECRET` in production.
 
 Every configuration field is documented by the standalone CLI:
 
@@ -241,7 +295,7 @@ pip install granian
 ### Running
 
 ```bash
-granian --interface asgi --workers 4 --host 127.0.0.1 --port 5000 run:asgi_app
+granian --interface asgi --workers 4 --host 127.0.0.1 --port 5000 app.asgi:asgi_app
 ```
 
 ### Worker Tuning
@@ -256,11 +310,10 @@ Start with `--workers 4` and adjust based on traffic.
 
 ### Timeout Configuration
 
-Always set `--timeout` to prevent hanging requests:
-
-```bash
-granian --interface asgi --workers 4 --timeout 60 run:asgi_app
-```
+Granian's default request timeout is 60 seconds, which is what the packaged
+units use. granian 1.x exposes it as `--timeout`; granian 2.x replaced the
+option with per-worker timeouts and rejects `--timeout` outright, so the
+packaged command line does not pass it.
 
 **Recommended timeouts:**
 - 30 seconds for normal page requests
@@ -299,8 +352,8 @@ Granian handles graceful shutdown automatically—waiting for in-flight requests
 
 ```bash
 # Clone the repository
-git clone https://github.com/dbowm91/blog.git /opt/blog
-cd /opt/blog
+git clone https://github.com/dbowm91/blog.git /opt/devlog-src
+cd /opt/devlog-src
 
 # Create .env file
 cp .env.example .env
@@ -341,19 +394,21 @@ docker compose --profile production up -d --build
 docker compose --profile production --profile reverse-proxy up -d --build
 
 # Backup service
+docker compose --profile backup up -d
+
+# One-shot backup run
 docker compose --profile backup run --rm backup
 
 # Both production and backup
 docker compose --profile production --profile backup up -d
 ```
 
-The `backup` profile runs `backup.py`, which defaults to a database at
-`instance/blog.db`. Pass the container's actual database explicitly when
-overriding the entrypoint:
-
-```bash
-docker compose --profile backup run --rm backup --db /data/devlog.sqlite3
-```
+The `backup` service runs `python3 backup.py --dir /backups` and mounts
+`blog_data` at `/data`, so it backs up `/data/devlog.sqlite3` — the database
+name the app actually uses — and writes the result to the `./backups` host
+directory. `backup.py` resolves the database from the effective configuration
+when `--db` is not given, and the container sets `DEVLOG_DATA_DIR=/data`, so no
+path override is needed.
 
 ### Environment Variables in Docker
 
@@ -370,10 +425,10 @@ Copy `.env.example` and fill in your values:
 | `API_KEY` | No | REST API authentication key |
 | `STORAGE_BACKEND` | No | `local` or `s3` |
 | `S3_*` | No | S3 configuration |
-| `UPLOAD_FOLDER` | No | Media directory. Set to `/data/uploads` to keep uploads in the `blog_data` volume |
+| `UPLOAD_FOLDER` | No | Media directory for new uploads. Set to `/data/uploads` to keep uploads in the `blog_data` volume — but see the caveat under "Data Persistence" |
 | `ENABLE_SCHEDULER` | No | Enable APScheduler (default: `false`, set on ONE container) |
 | `HEALTH_CHECK_SECRET` | No | Secret for detailed `/health?detailed=true` endpoint |
-| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (required with `ENABLE_METRICS`) |
+| `METRICS_SECRET` | No | Secret for `/metrics` endpoint (required in production when `ENABLE_METRICS=true`) |
 | `ENABLE_METRICS` | No | Enable `/metrics` endpoint (default: `false`) |
 
 ### Data Persistence
@@ -398,7 +453,13 @@ Two paths sit outside the volumes by default and need attention:
 - **Media.** The local storage backend writes to `app/static/uploads/`, which
   is inside the image, not the `blog_data` volume. Set
   `UPLOAD_FOLDER=/data/uploads` on the `blog` and `celery` services to keep
-  uploads in the volume, or use the S3 backend.
+  uploads in the volume, or use the S3 backend. This is only half-honoured:
+  the storage backend honours `UPLOAD_FOLDER` for new uploads, but the app
+  factory sets `app.config["UPLOAD_FOLDER"]` to `app/static/uploads`
+  unconditionally, and the media gallery (`app/routes/admin/media.py`) and the
+  old-image deletion paths (`app/routes/admin/posts/`, `app/routes/api/posts.py`)
+  read that Flask config value. Those two features therefore still operate on
+  `app/static/uploads/` even when `UPLOAD_FOLDER` points elsewhere.
 - **Logs.** The Flask file log handler writes to `logs/blog.log` inside the
   application directory rather than to `DEVLOG_LOG_DIR`. If you rely on the
   `blog_logs` volume for log retention, also collect `/home/blog/logs/` (the
@@ -458,7 +519,7 @@ docker inspect --format='{{.State.Health.Status}}' blog
 
 1. **SQLite is single-writer**: Only one process can write at a time. Do not scale the blog service horizontally without migrating to PostgreSQL first.
 2. **APScheduler uses file locking**: The in-process scheduler (`fcntl` lock) only coordinates workers on a single machine. In multi-container deployments, each container runs its own scheduler. Use Celery Beat or an external cron if you need single-scheduled-execution across replicas. Set `ENABLE_SCHEDULER=true` on exactly ONE container.
-3. **Async jobs need Redis/Celery**: The `celery` service handles newsletter delivery, webhook delivery, image variant generation, and backups. Without Redis, these jobs block the web process.
+3. **Async jobs need Redis/Celery**: The `celery` service handles webhook delivery, image variant generation, confirmation and password-reset email, and pending-comment notifications. Without Redis, these jobs block the web process. The daily newsletter and the daily backup are not Celery tasks — APScheduler runs them in-process.
 4. **Reverse proxy TLS is your responsibility**: The core production profile does not terminate TLS. For public internet deployment, terminate TLS with a host-level reverse proxy such as Caddy, nginx, or Traefik and proxy to `http://127.0.0.1:5000`. The repository also includes an optional nginx Compose profile (`--profile reverse-proxy`) for operators who want to manage nginx inside Compose, but it is not required for the supported single-host path and must be configured with valid certificates before public use.
 
 ### Production Docker Considerations
@@ -518,13 +579,13 @@ Never commit `.env` to version control.
 
 **Warning:** Restoring overwrites all current data.
 
-**Backup location:** `instance/backups/`
+**Backup location:** `<data_dir>/backups` — `/var/lib/devlog/backups` for a
+system install, `~/.local/share/devlog/backups` for a user install.
 
-**Backup database path:** the **Create Backup** button resolves the database
-from the configured URI (`data/devlog.sqlite3` by default). The scheduled
-daily backup, the Celery backup task and `devlog backup create` still look
-for `instance/blog.db` — see the note in
-[Section 13: Maintenance](#13-maintenance).
+**Backup database path:** every backup path resolves the database from the
+configured URI (`data/devlog.sqlite3` by default) — the **Create Backup**
+button, the scheduled daily backup and `devlog backup create` all use the
+same file.
 
 ### Built-in Backup (CLI)
 
@@ -553,10 +614,10 @@ The SQLite database lives at `data/devlog.sqlite3` by default (override with
 
 ```bash
 # Live backup (safe during writes with WAL mode)
-sqlite3 /opt/blog/data/devlog.sqlite3 ".backup '/var/backups/blog/backup-$(date +%Y%m%d).db'"
+sqlite3 /var/lib/devlog/devlog.sqlite3 ".backup '/var/backups/blog/backup-$(date +%Y%m%d).db'"
 
 # Portable SQL dump
-sqlite3 /opt/blog/data/devlog.sqlite3 ".dump" | gzip > /var/backups/blog/backup-$(date +%Y%m%d).sql.gz
+sqlite3 /var/lib/devlog/devlog.sqlite3 ".dump" | gzip > /var/backups/blog/backup-$(date +%Y%m%d).sql.gz
 ```
 
 ### Off-site Backup Sync
@@ -570,7 +631,7 @@ It reads two environment variables:
 | `BACKUP_DIR` | `<project>/backups` | Local backup directory to sync |
 | `RCLONE_REMOTE` | — | rclone remote, e.g. `s3-backup:my-blog-backups` |
 
-The application writes its own backups to `instance/backups/`, so point
+The application writes its own backups to `<data_dir>/backups`, so point
 `BACKUP_DIR` at that directory unless you also copy the backups elsewhere.
 
 **Install rclone:**
@@ -600,7 +661,7 @@ RCLONE_REMOTE="s3-backup:my-blog-backups" ./scripts/sync_backups.sh
 
 **Crontab for daily sync:**
 ```bash
-0 4 * * * /opt/blog/scripts/sync_backups.sh --verify --cleanup 7 >> /opt/blog/logs/backup_sync.log 2>&1
+0 4 * * * /opt/devlog-src/scripts/sync_backups.sh --verify --cleanup 7 >> /var/log/devlog/backup_sync.log 2>&1
 ```
 
 ### Backup Verification
@@ -635,7 +696,7 @@ Adjust based on storage costs and compliance requirements.
 
 Include in your backup strategy:
 
-1. **Database:** `data/devlog.sqlite3` (plus its `-wal` / `-shm` sidecars) and `instance/backups/`
+1. **Database:** `data/devlog.sqlite3` (plus its `-wal` / `-shm` sidecars) and `<data_dir>/backups`
 2. **Uploads:** `app/static/uploads/` (or the object store, when using S3)
 3. **Configuration:** `config.toml` (not secrets)
 4. **Environment variables** (document separately)
@@ -653,7 +714,7 @@ Include in your backup strategy:
 sudo systemctl stop blog
 
 # Restore database
-cp /var/backups/blog/backup-20260429.db /opt/blog/data/devlog.sqlite3
+cp /var/backups/blog/backup-20260429.db /var/lib/devlog/devlog.sqlite3
 
 # Restart
 sudo systemctl start blog
@@ -665,7 +726,7 @@ sudo systemctl start blog
 python -c "from app.services.backup import decrypt_backup_file; decrypt_backup_file('backup.db.gpg', 'backup.db')"
 
 # Then restore via admin panel: POST /admin/backup/restore/backup.db
-# Or copy backup.db to instance/backups/ and use the admin UI
+# Or copy backup.db to <data_dir>/backups/ and use the admin UI
 ```
 
 **Cross-version restore:**
@@ -686,7 +747,6 @@ For single-server deployments, SQLite with WAL mode is sufficient and recommende
 ### Prerequisites
 
 - **PostgreSQL 13+**
-- **pg_trgm extension** (recommended for fuzzy matching)
 - **psycopg2-binary** package
 
 ### Step 1: Install and Configure PostgreSQL
@@ -710,10 +770,6 @@ GRANT ALL PRIVILEGES ON DATABASE blog TO blog_user;
 GRANT ALL ON SCHEMA public TO blog_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO blog_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO blog_user;
-
-# Enable pg_trgm extension
-\c blog
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 \q
 ```
@@ -781,15 +837,33 @@ The standalone CLI offers the same two operations (`devlog data export`,
 `devlog data import`); `devlog data import --dry-run` validates a file without
 writing to the database.
 
-### Step 7: Configure Search
+### Step 7: Search Is Not Available on PostgreSQL
 
-Replace FTS5 with PostgreSQL `tsvector` (see codebase for implementation details).
+There is no PostgreSQL search backend. `app/services/search/` ships two
+providers: `sqlite.py` (the working one) and `postgresql.py` (a stub). The
+stub implements the `SearchProvider` interface, but every method raises
+`ConfigurationError` — it is not an implementation, and the code base contains
+no `tsvector` columns and no `pg_trgm` usage.
+
+Search therefore stays on SQLite FTS5 only. `get_search_provider()` returns
+the stub whenever `SEARCH_PROVIDER` is `postgresql`, and every one of its
+methods then raises `ConfigurationError` at request time. In `config.toml`,
+`[search] provider` is validated against `sqlite`, `meilisearch` and
+`typesense`, so `provider = "postgresql"` is rejected as an invalid enum
+value. The detailed health check reports `search` as `unsupported` on a
+PostgreSQL database.
+
+Running PostgreSQL means running without full-text search. Adding one would
+mean writing the provider: port the `SearchProvider` interface in
+`app/services/search/` to `tsvector` queries, add the index columns and a
+migration, and register the provider so the configuration validator accepts
+it. That work has not been done.
 
 ### Step 8: Verify Migration
 
 Test:
 - [ ] View posts on homepage
-- [ ] Search functionality
+- [ ] Search functionality — expected to be unavailable on PostgreSQL
 - [ ] Admin login
 - [ ] Create/edit a post
 - [ ] Analytics
@@ -802,7 +876,7 @@ Test:
 |---|---|---|
 | Connection | File-based | TCP socket |
 | Writes | Serialized | True concurrent |
-| Full-text search | FTS5 | tsvector + GIN |
+| Full-text search | FTS5 | Not implemented — the `SearchProvider` stub raises `ConfigurationError` |
 | Backup | Copy file | pg_dump |
 | Connection pooling | Not needed | Use pgbouncer |
 
@@ -823,7 +897,7 @@ server {
 
     # Serve static files directly
     location /static/ {
-        alias /opt/blog/app/static/;
+        alias /opt/devlog/current/app/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
         access_log off;
@@ -935,42 +1009,102 @@ For Cloudflare deployments, use custom rules:
 
 ## 11. Systemd Service
 
-Create `/etc/systemd/system/blog.service`:
+### Service account and directories (system installs only)
+
+The rendered units run as the unprivileged `devlog` account. Neither the
+installer nor onboarding creates a system account, so create it **before**
+onboarding — onboarding then hands the data and log directories to it:
+
+```bash
+sudo useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog
+```
+
+Onboarding creates `/var/lib/devlog` (data), `/var/lib/devlog/backups` and
+`/var/log/devlog` (logs), and gives them to the service account when it runs
+as root. `/run/devlog` needs no setup: the unit declares `RuntimeDirectory=devlog`,
+so systemd creates it on every start and removes it on stop.
+
+If you skipped the account, onboarding warns and the service cannot start:
+
+```bash
+devlog doctor --check fs.service_account
+```
+
+### Rendering and installing the units
+
+The packaged renderer produces the units for you. Render them, review them,
+and install them:
+
+```bash
+devlog deploy render --mode system --json --print   # print the rendered units to stdout
+devlog deploy render --mode system --output /tmp/units   # write the units to a directory
+devlog deploy install --mode system           # write them to their system directories
+devlog deploy check --mode system             # report drift
+```
+
+`devlog deploy install --mode system` writes `devlog-web.service`,
+`devlog-worker.service` and `devlog-scheduler.service`. The worker unit is only
+rendered when a Celery broker is configured and the scheduler unit only when
+the scheduler is enabled, so a default install writes just `devlog-web.service`.
+The web unit looks like this:
 
 ```ini
 [Unit]
-Description=DevLog Blog Application
+Description=DevLog Web Application
 After=network.target
 
 [Service]
 Type=simple
-User=blog
-Group=blog
-WorkingDirectory=/opt/blog
-EnvironmentFile=/etc/blog/env
-ExecStart=/opt/blog/venv/bin/granian --interface asgi --workers 4 --timeout 60 run:asgi_app
+User=devlog
+Group=devlog
+EnvironmentFile=/etc/devlog/.env
+ExecStartPre=/opt/devlog/current/venv/bin/devlog config check --config /etc/devlog/config.toml
+ExecStartPre=/usr/bin/test -d /var/lib/devlog
+ExecStartPre=/usr/bin/test -d /var/log/devlog
+ExecStart=/opt/devlog/current/venv/bin/python -m granian --interface asgi --workers 4 --host 127.0.0.1 --port 5000 app.asgi:asgi_app
+WorkingDirectory=/opt/devlog/current
 Restart=on-failure
 RestartSec=5
-StandardOutput=journal
-StandardError=journal
+TimeoutStartSec=30
+Umask=0027
+RuntimeDirectory=devlog
 
 # Security hardening
 NoNewPrivileges=true
-ProtectSystem=strict
-ReadWritePaths=/opt/blog/data /opt/blog/instance /opt/blog/logs
 PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/devlog /var/log/devlog /run/devlog
 
 [Install]
 WantedBy=multi-user.target
 ```
 
+Notes on the paths:
+
+- `/opt/devlog/current` is the installer's `current` symlink — it points at
+  the versioned release directory `/opt/devlog/releases/<version>`.
+- `--host` and `--port` must be given explicitly. granian's own defaults are
+  `127.0.0.1:8000`, which is not where the reverse proxy is listening. The
+  renderer takes both values from `config.toml` `[server] host` and `port`.
+- `WorkingDirectory` must be the release directory. `app.asgi:asgi_app` is
+  imported from the installed package, and `migrations/` ships inside it.
+- `RuntimeDirectory=devlog` makes systemd create `/run/devlog` on every start.
+  `/run` is a tmpfs, so the directory does not survive a reboot and cannot be
+  created once and forgotten.
+- The `ExecStartPre=/usr/bin/test -d …` lines are deliberate: the unit refuses
+  to start rather than running with a missing data or log directory.
+
 **Enable and start:**
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable blog
-sudo systemctl start blog
-sudo journalctl -u blog -f
+sudo systemctl enable devlog-web
+sudo systemctl start devlog-web
+sudo journalctl -u devlog-web -f
 ```
+
+If you would rather write the unit by hand, keep the same paths — the
+rendered unit is the reference the installer and the runtime both expect.
 
 ---
 
@@ -982,9 +1116,18 @@ sudo journalctl -u blog -f
 # Basic health (fast, no auth — use for uptime monitoring)
 curl http://127.0.0.1:5000/health
 
-# Detailed health (requires secret when HEALTH_CHECK_SECRET is set)
+# Detailed health (requires the secret when HEALTH_CHECK_SECRET is set)
 curl -H "X-Health-Secret: YOUR_HEALTH_CHECK_SECRET" "http://127.0.0.1:5000/health?detailed=true"
+
+# The same secret also works as a bearer token or a query parameter
+curl -H "Authorization: Bearer YOUR_HEALTH_CHECK_SECRET" "http://127.0.0.1:5000/health?detailed=true"
+curl "http://127.0.0.1:5000/health?detailed=true&secret=YOUR_HEALTH_CHECK_SECRET"
 ```
+
+`_provided_secret()` in `app/routes/public/meta.py` accepts the `Authorization:
+Bearer <secret>` header, then the `X-Health-Secret` header, then the `?secret=`
+query parameter. With no `HEALTH_CHECK_SECRET` configured, detailed mode is
+open in development and returns 403 in production.
 
 Basic response:
 ```json
@@ -1003,23 +1146,29 @@ Detailed response includes all checks: database, scheduler, search, disk_space, 
 ### Metrics
 
 ```bash
-# Requires METRICS_SECRET when ENABLE_METRICS=true
+# Requires METRICS_SECRET in production when ENABLE_METRICS=true
 curl -H "X-Metrics-Secret: YOUR_METRICS_SECRET" http://127.0.0.1:5000/metrics
 ```
 
-When `ENABLE_METRICS=false` (default), `/metrics` returns 404. Set `ENABLE_METRICS=true` and `METRICS_SECRET` to enable.
+When `ENABLE_METRICS=false` (default), `/metrics` returns 404. Set
+`ENABLE_METRICS=true` to enable it; in production `METRICS_SECRET` is then
+required, and the app refuses to start without it. In development the endpoint
+is served without a secret when none is configured.
 
 ### Application Logs
 
 Logs written to `logs/blog.log` (rotated at 10 MB, 10 backups):
 
 ```bash
-tail -f /opt/blog/logs/blog.log
+tail -f /opt/devlog/current/logs/blog.log
 ```
+
+The file handler writes to `<app dir>/logs/blog.log` — the application
+directory, not `DEVLOG_LOG_DIR`.
 
 Or via journalctl:
 ```bash
-journalctl -u blog -f
+journalctl -u devlog-web -f
 ```
 
 ### Uptime Monitoring
@@ -1037,13 +1186,13 @@ Use `/health` endpoint with:
 
 ```bash
 # Weekly integrity check (Sunday 2 AM)
-0 2 * * 0 cd /opt/blog && flask check-integrity >> logs/integrity.log 2>&1
+0 2 * * 0 cd /opt/devlog-src && flask check-integrity >> logs/integrity.log 2>&1
 
 # Weekly search rebuild (Sunday 3 AM)
-0 3 * * 0 cd /opt/blog && flask rebuild-search >> logs/search.log 2>&1
+0 3 * * 0 cd /opt/devlog-src && flask rebuild-search >> logs/search.log 2>&1
 
 # Monthly cleanup (1st of month 4 AM)
-0 4 1 * * cd /opt/blog && flask cleanup-orphaned-images >> logs/cleanup.log 2>&1
+0 4 1 * * cd /opt/devlog-src && flask cleanup-orphaned-images >> logs/cleanup.log 2>&1
 ```
 
 ### Newsletter Scheduler
@@ -1057,20 +1206,15 @@ When enabled it runs four jobs:
 | Scheduled post publishing | Every 5 minutes | Publishes posts whose `scheduled_publish_at` has passed |
 | Subscriber cleanup | Every 5 minutes | Deletes unconfirmed subscribers past their confirmation window |
 | Daily newsletter | `08:00` (`[newsletter] send_time`) | Only scheduled when `SMTP_HOST` is set |
-| Daily backup | `02:00` | Writes to `instance/backups/` — see the note below |
+| Daily backup | `02:00` | Writes to `<data_dir>/backups/` |
 
 Each job takes a file lock first, so multiple workers on one host do not
 duplicate work.
 
-> **Known limitation.** The scheduled daily backup, the Celery
-> `run_backup_task` and `devlog backup create` all look for the database at
-> `instance/blog.db`. With the default `data/devlog.sqlite3` path they cannot
-> find it, and the scheduled job logs
-> `Database file not found at .../instance/blog.db, skipping backup`. Only the
-> **Create Backup** button in `/admin/backup` resolves the database from the
-> configured URI. Until the backup paths are aligned with
-> `app/config/loader.py`, either keep the database at `instance/blog.db` or
-> create backups from the admin UI.
+The scheduled backup resolves the database from the configured URI and the
+backup directory from `[backup] data_backup_dir`, resolved against the data
+directory — the same rules the admin panel and `devlog backup create` use. See
+[Section 7: Backup and Restore](#7-backup-and-restore).
 
 ### Background Jobs: Celery vs APScheduler
 
@@ -1078,10 +1222,15 @@ DevLog uses two complementary systems for background work:
 
 | System | What it does | Where it runs |
 |--------|-------------|---------------|
-| **APScheduler** | Triggers scheduled tasks (newsletter sends, post publishing, backups, subscriber cleanup) | In-process, gated by `ENABLE_SCHEDULER=true` on one container |
-| **Celery** | Executes async jobs (newsletter delivery, webhook delivery, image variants, backup creation) | Dedicated `celery` service in the production compose profile |
+| **APScheduler** | Runs scheduled jobs in-process (daily newsletter send, post publishing, daily backup, subscriber cleanup) | In-process, gated by `ENABLE_SCHEDULER=true` on one container |
+| **Celery** | Executes async jobs (webhook delivery, image variants, confirmation and password-reset email, pending-comment notifications) | Dedicated `celery` service in the production compose profile |
 
-**How they interact:** APScheduler enqueues jobs into Celery when available. Without Celery, newsletter sends block the web process. The production compose profile includes both — APScheduler on the blog container, Celery as a separate worker.
+**How they interact:** they do not. APScheduler calls its jobs directly — the
+newsletter job calls `send_newsletter(...)` inline and the backup job calls
+`app.services.backup.run_daily_backup` — and never enqueues into Celery. The
+Celery tasks `send_newsletter_task` and `run_backup_task` in `app/tasks.py`
+have no call sites. The production compose profile includes both: APScheduler
+on the blog container, Celery as a separate worker for the tasks listed above.
 
 ---
 
@@ -1098,7 +1247,7 @@ DevLog uses two complementary systems for background work:
 - [ ] `HEALTH_CHECK_SECRET` set to gate detailed health endpoint
 - [ ] `METRICS_SECRET` set and `ENABLE_METRICS=true` to gate `/metrics` endpoint
 - [ ] Static files served by nginx, not proxied
-- [ ] Rate limiting configured for `/admin/login` (5 req/min)
+- [ ] Rate limiting configured for `/admin/login` (5 req/min) at the reverse proxy — the application does not rate limit the login routes
 - [ ] `data/devlog.sqlite3` not in a web-accessible directory
 - [ ] `app/static/uploads/` permissions restricted
 - [ ] SMTP credentials via environment variables
@@ -1118,7 +1267,7 @@ DevLog uses two complementary systems for background work:
 | asgiref | ASGI adapter |
 | markdown | Markdown rendering |
 | nh3 | HTML sanitization |
-| APScheduler | Newsletter scheduling |
+| APScheduler | Scheduled jobs (newsletter, post publishing, subscriber cleanup, daily backup) |
 | granian | ASGI server |
 
 For Python version requirements, see `pyproject.toml`.
@@ -1140,7 +1289,12 @@ Docker builds frontend assets automatically via a multi-stage Dockerfile. The No
 
 ### Manual Builds (Non-Docker)
 
-For non-Docker production deployments, build assets before starting the server:
+**A release install needs no build step.** The published wheel already contains
+the built frontend assets (`app/static/dist/`), so `scripts/install.sh` and the
+installer pull in a ready-to-serve release.
+
+Build assets by hand only when you deploy from a **source checkout** (a git
+clone rather than a release):
 
 ```bash
 npm ci
@@ -1152,6 +1306,9 @@ Verify the build produced the manifest:
 ```bash
 test -f app/static/dist/.vite/manifest.json && echo "Build OK"
 ```
+
+Onboarding checks for the same file and refuses to finish without it, so a
+missing build is reported at install time rather than as 404s on every page.
 
 ### Admin Tasks
 - **Rebuild assets**: After changing JS/CSS files, run `npm run build` and restart the app
@@ -1192,8 +1349,9 @@ Global flags: `--config`, `--env-file`, `--json`, `--quiet`, `--verbose`,
 | `onboard` | `detect`, `plan`, `run`, `resume` | First-run and reconfiguration onboarding |
 | `paths` | `status`, `discover-legacy`, `migrate`, `check` | Inspect and migrate the filesystem layout |
 | `deploy` | `render`, `install`, `check` | Render and install systemd/compose/proxy units |
-| `doctor` | `doctor` | Run 76 diagnostic checks across 20 categories |
-| lifecycle | `start`, `stop`, `restart`, `status`, `logs` | Manage the service |
+| `doctor` | — | Run 76 diagnostic checks across 20 categories (a top-level command, not a group) |
+| — | `start`, `stop`, `restart`, `status`, `logs` | Manage the service (top-level commands, not a `lifecycle` group) |
+| — | `serve`, `worker`, `scheduler` | Run the ASGI server, Celery worker or scheduler in the foreground |
 
 ### Common Operations
 
@@ -1216,8 +1374,8 @@ devlog doctor --category security
 devlog doctor --fix-safe
 
 # Create, verify and inspect backups
-devlog backup verify instance/backups/blog_20260429.db
-devlog backup inspect instance/backups/blog_20260429.db
+devlog backup verify /var/lib/devlog/backups/blog_20260429_030000.db
+devlog backup inspect /var/lib/devlog/backups/blog_20260429_030000.db
 
 # Inspect the filesystem layout
 devlog paths status

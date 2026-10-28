@@ -189,7 +189,7 @@ Content-Security-Policy:
 
 Configuration is managed by two layers:
 
-1. **Typed config system** (`app/config/`) — Canonical source of truth for all configuration fields and defaults. Provides 20 frozen dataclasses (`DevLogConfig` + 19 section classes), TOML/JSON serialization, multi-layer validation (schema, security, filesystem, dependencies, compatibility), and config version migration.
+1. **Typed config system** (`app/config/`) — Canonical source of truth for all configuration fields and defaults. Provides 23 frozen dataclasses (`DevLogConfig` + 22 section classes), TOML/JSON serialization, multi-layer validation (schema, security, filesystem, dependencies, compatibility), and config version migration.
 
 2. **Legacy config** (`app/config_legacy.py`) — Re-exported via `app/config/__init__.py` for backward compatibility with existing code that references `app.config` globals.
 

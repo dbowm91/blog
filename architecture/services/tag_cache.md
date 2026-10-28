@@ -8,7 +8,7 @@ Provides efficient tag count queries with caching to avoid repeated database hit
 
 ## Configuration
 
-- `TAG_CACHE_TTL_SECONDS` from `app/config.py` - Cache timeout (default: 60 seconds)
+- `TAG_CACHE_TTL_SECONDS` from `app/config_legacy.py` - Cache timeout (default: 60 seconds)
 
 ## Functions
 
@@ -48,4 +48,4 @@ def _get_tag_counts_cached() -> dict[Any, Any]:
 
 ## See Also
 - [Tag Service](tag.md) - Tag CRUD operations
-- `app/config.py` - `TAG_CACHE_TTL_SECONDS` configuration
+- `app/config_legacy.py` - `TAG_CACHE_TTL_SECONDS` configuration

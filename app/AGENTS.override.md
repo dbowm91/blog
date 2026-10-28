@@ -63,7 +63,8 @@ Specialized handling for the Flask application core.
 
 ## Database
 
-- SQLite stored in `instance/blog.db` (auto-created, WAL mode)
+- SQLite stored in `<data_dir>/devlog.sqlite3` (auto-created, WAL mode) — the path comes from `cfg.database.uri`; `instance/blog.db` is only a fallback when no URI is configured
+- **One resolver for the data paths**: `resolve_database_file()` and `resolve_backup_dir()` in `app/services/backup.py` are the single authority used by the admin backup routes, the services, the Celery task and the scheduled job — never derive either path independently
 - **WAL-Compatible Backups**: When WAL mode is enabled, `shutil.copy2` is insufficient as it misses the `.wal` and `.shm` files. ALWAYS use the `sqlite3.backup()` API for consistent database snapshots.
 - Uses Flask-SQLAlchemy + Flask-Migrate (Alembic)
 - SQLAlchemy 2.0 patterns exclusively — `db.session.execute(select(Model).filter(...))`

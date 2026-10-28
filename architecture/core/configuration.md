@@ -4,13 +4,13 @@ Configuration is centralized in `config.toml` with environment variable override
 
 ## Typed Configuration System
 
-The codebase has a typed configuration system at `app/config/` that provides structured, validated configuration management. The legacy `app/config.py` (now `app/config_legacy.py`) is re-exported via `app/config/__init__.py` for backward compatibility.
+The codebase has a typed configuration system at `app/config/` that provides structured, validated configuration management. There is no `app/config.py` — the legacy globals live in `app/config_legacy.py` and are re-exported via `app/config/__init__.py` for backward compatibility.
 
 ### Package Structure
 
 | Module | Purpose |
 |--------|---------|
-| `app/config/model.py` | 20 frozen dataclasses (`DevLogConfig` + 19 section classes) |
+| `app/config/model.py` | 23 frozen dataclasses (`DevLogConfig` + 22 section classes) — the canonical source of truth for every field and its default |
 | `app/config/loader.py` | `load_effective_config()` with precedence chain |
 | `app/config/paths.py` | Path resolution with source tracking |
 | `app/config/validation.py` | Multi-layer validation (schema, security, filesystem, dependencies, compatibility) |
@@ -91,6 +91,31 @@ config = {}
 | 2 | config.toml | `posts_per_page = 10` |
 | 3 | Default value | `SESSION_LIFETIME_HOURS = 24` |
 
+The precedence is implemented in `_build_section()` in `app/config/loader.py`: for a field
+of a named section it prefers the **section-prefixed** key (`APP_TITLE`, `BASE_URL`,
+`SMTP_HOST`, `ENABLE_METRICS`, …) over the bare key, and only falls back to the bare key
+when the prefixed one is absent. The prefixed keys are what the environment-variable
+overrides and the CLI write, so an environment variable or an explicit override really
+does beat the value in `config.toml`.
+
+### Secrets in `config.toml`
+
+`config_to_toml()` in `app/config/serialization.py` writes **every** section of the model
+— `database`, `redis`, `celery`, `scheduler`, `storage`, `health`, `metrics`, `logging`
+and `paths` included — so the file round-trips through `load_effective_config()`.
+
+Secrets never carry their value in the file:
+
+- A **section-level** secret (`email.smtp_password`, `email.smtp_user`,
+  `health.check_secret`, `metrics.secret`, `backup.encryption_key`,
+  `webhook.encryption_key`, `storage.s3_access_key`, `storage.s3_secret_key`) is written
+  as an **empty string**.
+- The **top-level** `secret_key` and `admin_password` are **omitted from the file
+  entirely** — only `config_version`, `session_cookie_secure`, `proxy_count` and
+  `flask_env` are written as top-level scalars.
+
+Every secret is supplied by the environment or the env file.
+
 ### _env_str Helper
 
 `app/config_legacy.py:_env_str(key, default="")` reads environment variables and treats empty strings as unset (returns default). Used for env vars where an empty value should fall through to the next option.
@@ -101,11 +126,24 @@ Some settings support multiple env var names with fallback logic:
 
 | Setting | Primary Env Var | Fallback Env Var | Default |
 |---------|----------------|------------------|---------|
-| Database URI | `SQLALCHEMY_DATABASE_URI` | `DATABASE_URL` | SQLite (`instance/blog.db`) |
+| Database URI | `SQLALCHEMY_DATABASE_URI` | `DATABASE_URL` | SQLite (`<cwd>/data/devlog.sqlite3`) |
 | Cache Redis | `CACHE_REDIS_URL` | `REDIS_URL` | `redis://localhost:6379/0` |
 | Celery broker | `CELERY_BROKER_URL` | `REDIS_URL` | `redis://localhost:6379/0` |
 
 This allows standard env var names (`DATABASE_URL`, `CELERY_BROKER_URL`) from platforms like Heroku/Railway to work without additional configuration.
+
+The database URI has a longer chain, resolved by `_resolve_database_uri()` in
+`app/config/loader.py`:
+
+1. `database_uri` in `config.toml` (the `[database]` section's `uri`)
+2. `SQLALCHEMY_DATABASE_URI`
+3. `DATABASE_URL`
+4. `DEVLOG_DATABASE_PATH` — a SQLite file path
+5. `DEVLOG_DATA_DIR` — a directory; the file is `<data_dir>/devlog.sqlite3`
+6. `<cwd>/data/devlog.sqlite3`
+
+`DEVLOG_DATABASE_PATH` therefore outranks `DEVLOG_DATA_DIR`, but **not**
+`SQLALCHEMY_DATABASE_URI` or `DATABASE_URL`.
 
 ## Key Settings
 
@@ -166,7 +204,10 @@ This allows standard env var names (`DATABASE_URL`, `CELERY_BROKER_URL`) from pl
 
 ### Storage Settings
 
-Defined in `app/storage.py:53-60`, not in `app/config.py`.
+The `[storage]` section of `config.toml` maps onto `StorageConfig` in
+`app/config/model.py`. `app/storage.py` resolves the backend through
+`_storage_settings()`, which prefers that typed configuration and falls back to
+the environment, so `backend = "s3"` in `config.toml` is no longer inert.
 
 | Variable | Env Var | Default | Description |
 |----------|---------|---------|-------------|
@@ -191,7 +232,7 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 
 | Variable | Env Var | Default | Description |
 |----------|---------|---------|-------------|
-| `SQLALCHEMY_DATABASE_URI` | `SQLALCHEMY_DATABASE_URI` (or `DATABASE_URL`) | `sqlite:///instance/blog.db` | Database connection URI |
+| `SQLALCHEMY_DATABASE_URI` | `SQLALCHEMY_DATABASE_URI` (or `DATABASE_URL`) | `sqlite:///<cwd>/data/devlog.sqlite3` | Database connection URI |
 
 ### Security Settings
 
@@ -199,12 +240,12 @@ Defined in `app/storage.py:53-60`, not in `app/config.py`.
 |----------|---------|---------|-------------|
 | `MAX_FAILED_ATTEMPTS` | - | `5` | Login attempts before lockout |
 | `LOCKOUT_DURATION_MINUTES` | - | `15` | Account lockout duration |
-| `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds, minimum 0.1s enforced (app/config.py:148 via max(LOGIN_FAILURE_DELAY, 0.1))) |
+| `LOGIN_FAILURE_DELAY` | `LOGIN_FAILURE_DELAY` | `0.05` | Delay on failed login (seconds; `app/config_legacy.py` enforces a 0.1s minimum via `max(LOGIN_FAILURE_DELAY, 0.1)`) |
 | `TOKEN_ENUMERATION_DELAY` | - | `0.1` | Delay to prevent token enumeration |
 
 ### Admin Rate Limits
 
-`ADMIN_RATE_LIMITS` dict (app/config.py:165-172) defines per-endpoint rate limits as `(requests, seconds)` tuples:
+The `ADMIN_RATE_LIMITS` dict in `app/config_legacy.py` defines per-endpoint rate limits as `(requests, seconds)` tuples:
 
 | Key | Default | Description |
 |-----|---------|-------------|
@@ -278,9 +319,16 @@ The `PathsConfig` section in `app/config/model.py` allows overriding derived fil
 
 | Path | Config Key | Env Var | Description |
 |------|-----------|---------|-------------|
-| Data root | `paths.data_root` | `DEVLOG_DATA_ROOT` | Base directory for data files |
-| Config dir | `paths.config_dir` | `DEVLOG_CONFIG_DIR` | Configuration file directory |
+| Data dir | `paths.data_dir` | `DEVLOG_DATA_DIR` | Base directory for data files |
 | Log dir | `paths.log_dir` | `DEVLOG_LOG_DIR` | Log file directory |
 | Runtime dir | `paths.runtime_dir` | `DEVLOG_RUNTIME_DIR` | Runtime files (sockets, PID files) |
+| Database | `paths.database_path` | `DEVLOG_DATABASE_PATH` | SQLite database file |
+| Uploads | `paths.uploads_dir` | `DEVLOG_UPLOADS_DIR` | Uploaded media directory |
+| Themes | `paths.themes_dir` | `DEVLOG_THEMES_DIR` | External theme directory |
+| Backups | `paths.backups_dir` | `DEVLOG_BACKUPS_DIR` | Backup output directory |
+| Exports | `paths.exports_dir` | `DEVLOG_EXPORTS_DIR` | Export output directory |
+
+There is no `paths.data_root` and no `paths.config_dir`; the config file and env file
+locations are resolved by `app/config/paths.py`, not by the `[paths]` section.
 
 See `app/filesystem/layout.py` for the `RuntimePaths` dataclass and `InstallMode` enum. CLI commands: `devlog paths status`, `devlog paths discover-legacy`, `devlog paths migrate`, `devlog paths check`.

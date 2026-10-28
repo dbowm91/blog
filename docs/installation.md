@@ -13,8 +13,33 @@ curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.s
 This downloads the latest verified release, installs it to `/opt/devlog/`, and creates a `devlog` launcher at `/usr/local/bin/devlog`. Then run onboarding:
 
 ```bash
-devlog onboard run --mode native
+sudo devlog onboard run --mode native --scope system --profile native-production
 ```
+
+A system install needs root — onboarding writes `/etc/devlog/config.toml` and
+`/var/lib/devlog`. A `--user` install writes into your own home directory and
+needs neither root nor `--scope system`.
+
+`--scope` matters: without it, onboarding falls back to the development layout
+and writes `config.toml` and `data/` into the current working directory instead
+of the install prefix. Use `--scope user` for a user-scope install.
+
+### Service account (system installs only)
+
+The systemd units run as an unprivileged `devlog` account. Nothing creates
+that account for you, so create it **before** onboarding — onboarding then
+hands the data and log directories to it:
+
+```bash
+sudo useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog
+```
+
+Onboarding creates `/var/lib/devlog`, `/var/lib/devlog/backups` and
+`/var/log/devlog` and gives them to the service account when it runs as root.
+`/run/devlog` is created by systemd itself at every start
+(`RuntimeDirectory=devlog`). If the account is missing, onboarding warns and
+the service cannot start — `devlog doctor --check fs.service_account` reports
+it.
 
 ### Install Options
 
@@ -48,18 +73,29 @@ User install (`--user`):
 
 ```
 ~/.local/share/devlog/releases/X.Y.Z/venv/
-~/.local/share/devlog/current -> ...
-~/.local/bin/devlog -> ...
+~/.local/share/devlog/current -> ~/.local/share/devlog/releases/X.Y.Z
+~/.local/bin/devlog -> ~/.local/share/devlog/current/venv/bin/devlog
 ```
+
+The user-scope prefix is `${XDG_DATA_HOME:-~/.local/share}/devlog` and the launcher is
+`${XDG_BIN_HOME:-~/.local}/bin/devlog`. In both scopes the `current` symlink sits at the
+**prefix root**, not inside `releases/`.
 
 ### Supply Chain Safety
 
 The installer verifies SHA-256 checksums before installation. Artifacts are downloaded over HTTPS from GitHub Releases. See `scripts/check_release_artifacts.py` for artifact verification.
 
+The release publishes a wheel, an sdist and a Docker bundle (`docker-bundle-<version>.tar.gz`,
+containing `docker-compose.yml`, `Dockerfile`, `.env.example` and `nginx/`). `checksums.txt`
+covers every published artefact, so the installer skips the manifest entries it did not
+download for this run — a mismatch on an artefact that *was* fetched still aborts the
+install. Verification is skipped entirely only when `checksums.txt` itself is absent from
+the release.
+
 ## Prerequisites
 
 - Python 3.12+
-- Node.js 18+ (for local development; Docker builds handle this automatically)
+- Node.js 20 (for local development; Docker builds handle this automatically)
 - SQLite (bundled with Python)
 - Git
 
@@ -240,7 +276,8 @@ existing installation:
 
 ### Typed Configuration System
 
-DevLog uses a typed configuration system at `app/config/` with 20 frozen dataclasses:
+DevLog uses a typed configuration system at `app/config/` with 23 frozen dataclasses
+(`DevLogConfig` plus 22 section classes):
 
 ```bash
 devlog config check                    # Validate configuration
@@ -256,6 +293,11 @@ devlog config migrate                  # Migrate config to latest version
 1. Environment variables (highest priority)
 2. `config.toml`
 3. Defaults (lowest priority)
+
+Secret fields never carry their value in `config.toml`. Section-level secrets
+(`smtp_password`, `smtp_user`, the check secrets, the encryption keys, the S3 keys) are
+written as empty strings, and the top-level `secret_key` and `admin_password` are left out
+of the file entirely. They must be supplied by the environment or the env file.
 
 ### Environment Variables
 
@@ -273,7 +315,8 @@ Key environment variables:
 | `ENABLE_METRICS` | Metrics endpoint | `false` |
 
 `DATABASE_URL` is only the fallback: `SQLALCHEMY_DATABASE_URI` takes precedence over
-it, and `DEVLOG_DATABASE_PATH` selects a SQLite file directly.
+it, and `DEVLOG_DATABASE_PATH` selects a SQLite file directly. `DEVLOG_DATABASE_PATH`
+outranks `DEVLOG_DATA_DIR`, but not `SQLALCHEMY_DATABASE_URI` or `DATABASE_URL`.
 
 ### config.toml
 

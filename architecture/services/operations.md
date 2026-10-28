@@ -325,11 +325,6 @@ and the code `backup.verify.readable` with a warning. `valid` means "readable",
 not "integrity confirmed"; only `backup.verify.ok` means the integrity check
 ran and passed.
 
-**`create_backup_operation()` assumes the default SQLite location.** It builds
-the database path as `current_app.instance_path` plus `blog.db` and ignores a
-`SQLALCHEMY_DATABASE_URI` that points elsewhere. The failure is loud
-(`backup.create.db_not_found`), not silent.
-
 **`app/services/operations/__init__.py` duplicates the `deploy` import block.**
 The same `try: from app.services.operations.deploy import ...` block appears
 twice, so `__all__` lists the eight deploy names twice. The package also does

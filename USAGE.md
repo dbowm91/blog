@@ -508,13 +508,15 @@ The dashboard at `/admin/` shows:
 
 **Warning:** Restoring overwrites all current data.
 
-**Backup location:** `instance/backups/`
+**Backup location:** `<data_dir>/backups/` — the directory next to the
+database (`/var/lib/devlog/backups` in system scope,
+`~/.local/share/devlog/backups` in user scope, `./data/backups` in
+development).
 
-**Backup database path:** the **Create Backup** button resolves the database
-from the configured URI (`data/devlog.sqlite3` by default). The scheduled daily
-backup, the Celery backup task and `devlog backup create` still look for
-`instance/blog.db`; use the admin button, or keep the database at
-`instance/blog.db`, until those paths are aligned.
+**Backup database path:** every backup path resolves the database from the
+configured URI (`<data_dir>/devlog.sqlite3` by default) and writes to the
+directory above — the admin **Create Backup** button, the APScheduler daily
+backup and `devlog backup create` alike.
 
 **Backup encryption:**
 ```bash
@@ -534,7 +536,7 @@ flask check-integrity
 devlog db check
 
 # Verify one backup file
-devlog backup verify instance/backups/blog_20260429.db
+devlog backup verify data/backups/blog_20260429_030000.db
 ```
 
 The same verification is reachable over HTTP at
@@ -664,13 +666,16 @@ extra operator tooling:
 devlog admin create              # Create an admin account
 devlog admin list                # List accounts
 devlog data export data.json     # Export posts, subscribers, tags and pages
-devlog data import data.json     # Import them back
+devlog data import data.json --apply  # Import them back (--dry-run to preview)
 devlog db rebuild-search         # Rebuild the FTS index
-devlog media cleanup             # Remove orphaned uploads
+devlog media cleanup --apply     # Remove orphaned uploads (no flag = report only)
 devlog db check                  # Database integrity check
 devlog backup verify <path>      # Verify a backup file
 devlog doctor                    # Run the full diagnostic suite
 devlog themes list --warnings    # Inspect the theme catalogue
+devlog serve                     # Run the ASGI server in the foreground
+devlog worker                    # Run the Celery worker in the foreground
+devlog scheduler                 # Run the scheduler in the foreground
 ```
 
 See [DEPLOY.md](DEPLOY.md#17-operator-cli) for the full command list.
@@ -900,7 +905,8 @@ flask cleanup-orphaned-images
 ```
 
 This removes images not referenced by any post. The standalone CLI equivalent
-is `devlog media cleanup`.
+is `devlog media cleanup --apply` — without `--apply` it only reports what
+would be removed.
 
 ### How Image Uploads Work
 
@@ -917,10 +923,10 @@ The blog supports storing media files in S3-compatible storage instead of local 
 
 ### Prerequisites
 
-S3 support requires `boto3`. Install it manually (not included in base requirements):
+S3 support requires `boto3`, which ships as the optional `s3` extra:
 
 ```bash
-pip install boto3
+pip install ".[s3]"
 ```
 
 ### Configuration

@@ -30,13 +30,30 @@ Traefik) in front of it for public access.
 ### Native install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native
-devlog onboard run --mode native
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native --system
+sudo devlog onboard run --mode native --scope system --profile native-production
 ```
 
+Onboarding writes `/etc/devlog/config.toml` and `/var/lib/devlog`, so a system
+install needs root — `sudo`, or run it as root. A `--user` install writes into
+your own home directory and needs neither.
+
 The installer fetches a verified release artifact and creates a `devlog`
-launcher; onboarding then generates the config, secrets and admin account. Add
-`--system` for `/opt/devlog` (needs root) or `--user` for `~/.local`.
+launcher; onboarding then generates the config, secrets and admin account. The
+installer defaults to `--system` (`/opt/devlog`, needs root) — pass `--user` for
+`~/.local/share/devlog` and then onboard with
+`devlog onboard run --mode native --scope user --profile native-production`.
+
+A system install runs the service as an unprivileged `devlog` account, which
+nothing creates for you — make it before onboarding:
+
+```bash
+sudo useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog
+```
+
+Onboarding needs `--scope`. Without it, `step_resolve_paths()` falls back to the
+development layout and writes `config.toml` and `data/` into the current working
+directory rather than the install prefix.
 
 ### Local development
 
@@ -106,7 +123,8 @@ self-hosted families) and page backdrops. Drop your own `.toml` into the
 external themes directory to override a bundled theme.
 
 **Consume the feeds.** `/rss` (RSS 2.0), `/atom` (Atom 1.0), `/json` (JSON Feed
-1.1). Add `?limit=N` to cap the item count.
+1.1). Each feed carries the 20 most recent published posts; the item count is
+fixed.
 
 ---
 
@@ -139,7 +157,7 @@ any field.
 | `API_KEY` | No | REST API key — grants all scopes |
 | `SMTP_USER` / `SMTP_PASSWORD` | No | SMTP credentials for the newsletter |
 | `REDIS_URL` | No | Cache, rate limits and Celery broker |
-| `DATABASE_URL` | No | PostgreSQL instead of SQLite (experimental) |
+| `DATABASE_URL` | No | PostgreSQL instead of SQLite (experimental — database only; full-text search is SQLite FTS5 only) |
 | `ENABLE_SCHEDULER` | No | Run APScheduler — set `true` on exactly **one** container |
 | `HEALTH_CHECK_SECRET` | No | Protects `/health?detailed=true` |
 | `ENABLE_METRICS` / `METRICS_SECRET` | No | Enables `/metrics` (off by default) |

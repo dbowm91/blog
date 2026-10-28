@@ -137,7 +137,7 @@ The paths come from `RuntimePaths.for_mode()` in `app/filesystem/layout.py`, whi
 |---|---|
 | `server.host` | `0.0.0.0` in docker mode, otherwise `bind_host` |
 | `server.debug` | `not is_production`, where `is_production` is `profile in ("native-production", "docker-production")` |
-| `database.uri` | docker: `sqlite:///data/blog.db`; otherwise `sqlite:///<data_dir resolved>/blog.db`, falling back to `data/blog.db` when `data_dir` is `None` |
+| `database.uri` | docker: `sqlite:////data/devlog.sqlite3`; otherwise `sqlite:///<data_dir resolved>/devlog.sqlite3`, falling back to `sqlite:///<cwd>/data/devlog.sqlite3` when `data_dir` is `None` |
 | `redis.url` | always `redis://localhost:6379/0` |
 | `redis.cache_url`, `redis.rate_limit_url`, `celery.broker_url` | the Redis URL only when `enable_redis` is true, otherwise empty |
 | `scheduler.enabled` | `enable_scheduler` |
@@ -340,9 +340,13 @@ Findings below were verified against the source. They are recorded, not fixed.
 
 The step returns `ok=False` when the Vite manifest is missing, and `run_steps()` then compensates — deleting the `config.toml` and the env file it has just written — and stops. `app/static/` has no `__init__.py`, so `files("app.static")` raises and the check falls back to the relative path `app/static/dist/manifest.json`, resolved against the working directory. The Docker build runs the Vite build, so a native install from a release wheel is unaffected; a source checkout without `npm run build` is not.
 
-### Permissions are applied to the env file only
+### The config file's permissions come from `mkstemp`, not from an explicit mode
 
-`write_env_file()` chmods the temp file to `0600` before the rename. `_atomic_write()` in `app/onboarding/steps.py` sets no mode on the config file, so `config.toml` takes the process umask.
+`write_env_file()` chmods the temp file to `0600` before the rename. `config.toml` is
+written by `_atomic_write()` in `app/onboarding/steps.py`, which creates its temp file
+with `tempfile.mkstemp()` — that opens the file with mode `0600`, and `os.replace()`
+preserves the inode's mode. The config file therefore also ends up `0600`, even though no
+`chmod` is applied to it.
 
 ### Temp file naming replaces the suffix
 

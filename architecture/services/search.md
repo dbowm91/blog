@@ -82,7 +82,7 @@ All module-level functions in `app/search.py` catch `OperationalError`, `Program
 ### Search Configuration
 
 ```python
-# app/config.py
+# app/config_legacy.py (re-exported via app/config/__init__.py)
 SEARCH_PROVIDER = "sqlite"  # or "postgresql"
 FTS_RESULT_LIMIT = 100  # max FTS5 search results (configurable)
 ```

@@ -58,12 +58,38 @@ This means `npm ci && npm run build` does **not** need to run separately for Doc
 - Non-root user (`blog`)
 - Three-stage build for minimal image size (no Node.js in runtime image)
 - Health checks
+- Schema applied on start (`flask db upgrade` before the Granian `CMD`)
 
 Resource limits (memory, CPU) are configured in `docker-compose.yml` under each service's `deploy.resources` section, not in the Dockerfile itself.
 
 ## Backup Service
 
-The `backup` service in `docker-compose.yml:119-137` runs `backup.py` with `working_dir: /home/blog`. The backup script uses a relative path (`instance/blog.db` at `backup.py:23`) which resolves from the working directory. The `blog_data` volume is mounted at `/home/blog/instance:ro` (read-only) to provide database access. The `BACKUP_DIR` environment variable (`/backups`) directs output to the `./backups` host mount.
+The `backup` service in `docker-compose.yml` runs the repository's `backup.py` as the
+container entrypoint:
+
+```yaml
+backup:
+  build: .
+  working_dir: /home/blog
+  entrypoint: ["python3", "backup.py", "--dir", "/backups"]
+  volumes:
+    - blog_data:/data
+    - ./backups:/backups
+  environment:
+    - PYTHONPATH=/home/blog
+    - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+```
+
+It mounts `blog_data:/data` **read-write**. SQLite needs to read the `-wal` and `-shm`
+sidecar files next to the database to take a consistent snapshot of a WAL database, so a
+read-only mount would produce an incomplete backup. The `./backups` host mount receives
+the output. There is no `BACKUP_DIR` environment variable — the destination comes from the
+`--dir` argument on the entrypoint.
+
+`backup.py` resolves the database from the effective configuration
+(`load_effective_config().database.uri`), so in the container it is the file the app
+itself uses rather than a hardcoded path.
+
 
 ## Nginx Configuration
 
@@ -80,9 +106,20 @@ The nginx service is **optional** and part of the `reverse-proxy` profile. The c
 
 ### Brotli Configuration
 
-Brotli compression is commented out in `nginx/nginx.conf:26-34`:
+Brotli compression is commented out in `nginx/nginx.conf`:
 - Requires custom nginx image with `--with-http_brotli_module`
 - Standard `nginx:alpine` does not include Brotli support
+
+## Database Schema
+
+The `migrations/` directory is **not** excluded by `.dockerignore`, so the Alembic
+migrations are part of the image. The container `CMD` runs `flask db upgrade` before
+starting Granian, so a fresh container has the schema applied — there is no manual
+`flask db upgrade` step and no manual database creation.
+
+The `celery` service depends on the `blog` service reaching the `healthy` state
+(`depends_on: blog: condition: service_healthy`), so workers never start against a
+database whose schema has not been applied yet.
 
 ## Celery Task Queues
 
@@ -95,7 +132,7 @@ For production deployments with Celery:
 
 ### Celery Configuration
 
-Configured in `app/celery_app.py:20-31`:
+Configured in `app/celery_app.py` (`celery_app.conf.update(...)`):
 
 | Setting | Value | Purpose |
 |---------|-------|---------|
@@ -104,7 +141,8 @@ Configured in `app/celery_app.py:20-31`:
 | `worker_prefetch_multiplier` | 1 | Worker fetches one task at a time |
 | `worker_max_tasks_per_child` | 100 | Recycle worker after 100 tasks (prevents memory leaks) |
 
-Additional config when Flask app context is available (`app/celery_app.py:33-37`):
+Additional config when Flask app context is available (the `init_celery()` branch in
+`app/celery_app.py`):
 - `task_acks_late=True` — Acknowledge tasks after execution (not before)
 - `task_reject_on_worker_lost=True` — Re-queue task if worker crashes
 
@@ -190,10 +228,10 @@ The `celery` service in `docker-compose.yml` runs with `--concurrency=1` and doe
 | `SECRET_KEY` | Flask secret key |
 | `ADMIN_PASSWORD` | Admin password |
 | `ADMIN_USERNAME` | Admin username (optional, defaults to `admin`) |
-| `SQLALCHEMY_DATABASE_URI` | SQLAlchemy connection string (optional, defaults to SQLite `blog.db`) |
+| `SQLALCHEMY_DATABASE_URI` | SQLAlchemy connection string (optional, defaults to SQLite `devlog.sqlite3`) |
 | `API_KEY` | API key for REST API authentication |
 | `SESSION_COOKIE_SECURE` | Set to `true` for HTTPS-only cookies (default: `true`) |
-| `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `blog.db`) |
+| `DATABASE_URL` | PostgreSQL connection string (optional, defaults to SQLite `devlog.sqlite3`) |
 | `REDIS_URL` | Redis connection |
 | `SMTP_HOST` | SMTP server for newsletter/email (optional) |
 | `SMTP_USER` | SMTP username |
@@ -310,17 +348,17 @@ Off-site backup synchronization. Requires `REMOTE_TYPE` (`s3` or `rclone`) and c
 
 ## Granian Configuration
 
-The blog service runs via Granian ASGI server, configured in the Dockerfile `CMD`:
+The blog service runs via Granian ASGI server. The Dockerfile `CMD` applies the schema
+first and then hands over to Granian:
 
 ```
-granian --interface asgi --workers 4 --timeout 60 --host 0.0.0.0 --port 5000 run:asgi_app
+sh -c "flask db upgrade && exec granian --interface asgi --workers 4 --host 0.0.0.0 --port 5000 app.asgi:asgi_app"
 ```
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
 | `--workers` | 4 | Worker processes (matches typical CPU core count) |
-| `--timeout` | 60 | Request timeout in seconds |
-| `--interface` | asgi | ASGI interface (Flask via `run:asgi_app`) |
+| `--interface` | asgi | ASGI interface (Flask via `app.asgi:asgi_app`) |
 | `--host` | 0.0.0.0 | Listen on all interfaces |
 | `--port` | 5000 | Application port |
 
@@ -338,10 +376,10 @@ The nginx configuration (`nginx/conf.d/blog.conf:25-32`) sets security headers i
 
 ## Backup Service Encryption Key Loading
 
-The backup container (`docker-compose.yml:105-120`) runs `backup.py` with `PYTHONPATH=/home/blog` to import `app.services.backup`. Encryption keys are not mounted as files — they are loaded via the application's config module (`app/config.py`) which reads from `config.toml` and environment variables.
+The backup container runs `backup.py` with `PYTHONPATH=/home/blog` so it can import `app.services.backup`. Encryption keys are not mounted as files — they are loaded via the application's config package (`app/config/`), which reads from `config.toml` and the environment.
 
 The backup service mounts:
-- `blog_data:/home/blog/instance:ro` — read-only database access
+- `blog_data:/data` — read-write, so SQLite can read the `-wal`/`-shm` sidecars
 - `./backups:/backups` — writeable backup output directory
 
 The `BACKUP_ENCRYPTION_KEY` can be provided via:
@@ -350,7 +388,11 @@ The `BACKUP_ENCRYPTION_KEY` can be provided via:
 
 If the key is set in both places, the environment variable takes precedence.
 
-**Fallback behavior:** If `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded (e.g., cryptography library unavailable), backup proceeds unencrypted. A `WARNING: Backup encryption failed, proceeding without encryption` is logged (`backup.py:69-70`).
+**Failure behavior:** if `BACKUP_ENCRYPTION_KEY` is set but cannot be loaded — the
+`cryptography` library is missing or the key is invalid — `_encrypt_backup_file()` returns
+`False`, `create_backup()` **deletes the unencrypted file** and returns `None`, and the
+backup fails with an `ERROR: Backup encryption failed, discarding unencrypted backup`.
+No unencrypted backup is ever left on disk.
 
 ## Production Checklist
 
@@ -378,8 +420,8 @@ Before deploying to production, verify all items:
 - [ ] Test email delivery before enabling newsletter scheduler
 
 ### Database & Backups
-- [ ] Database initialized (`flask db upgrade`)
-- [ ] `instance/blog.db` not in web-accessible directory
+- [ ] Database schema applied (`flask db upgrade` — the image does this on start)
+- [ ] `/data/devlog.sqlite3` not in a web-accessible directory
 - [ ] Backup service tested (`docker-compose --profile backup up`)
 - [ ] Off-site backup sync configured (see `scripts/sync_backups.sh`)
 

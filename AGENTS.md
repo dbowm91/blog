@@ -431,21 +431,48 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ## Known Defects
 
-Verified against the source on 2026-10-25 and **not yet fixed**. Each has a
+Verified against the source on 2026-10-28 and **not yet fixed**. Each has a
 "Notes and Gotchas" entry in the relevant architecture document.
 
 | Defect | Where |
 |---|---|
-| **The scheduled backup looks for the wrong database file.** `app/services/backup.py`, `app/tasks.py` and `app/services/operations/backup.py` all resolve `os.path.join(app.instance_path, "blog.db")`, but the app resolves the database to `data/devlog.sqlite3`. The 02:00 job logs "Database file not found … skipping backup" and `devlog backup create` finds nothing. Only the admin backup route uses the configured URI | `app/services/backup.py`, `app/tasks.py`, `app/services/operations/backup.py` |
 | **The backup tests share one directory, so `test_download_backup` fails at random.** `tests/services/test_operations_backup.py` writes `blog_verify_<uuid>.db` into `app.instance_path/backups`; `tests/test_phase8.py` downloads the first entry of an *unsorted* listing, and the route refuses a name that is not `blog_<timestamp>.db`. On an unmodified checkout the test failed 10 runs out of 10 when the two modules shared a session — so a full-suite failure set is not reproducible run to run, and one differing test in this area is not a regression | `tests/services/test_operations_backup.py`, `tests/test_phase8.py` |
 | `shift_lightness()` computes `q` identically in both branches of the `lightness < 0.5` test, so dark colours take the light-colour path (`#161b22` +0.06 → `#002459`, not `#222a35`) | `app/themes/colors.py` |
-| `_build_context()` reads `current_app.config["DEVLOG_CONFIG"]`, which the app factory never sets — the whole `devlog deploy` group raises `KeyError` outside the test suite | `app/services/operations/deploy.py` |
-| `deploy render` defaults `--target` to `["all"]`, but the service dispatches only on concrete names, so it renders zero files | `devlog_cli/commands/deploy.py` |
-| `config explain` raises `TypeError` for at least `admin.username`, `database.pool_size`, `logging.level` | `devlog_cli/commands/config.py` |
 | Create/update/delete handlers expose internal exception text via `flash(f"Error …: {str(e)}")` | `app/routes/admin/series.py` |
 | `--quiet` and `--no-color` are stored on `CliContext` but never read | `devlog_cli/context.py`, `devlog_cli/main.py` |
-| `deploy render --output DIR` creates the directory and writes nothing — the service emits `filename`, the CLI reads `path` | `app/services/operations/deploy.py` |
-| The `[storage]` section in `config.toml` is inert — `app/storage.py` reads env vars only, so `backend = "s3"` there has no effect | `app/storage.py` |
+
+### Fixed in the deployment-audit pass (2026-10-28)
+
+These were listed above and are now repaired; the notes are kept here so the
+history is not lost.
+
+| Defect | Fix |
+|---|---|
+| The scheduled backup looked for `instance/blog.db` instead of the configured database | `resolve_database_file()` / `resolve_backup_dir()` in `app/services/backup.py`; `app/tasks.py`, `app/services/operations/backup.py` and `backup.py` all use them |
+| `_build_context()` read `current_app.config["DEVLOG_CONFIG"]`, which the app factory never set — the whole `devlog deploy` group raised `KeyError` | `create_app()` sets `app.config["DEVLOG_CONFIG"]` |
+| `deploy render` defaulted `--target` to `["all"]` but the service dispatched only on concrete names, rendering zero files | `_resolve_targets()` expands `all` to the five concrete targets |
+| `deploy render --output DIR` created the directory and wrote nothing — the service emitted `filename`, the CLI read `path` | The CLI reads `filename`/`target` and writes `{target}-{basename}` |
+| `config explain` raised `TypeError` for fields without an environment variable | The command tolerates a missing `env_var` |
+| The `[storage]` section in `config.toml` was inert — `app/storage.py` read env vars only | `_storage_settings()` prefers the typed configuration |
+| Environment variables did not override `config.toml` section fields (`APP_TITLE`, `BASE_URL`, `SMTP_HOST`, …) | `_build_section()` prefers the section-prefixed key and coerces the value to the field type |
+| `config_to_toml()` dropped ten sections, so onboarding's config file carried no database URI | The serialiser writes every section of the model |
+| The installed systemd units pointed at `/opt/devlog/current` even for a user-scope install, and `RuntimePaths` resolved the system release to `/etc/devlog/releases/current` | The release dir is `/opt/devlog/current` (overridable with `DEVLOG_RELEASE_DIR`); the units derive their paths from `ctx.paths.release_dir` |
+| The installer extracted the Docker bundle one directory too deep and the release never published that bundle | `tar --strip-components=1`; `release.yml` builds and publishes `docker-bundle-<version>.tar.gz` |
+| The Docker image excluded `migrations/` and nothing applied the schema | `.dockerignore` keeps `migrations`; the container CMD runs `flask db upgrade` before granian |
+| The admin backup endpoints and the backup services used different directories, and the restore path fell back to `instance/blog.db` | The admin routes resolve the database and the backup directory through the same helpers as the services |
+| The systemd unit's `WorkingDirectory` was the data directory, so `run:asgi_app` could not be imported | The unit runs from the release directory, and the ASGI application is exposed as `app.asgi:asgi_app` inside the package |
+| The user-scope units ran `devlog serve`, `devlog worker` and `devlog scheduler`, none of which existed; the system unit ran `flask scheduler-start`, which was not registered | The three commands exist, and `flask scheduler-start` starts the scheduler in the foreground |
+| `devlog deploy install` wrote every file into one directory, so the systemd unit never reached `/etc/systemd/system` | Each target has its own default directory; `--base-dir` still overrides it |
+| The logrotate `postrotate` hook called `invoke-rc.d devlog`, a SysV unit that is never produced | It reloads `devlog-web` |
+| `/health` reported `backup_freshness` from the legacy `instance/backups` directory, so a healthy install always looked like it had no backups | The check resolves the directory through `resolve_backup_dir()` |
+| `/health?detailed=true` reported the database path as `//Users/…/data/devlog.sqlite3` — the URI prefix was replaced without accounting for the absolute-path slash | The detail uses `resolve_database_file()` |
+| The hard-coded-path guard's `instance_backups` pattern matched nothing once the backup path was fixed, failing its own effectiveness check | The patterns are consolidated into `instance_data_path` and `hardcoded_data_filename`, which still match the remaining allowlisted fallbacks |
+| The release wheel shipped stale `migrations/**/__pycache__/*.pyc` bytecode, and the sdist check flagged the committed `config.toml.example` template as a secret | `MANIFEST.in` excludes bytecode and cache directories, `pyproject.toml` adds `exclude-package-data`, and the packaging test allows the template by name |
+| The rendered systemd units ran as `devlog`, but nothing created that account — and no document said to | Creating a system account is the operator's step: it is documented in `DEPLOY.md` and `docs/installation.md`, onboarding warns when it is missing, and `devlog doctor --check fs.service_account` reports it |
+| `/var/log/devlog` was never created and `/run/devlog` is a tmpfs, so the unit's own `ExecStartPre` directory checks failed | Onboarding creates the log and runtime directories and hands them to the service account; the units declare `RuntimeDirectory=devlog` so systemd recreates the runtime path on every start |
+| `DEPLOY.md` told non-Docker operators to run `npm ci && npm run build`, but a release wheel already contains the built assets | The build step is documented as a source-checkout step only; a release install needs no Node.js |
+| `tests/config/test_legacy_import_boundary.py` scanned the whole repository root, so a nested worktree copy of the project failed the test | The scan is scoped to this project's source and skips VCS, cache and worktree directories |
+
 
 ## Architecture Cross-Reference
 

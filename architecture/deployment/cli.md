@@ -74,14 +74,23 @@ own `--json` option, which is OR-ed with the global one — see [Notes and Gotch
 | `onboard` | group | First-run and reconfiguration onboarding |
 | `paths` | group | Manage filesystem paths and layout |
 | `restart` | command | Restart the DevLog service |
+| `scheduler` | command | Run the APScheduler jobs in the foreground |
+| `serve` | command | Run the ASGI server in the foreground |
 | `start` | command | Start the DevLog service |
 | `status` | command | Show DevLog service status |
 | `stop` | command | Stop the DevLog service |
 | `themes` | group | Theme management |
 | `version` | command | Show DevLog version information |
+| `worker` | command | Run the Celery worker in the foreground |
 
 The `lifecycle` commands are registered directly on the root group, so they are
 `devlog start` rather than `devlog lifecycle start`.
+
+`serve`, `worker` and `scheduler` are the foreground runners. The user-scope
+systemd units call them, because a user installation has no single system-wide
+release prefix; `serve` runs granian against `app.asgi:asgi_app`, `worker` runs
+`celery -A app.celery_app worker`, and `scheduler` starts APScheduler in-process
+and blocks until `SIGINT` or `SIGTERM`.
 
 ## `CliContext`
 
@@ -311,10 +320,10 @@ This group calls `app/filesystem/` directly rather than the operations service l
 
 | Command | Purpose | Calls |
 |---------|---------|-------|
-| `status` | Report all resolved paths with provenance, existence and permissions | `app.filesystem.layout.InstallMode`, `app.filesystem.layout.RuntimePaths.for_mode()` |
+| `status` | Report all resolved paths with provenance, existence and permissions; `--mode` selects the install mode (default `development`) | `app.filesystem.layout.InstallMode`, `app.filesystem.layout.RuntimePaths.for_mode()` |
 | `discover-legacy` | Search for a legacy layout; read-only, `--search-root` bounds the search | `app.filesystem.discovery.discover_legacy_layout()` |
 | `migrate` | Plan a layout migration from `--from-mode` to `--to-mode` | `app.filesystem.migration.plan_migration()` |
-| `check` | Health-check the resolved filesystem paths | `app.filesystem.verification.verify_migration()` |
+| `check` | Health-check the resolved filesystem paths; `--mode` selects the install mode (default `development`) | `app.filesystem.verification.verify_migration()` |
 
 ### `devlog deploy`
 
@@ -393,43 +402,36 @@ subscribers and pages inline in `app/cli.py`, and it has no `devlog` equivalent.
    subclass; commands catch raw exception types instead. Adding a new error class will not change
    any behaviour.
 
-3. **`devlog config explain` raises `TypeError` for five fields.** The reported source is
-   computed as `"env" if os.environ.get(meta["env_var"]) else "config_file"`, and `meta["env_var"]`
-   is `None` for fields with no environment-variable mapping. In the CLI's own section table those
-   are `admin.username`, `database.pool_size`, `database.max_overflow`, `database.pool_recycle` and
-   `logging.level`. `os.environ.get(None)` raises `TypeError`, which is uncaught, so the command
-   exits with a traceback instead of a `Result`.
-
-4. **`config explain` reports a misleading source.** A field still at its default is reported as
+3. **`config explain` reports a misleading source.** A field still at its default is reported as
    `config_file`; `default` and `env_file` are never reported as sources.
 
-5. **`devlog_cli/commands/config.py` duplicates the configuration defaults.** It keeps its own
+4. **`devlog_cli/commands/config.py` duplicates the configuration defaults.** It keeps its own
    `_SECTION_DEFAULTS` snapshot instead of reading `app/config/model.py`, which AGENTS.md names as
    the canonical source of truth. The snapshot is currently in sync with the model for the 22
    sections it covers, but it omits the model's `paths` section and the top-level scalars
    (`secret_key`, `admin_password`, `session_cookie_secure`, `proxy_count`, `flask_env`,
    `testing`) — so `devlog config explain paths.data_dir` reports "Unknown config field".
 
-6. **`config show --effective` ignores the global `--env-file`.** Its provenance helper calls
+5. **`config show --effective` ignores the global `--env-file`.** Its provenance helper calls
    `resolve_env_file_path()` with no argument rather than passing the requested path.
 
-7. **The global `--config` and `--env-file` never reach the Flask app.**
+6. **The global `--config` and `--env-file` never reach the Flask app.**
    `CliContext.ensure_app_context()` calls `create_app()`, which takes no arguments and resolves
    configuration through `load_effective_config()` on its own. Only the `config` group reads
    `cli_ctx.config_path` and `cli_ctx.env_file`.
 
-8. **Two groups bypass the operations service layer.** `config` calls `app/config/` directly and
+7. **Two groups bypass the operations service layer.** `config` calls `app/config/` directly and
    `paths` calls `app/filesystem/` directly. Everything else goes through
    `app/services/operations/`.
 
-9. **`devlog paths migrate` only plans.** It calls `plan_migration()`; `execute_migration()` in
+8. **`devlog paths migrate` only plans.** It calls `plan_migration()`; `execute_migration()` in
    `app/filesystem/migration.py` is not reachable from the CLI, so the CLI never moves files.
 
-10. **Human output goes to stderr, JSON output to stdout.** `render_human()` defaults to
+9. **Human output goes to stderr, JSON output to stdout.** `render_human()` defaults to
     `sys.stderr` and `render_json()` to `sys.stdout`, so `devlog admin list > out.txt` captures
     nothing in human mode.
 
-11. **Several commands bypass the `Result` envelope.**
+10. **Several commands bypass the `Result` envelope.**
     - `themes list` in human mode prints a table with `click.echo` and never renders a `Result`.
     - `themes inspect --css` echoes raw CSS and returns.
     - `devlog doctor --json` prints `doctor_result.to_dict()` — the **service-level**
@@ -439,7 +441,7 @@ subscribers and pages inline in `app/cli.py`, and it has no `devlog` equivalent.
     `tests/cli/test_command_parity.py` asserts the envelope shape only for the commands that use
     it.
 
-12. **`--json` placement is inconsistent between groups.** The global flag must precede the
+11. **`--json` placement is inconsistent between groups.** The global flag must precede the
     subcommand. Per-command `--json` options exist on `config check`, `config show`,
     `config paths`; all `db` commands; `themes list`, `themes validate`, `themes inspect`,
     `themes accessibility`; `backup inspect`; `media scan`, `media cleanup`; `onboard plan`,
@@ -449,34 +451,34 @@ subscribers and pages inline in `app/cli.py`, and it has no `devlog` equivalent.
     `config explain`, `config init`, `config migrate`, `themes refresh`, `themes paths`, `start`,
     `stop`, `restart`.
 
-13. **`devlog data import` resolves `--dry-run` and `--apply` by precedence, not validation.**
+12. **`devlog data import` resolves `--dry-run` and `--apply` by precedence, not validation.**
     Passing both runs the dry run, because the dry-run branch is tested first. Passing neither
     fails with exit code 2.
 
-14. **`devlog media cleanup` without `--apply` is a dry run** that still exits 0 and prefixes its
+13. **`devlog media cleanup` without `--apply` is a dry run** that still exits 0 and prefixes its
     summary with `"Dry run: "`.
 
-15. **`deploy render --print` and `--output` are mutually exclusive in effect.** `--output`
+14. **`deploy render --print` and `--output` are mutually exclusive in effect.** `--output`
     writes files named `{target}-{basename}` into the directory only when `--print` is absent;
     `--print` embeds the file contents in the result's `details` instead of writing to stdout.
     `deploy install` with no `--target` installs all components.
 
-16. **`--user` overrides `--mode` on the deploy and lifecycle commands.** Supplying `--user`
+15. **`--user` overrides `--mode` on the deploy and lifecycle commands.** Supplying `--user`
     forces the effective mode to `user` regardless of the `--mode` value.
 
-17. **Five groups are defined twice.** `devlog_cli/commands/config.py`, `db.py`, `backup.py`,
+16. **Five groups are defined twice.** `devlog_cli/commands/config.py`, `db.py`, `backup.py`,
     `data.py` and `media.py` each declare a module-level `click.group()` with the same name as the
     group in `devlog_cli/main.py`. The commands are attached to the `main.py` group by
     `register_*_commands(group)`; the module-level group objects are unreachable but retain the
     same `Command` instances.
 
-18. **`--config` path validation is inconsistent.** The root group's `--config` and
+17. **`--config` path validation is inconsistent.** The root group's `--config` and
     `config migrate --config` use `click.Path(exists=True)` and fail with a Click usage error on
     a missing file, while `config check --config` uses a plain `click.Path` and passes the
     nonexistent path on to `load_effective_config()` and `resolve_config_path()` instead of
     rejecting it.
 
-19. **The version falls back to `0.0.0-dev`.** `devlog_cli/__init__.py` reads the version from
+18. **The version falls back to `0.0.0-dev`.** `devlog_cli/__init__.py` reads the version from
     installed distribution metadata, so running from a source checkout that was never installed
     reports `0.0.0-dev`.
 
