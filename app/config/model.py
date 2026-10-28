@@ -53,6 +53,11 @@ SECRET_FIELDS = frozenset(
         "health_check_secret",
         "metrics_secret",
         "webhook_encryption_key",
+        "check_secret",
+        "secret",
+        "encryption_key",
+        "s3_access_key",
+        "s3_secret_key",
     }
 )
 

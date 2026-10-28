@@ -622,13 +622,14 @@ def config_explain(ctx: click.Context, field: str) -> None:
     section_data = config_dict.get(section_name, {})
     effective_value = section_data.get(field_name) if isinstance(section_data, dict) else None
 
+    env_var = meta["env_var"]
     details: dict[str, Any] = {
         "field": field,
         "type": meta["type"],
         "default": meta["default"],
         "effective_value": "<redacted>" if meta["is_secret"] else effective_value,
-        "source": "env" if os.environ.get(meta["env_var"]) else "config_file",
-        "env_var": meta["env_var"],
+        "source": "env" if env_var and os.environ.get(env_var) else "config_file",
+        "env_var": env_var,
         "is_secret": meta["is_secret"],
         "restart_required": field in _PRODUCTION_NOTES,
     }

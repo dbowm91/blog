@@ -104,14 +104,15 @@ class TestRedactConfig:
         assert "email.smtp_password" in result
         assert result["email.smtp_user"] != "user@example.com"
 
-    def test_webhook_encryption_key_not_in_redacted_config(self) -> None:
+    def test_webhook_encryption_key_is_redacted(self) -> None:
         from app.config.model import WebhookConfig
 
         config = DevLogConfig(
             webhook=WebhookConfig(encryption_key="key1234567890"),
         )
         result = redact_config(config)
-        assert "webhook.encryption_key" not in result
+        assert "webhook.encryption_key" in result
+        assert result["webhook.encryption_key"] != "key1234567890"
 
     def test_top_level_webhook_encryption_key_not_in_dataclass(self) -> None:
         from app.config.model import WebhookConfig
@@ -120,4 +121,4 @@ class TestRedactConfig:
             webhook=WebhookConfig(encryption_key="key1234567890"),
         )
         result = redact_config(config)
-        assert all("webhook" not in k for k in result.keys())
+        assert all("webhook_encryption_key" not in k for k in result.keys())

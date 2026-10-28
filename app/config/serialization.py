@@ -40,40 +40,52 @@ def config_to_json(
     )
 
 
+def _toml_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        return f'"{escaped}"'
+    if isinstance(value, dict):
+        inner = ", ".join(f"{k} = {_toml_value(v)}" for k, v in value.items())
+        return "{" + inner + "}"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    return f'"{value}"'
+
+
 def config_to_toml(config: DevLogConfig) -> str:
-    """Serialize config to TOML string (secrets redacted)."""
+    """Serialize the config to a TOML file body.
+
+    Every section of the model is written so the file round-trips through
+    ``load_effective_config``. Secret fields are written empty: they are
+    supplied by the environment or the env file, never by this file.
+    """
+    from dataclasses import fields, is_dataclass
+
     lines = [f"config_version = {config.version}"]
 
-    sections = [
-        ("app", config.app),
-        ("admin", config.admin),
-        ("server", config.server),
-        ("author", config.author),
-        ("site", config.site),
-        ("email", config.email),
-        ("newsletter", config.newsletter),
-        ("comments", config.comments),
-        ("themes", config.themes),
-        ("backup", config.backup),
-        ("security", config.security),
-        ("webhook", config.webhook),
-        ("search", config.search),
-    ]
+    # Top-level scalars must precede the first section header, otherwise TOML
+    # binds them to the section that precedes them.
+    for field in fields(config):
+        value = getattr(config, field.name)
+        if is_dataclass(value) or field.name in SECRET_FIELDS or field.name == "testing":
+            continue
+        if field.name == "version":
+            continue
+        lines.append(f"{field.name} = {_toml_value(value)}")
 
-    for section_name, section_obj in sections:
+    for field in fields(config):
+        section = getattr(config, field.name)
+        if not is_dataclass(section):
+            continue
         lines.append("")
-        lines.append(f"[{section_name}]")
-        d = _dataclass_to_dict(section_obj, redact_secrets=True)
-        for key, value in d.items():
-            if isinstance(value, str):
-                lines.append(f'{key} = "{value}"')
-            elif isinstance(value, bool):
-                lines.append(f"{key} = {'true' if value else 'false'}")
-            elif isinstance(value, dict):
-                for k, v in value.items():
-                    lines.append(f"{k} = {v!r}")
-            else:
-                lines.append(f"{key} = {value}")
+        lines.append(f"[{field.name}]")
+        for section_field in fields(section):
+            value = getattr(section, section_field.name)
+            if section_field.name in SECRET_FIELDS:
+                value = ""
+            lines.append(f"{section_field.name} = {_toml_value(value)}")
 
     return "\n".join(lines) + "\n"
 

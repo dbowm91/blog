@@ -151,9 +151,20 @@ class TestNoNewLegacyImports:
             (project_root / "app" / "config" / "__init__.py").resolve(),
             (project_root / "app" / "__init__.py").resolve(),
         }
+        skip_dirs = {
+            ".git",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".venv",
+            ".worktrees",
+            "build",
+            "dist",
+            "node_modules",
+            "venv",
+        }
         violations = []
         for py_file in project_root.rglob("*.py"):
-            if "build" in py_file.parts or "node_modules" in py_file.parts:
+            if skip_dirs & set(py_file.relative_to(project_root).parts):
                 continue
             resolved = py_file.resolve()
             if resolved in allowlist:

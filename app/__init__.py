@@ -164,8 +164,15 @@ def create_app() -> Flask:
         )
     app = Flask(__name__, instance_relative_config=True)
     app.devlog_config = cfg  # type: ignore[attr-defined]
+    app.config["DEVLOG_CONFIG"] = cfg
     app.config["SECRET_KEY"] = cfg.secret_key
-    app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "static", "uploads")
+    app.config["DEBUG"] = cfg.server.debug
+    upload_folder = (
+        cfg.paths.uploads_dir
+        or os.environ.get("UPLOAD_FOLDER")
+        or os.path.join(os.path.dirname(__file__), "static", "uploads")
+    )
+    app.config["UPLOAD_FOLDER"] = upload_folder
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     db_uri = cfg.database.uri

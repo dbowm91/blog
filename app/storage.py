@@ -300,15 +300,71 @@ class S3StorageBackend(StorageBackend):
             raise
 
 
+def _storage_settings() -> dict[str, str]:
+    """Resolve the storage settings.
+
+    The typed configuration wins over the environment snapshot taken at
+    import time, so ``[storage]`` in config.toml is not inert. The
+    environment is still the fallback for callers outside an app context.
+    """
+    settings = {
+        "backend": STORAGE_BACKEND,
+        "s3_bucket": _S3_BUCKET,
+        "s3_region": _S3_REGION,
+        "s3_endpoint": _S3_ENDPOINT,
+        "s3_access_key": _S3_ACCESS_KEY,
+        "s3_secret_key": _S3_SECRET_KEY,
+        "s3_public_url": _S3_PUBLIC_URL,
+    }
+
+    try:
+        from flask import current_app, has_app_context
+
+        if has_app_context():
+            cfg = current_app.config.get("DEVLOG_CONFIG")
+            storage = getattr(cfg, "storage", None) if cfg is not None else None
+            if storage is not None:
+                settings["backend"] = storage.backend or settings["backend"]
+                settings["s3_bucket"] = storage.s3_bucket or settings["s3_bucket"]
+                settings["s3_region"] = storage.s3_region or settings["s3_region"]
+                settings["s3_endpoint"] = storage.s3_endpoint or settings["s3_endpoint"]
+                settings["s3_access_key"] = storage.s3_access_key or settings["s3_access_key"]
+                settings["s3_secret_key"] = storage.s3_secret_key or settings["s3_secret_key"]
+                settings["s3_public_url"] = storage.s3_public_url or settings["s3_public_url"]
+    except Exception:
+        pass
+
+    return settings
+
+
+def _upload_folder() -> str:
+    """Resolve the directory that holds uploaded media."""
+    default = os.path.join(os.path.dirname(__file__), "static", "uploads")
+
+    try:
+        from flask import current_app, has_app_context
+
+        if has_app_context():
+            configured = current_app.config.get("UPLOAD_FOLDER")
+            if configured:
+                return str(configured)
+    except Exception:
+        pass
+
+    return os.environ.get("UPLOAD_FOLDER", default)
+
+
 def get_storage_backend() -> StorageBackend:
     """Factory function to get the configured storage backend."""
-    if STORAGE_BACKEND == "s3":
+    settings = _storage_settings()
+
+    if settings["backend"] == "s3":
         missing = []
-        if not _S3_BUCKET:
+        if not settings["s3_bucket"]:
             missing.append("S3_BUCKET")
-        if not _S3_ACCESS_KEY:
+        if not settings["s3_access_key"]:
             missing.append("S3_ACCESS_KEY")
-        if not _S3_SECRET_KEY:
+        if not settings["s3_secret_key"]:
             missing.append("S3_SECRET_KEY")
         if missing:
             logger.warning(
@@ -316,25 +372,17 @@ def get_storage_backend() -> StorageBackend:
                 "Falling back to local storage. Set these env vars to enable S3.",
                 ", ".join(missing),
             )
-            upload_folder = os.environ.get(
-                "UPLOAD_FOLDER",
-                os.path.join(os.path.dirname(__file__), "static", "uploads"),
-            )
-            return LocalStorageBackend(upload_folder)
+            return LocalStorageBackend(_upload_folder())
         return S3StorageBackend(
-            bucket=_S3_BUCKET,
-            region=_S3_REGION,
-            endpoint=_S3_ENDPOINT,
-            access_key=_S3_ACCESS_KEY,
-            secret_key=_S3_SECRET_KEY,
-            public_url=_S3_PUBLIC_URL,
+            bucket=settings["s3_bucket"],
+            region=settings["s3_region"],
+            endpoint=settings["s3_endpoint"],
+            access_key=settings["s3_access_key"],
+            secret_key=settings["s3_secret_key"],
+            public_url=settings["s3_public_url"],
         )
 
-    upload_folder = os.environ.get(
-        "UPLOAD_FOLDER",
-        os.path.join(os.path.dirname(__file__), "static", "uploads"),
-    )
-    return LocalStorageBackend(upload_folder)
+    return LocalStorageBackend(_upload_folder())
 
 
 _storage: Optional[StorageBackend] = None
@@ -423,11 +471,7 @@ def upload_with_processing(
     _delete_existing_variants(storage, filename)
 
     if isinstance(storage, LocalStorageBackend):
-        upload_folder = os.environ.get(
-            "UPLOAD_FOLDER",
-            os.path.join(os.path.dirname(__file__), "static", "uploads"),
-        )
-        filepath = os.path.join(upload_folder, filename)
+        filepath = os.path.join(_upload_folder(), filename)
         with open(filepath, "wb") as f:
             f.write(file_content)
 

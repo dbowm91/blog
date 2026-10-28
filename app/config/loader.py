@@ -398,23 +398,73 @@ def _resolve_redis_url(raw: dict) -> str:
     return "redis://localhost:6379/0"
 
 
-def _build_section(dataclass_type: type, field_map: dict[str, str], raw: dict) -> Any:
+_ANNOTATION_TYPES: dict[str, type] = {
+    "str": str,
+    "int": int,
+    "bool": bool,
+    "float": float,
+    "dict": dict,
+    "list": list,
+}
+
+
+def _resolve_field_type(annotation: Any) -> type:
+    """Resolve a dataclass field annotation to a concrete type.
+
+    The model uses ``from __future__ import annotations``, so ``field.type``
+    is the annotation *string* rather than the type object.
+    """
+    if isinstance(annotation, str):
+        return _ANNOTATION_TYPES.get(annotation, str)
+    if isinstance(annotation, type):
+        return annotation
+    return str
+
+
+def _build_section(
+    dataclass_type: type,
+    field_map: dict[str, str],
+    raw: dict,
+    prefix: str | None = None,
+) -> Any:
     kwargs: dict[str, Any] = {}
     dc_fields = {f.name: f for f in fields(dataclass_type)}
     for toml_key, dc_field_name in field_map.items():
         if dc_field_name not in dc_fields:
             continue
-        if toml_key in raw:
-            value = raw[toml_key]
-            target_type = dc_fields[dc_field_name].type
-            if isinstance(target_type, str):
-                kwargs[dc_field_name] = value
-            else:
-                kwargs[dc_field_name] = (
-                    _coerce_value(str(value), target_type)
-                    if not isinstance(value, target_type)
-                    else value
-                )
+        # The section-prefixed key is authoritative: it is what environment
+        # and CLI overrides write, so preferring it keeps the documented
+        # precedence (env > config file > defaults). The bare key is the
+        # fallback for callers that only populate flat keys.
+        value = None
+        found = False
+        for candidate in (f"{prefix}_{toml_key}" if prefix else None, toml_key):
+            if candidate is not None and candidate in raw:
+                value = raw[candidate]
+                found = True
+                break
+        if not found:
+            continue
+
+        target_type = _resolve_field_type(dc_fields[dc_field_name].type)
+        if target_type is bool:
+            kwargs[dc_field_name] = (
+                value if isinstance(value, bool) else _coerce_value(str(value), bool)
+            )
+        elif target_type is int:
+            kwargs[dc_field_name] = (
+                value
+                if isinstance(value, int) and not isinstance(value, bool)
+                else _coerce_value(str(value), int)
+            )
+        elif target_type is float:
+            kwargs[dc_field_name] = (
+                value if isinstance(value, float) else _coerce_value(str(value), float)
+            )
+        elif target_type in (dict, list):
+            kwargs[dc_field_name] = value
+        else:
+            kwargs[dc_field_name] = value if isinstance(value, str) else str(value)
     return dataclass_type(**kwargs)
 
 
@@ -424,26 +474,38 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
     celery_url = _resolve_celery_broker_url(raw)
     redis_url = _resolve_redis_url(raw)
 
-    app_section = _build_section(AppConfig, _TOML_TO_DATACLASS_FIELD["app"], raw)
-    admin_section = _build_section(AdminConfig, _TOML_TO_DATACLASS_FIELD["admin"], raw)
-    server_section = _build_section(ServerConfig, _TOML_TO_DATACLASS_FIELD["server"], raw)
-    author_section = _build_section(AuthorConfig, _TOML_TO_DATACLASS_FIELD["author"], raw)
-    site_section = _build_section(SiteConfig, _TOML_TO_DATACLASS_FIELD["site"], raw)
-    email_section = _build_section(EmailConfig, _TOML_TO_DATACLASS_FIELD["email"], raw)
+    app_section = _build_section(AppConfig, _TOML_TO_DATACLASS_FIELD["app"], raw, "app")
+    admin_section = _build_section(AdminConfig, _TOML_TO_DATACLASS_FIELD["admin"], raw, "admin")
+    server_section = _build_section(ServerConfig, _TOML_TO_DATACLASS_FIELD["server"], raw, "server")
+    author_section = _build_section(AuthorConfig, _TOML_TO_DATACLASS_FIELD["author"], raw, "author")
+    site_section = _build_section(SiteConfig, _TOML_TO_DATACLASS_FIELD["site"], raw, "site")
+    email_section = _build_section(EmailConfig, _TOML_TO_DATACLASS_FIELD["email"], raw, "email")
     newsletter_section = _build_section(
-        NewsletterConfig, _TOML_TO_DATACLASS_FIELD["newsletter"], raw
+        NewsletterConfig, _TOML_TO_DATACLASS_FIELD["newsletter"], raw, "newsletter"
     )
-    comments_section = _build_section(CommentsConfig, _TOML_TO_DATACLASS_FIELD["comments"], raw)
-    themes_section = _build_section(ThemesConfig, _TOML_TO_DATACLASS_FIELD["themes"], raw)
-    storage_section = _build_section(StorageConfig, _TOML_TO_DATACLASS_FIELD["storage"], raw)
-    health_section = _build_section(HealthConfig, _TOML_TO_DATACLASS_FIELD["health"], raw)
-    metrics_section = _build_section(MetricsConfig, _TOML_TO_DATACLASS_FIELD["metrics"], raw)
-    backup_section = _build_section(BackupConfig, _TOML_TO_DATACLASS_FIELD["backup"], raw)
-    security_section = _build_section(SecurityConfig, _TOML_TO_DATACLASS_FIELD["security"], raw)
-    webhook_section = _build_section(WebhookConfig, _TOML_TO_DATACLASS_FIELD["webhook"], raw)
-    logging_section = _build_section(LoggingConfig, _TOML_TO_DATACLASS_FIELD["logging"], raw)
-    search_section = _build_section(SearchConfig, _TOML_TO_DATACLASS_FIELD["search"], raw)
-    paths_section = _build_section(PathsConfig, _TOML_TO_DATACLASS_FIELD["paths"], raw)
+    comments_section = _build_section(
+        CommentsConfig, _TOML_TO_DATACLASS_FIELD["comments"], raw, "comments"
+    )
+    themes_section = _build_section(ThemesConfig, _TOML_TO_DATACLASS_FIELD["themes"], raw, "themes")
+    storage_section = _build_section(
+        StorageConfig, _TOML_TO_DATACLASS_FIELD["storage"], raw, "storage"
+    )
+    health_section = _build_section(HealthConfig, _TOML_TO_DATACLASS_FIELD["health"], raw, "health")
+    metrics_section = _build_section(
+        MetricsConfig, _TOML_TO_DATACLASS_FIELD["metrics"], raw, "metrics"
+    )
+    backup_section = _build_section(BackupConfig, _TOML_TO_DATACLASS_FIELD["backup"], raw, "backup")
+    security_section = _build_section(
+        SecurityConfig, _TOML_TO_DATACLASS_FIELD["security"], raw, "security"
+    )
+    webhook_section = _build_section(
+        WebhookConfig, _TOML_TO_DATACLASS_FIELD["webhook"], raw, "webhook"
+    )
+    logging_section = _build_section(
+        LoggingConfig, _TOML_TO_DATACLASS_FIELD["logging"], raw, "logging"
+    )
+    search_section = _build_section(SearchConfig, _TOML_TO_DATACLASS_FIELD["search"], raw, "search")
+    paths_section = _build_section(PathsConfig, _TOML_TO_DATACLASS_FIELD["paths"], raw, "paths")
 
     database_section = DatabaseConfig(
         uri=db_uri,
@@ -460,11 +522,9 @@ def _build_config(raw: dict, secrets: dict) -> DevLogConfig:
 
     celery_section = CeleryConfig(broker_url=celery_url)
 
-    scheduler_section = _build_section(SchedulerConfig, _TOML_TO_DATACLASS_FIELD["scheduler"], raw)
-    if not scheduler_section.enabled and "scheduler_enabled" in raw:
-        scheduler_section = SchedulerConfig(
-            enabled=_coerce_value(str(raw["scheduler_enabled"]), bool)
-        )
+    scheduler_section = _build_section(
+        SchedulerConfig, _TOML_TO_DATACLASS_FIELD["scheduler"], raw, "scheduler"
+    )
 
     secret_key = secrets.get("SECRET_KEY", raw.get("secret_key", ""))
     admin_password = secrets.get("ADMIN_PASSWORD", raw.get("admin_password", ""))
