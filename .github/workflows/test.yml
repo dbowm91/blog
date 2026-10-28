@@ -32,6 +32,9 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
+      - name: Format check with ruff
+        run: ruff format --check .
+
       - name: Type check with mypy
         run: mypy app/ devlog_cli/
 
@@ -40,3 +43,46 @@ jobs:
           ADMIN_PASSWORD: test-password-123
           SECRET_KEY: test-secret-key-test-secret-key-1234
         run: python -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=80
+
+  ai-assist:
+    name: AI authoring focused tests
+    runs-on: ubuntu-latest
+    env:
+      ADMIN_PASSWORD: test-password-123
+      SECRET_KEY: test-secret-key-test-secret-key-1234
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: playwright install chromium --with-deps
+
+      - name: Run focused AI authoring tests
+        run: >-
+          python -m pytest
+          tests/test_ai_assist.py
+          tests/config/test_ai_config.py
+          tests/test_author_role.py
+          tests/e2e/test_ai_assist.py
+          -v

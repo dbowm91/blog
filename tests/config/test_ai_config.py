@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.config.loader import load_effective_config
-from app.config.model import AiConfig, DevLogConfig, SECRET_FIELDS
+from app.config.model import SECRET_FIELDS, AiConfig, DevLogConfig
 from app.config.secrets import is_secret_field
 from app.config.serialization import config_to_dict, config_to_json, config_to_toml
 from app.config.validation import Severity, validate_schema
