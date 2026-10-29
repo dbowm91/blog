@@ -197,7 +197,7 @@ jobs:
           EOF
 
       - name: Build and start services
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production up -d --build
+        run: docker compose -f docker-compose.yml --profile production up -d --build
 
       - name: Wait for blog to be healthy
         run: |
@@ -209,8 +209,8 @@ jobs:
             sleep 2
           done
           echo "Health check failed"
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production ps
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs
+          docker compose -f docker-compose.yml --profile production ps
+          docker compose -f docker-compose.yml --profile production logs
           exit 1
 
       - name: Set up Python
@@ -243,14 +243,14 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production ps
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs blog
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs redis
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production logs celery || true
+          docker compose -f docker-compose.yml --profile production ps
+          docker compose -f docker-compose.yml --profile production logs blog
+          docker compose -f docker-compose.yml --profile production logs redis
+          docker compose -f docker-compose.yml --profile production logs celery || true
 
       - name: Cleanup
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml --profile production down -v
+        run: docker compose -f docker-compose.yml --profile production down -v
 
   dependency-consistency:
     name: Dependency Consistency

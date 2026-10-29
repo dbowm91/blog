@@ -36,8 +36,9 @@ ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234
 ```
 
 `E2E_BASE_URL` sets the target URL (default `http://127.0.0.1:5010`). CI sets
-it to `http://localhost:5000` and runs through `docker-compose.ci.yml`, which
-publishes the port directly and bypasses nginx.
+it to `http://localhost:5000` and starts the `production` compose profile,
+whose blog service publishes `127.0.0.1:5000` while nginx stays in the
+`reverse-proxy` profile, so the port is reached directly and without nginx.
 
 ## Suite Layout
 

@@ -48,6 +48,7 @@ def verify_wheel(wheel_path: str | Path) -> bool:
             ),
             (
                 "from app.themes.resources import discover_bundled_package",
+                "from app.themes.resources import discover_bundled_package\n"
                 "themes = discover_bundled_package()\n"
                 "assert len(themes) == 50, f'Expected 50 bundled themes, got {len(themes)}'\n"
                 "print(f'  Bundled themes: {len(themes)}')",

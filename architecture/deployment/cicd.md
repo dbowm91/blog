@@ -65,7 +65,8 @@ This job validates the multi-stage build pipeline: Node.js frontend build → Py
 - **Tool**: Playwright
 - **Environment**: Docker-based with `--profile production`
 - **Browser**: Chromium
-- **Compose files**: `docker-compose.yml` + `docker-compose.ci.yml` (CI override publishes port 5000)
+- **Compose file**: `docker-compose.yml` with `--profile production`. The blog service publishes `127.0.0.1:5000:5000` and nginx belongs to the `reverse-proxy` profile, so the suite reaches the application directly at `http://localhost:5000`
+- **No CI overlay**: there is deliberately no `docker-compose.ci.yml`. Compose merges port lists instead of replacing them, so an overlay that re-declared the blog's port would bind the host port twice and the container would refuse to start with `address already in use`
 - **Base URL**: Configured via `E2E_BASE_URL` env var (default: `http://localhost:5000` in CI)
 - **Dependencies**: `requirements-dev.txt` and `pip install --no-deps -e .` — the job builds its own application fixture, so the project must be importable and installed
 - **Depends on**: `test`, `docker-build`
