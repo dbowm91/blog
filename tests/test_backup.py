@@ -1,4 +1,6 @@
+import gzip
 import os
+import sqlite3
 import pytest
 from app.models import Post
 from app.utils import utc_now
@@ -108,9 +110,12 @@ def test_backup_restore(app, db, authenticated_client, admin_user):
     db.session.commit()
     post_id = post.id
 
+    backup_dir = resolve_backup_dir(app)
+    os.makedirs(backup_dir, exist_ok=True)
+    for existing_backup in os.listdir(backup_dir):
+        os.remove(os.path.join(backup_dir, existing_backup))
     authenticated_client.post("/admin/backup/create")
 
-    backup_dir = resolve_backup_dir(app)
     files = sorted(
         [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
     )
@@ -118,17 +123,29 @@ def test_backup_restore(app, db, authenticated_client, admin_user):
         pytest.skip("No backup created")
 
     backup_name = files[0]
+    with sqlite3.connect(os.path.join(backup_dir, backup_name)) as backup_database:
+        restored_title = backup_database.execute(
+            "SELECT title FROM posts WHERE id = ?", (post_id,)
+        ).fetchone()
+    assert restored_title == ("Restore Test",)
+    db.session.remove()
     response = authenticated_client.post(f"/admin/backup/restore/{backup_name}")
     assert response.status_code == 302
+    db.session.remove()
+    database_path = app.config["SQLALCHEMY_DATABASE_URI"][10:]
+    with sqlite3.connect(database_path) as restored_database:
+        restored_title = restored_database.execute(
+            "SELECT title FROM posts WHERE id = ?", (post_id,)
+        ).fetchone()
+    assert restored_title == ("Restore Test",)
 
-    with app.app_context():
-        from app.models import Post as PostModel
+    from app.models import Post as PostModel
 
-        post = db.session.get(PostModel, post_id)
-        assert post is not None
+    post = db.session.get(PostModel, post_id)
+    assert post is not None
 
 
-def test_backup_restore_compressed(app, db, authenticated_client, admin_user):
+def test_backup_restore_compressed(app, db, authenticated_client, admin_user, tmp_path):
     """Test restoring a compressed backup."""
     post = Post(
         title="Compressed Restore Test",
@@ -141,9 +158,12 @@ def test_backup_restore_compressed(app, db, authenticated_client, admin_user):
     db.session.commit()
     post_id = post.id
 
+    backup_dir = resolve_backup_dir(app)
+    os.makedirs(backup_dir, exist_ok=True)
+    for existing_backup in os.listdir(backup_dir):
+        os.remove(os.path.join(backup_dir, existing_backup))
     authenticated_client.post("/admin/backup/create", data={"compress": "on"})
 
-    backup_dir = resolve_backup_dir(app)
     files = sorted(
         [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db.gz")]
     )
@@ -151,15 +171,32 @@ def test_backup_restore_compressed(app, db, authenticated_client, admin_user):
         pytest.skip("No compressed backup created")
 
     backup_name = files[0]
+    backup_path = os.path.join(backup_dir, backup_name)
+    with gzip.open(backup_path, "rb") as compressed_backup:
+        backup_bytes = compressed_backup.read()
+    decompressed_backup_path = tmp_path / "compressed-backup.db"
+    decompressed_backup_path.write_bytes(backup_bytes)
+    with sqlite3.connect(decompressed_backup_path) as backup_database:
+        restored_title = backup_database.execute(
+            "SELECT title FROM posts WHERE id = ?", (post_id,)
+        ).fetchone()
+    assert restored_title == ("Compressed Restore Test",)
+    db.session.remove()
     response = authenticated_client.post(f"/admin/backup/restore/{backup_name}")
     assert response.status_code == 302
+    db.session.remove()
+    database_path = app.config["SQLALCHEMY_DATABASE_URI"][10:]
+    with sqlite3.connect(database_path) as restored_database:
+        restored_title = restored_database.execute(
+            "SELECT title FROM posts WHERE id = ?", (post_id,)
+        ).fetchone()
+    assert restored_title == ("Compressed Restore Test",)
 
-    with app.app_context():
-        from app.models import Post as PostModel
+    from app.models import Post as PostModel
 
-        post = db.session.get(PostModel, post_id)
-        assert post is not None
-        assert post.title == "Compressed Restore Test"
+    post = db.session.get(PostModel, post_id)
+    assert post is not None
+    assert post.title == "Compressed Restore Test"
 
 
 def test_backup_restore_corrupted_file(app, db, authenticated_client):

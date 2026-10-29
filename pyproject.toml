@@ -117,4 +117,4 @@ omit = ["*/tests/*", "*/migrations/*", "*/__pycache__/*"]
 precision = 2
 show_missing = true
 skip_covered = false
-fail_under = 75
+fail_under = 80

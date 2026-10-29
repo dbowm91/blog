@@ -26,7 +26,7 @@ echo ""
 echo "--- Pytest (unit/integration) ---"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-test-password-123}" \
 SECRET_KEY="${SECRET_KEY:-test-secret-key-test-secret-key-1234}" \
-  python -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=75
+  python -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=80
 
 echo ""
 echo "--- Frontend build ---"

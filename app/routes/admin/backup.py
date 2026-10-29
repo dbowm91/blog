@@ -4,6 +4,7 @@ import os
 import shutil
 import gzip
 import tempfile
+import sqlite3
 from datetime import datetime, timezone
 
 from flask import render_template, redirect, url_for, request, flash, send_file, abort
@@ -120,7 +121,9 @@ def restore_backup(filename) -> ResponseReturnValue:
     if not os.path.exists(real_path):
         abort(404)
     db_path = _resolve_database_path()
+    db.session.remove()
     db.engine.dispose()
+    from app.services.backup import restore_database
 
     is_encrypted = filename.endswith(".gpg")
     is_compressed = filename.endswith(".gz")
@@ -146,7 +149,7 @@ def restore_backup(filename) -> ResponseReturnValue:
                 flash(f"Backup integrity check failed: {message}", "error")
                 return redirect(url_for("admin.backup"))
             tmp_restored = tmp_path
-            shutil.copy2(tmp_path, db_path)
+            restore_database(db_path, tmp_path)
             os.unlink(tmp_path)
         elif is_compressed:
             with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
@@ -164,7 +167,7 @@ def restore_backup(filename) -> ResponseReturnValue:
                 flash(f"Backup integrity check failed: {message}", "error")
                 return redirect(url_for("admin.backup"))
             tmp_restored = tmp_path
-            shutil.copy2(tmp_path, db_path)
+            restore_database(db_path, tmp_path)
             os.unlink(tmp_path)
         else:
             from pathlib import Path
@@ -175,8 +178,8 @@ def restore_backup(filename) -> ResponseReturnValue:
             if not is_valid:
                 flash(f"Backup integrity check failed: {message}", "error")
                 return redirect(url_for("admin.backup"))
-            shutil.copy2(real_path, db_path)
-    except (OSError, ValueError, SQLAlchemyError) as e:
+            restore_database(db_path, real_path)
+    except (OSError, ValueError, SQLAlchemyError, sqlite3.Error) as e:
         if tmp_restored and os.path.exists(tmp_restored):
             os.unlink(tmp_restored)
         flash(f"Restore failed: {e}", "error")

@@ -21,7 +21,7 @@ GitHub Actions workflows for testing and deployment.
 
 ### 2. test
 - **Tool**: `pytest` with coverage
-- **Coverage**: Minimum 75%
+- **Coverage**: Minimum 80%
 - **Python**: 3.12 (single-version matrix)
 - **Database**: SQLite
 - **Dependencies**: `requirements-dev.txt` and `pip install --no-deps -e .` — the project itself must be installed, not only its dependencies. `importlib.metadata.version("devlog")` raises `PackageNotFoundError` otherwise, the `doctor` package-version check reports a warning, and the command exits `8` (degraded) instead of `0`
@@ -162,7 +162,7 @@ testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing"
 
 [tool.coverage.report]
-fail_under = 75
+fail_under = 80
 ```
 
 Additional markers are defined in `pytest.ini`:
@@ -172,14 +172,19 @@ markers =
     e2e: end-to-end browser tests
 ```
 
-Minimum coverage: 75%
+Minimum coverage: 80%
 
-The gate was 80% and had never passed — the suite reaches 76.67%. Restoring 80% needs roughly 670 more covered statements, concentrated in `app/tasks.py`, the S3 half of `app/storage.py` and `app/utils.py`. That is a test-writing effort of its own, so the floor now sits just below the level the project sustains, and raising it back to 80% is a separate, deliberate change.
+The gate was briefly lowered to 75% while the CI gates were repaired, because the
+80% floor had never passed. It is back at 80%: the suite now reaches 84.6%
+(21 041 of 24 869 statements and branches covered), the extra headroom coming
+from focused tests for the feed and series API, the posts API, the project
+document admin, the doctor checks, storage, the Celery tasks, onboarding and
+the CLI commands.
 
 ### Running Tests Locally
 
 ```bash
-ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=75
+ADMIN_PASSWORD=test-password-123 SECRET_KEY=test-secret-key-test-secret-key-1234 .venv/bin/python3 -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=80
 ```
 
 Required environment variables:
