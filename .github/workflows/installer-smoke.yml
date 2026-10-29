@@ -101,6 +101,9 @@ jobs:
           path: dist/
 
       - name: Test native install
+        env:
+          SECRET_KEY: install-smoke-secret-key-32-chars-minimum
+          ADMIN_PASSWORD: install-smoke-password
         run: |
           set -euo pipefail
           VERSION="${{ needs.build-artifacts.outputs.version }}"

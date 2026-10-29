@@ -78,6 +78,10 @@ This job validates the multi-stage build pipeline: Node.js frontend build → Py
 - **Purpose**: Smoke-tests the published wheel — the `devlog` CLI and an app-context operation
 - **Frontend build**: required, because the wheel must carry `app/static/dist/` for the Vite assets to resolve at runtime
 - **Install**: `pip install dist/*.whl` — the wheel's own dependencies are resolved from PyPI, so `--no-index` cannot be used
+- **Required environment**: `SECRET_KEY`, `ADMIN_PASSWORD` and `DEVLOG_DATA_DIR` are exported for the smoke steps. The CLI validates the configuration, so without the secrets `config check` reports them as errors (exit 3) and `themes list` refuses to start
+- **Config file**: `config init --profile development --output PATH`. The `--config` option does not exist on `config init`; `--output` names the file to write
+- **Exit codes**: `config check` exits `8` (degraded) when it reports warnings only, `3` when it reports errors and `0` when it is clean. The smoke step accepts `0` and `8` and fails on anything else
+- **Working directory**: the steps run from `/tmp`, outside the source checkout, so the wheel has to resolve the migrations it ships rather than a `migrations/` folder next to the caller
 
 ### Job Dependency Chain
 
@@ -100,6 +104,17 @@ release1-package-smoke
 ### Schedule
 
 The CI workflow runs on a weekly schedule (Monday 08:00 UTC) in addition to push/PR triggers.
+
+## installer-smoke.yml Jobs
+
+`installer-smoke.yml` builds the release artifacts once and then exercises the installer against them.
+
+### native-install
+- **Purpose**: Installs the built wheel into a release directory and runs the `devlog` CLI from it
+- **Layout**: `releases/<version>/venv`, a `current` symlink and a `bin/devlog` symlink. The `bin` directory must exist before the symlink is created
+- **Required environment**: `SECRET_KEY` and `ADMIN_PASSWORD`. The CLI validates the configuration, so without the secrets `config check` reports them as errors (exit 3) and `themes list` refuses to start
+- **Config file**: `config init --profile development --output PATH` — `--config` is not an option of `config init`
+- **Exit codes**: `config check` accepts `0` and `8` (degraded, warnings only) and fails on anything else
 
 ## Pinned Toolchain
 

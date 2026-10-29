@@ -14,6 +14,7 @@ from app.filesystem.layout import (
     RuntimePaths,
     detect_mode,
     detect_mode_from_metadata,
+    resolve_migrations_directory,
 )
 from app.filesystem.lifecycle import (
     CATEGORY_POLICIES,
@@ -70,6 +71,7 @@ __all__ = [
     "get_directory_specs",
     "plan_migration",
     "prepare_directories",
+    "resolve_migrations_directory",
     "verify_database_accessible",
     "verify_directory_writable",
     "verify_migration",

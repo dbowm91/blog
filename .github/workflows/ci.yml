@@ -297,16 +297,36 @@ jobs:
           /tmp/devlog-r1/bin/pip install dist/*.whl
 
       - name: Smoke test CLI
+        env:
+          SECRET_KEY: release-smoke-secret-key-32-chars-minimum
+          ADMIN_PASSWORD: release-smoke-password
+          DEVLOG_DATA_DIR: /tmp/devlog-r1-data
         run: |
           unset PYTHONPATH
+          mkdir -p "${DEVLOG_DATA_DIR}"
           cd /tmp
           /tmp/devlog-r1/bin/devlog --version
-          /tmp/devlog-r1/bin/devlog config init --profile development --config /tmp/devlog-config.toml
+          /tmp/devlog-r1/bin/devlog config init --profile development --output /tmp/devlog-config.toml
+
+          # config check exits 8 (degraded) when it reports warnings only.
+          set +e
           /tmp/devlog-r1/bin/devlog --config /tmp/devlog-config.toml config check
+          CHECK_EXIT=$?
+          set -e
+          if [ "${CHECK_EXIT}" -ne 0 ] && [ "${CHECK_EXIT}" -ne 8 ]; then
+            echo "ERROR: config check failed with exit ${CHECK_EXIT}" >&2
+            exit 1
+          fi
+
           /tmp/devlog-r1/bin/devlog --config /tmp/devlog-config.toml themes list
 
       - name: Smoke test app-context operation
+        env:
+          SECRET_KEY: release-smoke-secret-key-32-chars-minimum
+          ADMIN_PASSWORD: release-smoke-password
+          DEVLOG_DATA_DIR: /tmp/devlog-r1-data
         run: |
           unset PYTHONPATH
+          mkdir -p "${DEVLOG_DATA_DIR}"
           cd /tmp
           /tmp/devlog-r1/bin/devlog --config /tmp/devlog-config.toml db status

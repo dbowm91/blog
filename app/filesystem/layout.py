@@ -170,6 +170,21 @@ def _resolve_exports_dir(data_dir: Path, explicit: Path | None = None) -> Path:
     return _absolute(data_dir / "exports")
 
 
+def resolve_migrations_directory() -> str:
+    """Resolve the Alembic migrations directory to an absolute path.
+
+    Flask-Migrate resolves its ``directory`` against the current working
+    directory, so a pip-installed DevLog never finds the migrations it ships
+    and ``devlog db status`` fails outside a source checkout. The migrations
+    sit next to the ``app`` package: in a source checkout that is the
+    repository root, and in a wheel install it is ``site-packages/migrations``.
+    """
+    candidate = Path(__file__).resolve().parents[2] / "migrations"
+    if (candidate / "env.py").is_file():
+        return str(candidate)
+    return "migrations"
+
+
 @dataclass(frozen=True)
 class ModeDetectionResult:
     detected_mode: InstallMode

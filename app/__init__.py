@@ -31,6 +31,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db, login_manager, migrate
 
 from app.csrf import validate_csrf_token, should_skip_csrf
+from app.filesystem import resolve_migrations_directory
 from app.services.site_settings import invalidate_site_settings_cache
 from app.utils import utc_now
 
@@ -261,7 +262,7 @@ def create_app() -> Flask:
             cursor.close()
 
     login_manager.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db, directory=resolve_migrations_directory())
 
     from app.routes.public import public  # noqa: E402
     from app.routes.admin import admin  # noqa: E402
