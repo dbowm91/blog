@@ -238,6 +238,19 @@ Operator request: optional **AI write TL;DR** and **AI suggest tags** on the pos
 
 **Implementation order: 01 → 02 → 03.** Missing key means absent buttons and no provider requests. Post Save remains the sole persistence step. The current [OpenCode Go documentation](https://opencode.ai/v2/docs/console/go/) says Go is designed for coding agents making similar requests; editorial summarization/classification is not shown as an allowed use. No Go smoke request has been made, and this feature must not be enabled for editorial drafts unless OpenCode explicitly permits it or an authorized alternate provider is selected. The behavior and this gate are documented in `architecture/routes/admin-routes.md`, `architecture/services/overview.md`, `architecture/services/tag.md`, and `architecture/frontend/overview.md`. Keep this entry Active until the provider gate is resolved.
 
+### Media Library and Inline Authoring — Phase 03 open
+
+Roadmap: [`media_authoring_roadmap.md`](media_authoring_roadmap.md)
+
+Origin: operator request on 2026-10-28 to categorize all media, support inline image/video insertion and arbitrary-file attachments from the editors, and add safe Markdown HTML/embed blocks.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | [`media_authoring_phase_01_library_and_uploads.md`](media_authoring_phase_01_library_and_uploads.md) | **Implemented.** Categorized inventory, type-specific uploads, author/admin media APIs, and forced downloads. |
+| 02 | [`media_authoring_phase_02_markdown_and_embeds.md`](media_authoring_phase_02_markdown_and_embeds.md) | **Implemented.** Safe inline video/YouTube embed block, shared sanitizer, aligned CSP, and shared feed renderer. |
+| 03 | [`media_authoring_phase_03_editor_pickers.md`](media_authoring_phase_03_editor_pickers.md) | **Open — not started.** Separate Media and Attachment controls with upload and Markdown insertion. |
+
+Run phases in order: Phase 01 establishes trustworthy media classification, upload APIs, and download URLs; Phase 02 defines what the shared Markdown renderer can safely emit; Phase 03 consumes those contracts in both post and page editors. The series must remain Active until each phase has an evidence-backed completion record and the shipped behavior is documented in `architecture/`.
 
 ## Historical Plans
 

@@ -394,6 +394,8 @@ def create_app() -> Flask:
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if req.path.startswith("/static/uploads/") and req.path.endswith(".attachment"):
+            response.headers["Content-Disposition"] = 'attachment; filename="download"'
         if not current_app.debug:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         cdn_src = ""
@@ -403,16 +405,28 @@ def create_app() -> Flask:
                 cdn_src = f" {parsed.scheme}://{parsed.netloc}"
             except (ValueError, AttributeError):
                 pass
+        media_src = ""
+        if cfg.storage.backend == "s3":
+            storage_url = cfg.storage.s3_public_url
+            if storage_url:
+                parsed_storage = urlparse(storage_url)
+                if parsed_storage.scheme in {"http", "https"} and parsed_storage.netloc:
+                    media_src = f" {parsed_storage.scheme}://{parsed_storage.netloc}"
+            elif cfg.storage.s3_bucket:
+                region = cfg.storage.s3_region or "us-east-1"
+                media_src = f" https://{cfg.storage.s3_bucket}.s3.{region}.amazonaws.com"
+        frame_src = "https://www.youtube-nocookie.com"
         response.headers["Content-Security-Policy"] = (
             f"default-src 'self'; "
             f"style-src 'self' 'nonce-{nonce}'{cdn_src}; "
             f"style-src-attr 'unsafe-inline'; "
             f"font-src 'self'{cdn_src}; "
             f"img-src 'self' data:{cdn_src}; "
+            f"media-src 'self'{cdn_src}{media_src}; "
             f"script-src 'self' 'nonce-{nonce}'{cdn_src}; "
             f"script-src-attr 'unsafe-inline'; "
             f"connect-src 'self'{cdn_src}; "
-            f"frame-src 'none'; "
+            f"frame-src {frame_src}; "
             f"frame-ancestors 'none'"
         )
         if current_app.debug:
@@ -422,10 +436,11 @@ def create_app() -> Flask:
                 f"style-src-attr 'unsafe-inline'; "
                 f"font-src 'self'{cdn_src}; "
                 f"img-src 'self' data:{cdn_src}; "
+                f"media-src 'self'{cdn_src}{media_src}; "
                 f"script-src 'self' 'nonce-{nonce}'{cdn_src}; "
                 f"script-src-attr 'unsafe-inline'; "
                 f"connect-src 'self' report-uri /csp-violation{cdn_src}; "
-                f"frame-src 'none'; "
+                f"frame-src {frame_src}; "
                 f"frame-ancestors 'none'"
             )
         if req.path.startswith("/static/"):

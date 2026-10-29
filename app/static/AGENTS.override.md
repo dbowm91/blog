@@ -159,6 +159,10 @@ output directly.
 `None` as the literal string `"None"`, and a `srcset` candidate list overrides `src`
 entirely — so the attribute must be guarded, never emitted unguarded.
 
+### Inline Media and Attachments
+
+The server catalog/API owns media categories and the media `mime_type` field used by inline video markup. The admin media page and editor pickers must not infer file type from browser MIME values or filenames. Inline media uses storage URLs only for validated images/video; arbitrary files and any file selected from the Attachment picker use `public.download_media` so they are served as forced downloads. Keep the separate controls' output semantics explicit: image → Markdown image, video → controlled `<video>` markup using an allowlisted server `mime_type`, attachment → Markdown download link.
+
 ### Lazy Image Loading
 
 `.js img[loading="lazy"] { opacity: 0 }` is only safe because a restoration path is

@@ -15,7 +15,7 @@ Specialized handling for the Flask application core.
 - `tag_cache.py` - Tag count cache (flask-cache memoization)
 - `search.py` - FTS5 full-text search (returns empty list when FTS unavailable) + snippet extraction
 - `markdown_config.py` - Shared nh3 allowed tags/attributes for markdown rendering
-- `markdown_renderer.py` - Single markdown pipeline; wraps code lines in `.code-line` spans for the CSS line counter
+- `markdown_renderer.py` - Single markdown pipeline; wraps code lines in `.code-line` spans for the CSS line counter and validates uploaded-video/YouTube embed sources
 - `csv_utils.py` - Subscriber CSV export with formula injection prevention
 - `context_processors.py` - Template context (theme, footer, canonical_url)
 - `filters.py` - Template filters (reading_time, post_image_url, truncate, etc.)
@@ -111,7 +111,7 @@ The `set_security_headers` after-request handler sets:
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy` (self-only sources, nonces for scripts/styles, `frame-src 'none'`)
+- `Content-Security-Policy` (self-first sources, nonces for scripts/styles, `frame-src https://www.youtube-nocookie.com`, media sources limited to local/configured storage origins)
 
 ## CLI Commands
 

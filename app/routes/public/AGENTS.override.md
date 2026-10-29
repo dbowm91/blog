@@ -25,6 +25,7 @@ This is a **package** (not a single file like `api.py`):
 - `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` - Newsletter
 - `/comments/<post_id>` - View comments
 - `/static/uploads/<path:filename>` - Uploaded media, served from `UPLOAD_FOLDER`
+- `/media/download/<key>` - Public attachment link; generated attachment keys and signature-validated supported images/videos are served, always as `application/octet-stream` with forced download and `nosniff`
 
 ## Performance Notes
 - Uses `joinedload(Post.tags)` to fix N+1 queries

@@ -71,7 +71,10 @@ class TestRenderCaddyfile:
         ctx = _make_ctx(app, base_url="http://example.com")
         result = render_caddyfile(ctx)
         assert "file_server" in result.content
-        assert "/uploads/" in result.content
+        assert "/static/uploads/*" in result.content
+        assert "/uploads/*" in result.content
+        assert 'Content-Disposition "attachment"' in result.content
+        assert "@attachment path_regexp" in result.content
 
     def test_health_path_logging_disabled(self, app):
         ctx = _make_ctx(app, base_url="http://example.com")
@@ -139,7 +142,10 @@ class TestRenderNginxConfig:
     def test_uploads_location(self, app):
         ctx = _make_ctx(app, base_url="http://example.com")
         result = render_nginx_config(ctx)
+        assert "location /static/uploads/" in result.content
         assert "location /uploads/" in result.content
+        assert 'Content-Disposition "attachment" always' in result.content
+        assert "default_type application/octet-stream" in result.content
 
     def test_health_location(self, app):
         ctx = _make_ctx(app, base_url="http://example.com")

@@ -99,7 +99,7 @@ When uploading images via post create/edit, the media cache must be invalidated:
 from app.routes.admin.media import _invalidate_media_cache
 _invalidate_media_cache()
 ```
-The cache is in `media.py` and uses 30-second TTL. This is called automatically in `posts.py` after image save.
+The cache is in `media.py` and uses 30-second TTL. Invalidate after successful image/video/other upload or delete. The `/admin/media` manager and delete route remain admin-only; `/admin/media/items` and `/admin/media/upload` use `@author_required` for both editor authors and admins. The library and picker catalog classify objects as image, video, or other; server-side signature checks, not client MIME or extension alone, decide inline types. Image variants are image-only. Other uploads must use the public forced-download endpoint, never a direct active-content URL. See `app/routes/admin/helpers/media.py`, `app/routes/public/media.py` and `architecture/infrastructure/storage.md`.
 
 ## nh3 Config
 

@@ -155,7 +155,7 @@ These are the seams where a second producer is the defect. Each has one owner.
 | The "no profile picture" portrait | `app/templates/_default_avatar.html` — one macro, never an initial letter |
 | Heading IDs | `app/static/js/shared/heading-slug.js` |
 | Heading anchors | `app/static/js/public/anchor-links.js` — a direct child of the heading, never wrapped |
-| Markdown rendering | `app/markdown_renderer.py` / the `markdown_safe` filter |
+| Markdown rendering | `app/markdown_renderer.py` / the `markdown_safe` filter — one sanitizer for preview/public/feed; uploaded video origins and YouTube-nocookie embed URLs are explicitly validated |
 | Post image URL | The `post_image_url` filter — a URL, never re-wrapped with `url_for('static', …)` |
 | Uploaded media | The `/static/uploads/` route in `app/routes/public/media.py` — served from `UPLOAD_FOLDER`, not from the installation directory |
 | The CSRF header name | `CSRF_HEADER_NAME` in `app/csrf.py`, published as `data-csrf-header` |
@@ -551,6 +551,7 @@ Three series still have work outstanding:
 
 - **Site Identity, Authorship and Layout** — phase 06 (comment layout) is not
   started. CSS and template work only; it needs no migration.
+- **Media Library and Inline Authoring** — phases 01–02 (categorized uploads, safe downloads, Markdown video/embed rendering and CSP) are implemented; phase 03 (editor Media/Attachment pickers and insertion UX) is not started.
 - **Config/CLI Release 4** — the backup phase is partially implemented (create,
   verify, inspect and encryption shipped; the manifest, listing, restore
   planner and prune commands did not), and the update/uninstall phase has not

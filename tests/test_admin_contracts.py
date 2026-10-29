@@ -63,6 +63,7 @@ def _run_node_esm(tmp_path: Path, script: str) -> dict:
         JS_DIR / "admin" / "editor-history.js",
         tmp_path / "admin" / "editor-history.js",
     )
+    shutil.copy2(JS_DIR / "admin" / "media-picker.js", tmp_path / "admin" / "media-picker.js")
     shutil.copy2(JS_DIR / "shared" / "utils.js", tmp_path / "shared" / "utils.js")
     shutil.copy2(JS_DIR / "shared" / "filter-select.js", tmp_path / "shared" / "filter-select.js")
     driver = tmp_path / "driver.mjs"
@@ -164,6 +165,7 @@ def test_editor_preview_uses_shared_csrf_header_helper():
         "<script>window.__xss=1</script>",
         '<a href="javascript:window.__xss=1">x</a>',
         '<iframe src="javascript:window.__xss=1"></iframe>',
+        '<iframe src="https://youtube.com.evil.example/embed/abcdefghijk"></iframe>',
         "<style>body{background:url(javascript:1)}</style>",
     ],
 )
@@ -340,6 +342,20 @@ def test_page_editor_exposes_preview_toggle_contract(authenticated_client):
     assert "toggle-preview-text" in html
     assert 'aria-controls="markdown-preview"' in html
     assert 'aria-expanded="true"' in html
+
+
+@pytest.mark.parametrize("path", ["/admin/new", "/admin/pages/new"])
+def test_shared_markdown_editor_exposes_media_and_attachment_controls(authenticated_client, path):
+    html = authenticated_client.get(path).get_data(as_text=True)
+
+    assert 'data-media-picker-trigger="media"' in html
+    assert 'data-media-picker-trigger="attachment"' in html
+    assert 'aria-haspopup="dialog"' in html
+    assert 'id="editor-media-picker"' in html
+    assert "data-picker-category" in html
+    assert "data-picker-search" in html
+    assert "data-picker-upload" in html
+    assert "data-picker-file" in html
 
 
 def test_page_editor_attaches_the_body_error_to_the_field(authenticated_client):

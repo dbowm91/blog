@@ -70,6 +70,15 @@ def test_an_author_can_reach_the_editor(client, author_user):
     assert b"Title" in response.data
 
 
+def test_author_can_list_media_for_editor_picker(client, author_user):
+    _login(client, "author1")
+
+    response = client.get("/admin/media/items")
+
+    assert response.status_code == 200
+    assert isinstance(response.get_json()["items"], list)
+
+
 def test_an_author_cannot_reach_the_admin_dashboard(client, author_user):
     _login(client, "author1")
 

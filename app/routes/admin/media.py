@@ -3,20 +3,26 @@ from __future__ import annotations
 import heapq
 import threading
 import time as _time
-import logging
 from datetime import datetime, timezone
+from typing import Any, cast
 
-from flask import render_template, redirect, url_for, request, flash, abort, current_app
+from flask import (
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask.typing import ResponseReturnValue
-from typing import Any
-
-from app.routes.admin import admin, admin_required
-from app.routes.admin.helpers import _save_image
-from app.config import MEDIA_PER_PAGE, MEDIA_MAX_FILES
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
-
-logger = logging.getLogger(__name__)
+from app.config import MAX_UPLOAD_SIZE, MEDIA_MAX_FILES, MEDIA_PER_PAGE
+from app.routes.admin import admin, admin_required, author_required
+from app.routes.admin.helpers.media import classify_file_info, upload_media_file
 
 
 _MEDIA_CACHE: dict[str, Any] = {"files": None, "timestamp": 0}
@@ -29,133 +35,159 @@ def _invalidate_media_cache() -> None:
         _MEDIA_CACHE["files"] = None
 
 
-def _get_cached_media_list(
-    upload_dir: str,
-    search: str | None = None,
-) -> list[Any]:
-    global _MEDIA_CACHE
-    all_files: list[dict[str, object]] = []
-    with _MEDIA_CACHE_LOCK:
-        now = _time.monotonic()
-        if (
-            _MEDIA_CACHE["files"] is not None
-            and _MEDIA_CACHE["timestamp"] is not None
-            and (now - _MEDIA_CACHE["timestamp"]) < _MEDIA_CACHE_TTL
-        ):
-            all_files = _MEDIA_CACHE["files"]
-        else:
-            all_files = _scan_media_directory(upload_dir)
-            _MEDIA_CACHE["files"] = all_files
-            _MEDIA_CACHE["timestamp"] = now
-
-        if search:
-            files = [
-                (f["mtime"], f["name"], f["size"])
-                for f in all_files
-                if search.lower() in str(f["name"]).lower()
-            ]
-            return files
-        return [{"name": str(f["name"]), "size": f["size"], "mtime": f["mtime"]} for f in all_files]
-
-
 def _scan_media_directory(upload_dir: str) -> list[dict[str, object]]:
     from app.storage import get_storage
 
-    storage = get_storage()
-    file_infos = storage.list_file_info()
-    all_files = [
-        (fi.mtime or datetime.min.replace(tzinfo=timezone.utc), fi.name, fi.size)
-        for fi in file_infos
-    ]
-    all_files = heapq.nlargest(MEDIA_MAX_FILES, all_files, key=lambda f: f[0])
-    return [
-        {
-            "name": f[1],
-            "size": f[2],
-            "mtime": f[0],
-        }
-        for f in all_files
-    ]
+    file_infos = get_storage().list_file_info()
+    classified = [classify_file_info(info) for info in file_infos]
+    return heapq.nlargest(
+        MEDIA_MAX_FILES,
+        classified,
+        key=lambda info: (
+            cast(datetime | None, info["mtime"]) or datetime.min.replace(tzinfo=timezone.utc)
+        ),
+    )
+
+
+def _get_cached_media_list(
+    upload_dir: str,
+    search: str | None = None,
+    category: str | None = None,
+) -> list[dict[str, object]]:
+    with _MEDIA_CACHE_LOCK:
+        now = _time.monotonic()
+        if (
+            _MEDIA_CACHE["files"] is None
+            or _MEDIA_CACHE["timestamp"] is None
+            or now - _MEDIA_CACHE["timestamp"] >= _MEDIA_CACHE_TTL
+        ):
+            _MEDIA_CACHE["files"] = _scan_media_directory(upload_dir)
+            _MEDIA_CACHE["timestamp"] = now
+        all_files = list(_MEDIA_CACHE["files"])
+
+    if search:
+        all_files = [
+            item for item in all_files if search.casefold() in str(item["display_name"]).casefold()
+        ]
+    if category in {"image", "video", "other"}:
+        all_files = [item for item in all_files if item["category"] == category]
+    return all_files
+
+
+def _api_media_item(item: dict[str, object]) -> dict[str, object]:
+    filename = str(item["name"])
+    mtime = cast(datetime | None, item["mtime"])
+    return {
+        "name": item["name"],
+        "display_name": item["display_name"],
+        "category": item["category"],
+        "size": item["size"],
+        "mime_type": item["mime_type"],
+        "url": item["url"] if item["category"] in {"image", "video"} else item["download_url"],
+        "download_url": item["download_url"],
+        "mtime": mtime.isoformat() if mtime else None,
+        "delete_url": url_for("admin.delete_media", filename=filename),
+    }
 
 
 @admin.route("/media")
 @admin_required
 def media() -> ResponseReturnValue:
-    """
-    Media library - list uploaded files.
-
-    Methods: GET
-    GET: Renders media gallery with paginated list of uploaded images.
-    Query params:
-        page: Page number (default 1)
-        search: Filter files by name (case-insensitive)
-    Requires: Admin authentication.
-    """
-    page = request.args.get("page", 1, type=int)
-    per_page = MEDIA_PER_PAGE
-    max_files = MEDIA_MAX_FILES
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    page = max(1, request.args.get("page", 1, type=int))
     search = request.args.get("search", "", type=str).strip()
-
-    all_files = _get_cached_media_list(upload_dir, search)
-
-    truncated = len(all_files) > max_files
+    category = request.args.get("category", "all", type=str)
+    if category not in {"all", "image", "video", "other"}:
+        category = "all"
+    all_files = _get_cached_media_list(
+        current_app.config["UPLOAD_FOLDER"], search, None if category == "all" else category
+    )
     total = len(all_files)
-    start = (page - 1) * per_page
-    end = start + per_page
-    files = all_files[start:end]
-    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    start = (page - 1) * MEDIA_PER_PAGE
+    files = [_api_media_item(item) for item in all_files[start : start + MEDIA_PER_PAGE]]
+    total_pages = max(1, (total + MEDIA_PER_PAGE - 1) // MEDIA_PER_PAGE)
+    counts = {
+        value: sum(
+            1
+            for item in _get_cached_media_list(current_app.config["UPLOAD_FOLDER"])
+            if item["category"] == value
+        )
+        for value in ("image", "video", "other")
+    }
     return render_template(
         "admin/media.html",
         files=files,
         page=page,
         total_pages=total_pages,
-        truncated=truncated,
+        truncated=len(_get_cached_media_list(current_app.config["UPLOAD_FOLDER"]))
+        >= MEDIA_MAX_FILES,
         search=search,
+        category=category,
+        counts=counts,
+        total=total,
     )
 
 
+@admin.route("/media/items")
+@author_required
+def media_items() -> ResponseReturnValue:
+    category = request.args.get("category", "all", type=str)
+    if category not in {"all", "image", "video", "other"}:
+        return jsonify({"error": "Invalid media category."}), 400
+    search = request.args.get("search", "", type=str).strip()[:100]
+    items = _get_cached_media_list(
+        current_app.config["UPLOAD_FOLDER"], search, None if category == "all" else category
+    )
+    return jsonify({"items": [_api_media_item(item) for item in items]})
+
+
 @admin.route("/media/upload", methods=["POST"])
-@admin_required
+@author_required
 def upload_media() -> ResponseReturnValue:
-    """
-    Upload an image file.
-
-    Methods: POST
-    POST: Saves uploaded image to upload folder. Validates via magic bytes.
-    Requires: Admin authentication.
-    Form params: file - Image file (png, jpg, jpeg, gif, webp, max 10MB)
-    """
-    if "file" not in request.files:
-        flash("No file selected.", "error")
-        return redirect(url_for("admin.media"))
-
-    file = request.files["file"]
-    if file.filename == "":
-        flash("No file selected.", "error")
-        return redirect(url_for("admin.media"))
-
-    filename, error = _save_image(file)
-    if error:
+    wants_json = (
+        request.accept_mimetypes.best == "application/json"
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+    request.max_content_length = MAX_UPLOAD_SIZE + 1024 * 1024
+    try:
+        file = request.files.get("file")
+    except RequestEntityTooLarge:
+        error = f"Upload exceeds the {MAX_UPLOAD_SIZE // (1024 * 1024)}MB limit."
+        if wants_json:
+            return jsonify({"error": error}), 413
         flash(error, "error")
-    else:
-        _invalidate_media_cache()
-        flash(f"Uploaded {filename}.", "success")
+        return redirect(url_for("admin.media"))
+    if file is None or not file.filename:
+        error = "Choose a file to upload."
+        if wants_json:
+            return jsonify({"error": error}), 400
+        flash(error, "error")
+        return redirect(url_for("admin.media"))
 
-    return redirect(url_for("admin.media"))
+    category = request.form.get("category", "image")
+    item, upload_error = upload_media_file(file, category)
+    if upload_error or not item:
+        if wants_json:
+            return jsonify({"error": upload_error or "Upload failed."}), 400
+        flash(upload_error or "Upload failed.", "error")
+        return redirect(url_for("admin.media", category=category))
+
+    _invalidate_media_cache()
+    response_item = {
+        "name": item["name"],
+        "category": item["category"],
+        "mime_type": item.get("mime_type", "application/octet-stream"),
+        "url": item["url"],
+        "display_name": item.get("display_name", item["name"]),
+    }
+    if wants_json:
+        return jsonify({"item": response_item}), 201
+    flash(f"Uploaded {response_item['display_name']}.", "success")
+    return redirect(url_for("admin.media", category=category))
 
 
-@admin.route("/media/delete/<filename>", methods=["POST"])
+@admin.route("/media/delete/<path:filename>", methods=["POST"])
 @admin_required
 def delete_media(filename: str) -> ResponseReturnValue:
-    """
-    Delete a media file.
-
-    Methods: POST
-    POST: Deletes the file from upload folder. Validates path is within upload dir.
-    Requires: Admin authentication.
-    Path params: filename - Name of the file to delete.
-    """
     filename = secure_filename(filename)
     if not filename:
         abort(400)
@@ -168,19 +200,12 @@ def delete_media(filename: str) -> ResponseReturnValue:
         flash("Failed to delete file.", "error")
         return redirect(url_for("admin.media"))
     _invalidate_media_cache()
-    flash(f"Deleted {filename}.", "success")
+    flash("File deleted.", "success")
     return redirect(url_for("admin.media"))
 
 
 def cleanup_orphaned_images(app) -> tuple[int, int]:
-    """Clean up image files that are not associated with any post.
-
-    Delegates to app.services.operations.media.apply_orphaned_media_cleanup().
-
-    Returns (orphaned_count, missing_count) tuple:
-        - orphaned_count: number of files deleted that weren't in DB
-        - missing_count: number of DB entries pointing to missing files (cleared)
-    """
+    """Clean up image files that are not associated with any post."""
     from app.services.operations.media import apply_orphaned_media_cleanup
 
     result = apply_orphaned_media_cleanup()

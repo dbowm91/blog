@@ -31,9 +31,23 @@ def test_csp_header(client):
     assert csp is not None
     assert "default-src 'self'" in csp
     assert "frame-ancestors 'none'" in csp
-    assert "frame-src 'none'" in csp
+    assert "frame-src https://www.youtube-nocookie.com" in csp
+    assert "media-src 'self'" in csp
     assert "style-src 'self' 'nonce-" in csp
     assert "script-src 'self' 'nonce-" in csp
+
+
+def test_debug_report_only_csp_allows_the_same_embed_and_media_sources(app):
+    previous_debug = app.debug
+    app.debug = True
+    try:
+        response = app.test_client().get("/media/download/not-an-attachment")
+    finally:
+        app.debug = previous_debug
+
+    report_only = response.headers.get("Content-Security-Policy-Report-Only", "")
+    assert "frame-src https://www.youtube-nocookie.com" in report_only
+    assert "media-src 'self'" in report_only
 
 
 def test_hsts_conditional_debug(client):

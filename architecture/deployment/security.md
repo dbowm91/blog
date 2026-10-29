@@ -53,18 +53,16 @@ Both Flask and nginx set these headers. nginx headers are defined in `nginx/conf
 | `Content-Security-Policy` | `default-src 'self'; ...` |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
-| `Content-Security-Policy` | nonce-based (Flask) or `unsafe-inline` (nginx) — see below |
+| `Content-Security-Policy` | nonce-based (Flask; sole policy owner) — see below |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
 | `X-Download-Options` | `noopen` |
 | `X-Permitted-Cross-Domain-Policies` | `none` |
 
-### CSP Differences
+### CSP Ownership
 
-Nginx and Flask set different `Content-Security-Policy` values for `script-src`:
-- **Flask** (`app/__init__.py`): `script-src 'self' 'nonce-{nonce}'` — nonce-based, more secure
-- **Nginx** (`nginx/conf.d/blog.conf`): `script-src 'self' 'unsafe-inline'` — overrides Flask's CSP
+Flask (`app/__init__.py`) is the single CSP owner. It emits the nonce-based policy and adds only the configured CDN/storage origins required by rendering. The bundled nginx configuration does not emit a second CSP, avoiding accidental policy intersections or broad media-source allowances. `frame-src` permits only `https://www.youtube-nocookie.com`.
 
-When behind nginx, the nginx CSP header takes precedence, replacing Flask's nonce-based policy with `unsafe-inline`. This weakens XSS protection since `unsafe-inline` allows arbitrary inline scripts.
+The Markdown renderer permits a narrow set of safe HTML and `<video>/<source>` tags. `:::html` blocks are always sanitized; iframes must use the exact HTTPS YouTube-nocookie embed host/path and receive forced sandbox, lazy-loading, and no-referrer attributes. Arbitrary uploaded files are served through `/media/download/<key>` as `application/octet-stream` with `Content-Disposition: attachment` and `nosniff`; local proxy aliases also force attachment handling for generated `.attachment` keys.
 
 ## Nginx Rate Limiting
 

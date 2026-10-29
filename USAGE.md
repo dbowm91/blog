@@ -846,15 +846,15 @@ Sessions auto-expire after 24 hours of inactivity (configurable via `SESSION_LIF
 
 Go to `/admin/media`
 
-### Uploading Images
+### Uploading Media and Attachments
 
-1. Go to `/admin/media`
-2. Drag & drop images onto the upload zone, or click it to browse
-3. Wait for the upload to complete
+The media manager has **All**, **Images**, **Videos**, and **Other** categories. Choose an upload category before selecting or dropping a file.
 
-**Limits:**
-- Max file size: 10 MB
-- Allowed types: image/jpeg, image/png, image/gif, image/webp
+- **Images:** PNG, JPEG, GIF, WebP; content signature is checked and responsive variants are generated.
+- **Videos:** MP4 and WebM; container signature is checked and video is stored without image processing. No transcoding is performed.
+- **Other:** arbitrary file content is accepted as a download-only attachment with a sanitized display name.
+
+All uploads are limited to 10 MiB by default (`MAX_UPLOAD_SIZE`). The configured maximum is checked server-side; the browser-provided MIME type is not trusted.
 
 ### Responsive Images
 
@@ -871,34 +871,59 @@ Templates use `srcset` for responsive loading:
      sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px">
 ```
 
-### Using Images in Posts
+### Using Inline Media, Attachments, and Embeds
 
-1. Copy the image URL from the media library
-2. In your post, use Markdown:
-   ```markdown
-   ![Alt text](/static/uploads/filename.png)
-   ```
+The shared post and page Markdown editors provide separate **Insert media** and **Insert attachment** controls. Media opens the server-categorized image/video library and supports inline upload; choose Image or Video before uploading. Attachment opens the Other category by default and uploads arbitrary files as download-only attachments. Use its category selector to choose existing images or videos as downloads. The picker uses the server catalog rather than browser MIME or filename guesses. Both upload paths use the configured server-side `MAX_UPLOAD_SIZE` limit (10 MiB by default), and failed uploads leave the editor draft unchanged.
 
-For the post's featured image, use the **Featured image** file picker in the
-post editor instead.
+Use **Insert media** for inline images and videos. In Markdown source:
 
-### Deleting Images
+```markdown
+![Alt text](/static/uploads/filename.png)
 
-1. Go to `/admin/media`
-2. Click on the image
-3. Click **Delete**
-4. Confirm
+<video controls>
+  <source src="/static/uploads/filename.mp4" type="video/mp4">
+</video>
+```
 
-**Warning:** Deleted images are permanently removed. If an image is in use by a post, the post will show a broken image.
+The Attachment control inserts a Markdown download link, even when the selected file is an image or video:
+
+```markdown
+[Download the source file](/media/download/<generated-attachment-key>)
+```
+
+Uploaded attachments are served as downloads with a generic binary content type; HTML/SVG/script files are not rendered inline by the blog origin.
+
+For an approved YouTube embed, use the special HTML block syntax and the YouTube-nocookie embed URL:
+
+```markdown
+:::html
+<iframe src="https://www.youtube-nocookie.com/embed/abcdefghijk" title="Video" width="560" height="315" allowfullscreen></iframe>
+:::
+```
+
+The block is sanitized like all other Markdown output. Only the exact HTTPS YouTube-nocookie embed host/path is accepted; arbitrary iframe sources, scripts, event handlers, and dangerous URLs are removed. Preview, public pages, and feeds share the same policy.
+
+For the post's featured image, use the **Featured image** file picker in the post editor instead.
+
+### Deleting Media
+
+1. Go to `/admin/media` and choose the category or search for the file.
+2. Click **Delete** and confirm.
+
+**Warning:** Deletion is permanent. Content that refers to a deleted object will have a broken image, video, or download link.
 
 ### Image Storage
 
 **Local storage (default):**
-Images are stored in `app/static/uploads/`. This directory should be included in
+Media objects are stored in `app/static/uploads/`. This directory should be included in
 backups. Override the location with the `UPLOAD_FOLDER` environment variable.
+Arbitrary attachments have a generated `.attachment` suffix and are always delivered
+with download headers.
 
 **S3 storage:**
-Images are stored in S3-compatible storage. See [S3 Storage](#s3-storage) section.
+Media objects are stored in S3-compatible storage. Attachment objects use
+`application/octet-stream` and `Content-Disposition: attachment` metadata; Markdown
+links use the application's forced-download route. See [S3 Storage](#s3-storage).
 
 ### Cleaning unused images
 

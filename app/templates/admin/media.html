@@ -10,40 +10,67 @@
         <h1>Media Library</h1>
     </div>
 
+    <nav class="media-categories" aria-label="Media categories">
+        {% for key, label in [('all', 'All'), ('image', 'Images'), ('video', 'Videos'), ('other', 'Other')] %}
+        <a class="btn btn-small{% if category == key %} btn-primary{% else %} btn-ghost{% endif %}"
+           href="{{ url_for('admin.media', category=key, search=search or None) }}"
+           {% if category == key %}aria-current="page"{% endif %}>
+            {{ label }}{% if key != 'all' %} ({{ counts[key] }}){% endif %}
+        </a>
+        {% endfor %}
+    </nav>
+
     <form method="GET" action="{{ url_for('admin.media') }}" class="search-form mb-md">
+        <input type="hidden" name="category" value="{{ category }}">
         <input type="text" name="search" value="{{ search }}" placeholder="Search files..." class="search-input">
         <button type="submit" class="btn btn-small">Search</button>
         {% if search %}
-        <a href="{{ url_for('admin.media') }}" class="btn btn-small btn-ghost">Clear</a>
+        <a href="{{ url_for('admin.media', category=category) }}" class="btn btn-small btn-ghost">Clear</a>
         {% endif %}
     </form>
 
-    <div class="upload-zone" id="upload-zone">
+    <div class="media-upload-controls">
+        <label for="upload-category">Upload as</label>
+        <select id="upload-category" name="category">
+            <option value="image">Image</option>
+            <option value="video">Video (MP4 or WebM)</option>
+            <option value="other">Other file (download only)</option>
+        </select>
+    </div>
+    <div class="upload-zone" id="upload-zone" data-upload-url="{{ url_for('admin.upload_media') }}">
         <div class="upload-zone-content">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-            <p>Drag & drop images here</p>
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" aria-hidden="true"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            <p>Drag and drop a file here</p>
             <span class="text-muted">or click to browse</span>
         </div>
         <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
-        <form method="POST" action="{{ url_for('admin.upload_media') }}" id="upload-form" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        </form>
     </div>
 
     {% if files %}
     <div class="media-grid">
         {% for f in files %}
-        <div class="media-card">
+        <div class="media-card" data-category="{{ f.category }}">
             <div class="media-card-img">
-                <img src="{{ url_for('static', filename='uploads/' + f.name) }}" alt="{{ f.name }}" loading="lazy" decoding="async">
+                {% if f.category == 'image' %}
+                <img src="{{ f.url }}" alt="{{ f.display_name }}" loading="lazy" decoding="async">
+                {% elif f.category == 'video' %}
+                <video src="{{ f.url }}" preload="metadata" controls aria-label="Preview {{ f.display_name }}"></video>
+                {% else %}
+                <div class="media-file-placeholder" aria-hidden="true">FILE</div>
+                {% endif %}
             </div>
             <div class="media-card-info">
-                <span class="media-name" title="{{ f.name }}">{{ f.name }}</span>
-                <span class="media-size">{{ (f.size / 1024) | round(1) }} KB</span>
+                <span class="media-name" title="{{ f.display_name }}">{{ f.display_name }}</span>
+                <span class="media-size">{{ (f.size / 1024) | round(1) }} KB · {{ f.category }}</span>
             </div>
             <div class="media-card-actions">
-                <button class="btn btn-small btn-ghost media-copy-btn" data-url="{{ url_for('static', filename='uploads/' + f.name) }}">Copy URL</button>
-                <form method="POST" action="{{ url_for('admin.delete_media', filename=f.name) }}" class="inline-form" data-confirm="Delete {{ f.name }}?">
+                {% if f.url %}
+                <button class="btn btn-small btn-ghost media-copy-btn" data-url="{{ f.url }}">Copy URL</button>
+                {% endif %}
+                {% if f.category == 'other' and f.download_url %}
+                <a class="btn btn-small btn-ghost" href="{{ f.download_url }}">Download</a>
+                {% endif %}
+                <form method="POST" action="{{ f.delete_url }}" class="inline-form" data-confirm="Delete {{ f.display_name }}?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="btn btn-small btn-danger">Delete</button>
                 </form>
@@ -52,29 +79,23 @@
         {% endfor %}
     </div>
     {% if truncated %}
-    <p class="flash flash-warning mt-md">Showing first 1000 files only.</p>
+    <p class="flash flash-warning mt-md">Showing the most recent 1000 files.</p>
     {% endif %}
     {% if total_pages > 1 %}
-    <nav class="pagination mt-md">
+    <nav class="pagination mt-md" aria-label="Media pages">
         {% if page > 1 %}
-        <a href="{{ url_for('admin.media', page=page-1, search=search) }}" class="page-link">&larr; Newer</a>
+        <a href="{{ url_for('admin.media', page=page-1, search=search, category=category) }}" class="page-link">&larr; Newer</a>
         {% endif %}
         <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
         {% if page < total_pages %}
-        <a href="{{ url_for('admin.media', page=page+1, search=search) }}" class="page-link">Older &rarr;</a>
+        <a href="{{ url_for('admin.media', page=page+1, search=search, category=category) }}" class="page-link">Older &rarr;</a>
         {% endif %}
     </nav>
     {% endif %}
     {% elif search %}
-    <div class="empty-state">
-        <h3>No files match your search</h3>
-        <p>Try a different search term.</p>
-    </div>
+    <div class="empty-state"><h3>No files match your search</h3><p>Try a different term or category.</p></div>
     {% else %}
-    <div class="empty-state">
-        <h3>No media files</h3>
-        <p>Upload images when creating or editing posts.</p>
-    </div>
+    <div class="empty-state"><h3>No files in this category</h3><p>Upload images, MP4/WebM videos, or other files using the controls above.</p></div>
     {% endif %}
 </div>
 {% endblock %}

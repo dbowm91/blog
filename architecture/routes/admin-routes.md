@@ -198,11 +198,13 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 
 ## Media Management (`media.py`)
 
-- **Route**: `GET /admin/media`
-- **Route**: `POST /admin/media/upload`
+- **Route**: `GET /admin/media` — paginated media manager, filterable by type and search
+- **Route**: `GET /admin/media/items` — author/admin-authenticated JSON catalog for editor pickers
+- **Route**: `POST /admin/media/upload` — author/admin-authenticated, CSRF-protected image/video/other upload; form `category` selects the validation/storage policy; JSON clients send `Accept: application/json`
 - **Route**: `POST /admin/media/delete/<filename>`
-- **Purpose**: Upload and manage images
-- **Features**: Responsive variant generation
+- **Purpose**: Manage all uploaded files as Images, Videos, or Other
+- **Features**: PNG/JPEG/GIF/WebP image processing; MP4/WebM signature validation without image processing; arbitrary files in the Other category and safe download-only links. The shared post/page editor uses distinct Media and Attachment pickers over the same categorized catalog; Media inserts inline images or controlled video markup, while Attachment always inserts a forced-download Markdown link.
+- **Download route**: public `GET /media/download/<key>` accepts generated attachment keys or signature-validated supported images/videos; arbitrary unknown storage keys are rejected. Every response uses attachment disposition, octet-stream content type, and `nosniff`.
 - **Orphan cleanup**: `cleanup_orphaned_images` delegates to `app.services.operations.media` (Phase C service extraction)
 
 ## Backup Management (`backup.py`)

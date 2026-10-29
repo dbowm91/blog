@@ -1,5 +1,6 @@
 import { announce, csrfHeaders } from '../shared/utils.js';
 import { initMarkdownToolbar } from './markdown-toolbar.js';
+import { initMediaPickers } from './media-picker.js';
 import { initEditorHistory } from './editor-history.js';
 
 export function deriveDraftKey(pathname) {
@@ -15,6 +16,7 @@ export function initEditor() {
     const togglePreviewBtn = document.getElementById('toggle-preview-btn');
 
     initMarkdownToolbar();
+    initMediaPickers();
 
     // Collapsible preview, below the editor
     if (togglePreviewBtn && editorSplit) {

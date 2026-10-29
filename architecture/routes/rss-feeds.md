@@ -1,6 +1,6 @@
 # RSS/Feeds (`app/routes/rss.py`)
 
-Provides RSS 2.0, Atom, and JSON feed formats.
+Provides RSS 2.0, Atom, and JSON feed formats. HTML content uses the single sanitized `render_markdown()` pipeline, including the same approved inline video and YouTube-nocookie embed markup as public post rendering; feeds do not use a separate HTML sanitizer.
 
 ## Endpoints
 
