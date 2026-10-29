@@ -58,35 +58,44 @@ These files have been flagged for exception handling issues (all now fixed):
 - `db.session.refresh()` fails if object isn't in current session
 - Fix: Re-query object from database instead of using `refresh()`
 
-### The Backup Tests Share One Directory
+### The Backup Tests Shared One Directory
 
-`tests/test_phase8.py::TestBackupRestore::test_download_backup` downloads
-`backups[0]` — the first entry of an **unsorted** `os.listdir()` of
-`app.instance_path/backups`. The admin route validates the name against
+**Fixed on 2026-10-29.** `tests/test_phase8.py::TestBackupRestore::test_download_backup`
+downloaded `backups[0]` — the first entry of an **unsorted** `os.listdir()` of
+the session's backup directory. The admin route validates the name against
 `BACKUP_FILENAME_RE` (`^blog_\d{8}_\d{6}\.db(\.gz)?(\.gpg)?$`) and answers
 400 for anything else.
 
 `tests/services/test_operations_backup.py::TestVerifyBackup::test_verify_backup_valid`
-writes `blog_verify_<uuid>.db` into that same directory — its `backup_dir`
-fixture is `app.instance_path/backups`, not a tmp path. That name starts with
-`blog_`, so the other test's filter keeps it, and it does not match the
-regex, so the download is refused.
+wrote `blog_verify_<uuid>.db` into that same directory — its `backup_dir`
+fixture was `resolve_backup_dir(app)`, not a tmp path. That name starts with
+`blog_`, so the other test's filter kept it, and it does not match the
+regex, so the download was refused.
 
-The two tests therefore pass or fail depending on the directory's listing
+The two tests therefore passed or failed depending on the directory's listing
 order, which depends on the random uuid. Measured on 2026-10-27: with
 `tests/services/test_operations_backup.py` running earlier in the same
 session, `test_download_backup` failed **10 runs out of 10** on an unmodified
 checkout. It fails intermittently in a full-suite run, and the failure set of
 a full-suite run is not reproducible run to run.
 
-Nothing about the backup code is wrong — `app/routes/admin/backup.py` and
-`app/services/backup.py` behave correctly. The defect is in the tests: one
-writes an invalidly named file into a shared directory, and the other assumes
-the first entry of an unsorted listing is downloadable. Comparing a
-before-and-after failure set needs this in mind: a single differing test in
-this area is not a regression. Fixing it means sorting the listing and
-filtering it to the names the route accepts, and giving the verify test a
-tmp directory of its own.
+Nothing about the backup code was wrong — `app/routes/admin/backup.py` and
+`app/services/backup.py` behave correctly. The defect was in the tests: one
+wrote an invalidly named file into a shared directory, and the other assumed
+the first entry of an unsorted listing is downloadable. The services fixture
+now writes into `tmp_path`, and `test_download_backup` selects a name the
+route's own `validate_backup_filename()` accepts.
+
+A second test in the same area was broken in a way that only CI exposed.
+`tests/test_backup.py::test_backup_retention_policy` passed
+`app.instance_path/blog.db` to `create_backup()`, but that is not where the
+application keeps its database, so every call logged *"Database not found"*
+and returned `None`. No backup was ever created, no retention ran, and the
+assertion counted whatever other tests had left in the shared directory — on
+CI it failed with `assert 4 <= 3`, while locally it passed by luck. The test
+now resolves the live database through `resolve_database_file()`, backs up
+into `tmp_path`, and asserts that exactly the retention limit survives and
+that the oldest file is the one removed.
 
 ### The Test Suite Used to Overwrite the Developer's `.env`
 

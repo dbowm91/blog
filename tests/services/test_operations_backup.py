@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.backup import resolve_backup_dir, resolve_database_file
+from app.services.backup import resolve_database_file
 from app.services.operations.results import (
     BackupCreateResult,
     BackupVerifyResult,
@@ -17,11 +17,16 @@ from app.services.operations.results import (
 
 
 @pytest.fixture()
-def backup_dir(app):
-    """Return a temporary backup directory within the app instance."""
-    d = resolve_backup_dir(app)
-    os.makedirs(d, exist_ok=True)
-    return d
+def backup_dir(tmp_path):
+    """Return an isolated scratch directory for backup fixtures.
+
+    The application's own backup directory is shared by the whole test
+    session, so scratch files written here would otherwise be picked up by
+    tests that list the directory.
+    """
+    d = tmp_path / "backups"
+    d.mkdir()
+    return str(d)
 
 
 @pytest.fixture()

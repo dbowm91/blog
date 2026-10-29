@@ -432,12 +432,11 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ## Known Defects
 
-Verified against the source on 2026-10-28 and **not yet fixed**. Each has a
+Verified against the source on 2026-10-29 and **not yet fixed**. Each has a
 "Notes and Gotchas" entry in the relevant architecture document.
 
 | Defect | Where |
 |---|---|
-| **The backup tests share one directory, so `test_download_backup` fails at random.** `tests/services/test_operations_backup.py` writes `blog_verify_<uuid>.db` into `app.instance_path/backups`; `tests/test_phase8.py` downloads the first entry of an *unsorted* listing, and the route refuses a name that is not `blog_<timestamp>.db`. On an unmodified checkout the test failed 10 runs out of 10 when the two modules shared a session — so a full-suite failure set is not reproducible run to run, and one differing test in this area is not a regression | `tests/services/test_operations_backup.py`, `tests/test_phase8.py` |
 | `shift_lightness()` computes `q` identically in both branches of the `lightness < 0.5` test, so dark colours take the light-colour path (`#161b22` +0.06 → `#002459`, not `#222a35`) | `app/themes/colors.py` |
 | Create/update/delete handlers expose internal exception text via `flash(f"Error …: {str(e)}")` | `app/routes/admin/series.py` |
 | `--quiet` and `--no-color` are stored on `CliContext` but never read | `devlog_cli/context.py`, `devlog_cli/main.py` |
@@ -449,6 +448,8 @@ history is not lost.
 
 | Defect | Fix |
 |---|---|
+| **The backup tests shared one directory, so `test_download_backup` failed at random.** `tests/services/test_operations_backup.py` wrote `blog_verify_<uuid>.db` into the session's backup directory; `tests/test_phase8.py` downloaded the first entry of an *unsorted* listing, and the route refuses a name that is not `blog_<timestamp>.db`. On an unmodified checkout the test failed 10 runs out of 10 when the two modules shared a session | The services fixture writes into `tmp_path`; `test_download_backup` selects a name the route's own `validate_backup_filename()` accepts |
+| **`test_backup_retention_policy` never created a backup.** It passed `app.instance_path/blog.db` to `create_backup()`, which is not where the application keeps its database, so every call returned `None` and the assertion counted whatever other tests had left in the shared directory — it failed on CI with `assert 4 <= 3` and passed locally by luck | The test resolves the live database through `resolve_database_file()`, backs up into `tmp_path`, and asserts that exactly the retention limit survives and that the oldest one is the file removed |
 | The scheduled backup looked for `instance/blog.db` instead of the configured database | `resolve_database_file()` / `resolve_backup_dir()` in `app/services/backup.py`; `app/tasks.py`, `app/services/operations/backup.py` and `backup.py` all use them |
 | `_build_context()` read `current_app.config["DEVLOG_CONFIG"]`, which the app factory never set — the whole `devlog deploy` group raised `KeyError` | `create_app()` sets `app.config["DEVLOG_CONFIG"]` |
 | `deploy render` defaulted `--target` to `["all"]` but the service dispatched only on concrete names, rendering zero files | `_resolve_targets()` expands `all` to the five concrete targets |

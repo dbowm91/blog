@@ -204,18 +204,32 @@ def test_backup_delete_nonexistent(app, db, authenticated_client):
     assert response.status_code == 404
 
 
-def test_backup_retention_policy(app, db):
+def test_backup_retention_policy(app, db, tmp_path):
     """Test that old backups are cleaned up when retention limit is exceeded."""
-    from app.services.backup import create_backup
+    from app.services.backup import create_backup, resolve_database_file
 
-    backup_dir = resolve_backup_dir(app)
-    os.makedirs(backup_dir, exist_ok=True)
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
 
-    db_path = os.path.join(app.instance_path, "blog.db")
+    db_path = resolve_database_file(app)
+    assert db_path and os.path.exists(db_path), "the configured database must exist"
+
     keep = 3
+    # create_backup() names files with second resolution, so repeated calls
+    # inside one second reuse a single name. Seed distinct, older backups so
+    # the retention policy has a full set to prune.
+    base_mtime = 1_700_000_000
+    seeded = []
+    for index in range(keep):
+        seeded_path = backup_dir / f"blog_2026010{index + 1}_120000.db"
+        seeded_path.write_bytes(b"")
+        os.utime(seeded_path, (base_mtime + index, base_mtime + index))
+        seeded.append(seeded_path.name)
 
-    for _ in range(5):
-        create_backup(db_path, backup_dir, compress=False, keep=keep)
+    created = create_backup(db_path, str(backup_dir), compress=False, keep=keep)
+    assert created is not None, "the backup must be created from the live database"
 
     files = [f for f in os.listdir(backup_dir) if f.startswith("blog_") and f.endswith(".db")]
-    assert len(files) <= keep
+    assert len(files) == keep
+    assert os.path.basename(created) in files
+    assert seeded[0] not in files, "the oldest backup must be the one removed"

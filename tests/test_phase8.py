@@ -336,9 +336,15 @@ class TestBackupRestore:
 
     def test_download_backup(self, client, db, authenticated_client, app):
         """Can download a created backup."""
+        from app.routes.admin.helpers.shared import validate_backup_filename
+
         authenticated_client.post("/admin/backup/create")
         backup_dir = resolve_backup_dir(app)
-        backups = [f for f in os.listdir(backup_dir) if f.startswith("blog_")]
+        # The directory is shared by the whole test session, so pick a name
+        # the route accepts rather than whichever entry lists first.
+        backups = sorted(
+            f for f in os.listdir(backup_dir) if validate_backup_filename(f) and f.endswith(".db")
+        )
         assert len(backups) >= 1
         response = authenticated_client.get(f"/admin/backup/download/{backups[0]}")
         assert response.status_code == 200
