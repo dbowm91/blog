@@ -206,7 +206,19 @@ class TestNginxValidate:
         )
         main_config = tmp_path / "nginx.conf"
         main_config.write_text(
-            f"pid {tmp_path / 'nginx.pid'};\nevents {{}}\nhttp {{\n    include {nginx_file};\n}}\n"
+            "pid {tmp}/nginx.pid;\n"
+            "error_log {tmp}/error.log;\n"
+            "events {{}}\n"
+            "http {{\n"
+            "    access_log {tmp}/access.log;\n"
+            "    error_log {tmp}/error.log;\n"
+            "    client_body_temp_path {tmp}/client_body;\n"
+            "    proxy_temp_path {tmp}/proxy;\n"
+            "    fastcgi_temp_path {tmp}/fastcgi;\n"
+            "    uwsgi_temp_path {tmp}/uwsgi;\n"
+            "    scgi_temp_path {tmp}/scgi;\n"
+            "    include {include};\n"
+            "}}\n".format(tmp=tmp_path, include=nginx_file)
         )
         proc = subprocess.run(
             ["nginx", "-t", "-c", str(main_config)],
