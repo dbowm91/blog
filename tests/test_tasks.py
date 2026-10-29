@@ -145,3 +145,47 @@ def test_send_password_reset_task_success(db, admin_user, mock_email):
         mock_send.return_value = True
         result = send_password_reset_task.apply(args=(admin_user.id, "test-token"))
         assert result.get() is True
+
+
+def test_task_runs_in_callers_app_context(db, sample_subscriber):
+    """Test a task reuses the caller's app context instead of building its own."""
+    from flask import current_app
+
+    from app.tasks import send_confirmation_task
+
+    caller_app_id = id(current_app._get_current_object())
+    seen = {}
+
+    def _capture(subscriber):
+        seen["app_id"] = id(current_app._get_current_object())
+        return True
+
+    with patch("app.email.send_confirmation", side_effect=_capture):
+        result = send_confirmation_task.apply(args=(sample_subscriber.id,))
+
+    assert result.get() is True
+    assert seen["app_id"] == caller_app_id
+
+
+def test_deliver_single_webhook_task_survives_lookup_failure(db):
+    """Test a failed webhook lookup is reported instead of raising UnboundLocalError."""
+    from app.models import Webhook as _Webhook
+    from app.models import WebhookEvent as _WebhookEvent
+    from app.tasks import deliver_single_webhook_task
+
+    event = _WebhookEvent(event_type="test", payload=json.dumps({"test": "data"}))
+    db.session.add(event)
+    db.session.commit()
+    event_id = event.id
+
+    original_get = db.session.get
+
+    def _get(model, ident):
+        if model is _Webhook:
+            raise RuntimeError("webhook lookup failed")
+        return original_get(model, ident)
+
+    with patch.object(db.session, "get", side_effect=_get):
+        result = deliver_single_webhook_task.apply(args=(event_id, 999))
+
+    assert result.get() is False

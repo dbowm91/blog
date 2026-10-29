@@ -31,6 +31,7 @@ warnings.warn(
 )
 
 from app.config.loader import load_effective_config  # noqa: E402
+from app.config.model import DevLogConfig  # noqa: E402
 
 __all__ = [
     "APP_TITLE",
@@ -138,7 +139,7 @@ def is_production() -> bool:
 
 
 try:
-    _typed_config = load_effective_config()
+    _typed_config: DevLogConfig | None = load_effective_config()
 except Exception:
     _typed_config = None
 
@@ -204,7 +205,7 @@ if _typed_config is not None:
     COMMENT_NOTIFY_PENDING = _c.comments.notify_pending
     COMMENT_SPAM_WORDS = _c.comments.spam_words
     SEARCH_PROVIDER = _c.search.provider
-    SEARCH_CONFIG = _c.search.config
+    SEARCH_CONFIG: dict[str, Any] = _c.search.config
     ENABLE_SCHEDULER = _c.scheduler.enabled
     DEVLOG_DATA_DIR = _c.paths.data_dir
     DEVLOG_LOG_DIR = _c.paths.log_dir
@@ -283,7 +284,7 @@ else:
     COMMENT_NOTIFY_PENDING = _env_bool("COMMENT_NOTIFY_PENDING")
     COMMENT_SPAM_WORDS = _env("COMMENT_SPAM_WORDS", "")
     SEARCH_PROVIDER = _env("SEARCH_PROVIDER", "sqlite")
-    SEARCH_CONFIG: dict[str, Any] = {}
+    SEARCH_CONFIG = {}
     ENABLE_SCHEDULER = _env_bool("ENABLE_SCHEDULER")
     DEVLOG_DATA_DIR = _env("DEVLOG_DATA_DIR", "")
     DEVLOG_LOG_DIR = _env("DEVLOG_LOG_DIR", "")

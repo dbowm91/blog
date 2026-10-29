@@ -235,11 +235,12 @@ class TestTraversalRejection:
 
 
 class TestCaseCollision:
-    def test_case_collision_rejects_both(self, tmp_path: Path) -> None:
+    def test_case_collision_rejects_both(self, tmp_path: Path, case_collision) -> None:
         ext = tmp_path / "external"
         ext.mkdir()
         (ext / "MyTheme.toml").write_text(VALID_THEME_CONTENT)
         (ext / "mytheme.toml").write_text(VALID_THEME_CONTENT)
+        case_collision(ext, ("MyTheme", "mytheme"))
 
         registry = ThemeRegistry(
             bundled_root=tmp_path / "empty",

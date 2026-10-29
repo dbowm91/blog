@@ -43,9 +43,14 @@ def app(tmp_path_factory):
     yield app
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def db(app):
-    """Create database tables for benchmarks (session scoped)."""
+    """Create database tables for benchmarks.
+
+    The scope is module, not session: the fixture yields inside
+    ``app.app_context()``, so a session-scoped fixture would leave that
+    context pushed for every test that follows, in every other directory.
+    """
     with app.app_context():
         _db.session.remove()
         _db.create_all()

@@ -471,7 +471,7 @@ def upload_with_processing(
     _delete_existing_variants(storage, filename)
 
     if isinstance(storage, LocalStorageBackend):
-        filepath = os.path.join(_upload_folder(), filename)
+        filepath = os.path.join(storage.base_dir, filename)
         with open(filepath, "wb") as f:
             f.write(file_content)
 

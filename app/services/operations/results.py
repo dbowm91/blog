@@ -131,6 +131,20 @@ class AccessibilityReportResult(OperationResult):
     failed: int = 0
     reports: list[dict[str, Any]] = field(default_factory=list)
 
+    def to_dict(self) -> dict[str, Any]:
+        d = super().to_dict()
+        d.update(
+            {
+                "total_themes": self.total_themes,
+                "passed_exact": self.passed_exact,
+                "passed_with_exceptions": self.passed_with_exceptions,
+                "failed": self.failed,
+                "reports": list(self.reports),
+            }
+        )
+        d.update(self.details)
+        return d
+
 
 @dataclass(frozen=True)
 class BackupCreateResult(OperationResult):

@@ -239,8 +239,8 @@ def register_cli_commands(app: Any) -> None:
         if as_json:
             rows = result.themes
             if not show_warnings:
-                for row in rows:
-                    row.pop("warnings", None)
+                for entry in rows:
+                    entry.pop("warnings", None)
             click.echo(json.dumps(rows, indent=2))
             return
 
@@ -307,8 +307,9 @@ def register_cli_commands(app: Any) -> None:
                 if "is_dark" in result.details:
                     click.echo(f"  Is dark: {result.details['is_dark']}")
                 if "token_count" in result.details:
-                    field_names = list(range(result.details["token_count"]))
-                    click.echo(f"  Translated tokens: {len(field_names)} total")
+                    click.echo(f"  Translated tokens: {result.details['token_count']} total")
+                    for token in result.details.get("translated_tokens", []):
+                        click.echo(f"    {token}")
             if result.warnings:
                 click.echo("  Warnings:")
                 for w in result.warnings:

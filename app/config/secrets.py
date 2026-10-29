@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.config.model import SECRET_FIELDS, DevLogConfig
 
 
@@ -26,7 +28,7 @@ def redact_config(config: DevLogConfig) -> dict[str, str]:
 
     result: dict[str, str] = {}
 
-    def _check(obj: object, prefix: str = "") -> None:
+    def _check(obj: Any, prefix: str = "") -> None:
         for f in fields(obj):
             value = getattr(obj, f.name)
             full_path = f"{prefix}{f.name}" if prefix else f.name

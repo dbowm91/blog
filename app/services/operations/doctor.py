@@ -1176,6 +1176,10 @@ def _check_required_directories(**kwargs: Any) -> CheckResult:
         return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
+DISK_CRITICAL_FREE_MB = 500
+DISK_LOW_FREE_MB = 5000
+
+
 def _check_disk_space(**kwargs: Any) -> CheckResult:
     try:
         paths = _ctx_paths()
@@ -1186,7 +1190,7 @@ def _check_disk_space(**kwargs: Any) -> CheckResult:
         usage = shutil.disk_usage(paths.data_dir.path)
         free_mb = usage.free / (1024 * 1024)
         free_pct = (usage.free / usage.total) * 100 if usage.total else 0
-        if free_pct < 5:
+        if free_mb < DISK_CRITICAL_FREE_MB or (free_pct < 5 and free_mb < DISK_LOW_FREE_MB):
             return _make_result(
                 **kwargs,
                 status=CheckStatus.FAIL,
@@ -1194,7 +1198,7 @@ def _check_disk_space(**kwargs: Any) -> CheckResult:
                 details={"free_mb": round(free_mb, 1), "free_percent": round(free_pct, 1)},
                 remediation=["Free disk space or expand the volume."],
             )
-        if free_pct < 15:
+        if free_pct < 15 or free_mb < DISK_LOW_FREE_MB:
             return _make_result(
                 **kwargs,
                 status=CheckStatus.WARN,
@@ -2194,7 +2198,7 @@ def _check_celery_workers(**kwargs: Any) -> CheckResult:
         return _error_result(kwargs["check_id"], kwargs["category"], kwargs["severity"], e)
 
 
-def _check_scheduler_owner(**kwargs: Any) -> CheckResult:
+def _check_scheduler_running(**kwargs: Any) -> CheckResult:
     try:
         from app.scheduler import get_scheduler_status
 
@@ -3710,7 +3714,7 @@ def _register_all_checks() -> None:
                 timeout_seconds=5,
                 remediation=["Start the application to activate the scheduler."],
             ),
-            _check_scheduler_owner,
+            _check_scheduler_running,
         ),
         (
             CheckDefinition(

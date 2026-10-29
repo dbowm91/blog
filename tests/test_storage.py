@@ -100,12 +100,14 @@ def test_storage_delete_file():
             mock_backend.delete.assert_called_once_with("test.txt")
 
 
-def test_upload_with_processing_local():
+def test_upload_with_processing_local(app):
     """Test upload_with_processing for local storage."""
     with tempfile.TemporaryDirectory() as tmpdir:
         import app.storage as storage_module
 
         original_storage = storage_module._storage
+        original_upload_folder = app.config.get("UPLOAD_FOLDER")
+        app.config["UPLOAD_FOLDER"] = tmpdir
         storage_module._storage = None
         with patch.dict(os.environ, {"UPLOAD_FOLDER": tmpdir}):
             storage_module._storage = None
@@ -116,3 +118,7 @@ def test_upload_with_processing_local():
             assert error is None
             assert os.path.exists(os.path.join(tmpdir, "test.txt"))
         storage_module._storage = original_storage
+        if original_upload_folder is None:
+            app.config.pop("UPLOAD_FOLDER", None)
+        else:
+            app.config["UPLOAD_FOLDER"] = original_upload_folder

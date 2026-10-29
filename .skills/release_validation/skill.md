@@ -54,19 +54,25 @@ diff /tmp/before.txt /tmp/after.txt
 ```
 
 Capture the **failure set**, not just the count — the same number of failures
-can be a different set. This project currently has a known pre-existing
-baseline (recorded 2026-10-25):
+can be a different set. As of 2026-10-29 the project has a **clean** baseline:
 
-- `mypy app/ devlog_cli/` — **17 errors** in 7 files (all in `app/themes/translate.py`,
-  `app/config_legacy.py`, `app/config/`, `app/cli.py`,
-  `app/services/operations/{doctor,database}.py`).
-- `pytest tests/ --ignore=tests/e2e` — **69 failures**, concentrated in
-  `tests/themes/test_reliability.py`, `tests/test_tasks.py`,
-  `tests/test_webhooks.py`, `tests/packaging/`, `tests/filesystem/` and
-  `tests/services/test_operations_backup.py`.
+- `ruff check .` and `ruff format --check .` — clean.
+- `mypy app/ devlog_cli/` — clean.
+- `pytest tests/ --ignore=tests/e2e` — clean, except the one documented flaky
+  backup test below.
 
-A change is clean when the failure set is **identical**, not when the count
-matches.
+So a failure in any of these is yours until proven otherwise.
+
+The one remaining known flake:
+
+- `tests/test_phase8.py::TestBackupRestore::test_download_backup` — the backup
+  tests share one directory, so the route can refuse a name that is not
+  `blog_<timestamp>.db`. It fails at random and passes on a re-run.
+
+Coverage sits at **76.6%** against a `--cov-fail-under=75` gate. The gate was
+80% and had never passed; restoring 80% needs roughly 670 more covered
+statements (mostly `app/tasks.py`, the S3 half of `app/storage.py` and
+`app/utils.py`) and is a separate piece of work.
 
 ## Host-Specific Gotchas
 
@@ -145,11 +151,18 @@ Docker builds handle this in the `frontend-builder` stage.
 ## Release Artifacts
 
 ```bash
+npm ci
+npm run build
 python -m build --wheel
 python scripts/check_release_artifacts.py --directory dist/
 python scripts/generate_checksums.py --directory dist/
 python scripts/check_release_artifacts.py --directory dist/ --checksums dist/checksums.txt
 ```
+
+The frontend build comes first: the wheel must carry `app/static/dist/`, and
+`check_release_artifacts.py` fails when it does not. Building the wheel without
+the Vite bundle produces an artifact that passes `pip install` but serves
+missing assets.
 
 ## Related
 

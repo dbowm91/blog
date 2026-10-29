@@ -26,15 +26,21 @@ PNG_1X1 = base64.b64decode(
 
 
 @pytest.fixture
-def upload_dir(tmp_path):
+def upload_dir(app, tmp_path):
     """Point the storage backend at a temporary directory for the test."""
     import app.storage as storage_module
 
     original_storage = storage_module._storage
+    original_upload_folder = app.config.get("UPLOAD_FOLDER")
+    app.config["UPLOAD_FOLDER"] = str(tmp_path)
     with patch.dict(os.environ, {"UPLOAD_FOLDER": str(tmp_path)}):
         storage_module._storage = None
         yield tmp_path
     storage_module._storage = original_storage
+    if original_upload_folder is None:
+        app.config.pop("UPLOAD_FOLDER", None)
+    else:
+        app.config["UPLOAD_FOLDER"] = original_upload_folder
 
 
 def _profile(target: User, **data: str):

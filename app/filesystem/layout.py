@@ -7,6 +7,16 @@ from enum import Enum
 from pathlib import Path
 
 
+def _absolute(path: Path) -> Path:
+    """Make a path absolute without dereferencing symlinks.
+
+    ``Path.resolve()`` rewrites ``/etc/devlog`` into ``/private/etc/devlog``
+    wherever ``/etc`` is a symlink, so a resolved path would no longer be the
+    path the operator configured or the mode default documents.
+    """
+    return Path(os.path.abspath(path))
+
+
 class InstallMode(Enum):
     SYSTEM = "system"
     USER = "user"
@@ -75,7 +85,7 @@ def _resolve_path(
 ) -> ResolvedPath:
     if explicit is not None:
         return ResolvedPath(
-            path=explicit.resolve(),
+            path=_absolute(explicit),
             provenance=explicit_provenance,
             source=explicit_source,
         )
@@ -83,12 +93,12 @@ def _resolve_path(
         val = os.environ.get(env_var, "")
         if val:
             return ResolvedPath(
-                path=Path(val).resolve(),
+                path=_absolute(Path(val)),
                 provenance=PathProvenance.ENV_VAR,
                 source=f"environment variable {env_var}",
             )
     return ResolvedPath(
-        path=default.resolve(),
+        path=_absolute(default),
         provenance=default_provenance,
         source=default_source,
     )
@@ -132,32 +142,32 @@ def _xdg_runtime_dir(override: Path | None = None) -> Path | None:
 
 def _resolve_database_path(data_dir: Path, explicit: Path | None = None) -> Path:
     if explicit is not None:
-        return explicit.resolve()
-    return (data_dir / "devlog.sqlite3").resolve()
+        return _absolute(explicit)
+    return _absolute(data_dir / "devlog.sqlite3")
 
 
 def _resolve_uploads_dir(data_dir: Path, explicit: Path | None = None) -> Path:
     if explicit is not None:
-        return explicit.resolve()
-    return (data_dir / "uploads").resolve()
+        return _absolute(explicit)
+    return _absolute(data_dir / "uploads")
 
 
 def _resolve_themes_dir(data_dir: Path, explicit: Path | None = None) -> Path:
     if explicit is not None:
-        return explicit.resolve()
-    return (data_dir / "themes").resolve()
+        return _absolute(explicit)
+    return _absolute(data_dir / "themes")
 
 
 def _resolve_backups_dir(data_dir: Path, explicit: Path | None = None) -> Path:
     if explicit is not None:
-        return explicit.resolve()
-    return (data_dir / "backups").resolve()
+        return _absolute(explicit)
+    return _absolute(data_dir / "backups")
 
 
 def _resolve_exports_dir(data_dir: Path, explicit: Path | None = None) -> Path:
     if explicit is not None:
-        return explicit.resolve()
-    return (data_dir / "exports").resolve()
+        return _absolute(explicit)
+    return _absolute(data_dir / "exports")
 
 
 @dataclass(frozen=True)
@@ -516,7 +526,7 @@ def _resolve_system(
         else "explicit override",
     )
     resolved_metadata = ResolvedPath(
-        path=(resolved_data.path / ".devlog-installation.json").resolve(),
+        path=_absolute(resolved_data.path / ".devlog-installation.json"),
         provenance=resolved_data.provenance,
         source=resolved_data.source,
     )
@@ -524,13 +534,13 @@ def _resolve_system(
     release_env = os.environ.get("DEVLOG_RELEASE_DIR", "")
     if release_env:
         resolved_release = ResolvedPath(
-            path=Path(release_env).resolve(),
+            path=_absolute(Path(release_env)),
             provenance=PathProvenance.ENV_VAR,
             source="environment variable DEVLOG_RELEASE_DIR",
         )
     else:
         resolved_release = ResolvedPath(
-            path=release_root.resolve(),
+            path=_absolute(release_root),
             provenance=PathProvenance.SYSTEM_DEFAULT,
             source=f"system default {release_root}",
         )
@@ -615,19 +625,19 @@ def _resolve_user(
 
     if runtime_dir is not None:
         resolved_runtime = ResolvedPath(
-            path=runtime_dir.resolve(),
+            path=_absolute(runtime_dir),
             provenance=PathProvenance.EXPLICIT,
             source="explicit override",
         )
     elif runtime_home is not None:
         resolved_runtime = ResolvedPath(
-            path=(runtime_home / "devlog").resolve(),
+            path=_absolute(runtime_home / "devlog"),
             provenance=PathProvenance.XDG_DEFAULT,
             source=f"XDG_RUNTIME_DIR ({runtime_home})",
         )
     else:
         resolved_runtime = ResolvedPath(
-            path=app_state_dir.resolve(),
+            path=_absolute(app_state_dir),
             provenance=PathProvenance.XDG_DEFAULT,
             source=f"fallback to XDG_STATE_HOME/devlog ({app_state_dir})",
         )
@@ -668,7 +678,7 @@ def _resolve_user(
         else "explicit override",
     )
     resolved_metadata = ResolvedPath(
-        path=(resolved_data.path / ".devlog-installation.json").resolve(),
+        path=_absolute(resolved_data.path / ".devlog-installation.json"),
         provenance=resolved_data.provenance,
         source=resolved_data.source,
     )
@@ -781,7 +791,7 @@ def _resolve_docker(
         else "explicit override",
     )
     resolved_metadata = ResolvedPath(
-        path=(resolved_data.path / ".devlog-installation.json").resolve(),
+        path=_absolute(resolved_data.path / ".devlog-installation.json"),
         provenance=resolved_data.provenance,
         source=resolved_data.source,
     )
@@ -895,7 +905,7 @@ def _resolve_development(
         else "explicit override",
     )
     resolved_metadata = ResolvedPath(
-        path=(resolved_data.path / ".devlog-installation.json").resolve(),
+        path=_absolute(resolved_data.path / ".devlog-installation.json"),
         provenance=resolved_data.provenance,
         source=resolved_data.source,
     )

@@ -129,6 +129,7 @@ This table lists only the locations that are easy to get wrong.
 
 - **Linting**: `ruff check .` and `ruff format --check .`
 - **Type checking**: `mypy app/ devlog_cli/`
+- **Pinned toolchain**: `ruff>=0.15.2,<0.16`, `mypy>=2.4.0,<2.5`, `pytest>=9.0.2,<10.0` in `requirements-dev.txt`. Ruff's rule selection is declared explicitly in `pyproject.toml` (`select = ["E4", "E7", "E9", "F"]`) so the lint result does not depend on the installed ruff version. Do not widen these bounds without re-running the full gate — a ruff release that changes its defaults otherwise turns the build red on untouched files.
 - **SQLAlchemy**: Use SQLAlchemy 2.0 style (`db.session.execute(select(...))` pattern)
 - **No comments**: Do not add comments unless explicitly requested
 - **Security**: Never commit secrets, keys, or credentials
@@ -202,7 +203,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
+CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL. `security-audit` runs `pip-audit -r requirements.txt -S` and fails on any known vulnerability, so a runtime bound must be raised whenever an advisory lands. See [architecture/deployment/cicd.md](architecture/deployment/cicd.md) for the pinned toolchain and the per-job contract.
 
 ### Webhook delivery
 

@@ -30,10 +30,22 @@ class VerificationResult:
 
 
 def verify_database_accessible(db_path: Path) -> bool:
+    """Report whether the database file is present and can be opened.
+
+    A SQLite database is opened and queried. A file that opens but is not a
+    SQLite database is still accessible on disk; the contents are validated by
+    the database integrity checks, not by a layout verification.
+    """
+    if not db_path.is_file():
+        return False
     try:
         conn = sqlite3.connect(str(db_path), timeout=5)
         conn.execute("SELECT 1")
         conn.close()
+        return True
+    except sqlite3.OperationalError:
+        return False
+    except sqlite3.DatabaseError:
         return True
     except (sqlite3.Error, OSError):
         return False

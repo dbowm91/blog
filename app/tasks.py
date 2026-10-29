@@ -257,6 +257,9 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
     from app.config import WEBHOOK_TIMEOUT
     from app.utils import is_safe_webhook_url
 
+    event = None
+    webhook = None
+
     try:
         event = db.session.get(WebhookEvent, webhook_event_id)
         webhook = db.session.get(Webhook, webhook_id)

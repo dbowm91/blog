@@ -190,6 +190,8 @@ Both now use `blog_*.db` naming, so `cleanup_old_backups()` correctly cleans bot
 
 Backup encryption uses AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation (600,000 iterations) via `app/backup_encryption.py`, NOT GPG. Webhook encryption uses `app/webhook_encryption.py` with a direct 32-byte key (not PBKDF2).
 
+`InvalidTag` is imported from `cryptography.exceptions`, not from `cryptography.hazmat.primitives.exceptions` — the latter module does not exist in any cryptography release this project supports. The import sits inside a `try: ... except ImportError:` block that sets `CRYPTOGRAPHY_AVAILABLE = False`, so a wrong import path disables backup encryption silently instead of raising. `tests/test_backup_encryption.py` asserts the availability flag and the round trip so this cannot regress unnoticed.
+
 ### Slug Generation
 
 Slug collision limit is hardcoded to 100 tries before falling back to UUID suffix (`app/services/slug.py`).

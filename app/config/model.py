@@ -70,7 +70,7 @@ def _redacted_repr(value: str) -> str:
     return f'"{value[:2]}****{value[-2:]}"'
 
 
-def _safe_repr(obj: object, redact_fields: frozenset[str]) -> str:
+def _safe_repr(obj: Any, redact_fields: frozenset[str]) -> str:
     parts: list[str] = []
     for f in obj.__dataclass_fields__.values():
         value = getattr(obj, f.name)

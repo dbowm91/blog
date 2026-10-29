@@ -2,19 +2,41 @@
 
 import os
 from celery import Celery, Task
-from flask import Flask
+from flask import Flask, has_app_context
 
 __all__ = ["celery_app", "init_celery"]
 
+_worker_app: Flask | None = None
 
-class ContextTask(Task):
-    """Celery Task subclass that wraps execution in a Flask app context."""
 
-    def __call__(self, *args, **kwargs):
+def _get_worker_app() -> Flask:
+    """Return the Flask application used by tasks that run without one.
+
+    The application is created once per process so a worker does not build a
+    new application, database engine and connection pool for every task.
+    """
+    global _worker_app
+    if _worker_app is None:
         from app import create_app
 
-        app = create_app()
-        with app.app_context():
+        _worker_app = create_app()
+    return _worker_app
+
+
+class ContextTask(Task):
+    """Celery Task subclass that wraps execution in a Flask app context.
+
+    An app context that is already active is reused, so the task shares the
+    caller's application, database engine and session. A new app context is
+    only created when the task runs outside of one, such as in a Celery
+    worker process.
+    """
+
+    def __call__(self, *args, **kwargs):
+        if has_app_context():
+            return self.run(*args, **kwargs)
+
+        with _get_worker_app().app_context():
             return self.run(*args, **kwargs)
 
 
