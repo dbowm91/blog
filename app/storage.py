@@ -389,8 +389,28 @@ _storage: Optional[StorageBackend] = None
 _storage_lock = threading.Lock()
 
 
+def init_storage() -> StorageBackend:
+    """Bind the storage backend to the application's configuration.
+
+    The backend is built inside the application context, so the local backend
+    resolves the configured upload folder and the S3 settings come from the
+    application configuration. Built outside that context it fell back to the
+    folder in the source tree, and every upload of a deployment that keeps its
+    media outside the installation directory landed there.
+
+    A process serves one application, so the first application binds the
+    backend and later ones keep it.
+    """
+    global _storage
+    if _storage is None:
+        with _storage_lock:
+            if _storage is None:
+                _storage = get_storage_backend()
+    return _storage
+
+
 def get_storage() -> StorageBackend:
-    """Get the global storage instance (singleton)."""
+    """Get the storage backend (singleton)."""
     global _storage
     if _storage is None:
         with _storage_lock:

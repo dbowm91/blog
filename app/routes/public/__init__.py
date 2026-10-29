@@ -20,6 +20,7 @@ from app.routes.public.project_docs import register_project_docs_routes  # noqa:
 from app.routes.public.project_releases import register_project_release_routes  # noqa: E402, F401
 from app.routes.public.auth import register_auth_routes  # noqa: E402, F401
 from app.routes.public import comments  # noqa: E401, E402, F401
+from app.routes.public.media import register_media_routes  # noqa: E402, F401
 
 # Register all routes
 register_browse_routes(public)
@@ -32,6 +33,7 @@ register_project_routes(public)
 register_project_docs_routes(public)
 register_project_release_routes(public)
 register_auth_routes(public)
+register_media_routes(public)
 
 # For backwards compatibility - export helper functions used by other modules
 from app.routes.public.browse import _get_related_posts, invalidate_archive_cache  # noqa: E402, F401

@@ -185,6 +185,13 @@ def create_app() -> Flask:
     app.config["UPLOAD_FOLDER"] = upload_folder
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    with app.app_context():
+        from app.storage import init_storage
+
+        # The storage backend resolves the upload folder and the S3 settings
+        # from the configuration, so it is built inside the application
+        # context.
+        init_storage()
     db_uri = cfg.database.uri
     if db_uri:
         app.config["SQLALCHEMY_DATABASE_URI"] = db_uri

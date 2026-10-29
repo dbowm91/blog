@@ -157,6 +157,7 @@ These are the seams where a second producer is the defect. Each has one owner.
 | Heading anchors | `app/static/js/public/anchor-links.js` — a direct child of the heading, never wrapped |
 | Markdown rendering | `app/markdown_renderer.py` / the `markdown_safe` filter |
 | Post image URL | The `post_image_url` filter — a URL, never re-wrapped with `url_for('static', …)` |
+| Uploaded media | The `/static/uploads/` route in `app/routes/public/media.py` — served from `UPLOAD_FOLDER`, not from the installation directory |
 | The CSRF header name | `CSRF_HEADER_NAME` in `app/csrf.py`, published as `data-csrf-header` |
 | Filesystem paths | `RuntimePaths` in `app/filesystem/layout.py` |
 | Operational logic | `app/services/operations/` — never in a CLI handler |
@@ -203,7 +204,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. The E2E job runs the `production` compose profile, whose blog service publishes `127.0.0.1:5000` while nginx sits in the `reverse-proxy` profile, so the suite reaches the application directly. There is no CI compose overlay: Compose merges port lists rather than replacing them, so a second binding of host port 5000 stops the container from starting. The `E2E_BASE_URL` env var controls the test target URL. `security-audit` runs `pip-audit -r requirements.txt -S` and fails on any known vulnerability, so a runtime bound must be raised whenever an advisory lands. See [architecture/deployment/cicd.md](architecture/deployment/cicd.md) for the pinned toolchain and the per-job contract.
+CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. The E2E job runs the `production` compose profile, whose blog service publishes `127.0.0.1:5000` while nginx sits in the `reverse-proxy` profile, so the suite reaches the application directly. There is no CI compose overlay: Compose merges port lists rather than replacing them, so a second binding of host port 5000 stops the container from starting. The `E2E_BASE_URL` env var controls the test target URL. The suite and the container share one database: `BLOG_DATA_VOLUME` bind-mounts a host directory as the container's `/data` and `E2E_DATABASE_URI` points the suite at the same file, so the browser sees the data the suite seeds. `security-audit` runs `pip-audit -r requirements.txt -S` and fails on any known vulnerability, so a runtime bound must be raised whenever an advisory lands. See [architecture/deployment/cicd.md](architecture/deployment/cicd.md) for the pinned toolchain and the per-job contract.
 
 ### Webhook delivery
 
@@ -390,7 +391,7 @@ See [architecture/deployment/managed-deployment.md](architecture/deployment/mana
 
 ### E2E test isolation
 
-`tests/e2e/conftest.py` defines its own session-scoped `app` fixture with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone works. The `app_server` fixture uses readiness polling for server startup. Browser-level tests belong under `tests/e2e/` — a live server thread on the session-scoped application shares its database with the migration tests and corrupts their DDL.
+`tests/e2e/conftest.py` defines its own session-scoped `app` fixture with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone works. The `app_server` fixture uses readiness polling for server startup. Browser-level tests belong under `tests/e2e/` — a live server thread on the session-scoped application shares its database with the migration tests and corrupts their DDL. `E2E_DATABASE_URI` points the fixture at a database owned by another process (CI shares one with the container); without it the suite keeps its own `blog_e2e` database and never touches the developer's.
 
 ### Session IP binding
 

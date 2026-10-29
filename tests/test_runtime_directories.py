@@ -54,6 +54,25 @@ def test_upload_folder_follows_the_data_directory(runtime_dirs):
     assert Path(app.config["UPLOAD_FOLDER"]).is_dir()
 
 
+def test_the_storage_backend_follows_the_data_directory(runtime_dirs):
+    """The storage backend writes where the upload folder points."""
+    import app.storage as storage_module
+    from app import create_app
+    from app.storage import LocalStorageBackend, get_storage
+
+    data, _, _ = runtime_dirs
+    original_storage = storage_module._storage
+    storage_module._storage = None
+    try:
+        create_app()
+
+        storage = get_storage()
+        assert isinstance(storage, LocalStorageBackend)
+        assert Path(storage.base_dir) == data / "uploads"
+    finally:
+        storage_module._storage = original_storage
+
+
 def test_log_directory_follows_the_configured_directory(runtime_dirs):
     """The log file is written to the configured log directory."""
     from app import configure_logging, create_app

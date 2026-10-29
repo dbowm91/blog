@@ -14,6 +14,7 @@ Public routes serve the blog's public-facing pages.
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
 | `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health`, `/metrics`, `/favicon.ico` | Sitemap, robots, health check, metrics |
 | `comments.py` | `/post/<slug>/comment` (POST) | Comment submission |
+| `media.py` | `/static/uploads/<path:filename>` | Serves uploaded media from the configured upload folder |
 
 ## Browse Routes (`browse.py`)
 
@@ -186,6 +187,21 @@ homepage target.
 ### Favicon
 - **Route**: `GET /favicon.ico`
 - **Purpose**: Redirects to SVG favicon
+
+## Media Routes (`media.py`)
+
+### Uploaded File
+- **Route**: `GET /static/uploads/<path:filename>`
+- **Purpose**: Serves an uploaded file from the configured upload folder
+
+The local storage backend publishes uploads under `/static/uploads/`. Flask's
+own static route answers that prefix from the installation directory, so a
+deployment that keeps its uploads elsewhere - every container deployment,
+where the upload folder is `/data/uploads` - answered those URLs with a 404.
+This route serves the configured upload folder under the same prefix, so the
+URL the storage backend publishes is the URL that resolves. The nginx
+configuration maps the same prefix onto the same directory, so both entry
+points serve identical bytes.
 
 ## Error Handlers (`app/routes/errors.py`)
 

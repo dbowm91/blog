@@ -73,10 +73,10 @@ the environment; the environment remains the fallback for callers outside an app
 ### `init_storage()`
 
 ```python
-def init_storage(base_dir: str) -> StorageBackend:
+def init_storage() -> StorageBackend:
 ```
 
-Initializes the global storage singleton with a `LocalStorageBackend` using the given `base_dir`. Used during app startup to configure the upload directory.
+Creates the storage backend inside the application context, so the local backend resolves the configured upload folder (`UPLOAD_FOLDER`, which the app factory derives from the data directory) and the S3 settings come from the application configuration. Built outside that context the backend fell back to the folder in the source tree, and a deployment that keeps its media outside the installation directory wrote there. The app factory calls it on every start.
 
 ### `storage_delete_file()`
 
