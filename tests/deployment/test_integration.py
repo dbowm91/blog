@@ -78,8 +78,14 @@ def _make_caddy_ctx(app):
 
 
 def _make_nginx_ctx(app):
+    """Render the nginx proxy for a TLS deployment on an unprivileged port.
+
+    ``nginx -t`` opens the listening socket while it validates the
+    configuration, and port 443 is reserved for root, so the public URL
+    carries an explicit high port instead of the default 443.
+    """
     config = DevLogConfig(
-        site=SiteConfig(base_url="https://example.com"),
+        site=SiteConfig(base_url="https://example.com:8443"),
         server=ServerConfig(host="127.0.0.1", port=5000),
     )
     return DeploymentContext.from_config(config, mode=InstallMode.DOCKER)
