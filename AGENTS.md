@@ -478,6 +478,19 @@ history is not lost.
 | `DEPLOY.md` told non-Docker operators to run `npm ci && npm run build`, but a release wheel already contains the built assets | The build step is documented as a source-checkout step only; a release install needs no Node.js |
 | `tests/config/test_legacy_import_boundary.py` scanned the whole repository root, so a nested worktree copy of the project failed the test | The scan is scoped to this project's source and skips VCS, cache and worktree directories |
 
+### Fixed in the E2E-gate pass (2026-10-29)
+
+The browser suite browses the container the E2E job starts. Getting it to
+run at all exposed four defects that no other gate covered.
+
+| Defect | Fix |
+|---|---|
+| **The suite browsed a container that had none of its data.** The job set `E2E_BASE_URL` to the container, but `tests/e2e/conftest.py` seeded its own database in a temporary directory, so the container answered every request without the data the suite had just written and the browser tests waited for selectors that were never rendered | `BLOG_DATA_VOLUME` bind-mounts a host directory as the container's `/data` and `E2E_DATABASE_URI` points the suite at the same file. The administrator is updated instead of inserted when the shared database already holds one |
+| **Uploaded media was not served outside nginx.** The storage backend publishes uploads as `/static/uploads/<name>`, but Flask's own static route answered that prefix from the installation directory, so a deployment that keeps its uploads elsewhere — every container deployment, where the upload folder is `/data/uploads` — answered every image with a 404. Only nginx papered over it by aliasing the same prefix onto the volume | The application serves the configured upload folder under the same prefix (`app/routes/public/media.py`) |
+| **The storage backend resolved its directory from the ambient application context.** Built outside one — a background task, or the first call in a process — it fell back to `app/static/uploads` in the source tree, so an upload landed outside the deployment's data directory | The app factory binds the backend to the application's configuration when it creates the application (`init_storage()`) |
+| **A theme change stayed invisible in the other workers for five minutes.** The theme and appearance contexts are derived from the `SiteSettings` row and cached per process for `_SETTINGS_CACHE_TTL` (300 s), so a change saved by one worker only reached that worker | The app factory drops both caches at the start of every request, so a change reaches every worker with the next request |
+| **The theme catalogue could raise an `AssertionError` while it was rebuilt.** `list_themes()` read `self._catalog` twice and asserted on the second read; a thread that invalidated the catalogue in between turned that into an exception, which is what the concurrency tests in `tests/themes/test_reliability.py` hit depending on the machine's load | The catalogue is snapshotted into a local variable, and a catalogue invalidated during the rebuild yields an empty list |
+
 
 ## Architecture Cross-Reference
 
