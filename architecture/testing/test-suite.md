@@ -108,7 +108,7 @@ addopts = "--cov=app --cov-report=term-missing"
 Coverage settings in `pyproject.toml`:
 ```toml
 [tool.coverage.report]
-fail_under = 75
+fail_under = 80
 ```
 
 Additional markers are defined in `pytest.ini`:

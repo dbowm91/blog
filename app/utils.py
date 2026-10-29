@@ -406,7 +406,9 @@ def is_safe_webhook_url(url: str) -> tuple[bool, str]:
 
     try:
         parsed = urlparse(url)
+        hostname = parsed.hostname
     except (AttributeError, ValueError, TypeError):
+        # A malformed IPv6 literal raises when the hostname is read.
         return False, "Invalid URL format"
 
     # Check scheme - only allow http and https
@@ -414,14 +416,12 @@ def is_safe_webhook_url(url: str) -> tuple[bool, str]:
         return False, f"Unsupported scheme: {parsed.scheme}"
 
     # Must have a hostname
-    if not parsed.hostname:
+    if not hostname:
         return False, "No hostname in URL"
 
     # Block URLs with userinfo (security concern)
     if parsed.username or parsed.password:
         return False, "URL contains userinfo (username/password)"
-
-    hostname = parsed.hostname
 
     # Block suspicious hostnames
     if hostname in ("127.0.0.1", "::1", "localhost", "0.0.0.0"):

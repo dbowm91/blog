@@ -39,4 +39,4 @@ jobs:
         env:
           ADMIN_PASSWORD: test-password-123
           SECRET_KEY: test-secret-key-test-secret-key-1234
-        run: python -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=75
+        run: python -m pytest tests/ --ignore=tests/e2e -v --cov=app --cov-fail-under=80

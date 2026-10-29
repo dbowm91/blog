@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 
@@ -276,6 +276,7 @@ class RuntimePaths:
     runtime_dir: ResolvedPath
     installation_metadata: ResolvedPath
     release_dir: ResolvedPath | None = None
+    mode: InstallMode = InstallMode.DEVELOPMENT
 
     @classmethod
     def resolve(
@@ -299,7 +300,7 @@ class RuntimePaths:
         install_root: Path | None = None,
     ) -> RuntimePaths:
         if mode == InstallMode.SYSTEM:
-            return _resolve_system(
+            paths = _resolve_system(
                 config_file=config_file,
                 env_file=env_file,
                 data_dir=data_dir,
@@ -312,8 +313,8 @@ class RuntimePaths:
                 database_path=database_path,
                 install_root=install_root,
             )
-        if mode == InstallMode.USER:
-            return _resolve_user(
+        elif mode == InstallMode.USER:
+            paths = _resolve_user(
                 config_file=config_file,
                 env_file=env_file,
                 data_dir=data_dir,
@@ -329,8 +330,8 @@ class RuntimePaths:
                 xdg_state_home=xdg_state_home,
                 xdg_runtime_dir=xdg_runtime_dir,
             )
-        if mode == InstallMode.DOCKER:
-            return _resolve_docker(
+        elif mode == InstallMode.DOCKER:
+            paths = _resolve_docker(
                 config_file=config_file,
                 env_file=env_file,
                 data_dir=data_dir,
@@ -342,18 +343,20 @@ class RuntimePaths:
                 exports_dir=exports_dir,
                 database_path=database_path,
             )
-        return _resolve_development(
-            config_file=config_file,
-            env_file=env_file,
-            data_dir=data_dir,
-            log_dir=log_dir,
-            runtime_dir=runtime_dir,
-            uploads_dir=uploads_dir,
-            themes_dir=themes_dir,
-            backups_dir=backups_dir,
-            exports_dir=exports_dir,
-            database_path=database_path,
-        )
+        else:
+            paths = _resolve_development(
+                config_file=config_file,
+                env_file=env_file,
+                data_dir=data_dir,
+                log_dir=log_dir,
+                runtime_dir=runtime_dir,
+                uploads_dir=uploads_dir,
+                themes_dir=themes_dir,
+                backups_dir=backups_dir,
+                exports_dir=exports_dir,
+                database_path=database_path,
+            )
+        return replace(paths, mode=mode)
 
     @classmethod
     def for_mode(cls, mode: InstallMode) -> RuntimePaths:

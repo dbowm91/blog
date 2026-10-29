@@ -233,6 +233,8 @@ def edit_project(project_id: int) -> ResponseReturnValue:
             themes=_theme_choices(),
         ), 400
 
+    title_changed = payload.title != project.title
+
     project.title = payload.title
     project.summary = payload.summary
     project.body = payload.body
@@ -252,7 +254,7 @@ def edit_project(project_id: int) -> ResponseReturnValue:
         project.slug = project_service.generate_unique_project_slug(
             payload.title, exclude_id=project.id, slug=payload.slug
         )
-    elif not payload.slug and payload.title != project.title:
+    elif not payload.slug and title_changed:
         project.slug = project_service.generate_unique_project_slug(
             payload.title, exclude_id=project.id
         )

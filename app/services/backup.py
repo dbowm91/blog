@@ -67,6 +67,19 @@ def resolve_backup_dir(app: Any) -> str:
     return os.path.join(base, configured)
 
 
+def restore_database(db_path: str, backup_path: str) -> None:
+    source = sqlite3.connect(backup_path)
+    destination = None
+    try:
+        destination = sqlite3.connect(db_path)
+        source.backup(destination)
+        destination.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        if destination is not None:
+            destination.close()
+        source.close()
+
+
 def create_backup(
     db_path: str,
     backup_dir: str,

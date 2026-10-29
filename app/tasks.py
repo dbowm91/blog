@@ -170,7 +170,7 @@ def send_newsletter_task(self: Any, post_ids: List[int]) -> bool:
             .filter_by(confirmed=True)
             .filter(Subscriber.unsubscribed_at.is_(None))
         )
-        subscribers = db.session.execute(stmt).scalars()
+        subscribers = db.session.execute(stmt).scalars().all()
 
         success = send_newsletter(posts, subscribers, subscriber_count)
 
