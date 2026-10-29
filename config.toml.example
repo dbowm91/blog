@@ -175,13 +175,14 @@ provider = "sqlite"
 config = {}
 
 [ai]
-# The editor sends draft text only after an author explicitly requests a suggestion.
-# Default: a local OpenAI-compatible server such as LM Studio.
+# AI is disabled until a model is explicitly configured; no provider is contacted by default.
+# For a local OpenAI-compatible server (for example, LM Studio), set model to its model ID.
 provider = "openai_compatible"
 base_url = "http://127.0.0.1:1234/v1"
-model = "google/gemma-4-e2b"
+model = ""
 timeout_seconds = 180
-# Empty means unlimited (default). Optional Flask-Limiter syntax, e.g. "20 per hour".
+# Unlimited by default; optional Flask-Limiter syntax can be configured for a specific deployment.
+# The application deliberately does not impose a low default quota; provider-side quotas remain authoritative.
 rate_limit_per_user = ""
 # Optional for compatible endpoints that require authentication; set AI_API_KEY in the environment/.env.
 api_key = ""

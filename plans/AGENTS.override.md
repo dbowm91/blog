@@ -228,15 +228,15 @@ Origin: repository source review of the current Pages, navigation, themes, Markd
 
 Roadmap: [`ai_authoring_roadmap.md`](ai_authoring_roadmap.md)
 
-Operator request: optional **AI write TL;DR** and **AI suggest tags** on the post new/edit editor, with candidate generation followed by conditional existing-tag semantic reconciliation. The code and deterministic/browser acceptance tests are implemented in the active worktree; no migrations, automatic publishing, public AI, or inference without an API key.
+Operator request: optional **AI write TL;DR** and **AI suggest tags** on the post new/edit editor, with candidate generation followed by conditional existing-tag semantic reconciliation. The code and deterministic/browser acceptance tests are implemented; no migrations, automatic publishing, public AI, or AI calls unless an operator explicitly configures a model. The default is off; a local OpenAI-compatible model works without an API key.
 
 | Phase | File | Status |
 |---|---|---|
-| 01 | `ai_authoring_phase_01_provider_summary.md` | **Implementation complete; provider-use approval and live smoke gate open.** Env-only secret config, bounded authenticated endpoint, summary |
-| 02 | `ai_authoring_phase_02_tag_reconciliation.md` | **Implemented; focused suite passed.** Candidate tags, exact reuse, conditional second pass, bounded privacy-safe catalog; full suite had 53 failures outside AI-assist tests |
-| 03 | `ai_authoring_phase_03_editor_acceptance.md` | **Implementation complete; provider-use approval gate open.** Conditional buttons, explicit review/apply, drafts, E2E |
+| 01 | `ai_authoring_phase_01_provider_summary.md` | **Implemented; default-off/local-compatible opt-in.** Env-only secrets, bounded authenticated endpoint, summary; OpenCode Go usage remains adapter-gated |
+| 02 | `ai_authoring_phase_02_tag_reconciliation.md` | **Implemented; focused suite passed.** Candidate tags, exact reuse, conditional second pass, bounded privacy-safe catalog; full suite baseline failures documented separately |
+| 03 | `ai_authoring_phase_03_editor_acceptance.md` | **Implemented; default-off/local-compatible opt-in.** Conditional buttons, explicit review/apply, drafts, E2E |
 
-**Implementation order: 01 → 02 → 03.** Missing key means absent buttons and no provider requests. Post Save remains the sole persistence step. The current [OpenCode Go documentation](https://opencode.ai/v2/docs/console/go/) says Go is designed for coding agents making similar requests; editorial summarization/classification is not shown as an allowed use. No Go smoke request has been made, and this feature must not be enabled for editorial drafts unless OpenCode explicitly permits it or an authorized alternate provider is selected. The behavior and this gate are documented in `architecture/routes/admin-routes.md`, `architecture/services/overview.md`, `architecture/services/tag.md`, and `architecture/frontend/overview.md`. Keep this entry Active until the provider gate is resolved.
+**Implementation order: 01 → 02 → 03.** Blank model means absent buttons and no provider requests; explicitly configured local compatible models need no key. Post Save remains the sole persistence step. The current [OpenCode Go documentation](https://opencode.ai/v2/docs/console/go/) says Go is designed for coding agents making similar requests; editorial summarization/classification is not shown as an allowed use. Do not enable that adapter for editorial drafts unless OpenCode explicitly permits it. This Go-specific gate does not block the local-compatible provider. Rate limiting remains unlimited by default, with optional per-user configuration; the rationale is in `architecture/services/overview.md`. Hosted AI CI and unrelated general-CI baseline failures are tracked separately in the roadmap. Keep this entry Active only while the OpenCode Go usage restriction needs follow-up.
 
 ### Media Library and Inline Authoring — Phase 03 open
 

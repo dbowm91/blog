@@ -1,19 +1,19 @@
 # AI Authoring Phase 01 — Optional Provider, Authenticated Endpoint, TL;DR
 
-> **Plan status: IMPLEMENTED — provider-use approval and live smoke gate remain open.** [Roadmap](ai_authoring_roadmap.md). Behavior is documented in `architecture/routes/admin-routes.md` and `architecture/services/overview.md`.
+> **Plan status: IMPLEMENTED — default-off and local OpenAI-compatible use supported.** The OpenCode Go provider's own usage policy remains a separate gate; it does not block the local compatible provider. See [roadmap](ai_authoring_roadmap.md), `architecture/routes/admin-routes.md`, and `architecture/services/overview.md`.
 
 **Date:** 2026-10-28
-**Status:** Implemented; provider-use approval and live smoke gate open
+**Status:** Implemented; model must be explicitly configured; local compatible provider works without a key
 **Phase:** AIA-01
 **Prerequisites:** None
 
 ## AIA-01A — Feature and configuration gate
 
-Add `AiConfig` to `app/config/model.py` and `DevLogConfig.ai` with provider fixed to `opencode_go`, model default `glm-5.3-flash`, and blank API key default. Wire `[ai]` through `app/config/loader.py`, its env override map and secret handling, `app/config/validation.py`, and `config.toml.example`. Accept `OPENCODE_GO_API_KEY` **only via the server environment/.env**, not nonempty TOML or client requests. Include `api_key` in the canonical `SECRET_FIELDS` and check `app/config/secrets.py`, `app/config/serialization.py`, CLI config inspection, diagnostics and dataclass repr so no unredacted key can appear. Tests should verify redacted and raw serialization interfaces do not leak to user-visible surfaces.
+Add `AiConfig` to `app/config/model.py` and `DevLogConfig.ai`. The provider defaults to `openai_compatible`, the base URL to loopback, and the model to an empty string; the feature is unavailable until an operator explicitly configures a model. OpenAI-compatible local servers require no API key. OpenCode Go uses its supported model and `OPENCODE_GO_API_KEY`, accepted **only via the server environment/.env**, not nonempty TOML or client requests. Wire `[ai]` through `app/config/loader.py`, its env override map and secret handling, `app/config/validation.py`, and `config.toml.example`. Include `api_key` in the canonical `SECRET_FIELDS` and check `app/config/secrets.py`, `app/config/serialization.py`, CLI config inspection, diagnostics and dataclass repr so no unredacted key can appear. Tests should verify redacted and raw serialization interfaces do not leak to user-visible surfaces.
 
-Availability predicate = recognized provider + usable configured model + nonempty key. Missing key is not an installation error. Server-generated `ai_assist_available` decides template rendering; the server independently refuses direct calls with no key. Never contact the provider on startup or GET. Do not alter `SiteSettings` or API-token authentication.
+Availability predicate = recognized provider + usable explicitly configured model, plus a key only for providers that require one. Missing configuration is not an installation error. Server-generated `ai_assist_available` decides template rendering; the server independently refuses direct calls when unavailable. Never contact the provider on startup or GET. Do not alter `SiteSettings` or API-token authentication.
 
-A fixed server-owned Go endpoint should be used, not request-provided base URLs. Prefer `https://opencode.ai/inference/go/openai/v1/chat/completions` per current Console harness documentation. If support for other providers is needed later, add explicit adapters rather than arbitrary URLs.
+The compatible provider accepts an operator-configured base URL and validates it as a safe HTTP(S) URL; local inference is the documented default endpoint but requires an explicitly set model. OpenCode Go uses its pinned server-owned endpoint and provider-specific request/response behavior. Keep Go usage policy separate from the local compatible adapter.
 
 ## AIA-01B — Small remote request service
 
@@ -25,7 +25,7 @@ Provider-specific request parameters and JSON response mode must be verified via
 
 ## AIA-01C — Post-editor-only endpoint
 
-Register `POST /admin/ai-assist` with the admin blueprint in `app/routes/admin/posts/editor.py` or adjacent post-edit module. Use `@author_required` and existing global CSRF validation; never put it under the public `api` blueprint or exempt CSRF. Validate strict JSON object with `action="summary"` initially, title string <=200, nonempty UTF-8 body bounded to e.g. 64 KiB, optional integer `post_id`, and reject unknown/disallowed action/payload shape with 4xx. For edits, check `post_id` ownership identically to `edit_post()`. Require server-side per-user rate limit (e.g. 12/hour shared by actions), and no external HTTP on failed validation/authorization/missing key. Do not fetch stored article content in place of submitted unsaved text.
+Register `POST /admin/ai-assist` with the admin blueprint in `app/routes/admin/posts/editor.py` or adjacent post-edit module. Use `@author_required` and existing global CSRF validation; never put it under the public `api` blueprint or exempt CSRF. Validate strict JSON object with `action="summary"` initially, title string <=200, nonempty UTF-8 body bounded to e.g. 64 KiB, optional integer `post_id`, and reject unknown/disallowed action/payload shape with 4xx. For edits, check `post_id` ownership identically to `edit_post()`. Do not impose a default application-side rate limit; retain the optional per-user limit setting for deployments with a concrete need. Use only submitted unsaved text, and make no provider request on failed validation/authorization/unavailable configuration. Do not fetch stored article content in place of submitted text.
 
 Use an explicit response schema: `{"suggestion":"..."}`; return JSON errors with appropriate 4xx/5xx codes. Avoid logging user-provided inputs.
 
@@ -35,13 +35,13 @@ Generate an original, faithful, factual, **plain-text** 1–2 sentence TL;DR bas
 
 ## Tests and acceptance
 
-Add `tests/test_ai_assist.py` and `tests/config/test_ai_config.py`. Mock all remote requests in automated tests. Cover key absent/feature hidden, env precedence, illegal key in TOML, redaction (including serialization/diagnostics), author/admin and another-author-post access, CSRF, invalid JSON and bounds, per-user rate limits, no outbound on validation failure, valid summary, empty/oversize output, upstream HTTP failures/timeouts, no DB writes after success/failure. Confirm public API key alone does not access this session route. Follow `tests/AGENTS.override.md` for fixtures.
+Add `tests/test_ai_assist.py` and `tests/config/test_ai_config.py`. Mock all remote requests in automated tests. Cover default-off/feature hidden, explicit local compatible model with no API key, env precedence, illegal key in TOML, redaction (including serialization/diagnostics), author/admin and another-author-post access, CSRF, invalid JSON and bounds, unlimited default plus optional per-user limits, no outbound on validation failure, valid summary, empty/oversize output, upstream HTTP failures/timeouts, no DB writes after success/failure. Confirm public API key alone does not access this session route. Follow `tests/AGENTS.override.md` for fixtures.
 
-- [x] Config and diagnostics safe, no-key state invisible and functional.
-- [x] Endpoint restricted to permitted authors, CSRF checked, per-user rate limited.
+- [x] Config and diagnostics safe; default-off state is invisible, while an explicitly configured local-compatible provider works without a key.
+- [x] Endpoint restricted to permitted authors, CSRF checked, app-side throttling optional and unlimited by default.
 - [x] Provider request bounded, honest failures, no implicit persistence.
 - [x] Deterministic mocked tests pass.
-- [ ] Provider usage separately authorized and live compatibility smoke test completed before deployment.
+- [ ] OpenCode Go provider usage separately authorized before enabling that adapter for editorial traffic.
 
 ## Expected files
 
@@ -49,8 +49,10 @@ Add `tests/test_ai_assist.py` and `tests/config/test_ai_config.py`. Mock all rem
 
 ## Completion
 
-**Status:** Implementation complete; external provider gate open.
+**Status:** Implementation complete; local-compatible path is available after explicit opt-in; OpenCode Go usage gate remains provider-specific.
 
-Implemented env-only `OPENCODE_GO_API_KEY` handling with redaction, fail-closed availability, authenticated/CSRF-protected post-editor endpoint, ownership checks, per-author throttling, bounded provider I/O and validated plain-text summaries. Provider behavior is covered by mocks; no key or draft content was sent to OpenCode. The published Go guidance describes coding-agent use, so editorial authorization and live compatibility remain unverified. Do not enable this provider for editorial drafts until explicitly permitted or replaced by an authorized adapter.
+Implemented env-only provider-key handling with redaction, default-off availability, authenticated/CSRF-protected post-editor endpoint, ownership checks, optional per-user throttling (unlimited by default), bounded provider I/O and validated plain-text summaries. Explicitly configured local OpenAI-compatible servers work without an API key. Provider behavior is covered by mocks; no key or draft content was sent to OpenCode. The published Go guidance describes coding-agent use, so editorial authorization remains unverified for that adapter only.
 
-**Verification:** `pytest tests/test_ai_assist.py tests/test_author_role.py tests/config/test_ai_config.py tests/config/test_model.py tests/config/test_serialization.py tests/e2e/test_ai_assist.py -q` — 104 passed (includes all phases; latest run). `ruff check .` and `ruff format --check .` passed; dependency-manifest consistency and `npm run build` passed. Full suite: 4,879 passed, 53 failed, 21 skipped; failures are in unrelated deployment/filesystem, storage/tasks, profile/webhook and theme tests. No AI-assist test failed. Mypy reports 17 errors across seven files; none are in the new AI service, route, or editor code (one is in the pre-existing config-model redaction helper).
+**Rate-limit design decision:** Provider-owned quotas/abuse controls are authoritative for hosted providers; local model operators control their own capacity. Low app limits such as 12/hour disrupt ordinary human authoring and provide negligible protection for short bounded calls. Keep app-side throttling available only as opt-in configuration; do not ship a low default. If a future preset requires a ceiling, it must be at least 1,000 requests per user per hour, which is beyond realistic human use while remaining negligible for these bounded requests. The request/input/output/time limits and maximum provider calls per action remain enforced independently.
+
+**Verification:** The latest pre-fix hosted run is recorded separately in the roadmap: the AI-focused job exposed a flaky immediate draft-restore assertion, while the unrelated general CI job failed at its existing mypy baseline. Follow-up focused and hosted results are recorded in the roadmap after this fix. The historical full-suite failures listed there remain separate from AI authoring.

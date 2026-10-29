@@ -7,6 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from playwright.sync_api import expect
 
 DIST_DIR = Path(__file__).resolve().parents[2] / "app" / "static" / "dist"
 MANIFEST_PATH = DIST_DIR / ".vite" / "manifest.json"
@@ -23,7 +24,7 @@ def test_ai_suggestions_require_review_and_merge_tags(browser, app_server, app) 
     typed_config = app.config["DEVLOG_CONFIG"]
     app.config["DEVLOG_CONFIG"] = replace(
         typed_config,
-        ai=AiConfig(api_key="e2e-only-not-a-real-provider-key"),
+        ai=AiConfig(model="e2e-test-model", api_key="e2e-only-not-a-real-provider-key"),
     )
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
@@ -74,7 +75,7 @@ def test_ai_suggestions_require_review_and_merge_tags(browser, app_server, app) 
         )
         page.once("dialog", lambda dialog: dialog.accept())
         page.reload()
-        assert page.locator("#tags").input_value() == "Restored tag"
+        expect(page.locator("#tags")).to_have_value("Restored tag")
         page.fill("#title", "Current unsaved headline")
         page.fill("#body", "Current unsaved Markdown body.")
         page.fill("#summary", "Hand-written summary")

@@ -11,7 +11,7 @@ from app.config.validation import Severity, validate_schema
 
 def test_ai_config_defaults_and_repr_redact_key() -> None:
     assert AiConfig().provider == "openai_compatible"
-    assert AiConfig().model == "google/gemma-4-e2b"
+    assert AiConfig().model == ""
     assert AiConfig().base_url == "http://127.0.0.1:1234/v1"
     assert AiConfig().timeout_seconds == 180
     assert AiConfig().rate_limit_per_user == ""

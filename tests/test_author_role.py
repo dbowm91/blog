@@ -205,7 +205,9 @@ def test_author_cannot_request_ai_for_another_authors_post(
     db.session.add(post)
     db.session.commit()
     original_config = app.config["DEVLOG_CONFIG"]
-    app.config["DEVLOG_CONFIG"] = replace(original_config, ai=AiConfig(api_key="test-private-key"))
+    app.config["DEVLOG_CONFIG"] = replace(
+        original_config, ai=AiConfig(model="test-model", api_key="test-private-key")
+    )
     provider = Mock()
     monkeypatch.setattr(ai_assist.requests, "post", provider)
 

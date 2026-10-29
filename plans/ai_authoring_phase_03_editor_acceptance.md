@@ -1,16 +1,16 @@
 # AI Authoring Phase 03 — Editor UX, Draft Semantics, and Acceptance
 
-> **Plan status: IMPLEMENTED — provider-use approval and live smoke gate remain open.** Requires [AIA-01](ai_authoring_phase_01_provider_summary.md) and [AIA-02](ai_authoring_phase_02_tag_reconciliation.md). Behavior is documented in `architecture/frontend/overview.md`.
+> **Plan status: IMPLEMENTED — AI is default-off; the local compatible provider is supported.** OpenCode Go usage policy remains a separate adapter-specific gate. Requires [AIA-01](ai_authoring_phase_01_provider_summary.md) and [AIA-02](ai_authoring_phase_02_tag_reconciliation.md). Behavior is documented in `architecture/frontend/overview.md`.
 
 **Date:** 2026-10-28
-**Status:** Implemented; provider-use authorization gate remains open
+**Status:** Implemented; explicit model opt-in; local-compatible provider needs no key
 **Phase:** AIA-03
 
 ## AIA-03A — Conditional Jinja controls
 
-In `app/routes/admin/posts/editor.py:_render_editor()` compute a trusted `ai_assist_available` flag; show buttons only when configured, on **post** new/edit, and nowhere public or on the generic page editor. In `app/templates/admin/editor.html` place `type="button"` actions beside the existing Summary and Tags labels: **AI write TL;DR** and **AI suggest tags**. Use `url_for()` for endpoint URL exposed through a data attribute; never render model credentials or arbitrary provider URLs. Leave existing field IDs and form/publish behavior intact.
+In `app/routes/admin/posts/editor.py:_render_editor()` compute a trusted `ai_assist_available` flag; show buttons only when a model is explicitly configured, on **post** new/edit, and nowhere public or on the generic page editor. In `app/templates/admin/editor.html` place `type="button"` actions beside the existing Summary and Tags labels: **AI write TL;DR** and **AI suggest tags**. Use `url_for()` for endpoint URL exposed through a data attribute; never render model credentials or arbitrary provider URLs. Leave existing field IDs and form/publish behavior intact.
 
-Add a concise disclosure that pressing a button sends the current unsaved article to the configured remote AI service. No automatic sending during page load, focus, preview or save.
+Add a concise disclosure that pressing a button sends the current unsaved article to the configured model endpoint (which may be local). No automatic sending during page load, focus, preview or save.
 
 Field-local loading/error/suggestion/status regions should use accessible labels and `aria-live`; model output is **plain text** inserted with `textContent` or form values, never `innerHTML`. Reuse existing theme tokens and existing admin/form CSS; add minimal styles to `app/static/css/admin.css` only if necessary.
 
@@ -34,8 +34,8 @@ Do not store provider keys, prompts, tag catalogs, model responses or any remote
 
 Use `tests/test_ai_assist.py` for conditional template/route checks and new `tests/e2e/test_ai_assist.py` for browser behavior with stubbed inference, never a real provider in CI. E2E must use its own database, not the session-scoped migration test DB; see `tests/AGENTS.override.md`. Cover:
 
-- No key: missing buttons on new/edit and normal previews/saves/tags still work.
-- Key: buttons appear only on authorized post editors, not page editors/public pages.
+- Default/unconfigured model: missing buttons on new/edit and normal previews/saves/tags still work.
+- Explicitly configured model: buttons appear only on authorized post editors, not page editors/public pages; local OpenAI-compatible providers work without an API key.
 - Click does not submit; request uses current unsaved title/body and correct CSRF header, never credential.
 - Summary proposal accepted/cancelled, existing summary not silently overwritten, stale responses safe.
 - Tags merge into manually entered values, deduplicate, maintain authoritative canonical names; nothing persisted before Save.
@@ -57,17 +57,17 @@ Implementation and phase completion records are complete. Keep this series Activ
 
 ## Acceptance criteria
 
-- [x] No-key installation has no visible AI UI or outbound provider traffic.
+- [x] Unconfigured model has no visible AI UI or outbound provider traffic; explicitly configured local-compatible provider does not require a key.
 - [x] Suggestions are reviewable; no auto-overwriting, auto-saving or auto-publishing.
 - [x] Manual/AI-applied tags share autosave, dirty and restoration semantics.
 - [x] Errors, delays and stale requests do not lose user input.
 - [x] Automated and browser tests pass.
-- [ ] Permitted-use and real provider compatibility verified before deployment.
+- [ ] OpenCode Go editorial-use policy verified before enabling that adapter; this does not gate the local OpenAI-compatible provider or the default-off feature.
 
 ## Completion
 
-**Status:** Implemented; provider-use approval and live smoke gate remain open.
+**Status:** Implemented; AI defaults off and local-compatible opt-in is keyless. The OpenCode Go usage gate remains adapter-specific.
 
-Added conditional post-editor controls and an explicit review/apply flow that protects newer field edits, merges tags, and leaves persistence to normal Save. Existing draft autosave, recovery and dirty-state now include tags. Documentation and agent guidance describe external data transfer and provider limitations. Browser behavior uses a stubbed endpoint; no live provider request was made.
+Added conditional post-editor controls and an explicit review/apply flow that protects newer field edits, merges tags, and leaves persistence to normal Save. Existing draft autosave, recovery and dirty-state now include tags. Documentation and agent guidance describe opt-in, local use, external data transfer, and provider limitations. Browser behavior uses a stubbed endpoint; no live provider request was made.
 
-**Verification:** `pytest tests/test_ai_assist.py tests/test_author_role.py tests/config/test_ai_config.py tests/config/test_model.py tests/config/test_serialization.py tests/e2e/test_ai_assist.py -q` — 104 passed. `ruff check .`, `ruff format --check .`, dependency-manifest consistency and `npm run build` passed. Full suite: 4,879 passed, 53 failed, 21 skipped; failures were outside the AI-assist tests, in unrelated deployment/filesystem, storage/tasks, profile/webhook and theme areas. Mypy reports 17 errors across seven files; none are in the new AI service, route, or editor code (one is in the pre-existing config-model redaction helper).
+**Verification:** Focused and hosted CI records are maintained in [the roadmap](ai_authoring_roadmap.md). The unrelated full-suite and mypy baselines are separately documented there; neither is represented as an AI-assist failure.

@@ -28,7 +28,7 @@ def enabled_ai(authenticated_client):
     original = app.config["DEVLOG_CONFIG"]
     app.config["DEVLOG_CONFIG"] = replace(
         original,
-        ai=AiConfig(api_key="test-private-key"),
+        ai=AiConfig(model="test-model", api_key="test-private-key"),
     )
     yield authenticated_client
     app.config["DEVLOG_CONFIG"] = original
@@ -70,13 +70,31 @@ def test_ai_controls_are_hidden_without_key(disabled_ai) -> None:
     assert b"data-ai-action" not in page_editor.data
 
 
-def test_local_provider_is_available_without_api_key() -> None:
+def test_ai_is_opt_in_but_local_provider_needs_no_api_key() -> None:
     from app.config.model import DevLogConfig
 
-    assert ai_assist.is_ai_assist_available(DevLogConfig())
+    default_config = DevLogConfig()
+    assert default_config.ai.model == ""
+    assert not ai_assist.is_ai_assist_available(default_config)
+
+    local_config = replace(default_config, ai=AiConfig(model="local-model"))
+    assert ai_assist.is_ai_assist_available(local_config)
+    assert local_config.ai.api_key == ""
+
     assert not ai_assist.is_ai_assist_available(
-        DevLogConfig(ai=AiConfig(provider="opencode_go", api_key=""))
+        DevLogConfig(ai=AiConfig(provider="opencode_go", model="", api_key=""))
     )
+
+
+def test_ai_controls_are_hidden_by_default(authenticated_client, monkeypatch) -> None:
+    monkeypatch.setitem(
+        authenticated_client.application.config,
+        "DEVLOG_CONFIG",
+        replace(authenticated_client.application.config["DEVLOG_CONFIG"], ai=AiConfig()),
+    )
+    response = authenticated_client.get("/admin/new")
+    assert response.status_code == 200
+    assert b"data-ai-action" not in response.data
 
 
 def test_ai_controls_are_hidden_for_existing_post_without_key(disabled_ai, db, admin_user) -> None:
@@ -282,6 +300,30 @@ def test_csrf_is_required_for_ai_endpoint(app, enabled_ai, monkeypatch) -> None:
     assert denied.status_code == 403
     assert allowed.status_code == 200
     outbound.assert_called_once()
+
+
+def test_local_compatible_provider_works_without_api_key(enabled_ai, monkeypatch) -> None:
+    from app.config.model import DevLogConfig
+
+    app = enabled_ai.application
+    app.config["DEVLOG_CONFIG"] = replace(
+        app.config["DEVLOG_CONFIG"],
+        ai=AiConfig(model="local-model", api_key=""),
+    )
+    post = Mock(return_value=_provider_response('{"suggestion":"A local summary."}'))
+    monkeypatch.setattr(ai_assist.requests, "post", post)
+
+    response = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "summary", "title": "Title", "body": "Local draft."},
+    )
+
+    assert response.status_code == 200
+    assert response.json == {"suggestion": "A local summary."}
+    assert "Authorization" not in post.call_args.kwargs["headers"]
+    assert ai_assist.is_ai_assist_available(
+        DevLogConfig(ai=AiConfig(model="local-model", api_key=""))
+    )
 
 
 def test_provider_request_uses_local_compatible_endpoint_and_long_timeout(

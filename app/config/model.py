@@ -274,7 +274,7 @@ class SearchConfig:
 @dataclass(frozen=True)
 class AiConfig:
     provider: str = "openai_compatible"
-    model: str = "google/gemma-4-e2b"
+    model: str = ""
     base_url: str = "http://127.0.0.1:1234/v1"
     timeout_seconds: int = 180
     rate_limit_per_user: str = ""

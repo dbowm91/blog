@@ -99,8 +99,9 @@ admin/
 - **Route**: `POST /admin/ai-assist`
 - **Purpose**: Return an unsaved-post TL;DR or taxonomy-aware tag suggestions on explicit editor requests
 - **Access**: `@author_required`, global CSRF validation, optional per-user rate limit (`ai.rate_limit_per_user`, unlimited by default); edit requests verify post ownership
-- **Data flow**: Current title and Markdown body are sent to the configured local OpenAI-compatible or OpenCode Go endpoint only after the author clicks a control. Local configuration needs no key; OpenCode Go requires `OPENCODE_GO_API_KEY`. Suggestions are reviewed and applied in the browser; only normal post Save persists them.
-- **Safety**: No stored post body is fetched, no provider response is persisted, and no tag rows are created by inference. See [AI authoring service](../services/overview.md#optional-ai-authoring) for bounds and provider-policy gate.
+- **Availability**: AI is off by default; a blank model hides the controls and the endpoint fails closed. Setting a model opts in. Local OpenAI-compatible servers work without an API key; OpenCode Go requires `OPENCODE_GO_API_KEY`.
+- **Data flow**: Current title and Markdown body are sent to the configured endpoint only after the author clicks a control. Suggestions are reviewed and applied in the browser; only normal post Save persists them.
+- **Safety**: No stored post body is fetched, no provider response is persisted, and no tag rows are created by inference. See [AI authoring service](../services/overview.md#optional-ai-authoring) for bounds, provider policy, and the rationale for unlimited-by-default app throttling.
 
 ### Post Delete (`manage.py`)
 - **Route**: `POST /admin/delete/<int:post_id>`

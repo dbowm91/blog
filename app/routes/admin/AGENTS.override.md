@@ -82,7 +82,7 @@ The `new_page()` function in `pages.py` implements a retry loop with `max_attemp
 
 ## Optional AI Post Authoring
 
-`POST /admin/ai-assist` is an authenticated editor route, not a public API endpoint. Keep `@author_required`, global CSRF validation and the shared per-user rate limit. For edits, verify post ownership before inference; use only submitted unsaved text and never load a stored draft as model input. Missing provider configuration must hide the post-editor controls and fail the endpoint closed. Suggestions must not save posts, create tags, alter revisions, or bypass the normal post Save path. Keep provider errors sanitized and do not log title/body or credentials. See `app/services/ai_assist.py` and `architecture/services/overview.md` for the external provider-policy gate.
+`POST /admin/ai-assist` is an authenticated editor route, not a public API endpoint. Keep `@author_required` and global CSRF validation; AI rate limiting is unlimited by default with optional per-user configuration (`ai.rate_limit_per_user`). The model is blank by default, so controls stay hidden and the endpoint fails closed until explicitly configured. A local OpenAI-compatible model may be used without an API key. For edits, verify post ownership before inference; use only submitted unsaved text and never load a stored draft as model input. Suggestions must not save posts, create tags, alter revisions, or bypass the normal post Save path. Keep provider errors sanitized and do not log title/body or credentials. See `app/services/ai_assist.py` and `architecture/services/overview.md` for provider and rate-limit decisions.
 
 ## CSRF Token Rotation on Privilege Change
 
