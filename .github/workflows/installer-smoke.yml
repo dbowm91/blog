@@ -134,8 +134,18 @@ jobs:
 
           "${PREFIX}/bin/devlog" --version
 
-          "${VENV_DIR}/bin/devlog" config init --profile development --config "${INSTALL_DIR}/config.toml"
+          "${VENV_DIR}/bin/devlog" config init --profile development --output "${INSTALL_DIR}/config.toml"
+
+          # config check exits 8 (degraded) when it reports warnings only.
+          set +e
           "${VENV_DIR}/bin/devlog" --config "${INSTALL_DIR}/config.toml" config check
+          CHECK_EXIT=$?
+          set -e
+          if [ "${CHECK_EXIT}" -ne 0 ] && [ "${CHECK_EXIT}" -ne 8 ]; then
+            echo "ERROR: config check failed with exit ${CHECK_EXIT}" >&2
+            exit 1
+          fi
+
           "${VENV_DIR}/bin/devlog" --config "${INSTALL_DIR}/config.toml" themes list
 
           rm -rf "${INSTALL_DIR}"

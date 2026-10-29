@@ -1824,7 +1824,7 @@ def _check_backend_features(**kwargs: Any) -> CheckResult:
 
 
 def _check_frontend_manifest(**kwargs: Any) -> CheckResult:
-    manifest = Path("app/static/.vite/manifest.json")
+    manifest = Path("app/static/dist/.vite/manifest.json")
     if not manifest.exists():
         return _make_result(
             **kwargs,
@@ -1913,7 +1913,7 @@ def _check_selected_themes(**kwargs: Any) -> CheckResult:
 
 def _check_referenced_assets(**kwargs: Any) -> CheckResult:
     try:
-        manifest = Path("app/static/.vite/manifest.json")
+        manifest = Path("app/static/dist/.vite/manifest.json")
         if not manifest.exists():
             return _make_result(
                 **kwargs,
