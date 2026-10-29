@@ -121,6 +121,27 @@ The `celery` service depends on the `blog` service reaching the `healthy` state
 (`depends_on: blog: condition: service_healthy`), so workers never start against a
 database whose schema has not been applied yet.
 
+## Writable Directories
+
+The image copies the source tree into `/home/blog` and runs the application as the
+unprivileged `blog` user (UID 1000). `WORKDIR /home/blog` is created by the builder
+as root, so the application cannot create anything *inside* the installation
+directory. Every path the application writes to therefore comes from the typed
+configuration:
+
+| Path | Environment variable | Image location |
+|------|----------------------|----------------|
+| Database, uploads, themes, backups, exports | `DEVLOG_DATA_DIR` | `/data` (volume `blog_data`) |
+| Log files | `DEVLOG_LOG_DIR` | `/var/log/devlog` (volume `blog_logs`) |
+| Instance path — scheduler lock files | `DEVLOG_RUNTIME_DIR` | `/run/devlog` |
+| Configuration | `DEVLOG_CONFIG_FILE`, `DEVLOG_ENV_FILE` | `/etc/devlog` (volume `blog_config`) |
+
+`create_app()` derives the Flask instance path, the upload folder and the log
+directory from those values. Without them the application falls back to the
+locations inside the source tree (`instance/`, `app/static/uploads/`, `logs/`),
+which is correct for a development checkout and wrong for a container. The
+contract is covered by `tests/test_runtime_directories.py`.
+
 ## Celery Task Queues
 
 For production deployments with Celery:

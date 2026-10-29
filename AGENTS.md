@@ -232,6 +232,8 @@ CLI: `devlog paths status`, `devlog paths discover-legacy`, `devlog paths migrat
 
 Key rules: all paths are absolute after resolution; explicit overrides always win over env vars and mode defaults; legacy discovery is read-only; migration planning defaults to dry-run; production services must not require write access to source directories.
 
+The application writes only to the directories the typed configuration names. `create_app()` derives the Flask instance path from `paths.runtime_dir`, the upload folder from `paths.uploads_dir` (falling back to `paths.data_dir/uploads`) and the log directory from `paths.log_dir`. The container image sets `DEVLOG_DATA_DIR=/data`, `DEVLOG_LOG_DIR=/var/log/devlog` and `DEVLOG_RUNTIME_DIR=/run/devlog`, because the installation directory itself is read-only for the unprivileged runtime user. Without those variables the application falls back to `instance/`, `app/static/uploads/` and `logs/` inside the source tree, which is correct for a development checkout. See [architecture/deployment/docker.md](architecture/deployment/docker.md) and `tests/test_runtime_directories.py`.
+
 `execute_migration()` returns a `MigrationExecutionResult` tracking `ok`, `completed_steps`, `total_steps`, `errors`, `completed_paths`, and performs a SQLite WAL checkpoint (`PRAGMA wal_checkpoint(TRUNCATE)`) on the source database before executing move/copy steps.
 
 See [architecture/core/filesystem.md](architecture/core/filesystem.md).

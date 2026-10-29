@@ -415,7 +415,7 @@ they honour the `DEVLOG_DATA_DIR`, `DEVLOG_CONFIG_FILE`, `DEVLOG_ENV_FILE`,
 
 | Finding | Detail |
 |---------|--------|
-| The Flask runtime does not use `RuntimePaths` | `create_app()` sets `UPLOAD_FOLDER` to `app/static/uploads` regardless of the `DEVLOG_*` path variables, so `app/filesystem/` is an operations-layer authority. The database URI does come from the typed config (`cfg.database.uri`, which `load_effective_config()` resolves to `<data_dir>/devlog.sqlite3`); the `app.instance_path/blog.db` fallback in `create_app()` is only reached when the config carries no URI at all |
+| The Flask runtime does not use `RuntimePaths` | `create_app()` resolves the writable directories from the typed configuration rather than from `RuntimePaths`: the instance path follows `paths.runtime_dir`, the upload folder follows `paths.uploads_dir` (or `paths.data_dir/uploads`), and the log directory follows `paths.log_dir`. The `app.instance_path/blog.db` fallback in `create_app()` is only reached when the config carries no URI at all |
 | `execute_migration()` and `MigrationExecutionResult` are not exported from the package | `app/filesystem/__init__.py` re-exports `plan_migration` but not the executor, so callers must import from `app.filesystem.migration` |
 | `_check_parent_ownership()` never rejects | Every branch returns without raising, so a directory under a parent owned by another user is still created |
 | `_validate_path_safety()` is called with the target's own parent as the base | It therefore only rejects a target that resolves outside its parent (an escaping symlink); it is not a containment check against the data root |

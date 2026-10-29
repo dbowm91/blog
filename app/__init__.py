@@ -131,7 +131,12 @@ def configure_logging(app: Flask) -> None:
             return True
 
     if not app.debug and not app.testing:
-        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+        cfg = getattr(app, "devlog_config", None)
+        paths = getattr(cfg, "paths", None)
+        configured_log_dir = getattr(paths, "log_dir", "") if paths is not None else ""
+        log_dir = configured_log_dir or os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "logs"
+        )
         os.makedirs(log_dir, exist_ok=True)
 
         file_handler = RotatingFileHandler(
@@ -163,7 +168,10 @@ def create_app() -> Flask:
         raise RuntimeError(
             "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
         )
-    app = Flask(__name__, instance_relative_config=True)
+    instance_root: str | None = cfg.paths.runtime_dir
+    if not instance_root or not os.path.isabs(instance_root):
+        instance_root = None
+    app = Flask(__name__, instance_relative_config=True, instance_path=instance_root)
     app.devlog_config = cfg  # type: ignore[attr-defined]
     app.config["DEVLOG_CONFIG"] = cfg
     app.config["SECRET_KEY"] = cfg.secret_key
@@ -171,6 +179,7 @@ def create_app() -> Flask:
     upload_folder = (
         cfg.paths.uploads_dir
         or os.environ.get("UPLOAD_FOLDER")
+        or (os.path.join(cfg.paths.data_dir, "uploads") if cfg.paths.data_dir else "")
         or os.path.join(os.path.dirname(__file__), "static", "uploads")
     )
     app.config["UPLOAD_FOLDER"] = upload_folder
