@@ -152,7 +152,9 @@ def configure_logging(app: Flask) -> None:
 
 
 def create_app() -> Flask:
+    from app.appearance.service import get_appearance_service
     from app.config.loader import load_effective_config
+    from app.themes.service import get_theme_service
 
     cfg = load_effective_config()
     if not cfg.secret_key:
@@ -321,6 +323,14 @@ def create_app() -> Flask:
         # theme service, the context processors and the navigation service.
         # Drop any row cached for a previous request on this context.
         invalidate_site_settings_cache()
+
+        # The theme context is derived from that row and cached per process.
+        # Without this drop, a theme change only reaches the worker that
+        # saved it and the other workers keep serving the previous theme
+        # until the cache expires. Rebuilding it costs a fraction of a
+        # millisecond, because the parsed themes stay in the registry cache.
+        get_theme_service().invalidate_settings_cache()
+        get_appearance_service().invalidate_settings_cache()
 
         # CSRF validation for POST requests (skips API blueprint)
         if req.method == "POST" and not should_skip_csrf():

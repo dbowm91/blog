@@ -252,6 +252,13 @@ catalogue and cache. Invalidating on one worker leaves every other worker's
 cache untouched; there is no IPC, shared memory or message bus. Propagating a
 theme change across a deployment means restarting the processes.
 
+The one exception is the context derived from the `SiteSettings` row. The
+application factory drops that cache at the start of every request, so a
+theme change reaches every worker with the next request instead of waiting
+for `_SETTINGS_CACHE_TTL`. The parsed themes stay in the registry cache, so
+rebuilding the context costs a fraction of a millisecond. The catalogue of
+theme files still needs an explicit `invalidate()` or `invalidate(name)`.
+
 ## Accessibility Validation
 
 `app/themes/diagnostics.py` holds two related but distinct mechanisms.
