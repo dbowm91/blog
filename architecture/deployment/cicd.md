@@ -21,9 +21,10 @@ GitHub Actions workflows for testing and deployment.
 
 ### 2. test
 - **Tool**: `pytest` with coverage
-- **Coverage**: Minimum 80%
+- **Coverage**: Minimum 75%
 - **Python**: 3.12 (single-version matrix)
 - **Database**: SQLite
+- **Dependencies**: `requirements-dev.txt` and `pip install --no-deps -e .` — the project itself must be installed, not only its dependencies. `importlib.metadata.version("devlog")` raises `PackageNotFoundError` otherwise, the `doctor` package-version check reports a warning, and the command exits `8` (degraded) instead of `0`
 
 ### 3. theme-policy
 - **Tool**: `python scripts/theme_accessibility_report.py --strict`
@@ -32,7 +33,7 @@ GitHub Actions workflows for testing and deployment.
 ### 4. migration-chain
 - **Tool**: `python -m pytest tests/test_migration_chain.py tests/test_migration_drop_theme_preset.py -v`
 - **Purpose**: The Halloy migration revisions apply, downgrade and re-apply cleanly
-- **Dependencies**: `requirements-dev.txt` — the job runs pytest, so it needs the test toolchain, not just the runtime dependencies
+- **Dependencies**: `requirements-dev.txt` and `pip install --no-deps -e .` — the job runs pytest, so it needs the test toolchain, not just the runtime dependencies
 - **Depends on**: `test`
 
 ### 5. theme-package-verification
@@ -66,6 +67,7 @@ This job validates the multi-stage build pipeline: Node.js frontend build → Py
 - **Browser**: Chromium
 - **Compose files**: `docker-compose.yml` + `docker-compose.ci.yml` (CI override publishes port 5000)
 - **Base URL**: Configured via `E2E_BASE_URL` env var (default: `http://localhost:5000` in CI)
+- **Dependencies**: `requirements-dev.txt` and `pip install --no-deps -e .` — the job builds its own application fixture, so the project must be importable and installed
 - **Depends on**: `test`, `docker-build`
 - **Failure diagnostics**: Dumps logs for blog, redis, celery services
 

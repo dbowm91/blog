@@ -205,7 +205,9 @@ class TestNginxValidate:
             )
         )
         main_config = tmp_path / "nginx.conf"
-        main_config.write_text(f"events {{}}\nhttp {{\n    include {nginx_file};\n}}\n")
+        main_config.write_text(
+            f"pid {tmp_path / 'nginx.pid'};\nevents {{}}\nhttp {{\n    include {nginx_file};\n}}\n"
+        )
         proc = subprocess.run(
             ["nginx", "-t", "-c", str(main_config)],
             capture_output=True,
