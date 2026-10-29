@@ -69,7 +69,7 @@ The one remaining known flake:
   tests share one directory, so the route can refuse a name that is not
   `blog_<timestamp>.db`. It fails at random and passes on a re-run.
 
-Coverage sits at **76.6%** against a `--cov-fail-under=75` gate. The gate was
+Coverage sits at **76.67%** against a `--cov-fail-under=75` gate. The gate was
 80% and had never passed; restoring 80% needs roughly 670 more covered
 statements (mostly `app/tasks.py`, the S3 half of `app/storage.py` and
 `app/utils.py`) and is a separate piece of work.

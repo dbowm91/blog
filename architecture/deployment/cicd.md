@@ -172,7 +172,7 @@ markers =
 
 Minimum coverage: 75%
 
-The gate was 80% and had never passed — the suite reaches 76.6%. Restoring 80% needs roughly 670 more covered statements, concentrated in `app/tasks.py`, the S3 half of `app/storage.py` and `app/utils.py`. That is a test-writing effort of its own, so the floor now sits just below the level the project sustains, and raising it back to 80% is a separate, deliberate change.
+The gate was 80% and had never passed — the suite reaches 76.67%. Restoring 80% needs roughly 670 more covered statements, concentrated in `app/tasks.py`, the S3 half of `app/storage.py` and `app/utils.py`. That is a test-writing effort of its own, so the floor now sits just below the level the project sustains, and raising it back to 80% is a separate, deliberate change.
 
 ### Running Tests Locally
 
