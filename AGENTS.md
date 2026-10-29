@@ -109,7 +109,7 @@ This table lists only the locations that are easy to get wrong.
 | Flask CLI wrappers | `app/cli.py` — compatibility wrappers over the same services |
 | Middleware | `app/middleware/rate_limit.py` |
 | Markdown | `app/markdown_renderer.py` — the single producer, exposed as the `markdown_safe` filter |
-| Models | `app/models.py` — exactly 17 |
+| Models | `app/models.py` — exactly 23 |
 | Backup service | `app/services/backup.py` |
 | Tag cache | `app/tag_cache.py` (flask-caching with TTL) |
 | DB dialect helpers | `app/db_utils.py` — `get_database_dialect()`, `is_sqlite_database()` |
@@ -212,7 +212,7 @@ See [architecture/infrastructure/webhooks.md](architecture/infrastructure/webhoo
 
 ### Model count
 
-There are exactly 17 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. Any documentation claiming 19 or 20 models is outdated. Note: `OperationResult` and its subclasses in `app/services/operations/results.py` are plain dataclasses, not SQLAlchemy models.
+There are exactly 23 model classes in `app/models.py`: User, Post, Tag, Subscriber, Page, Project, ProjectDocument, ProjectDocumentAsset, ProjectDocsSnapshot, ProjectRelease, ProjectReleaseAsset, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken. `OperationResult` and its subclasses in `app/services/operations/results.py` are plain dataclasses, not SQLAlchemy models.
 
 See [architecture/core/models.md](architecture/core/models.md).
 
@@ -483,7 +483,7 @@ covers it.
 |-------|----------|
 | **Birds-eye module map (start here)** | [architecture/overview.md](architecture/overview.md) |
 | App factory, configuration | [architecture/core/app-factory.md](architecture/core/app-factory.md), [architecture/core/configuration.md](architecture/core/configuration.md) |
-| Data models (17 models) | [architecture/core/models.md](architecture/core/models.md) |
+| Data models (23 models) | [architecture/core/models.md](architecture/core/models.md) |
 | Filesystem layout, install modes | [architecture/core/filesystem.md](architecture/core/filesystem.md) |
 | Onboarding (first-run setup) | [architecture/core/onboarding.md](architecture/core/onboarding.md) |
 | Theme system (Halloy) | [architecture/core/themes.md](architecture/core/themes.md) |
@@ -527,7 +527,7 @@ declares which series are active and which are historical, and points at the
 architecture document that now holds each outcome. Read it before planning new
 work — do not derive a plan from a phase file in isolation.
 
-Two series still have work outstanding:
+Three series still have work outstanding:
 
 - **Site Identity, Authorship and Layout** — phase 06 (comment layout) is not
   started. CSS and template work only; it needs no migration.
@@ -535,4 +535,9 @@ Two series still have work outstanding:
   verify, inspect and encryption shipped; the manifest, listing, restore
   planner and prune commands did not), and the update/uninstall phase has not
   started at all. There is no `devlog update` and no `devlog uninstall`.
+- **Project Pages, Documentation and Distribution** — phases 01–02 are
+  implemented, phases 03–05 are partially implemented and phase 06 ships the
+  DevLog-native manifest only. Binary mirrors and any eggpack/eggup support
+  are deferred by operator decision. The open gates are recorded per phase in
+  `plans/`.
 

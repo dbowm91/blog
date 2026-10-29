@@ -6,7 +6,10 @@ Public routes serve the blog's public-facing pages.
 
 | File | Routes | Purpose |
 |------|--------|---------|
-| `browse.py` | `/`, `/tag/<slug>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Home, archive, tag pages, series, static pages |
+| `browse.py` | `/`, `/posts`, `/tag/<slug>`, `/archive`, `/series/<slug>`, `/page/<slug>`, `/search` | Homepage dispatcher, post index, archive, tag pages, series, static pages |
+| `projects.py` | `/projects`, `/projects/<slug>` | Published project directory and project landing pages |
+| `project_docs.py` | `/projects/<slug>/docs`, `/projects/<slug>/docs/<path>` | Published local or active cached-snapshot documentation; no visitor-time GitHub calls |
+| `project_releases.py` | `/projects/<slug>/releases`, `/projects/<slug>/releases/<release_id>`, `/projects/<slug>/releases/manifest.json` | Cached GitHub release catalog, details, and DevLog-native metadata manifest |
 | `posts.py` | `/post/<slug>`, `/preview/<int:post_id>`, `/s/<code>`, `/api/track-share` | Individual post pages, short URLs, share tracking |
 | `subscribe.py` | `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` | Newsletter subscription |
 | `meta.py` | `/sitemap.xml`, `/robots.txt`, `/health`, `/metrics`, `/favicon.ico` | Sitemap, robots, health check, metrics |
@@ -46,6 +49,15 @@ Public routes serve the blog's public-facing pages.
 ### Static Page
 - **Route**: `GET /page/<slug>`
 - **Purpose**: Display static pages
+
+### Projects
+- **Routes**: `GET /projects`, `GET /projects/<slug>`
+- **Purpose**: List and display published project pages; drafts return 404 here
+- **Draft preview**: `GET /admin/projects/preview/<id>` requires an authenticated admin
+
+The root route dispatches to the configured blog, page, or project homepage. The
+blog index remains available at `/posts`; the root is canonical for the selected
+homepage target.
 
 ## Auth Routes (`auth.py`)
 

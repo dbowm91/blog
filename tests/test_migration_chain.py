@@ -322,9 +322,96 @@ def test_drop_syntax_theme_removes_the_column(app):
             conn.execute(sa.text("DROP TABLE site_settings"))
 
 
-def test_the_syntax_theme_migration_is_the_head(app):
-    """The new revision is the single head of the migration graph."""
-    assert _expected_head() == "drop_syntax_theme_column"
+def test_project_releases_migration_is_the_head(app):
+    """The project synchronization lease revision is the single head of the graph."""
+    assert _expected_head() == "add_project_sync_leases"
+
+
+def test_project_migrations_upgrade_and_downgrade(tmp_path):
+    """The project schema and navigation settings migrate reversibly."""
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'project-migrations.sqlite3'}")
+    with engine.begin() as conn:
+        conn.execute(sa.text("CREATE TABLE site_settings (id INTEGER PRIMARY KEY)"))
+
+    from migrations.versions.add_project_navigation_settings import (
+        downgrade as downgrade_navigation,
+        upgrade as upgrade_navigation,
+    )
+    from migrations.versions.add_project_documents import (
+        downgrade as downgrade_documents,
+        upgrade as upgrade_documents,
+    )
+    from migrations.versions.add_project_github_docs_snapshots import (
+        downgrade as downgrade_docs_snapshots,
+        upgrade as upgrade_docs_snapshots,
+    )
+    from migrations.versions.add_project_releases import (
+        downgrade as downgrade_releases,
+        upgrade as upgrade_releases,
+    )
+    from migrations.versions.add_project_sync_leases import (
+        downgrade as downgrade_sync_leases,
+        upgrade as upgrade_sync_leases,
+    )
+    from migrations.versions.add_projects_table import (
+        downgrade as downgrade_projects,
+        upgrade as upgrade_projects,
+    )
+
+    _run_migrations(
+        engine,
+        upgrade_projects,
+        upgrade_navigation,
+        upgrade_documents,
+        upgrade_docs_snapshots,
+        upgrade_releases,
+        upgrade_sync_leases,
+    )
+
+    inspector = sa.inspect(engine)
+    assert inspector.has_table("projects")
+    assert inspector.has_table("project_documents")
+    assert inspector.has_table("project_document_assets")
+    assert inspector.has_table("project_docs_snapshots")
+    assert inspector.has_table("project_releases")
+    assert inspector.has_table("project_release_assets")
+    project_columns = {column["name"] for column in inspector.get_columns("projects")}
+    assert {"docs_enabled", "active_docs_snapshot_id", "releases_enabled"} <= project_columns
+    assert {
+        "docs_sync_lease_owner",
+        "docs_sync_lease_expires_at",
+        "releases_sync_lease_owner",
+        "releases_sync_lease_expires_at",
+        "releases_sync_config",
+    } <= project_columns
+    settings_columns = {column["name"] for column in inspector.get_columns("site_settings")}
+    assert {
+        "show_projects_in_menu",
+        "projects_menu_label",
+        "homepage_kind",
+        "homepage_target_id",
+    } <= settings_columns
+    with engine.begin() as conn:
+        conn.execute(sa.text("INSERT INTO site_settings (id) VALUES (1)"))
+    row = _get_all_rows(engine, "site_settings")[0]
+    assert row["show_projects_in_menu"] == 0
+    assert row["projects_menu_label"] == "Projects"
+    assert row["homepage_kind"] == "blog"
+    assert row["homepage_target_id"] is None
+
+    _run_migration(engine, downgrade_sync_leases)
+    _run_migration(engine, downgrade_releases)
+    _run_migration(engine, downgrade_docs_snapshots)
+    _run_migration(engine, downgrade_documents)
+    _run_migration(engine, downgrade_navigation)
+    _run_migration(engine, downgrade_projects)
+    final_inspector = sa.inspect(engine)
+    assert not final_inspector.has_table("projects")
+    assert not final_inspector.has_table("project_documents")
+    assert not final_inspector.has_table("project_docs_snapshots")
+    assert not final_inspector.has_table("project_releases")
+    assert {column["name"] for column in sa.inspect(engine).get_columns("site_settings")} == {"id"}
+    engine.dispose()
 
 
 def test_fresh_install_creates_correct_schema(app):

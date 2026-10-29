@@ -78,7 +78,7 @@ the source and writes the deep-dive document directly, including a
 subagent owns exactly one output file so they can run in parallel.
 
 ## Key Counts to Verify
-- Models: exactly 17 (User, Post, Tag, Subscriber, Page, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken)
+- Models: exactly 18 (User, Post, Tag, Subscriber, Page, Project, PageView, ShareEvent, AdminSession, SiteSettings, Webhook, WebhookEvent, Series, PostSeries, Comment, PostRevision, AdminAuditLog, ApiToken)
 - Queues: 5 (images, newsletter, webhooks, email, backup)
 - Scheduled jobs: 4 (send_daily_newsletter, cleanup_expired_subscribers, publish_scheduled_posts, run_daily_backup)
 - Newsletter retry count: 5 (not 3)

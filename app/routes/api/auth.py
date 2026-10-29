@@ -39,6 +39,9 @@ SCOPES = {
     "pages:read",
     "pages:write",
     "pages:*",
+    "projects:read",
+    "projects:write",
+    "projects:*",
     "series:read",
     "series:write",
     "series:*",
@@ -54,6 +57,7 @@ VALID_WILDCARD_SCOPES = {
     "analytics:*",
     "tags:*",
     "pages:*",
+    "projects:*",
     "series:*",
 }
 

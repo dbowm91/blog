@@ -13,7 +13,9 @@ This is a **package** (not a single file like `api.py`):
 - `comments.py` - Public comment viewing
 
 ## Key Routes
-- `/` - Homepage with post listing
+- `/` - Homepage dispatcher (blog, static page, or project)
+- `/posts` - Blog post index
+- `/projects` and `/projects/<slug>` - Published project directory and landing pages; draft projects return 404
 - `/post/<slug>` - Individual post
 - `/archive` - Archive by year/month
 - `/tag/<tag>` - Posts by tag

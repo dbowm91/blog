@@ -21,6 +21,9 @@ Business logic layer for the blog application.
 | Theme Cache | `app/themes/cache.py` | In-process theme caching with current-source-state freshness validation |
 | Theme Service | `app/themes/service.py` | App-scoped `ThemeService`: owns the registry, resolves effective theme names from `SiteSettings`, builds Jinja context dict, stored on `app.extensions["theme_service"]`. Provides preview (load + CSS without persist) and refresh (rebuild registry from disk) operations |
 | Theme Settings | `app/services/theme_settings.py` | Theme configuration validation, legacy preset migration, effective theme name resolution |
+| Projects | `app/services/projects.py` | Project validation, publication queries, repository identity, and project-scoped theme resolution |
+| Navigation | `app/services/navigation.py` | Published page/project navigation projection from `SiteSettings` |
+| Site Settings | `app/services/site_settings.py` | Homepage target validation and navigation/settings persistence |
 | Cache Contract | `docs/themes/cache-contract.md` | Cache freshness model, invalidation API, multi-worker deployment notes |
 
 ## Operations Service Layer

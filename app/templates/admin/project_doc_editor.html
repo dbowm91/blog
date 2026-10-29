@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% from "admin/_editor_body.html" import markdown_editor %}
+{% block title %}{{ 'Edit' if document else 'New' }} Project Document | Admin{% endblock %}
+{% block content %}
+<div class="editor animate-in">
+  <div class="editor-header">
+    <div>
+      <h1>{{ 'Edit' if document else 'New' }} document: {{ project.title }}</h1>
+      <p class="label-hint">Documents are stored locally. Relative links resolve only to published documents and uploaded project images.</p>
+    </div>
+    <a class="btn btn-ghost" href="{{ url_for('admin.project_docs_admin', project_id=project.id) }}">Back to documentation</a>
+  </div>
+  {% if errors %}
+  <div class="alert alert-error" role="alert"><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin.project_doc_edit', project_id=project.id, document_id=document.id) if document else url_for('admin.project_doc_new', project_id=project.id) }}" class="editor-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-group">
+      <label for="path">Document path</label>
+      <input id="path" name="path" required maxlength="512" value="{{ request.form.get('path', document.path if document else '') }}" placeholder="guide/installation.md">
+      <span class="label-hint">Use a unique relative path ending in .md or .markdown.</span>
+    </div>
+    <div class="form-group">
+      <label for="title">Title</label>
+      <input id="title" name="title" required maxlength="200" value="{{ request.form.get('title', document.title if document else '') }}">
+    </div>
+    <div class="form-group">
+      <label for="nav_title">Navigation title (optional)</label>
+      <input id="nav_title" name="nav_title" maxlength="120" value="{{ request.form.get('nav_title', document.nav_title if document and document.nav_title else '') }}">
+    </div>
+    <div class="form-group">
+      <label for="nav_order">Navigation order</label>
+      <input id="nav_order" name="nav_order" type="number" min="-100000" max="100000" value="{{ request.form.get('nav_order', document.nav_order if document else 0) }}">
+    </div>
+    {{ markdown_editor(value=request.form.get('body', document.body if document else ''), label='Markdown', hint='Sanitized Markdown; raw HTML is not trusted.', placeholder='Write documentation in Markdown...') }}
+    <div class="form-group form-checkbox">
+      <input id="published" name="published" type="checkbox" value="1"{% if request.form.get('published') == '1' or (not request.form and document and document.published) %} checked{% endif %}>
+      <label for="published">Publish this document</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">{{ 'Save document' if document else 'Create document' }}</button>
+      <button class="btn btn-ghost" type="submit" formaction="{{ url_for('admin.project_docs_preview', project_id=project.id) }}" formtarget="_blank">Preview draft</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

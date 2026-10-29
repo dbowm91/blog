@@ -19,7 +19,8 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.extensions import db
-from app.models import Post, Tag, Page, User
+from app.models import Post, Project, Tag, Page, User
+from app.services.site_settings import HOME_KIND_PAGE, HOME_KIND_PROJECT, resolve_homepage_target
 from app.config import (
     BASE_URL,
     HEALTH_CHECK_SECRET,
@@ -80,15 +81,48 @@ def _generate_sitemap():
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>\n"""
+    # The root renders whatever the homepage is set to, so the selected
+    # target keeps its own route out of the sitemap: the root is its
+    # canonical address.
+    homepage = resolve_homepage_target()
     # Static pages
     for pg in (
         db.session.execute(select(Page).filter_by(published=True).order_by(Page.updated_at.desc()))
         .scalars()
         .yield_per(100)
     ):
+        if homepage.kind == HOME_KIND_PAGE and homepage.page is not None:
+            if pg.id == homepage.page.id:
+                continue
         lastmod = pg.updated_at.strftime("%Y-%m-%d") if pg.updated_at else ""
         yield f"""  <url>
     <loc>{xml_escape(BASE_URL)}/page/{xml_escape(pg.slug)}</loc>
+    <lastmod>{lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>\n"""
+    # Project directory
+    yield f"""  <url>
+    <loc>{xml_escape(BASE_URL)}/projects</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>\n"""
+    # Project landing pages
+    for project in (
+        db.session.execute(
+            select(Project)
+            .filter_by(published=True)
+            .order_by(Project.sort_order.asc(), Project.title.asc())
+        )
+        .scalars()
+        .yield_per(100)
+    ):
+        if homepage.kind == HOME_KIND_PROJECT and homepage.project is not None:
+            if project.id == homepage.project.id:
+                continue
+        lastmod = project.updated_at.strftime("%Y-%m-%d") if project.updated_at else ""
+        yield f"""  <url>
+    <loc>{xml_escape(BASE_URL)}/projects/{xml_escape(project.slug)}</loc>
     <lastmod>{lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

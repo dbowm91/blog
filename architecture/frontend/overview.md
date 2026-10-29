@@ -7,7 +7,7 @@ Frontend assets and templating.
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | JavaScript | `app/static/js/` | Vanilla JS modules |
-| CSS | `app/static/css/` | Stylesheets |
+| CSS | `app/static/css/` | Stylesheets; `projects.css` owns the project directory and landing layouts |
 | Fonts | `app/static/fonts/` | Self-hosted woff2 families |
 | Images | `app/static/img/` | Favicon, the post placeholder mark and its social raster, page backdrops |
 | Uploads | `app/static/uploads/` | User media, custom fonts and backdrops |
@@ -26,6 +26,8 @@ the seams. Those seams are where the defects live, so each has a named owner:
 
 | Value | Owner | Consumers must |
 |---|---|---|
+| Public navigation data | `app/services/navigation.py` | Templates consume the unified projection; they do not select page/project links themselves |
+| Project theme overrides | `app/services/projects.py` | Theme variables are scoped to the project container; global theme state is unchanged |
 | Post image URL | `post_image_url` filter (`app/filters.py`) | Use the URL directly; never re-wrap it with `url_for('static', …)` |
 | Responsive `srcset` | `post_image_srcset` filter | Guard the attribute — the filter returns `None` when no variants exist |
 | Image visibility | `shared/lazy-load.js` | Any rule that hides an element must have a guaranteed restoration path |

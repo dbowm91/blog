@@ -199,6 +199,237 @@ class Page(db.Model):  # type: ignore[name-defined]
         return f"<Page {self.title!r} published={self.published}>"
 
 
+class Project(db.Model):  # type: ignore[name-defined]
+    """A project showcase entry with its own landing page.
+
+    A project owns a Markdown body, a preset landing layout and an optional
+    pair of theme overrides. The theme overrides are scoped to the project's
+    own container; they never replace the site-wide theme.
+    """
+
+    __tablename__ = "projects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    summary = db.Column(db.String(500), default="", nullable=False)
+    body = db.Column(db.Text, default="", nullable=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    updated_at = db.Column(
+        UTCDateTime,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    repo_url = db.Column(db.String(512), nullable=True)
+    landing_style = db.Column(db.String(32), default="minimal", nullable=False)
+    theme_dark_name = db.Column(db.String(128), nullable=True)
+    theme_light_name = db.Column(db.String(128), nullable=True)
+    show_in_nav = db.Column(db.Boolean, default=False, nullable=False)
+    nav_label = db.Column(db.String(120), nullable=True)
+    hero_image = db.Column(db.String(256), nullable=True)
+    hero_image_alt = db.Column(db.String(256), nullable=True)
+    screenshots = db.Column(db.JSON, nullable=True)
+    docs_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    docs_home_path = db.Column(db.String(512), nullable=True)
+    docs_source_kind = db.Column(db.String(16), default="local", nullable=False)
+    github_owner = db.Column(db.String(39), nullable=True)
+    github_repository = db.Column(db.String(100), nullable=True)
+    github_docs_ref = db.Column(db.String(256), nullable=True)
+    github_docs_root = db.Column(db.String(512), default="docs", nullable=False)
+    active_docs_snapshot_id = db.Column(db.Integer, nullable=True)
+    docs_sync_status = db.Column(db.String(16), default="never", nullable=False)
+    docs_sync_error = db.Column(db.String(500), nullable=True)
+    docs_synced_at = db.Column(UTCDateTime, nullable=True)
+    docs_sync_lease_owner = db.Column(db.String(64), nullable=True)
+    docs_sync_lease_expires_at = db.Column(UTCDateTime, nullable=True)
+    releases_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    releases_include_prereleases = db.Column(db.Boolean, default=False, nullable=False)
+    releases_sync_status = db.Column(db.String(16), default="never", nullable=False)
+    releases_sync_error = db.Column(db.String(500), nullable=True)
+    releases_synced_at = db.Column(UTCDateTime, nullable=True)
+    releases_etag = db.Column(db.String(256), nullable=True)
+    releases_sync_config = db.Column(db.String(64), nullable=True)
+    releases_sync_lease_owner = db.Column(db.String(64), nullable=True)
+    releases_sync_lease_expires_at = db.Column(UTCDateTime, nullable=True)
+    releases = db.relationship(
+        "ProjectRelease", back_populates="project", cascade="all, delete-orphan"
+    )
+    docs_snapshots = db.relationship(
+        "ProjectDocsSnapshot",
+        foreign_keys="ProjectDocsSnapshot.project_id",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    documents = db.relationship(
+        "ProjectDocument", back_populates="project", cascade="all, delete-orphan"
+    )
+    document_assets = db.relationship(
+        "ProjectDocumentAsset", back_populates="project", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.Index("ix_projects_published_sort_title", "published", "sort_order", "title"),
+        db.Index("ix_projects_published_slug", "published", "slug"),
+    )
+
+    @staticmethod
+    def generate_slug(title: str) -> str:
+        from app.utils import generate_slug as util_generate_slug
+
+        return util_generate_slug(title)
+
+    @property
+    def screenshot_keys(self) -> list[str]:
+        """Return the stored screenshot media keys as a list of strings."""
+        raw = self.screenshots
+        if not raw:
+            return []
+        if isinstance(raw, str):
+            raw = [raw]
+        if not isinstance(raw, list):
+            return []
+        return [item for item in raw if isinstance(item, str) and item]
+
+    def __repr__(self) -> str:
+        return f"<Project {self.title!r} published={self.published}>"
+
+
+class ProjectDocsSnapshot(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "project_docs_snapshots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_ref = db.Column(db.String(256), nullable=False)
+    commit_sha = db.Column(db.String(40), nullable=False)
+    acquired_at = db.Column(UTCDateTime, default=utc_now, nullable=False)
+    status = db.Column(db.String(16), default="active", nullable=False)
+    file_count = db.Column(db.Integer, default=0, nullable=False)
+    total_bytes = db.Column(db.Integer, default=0, nullable=False)
+    manifest_sha256 = db.Column(db.String(64), nullable=False)
+    etag = db.Column(db.String(256), nullable=True)
+    error_summary = db.Column(db.String(500), nullable=True)
+
+    project = db.relationship("Project", foreign_keys=[project_id], back_populates="docs_snapshots")
+
+    __table_args__ = (
+        db.UniqueConstraint("project_id", "commit_sha", name="uq_project_docs_snapshot_commit"),
+        db.Index("ix_project_docs_snapshots_project_status", "project_id", "status"),
+    )
+
+
+class ProjectRelease(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "project_releases"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_release_id = db.Column(db.String(32), nullable=False)
+    tag_name = db.Column(db.String(256), nullable=False)
+    title = db.Column(db.String(256), nullable=False)
+    notes_markdown = db.Column(db.Text, default="", nullable=False)
+    html_url = db.Column(db.String(1024), nullable=False)
+    published_at = db.Column(UTCDateTime, nullable=True)
+    created_at = db.Column(UTCDateTime, nullable=True)
+    prerelease = db.Column(db.Boolean, default=False, nullable=False)
+    source_synced_at = db.Column(UTCDateTime, nullable=False)
+    project = db.relationship("Project", back_populates="releases")
+    assets = db.relationship(
+        "ProjectReleaseAsset", back_populates="release", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "project_id", "provider_release_id", name="uq_project_release_provider_id"
+        ),
+        db.Index("ix_project_releases_project_published", "project_id", "published_at"),
+    )
+
+
+class ProjectReleaseAsset(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "project_release_assets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    release_id = db.Column(
+        db.Integer, db.ForeignKey("project_releases.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_asset_id = db.Column(db.String(32), nullable=False)
+    filename = db.Column(db.String(512), nullable=False)
+    content_type = db.Column(db.String(128), nullable=True)
+    size_bytes = db.Column(db.BigInteger, nullable=False)
+    browser_download_url = db.Column(db.String(1024), nullable=False)
+    provider_digest = db.Column(db.String(128), nullable=True)
+    release = db.relationship("ProjectRelease", back_populates="assets")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "release_id", "provider_asset_id", name="uq_project_release_asset_provider_id"
+        ),
+    )
+
+
+class ProjectDocument(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "project_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    version_key = db.Column(db.String(64), nullable=False, default="current")
+    snapshot_id = db.Column(
+        db.Integer, db.ForeignKey("project_docs_snapshots.id", ondelete="CASCADE"), nullable=True
+    )
+    path = db.Column(db.String(512), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, default="", nullable=False)
+    nav_title = db.Column(db.String(120), nullable=True)
+    nav_order = db.Column(db.Integer, default=0, nullable=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+    updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
+
+    project = db.relationship("Project", back_populates="documents")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "project_id", "version_key", "path", name="uq_project_document_version_path"
+        ),
+        db.Index(
+            "ix_project_documents_project_version_published_order",
+            "project_id",
+            "version_key",
+            "published",
+            "nav_order",
+        ),
+    )
+
+
+class ProjectDocumentAsset(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "project_document_assets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    path = db.Column(db.String(512), nullable=False)
+    storage_key = db.Column(db.String(512), nullable=False, unique=True)
+    content_type = db.Column(db.String(64), nullable=False)
+    file_size = db.Column(db.Integer, nullable=False)
+    sha256 = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(UTCDateTime, default=utc_now)
+
+    project = db.relationship("Project", back_populates="document_assets")
+
+    __table_args__ = (
+        db.UniqueConstraint("project_id", "path", name="uq_project_document_asset_path"),
+        db.Index("ix_project_document_assets_project_path", "project_id", "path"),
+    )
+
+
 class Post(db.Model):  # type: ignore[name-defined]
     __tablename__ = "posts"
 
@@ -385,6 +616,10 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
     footer_show_tags = db.Column(db.Boolean, default=True, nullable=False)
     show_pages_in_menu = db.Column(db.Boolean, default=True, nullable=False)
     menu_pages = db.Column(db.Text, default="", nullable=False)
+    show_projects_in_menu = db.Column(db.Boolean, default=False, nullable=False)
+    projects_menu_label = db.Column(db.String(64), default="Projects", nullable=False)
+    homepage_kind = db.Column(db.String(16), default="blog", nullable=False)
+    homepage_target_id = db.Column(db.Integer, nullable=True)
     font_sans = db.Column(db.String(128), default="inter", nullable=False)
     font_mono = db.Column(db.String(128), default="jetbrains-mono", nullable=False)
     backdrop = db.Column(db.String(128), default="default", nullable=False)

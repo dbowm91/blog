@@ -266,7 +266,7 @@ hashed paths that do not exist. Docker builds handle this in the
 `frontend-builder` stage. **Restart the Flask server after every build** —
 `app/vite.py` caches the manifest process-wide.
 
-**Model count.** Exactly 17 models in `app/models.py`. `OperationResult` and its
+**Model count.** Exactly 18 models in `app/models.py` (including `Project`). `OperationResult` and its
 subclasses in `app/services/operations/results.py` are plain dataclasses, not
 models.
 

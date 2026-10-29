@@ -1,0 +1,30 @@
+{% from "projects/_project_macros.html" import project_links, project_hero, project_screenshots %}
+
+<article class="project-landing project-landing-documentation">
+    <header class="project-header">
+        <h1 class="project-title">{{ project.title | escape }}</h1>
+        {% if project.summary %}
+        <p class="project-summary">{{ project.summary }}</p>
+        {% endif %}
+        {{ project_links(project) }}
+    </header>
+
+    <div class="project-docs-layout">
+        <aside class="project-docs-sidebar" aria-label="Project resources">
+            <h2 class="project-docs-heading">Resources</h2>
+            <ul class="project-docs-list">
+                {% if project.repo_url %}
+                <li class="project-docs-item">
+                    <a href="{{ project.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">Repository</a>
+                </li>
+                {% endif %}
+            </ul>
+        </aside>
+
+        <div class="prose project-body">
+            {{ project.body | markdown_safe | safe }}
+        </div>
+    </div>
+
+    {{ project_screenshots(project) }}
+</article>

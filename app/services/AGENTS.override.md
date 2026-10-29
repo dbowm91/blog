@@ -9,6 +9,9 @@ Centralized service layer for shared logic between CLI, API, and Admin routes.
 - `serialization.py` - Serialization for CLI export (replaces `app/cli.py` functions)
 - `tag.py` - Tag management service (no update_tag function exists)
 - `theme_settings.py` - Theme configuration validation, legacy preset migration, effective theme name resolution
+- `projects.py` - Project validation, published queries, repository metadata, scoped themes
+- `navigation.py` - Public navigation projection for published pages and projects
+- `site_settings.py` - Homepage-target validation and navigation settings parsing
 
 ## Operations Service Layer (`app/services/operations/`)
 

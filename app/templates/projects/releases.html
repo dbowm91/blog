@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} releases{% endblock %}
+{% block meta_description %}Published releases for {{ project.title }}{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}" media="print" onload="this.media='all'">{% endblock %}
+{% block extra_styles_noscript %}<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}">{% endblock %}
+{% block content %}
+<main class="project-releases-page" id="main-content">
+  <nav class="project-docs-breadcrumbs" aria-label="Breadcrumb"><a href="{{ url_for('public.project', slug=project.slug) }}">{{ project.title }}</a><span aria-hidden="true">/</span><span aria-current="page">Releases</span></nav>
+  <h1>{{ project.title }} releases</h1>
+  <p><a href="{{ url_for('public.project_release_manifest', slug=project.slug) }}">DevLog-native release manifest (JSON v1)</a></p>
+  {% if releases %}
+  <ol class="project-release-list">
+    {% for release in releases %}
+    <li>
+      <h2><a href="{{ url_for('public.project_release', slug=project.slug, release_id=release.id) }}">{{ release.title }}</a></h2>
+      <p><code>{{ release.tag_name }}</code>{% if release.published_at %} · <time datetime="{{ release.published_at.isoformat() }}">{{ release.published_at.strftime('%Y-%m-%d') }}</time>{% endif %}{% if release.prerelease %} · Prerelease{% endif %}</p>
+      <a href="{{ release.html_url }}" target="_blank" rel="noopener noreferrer">Canonical release on GitHub</a>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}<p>No published releases are cached yet.</p>{% endif %}
+  <p class="label-hint">Release information is cached from GitHub. Downloads remain hosted by GitHub.</p>
+</main>
+{% endblock %}

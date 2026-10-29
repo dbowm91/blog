@@ -21,8 +21,9 @@ Specialized handling for the admin dashboard and management routes.
 - `backup.py` - backup/restore
 - `analytics.py` - analytics page
 - `newsletter.py` - newsletter test
-- `settings.py` - theme settings (presets, custom CSS, logo)
+- `settings.py` - theme, appearance, navigation, and homepage settings
 - `pages.py` - static pages CRUD
+- `projects.py` - project CRUD and authenticated draft preview
 - `series.py` - post series/collections
 
 ## Routes
@@ -38,6 +39,7 @@ Specialized handling for the admin dashboard and management routes.
 - `/admin/backup` - Database backup/restore with encryption support
 - `/admin/settings` - Theme presets, custom CSS, logo
 - `/admin/pages` - Static pages CRUD
+- `/admin/projects` - Project CRUD; `/admin/projects/preview/<id>` - authenticated draft preview
 - `/admin/series` - Post series/collections management
 - `/admin/newsletter` - Newsletter with preview feature
 

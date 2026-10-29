@@ -1,0 +1,22 @@
+{% from "projects/_project_macros.html" import project_links, project_hero, project_screenshots %}
+
+<article class="project-landing project-landing-product">
+    <header class="project-hero">
+        <div class="project-hero-copy">
+            <h1 class="project-title">{{ project.title | escape }}</h1>
+            {% if project.summary %}
+            <p class="project-summary">{{ project.summary }}</p>
+            {% endif %}
+            {{ project_links(project) }}
+        </div>
+        <div class="project-hero-media">
+            {{ project_hero(project) }}
+        </div>
+    </header>
+
+    <div class="prose project-body">
+        {{ project.body | markdown_safe | safe }}
+    </div>
+
+    {{ project_screenshots(project) }}
+</article>

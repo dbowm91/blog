@@ -4,15 +4,17 @@ Specialized handling for public routes, API, and RSS.
 
 ## Key Files
 
-- `public.py` - Public-facing routes (index, post, page, tag, series, archive, search, share, subscribe, confirm, unsubscribe)
-- `api/` - REST API package (posts, subscribers, stats, auth, pages, series, tags)
+- `public/` - Public route package (browse, posts, pages, projects, meta, search, feeds, comments)
+- `api/` - REST API package (posts, subscribers, stats, auth, pages, projects, series, tags)
 - `rss.py` - RSS feed generation
 - `errors.py` - Error handlers
 - `admin/` - Admin routes package (requires login)
 
 ## Public Routes
 
-- `/` - Homepage with recent posts
+- `/` - Homepage dispatcher (blog, page, or project)
+- `/posts` - Blog post index
+- `/projects` and `/projects/<slug>` - Published project directory/landing pages; drafts return 404
 - `/<slug>` - Post view
 - `/page/<slug>` - Static page view
 - `/tag/<slug>` - Tag archive
@@ -93,14 +95,14 @@ The JSON Feed 1.1 spec requires either `content_html` or `content_text`. The `/j
 ## Sitemap
 
 Dynamic sitemap.xml generation at `/sitemap.xml`:
-- Includes homepage, archive page, static pages, posts, and tags
+- Includes the selected homepage, archive page, published pages/projects, posts, and tags
 - Uses streaming XML generation to handle large sites
 - Respects `BASE_URL` from config
 
 ## Open Graph / Social Meta
 
 Templates include Open Graph and Twitter Card meta tags:
-- `og:image` and `twitter:image` in `post.html`, `page.html`, `index.html`
+- `og:image` and `twitter:image` in post, page, project, and index templates
 - Defaults to `/static/img/default-post-social.png` when no image set. The social
   preview is a raster because a social platform does not render an SVG.
 

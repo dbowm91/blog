@@ -23,8 +23,8 @@ that banner first; it names the authoritative document for that work.
 
 ## Active Plans
 
-Three series still have work outstanding, plus a short residual list. Everything
-else in `plans/` is history.
+The active work and proposed series below are tracked here, alongside a short
+residual list. Other series in `plans/` are history.
 
 ### 1. Site Identity, Authorship and Layout — Phase 06 open
 
@@ -75,8 +75,8 @@ Phase 05 adds its page-menu fields to the **Site** settings section and the
 same `POST /admin/settings/site` endpoint that Phase 01 creates. It must not
 create a second settings form for the same page.
 
-**Migration chain.** The current single Alembic head is
-`add_appearance_settings_to_sitesettings`. The series' four migrations sit in
+**Migration chain.** The single Alembic head at the 2026-10-28 planning baseline is
+`drop_syntax_theme_column` (which follows `add_appearance_settings_to_sitesettings`). The series' four migrations sit in
 the chain in order — `add_site_settings_content_flags`, `add_user_profile_fields`,
 `add_post_author`, `add_page_menu_fields` — and are followed by
 `reconcile_schema_with_models` and the current head. Any new phase adds one
@@ -202,6 +202,28 @@ three stylesheets. `--text-caption` is the text a reader must read, and
 runtime, so no theme file declares them and the gate holds them at 4.5:1.
 Phases 05 and 06 style text at content size: they use these roles and did not
 reintroduce `--text-muted` for content.
+
+### 5. Project Pages, Documentation and Distribution — roadmap and current worktree status
+
+Roadmap: [project_pages_roadmap.md](project_pages_roadmap.md).
+
+Origin: repository source review of the current Pages, navigation, themes, Markdown, storage, public/admin/API routes and migration chain. Phases 01–02 are implemented; Phases 03–05 are partially implemented in this worktree with open acceptance gates recorded in their plans. GitHub stays canonical for releases; Phase 06 binary mirrors and any eggpack/eggup support remain gated optional work.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | **Implemented**; Project ORM/admin, `/projects`, themed layout presets |
+| 02 | [Navigation and home selection](project_pages_phase_02_navigation_home.md) | **Implemented**; configurable Projects menu, direct-link deduplication, Page/Project homepage, `/posts` |
+| 03 | [Local documentation](project_pages_phase_03_local_docs.md) | **Partial**; local authoring/viewer and assets implemented; browser/accessibility gates open |
+| 04 | [Repository documentation sync](project_pages_phase_04_repository_docs.md) | **Partial**; bounded snapshot sync implemented with a database-backed cross-worker lease; scheduler/image import gates open |
+| 05 | [Canonical release catalog](project_pages_phase_05_releases.md) | **Partial**; cached metadata and public catalog implemented; operational/API tests remain |
+| 06 | [Optional distribution](project_pages_phase_06_distribution.md) | **Manifest-only**; versioned DevLog JSON is implemented; binary mirrors deferred, no eggpack/eggup claim |
+
+**Order:** 01 → 02 → 03 → 04 → 05 → 06; 05 logically depends on 01 but merges after 04 to preserve a single migration chain. 06 may be deferred indefinitely. Each phase records its own `## Completion` evidence before status changes. Add the shipped architectural outcome to `architecture/` only as phases land.
+
+**Ownership:** `app/services/navigation.py` remains the single site-navigation producer (do not build a separate project nav resolver); `app/markdown_renderer.py` remains the Markdown sanitization producer; `app/themes/` owns colors and named theme resolution; `app/static/js/main.js` owns route module registration; a new GitHub client owns source reads; a distinct streaming artifact backend, **not** image media upload/storage byte-buffer methods, would own future binary mirrors.
+
+**Compatibility:** blog remains the default homepage, Projects navbar is off by default, all existing Pages/Post URLs remain functional, all external integrations are optional. Page menu ownership stays with Site Identity Phase 05. New Alembic revisions must use the **actual current head** when coded, not a revision copied from this date.
+
 
 ## Historical Plans
 

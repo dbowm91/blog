@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title | escape }} | {{ site_title }}{% endblock %}
+{% block meta_description %}{{ project.summary | default(project.title, true) | escape }}{% endblock %}
+{% block og_title %}{{ project.title | escape }} | {{ site_title }}{% endblock %}
+{% block og_description %}{{ project.summary | default(project.title, true) | escape }}{% endblock %}
+{% block og_type %}website{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}" media="print" onload="this.media='all'">
+{% endblock %}
+
+{% block extra_styles_noscript %}
+<link rel="stylesheet" href="{{ vite_asset('css/projects.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="project-scope">
+    {% if theme_scope.dark_vars or theme_scope.light_vars %}
+    <style nonce="{{ csp_nonce }}">
+        {% if theme_scope.dark_vars %}
+        [data-color-scheme="dark"] .project-scope {
+            {% for token, value in theme_scope.dark_vars.items() %}
+            --{{ token }}: {{ value }};
+            {% endfor %}
+        }
+        {% endif %}
+        {% if theme_scope.light_vars %}
+        [data-color-scheme="light"] .project-scope {
+            {% for token, value in theme_scope.light_vars.items() %}
+            --{{ token }}: {{ value }};
+            {% endfor %}
+        }
+        {% endif %}
+    </style>
+    {% endif %}
+
+    {% if is_preview %}
+    <p class="project-preview-banner" role="status">This project is not published yet. You are seeing an administrator preview.</p>
+    {% endif %}
+
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        {% if not is_homepage %}
+        <a href="{{ url_for('public.index') }}">Home</a>
+        <span class="breadcrumb-sep" aria-hidden="true">/</span>
+        {% endif %}
+        <a href="{{ url_for('public.projects_index') }}">Projects</a>
+        <span class="breadcrumb-sep" aria-hidden="true">/</span>
+        <span class="breadcrumb-current">{{ project.title | escape }}</span>
+    </nav>
+
+    {% if project.landing_style == 'product' %}
+        {% include "projects/_layout_product.html" %}
+    {% elif project.landing_style == 'documentation' %}
+        {% include "projects/_layout_documentation.html" %}
+    {% elif project.landing_style == 'terminal' %}
+        {% include "projects/_layout_terminal.html" %}
+    {% else %}
+        {% include "projects/_layout_minimal.html" %}
+    {% endif %}
+</div>
+{% endblock %}

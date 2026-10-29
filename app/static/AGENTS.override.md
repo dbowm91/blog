@@ -319,6 +319,7 @@ element's base rule therefore owns its breakpoint override too:
 | `base.css` | tokens, reset, `.prose`, `.btn`, `.theme-toggle`, `.back-to-top`, `.reading-progress`, `.mobile-menu-toggle`, the code block's layout and `.copy-code-btn` |
 | `layout.css` | `.container`, `.content-layout`, `.sidebar`, `.sidebar-title`, the navbar and `.nav-links` |
 | `public.css` | `.hero`, `.posts-list`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.tag-more`, `.post-footer-tags`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
+| `projects.css` | `.projects-*` directory and `.project-*` landing page structures |
 | `forms.css` | the form controls, including their iOS-zoom font sizes |
 | `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
 | `prism.css` | the Prism `.token.*` colours, and nothing else |

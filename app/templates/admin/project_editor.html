@@ -1,0 +1,149 @@
+{% extends "admin/base.html" %}
+{% from "admin/_editor_body.html" import markdown_editor %}
+
+{% block title %}{{ 'Edit' if project else 'New' }} Project | Admin{% endblock %}
+
+{% block content %}
+<div class="editor animate-in">
+    <div class="editor-header">
+        <h1>{{ 'Edit Project' if project else 'New Project' }}</h1>
+        <div class="flex-row gap-sm">
+            {% if project %}
+                <a href="{{ url_for('admin.preview_project', project_id=project.id) }}" class="btn btn-ghost btn-small" target="_blank" rel="noopener">Preview</a>
+                <a href="{{ url_for('admin.project_docs_admin', project_id=project.id) }}" class="btn btn-ghost btn-small">Docs &amp; releases</a>
+            {% endif %}
+            <a href="{{ url_for('admin.projects_list') }}" class="btn btn-small btn-ghost">&larr; Back</a>
+        </div>
+    </div>
+
+    {% if errors %}
+    <div class="form-group" role="alert">
+        <span class="field-error">
+            {% for message in errors %}
+            {{ message }}
+            {% endfor %}
+        </span>
+    </div>
+    {% endif %}
+
+    <form method="POST" class="editor-form" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" value="{{ project.title if project else '' }}" required placeholder="Project title">
+        </div>
+
+        <div class="form-group">
+            <label for="slug">Slug</label>
+            <span id="slug-hint" class="label-hint">Leave empty to auto-generate from title</span>
+            <input type="text" id="slug" name="slug" value="{{ project.slug if project else '' }}" placeholder="your-project" aria-describedby="slug-hint">
+        </div>
+
+        <div class="form-group">
+            <label for="summary">Summary</label>
+            <span id="summary-hint" class="label-hint">Short plain text shown on the project directory card</span>
+            <input type="text" id="summary" name="summary" value="{{ project.summary if project else '' }}" maxlength="500" placeholder="One line about this project" aria-describedby="summary-hint">
+        </div>
+
+        <div class="form-group">
+            <label for="landing_style">Landing layout</label>
+            <span id="landing-style-hint" class="label-hint">The preset structure of the landing page. This is a layout name, not a theme.</span>
+            <select id="landing_style" name="landing_style" aria-describedby="landing-style-hint">
+                {% for style in landing_styles %}
+                <option value="{{ style }}"{% if project and project.landing_style == style %} selected{% elif not project and style == 'minimal' %} selected{% endif %}>{{ style }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="repo_url">Repository URL</label>
+            <span id="repo-url-hint" class="label-hint">Optional. An https link to the source repository. Leave empty for a manually written project.</span>
+            <input type="url" id="repo_url" name="repo_url" value="{{ project.repo_url if project and project.repo_url else '' }}" placeholder="https://github.com/owner/repository" aria-describedby="repo-url-hint">
+        </div>
+
+        <div class="form-group">
+            <label for="theme_dark_name">Dark theme</label>
+            <span id="theme-dark-hint" class="label-hint">Optional. Scopes a theme to this page only. Leave on "Inherit" to use the site theme.</span>
+            <select id="theme_dark_name" name="theme_dark_name" aria-describedby="theme-dark-hint">
+                <option value="">Inherit the site theme</option>
+                {% for theme in themes %}
+                <option value="{{ theme.canonical_name }}"{% if project and project.theme_dark_name == theme.canonical_name %} selected{% endif %}>{{ theme.display_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="theme_light_name">Light theme</label>
+            <span id="theme-light-hint" class="label-hint">Optional. Scopes a theme to this page only. Leave on "Inherit" to use the site theme.</span>
+            <select id="theme_light_name" name="theme_light_name" aria-describedby="theme-light-hint">
+                <option value="">Inherit the site theme</option>
+                {% for theme in themes %}
+                <option value="{{ theme.canonical_name }}"{% if project and project.theme_light_name == theme.canonical_name %} selected{% endif %}>{{ theme.display_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="hero_image">Hero image</label>
+            <span id="hero-image-hint" class="label-hint">Optional. The key of an image already uploaded in Media, or upload a new file below.</span>
+            <input type="text" id="hero_image" name="hero_image" value="{{ project.hero_image if project and project.hero_image else '' }}" placeholder="media key" aria-describedby="hero-image-hint">
+        </div>
+
+        <div class="form-group">
+            <label for="hero_image_file">Upload a hero image</label>
+            <input type="file" id="hero_image_file" name="hero_image_file" accept="image/*">
+        </div>
+
+        <div class="form-group">
+            <label for="hero_image_alt">Hero image description</label>
+            <span id="hero-image-alt-hint" class="label-hint">Describes the image for readers who cannot see it</span>
+            <input type="text" id="hero_image_alt" name="hero_image_alt" value="{{ project.hero_image_alt if project and project.hero_image_alt else '' }}" maxlength="256" aria-describedby="hero-image-alt-hint">
+        </div>
+
+        <div class="form-group">
+            <label for="screenshots">Screenshots</label>
+            <span id="screenshots-hint" class="label-hint">Optional. One media key per line, or upload files below. At most six.</span>
+            <textarea id="screenshots" name="screenshots" rows="4" placeholder="media key" aria-describedby="screenshots-hint">{% if project %}{% for key in project.screenshot_keys %}{{ key }}
+{% endfor %}{% endif %}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="screenshots_file">Upload screenshots</label>
+            <input type="file" id="screenshots_file" name="screenshots_file" accept="image/*" multiple>
+        </div>
+
+        {{ markdown_editor(value=project.body if project else '', label='Content', hint='Markdown formatting supported', placeholder='Describe this project in Markdown...', error=None) }}
+
+        <div class="form-group">
+            <label for="sort_order">Sort order</label>
+            <span id="sort-order-hint" class="label-hint">Lower numbers come first in the project directory</span>
+            <input type="number" id="sort_order" name="sort_order" value="{{ project.sort_order if project else 0 }}" step="1" aria-describedby="sort-order-hint">
+        </div>
+
+        <div class="form-group form-checkbox">
+            <input type="checkbox" id="show_in_nav" name="show_in_nav" {{ 'checked' if project and project.show_in_nav }}>
+            <label for="show_in_nav">Show this project in the site menu</label>
+            <span class="label-hint">The site menu only shows projects when the Projects menu is switched on in Settings.</span>
+        </div>
+
+        <div class="form-group">
+            <label for="nav_label">Menu label</label>
+            <span id="nav-label-hint" class="label-hint">Optional. The label used in the site menu. The project title is used when this is empty.</span>
+            <input type="text" id="nav_label" name="nav_label" value="{{ project.nav_label if project and project.nav_label else '' }}" maxlength="120" aria-describedby="nav-label-hint">
+        </div>
+
+        <div class="form-group form-checkbox">
+            <input type="checkbox" id="published" name="published" {{ 'checked' if project and project.published }}>
+            <label for="published">Published</label>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if project else 'Create Project' }}</button>
+            {% if project and project.published %}
+                <a href="{{ url_for('public.project', slug=project.slug) }}" class="btn btn-small btn-ghost" target="_blank" rel="noopener">View Project</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

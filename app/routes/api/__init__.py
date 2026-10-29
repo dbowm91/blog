@@ -11,5 +11,6 @@ from app.routes.api import (  # noqa: E402, F401
     stats,
     tags,
     pages,
+    projects,
     series,
 )

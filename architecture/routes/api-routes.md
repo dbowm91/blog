@@ -13,6 +13,8 @@ REST API for programmatic access to blog data.
 | `stats.py` | `/api/stats` | GET | Dashboard statistics |
 | `pages.py` | `/api/pages` | GET, POST | List/create static pages |
 | `pages.py` | `/api/pages/<int:page_id>` | GET, PUT, DELETE | Single page operations |
+| `projects.py` | `/api/projects` | GET, POST | List/create projects |
+| `projects.py` | `/api/projects/<int:project_id>` | GET, PUT, DELETE | Single project operations |
 | `series.py` | `/api/series` | GET, POST | List/create post series |
 | `series.py` | `/api/series/<int:series_id>` | GET, PUT, DELETE | Single series operations |
 | `series.py` | `/api/series/<int:series_id>/posts` | POST | Add post to series |
@@ -41,6 +43,11 @@ All endpoints require authentication via `X-API-Key` header. Scoped tokens (`Api
 | `GET /api/pages/<id>` | GET | `pages:read` |
 | `PUT /api/pages/<id>` | PUT | `pages:write` |
 | `DELETE /api/pages/<id>` | DELETE | `pages:write` |
+| `GET /api/projects` | GET | `projects:read` |
+| `POST /api/projects` | POST | `projects:write` |
+| `GET /api/projects/<id>` | GET | `projects:read` |
+| `PUT /api/projects/<id>` | PUT | `projects:write` |
+| `DELETE /api/projects/<id>` | DELETE | `projects:write` |
 | `GET /api/series` | GET | `series:read` |
 | `POST /api/series` | POST | `series:write` |
 | `GET /api/series/<id>` | GET | `series:read` |
@@ -355,7 +362,7 @@ The `SCOPES` set (all valid scope strings) includes the individual scopes plus c
 ```
 posts:read, posts:write, posts:*, media:read, media:write, media:*, subscribers:read,
 subscribers:write, subscribers:*, newsletter:send, newsletter:*, analytics:read, analytics:*,
-tags:read, tags:write, tags:*, pages:read, pages:write, pages:*, series:read, series:write,
+tags:read, tags:write, tags:*, pages:read, pages:write, pages:*, projects:read, projects:write, projects:*, series:read, series:write,
 series:*, admin:*
 ```
 
@@ -436,6 +443,9 @@ Full scope list (defined in `app/routes/api/auth.py`):
 | `pages:read` | Read pages |
 | `pages:write` | Create/update/delete pages |
 | `pages:*` | Category wildcard — grants all page scopes |
+| `projects:read` | Read project records |
+| `projects:write` | Create/update/delete project records |
+| `projects:*` | Category wildcard — grants all project scopes |
 | `series:read` | Read series |
 | `series:write` | Create/update/delete series |
 | `series:*` | Category wildcard — grants all series scopes |

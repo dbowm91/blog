@@ -1,6 +1,6 @@
 # Database Models (`app/models.py`)
 
-The blog uses SQLAlchemy ORM with the following models:
+The application uses 23 SQLAlchemy ORM models:
 
 ## Model Overview
 
@@ -12,10 +12,16 @@ The blog uses SQLAlchemy ORM with the following models:
 | `Tag` | Blog tags | name, slug |
 | `Subscriber` | Newsletter subscribers | email, token, confirmed |
 | `Page` | Static pages | title, slug, body, published |
+| `Project` | Portfolio/project landing pages | title, slug, body, layout, published, repository_url, docs_enabled |
+| `ProjectDocument` | Local and snapshot-backed project Markdown | project_id, snapshot_id, version_key, path, title, body, published, nav_order |
+| `ProjectDocumentAsset` | Project documentation images | project_id, path, storage_key, content_type, file_size, sha256 |
+| `ProjectDocsSnapshot` | Immutable repository documentation snapshot | project_id, source_ref, commit_sha, status, manifest_sha256 |
+| `ProjectRelease` | Cached GitHub release metadata | project_id, provider_release_id, tag_name, notes_markdown, html_url, prerelease |
+| `ProjectReleaseAsset` | Canonical GitHub release asset metadata | release_id, provider_asset_id, size_bytes, browser_download_url, provider_digest |
 | `PageView` | Analytics | post_id, referrer, created_at |
 | `ShareEvent` | Social sharing | post_id, platform |
 | `AdminSession` | Session tracking | user_id, session_id, ip_address |
-| `SiteSettings` | Theme/settings | theme_dark_name, theme_light_name, theme_default_scheme, custom_css, logo_text |
+| `SiteSettings` | Theme, navigation, and homepage settings | theme names, custom_css, show_projects_in_menu, homepage_kind, homepage_target_id |
 | `AdminAuditLog` | Audit trail | actor_id, action, target_id |
 | `Webhook` | Webhook endpoints | name, url, webhook_secret_encrypted, event_type |
 | `WebhookEvent` | Webhook deliveries | event_type, payload, delivered, delivery_status |
@@ -41,6 +47,10 @@ Post
 Subscriber
 Tag
 Page
+Project (independent; no Page relationship)
+├── ProjectDocument and ProjectDocumentAsset
+├── ProjectDocsSnapshot (snapshot-backed docs; local docs remain separate)
+└── ProjectRelease → ProjectReleaseAsset
 Series
 SiteSettings
 Webhook
@@ -70,6 +80,12 @@ Comment
 | Name | Columns |
 |------|---------|
 | `ix_pages_published_slug` | (published, slug) |
+
+### Projects
+| Name | Columns |
+|------|---------|
+| `ix_projects_published_sort_title` | (published, sort_order, title) |
+| `ix_projects_published_slug` | (published, slug) |
 
 ### PageView
 | Name | Columns |
@@ -383,6 +399,33 @@ class Page(db.Model):
     # Index: ix_pages_published_slug
 ```
 
+## Project
+
+Projects are separate from static `Page` records. Public routes resolve only
+published projects; draft preview is available through the authenticated admin
+preview route. `landing_style` selects one of the bundled project layouts, while
+`theme_dark_name` and `theme_light_name` apply only within the project's page.
+Repository URLs, hero media, alt text, screenshot media keys, local documentation, repository-backed documentation, and release metadata are optional. Documentation is disabled by default and served only for published projects/documents. Locally authored rows have no `snapshot_id`; GitHub-imported rows point to immutable `ProjectDocsSnapshot` records and a project active-snapshot pointer. `app.services.project_docs.normalize_document_path()` is the sole document-path validator; it never reads from the filesystem. Repository acquisition uses `app.services.github_client` and `app.services.project_docs_sync`; release metadata uses `app.services.project_releases`. Public reads are database-only. GitHub remains canonical for releases and download assets; stored digests are provider claims, not DevLog verification.
+
+The `projects` table also carries synchronisation bookkeeping: `docs_sync_status`, `docs_sync_error` and `docs_synced_at` describe the last documentation sync, `releases_sync_status`, `releases_sync_error`, `releases_synced_at` and `releases_etag` the last release sync, and `releases_sync_config` the fingerprint of the configuration that produced that ETag. The lease columns `docs_sync_lease_owner`, `docs_sync_lease_expires_at`, `releases_sync_lease_owner` and `releases_sync_lease_expires_at` carry the `app.services.sync_lease` ownership token for each synchronisation scope.
+
+```python
+class Project(db.Model):
+    __tablename__ = "projects"
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    summary = db.Column(db.String(500), default="", nullable=False)
+    body = db.Column(db.Text, default="", nullable=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    repo_url = db.Column(db.String(512), nullable=True)
+    landing_style = db.Column(db.String(32), default="minimal", nullable=False)
+    show_in_nav = db.Column(db.Boolean, default=False, nullable=False)
+    nav_label = db.Column(db.String(120), nullable=True)
+    hero_image = db.Column(db.String(256), nullable=True)
+    screenshots = db.Column(db.JSON, nullable=True)
+```
+
 ## SiteSettings
 
 ```python
@@ -393,6 +436,10 @@ class SiteSettings(db.Model):
     custom_css_enabled = db.Column(db.Boolean, default=False, nullable=False)
     custom_css = db.Column(db.Text, default="", nullable=False)
     logo_text = db.Column(db.String(100), default="", nullable=False)
+    show_projects_in_menu = db.Column(db.Boolean, default=False, nullable=False)
+    projects_menu_label = db.Column(db.String(64), default="Projects", nullable=False)
+    homepage_kind = db.Column(db.String(16), default="blog", nullable=False)
+    homepage_target_id = db.Column(db.Integer, nullable=True)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod
