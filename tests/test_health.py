@@ -4,7 +4,15 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-test-secret-key-1234")
 os.environ.setdefault("ADMIN_PASSWORD", "test-password-123")
 os.environ["PAGE_VIEW_BUFFER_SIZE"] = "0"
 
+from collections import namedtuple
 from unittest.mock import patch
+
+_DiskUsage = namedtuple("_DiskUsage", "total used free")
+
+
+def _healthy_disk_usage() -> _DiskUsage:
+    """Return a disk usage result with 50% free space."""
+    return _DiskUsage(100 * 1024**3, 50 * 1024**3, 50 * 1024**3)
 
 
 class TestHealthBasic:
@@ -163,7 +171,8 @@ class TestHealthBackendAware:
 
     @patch("app.routes.public.meta.HEALTH_CHECK_SECRET", "")
     @patch("app.routes.public.meta.is_sqlite_database", return_value=False)
-    def test_non_sqlite_overall_ok_despite_unsupported(self, mock_is_sqlite, client, db):
+    @patch("shutil.disk_usage", return_value=_healthy_disk_usage())
+    def test_non_sqlite_overall_ok_despite_unsupported(self, mock_disk, mock_is_sqlite, client, db):
         resp = client.get("/health?detailed=true")
         data = resp.get_json()
         assert data["status"] == "ok"

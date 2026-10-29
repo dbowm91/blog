@@ -22,6 +22,30 @@ def _get_theme_service():
     return get_theme_service()
 
 
+def _translated_css_variables(theme: Any) -> list[str]:
+    """List the CSS custom properties a translated theme defines."""
+    from app.themes.model import CSS_VARS
+
+    fields = theme.__dataclass_fields__
+    return [css_var for field_name, css_var in CSS_VARS.items() if field_name in fields]
+
+
+def _bundled_theme_named(name: str) -> str | None:
+    """Return the display name of the bundled theme with this name, if any."""
+    if not name:
+        return None
+    try:
+        registry = _get_theme_service().get_registry()
+        for descriptor in registry.list_themes():
+            if descriptor.source.value != "bundled":
+                continue
+            if descriptor.canonical_name.lower() == name.lower():
+                return descriptor.display_name
+    except Exception:
+        return None
+    return None
+
+
 def _descriptor_to_dict(d: Any, *, verbose: bool = False) -> dict[str, Any]:
     from app.config import THEME_EXTERNAL_DIR
 
@@ -171,6 +195,15 @@ def _validate_theme_file(file_path: Path) -> ThemeValidationResult:
     if contrast_warnings:
         warnings.extend(f"{w.description} ({w.ratio}:1)" for w in contrast_warnings)
 
+    bundled_name = _bundled_theme_named(file_path.stem)
+    if bundled_name:
+        warnings.append(
+            f"Overrides bundled theme '{bundled_name}'. "
+            "Placing this file in the external theme directory replaces it."
+        )
+
+    translated_tokens = _translated_css_variables(translation.theme)
+
     return ThemeValidationResult(
         ok=True,
         code="themes.validate.ok",
@@ -182,6 +215,7 @@ def _validate_theme_file(file_path: Path) -> ThemeValidationResult:
             "schema_version": halloy_theme.schema_version,
             "is_dark": translation.is_dark,
             "token_count": len(translation.theme.__dataclass_fields__),
+            "translated_tokens": translated_tokens,
         },
         warnings=warnings,
     )

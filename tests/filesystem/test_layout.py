@@ -13,6 +13,7 @@ from app.filesystem.layout import (
     _xdg_data_home,
     _xdg_runtime_dir,
     _xdg_state_home,
+    resolve_migrations_directory,
 )
 
 
@@ -665,3 +666,25 @@ class TestDockerVolumeMigration:
         assert "--gid 1000" in content or "--gid blog" in content, (
             "Dockerfile should use explicit GID 1000 or named group"
         )
+
+
+class TestMigrationsDirectory:
+    def test_resolves_to_absolute_path(self):
+        resolved = Path(resolve_migrations_directory())
+        assert resolved.is_absolute()
+
+    def test_resolved_directory_holds_alembic_environment(self):
+        resolved = Path(resolve_migrations_directory())
+        assert (resolved / "env.py").is_file()
+        assert (resolved / "alembic.ini").is_file()
+        assert (resolved / "versions").is_dir()
+
+    def test_resolution_is_independent_of_cwd(self, tmp_path, monkeypatch):
+        before = resolve_migrations_directory()
+        monkeypatch.chdir(tmp_path)
+        assert resolve_migrations_directory() == before
+
+    def test_app_factory_configures_absolute_migrate_directory(self, app):
+        directory = app.extensions["migrate"].directory
+        assert Path(directory).is_absolute()
+        assert (Path(directory) / "env.py").is_file()

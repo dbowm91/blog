@@ -11,6 +11,7 @@ This is a **package** (not a single file like `api.py`):
 - `subscribe.py` - Newsletter subscription
 - `meta.py` - Sitemap, robots.txt
 - `comments.py` - Public comment viewing
+- `media.py` - Serves uploaded media from the configured upload folder
 
 ## Key Routes
 - `/` - Homepage dispatcher (blog, static page, or project)
@@ -23,6 +24,7 @@ This is a **package** (not a single file like `api.py`):
 - `/rss`, `/atom`, `/json` - Feed endpoints
 - `/subscribe`, `/confirm/<token>`, `/unsubscribe/<token>` - Newsletter
 - `/comments/<post_id>` - View comments
+- `/static/uploads/<path:filename>` - Uploaded media, served from `UPLOAD_FOLDER`
 
 ## Performance Notes
 - Uses `joinedload(Post.tags)` to fix N+1 queries

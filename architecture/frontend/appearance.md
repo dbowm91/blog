@@ -29,6 +29,8 @@ same shape so there is one mechanism to learn, not two:
 The service is per-process, registered as `app.extensions["appearance_service"]`
 by `init_appearance_service()` in the app factory, and cached for 300 seconds
 exactly like the theme service. `invalidate_settings_cache()` clears both.
+The app factory also drops that cache at the start of every request, so a
+font or backdrop change reaches every worker with the next request.
 
 ## The Font Catalog
 

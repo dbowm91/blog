@@ -26,14 +26,20 @@ import logging
 import os
 
 try:
+    from cryptography.exceptions import InvalidTag
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.primitives.exceptions import InvalidTag
     from cryptography.hazmat.backends import default_backend
 
     CRYPTOGRAPHY_AVAILABLE = True
+    _DECRYPT_ERRORS: tuple[type[BaseException], ...] = (
+        OSError,
+        ValueError,
+        RuntimeError,
+        InvalidTag,
+    )
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
-    InvalidTag = type("InvalidTag", (Exception,), {})
+    _DECRYPT_ERRORS = (OSError, ValueError, RuntimeError)
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +175,7 @@ def decrypt_backup(data: bytes) -> bytes:
 
         return plaintext
 
-    except (OSError, ValueError, RuntimeError, InvalidTag) as e:
+    except _DECRYPT_ERRORS as e:
         raise RuntimeError(f"Decryption failed: {e}")
 
 
@@ -223,6 +229,6 @@ def decrypt_backup_file(input_path: str, output_path: str) -> bool:
             f.write(decrypted)
 
         return True
-    except (OSError, ValueError, RuntimeError, InvalidTag) as e:
+    except _DECRYPT_ERRORS as e:
         logger.error("Failed to decrypt backup file %s: %s", input_path, e)
         return False

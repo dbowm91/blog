@@ -47,6 +47,10 @@ def _derive_state_bg(fg: RGB, surface: RGB) -> RGBA:
     return RGBA(fg.red, fg.green, fg.blue, 0.15)
 
 
+def _opaque(color: RGB) -> RGBA:
+    return RGBA(color.red, color.green, color.blue, 1.0)
+
+
 def _derive_surface_hover(surface: RGB, is_dark: bool) -> RGB:
     if is_dark:
         return shift_lightness(surface, 0.06)
@@ -275,13 +279,13 @@ def translate_halloy_theme(theme: HalloyTheme) -> ThemeTranslationResult:
         accent_focus_ring=accent,
         accent_text=accent_text,
         success_fg=success_fg,
-        success_bg=alpha_composite(_derive_state_bg(success_fg, bg_page), bg_page),
+        success_bg=_opaque(alpha_composite(_derive_state_bg(success_fg, bg_page), bg_page)),
         error_fg=error_fg,
-        error_bg=alpha_composite(_derive_state_bg(error_fg, bg_page), bg_page),
+        error_bg=_opaque(alpha_composite(_derive_state_bg(error_fg, bg_page), bg_page)),
         warning_fg=warning_fg,
-        warning_bg=warning_bg_rgb,
+        warning_bg=_opaque(warning_bg_rgb),
         info_fg=info_fg,
-        info_bg=info_bg_rgb,
+        info_bg=_opaque(info_bg_rgb),
         input_bg=input_bg,
         input_border=border_primary,
         input_text=text_primary,

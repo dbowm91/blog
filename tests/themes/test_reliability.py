@@ -1153,11 +1153,14 @@ class TestStructuredLogging:
         assert "malformed external theme" in caplog.text
         assert "malformed bundled theme" not in caplog.text
 
-    def test_case_collision_bundled_logs_warning(self, tmp_path: Path, caplog) -> None:
+    def test_case_collision_bundled_logs_warning(
+        self, tmp_path: Path, caplog, case_collision
+    ) -> None:
         bundled = tmp_path / "bundled"
         bundled.mkdir()
         _write_theme(bundled, "MyTheme")
         _write_theme(bundled, "mytheme")
+        case_collision(bundled, ("MyTheme", "mytheme"))
 
         registry = _make_registry(tmp_path, bundled_root=bundled)
         with caplog.at_level("WARNING", logger="app.themes.registry"):

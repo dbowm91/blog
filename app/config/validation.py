@@ -655,14 +655,14 @@ def validate_filesystem(
                 )
             )
 
-    manifest = Path("app/static/dist/manifest.json")
+    manifest = Path("app/static/dist/.vite/manifest.json")
     if not manifest.exists():
         findings.append(
             Finding(
                 severity=Severity.INFO,
                 code="filesystem.manifest_missing",
                 field="manifest",
-                message="Vite manifest not found at app/static/dist/manifest.json; run 'npm run build' for production",
+                message="Vite manifest not found at app/static/dist/.vite/manifest.json; run 'npm run build' for production",
             )
         )
 

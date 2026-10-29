@@ -129,6 +129,7 @@ This table lists only the locations that are easy to get wrong.
 
 - **Linting**: `ruff check .` and `ruff format --check .`
 - **Type checking**: `mypy app/ devlog_cli/`
+- **Pinned toolchain**: `ruff>=0.15.2,<0.16`, `mypy>=2.4.0,<2.5`, `pytest>=9.0.2,<10.0` in `requirements-dev.txt`. Ruff's rule selection is declared explicitly in `pyproject.toml` (`select = ["E4", "E7", "E9", "F"]`) so the lint result does not depend on the installed ruff version. Do not widen these bounds without re-running the full gate — a ruff release that changes its defaults otherwise turns the build red on untouched files.
 - **SQLAlchemy**: Use SQLAlchemy 2.0 style (`db.session.execute(select(...))` pattern)
 - **No comments**: Do not add comments unless explicitly requested
 - **Security**: Never commit secrets, keys, or credentials
@@ -156,6 +157,7 @@ These are the seams where a second producer is the defect. Each has one owner.
 | Heading anchors | `app/static/js/public/anchor-links.js` — a direct child of the heading, never wrapped |
 | Markdown rendering | `app/markdown_renderer.py` / the `markdown_safe` filter |
 | Post image URL | The `post_image_url` filter — a URL, never re-wrapped with `url_for('static', …)` |
+| Uploaded media | The `/static/uploads/` route in `app/routes/public/media.py` — served from `UPLOAD_FOLDER`, not from the installation directory |
 | The CSRF header name | `CSRF_HEADER_NAME` in `app/csrf.py`, published as `data-csrf-header` |
 | Filesystem paths | `RuntimePaths` in `app/filesystem/layout.py` |
 | Operational logic | `app/services/operations/` — never in a CLI handler |
@@ -202,7 +204,7 @@ All services require explicit profiles. There is no default profile:
 
 ### CI workflow
 
-CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. E2E tests run through a CI-only compose override (`docker-compose.ci.yml`) that publishes port 5000 directly, bypassing nginx. The `E2E_BASE_URL` env var controls the test target URL.
+CI configuration is at `.github/workflows/ci.yml`. It includes 11 jobs: `lint-and-type`, `test`, `theme-policy`, `migration-chain`, `theme-package-verification`, `frontend-build`, `security-audit`, `docker-build`, `e2e-tests`, `dependency-consistency`, and `release1-package-smoke`. The E2E job runs the `production` compose profile, whose blog service publishes `127.0.0.1:5000` while nginx sits in the `reverse-proxy` profile, so the suite reaches the application directly. There is no CI compose overlay: Compose merges port lists rather than replacing them, so a second binding of host port 5000 stops the container from starting. The `E2E_BASE_URL` env var controls the test target URL. The suite and the container share one database: `BLOG_DATA_VOLUME` bind-mounts a host directory as the container's `/data` and `E2E_DATABASE_URI` points the suite at the same file, so the browser sees the data the suite seeds. `security-audit` runs `pip-audit -r requirements.txt -S` and fails on any known vulnerability, so a runtime bound must be raised whenever an advisory lands. See [architecture/deployment/cicd.md](architecture/deployment/cicd.md) for the pinned toolchain and the per-job contract.
 
 ### Webhook delivery
 
@@ -230,6 +232,8 @@ The codebase has a centralized filesystem path system at `app/filesystem/`:
 CLI: `devlog paths status`, `devlog paths discover-legacy`, `devlog paths migrate`, `devlog paths check`.
 
 Key rules: all paths are absolute after resolution; explicit overrides always win over env vars and mode defaults; legacy discovery is read-only; migration planning defaults to dry-run; production services must not require write access to source directories.
+
+The application writes only to the directories the typed configuration names. `create_app()` derives the Flask instance path from `paths.runtime_dir`, the upload folder from `paths.uploads_dir` (falling back to `paths.data_dir/uploads`) and the log directory from `paths.log_dir`. The container image sets `DEVLOG_DATA_DIR=/data`, `DEVLOG_LOG_DIR=/var/log/devlog` and `DEVLOG_RUNTIME_DIR=/run/devlog`, because the installation directory itself is read-only for the unprivileged runtime user. Without those variables the application falls back to `instance/`, `app/static/uploads/` and `logs/` inside the source tree, which is correct for a development checkout. See [architecture/deployment/docker.md](architecture/deployment/docker.md) and `tests/test_runtime_directories.py`.
 
 `execute_migration()` returns a `MigrationExecutionResult` tracking `ok`, `completed_steps`, `total_steps`, `errors`, `completed_paths`, and performs a SQLite WAL checkpoint (`PRAGMA wal_checkpoint(TRUNCATE)`) on the source database before executing move/copy steps.
 
@@ -387,7 +391,7 @@ See [architecture/deployment/managed-deployment.md](architecture/deployment/mana
 
 ### E2E test isolation
 
-`tests/e2e/conftest.py` defines its own session-scoped `app` fixture with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone works. The `app_server` fixture uses readiness polling for server startup. Browser-level tests belong under `tests/e2e/` — a live server thread on the session-scoped application shares its database with the migration tests and corrupts their DDL.
+`tests/e2e/conftest.py` defines its own session-scoped `app` fixture with a separate database (`blog_e2e`). Running `pytest tests/e2e/` alone works. The `app_server` fixture uses readiness polling for server startup. Browser-level tests belong under `tests/e2e/` — a live server thread on the session-scoped application shares its database with the migration tests and corrupts their DDL. `E2E_DATABASE_URI` points the fixture at a database owned by another process (CI shares one with the container); without it the suite keeps its own `blog_e2e` database and never touches the developer's.
 
 ### Session IP binding
 
@@ -431,12 +435,11 @@ For detailed implementation history, deprecated features, actual route correctio
 
 ## Known Defects
 
-Verified against the source on 2026-10-28 and **not yet fixed**. Each has a
+Verified against the source on 2026-10-29 and **not yet fixed**. Each has a
 "Notes and Gotchas" entry in the relevant architecture document.
 
 | Defect | Where |
 |---|---|
-| **The backup tests share one directory, so `test_download_backup` fails at random.** `tests/services/test_operations_backup.py` writes `blog_verify_<uuid>.db` into `app.instance_path/backups`; `tests/test_phase8.py` downloads the first entry of an *unsorted* listing, and the route refuses a name that is not `blog_<timestamp>.db`. On an unmodified checkout the test failed 10 runs out of 10 when the two modules shared a session — so a full-suite failure set is not reproducible run to run, and one differing test in this area is not a regression | `tests/services/test_operations_backup.py`, `tests/test_phase8.py` |
 | `shift_lightness()` computes `q` identically in both branches of the `lightness < 0.5` test, so dark colours take the light-colour path (`#161b22` +0.06 → `#002459`, not `#222a35`) | `app/themes/colors.py` |
 | Create/update/delete handlers expose internal exception text via `flash(f"Error …: {str(e)}")` | `app/routes/admin/series.py` |
 | `--quiet` and `--no-color` are stored on `CliContext` but never read | `devlog_cli/context.py`, `devlog_cli/main.py` |
@@ -448,6 +451,8 @@ history is not lost.
 
 | Defect | Fix |
 |---|---|
+| **The backup tests shared one directory, so `test_download_backup` failed at random.** `tests/services/test_operations_backup.py` wrote `blog_verify_<uuid>.db` into the session's backup directory; `tests/test_phase8.py` downloaded the first entry of an *unsorted* listing, and the route refuses a name that is not `blog_<timestamp>.db`. On an unmodified checkout the test failed 10 runs out of 10 when the two modules shared a session | The services fixture writes into `tmp_path`; `test_download_backup` selects a name the route's own `validate_backup_filename()` accepts |
+| **`test_backup_retention_policy` never created a backup.** It passed `app.instance_path/blog.db` to `create_backup()`, which is not where the application keeps its database, so every call returned `None` and the assertion counted whatever other tests had left in the shared directory — it failed on CI with `assert 4 <= 3` and passed locally by luck | The test resolves the live database through `resolve_database_file()`, backs up into `tmp_path`, and asserts that exactly the retention limit survives and that the oldest one is the file removed |
 | The scheduled backup looked for `instance/blog.db` instead of the configured database | `resolve_database_file()` / `resolve_backup_dir()` in `app/services/backup.py`; `app/tasks.py`, `app/services/operations/backup.py` and `backup.py` all use them |
 | `_build_context()` read `current_app.config["DEVLOG_CONFIG"]`, which the app factory never set — the whole `devlog deploy` group raised `KeyError` | `create_app()` sets `app.config["DEVLOG_CONFIG"]` |
 | `deploy render` defaulted `--target` to `["all"]` but the service dispatched only on concrete names, rendering zero files | `_resolve_targets()` expands `all` to the five concrete targets |
@@ -472,6 +477,19 @@ history is not lost.
 | `/var/log/devlog` was never created and `/run/devlog` is a tmpfs, so the unit's own `ExecStartPre` directory checks failed | Onboarding creates the log and runtime directories and hands them to the service account; the units declare `RuntimeDirectory=devlog` so systemd recreates the runtime path on every start |
 | `DEPLOY.md` told non-Docker operators to run `npm ci && npm run build`, but a release wheel already contains the built assets | The build step is documented as a source-checkout step only; a release install needs no Node.js |
 | `tests/config/test_legacy_import_boundary.py` scanned the whole repository root, so a nested worktree copy of the project failed the test | The scan is scoped to this project's source and skips VCS, cache and worktree directories |
+
+### Fixed in the E2E-gate pass (2026-10-29)
+
+The browser suite browses the container the E2E job starts. Getting it to
+run at all exposed four defects that no other gate covered.
+
+| Defect | Fix |
+|---|---|
+| **The suite browsed a container that had none of its data.** The job set `E2E_BASE_URL` to the container, but `tests/e2e/conftest.py` seeded its own database in a temporary directory, so the container answered every request without the data the suite had just written and the browser tests waited for selectors that were never rendered | `BLOG_DATA_VOLUME` bind-mounts a host directory as the container's `/data` and `E2E_DATABASE_URI` points the suite at the same file. The administrator is updated instead of inserted when the shared database already holds one |
+| **Uploaded media was not served outside nginx.** The storage backend publishes uploads as `/static/uploads/<name>`, but Flask's own static route answered that prefix from the installation directory, so a deployment that keeps its uploads elsewhere — every container deployment, where the upload folder is `/data/uploads` — answered every image with a 404. Only nginx papered over it by aliasing the same prefix onto the volume | The application serves the configured upload folder under the same prefix (`app/routes/public/media.py`) |
+| **The storage backend resolved its directory from the ambient application context.** Built outside one — a background task, or the first call in a process — it fell back to `app/static/uploads` in the source tree, so an upload landed outside the deployment's data directory | The app factory binds the backend to the application's configuration when it creates the application (`init_storage()`) |
+| **A theme change stayed invisible in the other workers for five minutes.** The theme and appearance contexts are derived from the `SiteSettings` row and cached per process for `_SETTINGS_CACHE_TTL` (300 s), so a change saved by one worker only reached that worker | The app factory drops both caches at the start of every request, so a change reaches every worker with the next request |
+| **The theme catalogue could raise an `AssertionError` while it was rebuilt.** `list_themes()` read `self._catalog` twice and asserted on the second read; a thread that invalidated the catalogue in between turned that into an exception, which is what the concurrency tests in `tests/themes/test_reliability.py` hit depending on the machine's load | The catalogue is snapshotted into a local variable, and a catalogue invalidated during the rebuild yields an empty list |
 
 
 ## Architecture Cross-Reference

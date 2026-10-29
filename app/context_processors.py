@@ -162,7 +162,7 @@ def _get_settings_cache_key() -> str:
     return "site_settings"
 
 
-@flask_cache.cached(timeout=300, key_prefix=_get_settings_cache_key)  # type: ignore[arg-type]
+@flask_cache.cached(timeout=300, key_prefix=_get_settings_cache_key)
 def _get_cached_settings() -> dict[str, Any]:
     """Emergency fallback when ThemeService is unavailable.
 

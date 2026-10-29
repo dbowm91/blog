@@ -90,10 +90,10 @@ Used to test newsletter rendering and email logic without creating actual `Subsc
 
 ### E2E-Only Fixtures
 
-- `app` - Session-scoped fixture defined in `e2e/conftest.py:11-43`; creates a separate database (`blog_e2e`) and disables CSRF. This fixture **shadows** the main `conftest.py` `app` fixture for E2E tests.
+- `app` - Session-scoped fixture defined in `e2e/conftest.py`; creates a separate database (`blog_e2e`) and disables CSRF. `E2E_DATABASE_URI` replaces that database with one owned by another process, which is how CI shares one database with the container it browses. This fixture **shadows** the main `conftest.py` `app` fixture for E2E tests.
 - `app_url` - Base URL for the Flask application (`http://127.0.0.1:5010`)
 - `browser_type_launch_args` - Configured browser launch arguments (`--no-sandbox`, `--disable-setuid-sandbox`)
-- `app_server` - Session-scoped fixture that starts the Flask server on port 5010
+- `app_server` - Session-scoped fixture that starts the Flask server on port 5010 and seeds the administrator (created when missing, updated when the database already has one)
 - `page` - Provided by `pytest-playwright` (not defined in project conftest); standard Playwright page fixture for browser interaction
 
 ## Key Configuration
@@ -108,7 +108,7 @@ addopts = "--cov=app --cov-report=term-missing"
 Coverage settings in `pyproject.toml`:
 ```toml
 [tool.coverage.report]
-fail_under = 80
+fail_under = 75
 ```
 
 Additional markers are defined in `pytest.ini`:
@@ -209,7 +209,7 @@ post = db.session.get(Post, post.id)
 
 ### E2E Test `app` Fixture
 
-The E2E tests in `tests/e2e/conftest.py` define their **own** session-scoped `app` fixture (lines 11-43) that creates a separate database (`blog_e2e`). This fixture **shadows** the main `tests/conftest.py` `app` fixture for E2E tests. Running `pytest tests/e2e/` alone works because the E2E conftest provides its own `app` fixture.
+The E2E tests in `tests/e2e/conftest.py` define their **own** session-scoped `app` fixture that creates a separate database (`blog_e2e`). This fixture **shadows** the main `tests/conftest.py` `app` fixture for E2E tests. Running `pytest tests/e2e/` alone works because the E2E conftest provides its own `app` fixture. The `E2E_DATABASE_URI` env var replaces that database with one owned by another process; CI uses it so the suite and the container read and write the same SQLite file.
 
 ## SQLAlchemy 2.0 Query Patterns
 

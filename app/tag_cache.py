@@ -33,7 +33,7 @@ def _build_tag_counts_query() -> list[Row[Any]]:
 def _get_tag_counts_cached() -> dict[Any, Any]:
     """Cached tag counts query."""
     rows = _build_tag_counts_query()
-    return {row[0]: row[1] for row in rows}
+    return {row._mapping["tag_id"]: row._mapping["cnt"] for row in rows}
 
 
 def _get_tag_counts() -> dict[Any, Any]:
@@ -46,7 +46,7 @@ def _get_tag_counts() -> dict[Any, Any]:
 def _get_tag_counts_uncached() -> dict[Any, Any]:
     """Uncached tag counts query (for non-request contexts)."""
     rows = _build_tag_counts_query()
-    return {row[0]: row[1] for row in rows}
+    return {row._mapping["tag_id"]: row._mapping["cnt"] for row in rows}
 
 
 def invalidate_tag_cache() -> None:

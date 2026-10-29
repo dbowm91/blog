@@ -31,6 +31,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db, login_manager, migrate
 
 from app.csrf import validate_csrf_token, should_skip_csrf
+from app.filesystem import resolve_migrations_directory
 from app.services.site_settings import invalidate_site_settings_cache
 from app.utils import utc_now
 
@@ -130,7 +131,12 @@ def configure_logging(app: Flask) -> None:
             return True
 
     if not app.debug and not app.testing:
-        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+        cfg = getattr(app, "devlog_config", None)
+        paths = getattr(cfg, "paths", None)
+        configured_log_dir = getattr(paths, "log_dir", "") if paths is not None else ""
+        log_dir = configured_log_dir or os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "logs"
+        )
         os.makedirs(log_dir, exist_ok=True)
 
         file_handler = RotatingFileHandler(
@@ -146,7 +152,9 @@ def configure_logging(app: Flask) -> None:
 
 
 def create_app() -> Flask:
+    from app.appearance.service import get_appearance_service
     from app.config.loader import load_effective_config
+    from app.themes.service import get_theme_service
 
     cfg = load_effective_config()
     if not cfg.secret_key:
@@ -162,7 +170,10 @@ def create_app() -> Flask:
         raise RuntimeError(
             "ADMIN_PASSWORD is required. Set it via the ADMIN_PASSWORD environment variable."
         )
-    app = Flask(__name__, instance_relative_config=True)
+    instance_root: str | None = cfg.paths.runtime_dir
+    if not instance_root or not os.path.isabs(instance_root):
+        instance_root = None
+    app = Flask(__name__, instance_relative_config=True, instance_path=instance_root)
     app.devlog_config = cfg  # type: ignore[attr-defined]
     app.config["DEVLOG_CONFIG"] = cfg
     app.config["SECRET_KEY"] = cfg.secret_key
@@ -170,11 +181,19 @@ def create_app() -> Flask:
     upload_folder = (
         cfg.paths.uploads_dir
         or os.environ.get("UPLOAD_FOLDER")
+        or (os.path.join(cfg.paths.data_dir, "uploads") if cfg.paths.data_dir else "")
         or os.path.join(os.path.dirname(__file__), "static", "uploads")
     )
     app.config["UPLOAD_FOLDER"] = upload_folder
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    with app.app_context():
+        from app.storage import init_storage
+
+        # The storage backend resolves the upload folder and the S3 settings
+        # from the configuration, so it is built inside the application
+        # context.
+        init_storage()
     db_uri = cfg.database.uri
     if db_uri:
         app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
@@ -261,7 +280,7 @@ def create_app() -> Flask:
             cursor.close()
 
     login_manager.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db, directory=resolve_migrations_directory())
 
     from app.routes.public import public  # noqa: E402
     from app.routes.admin import admin  # noqa: E402
@@ -304,6 +323,14 @@ def create_app() -> Flask:
         # theme service, the context processors and the navigation service.
         # Drop any row cached for a previous request on this context.
         invalidate_site_settings_cache()
+
+        # The theme context is derived from that row and cached per process.
+        # Without this drop, a theme change only reaches the worker that
+        # saved it and the other workers keep serving the previous theme
+        # until the cache expires. Rebuilding it costs a fraction of a
+        # millisecond, because the parsed themes stay in the registry cache.
+        get_theme_service().invalidate_settings_cache()
+        get_appearance_service().invalidate_settings_cache()
 
         # CSRF validation for POST requests (skips API blueprint)
         if req.method == "POST" and not should_skip_csrf():

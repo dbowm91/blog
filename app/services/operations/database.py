@@ -99,9 +99,12 @@ def rebuild_search_index() -> SearchRebuildResult:
         )
 
     try:
-        count = db.session.execute(
-            select(func.count(Post.id)).where(Post.published == True)  # noqa: E712
-        ).scalar()
+        count = (
+            db.session.execute(
+                select(func.count(Post.id)).where(Post.published == True)  # noqa: E712
+            ).scalar()
+            or 0
+        )
     except (OperationalError, ProgrammingError, DatabaseError) as e:
         db.session.rollback()
         logger.warning("Failed to count indexed posts: %s", e)
