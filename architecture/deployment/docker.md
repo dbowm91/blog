@@ -142,6 +142,13 @@ locations inside the source tree (`instance/`, `app/static/uploads/`, `logs/`),
 which is correct for a development checkout and wrong for a container. The
 contract is covered by `tests/test_runtime_directories.py`.
 
+The `blog_data` volume is mounted through the `BLOG_DATA_VOLUME` variable
+(`${BLOG_DATA_VOLUME:-blog_data}:/data`), which defaults to the named volume.
+A test job sets it to a host directory so the container and the test process
+share one SQLite file; the container runs as UID 1000 and the test process as
+another user, so that directory and its database file must be writable by
+both.
+
 ## Celery Task Queues
 
 For production deployments with Celery:

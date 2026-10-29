@@ -39,7 +39,10 @@ services:
       # Number of proxies (for ProxyFix middleware, default: 1)
       - PROXY_COUNT=${PROXY_COUNT:-1}
     volumes:
-      - blog_data:/data
+      # BLOG_DATA_VOLUME lets a test job bind-mount a host directory here so
+      # the container and the test process share one database file. The
+      # default is the named volume.
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data
       - blog_config:/etc/devlog
       - blog_logs:/var/log/devlog
     healthcheck:
@@ -79,7 +82,7 @@ services:
       - SMTP_HOST=${SMTP_HOST:-}
       - PYTHONPATH=/home/blog
     volumes:
-      - blog_data:/data
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data
       - blog_config:/etc/devlog
       - blog_logs:/var/log/devlog
     depends_on:
@@ -120,7 +123,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - blog_data:/data:ro
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
       blog:
@@ -137,7 +140,7 @@ services:
     volumes:
       # Read-write: SQLite needs to read the -wal/-shm sidecar files to take a
       # consistent snapshot of a WAL database.
-      - blog_data:/data
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data
       - ./backups:/backups
     working_dir: /home/blog
     entrypoint: ["python3", "backup.py", "--dir", "/backups"]

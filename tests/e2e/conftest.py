@@ -14,7 +14,11 @@ def app(tmp_path_factory):
     db_dir = tmp_path_factory.mktemp("blog_e2e")
     db_path = db_dir / "test.db"
 
-    os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    # The suite owns its database so it never touches the developer's one.
+    # E2E_DATABASE_URI points the suite at a database shared with another
+    # process, which is how CI browses the container it just started.
+    shared_uri = os.environ.get("E2E_DATABASE_URI", "").strip()
+    os.environ["SQLALCHEMY_DATABASE_URI"] = shared_uri or f"sqlite:///{db_path}"
 
     from app import create_app
 
@@ -71,9 +75,18 @@ def app_server(app, app_url):
 
         from app.models import User
 
-        admin = User(username="admin", is_admin=True)
+        # The application creates the first administrator when it starts. A
+        # shared database already has one, so update it instead of adding a
+        # second row with the same username.
+        admin = db.session.execute(
+            db.select(User).filter_by(username="admin").limit(1)
+        ).scalar_one_or_none()
+        if admin is None:
+            admin = User(username="admin", is_admin=True)
+            db.session.add(admin)
+        else:
+            admin.is_admin = True
         admin.set_password(os.environ["ADMIN_PASSWORD"])
-        db.session.add(admin)
         db.session.commit()
 
     app.config["SERVER_NAME"] = "127.0.0.1:5010"

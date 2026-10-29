@@ -65,9 +65,10 @@ This job validates the multi-stage build pipeline: Node.js frontend build → Py
 - **Tool**: Playwright
 - **Environment**: Docker-based with `--profile production`
 - **Browser**: Chromium
-- **Compose file**: `docker-compose.yml` with `--profile production`. The blog service publishes `127.0.0.1:5000:5000` and nginx belongs to the `reverse-proxy` profile, so the suite reaches the application directly at `http://localhost:5000`
+- **Compose file**: `docker-compose.yml` with `--profile production`. The blog service publishes `127.0.0.1:5000:5000` and nginx belongs to the `reverse-proxy` profile, so the suite reaches the application directly at `http://127.0.0.1:5000`
 - **No CI overlay**: there is deliberately no `docker-compose.ci.yml`. Compose merges port lists instead of replacing them, so an overlay that re-declared the blog's port would bind the host port twice and the container would refuse to start with `address already in use`
-- **Base URL**: Configured via `E2E_BASE_URL` env var (default: `http://localhost:5000` in CI)
+- **Base URL**: Configured via `E2E_BASE_URL` env var (default: `http://127.0.0.1:5010`; CI sets `http://127.0.0.1:5000`)
+- **Shared database**: the suite browses the container, so both must read and write the same data. `BLOG_DATA_VOLUME` bind-mounts a host directory as the container's `/data`, the container migrates that file on start, and the suite points `E2E_DATABASE_URI` at the same path. The database file is created world-writable before the container starts, because the container runs as uid 1000 and the test process runs as the runner; SQLite gives the `-wal` and `-shm` sidecars the same permissions as the database file. `DEVLOG_DATA_DIR` points the suite at the same directory, so an uploaded image is served by the container
 - **Dependencies**: `requirements-dev.txt` and `pip install --no-deps -e .` — the job builds its own application fixture, so the project must be importable and installed
 - **Depends on**: `test`, `docker-build`
 - **Failure diagnostics**: Dumps logs for blog, redis, celery services
