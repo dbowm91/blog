@@ -301,7 +301,11 @@ class ThemeRegistry:
         return name
 
     def list_themes(self) -> list[ThemeDescriptor]:
-        if self._catalog is None:
+        # The catalogue is snapshotted into a local variable. Another thread
+        # can invalidate it while this one rebuilds it, and reading the
+        # attribute twice turned that into an AssertionError.
+        catalog = self._catalog
+        if catalog is None:
             start = time.monotonic()
             try:
                 self._rebuild_catalog()
@@ -310,15 +314,19 @@ class ThemeRegistry:
                 raise
             elapsed = time.monotonic() - start
             self._refresh_count += 1
+            catalog = self._catalog
             logger.info(
                 "theme refresh #%d completed in %.3fs: %d themes",
                 self._refresh_count,
                 elapsed,
-                len(self._catalog) if self._catalog is not None else 0,
+                len(catalog) if catalog is not None else 0,
             )
-        assert self._catalog is not None
+        if catalog is None:
+            # The catalogue was invalidated again while it was rebuilt. The
+            # next call rebuilds it.
+            return []
         return sorted(
-            (entry.descriptor for entry in self._catalog.values()),
+            (entry.descriptor for entry in catalog.values()),
             key=lambda d: d.canonical_name,
         )
 
