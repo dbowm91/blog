@@ -407,6 +407,8 @@ preview route. `landing_style` selects one of the bundled project layouts, while
 `theme_dark_name` and `theme_light_name` apply only within the project's page.
 Repository URLs, hero media, alt text, screenshot media keys, local documentation, repository-backed documentation, and release metadata are optional. Documentation is disabled by default and served only for published projects/documents. Locally authored rows have no `snapshot_id`; GitHub-imported rows point to immutable `ProjectDocsSnapshot` records and a project active-snapshot pointer. `app.services.project_docs.normalize_document_path()` is the sole document-path validator; it never reads from the filesystem. Repository acquisition uses `app.services.github_client` and `app.services.project_docs_sync`; release metadata uses `app.services.project_releases`. Public reads are database-only. GitHub remains canonical for releases and download assets; stored digests are provider claims, not DevLog verification.
 
+The `projects` table also carries synchronisation bookkeeping: `docs_sync_status`, `docs_sync_error` and `docs_synced_at` describe the last documentation sync, `releases_sync_status`, `releases_sync_error`, `releases_synced_at` and `releases_etag` the last release sync, and `releases_sync_config` the fingerprint of the configuration that produced that ETag. The lease columns `docs_sync_lease_owner`, `docs_sync_lease_expires_at`, `releases_sync_lease_owner` and `releases_sync_lease_expires_at` carry the `app.services.sync_lease` ownership token for each synchronisation scope.
+
 ```python
 class Project(db.Model):
     __tablename__ = "projects"

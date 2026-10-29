@@ -1,10 +1,10 @@
 # Project Pages, Documentation, and Distribution Roadmap
 
-> **Plan status: PARTIALLY IMPLEMENTED.** Phases 01–02 are implemented; Phases 03–05 have substantial but incomplete implementations in this worktree; Phase 06 remains gated by operator choice and protocol evidence. See per-phase completion records and `architecture/core/project-pages.md`.
+> **Plan status: PARTIALLY IMPLEMENTED.** Phases 01–02 are implemented; Phases 03–05 have substantial but incomplete implementations in this worktree; Phase 06 ships the DevLog-native manifest only, with binary mirrors deferred by operator decision. See per-phase completion records and `architecture/core/project-pages.md`.
 
 **Date:** 2026-10-28
 **Repository baseline:** main at 07fafb198a31948c51ec7dee75d0fa84c45bfe36
-**Status:** Proposed — phases 01–06 open
+**Status:** Phases 01–02 implemented; Phases 03–05 partially implemented; Phase 06 manifest-only with mirrors deferred
 **Scope:** First-class project landing pages, navigation and home selection, documentation, optional GitHub release discovery and binary distribution.
 **Plan IDs:** PROJ-01 to PROJ-06.
 
@@ -97,4 +97,8 @@ Each phase should be implemented on its own task branch and merge in the order a
 
 ## Completion
 
-**Status:** Phases 01–02 implemented; Phases 03–05 partially implemented; Phase 06 has the DevLog-native manifest slice, while binary mirrors remain deferred. Current checks: focused project/docs/releases/GitHub/migration tests passed (140 passed); migration head, upgrade/downgrade, and fresh-schema checks passed; Ruff passed; frontend build passed. Targeted mypy reported no issues in five selected integration files when `--follow-imports=silent` was used; broader mypy remains affected by existing repository errors. No full test suite or browser E2E was run in this continuation. Detailed gaps and evidence are listed in each phase record. No commit or push was made.
+**Status:** Phases 01–02 implemented; Phases 03–05 partially implemented; Phase 06 has the DevLog-native manifest slice, while binary mirrors remain deferred. Current checks: focused project/docs/releases/GitHub/lease/migration tests passed (170 passed); migration head, upgrade/downgrade, and fresh-schema checks passed; Ruff passed; frontend build passed. Targeted mypy reported no issues in eight selected integration files when `--follow-imports=silent` was used; broader mypy remains affected by existing repository errors. The full non-E2E test suite was run against the pre-change baseline and afterwards: the failure sets are identical apart from `tests/test_phase8.py::TestBackupRestore::test_download_backup`, the repository's documented random-failure backup test, and the change adds 30 passing tests. The browser E2E suite passes in full (138 passed), including the project landing page at 390/768/1280px and the Projects dropdown keyboard disclosure. Detailed gaps and evidence are listed in each phase record. The work is committed on `plan/project-pages-docs-distribution-20261028` and tracked by pull request #52.
+
+**Reliability and correctness follow-up:** the implementation was reviewed after the first pass and five defects were repaired. Relative documentation links now resolve inside the documentation root instead of being rejected outright (`../README.md` from a nested page resolves; a reference that climbs above the root is still rejected). The GitHub client's path-segment limit is derived from the documentation depth limit instead of being a separate constant, and an over-long path is reported as a sync failure rather than raising an uncaught validation error. Documentation and release synchronisation take a database-backed lease so two workers cannot interleave on one project; the lease is renewed while a long synchronisation runs, and a lease lost to another worker ends the synchronisation. Release synchronisation reconciles a changed prerelease preference independently of the upstream ETag. The plan banners and the pull request description were corrected to match the delivered code.
+
+**Current Alembic head:** `add_project_sync_leases`. The phase migrations are `add_projects_table` → `add_project_navigation_settings` → `add_project_documents` → `add_project_github_docs_snapshots` → `add_project_releases` → `add_project_sync_leases`.

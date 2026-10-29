@@ -242,12 +242,17 @@ class Project(db.Model):  # type: ignore[name-defined]
     docs_sync_status = db.Column(db.String(16), default="never", nullable=False)
     docs_sync_error = db.Column(db.String(500), nullable=True)
     docs_synced_at = db.Column(UTCDateTime, nullable=True)
+    docs_sync_lease_owner = db.Column(db.String(64), nullable=True)
+    docs_sync_lease_expires_at = db.Column(UTCDateTime, nullable=True)
     releases_enabled = db.Column(db.Boolean, default=False, nullable=False)
     releases_include_prereleases = db.Column(db.Boolean, default=False, nullable=False)
     releases_sync_status = db.Column(db.String(16), default="never", nullable=False)
     releases_sync_error = db.Column(db.String(500), nullable=True)
     releases_synced_at = db.Column(UTCDateTime, nullable=True)
     releases_etag = db.Column(db.String(256), nullable=True)
+    releases_sync_config = db.Column(db.String(64), nullable=True)
+    releases_sync_lease_owner = db.Column(db.String(64), nullable=True)
+    releases_sync_lease_expires_at = db.Column(UTCDateTime, nullable=True)
     releases = db.relationship(
         "ProjectRelease", back_populates="project", cascade="all, delete-orphan"
     )

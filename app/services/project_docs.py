@@ -50,6 +50,77 @@ def normalize_asset_path(value: str) -> str:
     return _normalize_path(value, ALLOWED_DOC_ASSET_EXTENSIONS)
 
 
+def _resolve_relative_parts(base_parts: list[str], relative: str) -> list[str] | None:
+    """Resolve a relative reference against the directory of the linking document.
+
+    ``.`` segments are dropped and ``..`` segments pop one directory. A ``..``
+    that would climb above the documentation root escapes the root and is
+    rejected rather than clamped, so a link can never address content the
+    project does not publish.
+    """
+    resolved = list(base_parts)
+    for part in relative.split("/"):
+        if part == ".":
+            continue
+        if part == "..":
+            if not resolved:
+                return None
+            resolved.pop()
+            continue
+        if not part:
+            return None
+        resolved.append(part)
+    return resolved or None
+
+
+def _relative_reference(relative: str) -> str | None:
+    """Return the path component of a relative reference.
+
+    A fragment or a query is not part of the path, and a reference that names
+    a scheme or a host is not relative at all.
+    """
+    try:
+        parsed = urlsplit(relative)
+    except ValueError:
+        return None
+    if parsed.scheme or parsed.netloc:
+        return None
+    return parsed.path
+
+
+def resolve_document_path(base_path: str, relative: str) -> str | None:
+    """Return the canonical document path a relative link points at.
+
+    ``base_path`` is the path of the document holding the link. The result is
+    ``None`` when the reference escapes the documentation root or does not name
+    a Markdown document.
+    """
+    reference = _relative_reference(relative)
+    if reference is None:
+        return None
+    parts = _resolve_relative_parts(base_path.split("/")[:-1], reference)
+    if parts is None:
+        return None
+    try:
+        return normalize_document_path("/".join(parts))
+    except DocumentPathError:
+        return None
+
+
+def resolve_asset_path(base_path: str, relative: str) -> str | None:
+    """Return the canonical asset path a relative image reference points at."""
+    reference = _relative_reference(relative)
+    if reference is None:
+        return None
+    parts = _resolve_relative_parts(base_path.split("/")[:-1], reference)
+    if parts is None:
+        return None
+    try:
+        return normalize_asset_path("/".join(parts))
+    except DocumentPathError:
+        return None
+
+
 def list_documents(project_id: int, published_only: bool = True) -> list[ProjectDocument]:
     project = db.session.get(Project, project_id)
     if project is None:
@@ -179,17 +250,17 @@ class _Links(HTMLParser):
                 return None
             return f"{self._url(self.document.path)}#{parsed.fragment}"
 
-        raw_parts = self.document.path.split("/")[:-1] + parsed.path.split("/")
-        raw_target = "/".join(raw_parts)
         if tag == "img" and attribute == "src":
-            asset = get_document_asset(self.project, raw_target)
+            asset_path = resolve_asset_path(self.document.path, parsed.path)
+            if asset_path is None:
+                return None
+            asset = get_document_asset(self.project, asset_path)
             if asset is None:
                 return None
             return get_media_url(asset.storage_key)
 
-        try:
-            target = normalize_document_path(raw_target)
-        except DocumentPathError:
+        target = resolve_document_path(self.document.path, parsed.path)
+        if target is None:
             return None
         if get_document(self.project, target) is None:
             return None

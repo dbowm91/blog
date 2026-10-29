@@ -194,3 +194,107 @@ def test_unpublished_project_docs_are_hidden(client, db):
     )
     db.session.commit()
     assert client.get("/projects/draft-docs/docs").status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("base_path", "relative", "expected"),
+    [
+        ("guides/setup.md", "../README.md", "README.md"),
+        ("guides/setup.md", "./other.md", "guides/other.md"),
+        ("guides/setup.md", "other.md", "guides/other.md"),
+        ("guides/deep/setup.md", "../../README.md", "README.md"),
+        ("README.md", "./guides/setup.md", "guides/setup.md"),
+        ("guides/setup.md", "notes.md#section", "guides/notes.md"),
+    ],
+)
+def test_relative_links_resolve_inside_the_documentation_root(base_path, relative, expected):
+    from app.services.project_docs import resolve_document_path
+
+    assert resolve_document_path(base_path, relative) == expected
+
+
+@pytest.mark.parametrize(
+    ("base_path", "relative"),
+    [
+        ("guides/setup.md", "../../README.md"),
+        ("README.md", "../README.md"),
+        ("guides/setup.md", "../../../README.md"),
+    ],
+)
+def test_relative_links_that_escape_the_documentation_root_are_rejected(base_path, relative):
+    from app.services.project_docs import resolve_document_path
+
+    assert resolve_document_path(base_path, relative) is None
+
+
+def test_relative_asset_links_resolve_inside_the_documentation_root():
+    from app.services.project_docs import resolve_asset_path
+
+    assert resolve_asset_path("guides/setup.md", "../images/logo.png") == "images/logo.png"
+    assert resolve_asset_path("guides/setup.md", "./logo.png") == "guides/logo.png"
+    assert resolve_asset_path("guides/setup.md", "../../logo.png") is None
+    assert resolve_asset_path("guides/setup.md", "../notes.md") is None
+
+
+def test_rendered_document_links_resolve_relative_references(app, db):
+    from app.services.project_docs import render_document
+
+    project = Project(
+        title="Linked docs",
+        slug="linked-docs",
+        body="",
+        summary="",
+        published=True,
+        docs_enabled=True,
+    )
+    db.session.add(project)
+    db.session.flush()
+    readme = ProjectDocument(
+        project_id=project.id, path="README.md", title="Readme", body="root", published=True
+    )
+    setup = ProjectDocument(
+        project_id=project.id, path="guides/setup.md", title="Setup", body="", published=True
+    )
+    sibling = ProjectDocument(
+        project_id=project.id, path="guides/other.md", title="Other", body="", published=True
+    )
+    db.session.add_all([readme, setup, sibling])
+    db.session.commit()
+
+    setup.body = "[up](../README.md) [same](./other.md) [escape](../../README.md)"
+    db.session.commit()
+
+    with app.test_request_context():
+        html = render_document(project, setup)
+
+    assert "/projects/linked-docs/docs/README.md" in html
+    assert "/projects/linked-docs/docs/guides/other.md" in html
+    assert "../" not in html
+
+
+def test_docs_sync_reports_a_client_that_cannot_address_the_documentation_depth(db):
+    from app.services.project_docs_sync import ProjectDocsSyncError, sync_project_docs
+
+    project = Project(
+        title="Deep docs",
+        slug="deep-docs",
+        body="",
+        summary="",
+        published=True,
+        docs_enabled=True,
+        github_owner="example",
+        github_repository="sample",
+    )
+    db.session.add(project)
+    db.session.commit()
+
+    class ShallowClient:
+        max_path_segments = 8
+
+        def get_json(self, path_segments, *, params=None, etag=None):
+            raise AssertionError("the client must not reach the network")
+
+    with pytest.raises(ProjectDocsSyncError, match="path limit"):
+        sync_project_docs(project.id, client=ShallowClient())
+
+    assert project.docs_sync_status == "failed"

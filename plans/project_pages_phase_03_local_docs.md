@@ -1,10 +1,10 @@
 # Project Pages Phase 03 — Locally Authored Documentation Viewer
 
-> **Plan status: PROPOSED — not implemented.** See [project_pages_roadmap.md](project_pages_roadmap.md).
+> **Plan status: PARTIALLY IMPLEMENTED.** See the completion record below and [project_pages_roadmap.md](project_pages_roadmap.md).
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-03
-**Status:** Not started
+**Status:** Partially implemented in this worktree
 **Prerequisite:** Phase 01 merged; merge after Phase 02.
 
 ## Objective
@@ -55,4 +55,6 @@ Do **not** implement GitHub fetching, external docs asset downloading, remote ve
 
 **Implemented in this worktree:** DB-backed local documents and image assets; docs disabled by default; path normalization; published-only public routes; shared Markdown renderer and parsed project-relative link/image rewriting; admin create/edit/delete, publish state, nav order, draft preview, image upload/removal, and source settings; viewer breadcrumbs, prev/next, mobile collapsible navigation, TOC hook, and heading-anchor integration. The migration chain round-trip is covered below.
 
-**Validation:** focused project/docs/release/GitHub tests; migration upgrade/downgrade and fresh-schema tests; Ruff and frontend build passed. See the current worktree tests. Browser E2E at 390/768/1280px, keyboard/no-JS behavior, and the complete malicious-path/sanitizer matrix remain unverified. No REST docs API or OpenAPI entries were added.
+**Relative link resolution:** stored document paths stay canonical — a stored path never contains `.` or `..` segments. Relative *references* are resolved separately by `resolve_document_path()` and `resolve_asset_path()` in `app/services/project_docs.py`: `.` segments are dropped, `..` segments pop one directory, and a reference that would climb above the documentation root is rejected rather than clamped. `../README.md` from `guides/setup.md` therefore resolves to `README.md`, while `../../README.md` is dropped.
+
+**Validation:** focused project/docs/release/GitHub tests; migration upgrade/downgrade and fresh-schema tests; Ruff and frontend build passed. The browser E2E suite passes in full (138 passed), covering the project landing page at 390/768/1280px without horizontal overflow and the Projects dropdown's keyboard disclosure. The documentation viewer's own responsive and no-JS matrix, and the complete malicious-path/sanitizer matrix, remain unverified. No REST docs API or OpenAPI entries were added.

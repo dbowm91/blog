@@ -323,8 +323,8 @@ def test_drop_syntax_theme_removes_the_column(app):
 
 
 def test_project_releases_migration_is_the_head(app):
-    """The project release revision is the single head of the migration graph."""
-    assert _expected_head() == "add_project_releases"
+    """The project synchronization lease revision is the single head of the graph."""
+    assert _expected_head() == "add_project_sync_leases"
 
 
 def test_project_migrations_upgrade_and_downgrade(tmp_path):
@@ -349,6 +349,10 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
         downgrade as downgrade_releases,
         upgrade as upgrade_releases,
     )
+    from migrations.versions.add_project_sync_leases import (
+        downgrade as downgrade_sync_leases,
+        upgrade as upgrade_sync_leases,
+    )
     from migrations.versions.add_projects_table import (
         downgrade as downgrade_projects,
         upgrade as upgrade_projects,
@@ -361,6 +365,7 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
         upgrade_documents,
         upgrade_docs_snapshots,
         upgrade_releases,
+        upgrade_sync_leases,
     )
 
     inspector = sa.inspect(engine)
@@ -372,6 +377,13 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
     assert inspector.has_table("project_release_assets")
     project_columns = {column["name"] for column in inspector.get_columns("projects")}
     assert {"docs_enabled", "active_docs_snapshot_id", "releases_enabled"} <= project_columns
+    assert {
+        "docs_sync_lease_owner",
+        "docs_sync_lease_expires_at",
+        "releases_sync_lease_owner",
+        "releases_sync_lease_expires_at",
+        "releases_sync_config",
+    } <= project_columns
     settings_columns = {column["name"] for column in inspector.get_columns("site_settings")}
     assert {
         "show_projects_in_menu",
@@ -387,6 +399,7 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
     assert row["homepage_kind"] == "blog"
     assert row["homepage_target_id"] is None
 
+    _run_migration(engine, downgrade_sync_leases)
     _run_migration(engine, downgrade_releases)
     _run_migration(engine, downgrade_docs_snapshots)
     _run_migration(engine, downgrade_documents)

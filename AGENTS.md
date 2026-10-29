@@ -527,7 +527,7 @@ declares which series are active and which are historical, and points at the
 architecture document that now holds each outcome. Read it before planning new
 work — do not derive a plan from a phase file in isolation.
 
-Two series still have work outstanding:
+Three series still have work outstanding:
 
 - **Site Identity, Authorship and Layout** — phase 06 (comment layout) is not
   started. CSS and template work only; it needs no migration.
@@ -535,4 +535,9 @@ Two series still have work outstanding:
   verify, inspect and encryption shipped; the manifest, listing, restore
   planner and prune commands did not), and the update/uninstall phase has not
   started at all. There is no `devlog update` and no `devlog uninstall`.
+- **Project Pages, Documentation and Distribution** — phases 01–02 are
+  implemented, phases 03–05 are partially implemented and phase 06 ships the
+  DevLog-native manifest only. Binary mirrors and any eggpack/eggup support
+  are deferred by operator decision. The open gates are recorded per phase in
+  `plans/`.
 

@@ -17,6 +17,7 @@ GITHUB_API_VERSION = "2022-11-28"
 DEFAULT_CONNECT_TIMEOUT = 3.05
 DEFAULT_READ_TIMEOUT = 10.0
 DEFAULT_RESPONSE_LIMIT = 2 * 1024 * 1024
+DEFAULT_MAX_PATH_SEGMENTS = 64
 MAX_RETRIES = 2
 OWNER_PATTERN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?\Z")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,98}[A-Za-z0-9]?\Z")
@@ -45,6 +46,15 @@ class GitHubApiError(Exception):
         self.rate_limit_reset = rate_limit_reset
 
 
+class GitHubRequestError(GitHubApiError, ValueError):
+    """Raised when a request is rejected before it reaches the network.
+
+    It is both an API failure and a value error so a caller that validates the
+    request itself sees the same exception class as a caller that awaits the
+    upstream response.
+    """
+
+
 @dataclass(frozen=True)
 class GitHubJsonResponse:
     data: Any | None
@@ -62,6 +72,7 @@ class GitHubApiClient:
         connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
         read_timeout: float = DEFAULT_READ_TIMEOUT,
         max_response_bytes: int = DEFAULT_RESPONSE_LIMIT,
+        max_path_segments: int = DEFAULT_MAX_PATH_SEGMENTS,
         max_retries: int = MAX_RETRIES,
         retry_base_seconds: float = 0.1,
         sleep=time.sleep,
@@ -70,11 +81,14 @@ class GitHubApiClient:
             raise ValueError("GitHub timeouts must be positive")
         if max_response_bytes <= 0:
             raise ValueError("GitHub response limit must be positive")
+        if max_path_segments <= 0:
+            raise ValueError("GitHub path segment limit must be positive")
         if max_retries < 0 or max_retries > MAX_RETRIES:
             raise ValueError("GitHub retries must be between zero and two")
         self.session = session or requests.Session()
         self.timeout = (connect_timeout, read_timeout)
         self.max_response_bytes = max_response_bytes
+        self.max_path_segments = max_path_segments
         self.max_retries = max_retries
         self.retry_base_seconds = max(0.0, retry_base_seconds)
         self.sleep = sleep
@@ -160,10 +174,9 @@ class GitHubApiClient:
 
         raise GitHubApiError("GitHub API request failed after bounded retries")
 
-    @staticmethod
-    def _path(path_segments: tuple[str, ...] | list[str]) -> str:
-        if not path_segments or len(path_segments) > 12:
-            raise ValueError("GitHub API path is invalid")
+    def _path(self, path_segments: tuple[str, ...] | list[str]) -> str:
+        if not path_segments or len(path_segments) > self.max_path_segments:
+            raise GitHubRequestError("GitHub API path is invalid")
         encoded: list[str] = []
         for segment in path_segments:
             if (
@@ -173,7 +186,7 @@ class GitHubApiClient:
                 or len(segment) > 256
                 or any(ord(char) < 32 or char in "\\?#" for char in segment)
             ):
-                raise ValueError("GitHub API path segment is invalid")
+                raise GitHubRequestError("GitHub API path segment is invalid")
             encoded.append(quote(segment, safe=""))
         return "/".join(encoded)
 

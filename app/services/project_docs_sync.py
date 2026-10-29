@@ -3,28 +3,76 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import re
+import time
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db
 from app.models import Project, ProjectDocument, ProjectDocsSnapshot
+from app.services import sync_lease
 from app.services.github_client import GitHubApiClient, GitHubApiError, validate_repository_identity
-from app.services.project_docs import MAX_DOC_BODY, DocumentPathError, normalize_document_path
+from app.services.project_docs import (
+    MAX_DOC_BODY,
+    MAX_DOC_DEPTH,
+    DocumentPathError,
+    normalize_document_path,
+)
 
 MAX_SYNC_DOCUMENTS = 80
 MAX_SYNC_BYTES = 1_000_000
 MAX_TREE_ENTRIES = 10_000
 MAX_DOCS_ROOT_DEPTH = 12
 ROOT_README = "README.md"
+GITHUB_CONTENT_PATH_OVERHEAD = 4
+MAX_CONTENT_PATH_SEGMENTS = GITHUB_CONTENT_PATH_OVERHEAD + MAX_DOCS_ROOT_DEPTH + MAX_DOC_DEPTH
 _ROOT_SEGMENT = re.compile(r"[A-Za-z0-9._-]{1,100}\Z")
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectDocsSyncError(ValueError):
     pass
+
+
+def _require_path_capacity(api: GitHubApiClient) -> None:
+    """Reject a client that cannot address the deepest supported document path.
+
+    The content endpoint needs one segment per documentation root component
+    plus one per document component. A client with a smaller limit would reject
+    the request long after the tree was read, so the mismatch is reported
+    before any upstream call is made.
+    """
+    limit = getattr(api, "max_path_segments", None)
+    if isinstance(limit, int) and limit < MAX_CONTENT_PATH_SEGMENTS:
+        raise ProjectDocsSyncError(
+            "The GitHub client path limit is too small for this project's documentation depth."
+        )
+
+
+def _renew_lease(project_id: int, lease_owner: str | None, renewed_at: float, label: str) -> float:
+    """Extend the synchronisation lease when it is close to expiring.
+
+    The lease is renewed inside the read loop, before any pending database
+    writes exist, so renewing cannot commit a partially built snapshot. A
+    lease that was lost to another worker ends the synchronisation instead of
+    letting two workers write the same project.
+    """
+    if lease_owner is None:
+        return renewed_at
+    interval = sync_lease.policy(sync_lease.DOCS_SCOPE).renew_interval
+    if interval is None:
+        return renewed_at
+    now = time.monotonic()
+    if now - renewed_at < interval.total_seconds():
+        return renewed_at
+    if not sync_lease.renew(project_id, sync_lease.DOCS_SCOPE, lease_owner):
+        raise ProjectDocsSyncError(f"The {label} sync lease was lost to another worker")
+    return now
 
 
 def _normalize_root(value: str) -> str:
@@ -107,27 +155,55 @@ def sync_project_docs(
     project = db.session.get(Project, project_id)
     if project is None:
         raise ProjectDocsSyncError("Project not found")
-    if not project.github_owner or not project.github_repository:
-        raise ProjectDocsSyncError("Configure a public GitHub repository before syncing")
-    owner, repository = validate_repository_identity(
-        project.github_owner, project.github_repository
-    )
-    root = _normalize_root(project.github_docs_root)
-    ref = (project.github_docs_ref or "HEAD").strip()
-    if not ref or len(ref) > 256 or any(ord(char) < 32 for char in ref):
-        raise ProjectDocsSyncError("GitHub documentation ref is invalid")
-    api = client or GitHubApiClient()
-    previous = (
-        db.session.get(ProjectDocsSnapshot, project.active_docs_snapshot_id)
-        if project.active_docs_snapshot_id is not None
-        else None
-    )
-    previous_etag = previous.etag if previous else None
-
-    project.docs_sync_status = "syncing"
-    project.docs_sync_error = None
-    db.session.commit()
     try:
+        lease_owner = sync_lease.acquire(project.id, sync_lease.DOCS_SCOPE)
+    except sync_lease.SyncLeaseError as exc:
+        raise ProjectDocsSyncError(str(exc)) from exc
+    try:
+        return _sync_project_docs(project_id, client=client, lease_owner=lease_owner)
+    finally:
+        try:
+            sync_lease.release(project_id, sync_lease.DOCS_SCOPE, lease_owner)
+        except SQLAlchemyError:
+            logger.warning(
+                "Could not release the documentation sync lease for project %s", project_id
+            )
+
+
+def _sync_project_docs(
+    project_id: int,
+    *,
+    client: GitHubApiClient | None = None,
+    lease_owner: str | None = None,
+) -> ProjectDocsSnapshot:
+    project = db.session.get(Project, project_id)
+    if project is None:
+        raise ProjectDocsSyncError("Project not found")
+    try:
+        if not project.github_owner or not project.github_repository:
+            raise ProjectDocsSyncError("Configure a public GitHub repository before syncing")
+        try:
+            owner, repository = validate_repository_identity(
+                project.github_owner, project.github_repository
+            )
+        except ValueError as exc:
+            raise ProjectDocsSyncError(str(exc)) from exc
+        root = _normalize_root(project.github_docs_root)
+        ref = (project.github_docs_ref or "HEAD").strip()
+        if not ref or len(ref) > 256 or any(ord(char) < 32 for char in ref):
+            raise ProjectDocsSyncError("GitHub documentation ref is invalid")
+        api = client or GitHubApiClient(max_path_segments=MAX_CONTENT_PATH_SEGMENTS)
+        _require_path_capacity(api)
+        previous = (
+            db.session.get(ProjectDocsSnapshot, project.active_docs_snapshot_id)
+            if project.active_docs_snapshot_id is not None
+            else None
+        )
+        previous_etag = previous.etag if previous else None
+
+        project.docs_sync_status = "syncing"
+        project.docs_sync_error = None
+        db.session.commit()
         commit_response = api.get_json(
             ("repos", owner, repository, "commits", ref), etag=previous_etag
         )
@@ -161,6 +237,7 @@ def sync_project_docs(
             raise ProjectDocsSyncError("No supported Markdown documents were found")
 
         content_rows: list[tuple[str, str, str]] = []
+        renewed_at = time.monotonic()
         for relative_path, upstream_path, size in documents:
             content_response = api.get_json(
                 ("repos", owner, repository, "contents", *upstream_path.split("/")),
@@ -168,6 +245,7 @@ def sync_project_docs(
             )
             content = _decode_markdown(content_response.data, size)
             content_rows.append((relative_path, _title_for(relative_path), content))
+            renewed_at = _renew_lease(project_id, lease_owner, renewed_at, "documentation")
         manifest = hashlib.sha256(
             json.dumps(
                 [

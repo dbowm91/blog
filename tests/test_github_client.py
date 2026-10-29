@@ -5,6 +5,7 @@ import pytest
 from app.services.github_client import (
     GitHubApiClient,
     GitHubApiError,
+    GitHubRequestError,
     validate_repository_identity,
 )
 
@@ -144,6 +145,45 @@ def test_client_rejects_invalid_path_segments_before_network(segments):
         GitHubApiClient(session=session).get_json(segments)
 
     session.get.assert_not_called()
+
+
+def test_client_rejects_a_path_beyond_its_segment_limit():
+    session = Mock()
+    client = GitHubApiClient(session=session, max_path_segments=8)
+
+    with pytest.raises(GitHubRequestError):
+        client.get_json(tuple(f"segment{index}" for index in range(9)))
+
+    session.get.assert_not_called()
+
+
+def test_client_accepts_the_deepest_documentation_path_it_must_address():
+    from app.services.project_docs_sync import MAX_CONTENT_PATH_SEGMENTS
+
+    session = Mock()
+    session.get.return_value = _response()
+    client = GitHubApiClient(session=session)
+    segments = (
+        "repos",
+        "example",
+        "sample",
+        "contents",
+        *(f"part{index}" for index in range(MAX_CONTENT_PATH_SEGMENTS - 4)),
+    )
+
+    result = client.get_json(segments)
+
+    assert result.data == {"ok": True}
+    url = session.get.call_args.args[0]
+    path = url.removeprefix("https://api.github.com/")
+    assert path.count("/") == MAX_CONTENT_PATH_SEGMENTS - 1
+
+
+def test_client_segment_limit_covers_the_documentation_depth():
+    from app.services.project_docs_sync import MAX_CONTENT_PATH_SEGMENTS
+    from app.services.github_client import DEFAULT_MAX_PATH_SEGMENTS
+
+    assert DEFAULT_MAX_PATH_SEGMENTS >= MAX_CONTENT_PATH_SEGMENTS
 
 
 @pytest.mark.parametrize(

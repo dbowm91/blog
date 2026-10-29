@@ -1,6 +1,6 @@
 # Project Pages Phase 04 — GitHub Documentation Snapshots
 
-> **Plan status: PARTIALLY IMPLEMENTED.** See [project_pages_roadmap.md](project_pages_roadmap.md).
+> **Plan status: PARTIALLY IMPLEMENTED.** See the completion record below and [project_pages_roadmap.md](project_pages_roadmap.md).
 
 **Date:** 2026-10-28
 **Plan ID:** PROJ-04
@@ -57,4 +57,8 @@ Do not fetch release binaries, attempt repository writes, build artifacts, inges
 
 **Implemented:** Fixed-host bounded GitHub API client with ETags, retry/rate-limit metadata and redirect rejection; owner/repository validation; manual public-repository sync of a bounded commit-pinned Markdown tree; path/body/count/aggregate limits; immutable snapshot rows with commit SHA and manifest digest; snapshot-bound docs; atomic active pointer update; local docs retained; failure state leaves previous active snapshot unchanged; admin sync/status; public reads use cached DB content only. Mocked GitHub sync and migration tests pass.
 
-**Not yet complete:** No cross-process DB lease/lock, scheduled opt-in reconciliation, GitHub image import/cache, tree-depth/request-budget configurable settings, or concurrency/rate-limit/mid-stream failure matrix. GitHub docs images are not automatically copied; they need a project-scoped uploaded asset. These gaps must be addressed before calling Phase 04 complete.
+**Cross-process ownership:** `app/services/sync_lease.py` gives one worker exclusive ownership of a project synchronisation scope. The lease lives on the project row, so acquiring it is a single conditional `UPDATE` — two workers racing for the same project observe one winner and the loser reports the conflict instead of interleaving activation. The lease is advisory and time-bounded, so a worker that dies does not block the scope permanently. The documentation scope uses a short lifetime and renews it inside the read loop, because its request count is bounded by the document limit and a lease that expired mid-synchronisation would let a second worker start; a lease lost to another worker ends the synchronisation instead of allowing two workers to write the same project. The release scope makes at most three requests, so its longer lifetime never needs renewal. Documentation and release synchronisation use independent scopes. A refused synchronisation does not overwrite the running worker's status.
+
+**Path depth:** the content endpoint needs one URL segment per documentation-root component plus one per document component. `MAX_CONTENT_PATH_SEGMENTS` in `app/services/project_docs_sync.py` derives that bound from `MAX_DOCS_ROOT_DEPTH` and `MAX_DOC_DEPTH`, the GitHub client accepts a matching segment limit, and the synchronisation rejects a client that cannot address the deepest supported path before it makes any network call. An over-long path surfaces as a sync failure with a status, not as an uncaught validation error.
+
+**Not yet complete:** Scheduled opt-in reconciliation, GitHub image import/cache, tree-depth/request-budget configurable settings, and the full concurrency/rate-limit/mid-stream failure matrix remain open. GitHub docs images are not automatically copied; they need a project-scoped uploaded asset. These gaps must be addressed before calling Phase 04 complete.

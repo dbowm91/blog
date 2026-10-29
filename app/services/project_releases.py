@@ -1,20 +1,47 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db
 from app.models import Project, ProjectRelease, ProjectReleaseAsset
+from app.services import sync_lease
 from app.services.github_client import GitHubApiClient, GitHubApiError, validate_repository_identity
 from app.services.project_docs_sync import ProjectDocsSyncError
 
 MAX_RELEASE_PAGES = 3
 PAGE_SIZE = 100
 MAX_ASSETS_PER_RELEASE = 100
+
+logger = logging.getLogger(__name__)
+
+
+def _release_config_fingerprint(owner: str, repository: str, include_prereleases: bool) -> str:
+    """Describe the local projection of the upstream release catalog.
+
+    The upstream ETag only says that GitHub's release list is unchanged. The
+    cached catalog additionally depends on the repository and on whether
+    prereleases are included, so the fingerprint records which configuration
+    produced the stored ETag. A configuration change invalidates the
+    conditional request even when upstream did not change at all.
+    """
+    payload = json.dumps(
+        {
+            "owner": owner,
+            "repository": repository,
+            "prereleases": bool(include_prereleases),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _github_url(value: Any) -> str | None:
@@ -51,28 +78,59 @@ def sync_project_releases(
     project = db.session.get(Project, project_id)
     if project is None:
         raise ProjectDocsSyncError("Project not found")
-    if not project.github_owner or not project.github_repository:
-        raise ProjectDocsSyncError("Configure a public GitHub repository before syncing releases")
-    owner, repository = validate_repository_identity(
-        project.github_owner, project.github_repository
-    )
-    api = client or GitHubApiClient()
-    project.releases_sync_status = "syncing"
-    project.releases_sync_error = None
-    db.session.commit()
     try:
+        lease_owner = sync_lease.acquire(project.id, sync_lease.RELEASES_SCOPE)
+    except sync_lease.SyncLeaseError as exc:
+        raise ProjectDocsSyncError(str(exc)) from exc
+    try:
+        return _sync_project_releases(project_id, client=client)
+    finally:
+        try:
+            sync_lease.release(project_id, sync_lease.RELEASES_SCOPE, lease_owner)
+        except SQLAlchemyError:
+            logger.warning("Could not release the release sync lease for project %s", project_id)
+
+
+def _sync_project_releases(
+    project_id: int, *, client: GitHubApiClient | None = None
+) -> list[ProjectRelease]:
+    project = db.session.get(Project, project_id)
+    if project is None:
+        raise ProjectDocsSyncError("Project not found")
+    try:
+        if not project.github_owner or not project.github_repository:
+            raise ProjectDocsSyncError(
+                "Configure a public GitHub repository before syncing releases"
+            )
+        try:
+            owner, repository = validate_repository_identity(
+                project.github_owner, project.github_repository
+            )
+        except ValueError as exc:
+            raise ProjectDocsSyncError(str(exc)) from exc
+        api = client or GitHubApiClient()
+        fingerprint = _release_config_fingerprint(
+            owner, repository, project.releases_include_prereleases
+        )
+        conditional_etag = (
+            project.releases_etag if project.releases_sync_config == fingerprint else None
+        )
+        project.releases_sync_status = "syncing"
+        project.releases_sync_error = None
+        db.session.commit()
         upstream: list[dict[str, Any]] = []
         next_etag = None
         for page in range(1, MAX_RELEASE_PAGES + 1):
             response = api.get_json(
                 ("repos", owner, repository, "releases"),
                 params={"per_page": PAGE_SIZE, "page": page},
-                etag=project.releases_etag if page == 1 else None,
+                etag=conditional_etag if page == 1 else None,
             )
             if response.not_modified and page == 1:
                 project.releases_sync_status = "success"
                 project.releases_sync_error = None
                 project.releases_synced_at = datetime.now(UTC)
+                project.releases_sync_config = fingerprint
                 db.session.commit()
                 return list(
                     db.session.execute(
@@ -187,6 +245,7 @@ def sync_project_releases(
             if existing.provider_release_id not in seen:
                 db.session.delete(existing)
         project.releases_etag = next_etag
+        project.releases_sync_config = fingerprint
         project.releases_sync_status = "success"
         project.releases_sync_error = None
         project.releases_synced_at = now
