@@ -123,7 +123,10 @@ def test_s3_save_uploads_the_object():
 
     assert backend.save("photo.jpg", b"bytes") == "photo.jpg"
     backend._client.put_object.assert_called_once_with(
-        Bucket="blog-bucket", Key="photo.jpg", Body=b"bytes"
+        Bucket="blog-bucket",
+        Key="photo.jpg",
+        Body=b"bytes",
+        ContentType="image/jpeg",
     )
 
 
@@ -390,7 +393,10 @@ def test_upload_with_processing_stores_the_file_in_s3(monkeypatch):
 
     assert (name, error) == ("photo.jpg", None)
     backend._client.put_object.assert_called_once_with(
-        Bucket="blog-bucket", Key="photo.jpg", Body=b"bytes"
+        Bucket="blog-bucket",
+        Key="photo.jpg",
+        Body=b"bytes",
+        ContentType="image/jpeg",
     )
 
 
