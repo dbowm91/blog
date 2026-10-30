@@ -194,7 +194,7 @@ The installer installs **code artifacts only**. Onboarding creates
 module-level globals for backward compatibility. Precedence is
 **env vars > config.toml > defaults**.
 
-- `app/config/model.py` — 23 frozen dataclasses (`DevLogConfig` + 22 sections).
+- `app/config/model.py` — 24 frozen dataclasses (`DevLogConfig` + 23 sections).
   This is the canonical source of truth for every field and its default.
 - `app/config/loader.py` — `load_effective_config()`.
 - `app/config/validation.py` — schema, security, filesystem, dependency and

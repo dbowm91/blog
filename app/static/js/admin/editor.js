@@ -1,5 +1,6 @@
 import { announce, csrfHeaders } from '../shared/utils.js';
 import { initMarkdownToolbar } from './markdown-toolbar.js';
+import { initMediaPickers } from './media-picker.js';
 import { initEditorHistory } from './editor-history.js';
 
 export function deriveDraftKey(pathname) {
@@ -15,6 +16,7 @@ export function initEditor() {
     const togglePreviewBtn = document.getElementById('toggle-preview-btn');
 
     initMarkdownToolbar();
+    initMediaPickers();
 
     // Collapsible preview, below the editor
     if (togglePreviewBtn && editorSplit) {
@@ -105,8 +107,10 @@ export function initEditor() {
                     bodyTextarea.value = draft.body;
                     const titleInput = document.getElementById('title');
                     const summaryInput = document.getElementById('summary');
+                    const tagsInput = document.getElementById('tags');
                     if (titleInput && draft.title) titleInput.value = draft.title;
                     if (summaryInput && draft.summary) summaryInput.value = draft.summary;
+                    if (tagsInput && draft.tags) tagsInput.value = draft.tags;
                     bodyTextarea.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             } catch (e) {
@@ -125,10 +129,12 @@ export function initEditor() {
             autosaveTimer = setTimeout(() => {
                 const titleInput = document.getElementById('title');
                 const summaryInput = document.getElementById('summary');
+                const tagsInput = document.getElementById('tags');
                 const draft = {
                     title: titleInput?.value || '',
                     body: bodyTextarea.value,
                     summary: summaryInput?.value || '',
+                    tags: tagsInput?.value || '',
                     timestamp: Date.now(),
                 };
                 try {
@@ -145,6 +151,7 @@ export function initEditor() {
         bodyTextarea.addEventListener('input', saveDraft);
         document.getElementById('title')?.addEventListener('input', saveDraft);
         document.getElementById('summary')?.addEventListener('input', saveDraft);
+        document.getElementById('tags')?.addEventListener('input', saveDraft);
 
         // Clear draft on successful submit
         const editorForm = document.querySelector('.editor-form');
@@ -159,20 +166,25 @@ export function initEditor() {
         const initialValue = bodyTextarea.value;
         const titleInput = document.getElementById('title');
         const summaryInput = document.getElementById('summary');
+        const tagsInput = document.getElementById('tags');
         const initialTitle = titleInput?.value || '';
         const initialSummary = summaryInput?.value || '';
+        const initialTags = tagsInput?.value || '';
 
         function checkDirty() {
             const currentTitle = titleInput?.value || '';
             const currentSummary = summaryInput?.value || '';
+            const currentTags = tagsInput?.value || '';
             isDirty = bodyTextarea.value !== initialValue ||
                        currentTitle !== initialTitle ||
-                       currentSummary !== initialSummary;
+                       currentSummary !== initialSummary ||
+                       currentTags !== initialTags;
         }
 
         bodyTextarea.addEventListener('input', checkDirty);
         titleInput?.addEventListener('input', checkDirty);
         summaryInput?.addEventListener('input', checkDirty);
+        tagsInput?.addEventListener('input', checkDirty);
 
         window.addEventListener('beforeunload', (e) => {
             if (isDirty) {
@@ -188,6 +200,122 @@ export function initEditor() {
             });
         }
     }
+
+    const aiButtons = [...document.querySelectorAll('[data-ai-action]')];
+    let aiAssistInFlight = false;
+    aiButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            if (aiAssistInFlight) return;
+            const action = button.dataset.aiAction;
+            const result = document.getElementById(`ai-${action}-result`);
+            const titleInput = document.getElementById('title');
+            const body = bodyTextarea?.value || '';
+            const title = titleInput?.value || '';
+            const destinationInput = document.getElementById(action === 'summary' ? 'summary' : 'tags');
+            const destinationSnapshot = destinationInput?.value || '';
+            const sourceSnapshot = { title, body };
+            if (!body.trim()) {
+                if (result) result.textContent = 'Write some post text first.';
+                return;
+            }
+            aiAssistInFlight = true;
+            aiButtons.forEach((item) => {
+                item.disabled = true;
+                item.setAttribute('aria-busy', 'true');
+            });
+            if (result) result.textContent = 'Preparing suggestion…';
+            try {
+                const editorForm = document.querySelector('.editor-form');
+                const response = await fetch(editorForm?.dataset.aiAssistUrl || '/admin/ai-assist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...csrfHeaders(),
+                    },
+                    body: JSON.stringify({
+                        action,
+                        title,
+                        body,
+                        post_id: document.querySelector('.editor-form')?.dataset.postId
+                            ? Number(document.querySelector('.editor-form').dataset.postId)
+                            : null,
+                    }),
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Suggestion unavailable.');
+                if (action === 'summary' && typeof data.suggestion === 'string' && result) {
+                    result.textContent = `Suggestion: ${data.suggestion} `;
+                    const applyButton = document.createElement('button');
+                    applyButton.type = 'button';
+                    applyButton.className = 'btn btn-small btn-ghost';
+                    applyButton.textContent = 'Use this summary';
+                    applyButton.addEventListener('click', () => {
+                        const summaryInput = document.getElementById('summary');
+                        if (!summaryInput) return;
+                        if (
+                            (titleInput?.value || '') !== sourceSnapshot.title ||
+                            (bodyTextarea?.value || '') !== sourceSnapshot.body ||
+                            summaryInput.value !== destinationSnapshot
+                        ) {
+                            result.textContent = 'The draft changed while this suggestion was prepared. Request a fresh suggestion.';
+                            return;
+                        }
+                        if (summaryInput.value.trim() && !window.confirm('Replace the current summary with this suggestion?')) return;
+                        summaryInput.value = data.suggestion;
+                        summaryInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        summaryInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        summaryInput.focus();
+                        result.textContent = 'Suggestion applied. Review it before saving.';
+                        announce('AI summary suggestion applied to the editor.');
+                    });
+                    result.append(applyButton);
+                } else if (action === 'tags' && Array.isArray(data.suggestions) && result) {
+                    const suggestions = data.suggestions.filter((tag) => typeof tag === 'string');
+                    const reused = Array.isArray(data.reused) ? data.reused.join(', ') : '';
+                    const fresh = Array.isArray(data.new) ? data.new.join(', ') : '';
+                    result.textContent = `Suggestions: ${suggestions.join(', ')}. ` +
+                        `${reused ? `Existing tags: ${reused}. ` : ''}${fresh ? `New tag ideas: ${fresh}. ` : ''}`;
+                    const applyButton = document.createElement('button');
+                    applyButton.type = 'button';
+                    applyButton.className = 'btn btn-small btn-ghost';
+                    applyButton.textContent = 'Add these tags';
+                    applyButton.addEventListener('click', () => {
+                        const tagsInput = document.getElementById('tags');
+                        if (!tagsInput) return;
+                        if (
+                            (titleInput?.value || '') !== sourceSnapshot.title ||
+                            (bodyTextarea?.value || '') !== sourceSnapshot.body ||
+                            tagsInput.value !== destinationSnapshot
+                        ) {
+                            result.textContent = 'The draft changed while these suggestions were prepared. Request fresh suggestions.';
+                            return;
+                        }
+                        const current = tagsInput.value.split(',').map((tag) => tag.trim()).filter(Boolean);
+                        const key = (tag) => tag.toLocaleLowerCase().replace(/\s+/g, '-');
+                        const existing = new Set(current.map(key));
+                        const additions = suggestions.filter((tag) => !existing.has(key(tag)));
+                        if (additions.length) {
+                            tagsInput.value = [...current, ...additions].join(', ');
+                            tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            tagsInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        tagsInput.focus();
+                        result.textContent = `${additions.length ? `Added: ${additions.join(', ')}. ` : 'No new tags to add. '}Review before saving.`;
+                        announce('AI tag suggestions applied to the editor.');
+                    });
+                    result.append(applyButton);
+                }
+            } catch (error) {
+                if (result) result.textContent = error.message || 'Suggestion unavailable.';
+            } finally {
+                aiAssistInFlight = false;
+                aiButtons.forEach((item) => {
+                    item.disabled = false;
+                    item.removeAttribute('aria-busy');
+                });
+            }
+        });
+    });
 
     // --- Word/Character Count in Editor ---
     const wordCountEl = document.getElementById('word-count');

@@ -13,6 +13,10 @@ Centralized service layer for shared logic between CLI, API, and Admin routes.
 - `navigation.py` - Public navigation projection for published pages and projects
 - `site_settings.py` - Homepage-target validation and navigation settings parsing
 
+## Optional AI Authoring Service
+
+`ai_assist.py` owns the provider adapters for local OpenAI-compatible endpoints and OpenCode Go. Keep inputs/output bounded, use the configurable inference timeout, retry only transient failures once, do not log prompts or secrets, do not write to the database, and sanitize provider errors for display. It must never create/attach tags or modify posts, revisions, indexes, or caches. Tag reconciliation must use canonical tag validation and only a bounded role-authorized catalog; send no prior post bodies or unpublished titles. Real provider requests require explicit user authorization and synthetic content unless the user authorizes editorial content for a provider.
+
 ## Operations Service Layer (`app/services/operations/`)
 
 Extracted business logic from CLI handlers into reusable, testable services.

@@ -111,6 +111,20 @@ Registered in `app/filters.py`:
 - `post_image_srcset` - Generate srcset for responsive images. Checks for variants at 400, 800, and 1200 widths (`{width}_{filename}`), builds `srcset` attribute string with width descriptors (e.g., `400w, 800w, 1200w`). Uses request-level caching via `g._post_image_cache`. Returns `None` if no variants are found. **The attribute must be guarded** — Jinja renders `None` as the literal string `"None"`, and a `srcset` candidate list overrides `src` entirely.
 - `post_image_avif_url_stub` - DEPRECATED — always returns `None`. No templates currently use it.
 
+### Markdown Media and Embed Contract
+
+`render_markdown()` accepts standard Markdown image syntax and controlled `<video>/<source>` markup for uploaded MP4/WebM files. `:::html` … `:::` blocks preserve explicitly authored HTML only through the same final `nh3.clean()` policy; they are not a sanitizer bypass. Iframes are restricted to HTTPS `www.youtube-nocookie.com/embed/<11-character-id>` URLs with no query, fragment, credentials, or nonstandard port. The sanitizer forces iframe sandbox/loading/referrer-policy attributes and strips invalid iframe elements. Video/source URLs must be local `/static/uploads/` paths or HTTPS origins configured as the S3 public URL/CDN. Feeds use the same sanitized markup and therefore include approved embeds/video markup as HTML content.
+
+Example:
+
+```markdown
+:::html
+<iframe src="https://www.youtube-nocookie.com/embed/abcdefghijk" title="Video" width="560" height="315" allowfullscreen></iframe>
+:::
+```
+
+CSP `frame-src` permits only `www.youtube-nocookie.com`; `media-src` permits local media and the configured CDN/S3 public origin. Update the sanitizer, CSP, preview/public/feed tests together when this contract changes.
+
 ## Context Processors
 
 From `app/context_processors.py`:

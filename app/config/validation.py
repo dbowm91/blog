@@ -21,6 +21,7 @@ REQUIRED_SECTIONS = frozenset(
 VALID_SESSION_IP_BINDING = frozenset({"off", "warn", "enforce"})
 VALID_DEFAULT_SCHEME = frozenset({"system", "dark", "light"})
 VALID_SEARCH_PROVIDER = frozenset({"sqlite", "meilisearch", "typesense"})
+VALID_AI_PROVIDER = frozenset({"openai_compatible", "opencode_go"})
 VALID_STORAGE_BACKEND = frozenset({"local", "s3"})
 VALID_LOGGING_LEVEL = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
@@ -146,6 +147,14 @@ SECTION_FIELD_TYPES: dict[str, dict[str, type | tuple[type, ...]]] = {
         "provider": str,
         "config": dict,
     },
+    "ai": {
+        "provider": str,
+        "model": str,
+        "base_url": str,
+        "timeout_seconds": int,
+        "rate_limit_per_user": str,
+        "api_key": str,
+    },
 }
 
 NUMERIC_RANGES: dict[str, tuple[int, int]] = {
@@ -174,6 +183,7 @@ NUMERIC_RANGES: dict[str, tuple[int, int]] = {
     "database.max_overflow": (0, 100),
     "database.pool_recycle": (60, 86400),
     "webhook.timeout": (1, 120),
+    "ai.timeout_seconds": (5, 600),
     "security.max_failed_attempts": (1, 100),
     "security.lockout_duration_minutes": (1, 1440),
 }
@@ -364,6 +374,7 @@ def validate_schema(raw_toml: dict, *, strict: bool = False) -> list[Finding]:
         ("app", "session_ip_binding", VALID_SESSION_IP_BINDING),
         ("themes", "default_scheme", VALID_DEFAULT_SCHEME),
         ("search", "provider", VALID_SEARCH_PROVIDER),
+        ("ai", "provider", VALID_AI_PROVIDER),
         ("storage", "backend", VALID_STORAGE_BACKEND),
         ("logging", "level", VALID_LOGGING_LEVEL),
     ]
@@ -434,6 +445,38 @@ def validate_schema(raw_toml: dict, *, strict: bool = False) -> list[Finding]:
                     code="schema.invalid_send_time",
                     field="newsletter.send_time",
                     message=f"newsletter.send_time must be HH:MM (00:00-23:59), got: {send_time!r}",
+                )
+            )
+
+    ai_section = raw_toml.get("ai")
+    if isinstance(ai_section, dict):
+        if ai_section.get("provider") == "openai_compatible":
+            ai_base_url = str(ai_section.get("base_url", ""))
+            parsed_ai_url = urlparse(ai_base_url)
+            if (
+                parsed_ai_url.scheme not in {"http", "https"}
+                or not parsed_ai_url.hostname
+                or parsed_ai_url.username is not None
+                or parsed_ai_url.password is not None
+                or parsed_ai_url.query
+                or parsed_ai_url.fragment
+            ):
+                findings.append(
+                    Finding(
+                        severity=Severity.ERROR,
+                        code="schema.invalid_ai_base_url",
+                        field="ai.base_url",
+                        message="ai.base_url must be an HTTP(S) origin/path without credentials, query, or fragment",
+                    )
+                )
+        if ai_section.get("api_key"):
+            findings.append(
+                Finding(
+                    severity=Severity.ERROR,
+                    code="security.ai_key_in_config_file",
+                    field="ai.api_key",
+                    message="AI provider credentials must be supplied through the server environment, not config.toml",
+                    remediation="Remove ai.api_key and set AI_API_KEY or OPENCODE_GO_API_KEY in the server environment or .env file",
                 )
             )
 

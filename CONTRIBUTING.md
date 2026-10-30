@@ -100,7 +100,7 @@ Configuration comes from three layers, highest precedence first: environment
 variables, then `config.toml`, then the built-in defaults.
 
 The typed schema is the source of truth for every field:
-`app/config/model.py` holds one frozen dataclass per section (22 sections
+`app/config/model.py` holds one frozen dataclass per section (23 sections
 plus the top-level `DevLogConfig`). `app/config_legacy.py` re-exports the
 historical flat names so existing imports keep working.
 

@@ -22,12 +22,19 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from urllib.parse import urlparse
 
 import markdown
 import nh3
 
-from app.markdown_config import MARKDOWN_ALLOWED_ATTRIBUTES, MARKDOWN_ALLOWED_TAGS
-from app.markdown_extensions import StrikethroughExtension
+from app.markdown_config import (
+    IFRAME_ALLOW,
+    IFRAME_SANDBOX,
+    MARKDOWN_ALLOWED_ATTRIBUTES,
+    MARKDOWN_ALLOWED_TAGS,
+    YOUTUBE_EMBED_HOST,
+)
+from app.markdown_extensions import HtmlBlockExtension, StrikethroughExtension
 
 CODE_LINE_CLASS = "code-line"
 
@@ -48,6 +55,7 @@ _PRE_CODE_OPEN_RE = re.compile(r"(<pre\b[^>]*>)(\s*)(<code\b[^>]*>)", re.DOTALL)
 _LANGUAGE_SLUG_RE = re.compile(r"^[a-z0-9_+-]{1,32}$")
 
 _CLASS_ATTRIBUTE_RE = re.compile(r'\s+class="[^"]*"')
+_IFRAME_WITHOUT_SRC_RE = re.compile(r"<iframe\b(?![^>]*\bsrc=)[^>]*>.*?</iframe\s*>", re.DOTALL)
 
 
 def wrap_code_lines(html: str) -> str:
@@ -138,6 +146,94 @@ def apply_fence_languages(cleaned: str, languages: Sequence[str | None]) -> str:
     return "".join(pieces)
 
 
+def _allowed_media_origins() -> set[tuple[str, str]]:
+    origins: set[tuple[str, str]] = set()
+    try:
+        from flask import current_app, has_app_context
+
+        if not has_app_context():
+            return origins
+        cfg = current_app.config.get("DEVLOG_CONFIG")
+        storage = getattr(cfg, "storage", None)
+        site = getattr(cfg, "site", None)
+        for raw_url in (
+            getattr(storage, "s3_public_url", ""),
+            getattr(site, "cdn_url", ""),
+        ):
+            if raw_url:
+                parsed = urlparse(raw_url)
+                if parsed.scheme == "https" and parsed.netloc:
+                    origins.add((parsed.scheme, parsed.netloc.lower()))
+        if storage and storage.backend == "s3" and storage.s3_bucket:
+            region = storage.s3_region or "us-east-1"
+            origins.add(("https", f"{storage.s3_bucket}.s3.{region}.amazonaws.com"))
+    except (AttributeError, ValueError):
+        return origins
+    return origins
+
+
+def _valid_uploaded_media_url(value: str, allowed_origins: set[tuple[str, str]]) -> bool:
+    if value.startswith("/static/uploads/") and not value.startswith("//"):
+        return ".." not in value.split("/") and "\\" not in value
+    parsed = urlparse(value)
+    return (
+        parsed.scheme == "https"
+        and (parsed.scheme, parsed.netloc.lower()) in allowed_origins
+        and not parsed.username
+        and not parsed.password
+        and parsed.path.startswith("/")
+        and ".." not in parsed.path.split("/")
+    )
+
+
+def _safe_attribute_filter(allowed_media_origins: set[tuple[str, str]]):
+    def filter_attribute(tag: str, attr: str, value: str) -> str | None:
+        if tag in {"video", "source"} and attr == "src":
+            return value if _valid_uploaded_media_url(value, allowed_media_origins) else None
+        if tag == "video" and attr == "poster":
+            return value if _valid_uploaded_media_url(value, allowed_media_origins) else None
+        if tag == "source" and attr == "type":
+            return value if value in {"video/mp4", "video/webm"} else None
+        if tag == "iframe":
+            if attr == "src":
+                try:
+                    parsed = urlparse(value)
+                    port = parsed.port
+                except ValueError:
+                    return None
+                valid_path = re.fullmatch(r"/embed/[A-Za-z0-9_-]{11}", parsed.path)
+                return (
+                    value
+                    if parsed.scheme == "https"
+                    and parsed.hostname == YOUTUBE_EMBED_HOST
+                    and parsed.netloc == YOUTUBE_EMBED_HOST
+                    and port in (None, 443)
+                    and not parsed.username
+                    and not parsed.password
+                    and not parsed.query
+                    and not parsed.fragment
+                    and valid_path
+                    else None
+                )
+            if attr == "title":
+                return value[:160]
+            if attr in {"width", "height"}:
+                return value if value.isdigit() and 1 <= int(value) <= 1920 else None
+            if attr == "loading":
+                return value if value in {"lazy", "eager"} else None
+            if attr == "allow":
+                return IFRAME_ALLOW
+            if attr == "sandbox":
+                return IFRAME_SANDBOX
+            if attr == "referrerpolicy":
+                return "no-referrer"
+            if attr == "allowfullscreen":
+                return ""
+        return value
+
+    return filter_attribute
+
+
 def render_markdown(text: str, extensions: Sequence[str] = DEFAULT_EXTENSIONS) -> str:
     """Render markdown to sanitized HTML with numbered code lines.
 
@@ -153,11 +249,24 @@ def render_markdown(text: str, extensions: Sequence[str] = DEFAULT_EXTENSIONS) -
     if not text:
         return ""
 
-    html = markdown.markdown(text, extensions=[*extensions, StrikethroughExtension()])
+    html = markdown.markdown(
+        text,
+        extensions=[*extensions, StrikethroughExtension(), HtmlBlockExtension()],
+    )
     languages = extract_fence_languages(html)
     cleaned = nh3.clean(
         wrap_code_lines(html),
         tags=MARKDOWN_ALLOWED_TAGS,
         attributes=MARKDOWN_ALLOWED_ATTRIBUTES,
+        attribute_filter=_safe_attribute_filter(_allowed_media_origins()),
+        set_tag_attribute_values={
+            "video": {"controls": ""},
+            "iframe": {
+                "sandbox": IFRAME_SANDBOX,
+                "loading": "lazy",
+                "referrerpolicy": "no-referrer",
+            },
+        },
     )
+    cleaned = _IFRAME_WITHOUT_SRC_RE.sub("", cleaned)
     return apply_fence_languages(cleaned, languages)

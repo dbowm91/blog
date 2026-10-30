@@ -20,6 +20,12 @@ Tag CRUD operations and post count management.
 - Post count queries (published only)
 - Slug generation with collision handling (100 tries, then UUID suffix)
 
+## AI Tag Suggestions
+
+AI tag suggestions are produced by `app/services/ai_assist.py`, not by this CRUD service. The AI adapter reuses `Tag.generate_slug()` and `validate_tag_name()` as the canonical policy. It generates 3–5 candidates, deterministically reuses exact matches from the requesting role's visible catalog, and makes at most one additional model request to reconcile unresolved names against a bounded catalog of IDs, names, and published-post usage counts. Existing IDs and names are verified before response; model suggestions never create or attach tags. Only the normal post save path calls `_get_or_create_tags()`.
+
+The catalog is limited to 80 entries and 8,000 serialized characters; non-admins see only tags with published usage. Admins may see private taxonomy metadata but no unpublished post text is sent. See [Services Overview](overview.md#optional-ai-authoring) for provider configuration, request bounds, and the provider-policy gate.
+
 ## Tag Caching (`app/tag_cache.py`)
 
 Tag counts are cached for performance:

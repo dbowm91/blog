@@ -89,7 +89,7 @@ subagent owns exactly one output file so they can run in parallel.
 - Bundled themes: 50 in `app/themes/bundled/`
 - Appearance layer: 10 font families (4 sans, 6 mono), 3 backdrops
 - Onboarding steps: 17
-- Configuration dataclasses: 23 (`DevLogConfig` + 22 section classes)
+- Configuration dataclasses: 24 (`DevLogConfig` + 23 section classes)
 
 ## Maintenance
 

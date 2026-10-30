@@ -174,7 +174,7 @@ Configuration is centralized in `config.toml` with environment variable override
 
 | Module | Purpose |
 |--------|---------|
-| `app/config/model.py` | 23 frozen dataclasses (`DevLogConfig` + 22 section classes) — the canonical source of truth for every field and its default |
+| `app/config/model.py` | 24 frozen dataclasses (`DevLogConfig` + 23 section classes) — the canonical source of truth for every field and its default |
 | `app/config/loader.py` | `load_effective_config()` — precedence chain env vars > config.toml > defaults |
 | `app/config/paths.py` | Path resolution with source tracking |
 | `app/config/validation.py` | Multi-layer validation: schema, security, filesystem, dependencies, compatibility |
@@ -650,7 +650,7 @@ blog/
 │   ├── scheduler.py                  # APScheduler jobs
 │   │
 │   ├── config/                       # Typed configuration package
-│   │   ├── model.py                  # 23 frozen dataclasses
+│   │   ├── model.py                  # 24 frozen dataclasses
 │   │   ├── loader.py                 # load_effective_config()
 │   │   ├── paths.py                  # Path resolution with source tracking
 │   │   ├── validation.py             # Multi-layer validation

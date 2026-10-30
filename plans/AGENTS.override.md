@@ -23,8 +23,8 @@ that banner first; it names the authoritative document for that work.
 
 ## Active Plans
 
-The active work and proposed series below are tracked here, alongside a short
-residual list. Other series in `plans/` are history.
+This index tracks open series, a residual backlog, and recently completed work.
+Use the per-phase status banners and tables below to distinguish work from history.
 
 ### 1. Site Identity, Authorship and Layout — Phase 06 open
 
@@ -224,6 +224,33 @@ Origin: repository source review of the current Pages, navigation, themes, Markd
 
 **Compatibility:** blog remains the default homepage, Projects navbar is off by default, all existing Pages/Post URLs remain functional, all external integrations are optional. Page menu ownership stays with Site Identity Phase 05. New Alembic revisions must use the **actual current head** when coded, not a revision copied from this date.
 
+### 6. Optional AI-Assisted Post Authoring — 2026-10-28
+
+Roadmap: [`ai_authoring_roadmap.md`](ai_authoring_roadmap.md)
+
+Operator request: optional **AI write TL;DR** and **AI suggest tags** on the post new/edit editor, with candidate generation followed by conditional existing-tag semantic reconciliation. The code and deterministic/browser acceptance tests are implemented; no migrations, automatic publishing, public AI, or AI calls unless an operator explicitly configures a model. The default is off; a local OpenAI-compatible model works without an API key.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | `ai_authoring_phase_01_provider_summary.md` | **Implemented; default-off/local-compatible opt-in.** Env-only secrets, bounded authenticated endpoint, summary; OpenCode Go usage remains adapter-gated |
+| 02 | `ai_authoring_phase_02_tag_reconciliation.md` | **Implemented; focused suite passed.** Candidate tags, exact reuse, conditional second pass, bounded privacy-safe catalog; full suite baseline failures documented separately |
+| 03 | `ai_authoring_phase_03_editor_acceptance.md` | **Implemented; default-off/local-compatible opt-in.** Conditional buttons, explicit review/apply, drafts, E2E |
+
+**Implementation order: 01 → 02 → 03.** Blank model means absent buttons and no provider requests; explicitly configured local compatible models need no key. Post Save remains the sole persistence step. The current [OpenCode Go documentation](https://opencode.ai/v2/docs/console/go/) says Go is designed for coding agents making similar requests; editorial summarization/classification is not shown as an allowed use. Do not enable that adapter for editorial drafts unless OpenCode explicitly permits it. This Go-specific gate does not block the local-compatible provider. Rate limiting remains unlimited by default, with optional per-user configuration; the rationale is in `architecture/services/overview.md`. Hosted AI CI and unrelated general-CI baseline failures are tracked separately in the roadmap. Keep this entry Active only while the OpenCode Go usage restriction needs follow-up.
+
+### Media Library and Inline Authoring — Phase 03 open
+
+Roadmap: [`media_authoring_roadmap.md`](media_authoring_roadmap.md)
+
+Origin: operator request on 2026-10-28 to categorize all media, support inline image/video insertion and arbitrary-file attachments from the editors, and add safe Markdown HTML/embed blocks.
+
+| Phase | File | Status |
+|---|---|---|
+| 01 | [`media_authoring_phase_01_library_and_uploads.md`](media_authoring_phase_01_library_and_uploads.md) | **Implemented.** Categorized inventory, type-specific uploads, author/admin media APIs, and forced downloads. |
+| 02 | [`media_authoring_phase_02_markdown_and_embeds.md`](media_authoring_phase_02_markdown_and_embeds.md) | **Implemented.** Safe inline video/YouTube embed block, shared sanitizer, aligned CSP, and shared feed renderer. |
+| 03 | [`media_authoring_phase_03_editor_pickers.md`](media_authoring_phase_03_editor_pickers.md) | **Open — not started.** Separate Media and Attachment controls with upload and Markdown insertion. |
+
+Run phases in order: Phase 01 establishes trustworthy media classification, upload APIs, and download URLs; Phase 02 defines what the shared Markdown renderer can safely emit; Phase 03 consumes those contracts in both post and page editors. The series must remain Active until each phase has an evidence-backed completion record and the shipped behavior is documented in `architecture/`.
 
 ## Historical Plans
 

@@ -159,6 +159,10 @@ output directly.
 `None` as the literal string `"None"`, and a `srcset` candidate list overrides `src`
 entirely — so the attribute must be guarded, never emitted unguarded.
 
+### Inline Media and Attachments
+
+The server catalog/API owns media categories and the media `mime_type` field used by inline video markup. The admin media page and editor pickers must not infer file type from browser MIME values or filenames. Inline media uses storage URLs only for validated images/video; arbitrary files and any file selected from the Attachment picker use `public.download_media` so they are served as forced downloads. Keep the separate controls' output semantics explicit: image → Markdown image, video → controlled `<video>` markup using an allowlisted server `mime_type`, attachment → Markdown download link.
+
 ### Lazy Image Loading
 
 `.js img[loading="lazy"] { opacity: 0 }` is only safe because a restoration path is
@@ -456,3 +460,7 @@ still owns the rule.
 `app/templates/base.html` so that the dev server and production share one cascade
 order. `shared/utils.js` is assigned to the `shared` chunk explicitly so a failure
 inside an admin-only module cannot abort a shared module on a public page.
+
+### Optional AI Post Authoring
+
+The post editor template owns conditional AI controls and the server-provided `admin.ai_assist` URL; `app/static/js/admin/editor.js` owns click-only requests and explicit review/apply behavior. Never trigger inference during load, preview, focus, typing, or save. Treat every response as untrusted plain text; use `textContent` and form values only, never HTML insertion. Snapshot source and destination values at request start and refuse stale applies. Tags append only after author approval, preserving existing entries and deduplicating. Applied tags and summary dispatch bubbling `input` and `change` so ordinary draft autosave and dirty-state paths stay authoritative; normal Post Save remains the only persistence path. Never place keys, prompts, catalogs or AI responses in localStorage.

@@ -80,6 +80,10 @@ In `edit_post()`, `db.session.rollback()` reverts ALL session changes. After rol
 
 The `new_page()` function in `pages.py` implements a retry loop with `max_attempts=100`. On `IntegrityError`, it rolls back, regenerates the slug, and retries the commit.
 
+## Optional AI Post Authoring
+
+`POST /admin/ai-assist` is an authenticated editor route, not a public API endpoint. Keep `@author_required` and global CSRF validation; AI rate limiting is unlimited by default with optional per-user configuration (`ai.rate_limit_per_user`). The model is blank by default, so controls stay hidden and the endpoint fails closed until explicitly configured. A local OpenAI-compatible model may be used without an API key. For edits, verify post ownership before inference; use only submitted unsaved text and never load a stored draft as model input. Suggestions must not save posts, create tags, alter revisions, or bypass the normal post Save path. Keep provider errors sanitized and do not log title/body or credentials. See `app/services/ai_assist.py` and `architecture/services/overview.md` for provider and rate-limit decisions.
+
 ## CSRF Token Rotation on Privilege Change
 
 When promoting/demoting users or making an owner, the code sets `session["csrf_token"]` (singular) but the sliding window uses `session["csrf_tokens"]` (list). Must reset the list `session["csrf_tokens"]` = `[generate_csrf_token()]` not the singular token.
@@ -95,7 +99,7 @@ When uploading images via post create/edit, the media cache must be invalidated:
 from app.routes.admin.media import _invalidate_media_cache
 _invalidate_media_cache()
 ```
-The cache is in `media.py` and uses 30-second TTL. This is called automatically in `posts.py` after image save.
+The cache is in `media.py` and uses 30-second TTL. Invalidate after successful image/video/other upload or delete. The `/admin/media` manager and delete route remain admin-only; `/admin/media/items` and `/admin/media/upload` use `@author_required` for both editor authors and admins. The library and picker catalog classify objects as image, video, or other; server-side signature checks, not client MIME or extension alone, decide inline types. Image variants are image-only. Other uploads must use the public forced-download endpoint, never a direct active-content URL. See `app/routes/admin/helpers/media.py`, `app/routes/public/media.py` and `architecture/infrastructure/storage.md`.
 
 ## nh3 Config
 

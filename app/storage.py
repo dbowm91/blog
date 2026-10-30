@@ -24,6 +24,7 @@ Result[T, StorageError]).
 
 from __future__ import annotations
 
+import mimetypes
 import os
 import logging
 import threading
@@ -123,6 +124,13 @@ class LocalStorageBackend(StorageBackend):
         with open(filepath, "rb") as f:
             return f.read()
 
+    def read_header(self, filename: str, length: int = 32) -> bytes:
+        filepath = os.path.join(self.base_dir, filename)
+        if not os.path.isfile(filepath):
+            return b""
+        with open(filepath, "rb") as f:
+            return f.read(length)
+
     def delete(self, filename: str) -> bool:
         filepath = os.path.join(self.base_dir, filename)
         if os.path.isfile(filepath):
@@ -215,11 +223,31 @@ class S3StorageBackend(StorageBackend):
 
     def save(self, filename: str, data: bytes) -> str:
         try:
-            self.client.put_object(Bucket=self.bucket, Key=filename, Body=data)
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            params = {
+                "Bucket": self.bucket,
+                "Key": filename,
+                "Body": data,
+                "ContentType": content_type,
+            }
+            if filename.endswith(".attachment"):
+                params["ContentType"] = "application/octet-stream"
+                params["ContentDisposition"] = "attachment"
+            self.client.put_object(**params)
             return filename
         except (ClientError, BotoCoreError) as e:
             logger.error("S3 save failed: %s", e)
             raise
+
+    def read_header(self, filename: str, length: int = 32) -> bytes:
+        try:
+            response = self.client.get_object(
+                Bucket=self.bucket, Key=filename, Range=f"bytes=0-{length - 1}"
+            )
+            body = response["Body"].read(length)
+            return bytes(body) if body else b""
+        except (ClientError, BotoCoreError):
+            return b""
 
     def load(self, filename: str) -> Optional[bytes]:
         try:
@@ -276,8 +304,14 @@ class S3StorageBackend(StorageBackend):
             kwargs = {"Bucket": self.bucket}
             if prefix:
                 kwargs["Prefix"] = prefix
-            response = self.client.list_objects_v2(**kwargs)
-            contents = response.get("Contents", [])
+            contents = []
+            while True:
+                response = self.client.list_objects_v2(**kwargs)
+                contents.extend(response.get("Contents", []))
+                continuation = response.get("NextContinuationToken")
+                if not response.get("IsTruncated") or not continuation:
+                    break
+                kwargs["ContinuationToken"] = continuation
             files = []
             for obj in contents:
                 files.append(

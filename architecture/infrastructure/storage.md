@@ -141,6 +141,18 @@ When `STORAGE_BACKEND=s3`:
 
 This differs from local storage where files remain on filesystem throughout processing.
 
+## Categorized Media and Downloads
+
+The admin media library categorizes objects as **image**, **video**, or **other** by requiring a matching extension and content signature for images and video. Unknown or mismatched files remain Other. The editor-facing catalog is `GET /admin/media/items`; authenticated uploads use `POST /admin/media/upload` with a `category` form field. Both permit authors and admins; media management and deletion remain admin-only. POST remains under global CSRF validation. The shared post/page editor uses separate Media and Attachment pickers over this same catalog: Media inserts inline image/video markup, Attachment inserts forced-download links for every category. Use the catalog's server-classified category and video `mime_type`; browser MIME and filename guesses are not authoritative.
+
+- Images: PNG, JPEG, GIF, and WebP; continue through `upload_with_processing()` for responsive variants.
+- Videos: MP4 and WebM with the expected container signature; stored without image processing, with the existing `MAX_UPLOAD_SIZE` limit (10 MiB by default).
+- Other: arbitrary bytes up to `MAX_UPLOAD_SIZE`; stored under a generated `.attachment` object key. The original sanitized name is retained for display/download.
+
+Download links use the public `GET /media/download/<key>` route. It accepts generated attachment keys or files whose supported image/video extension matches the content signature; arbitrary unknown storage keys are rejected. Legacy Other objects without generated attachment keys remain visible for management but have no public download link. Responses use `application/octet-stream`, `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, and `Cache-Control: private, no-store`. The route works with local and S3 storage and does not execute uploaded HTML/SVG/script-like content in the blog origin. Inline image/video embeds continue to use the storage backend URL. S3 `save()` records an inferred media content type and forces `.attachment` objects to `application/octet-stream` with attachment disposition. Local proxy aliases likewise force attachment headers for generated attachment keys.
+
+The media manager's `MEDIA_MAX_FILES` ceiling remains in effect; a truncation warning is shown when the catalog reaches it. Generated responsive image variants are also media objects and may appear in the library. Orphan cleanup only deletes signature-verified images not referenced by `Post.image` or mentioned in post/page Markdown bodies; video, attachment and other objects are preserved because they have no database reference model.
+
 ## See Also
 - [Celery Tasks](../tasks/celery-tasks.md) - Image variant generation
 - [Admin Routes](../routes/admin-routes.md) - Media upload

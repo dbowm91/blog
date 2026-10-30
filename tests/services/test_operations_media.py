@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.models import Post
+from app.models import Page, Post
 from app.services.operations.media import (
     scan_orphaned_media,
     apply_orphaned_media_cleanup,
@@ -49,6 +49,18 @@ class TestIsSafeFilename:
         assert _is_safe_filename(name) is False
 
 
+def _mock_image_header(name: str, length: int = 32) -> bytes:
+    suffix = name.rsplit(".", 1)[-1].lower()
+    signatures = {
+        "png": bytes((137, 80, 78, 71, 13, 10, 26, 10)),
+        "jpg": bytes((255, 216, 255)),
+        "jpeg": bytes((255, 216, 255)),
+        "gif": b"GIF89a",
+        "webp": b"RIFF" + bytes(4) + b"WEBP",
+    }
+    return signatures.get(suffix, b"")[:length]
+
+
 # ---------------------------------------------------------------------------
 # scan_orphaned_media
 # ---------------------------------------------------------------------------
@@ -57,6 +69,7 @@ class TestIsSafeFilename:
 class TestScanOrphanedMedia:
     def test_finds_orphaned_files(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["orphan.png", "used.jpg"]
         mock_storage.exists.return_value = True
 
@@ -81,6 +94,7 @@ class TestScanOrphanedMedia:
 
     def test_finds_missing_db_references(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = []
         mock_storage.exists.return_value = False
 
@@ -102,6 +116,7 @@ class TestScanOrphanedMedia:
 
     def test_no_orphans(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["used.jpg"]
         mock_storage.exists.return_value = True
 
@@ -124,6 +139,7 @@ class TestScanOrphanedMedia:
 
     def test_skips_suspicious_filenames(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["good.jpg", "../escape.png", "sub/dir.webp"]
         mock_storage.exists.return_value = True
 
@@ -145,6 +161,7 @@ class TestScanOrphanedMedia:
 class TestApplyOrphanedMediaCleanup:
     def test_deletes_orphans_and_clears_references(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["orphan.png", "used.jpg"]
         mock_storage.exists.side_effect = lambda name: name != "missing-ref.png"
 
@@ -175,8 +192,41 @@ class TestApplyOrphanedMediaCleanup:
         db.session.refresh(post_with_orphan)
         assert post_with_orphan.image is None
 
+    def test_preserves_videos_and_attachments(self, app, db) -> None:
+        mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
+        mock_storage.list_files.return_value = [
+            "orphan.png",
+            "inline-post.png",
+            "inline-page.jpg",
+            "0123456789abcdef0123456789abcdef-report.pdf.attachment",
+            "video.mp4",
+        ]
+        mock_storage.exists.return_value = True
+        mock_storage.delete.return_value = True
+        post = Post(
+            title="Inline image post",
+            slug="inline-image-post",
+            body="![inline](/static/uploads/inline-post.png)",
+            published=True,
+        )
+        page = Page(
+            title="Inline image page",
+            slug="inline-image-page",
+            body="![inline](https://media.example/inline-page.jpg)",
+        )
+        db.session.add_all([post, page])
+        db.session.commit()
+
+        with patch("app.storage.get_storage", return_value=mock_storage):
+            result = apply_orphaned_media_cleanup()
+
+        assert result.orphaned_deleted == 1
+        mock_storage.delete.assert_called_once_with("orphan.png")
+
     def test_handles_storage_errors_gracefully(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.side_effect = OSError("disk error")
         mock_storage.exists.return_value = True
 
@@ -190,6 +240,7 @@ class TestApplyOrphanedMediaCleanup:
 
     def test_no_false_positive_on_concurrent_upload(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         post = Post(
             title="Post",
             slug="post",
@@ -221,6 +272,7 @@ class TestApplyOrphanedMediaCleanup:
 
     def test_handles_delete_failure(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["orphan.png"]
         mock_storage.exists.return_value = True
         mock_storage.delete.return_value = False
@@ -234,6 +286,7 @@ class TestApplyOrphanedMediaCleanup:
 
     def test_no_commit_when_no_missing_refs(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["orphan.png"]
         mock_storage.exists.side_effect = lambda name: name == "used.jpg"
 
@@ -257,6 +310,7 @@ class TestApplyOrphanedMediaCleanup:
 
     def test_skips_suspicious_filenames_during_cleanup(self, app, db) -> None:
         mock_storage = MagicMock()
+        mock_storage.read_header.side_effect = _mock_image_header
         mock_storage.list_files.return_value = ["good.jpg", "../escape.png"]
         mock_storage.exists.return_value = True
         mock_storage.delete.return_value = True

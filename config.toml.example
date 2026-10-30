@@ -173,3 +173,18 @@ provider = "sqlite"
 # [search.config]
 # index_path = "search_index"
 config = {}
+
+[ai]
+# AI is disabled until a model is explicitly configured; no provider is contacted by default.
+# For a local OpenAI-compatible server (for example, LM Studio), set model to its model ID.
+provider = "openai_compatible"
+base_url = "http://127.0.0.1:1234/v1"
+model = ""
+timeout_seconds = 180
+# Unlimited by default; optional Flask-Limiter syntax can be configured for a specific deployment.
+# The application deliberately does not impose a low default quota; provider-side quotas remain authoritative.
+rate_limit_per_user = ""
+# Optional for compatible endpoints that require authentication; set AI_API_KEY in the environment/.env.
+api_key = ""
+# For OpenCode Go, set provider = "opencode_go", select a Go model, and set OPENCODE_GO_API_KEY.
+# timeout_seconds can be lowered for remote services; credentials must never go in this file.

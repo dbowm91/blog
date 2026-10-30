@@ -5,6 +5,7 @@ import pytest
 from app.config.model import (
     CONFIG_VERSION,
     SECRET_FIELDS,
+    AiConfig,
     AppConfig,
     AdminConfig,
     AuthorConfig,
@@ -75,6 +76,7 @@ class TestDevLogConfigDefaults:
         assert isinstance(config.webhook, WebhookConfig)
         assert isinstance(config.logging, LoggingConfig)
         assert isinstance(config.search, SearchConfig)
+        assert isinstance(config.ai, AiConfig)
 
 
 class TestSectionDefaults:
@@ -236,6 +238,7 @@ class TestSecretFields:
             "encryption_key",
             "s3_access_key",
             "s3_secret_key",
+            "api_key",
         }
         assert SECRET_FIELDS == expected
 

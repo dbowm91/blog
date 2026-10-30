@@ -95,6 +95,14 @@ admin/
 - **Route**: `POST /admin/preview-markdown`
 - **Purpose**: Render markdown preview for live editing (AJAX endpoint)
 
+### Optional AI Authoring (`editor.py`)
+- **Route**: `POST /admin/ai-assist`
+- **Purpose**: Return an unsaved-post TL;DR or taxonomy-aware tag suggestions on explicit editor requests
+- **Access**: `@author_required`, global CSRF validation, optional per-user rate limit (`ai.rate_limit_per_user`, unlimited by default); edit requests verify post ownership
+- **Availability**: AI is off by default; a blank model hides the controls and the endpoint fails closed. Setting a model opts in. Local OpenAI-compatible servers work without an API key; OpenCode Go requires `OPENCODE_GO_API_KEY`.
+- **Data flow**: Current title and Markdown body are sent to the configured endpoint only after the author clicks a control. Suggestions are reviewed and applied in the browser; only normal post Save persists them.
+- **Safety**: No stored post body is fetched, no provider response is persisted, and no tag rows are created by inference. See [AI authoring service](../services/overview.md#optional-ai-authoring) for bounds, provider policy, and the rationale for unlimited-by-default app throttling.
+
 ### Post Delete (`manage.py`)
 - **Route**: `POST /admin/delete/<int:post_id>`
 - **Purpose**: Delete a post
@@ -191,11 +199,13 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 
 ## Media Management (`media.py`)
 
-- **Route**: `GET /admin/media`
-- **Route**: `POST /admin/media/upload`
+- **Route**: `GET /admin/media` — paginated media manager, filterable by type and search
+- **Route**: `GET /admin/media/items` — author/admin-authenticated JSON catalog for editor pickers
+- **Route**: `POST /admin/media/upload` — author/admin-authenticated, CSRF-protected image/video/other upload; form `category` selects the validation/storage policy; JSON clients send `Accept: application/json`
 - **Route**: `POST /admin/media/delete/<filename>`
-- **Purpose**: Upload and manage images
-- **Features**: Responsive variant generation
+- **Purpose**: Manage all uploaded files as Images, Videos, or Other
+- **Features**: PNG/JPEG/GIF/WebP image processing; MP4/WebM signature validation without image processing; arbitrary files in the Other category and safe download-only links. The shared post/page editor uses distinct Media and Attachment pickers over the same categorized catalog; Media inserts inline images or controlled video markup, while Attachment always inserts a forced-download Markdown link.
+- **Download route**: public `GET /media/download/<key>` accepts generated attachment keys or signature-validated supported images/videos; arbitrary unknown storage keys are rejected. Every response uses attachment disposition, octet-stream content type, and `nosniff`.
 - **Orphan cleanup**: `cleanup_orphaned_images` delegates to `app.services.operations.media` (Phase C service extraction)
 
 ## Backup Management (`backup.py`)

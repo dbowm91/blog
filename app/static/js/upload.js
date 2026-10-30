@@ -3,9 +3,9 @@ import { getCsrfToken, getCsrfHeaderName } from './shared/utils.js';
 export function initUpload() {
     const uploadZone = document.getElementById('upload-zone');
     const fileInput = document.getElementById('file-input');
-    const uploadForm = document.getElementById('upload-form');
+    const uploadCategory = document.getElementById('upload-category');
 
-    if (uploadZone && fileInput && uploadForm) {
+    if (uploadZone && fileInput && uploadCategory) {
         let uploadErrorTimer;
 
         const showUploadError = (message) => {
@@ -66,6 +66,7 @@ export function initUpload() {
             const formData = new FormData();
             formData.append('csrf_token', csrfToken);
             formData.append('file', file);
+            formData.append('category', uploadCategory.value);
 
             const xhr = new XMLHttpRequest();
 
@@ -96,12 +97,25 @@ export function initUpload() {
                 showUploadError('Upload cancelled.');
             });
 
-            xhr.open('POST', uploadForm.action);
+            xhr.open('POST', uploadZone.dataset.uploadUrl);
             xhr.setRequestHeader(getCsrfHeaderName(), csrfToken);
+            xhr.setRequestHeader('Accept', 'application/json');
             xhr.send(formData);
         };
 
-        uploadZone.addEventListener('click', () => fileInput.click());
+        const updateAcceptedTypes = () => {
+            fileInput.accept = uploadCategory.value === 'image'
+                ? 'image/png,image/jpeg,image/gif,image/webp'
+                : uploadCategory.value === 'video'
+                    ? 'video/mp4,video/webm,.mp4,.webm'
+                    : '';
+        };
+        uploadCategory.addEventListener('change', updateAcceptedTypes);
+        updateAcceptedTypes();
+
+        uploadZone.addEventListener('click', (event) => {
+            if (event.target !== fileInput) fileInput.click();
+        });
 
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {

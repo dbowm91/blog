@@ -10,7 +10,7 @@ The codebase has a typed configuration system at `app/config/` that provides str
 
 | Module | Purpose |
 |--------|---------|
-| `app/config/model.py` | 23 frozen dataclasses (`DevLogConfig` + 22 section classes) — the canonical source of truth for every field and its default |
+| `app/config/model.py` | 24 frozen dataclasses (`DevLogConfig` + 23 section classes) — the canonical source of truth for every field and its default |
 | `app/config/loader.py` | `load_effective_config()` with precedence chain |
 | `app/config/paths.py` | Path resolution with source tracking |
 | `app/config/validation.py` | Multi-layer validation (schema, security, filesystem, dependencies, compatibility) |
@@ -81,7 +81,18 @@ confirmation_expiry_hours = 1
 [search]
 provider = "sqlite"  # or "postgresql"
 config = {}
+
+[ai]
+provider = "openai_compatible"
+base_url = "http://127.0.0.1:1234/v1"
+model = "" # AI stays unavailable until an operator explicitly sets a model ID.
+timeout_seconds = 180
+rate_limit_per_user = "" # Unlimited by default; optional Flask-Limiter syntax for a deployment-specific need.
+api_key = "" # Must remain blank; use AI_API_KEY in the server environment/.env if needed.
+# OpenCode Go: provider = "opencode_go"; use OPENCODE_GO_API_KEY in the server environment/.env.
 ```
+
+The optional `[ai]` section controls editor-only TL;DR and tag suggestions. A blank model disables AI by default; setting a model explicitly opts in. OpenAI-compatible local endpoints do not require an API key; the key is not accepted from TOML, config validation rejects a nonempty value, effective loading ignores it, and redacted serializers keep environment-provided credentials secret. See [AI authoring](../services/overview.md#optional-ai-authoring) for data-transfer, provider, and rate-limit decisions.
 
 ## Configuration Priority
 

@@ -155,7 +155,7 @@ These are the seams where a second producer is the defect. Each has one owner.
 | The "no profile picture" portrait | `app/templates/_default_avatar.html` — one macro, never an initial letter |
 | Heading IDs | `app/static/js/shared/heading-slug.js` |
 | Heading anchors | `app/static/js/public/anchor-links.js` — a direct child of the heading, never wrapped |
-| Markdown rendering | `app/markdown_renderer.py` / the `markdown_safe` filter |
+| Markdown rendering | `app/markdown_renderer.py` / the `markdown_safe` filter — one sanitizer for preview/public/feed; uploaded video origins and YouTube-nocookie embed URLs are explicitly validated |
 | Post image URL | The `post_image_url` filter — a URL, never re-wrapped with `url_for('static', …)` |
 | Uploaded media | The `/static/uploads/` route in `app/routes/public/media.py` — served from `UPLOAD_FOLDER`, not from the installation directory |
 | The CSRF header name | `CSRF_HEADER_NAME` in `app/csrf.py`, published as `data-csrf-header` |
@@ -256,7 +256,7 @@ See [architecture/services/operations.md](architecture/services/operations.md).
 
 `app/config/` replaces the legacy globals in `app/config_legacy.py`:
 
-- `app/config/model.py` — 23 frozen dataclasses (`DevLogConfig` + 22 section classes)
+- `app/config/model.py` — 24 frozen dataclasses (`DevLogConfig` + 23 section classes)
 - `app/config/loader.py` — `load_effective_config()` with precedence chain (env vars > config.toml > defaults)
 - `app/config/paths.py` — path resolution with source tracking
 - `app/config/validation.py` — multi-layer validation (schema, security, filesystem, dependencies, compatibility)
@@ -266,7 +266,7 @@ See [architecture/services/operations.md](architecture/services/operations.md).
 - `app/config/serialization.py` — TOML/JSON output with redaction
 - `app/config/migration.py` — config version migration support
 
-**`app/config/model.py` is the canonical source of truth for all configuration fields and their defaults.** It defines 23 frozen dataclasses — `DevLogConfig` plus 22 section classes — one per `[section]` in `config.toml`. `config.toml.example` mirrors these defaults. When adding or modifying a config field, update the dataclass first — the loader and example file follow from it.
+**`app/config/model.py` is the canonical source of truth for all configuration fields and their defaults.** It defines 24 frozen dataclasses — `DevLogConfig` plus 23 section classes — one per `[section]` in `config.toml`. `config.toml.example` mirrors these defaults. When adding or modifying a config field, update the dataclass first — the loader and example file follow from it.
 
 Env var fallback chains, defined in `app/config/loader.py`:
 
@@ -296,6 +296,8 @@ See [architecture/infrastructure/overview.md](architecture/infrastructure/overvi
 ### SESSION_COOKIE_SECURE
 
 Defaults to `"true"` (read in `app/__init__.py`). In production behind HTTPS, keep it `true`. For local HTTP testing at `http://localhost:5000`, set it to `false` or admin login cookies will not persist. Never use `false` in production behind HTTPS.
+
+The startup guard is `if not app.debug and not app.testing`, so `SESSION_COOKIE_SECURE=false` also requires debug mode: the server raises `RuntimeError: SESSION_COOKIE_SECURE must be True in production` at boot otherwise. A plain-HTTP local server therefore needs `DEBUG=true` (which sets `app.config["DEBUG"]` from `cfg.server.debug` before the guard runs) together with `SESSION_COOKIE_SECURE=false`. `DEBUG=true` also enables the Werkzeug debugger, so keep such a server bound to `127.0.0.1`.
 
 ### STORAGE_BACKEND
 
@@ -549,6 +551,7 @@ Three series still have work outstanding:
 
 - **Site Identity, Authorship and Layout** — phase 06 (comment layout) is not
   started. CSS and template work only; it needs no migration.
+- **Media Library and Inline Authoring** — phases 01–02 (categorized uploads, safe downloads, Markdown video/embed rendering and CSP) are implemented; phase 03 (editor Media/Attachment pickers and insertion UX) is not started.
 - **Config/CLI Release 4** — the backup phase is partially implemented (create,
   verify, inspect and encryption shipped; the manifest, listing, restore
   planner and prune commands did not), and the update/uninstall phase has not

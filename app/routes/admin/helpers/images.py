@@ -21,6 +21,8 @@ signatures = {
 def _detect_image_type(header: bytes) -> Optional[str]:
     for sig, ext in signatures.items():
         if header.startswith(sig):
+            if ext == "webp" and (len(header) < 12 or header[8:12] != b"WEBP"):
+                return None
             return ext
     return None
 
