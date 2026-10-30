@@ -439,6 +439,8 @@ class TestProseOwnership:
         ".prose code",
         ".prose pre",
         ".prose img",
+        ".prose video",
+        ".prose iframe",
         ".prose hr",
         ".prose table",
         ".prose th, .prose td",
@@ -466,6 +468,35 @@ class TestProseOwnership:
             if selector in self.PROSE_SELECTORS and len(files) > 1
         }
         assert duplicated == {}, f"a prose rule has more than one owner: {duplicated}"
+
+
+class TestProseMedia:
+    """A video and an embedded frame are capped at the reading measure.
+
+    The renderer emits both inside the prose column. Without a cap a wide
+    video or a frame breaks the measure the rest of the column holds, and the
+    live preview would show something the published page does not.
+    """
+
+    def _declarations(self, selector: str) -> dict[str, str]:
+        rules = _parse_rules(_read("base.css"))
+        rule = next((r for r in rules if r.selector.strip() == selector), None)
+        assert rule is not None, f"base.css has no `{selector}` rule"
+        return rule.declarations()
+
+    @pytest.mark.parametrize("selector", [".prose video", ".prose iframe"])
+    def test_the_media_is_capped_at_the_measure(self, selector: str) -> None:
+        assert self._declarations(selector).get("max-width") == "100%"
+
+    @pytest.mark.parametrize("selector", [".prose video", ".prose iframe"])
+    def test_the_media_is_a_block_that_keeps_its_own_rows(self, selector: str) -> None:
+        assert self._declarations(selector).get("display") == "block"
+
+    def test_a_frame_keeps_its_aspect_ratio(self) -> None:
+        assert self._declarations(".prose iframe").get("aspect-ratio") == "16 / 9"
+
+    def test_a_frame_carries_no_border(self) -> None:
+        assert self._declarations(".prose iframe").get("border") == "none"
 
 
 class TestReadingMeasure:

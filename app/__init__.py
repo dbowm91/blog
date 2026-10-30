@@ -439,7 +439,8 @@ def create_app() -> Flask:
                 f"media-src 'self'{cdn_src}{media_src}; "
                 f"script-src 'self' 'nonce-{nonce}'{cdn_src}; "
                 f"script-src-attr 'unsafe-inline'; "
-                f"connect-src 'self' report-uri /csp-violation{cdn_src}; "
+                f"connect-src 'self'{cdn_src}; "
+                f"report-uri /csp-violation; "
                 f"frame-src {frame_src}; "
                 f"frame-ancestors 'none'"
             )

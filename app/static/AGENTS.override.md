@@ -217,6 +217,11 @@ The `.prose` typography is owned by `base.css`. The admin live preview renders
 in `public.css` are missing in the preview. `tests/test_css_contracts.py`
 enforces that `base.css` owns them and `public.css` does not.
 
+The media rules follow the same rule: `.prose video` and `.prose iframe` live in
+`base.css`, so an uploaded video and an embedded frame look the same in the
+live preview and on the published page. Both are capped at the reading measure
+so a wide element cannot break the column.
+
 ### Reading Measure
 
 The prose column's measure is `max-width: 34em` on `.prose`, owned by `base.css`

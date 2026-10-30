@@ -343,6 +343,27 @@ body::after {
     margin: 1.5em 0;
 }
 
+/* A video and an embedded frame are media in a prose column. Both are
+   capped at the measure so a wide element cannot break the column, and the
+   frame keeps its aspect ratio. */
+.prose video {
+    display: block;
+    max-width: 100%;
+    border-radius: var(--radius);
+    margin: 1.5em 0;
+}
+
+.prose iframe {
+    display: block;
+    max-width: 100%;
+    border: none;
+    border-radius: var(--radius);
+    margin: 1.5em 0;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    width: 100%;
+}
+
 .prose hr {
     border: none;
     border-top: 1px solid var(--border);
