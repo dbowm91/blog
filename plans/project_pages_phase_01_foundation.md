@@ -68,3 +68,14 @@ Phase 01 must not attempt GitHub synchronization, documentation imports, release
 - Verification: focused project, existing page-navigation, and migration-chain suite: **122 passed**; responsive project-page and keyboard-disclosure browser E2E: **1 passed**; the bounded homepage-query benchmark after its budget update: **1 passed**. `ruff check .` and `ruff format --check .` passed; `npm run build` passed; `docs/openapi.yaml` parsed successfully.
 - Full suite: **4,922 passed, 21 skipped, 74 failed**. One failure was the old homepage query budget (`<=10`) not allowing the new single bounded project-navigation query; the budget is now `<=11` and the isolated benchmark passes. Other failures included macOS `/private` path expectations, nginx config validation, 2FA encryption, task/database fixture issues, and theme/logging tests. The run is not a clean release gate; these failures were not all independently classified as pre-existing.
 - `mypy app/ devlog_cli/` reported **17 errors in 7 unrelated existing files**; it reported no error in the new project route/service code. The project-route typing issue found during implementation was fixed before this run.
+
+### Follow-up (2026-10-28): landing layout rebuild and product-page options
+
+Branch `fix/project-landing-layouts`, rebased on `origin/main`.
+
+- Fixed the documentation layout, which was genuinely broken: it used a sidebar class no stylesheet declared and placed the body inside the 260px rail rather than the main column, so the body rendered in the rail and the sidebar was unstyled. It now reuses the `.project-docs-main` / `.project-docs-rail` grid the documentation pages use.
+- Fixed the prose alignment. `.prose` centres its 34em measure, so on a project page the body floated in the middle of the container while the title sat flush at its edge; `projects.css` overrides the measure for `.project-body` only.
+- Rendered `hero_image` in every layout, un-stuck the documentation rail from under the 60px navbar, restored the project directory title hover, and rebuilt the project directory as a card grid.
+- Kept the original four layouts, polished them, and added `product` and `showcase`. Product-page content is a structured feature list: a new `Project.features` column (migration `add_project_features`) edited in the admin as one `Title | Description` per line, capped at six features.
+- The same branch carries the backdrop rework documented in `architecture/frontend/appearance.md`: blueprint grid as the default backdrop and the retired graphics replaced.
+- Verification: unit suite **5,728 passed, 22 skipped** at **84.73%** coverage; E2E **144 passed, 1 skipped**; `ruff check` and `ruff format --check` clean; `mypy app/ devlog_cli/` clean; `npm run build` clean. Each bundled backdrop was exercised in a browser — saved from the admin settings page and confirmed to reach the rendered page.
