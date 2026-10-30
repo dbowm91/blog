@@ -25,16 +25,29 @@
 {% if projects %}
 <ul class="projects-index-list">
     {% for entry in projects %}
+    {% set thumb = entry.thumbnail_key | media_url %}
     <li class="projects-index-item">
-        <h2 class="projects-index-title">
-            <a href="{{ url_for('public.project', slug=entry.slug) }}">{{ entry.title }}</a>
-        </h2>
-        {% if entry.summary %}
-        <p class="projects-index-summary">{{ entry.summary }}</p>
+        {% if thumb %}
+        <a class="projects-index-media" href="{{ url_for('public.project', slug=entry.slug) }}" tabindex="-1" aria-hidden="true">
+            <img class="projects-index-image" src="{{ thumb }}" alt="" loading="lazy">
+        </a>
         {% endif %}
-        {% if entry.repo_url %}
-        <a class="projects-index-repo" href="{{ entry.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">View repository</a>
-        {% endif %}
+        <div class="projects-index-copy">
+            <h2 class="projects-index-title">
+                <a href="{{ url_for('public.project', slug=entry.slug) }}">{{ entry.title }}</a>
+            </h2>
+            {% if entry.summary %}
+            <p class="projects-index-summary">{{ entry.summary }}</p>
+            {% endif %}
+            <p class="projects-index-meta">
+                {% if entry.screenshot_count %}
+                <span class="projects-index-count">{{ entry.screenshot_count }} screenshot{{ '' if entry.screenshot_count == 1 else 's' }}</span>
+                {% endif %}
+                {% if entry.repo_url %}
+                <a class="projects-index-repo" href="{{ entry.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">View repository</a>
+                {% endif %}
+            </p>
+        </div>
     </li>
     {% endfor %}
 </ul>

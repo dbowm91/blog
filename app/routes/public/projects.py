@@ -30,6 +30,7 @@ def render_project(
     return render_template(
         "projects/landing.html",
         project=project,
+        landing_style=project_service.resolve_landing_style(project),
         theme_scope=theme_scope,
         is_preview=is_preview,
         is_homepage=is_homepage,

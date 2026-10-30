@@ -322,9 +322,9 @@ def test_drop_syntax_theme_removes_the_column(app):
             conn.execute(sa.text("DROP TABLE site_settings"))
 
 
-def test_project_releases_migration_is_the_head(app):
-    """The project synchronization lease revision is the single head of the graph."""
-    assert _expected_head() == "add_project_sync_leases"
+def test_project_features_migration_is_the_head(app):
+    """The project feature revision is the single head of the graph."""
+    assert _expected_head() == "add_project_features"
 
 
 def test_project_migrations_upgrade_and_downgrade(tmp_path):
@@ -340,6 +340,10 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
     from migrations.versions.add_project_documents import (
         downgrade as downgrade_documents,
         upgrade as upgrade_documents,
+    )
+    from migrations.versions.add_project_features import (
+        downgrade as downgrade_features,
+        upgrade as upgrade_features,
     )
     from migrations.versions.add_project_github_docs_snapshots import (
         downgrade as downgrade_docs_snapshots,
@@ -366,6 +370,7 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
         upgrade_docs_snapshots,
         upgrade_releases,
         upgrade_sync_leases,
+        upgrade_features,
     )
 
     inspector = sa.inspect(engine)
@@ -384,6 +389,7 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
         "releases_sync_lease_expires_at",
         "releases_sync_config",
     } <= project_columns
+    assert "features" in project_columns
     settings_columns = {column["name"] for column in inspector.get_columns("site_settings")}
     assert {
         "show_projects_in_menu",
@@ -399,6 +405,7 @@ def test_project_migrations_upgrade_and_downgrade(tmp_path):
     assert row["homepage_kind"] == "blog"
     assert row["homepage_target_id"] is None
 
+    _run_migration(engine, downgrade_features)
     _run_migration(engine, downgrade_sync_leases)
     _run_migration(engine, downgrade_releases)
     _run_migration(engine, downgrade_docs_snapshots)

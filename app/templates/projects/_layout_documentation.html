@@ -1,4 +1,4 @@
-{% from "projects/_project_macros.html" import project_links, project_hero, project_screenshots %}
+{% from "projects/_project_macros.html" import project_links, project_hero, project_features, project_screenshots %}
 
 <article class="project-landing project-landing-documentation">
     <header class="project-header">
@@ -10,21 +10,47 @@
     </header>
 
     <div class="project-docs-layout">
-        <aside class="project-docs-sidebar" aria-label="Project resources">
-            <h2 class="project-docs-heading">Resources</h2>
-            <ul class="project-docs-list">
-                {% if project.repo_url %}
-                <li class="project-docs-item">
-                    <a href="{{ project.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">Repository</a>
-                </li>
-                {% endif %}
-            </ul>
-        </aside>
+        <div class="project-docs-main">
+            {% if project.hero_image %}
+            <div class="project-hero-media project-hero-media-full">
+                {{ project_hero(project) }}
+            </div>
+            {% endif %}
 
-        <div class="prose project-body">
-            {{ project.body | markdown_safe | safe }}
+            {% if project.body %}
+            <div class="prose project-body">
+                {{ project.body | markdown_safe | safe }}
+            </div>
+            {% endif %}
+
+            {{ project_features(project) }}
+
+            {{ project_screenshots(project) }}
         </div>
-    </div>
 
-    {{ project_screenshots(project) }}
+        {% if project.repo_url or project.docs_enabled or project.releases_enabled %}
+        <aside class="project-docs-rail" aria-label="Project resources">
+            <div class="project-docs-nav">
+                <h2 class="project-docs-heading">Resources</h2>
+                <ul class="project-docs-list">
+                    {% if project.repo_url %}
+                    <li class="project-docs-item">
+                        <a href="{{ project.repo_url }}" rel="noopener noreferrer nofollow" target="_blank">Repository</a>
+                    </li>
+                    {% endif %}
+                    {% if project.docs_enabled %}
+                    <li class="project-docs-item">
+                        <a href="{{ url_for('public.project_docs_home', slug=project.slug) }}">Documentation</a>
+                    </li>
+                    {% endif %}
+                    {% if project.releases_enabled %}
+                    <li class="project-docs-item">
+                        <a href="{{ url_for('public.project_releases', slug=project.slug) }}">Releases</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </aside>
+        {% endif %}
+    </div>
 </article>

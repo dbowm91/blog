@@ -1,4 +1,4 @@
-{% from "projects/_project_macros.html" import project_links, project_hero, project_screenshots %}
+{% from "projects/_project_macros.html" import project_links, project_hero, project_features, project_screenshots %}
 
 <article class="project-landing project-landing-minimal">
     <header class="project-header">
@@ -9,9 +9,19 @@
         {{ project_links(project) }}
     </header>
 
+    {% if project.hero_image %}
+    <div class="project-hero-media project-hero-media-full">
+        {{ project_hero(project) }}
+    </div>
+    {% endif %}
+
+    {% if project.body %}
     <div class="prose project-body">
         {{ project.body | markdown_safe | safe }}
     </div>
+    {% endif %}
+
+    {{ project_features(project) }}
 
     {{ project_screenshots(project) }}
 </article>

@@ -51,7 +51,7 @@
             <span id="landing-style-hint" class="label-hint">The preset structure of the landing page. This is a layout name, not a theme.</span>
             <select id="landing_style" name="landing_style" aria-describedby="landing-style-hint">
                 {% for style in landing_styles %}
-                <option value="{{ style }}"{% if project and project.landing_style == style %} selected{% elif not project and style == 'minimal' %} selected{% endif %}>{{ style }}</option>
+                <option value="{{ style }}"{% if project and project.landing_style == style %} selected{% elif not project and style == 'minimal' %} selected{% endif %}>{{ landing_style_labels.get(style, style) }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -114,6 +114,13 @@
         </div>
 
         {{ markdown_editor(value=project.body if project else '', label='Content', hint='Markdown formatting supported', placeholder='Describe this project in Markdown...', error=None) }}
+
+        <div class="form-group">
+            <label for="features">Features</label>
+            <span id="features-hint" class="label-hint">Optional. One feature per line, written as <code>Title | Description</code>. At most six. The product layouts render these as a feature grid.</span>
+            <textarea id="features" name="features" rows="4" placeholder="Single-writer scheduler | One process owns the queue, the rest subscribe." aria-describedby="features-hint">{% if project %}{% for feature in project.feature_items %}{{ feature.title }}{% if feature.text %} | {{ feature.text }}{% endif %}
+{% endfor %}{% endif %}</textarea>
+        </div>
 
         <div class="form-group">
             <label for="sort_order">Sort order</label>

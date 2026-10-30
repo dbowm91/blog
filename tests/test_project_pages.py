@@ -31,6 +31,7 @@ def _make_project(
     repo_url=None,
     theme_dark_name=None,
     theme_light_name=None,
+    features=None,
 ):
     project = Project(
         title=title,
@@ -45,6 +46,7 @@ def _make_project(
         repo_url=repo_url,
         theme_dark_name=theme_dark_name,
         theme_light_name=theme_light_name,
+        features=features,
     )
     db.session.add(project)
     db.session.commit()
@@ -231,6 +233,196 @@ class TestTheProjectService:
         assert entry.summary == "DevLog summary"
         assert entry.repo_url == "https://github.com/o/r"
 
+    def test_the_directory_thumbnail_falls_back_to_the_first_screenshot(self, db):
+        from app.services.projects import project_directory_entry
+
+        project = _make_project(title="DevLog", slug="devlog")
+        project.screenshots = ["first.png", "second.png"]
+        db.session.commit()
+
+        assert project_directory_entry(project).thumbnail_key == "first.png"
+
+    def test_the_directory_thumbnail_prefers_the_hero(self, db):
+        from app.services.projects import project_directory_entry
+
+        project = _make_project(title="DevLog", slug="devlog")
+        project.hero_image = "hero.png"
+        project.screenshots = ["first.png"]
+        db.session.commit()
+
+        assert project_directory_entry(project).thumbnail_key == "hero.png"
+
+    def test_a_project_without_an_image_has_no_thumbnail(self, db):
+        from app.services.projects import project_directory_entry
+
+        project = _make_project(title="DevLog", slug="devlog")
+
+        assert project_directory_entry(project).thumbnail_key is None
+
+    def test_it_resolves_a_known_landing_style(self, db):
+        from app.services.projects import resolve_landing_style
+
+        project = _make_project(title="DevLog", slug="devlog", landing_style="showcase")
+
+        assert resolve_landing_style(project) == "showcase"
+
+    def test_it_falls_back_for_an_unknown_landing_style(self, db):
+        from app.services.projects import resolve_landing_style
+
+        project = _make_project(title="DevLog", slug="devlog", landing_style="hologram")
+
+        assert resolve_landing_style(project) == "minimal"
+
+    def test_the_showcase_layout_is_one_of_the_presets(self):
+        from app.services.projects import LANDING_STYLES
+
+        assert "showcase" in LANDING_STYLES
+        assert "product" in LANDING_STYLES
+
+
+class TestTheProjectFeatures:
+    def test_it_reads_a_feature_line(self):
+        from app.services.projects import _parse_features
+
+        features = _parse_features("Fast | Runs the queue in one pass.")
+
+        assert len(features) == 1
+        assert features[0].title == "Fast"
+        assert features[0].text == "Runs the queue in one pass."
+
+    def test_a_line_without_a_separator_is_a_title_only_feature(self):
+        from app.services.projects import _parse_features
+
+        features = _parse_features("Fast")
+
+        assert len(features) == 1
+        assert features[0].title == "Fast"
+        assert features[0].text == ""
+
+    def test_it_splits_on_the_first_separator_only(self):
+        from app.services.projects import _parse_features
+
+        features = _parse_features("Fast | a | b")
+
+        assert features[0].title == "Fast"
+        assert features[0].text == "a | b"
+
+    def test_it_reads_several_lines(self):
+        from app.services.projects import _parse_features
+
+        features = _parse_features("One | First\nTwo | Second\n")
+
+        assert [feature.title for feature in features] == ["One", "Two"]
+
+    def test_it_reads_a_list_of_mappings(self):
+        from app.services.projects import _parse_features
+
+        features = _parse_features([{"title": "Fast", "text": "Runs in one pass."}])
+
+        assert features[0].title == "Fast"
+        assert features[0].text == "Runs in one pass."
+
+    def test_it_drops_an_entry_without_a_title(self):
+        from app.services.projects import _parse_features
+
+        assert _parse_features("| Orphan") == []
+        assert _parse_features([{"text": "No title"}]) == []
+
+    def test_it_drops_a_malformed_entry(self):
+        from app.services.projects import _parse_features
+
+        features = _parse_features([42, None, {"title": "Kept"}])
+
+        assert len(features) == 1
+        assert features[0].title == "Kept"
+
+    def test_it_returns_nothing_for_an_empty_value(self):
+        from app.services.projects import _parse_features
+
+        assert _parse_features(None) == []
+        assert _parse_features("") == []
+        assert _parse_features([]) == []
+
+    def test_it_validates_a_submitted_feature_list(self, db):
+        from app.services.projects import validate_project_form
+
+        payload = validate_project_form(
+            {
+                "title": "Alpha",
+                "features": "Fast | Runs the queue in one pass.\n",
+            }
+        )
+
+        assert len(payload.features) == 1
+        assert payload.features[0].title == "Fast"
+
+    def test_it_rejects_more_features_than_the_cap(self, db):
+        from app.services.projects import (
+            MAX_FEATURES,
+            ProjectValidationError,
+            validate_project_form,
+        )
+
+        submitted = "\n".join(f"Feature {index}" for index in range(MAX_FEATURES + 1))
+
+        with pytest.raises(ProjectValidationError) as excinfo:
+            validate_project_form({"title": "Alpha", "features": submitted})
+
+        assert any("at most" in message for message in excinfo.value.messages)
+
+    def test_it_truncates_an_over_long_feature_title(self, db):
+        from app.services.projects import (
+            MAX_FEATURE_TITLE_LENGTH,
+            ProjectValidationError,
+            validate_project_form,
+        )
+
+        with pytest.raises(ProjectValidationError) as excinfo:
+            validate_project_form(
+                {"title": "Alpha", "features": "T" * (MAX_FEATURE_TITLE_LENGTH + 10)}
+            )
+
+        assert any("feature title" in message.lower() for message in excinfo.value.messages)
+
+    def test_it_truncates_an_over_long_feature_description(self, db):
+        from app.services.projects import (
+            MAX_FEATURE_TEXT_LENGTH,
+            ProjectValidationError,
+            validate_project_form,
+        )
+
+        with pytest.raises(ProjectValidationError) as excinfo:
+            validate_project_form(
+                {
+                    "title": "Alpha",
+                    "features": "Fast | " + "D" * (MAX_FEATURE_TEXT_LENGTH + 10),
+                }
+            )
+
+        assert any("description" in message.lower() for message in excinfo.value.messages)
+
+    def test_the_model_drops_a_malformed_stored_entry(self, db):
+        project = _make_project(
+            title="DevLog",
+            slug="devlog",
+            features=[
+                {"title": "Kept", "text": "Yes"},
+                {"text": "No title"},
+                "not a mapping",
+            ],
+        )
+
+        items = project.feature_items
+
+        assert len(items) == 1
+        assert items[0]["title"] == "Kept"
+        assert items[0]["text"] == "Yes"
+
+    def test_the_model_returns_nothing_without_features(self, db):
+        project = _make_project(title="DevLog", slug="devlog")
+
+        assert project.feature_items == []
+
 
 class TestProjectAdmin:
     def test_the_admin_list_requires_authentication(self, client):
@@ -318,6 +510,57 @@ class TestProjectAdmin:
         assert "Draft" in html
         assert "not published yet" in html
 
+    def test_it_stores_the_submitted_features(self, authenticated_client, db):
+        response = authenticated_client.post(
+            "/admin/projects/new",
+            data={
+                "title": "Alpha",
+                "slug": "alpha",
+                "body": "Body",
+                "landing_style": "product",
+                "features": "Fast | Runs the queue in one pass.\nTyped | Every value has an origin.",
+            },
+        )
+
+        assert response.status_code == 302
+        project = db.session.execute(db.select(Project).filter_by(slug="alpha")).scalar_one()
+        assert [feature["title"] for feature in project.feature_items] == ["Fast", "Typed"]
+        assert project.feature_items[0]["text"] == "Runs the queue in one pass."
+
+    def test_it_updates_the_stored_features(self, authenticated_client, db):
+        project = _make_project(
+            title="Alpha",
+            slug="alpha",
+            features=[{"title": "Old", "text": "Gone"}],
+        )
+
+        authenticated_client.post(
+            f"/admin/projects/edit/{project.id}",
+            data={
+                "title": "Alpha",
+                "slug": "alpha",
+                "body": "Body",
+                "landing_style": "product",
+                "features": "New | Kept",
+            },
+        )
+
+        db.session.expire_all()
+        assert [feature["title"] for feature in project.feature_items] == ["New"]
+
+    def test_the_editor_offers_the_landing_layouts(self, authenticated_client, db):
+        html = authenticated_client.get("/admin/projects/new").get_data(as_text=True)
+
+        assert 'value="product"' in html
+        assert 'value="showcase"' in html
+        assert "Product page" in html
+        assert "Product showcase" in html
+
+    def test_the_editor_offers_a_features_field(self, authenticated_client, db):
+        html = authenticated_client.get("/admin/projects/new").get_data(as_text=True)
+
+        assert 'name="features"' in html
+
 
 class TestThePublicProjectRoutes:
     def test_the_directory_lists_every_published_project(self, app, client, db):
@@ -373,7 +616,9 @@ class TestThePublicProjectRoutes:
 
 
 class TestTheProjectLayouts:
-    @pytest.mark.parametrize("style", ["product", "documentation", "minimal", "terminal"])
+    @pytest.mark.parametrize(
+        "style", ["product", "showcase", "documentation", "minimal", "terminal"]
+    )
     def test_every_preset_layout_renders(self, app, client, db, style):
         _require_public_shell(app)
         _make_project(title="Alpha", slug="alpha", landing_style=style)
@@ -390,6 +635,72 @@ class TestTheProjectLayouts:
         html = client.get("/projects/alpha").get_data(as_text=True)
 
         assert "project-hero" in html
+
+    def test_an_unknown_layout_falls_back_to_the_default(self, app, client, db):
+        _require_public_shell(app)
+        _make_project(title="Alpha", slug="alpha", landing_style="hologram")
+
+        html = client.get("/projects/alpha").get_data(as_text=True)
+
+        assert "project-landing-minimal" in html
+
+    def test_the_documentation_layout_keeps_the_body_out_of_the_rail(self, app, client, db):
+        _require_public_shell(app)
+        _make_project(
+            title="Alpha",
+            slug="alpha",
+            landing_style="documentation",
+            repo_url="https://github.com/o/r",
+        )
+
+        html = client.get("/projects/alpha").get_data(as_text=True)
+
+        main = html.split('class="project-docs-main"', 1)[1].split("</div>", 1)[0]
+        rail = html.split('class="project-docs-rail"', 1)[1].split("</div>", 1)[0]
+        assert "Project body." in main
+        assert "Project body." not in rail
+        assert "project-docs-item" in rail
+
+    def test_the_documentation_layout_omits_an_empty_rail(self, app, client, db):
+        _require_public_shell(app)
+        _make_project(title="Alpha", slug="alpha", landing_style="documentation")
+
+        html = client.get("/projects/alpha").get_data(as_text=True)
+
+        assert "project-docs-rail" not in html
+
+    def test_the_product_layout_renders_the_feature_grid(self, app, client, db):
+        _require_public_shell(app)
+        _make_project(
+            title="Alpha",
+            slug="alpha",
+            landing_style="product",
+            features=[{"title": "Fast", "text": "Runs the queue in one pass."}],
+        )
+
+        html = client.get("/projects/alpha").get_data(as_text=True)
+
+        assert "project-feature-grid" in html
+        assert "Fast" in html
+        assert "Runs the queue in one pass." in html
+
+    def test_a_project_without_features_has_no_feature_grid(self, app, client, db):
+        _require_public_shell(app)
+        _make_project(title="Alpha", slug="alpha", landing_style="product")
+
+        html = client.get("/projects/alpha").get_data(as_text=True)
+
+        assert "project-feature-grid" not in html
+
+    def test_the_showcase_layout_leads_with_the_hero(self, app, client, db):
+        _require_public_shell(app)
+        project = _make_project(title="Alpha", slug="alpha", landing_style="showcase")
+        project.hero_image = "hero.png"
+        db.session.commit()
+
+        html = client.get("/projects/alpha").get_data(as_text=True)
+
+        assert "project-showcase-hero" in html
 
     def test_the_body_is_rendered_as_markdown(self, app, client, db):
         _require_public_shell(app)
@@ -475,6 +786,39 @@ class TestTheProjectsApi:
 
         assert response.status_code == 201
         assert response.get_json()["slug"] == "alpha"
+
+    def test_it_stores_the_submitted_features(self, client, db, monkeypatch):
+        monkeypatch.setattr("app.routes.api.auth.API_KEY", "test-key")
+
+        response = client.post(
+            "/api/projects",
+            headers=self._headers(),
+            json={
+                "title": "Alpha",
+                "body": "Hello",
+                "published": True,
+                "features": [{"title": "Fast", "text": "Runs the queue in one pass."}],
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.get_json()["features"] == [
+            {"title": "Fast", "text": "Runs the queue in one pass."}
+        ]
+
+    def test_it_serialises_the_stored_features(self, client, db, monkeypatch):
+        monkeypatch.setattr("app.routes.api.auth.API_KEY", "test-key")
+        project = _make_project(
+            title="Alpha",
+            slug="alpha",
+            features=[{"title": "Fast", "text": "Runs the queue in one pass."}],
+        )
+
+        response = client.get(f"/api/projects/{project.id}", headers=self._headers())
+
+        assert response.get_json()["features"] == [
+            {"title": "Fast", "text": "Runs the queue in one pass."}
+        ]
 
     def test_it_rejects_an_invalid_repo_url(self, client, db, monkeypatch):
         monkeypatch.setattr("app.routes.api.auth.API_KEY", "test-key")

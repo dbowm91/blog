@@ -231,6 +231,7 @@ class Project(db.Model):  # type: ignore[name-defined]
     hero_image = db.Column(db.String(256), nullable=True)
     hero_image_alt = db.Column(db.String(256), nullable=True)
     screenshots = db.Column(db.JSON, nullable=True)
+    features = db.Column(db.JSON, nullable=True)
     docs_enabled = db.Column(db.Boolean, default=False, nullable=False)
     docs_home_path = db.Column(db.String(512), nullable=True)
     docs_source_kind = db.Column(db.String(16), default="local", nullable=False)
@@ -291,6 +292,37 @@ class Project(db.Model):  # type: ignore[name-defined]
         if not isinstance(raw, list):
             return []
         return [item for item in raw if isinstance(item, str) and item]
+
+    @property
+    def feature_items(self) -> list[dict[str, str]]:
+        """Return the stored feature entries as a list of title/text mappings.
+
+        The column holds whatever was last written to it, so the entries are
+        read defensively: a malformed entry is dropped rather than reaching a
+        template that expects a title and a text.
+        """
+        raw = self.features
+        if not raw:
+            return []
+        if isinstance(raw, str):
+            raw = [raw]
+        if not isinstance(raw, list):
+            return []
+        items: list[dict[str, str]] = []
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            title = entry.get("title")
+            text = entry.get("text")
+            if not isinstance(title, str) or not title.strip():
+                continue
+            items.append(
+                {
+                    "title": title.strip(),
+                    "text": text.strip() if isinstance(text, str) else "",
+                }
+            )
+        return items
 
     def __repr__(self) -> str:
         return f"<Project {self.title!r} published={self.published}>"

@@ -1,0 +1,29 @@
+{% from "projects/_project_macros.html" import project_links, project_hero, project_features, project_screenshots, project_cta %}
+
+<article class="project-landing project-landing-showcase">
+    <header class="project-header">
+        <h1 class="project-title">{{ project.title | escape }}</h1>
+        {% if project.summary %}
+        <p class="project-summary">{{ project.summary }}</p>
+        {% endif %}
+        {{ project_links(project) }}
+    </header>
+
+    {% if project.hero_image %}
+    <div class="project-showcase-hero">
+        {{ project_hero(project, framed=True) }}
+    </div>
+    {% endif %}
+
+    {{ project_features(project) }}
+
+    {% if project.body %}
+    <div class="prose project-body project-body-centered">
+        {{ project.body | markdown_safe | safe }}
+    </div>
+    {% endif %}
+
+    {{ project_screenshots(project) }}
+
+    {{ project_cta(project) }}
+</article>

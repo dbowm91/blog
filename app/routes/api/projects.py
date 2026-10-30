@@ -42,6 +42,7 @@ def _project_to_dict(project: Project) -> dict:
         "hero_image": project.hero_image,
         "hero_image_alt": project.hero_image_alt,
         "screenshots": project.screenshot_keys,
+        "features": project.feature_items,
         "created_at": project.created_at.isoformat() if project.created_at else None,
         "updated_at": project.updated_at.isoformat() if project.updated_at else None,
     }
@@ -69,6 +70,7 @@ def _merged_form(project: Optional[Project], data: dict) -> dict:
         "hero_image": "",
         "hero_image_alt": "",
         "screenshots": [],
+        "features": [],
     }
     if project is not None:
         merged.update(
@@ -88,6 +90,7 @@ def _merged_form(project: Optional[Project], data: dict) -> dict:
                 "hero_image": project.hero_image or "",
                 "hero_image_alt": project.hero_image_alt or "",
                 "screenshots": project.screenshot_keys,
+                "features": project.feature_items,
             }
         )
     merged.update({key: value for key, value in data.items() if key in merged})
@@ -157,7 +160,7 @@ def create_project() -> Any:
         published: Published status (default false)
         sort_order: Position in the directory
         repo_url: Optional https repository link
-        landing_style: One of product, documentation, minimal, terminal
+        landing_style: One of product, showcase, documentation, minimal, terminal
         theme_dark_name: Optional registry theme name
         theme_light_name: Optional registry theme name
         show_in_nav: Promote the project into the site menu
@@ -165,6 +168,7 @@ def create_project() -> Any:
         hero_image: Optional media key
         hero_image_alt: Optional hero image description
         screenshots: Optional list of media keys
+        features: Optional list of {"title": ..., "text": ...} entries
 
     Returns:
         JSON with the created project data
@@ -196,6 +200,7 @@ def create_project() -> Any:
         hero_image=payload.hero_image,
         hero_image_alt=payload.hero_image_alt,
         screenshots=list(payload.screenshots),
+        features=[feature.to_dict() for feature in payload.features],
     )
     db.session.add(project)
 
@@ -260,6 +265,7 @@ def update_project(project_id: int) -> Any:
     project.hero_image = payload.hero_image
     project.hero_image_alt = payload.hero_image_alt
     project.screenshots = list(payload.screenshots)
+    project.features = [feature.to_dict() for feature in payload.features]
 
     if payload.slug != project.slug:
         project.slug = project_service.generate_unique_project_slug(

@@ -35,28 +35,32 @@
     </style>
     {% endif %}
 
-    {% if is_preview %}
-    <p class="project-preview-banner" role="status">This project is not published yet. You are seeing an administrator preview.</p>
-    {% endif %}
-
-    <nav class="breadcrumb" aria-label="Breadcrumb">
-        {% if not is_homepage %}
-        <a href="{{ url_for('public.index') }}">Home</a>
-        <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <div class="project-page project-page-{{ landing_style }}">
+        {% if is_preview %}
+        <p class="project-preview-banner" role="status">This project is not published yet. You are seeing an administrator preview.</p>
         {% endif %}
-        <a href="{{ url_for('public.projects_index') }}">Projects</a>
-        <span class="breadcrumb-sep" aria-hidden="true">/</span>
-        <span class="breadcrumb-current">{{ project.title | escape }}</span>
-    </nav>
 
-    {% if project.landing_style == 'product' %}
-        {% include "projects/_layout_product.html" %}
-    {% elif project.landing_style == 'documentation' %}
-        {% include "projects/_layout_documentation.html" %}
-    {% elif project.landing_style == 'terminal' %}
-        {% include "projects/_layout_terminal.html" %}
-    {% else %}
-        {% include "projects/_layout_minimal.html" %}
-    {% endif %}
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            {% if not is_homepage %}
+            <a href="{{ url_for('public.index') }}">Home</a>
+            <span class="breadcrumb-sep" aria-hidden="true">/</span>
+            {% endif %}
+            <a href="{{ url_for('public.projects_index') }}">Projects</a>
+            <span class="breadcrumb-sep" aria-hidden="true">/</span>
+            <span class="breadcrumb-current">{{ project.title | escape }}</span>
+        </nav>
+
+        {% if landing_style == 'product' %}
+            {% include "projects/_layout_product.html" %}
+        {% elif landing_style == 'showcase' %}
+            {% include "projects/_layout_showcase.html" %}
+        {% elif landing_style == 'documentation' %}
+            {% include "projects/_layout_documentation.html" %}
+        {% elif landing_style == 'terminal' %}
+            {% include "projects/_layout_terminal.html" %}
+        {% else %}
+            {% include "projects/_layout_minimal.html" %}
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
