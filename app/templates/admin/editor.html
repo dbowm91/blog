@@ -18,20 +18,32 @@
     <form method="POST" class="editor-form" enctype="multipart/form-data" data-post-id="{{ post.id if post else '' }}" data-ai-assist-url="{{ url_for('admin.ai_assist') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         {% if ai_assist_available %}
-            <p class="form-hint" role="note">AI actions send the current unsaved title and Markdown body to the configured model server. Review each suggestion before applying it; nothing is saved automatically.</p>
+            <p class="form-hint ai-assist-disclosure" role="note">AI actions send the current unsaved title and Markdown body to the configured model server. Review each suggestion before applying it; nothing is saved automatically.</p>
         {% endif %}
         <div class="form-group">
-            <label for="title">Title</label>
+            <div class="form-label-row">
+                <label for="title">Title</label>
+                {% if ai_assist_available %}
+                    <button type="button" class="btn btn-small btn-ghost ai-assist-button" data-ai-action="title">Suggest title</button>
+                {% endif %}
+            </div>
             <input type="text" id="title" name="title" value="{{ post.title if post else '' }}" required placeholder="Post title">
+            {% if ai_assist_available %}
+                <div class="ai-assist-result" id="ai-title-result" aria-live="polite"></div>
+            {% endif %}
         </div>
 
         <div class="form-group">
-            <label for="summary">Summary</label>
-            <span id="summary-hint" class="label-hint">Shown as TL;DR and in listings</span>
+            <div class="form-label-row">
+                <label for="summary">Summary</label>
+                <span id="summary-hint" class="label-hint">Shown as TL;DR and in listings</span>
+                {% if ai_assist_available %}
+                    <button type="button" class="btn btn-small btn-ghost ai-assist-button" data-ai-action="summary">Suggest TL;DR</button>
+                {% endif %}
+            </div>
             <input type="text" id="summary" name="summary" value="{{ post.summary if post else '' }}" placeholder="Brief description..." aria-describedby="summary-hint">
             {% if ai_assist_available %}
-                <button type="button" class="btn btn-small btn-ghost ai-assist-button" data-ai-action="summary">Suggest TL;DR</button>
-                <div class="form-hint ai-assist-result" id="ai-summary-result" aria-live="polite"></div>
+                <div class="ai-assist-result" id="ai-summary-result" aria-live="polite"></div>
             {% endif %}
         </div>
 
@@ -39,7 +51,7 @@
             <label for="image">Cover Image <span class="label-hint">(optional, png/jpg/webp)</span></label>
             <div class="image-preview" id="image-preview-container">
                 {% set img = post|post_image_url if post else none %}
-                <img id="image-preview-img" src="{{ img if img else '' }}" alt="Current image"{{ ' style="display:none"' if not img }}>
+                <img id="image-preview-img" src="{{ img if img else '' }}" alt="Current image"{% if not img %} style="display:none"{% endif %}>
                 {% if img %}
                     <button type="button" class="btn btn-small" id="remove-image-btn">Remove</button>
                 {% endif %}
@@ -55,18 +67,24 @@
         {{ markdown_editor(value=post.body if post else '', label='Body', hint='Markdown formatting supported', placeholder='Write your post in Markdown...') }}
 
         <div class="form-group">
-            <label for="tags">Tags</label>
-            <span id="tags-hint" class="label-hint">Comma separated</span>
+            <div class="form-label-row">
+                <label for="tags">Tags</label>
+                <span id="tags-hint" class="label-hint">Comma separated</span>
+                {% if ai_assist_available %}
+                    <button type="button" class="btn btn-small btn-ghost ai-assist-button" data-ai-action="tags">Suggest tags</button>
+                {% endif %}
+            </div>
             <input type="text" id="tags" name="tags" value="{{ tag_names | join(', ') }}" placeholder="python, flask, web" aria-describedby="tags-hint">
             {% if ai_assist_available %}
-                <button type="button" class="btn btn-small btn-ghost ai-assist-button" data-ai-action="tags">Suggest tags</button>
-                <div class="form-hint ai-assist-result" id="ai-tags-result" aria-live="polite"></div>
+                <div class="ai-assist-result" id="ai-tags-result" aria-live="polite"></div>
             {% endif %}
         </div>
 
         <div class="form-group">
-            <label for="author_id">Author</label>
-            <span id="author-hint" class="label-hint">Who wrote this post</span>
+            <div class="form-label-row">
+                <label for="author_id">Author</label>
+                <span id="author-hint" class="label-hint">Who wrote this post</span>
+            </div>
             <select id="author_id" name="author_id" aria-describedby="author-hint">
                 {% for option in author_options %}
                     <option value="{{ option.id }}"{{ ' selected' if post and post.author_id == option.id }}>{{ option.profile_name }}</option>
@@ -80,8 +98,10 @@
         </div>
 
         <div class="form-group" id="schedule-group">
-            <label for="scheduled_publish_at">Schedule publication</label>
-            <span id="schedule-hint" class="label-hint">Optional, leave empty for immediate publish</span>
+            <div class="form-label-row">
+                <label for="scheduled_publish_at">Schedule publication</label>
+                <span id="schedule-hint" class="label-hint">Optional, leave empty for immediate publish</span>
+            </div>
             <input type="datetime-local" id="scheduled_publish_at" name="scheduled_publish_at" value="{{ post.scheduled_publish_at.strftime('%Y-%m-%dT%H:%M') if post and post.scheduled_publish_at else '' }}" aria-describedby="schedule-hint">
         </div>
 

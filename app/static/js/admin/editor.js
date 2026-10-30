@@ -202,6 +202,8 @@ export function initEditor() {
     }
 
     const aiButtons = [...document.querySelectorAll('[data-ai-action]')];
+    const aiDestinationIds = { summary: 'summary', title: 'title', tags: 'tags' };
+    const aiTextActions = new Set(['summary', 'title']);
     let aiAssistInFlight = false;
     aiButtons.forEach((button) => {
         button.addEventListener('click', async () => {
@@ -211,7 +213,10 @@ export function initEditor() {
             const titleInput = document.getElementById('title');
             const body = bodyTextarea?.value || '';
             const title = titleInput?.value || '';
-            const destinationInput = document.getElementById(action === 'summary' ? 'summary' : 'tags');
+            const destinationId = aiDestinationIds[action] || '';
+            const destinationInput = destinationId
+                ? document.getElementById(destinationId)
+                : null;
             const destinationSnapshot = destinationInput?.value || '';
             const sourceSnapshot = { title, body };
             if (!body.trim()) {
@@ -243,30 +248,31 @@ export function initEditor() {
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || 'Suggestion unavailable.');
-                if (action === 'summary' && typeof data.suggestion === 'string' && result) {
+                if (aiTextActions.has(action) && typeof data.suggestion === 'string' && result) {
+                    const fieldName = action === 'title' ? 'title' : 'summary';
                     result.textContent = `Suggestion: ${data.suggestion} `;
                     const applyButton = document.createElement('button');
                     applyButton.type = 'button';
                     applyButton.className = 'btn btn-small btn-ghost';
-                    applyButton.textContent = 'Use this summary';
+                    applyButton.textContent = action === 'title' ? 'Use this title' : 'Use this summary';
                     applyButton.addEventListener('click', () => {
-                        const summaryInput = document.getElementById('summary');
-                        if (!summaryInput) return;
+                        const target = document.getElementById(destinationId);
+                        if (!target) return;
                         if (
                             (titleInput?.value || '') !== sourceSnapshot.title ||
                             (bodyTextarea?.value || '') !== sourceSnapshot.body ||
-                            summaryInput.value !== destinationSnapshot
+                            target.value !== destinationSnapshot
                         ) {
                             result.textContent = 'The draft changed while this suggestion was prepared. Request a fresh suggestion.';
                             return;
                         }
-                        if (summaryInput.value.trim() && !window.confirm('Replace the current summary with this suggestion?')) return;
-                        summaryInput.value = data.suggestion;
-                        summaryInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        summaryInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        summaryInput.focus();
+                        if (target.value.trim() && !window.confirm(`Replace the current ${fieldName} with this suggestion?`)) return;
+                        target.value = data.suggestion;
+                        target.dispatchEvent(new Event('input', { bubbles: true }));
+                        target.dispatchEvent(new Event('change', { bubbles: true }));
+                        target.focus();
                         result.textContent = 'Suggestion applied. Review it before saving.';
-                        announce('AI summary suggestion applied to the editor.');
+                        announce(`AI ${fieldName} suggestion applied to the editor.`);
                     });
                     result.append(applyButton);
                 } else if (action === 'tags' && Array.isArray(data.suggestions) && result) {

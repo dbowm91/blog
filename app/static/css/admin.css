@@ -283,14 +283,6 @@
     margin: 0 auto 12px;
 }
 
-.bulk-checkbox {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
 .checkbox-cell {
     flex-shrink: 0;
     display: flex;
@@ -1579,6 +1571,59 @@
     padding: var(--space-xl);
 }
 
+/* --- AI assistance ---
+   The AI actions are secondary controls that belong to the field they change,
+   so they sit in the field's header row rather than below the control. The
+   result region is a live region that stays out of the layout until it has
+   something to say. */
+.ai-assist-button {
+    min-height: 32px;
+    padding: 4px var(--space-md);
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--accent-text);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
+.ai-assist-button:not(:disabled):hover {
+    color: var(--accent-text);
+    background: var(--accent-dim);
+    border-color: var(--accent);
+}
+
+.ai-assist-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.ai-assist-result {
+    margin-top: var(--space-sm);
+    padding: var(--space-sm) var(--space-sm-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-caption);
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+
+.ai-assist-result:empty {
+    display: none;
+}
+
+.ai-assist-result .btn {
+    margin-left: var(--space-sm);
+    vertical-align: middle;
+}
+
+.ai-assist-disclosure {
+    padding-left: var(--space-md);
+    border-left: 2px solid var(--accent);
+}
+
 /* The mobile layout for the admin surfaces this sheet owns.
 
    These rules used to live in base.css, which loads earlier: a media query
@@ -1919,13 +1964,6 @@
     cursor: pointer;
     font-size: 0.9rem;
     color: var(--text);
-}
-
-.checkbox-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
-    cursor: pointer;
 }
 
 .form-actions {

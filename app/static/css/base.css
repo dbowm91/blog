@@ -158,6 +158,7 @@
 }
 
 :root {
+    color-scheme: dark;
     --bg: #0d1117;
     --bg-surface: #161b22;
     --bg-elevated: #1c2128;
@@ -206,6 +207,15 @@
 html {
     background: var(--bg);
     scroll-behavior: smooth;
+}
+
+/* Native widgets — the checkbox and radio marks, the select arrow, the date
+   picker indicator and the file input button — are drawn by the browser from
+   the colour scheme, not from the theme tokens. Declaring the scheme here
+   keeps them legible in the active theme instead of falling back to the
+   operating system's own light-mode rendering. */
+[data-color-scheme="light"] {
+    color-scheme: light;
 }
 
 body {
@@ -439,12 +449,21 @@ textarea {
     min-width: 44px;
 }
 
+/* A disabled button keeps its own colours and drops to half opacity. The
+   hover rules below are scoped away from the disabled state, so a pointer
+   resting on a disabled button never repaints it as if it were live. */
+.btn:disabled,
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .btn-primary {
     background: var(--accent);
     color: var(--text-on-accent);
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
     background: var(--accent-hover);
     color: var(--text-on-accent);
 }
@@ -455,7 +474,7 @@ textarea {
     border: 1px solid var(--border);
 }
 
-.btn-ghost:hover {
+.btn-ghost:not(:disabled):hover {
     color: var(--text);
     border-color: var(--text-dim);
     background: var(--bg-surface);
@@ -472,7 +491,7 @@ textarea {
     border: 1px solid transparent;
 }
 
-.btn-danger:hover {
+.btn-danger:not(:disabled):hover {
     border-color: var(--red);
 }
 
@@ -494,13 +513,13 @@ textarea {
     border: 1px solid transparent;
 }
 
-.btn-warning:hover {
+.btn-warning:not(:disabled):hover {
     border-color: var(--amber, #f59e0b);
 }
 
 /* Button enhancements */
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn:active { transform: scale(0.98); }
+.btn:not(:disabled):active { transform: scale(0.98); }
 .btn:hover,
 .btn:focus-visible { text-decoration: none; }
 
