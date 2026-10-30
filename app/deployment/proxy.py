@@ -207,7 +207,7 @@ def render_nginx_config(ctx: DeploymentContext) -> RenderResult:
     lines.append('    add_header X-XSS-Protection "1; mode=block" always;')
     lines.append("    add_header Referrer-Policy strict-origin-when-cross-origin always;")
     lines.append("")
-    lines.append(r"    location ~ ^/(static/)?uploads/([0-9a-f]{32}-[^/]+\.attachment)$ {")
+    lines.append(r'    location ~ "^/(static/)?uploads/([0-9a-f]{32}-[^/]+\.attachment)$" {')
     lines.append(f"        alias {ctx.paths.uploads_dir.path}/$2;")
     lines.append("        default_type application/octet-stream;")
     lines.append('        add_header Content-Disposition "attachment" always;')
