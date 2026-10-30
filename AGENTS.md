@@ -332,8 +332,9 @@ See [architecture/core/themes.md](architecture/core/themes.md).
 The theme system owns colour. The appearance layer (`app/appearance/`) owns the typeface and the page backdrop — the questions the theme registry does not answer. It mirrors the theme mechanism exactly: registry → service → `SiteSettings` → admin UI → runtime CSS, so there is one customisation mechanism, not two.
 
 - Ten families ship locally (4 sans, 6 mono), including one Nerd Font (`meslo-nerd-font`) whose `unicode-range` names the powerline and devicons blocks in the Private Use Area. `app/static/css/base.css` declares every `@font-face`.
-- Three backdrops ship in `app/static/img/backdrops/`.
+- Three backdrops ship in `app/static/img/backdrops/`: `grid` (blueprint grid, the default), `neural-mesh` and `circuit-bloom`.
 - The backdrop SVG supplies **shape only** — it is applied through `mask-image`, so its own fill is irrelevant.
+- The tint is deliberately faint, so a bundled graphic needs heavy strokes and large filled forms to read at all.
 - Uploaded SVGs are sanitised before storage (`app/appearance/svg.py`).
 - Panels are translucent via `color-mix(in srgb, var(--bg-surface) 94%, transparent)` with a plain `var(--bg-surface)` fallback first.
 - The page background is three layers: the theme `bg` on the canvas, a gradient mixed from `bg` and `bg-surface` (`body::before`), and the backdrop shape (`body::after`).

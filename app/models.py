@@ -654,7 +654,7 @@ class SiteSettings(db.Model):  # type: ignore[name-defined]
     homepage_target_id = db.Column(db.Integer, nullable=True)
     font_sans = db.Column(db.String(128), default="inter", nullable=False)
     font_mono = db.Column(db.String(128), default="jetbrains-mono", nullable=False)
-    backdrop = db.Column(db.String(128), default="default", nullable=False)
+    backdrop = db.Column(db.String(128), default="grid", nullable=False)
     updated_at = db.Column(UTCDateTime, default=utc_now, onupdate=utc_now)
 
     @classmethod

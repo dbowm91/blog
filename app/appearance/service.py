@@ -28,7 +28,7 @@ _SETTINGS_CACHE_TTL = 300  # seconds
 
 DEFAULT_SANS = "inter"
 DEFAULT_MONO = "jetbrains-mono"
-DEFAULT_BACKDROP = "default"
+DEFAULT_BACKDROP = "grid"
 
 _FALLBACK_TINT = "rgba(127, 127, 127, 0.14)"
 

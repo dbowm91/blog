@@ -323,8 +323,44 @@ def test_drop_syntax_theme_removes_the_column(app):
 
 
 def test_project_features_migration_is_the_head(app):
-    """The project feature revision is the single head of the graph."""
-    assert _expected_head() == "add_project_features"
+    """The backdrop revision is the single head of the graph."""
+    assert _expected_head() == "default_blueprint_grid_backdrop"
+
+
+def test_the_backdrop_migration_moves_stored_values_onto_the_new_default(tmp_path):
+    """A stored key that no longer resolves leaves the page with no backdrop.
+
+    The appearance service reports an unknown key as missing rather than
+    falling back, so every retired key has to be moved onto the new default.
+    """
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'backdrop-migration.sqlite3'}")
+    with engine.begin() as conn:
+        conn.execute(
+            sa.text(
+                "CREATE TABLE site_settings ("
+                " id INTEGER PRIMARY KEY,"
+                " backdrop TEXT NOT NULL DEFAULT 'default'"
+                ")"
+            )
+        )
+        conn.execute(sa.text("INSERT INTO site_settings (id, backdrop) VALUES (1, 'default')"))
+        conn.execute(sa.text("INSERT INTO site_settings (id, backdrop) VALUES (2, 'waves')"))
+        conn.execute(sa.text("INSERT INTO site_settings (id, backdrop) VALUES (3, 'grid')"))
+
+    from migrations.versions.default_blueprint_grid_backdrop import (
+        downgrade as downgrade_backdrop,
+        upgrade as upgrade_backdrop,
+    )
+
+    _run_migration(engine, upgrade_backdrop)
+
+    rows = _get_all_rows(engine, "site_settings")
+    assert [row["backdrop"] for row in rows] == ["grid", "grid", "grid"]
+
+    _run_migration(engine, downgrade_backdrop)
+
+    rows = _get_all_rows(engine, "site_settings")
+    assert [row["backdrop"] for row in rows] == ["default", "default", "default"]
 
 
 def test_project_migrations_upgrade_and_downgrade(tmp_path):

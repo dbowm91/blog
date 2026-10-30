@@ -24,9 +24,9 @@ CUSTOM_BACKDROP_PREFIX = "custom-backdrop-"
 _BACKDROP_ROOT = Path(__file__).resolve().parent.parent / "static" / "img" / "backdrops"
 
 BUNDLED_BACKDROPS: tuple[tuple[str, str, str], ...] = (
-    ("default", "Default", "default.svg"),
     ("grid", "Blueprint Grid", "grid.svg"),
-    ("waves", "Flow", "waves.svg"),
+    ("neural-mesh", "Neural Mesh", "neural-mesh.svg"),
+    ("circuit-bloom", "Circuit Bloom", "circuit-bloom.svg"),
 )
 
 

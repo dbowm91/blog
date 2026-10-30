@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" role="presentation">
+  <rect x="540" y="260" width="520" height="520" rx="48" fill="none" stroke="#ffffff" stroke-width="12"/>
+  <rect x="650" y="370" width="300" height="300" rx="28" fill="none" stroke="#ffffff" stroke-width="8" stroke-opacity="0.9"/>
+  <line x1="580" y1="260" x2="580" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="580" y1="780" x2="580" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="650" y1="260" x2="650" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="650" y1="780" x2="650" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="720" y1="260" x2="720" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="720" y1="780" x2="720" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="790" y1="260" x2="790" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="790" y1="780" x2="790" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="860" y1="260" x2="860" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="860" y1="780" x2="860" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="930" y1="260" x2="930" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="930" y1="780" x2="930" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1000" y1="260" x2="1000" y2="186" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1000" y1="780" x2="1000" y2="854" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="300" x2="466" y2="300" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="300" x2="1134" y2="300" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="370" x2="466" y2="370" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="370" x2="1134" y2="370" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="440" x2="466" y2="440" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="440" x2="1134" y2="440" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="510" x2="466" y2="510" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="510" x2="1134" y2="510" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="580" x2="466" y2="580" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="580" x2="1134" y2="580" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="650" x2="466" y2="650" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="650" x2="1134" y2="650" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="540" y1="720" x2="466" y2="720" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <line x1="1060" y1="720" x2="1134" y2="720" stroke="#ffffff" stroke-width="20" stroke-opacity="1"/>
+  <path d="M 800 370 L 800 330 L 700 330 L 700 260" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="691" y="321" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 800 370 L 800 330 L 900 330 L 900 260" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="891" y="321" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 800 630 L 800 670 L 700 670 L 700 780" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="691" y="661" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 800 630 L 800 670 L 900 670 L 900 780" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="891" y="661" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 650 500 L 610 500 L 610 400 L 540 400" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="601" y="391" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 650 500 L 610 500 L 610 600 L 540 600" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="601" y="591" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 950 500 L 990 500 L 990 400 L 1060 400" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="981" y="391" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <path d="M 950 500 L 990 500 L 990 600 L 1060 600" fill="none" stroke="#ffffff" stroke-width="10" stroke-opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="981" y="591" width="30" height="30" fill="#ffffff" fill-opacity="1"/>
+  <rect x="700" y="400" width="200" height="200" rx="24" fill="none" stroke="#ffffff" stroke-width="16"/>
+</svg>

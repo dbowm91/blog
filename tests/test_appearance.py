@@ -7,9 +7,16 @@ safe to serve, and the admin route that stores the choices.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 
-from app.appearance.backdrops import CUSTOM_BACKDROP_PREFIX, BackdropRegistry
+from app.appearance.backdrops import (
+    BUNDLED_BACKDROPS,
+    CUSTOM_BACKDROP_PREFIX,
+    BackdropRegistry,
+)
 from app.appearance.fonts import (
     BUNDLED_FONTS,
     CUSTOM_FONT_PREFIX,
@@ -23,7 +30,7 @@ from app.appearance.model import (
     SOURCE_BUNDLED,
     SOURCE_CUSTOM,
 )
-from app.appearance.service import AppearanceService
+from app.appearance.service import DEFAULT_BACKDROP, AppearanceService
 from app.appearance.svg import SvgSanitisationError, sanitize_svg
 from app.appearance.uploads import save_custom_backdrop, save_custom_font
 from app.models import SiteSettings
@@ -204,9 +211,68 @@ def test_backdrop_registry_lists_bundled_backdrops():
 
     keys = [b.key for b in registry.list_backdrops()]
 
-    assert "default" in keys
     assert "grid" in keys
-    assert "waves" in keys
+    assert "neural-mesh" in keys
+    assert "circuit-bloom" in keys
+
+
+def test_the_retired_backdrop_keys_are_gone():
+    """A key that resolves to nothing leaves the page with no backdrop."""
+    registry = BackdropRegistry(storage=_FakeStorage())
+
+    keys = [b.key for b in registry.list_backdrops()]
+
+    assert "default" not in keys
+    assert "waves" not in keys
+
+
+def test_every_bundled_backdrop_has_its_file():
+    """The registry skips a graphic that is not on disk."""
+    root = Path(__file__).resolve().parents[1] / "app" / "static" / "img" / "backdrops"
+
+    missing = [
+        filename for _key, _label, filename in BUNDLED_BACKDROPS if not (root / filename).is_file()
+    ]
+
+    assert missing == [], f"a bundled backdrop has no file: {missing}"
+
+
+def test_the_blueprint_grid_is_the_default_backdrop():
+    assert DEFAULT_BACKDROP == "grid"
+    assert SiteSettings.__table__.c.backdrop.default.arg == "grid"
+
+
+def test_a_bundled_backdrop_is_drawn_in_a_single_colour():
+    """The graphic supplies a shape; the theme supplies the colour.
+
+    The SVG is applied as a mask, so its own fill is irrelevant — a graphic
+    that carried a colour of its own would only be misleading.
+    """
+    root = Path(__file__).resolve().parents[1] / "app" / "static" / "img" / "backdrops"
+
+    for _key, _label, filename in BUNDLED_BACKDROPS:
+        source = (root / filename).read_text(encoding="utf-8")
+        colours = set(re.findall(r'(?:fill|stroke)="(#[0-9A-Fa-f]{3,8})"', source))
+        assert colours <= {"#ffffff"}, f"{filename} carries its own colour: {colours}"
+
+
+def test_a_bundled_backdrop_is_drawn_with_heavy_forms():
+    """The tint is faint, so a hairline graphic would not read at all.
+
+    The graphic is a mask, so only its alpha matters: a shape drawn with thin
+    strokes disappears against the page at the alpha the theme produces. The
+    blueprint grid is the exception — it is a dense repeating pattern, which
+    reads as a texture rather than as a line.
+    """
+    root = Path(__file__).resolve().parents[1] / "app" / "static" / "img" / "backdrops"
+
+    for key, _label, filename in BUNDLED_BACKDROPS:
+        if key == "grid":
+            continue
+        source = (root / filename).read_text(encoding="utf-8")
+        widths = [float(w) for w in re.findall(r'stroke-width="([\d.]+)"', source)]
+        assert widths, f"{filename} has no strokes"
+        assert max(widths) >= 4, f"{filename} is drawn with hairline strokes"
 
 
 def test_backdrop_registry_resolves_a_custom_backdrop():
@@ -413,7 +479,7 @@ def test_resolve_font_key_keeps_the_current_custom_family():
 def test_resolve_backdrop_key_accepts_none():
     registry = BackdropRegistry(storage=_FakeStorage())
 
-    key, error = resolve_backdrop_key("", None, "default", registry)
+    key, error = resolve_backdrop_key("", None, "grid", registry)
 
     assert error is None
     assert key == ""
@@ -422,7 +488,7 @@ def test_resolve_backdrop_key_accepts_none():
 def test_resolve_backdrop_key_rejects_an_unknown_backdrop():
     registry = BackdropRegistry(storage=_FakeStorage())
 
-    key, error = resolve_backdrop_key("nope", None, "default", registry)
+    key, error = resolve_backdrop_key("nope", None, "grid", registry)
 
     assert key is None
     assert error is not None
@@ -432,7 +498,7 @@ def test_resolve_backdrop_key_rejects_an_unknown_backdrop():
 
 
 def test_appearance_service_emits_the_font_stacks(app, db):
-    _set_site_settings(font_sans="ibm-plex-sans", font_mono="fira-code", backdrop="default")
+    _set_site_settings(font_sans="ibm-plex-sans", font_mono="fira-code", backdrop="grid")
     service = AppearanceService()
 
     context = service.get_context()
@@ -467,7 +533,7 @@ def test_appearance_service_declares_a_custom_font_face(app, db):
     storage = _FakeStorage()
     name = f"{CUSTOM_FONT_PREFIX}my-font-1234abcd.woff2"
     storage.save(name, b"wOF2")
-    _set_site_settings(font_sans=name, font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans=name, font_mono="jetbrains-mono", backdrop="grid")
     service = AppearanceService()
     service.get_font_registry()._storage = storage
     service.get_font_registry().invalidate()
@@ -493,7 +559,7 @@ def test_appearance_service_falls_back_when_the_custom_font_file_is_gone(app, db
     storage = _FakeStorage()
     name = f"{CUSTOM_FONT_PREFIX}my-font-1234abcd.woff2"
     storage.save(name, b"wOF2")
-    _set_site_settings(font_sans=name, font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans=name, font_mono="jetbrains-mono", backdrop="grid")
     service = AppearanceService()
     service.get_font_registry()._storage = storage
     service.get_font_registry().invalidate()
@@ -510,7 +576,7 @@ def test_appearance_service_falls_back_when_the_custom_font_file_is_gone(app, db
 
 
 def test_appearance_service_tint_differs_between_schemes(app, db):
-    _set_site_settings(font_sans="inter", font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans="inter", font_mono="jetbrains-mono", backdrop="grid")
     service = AppearanceService()
 
     context = service.get_context()
@@ -520,7 +586,7 @@ def test_appearance_service_tint_differs_between_schemes(app, db):
 
 
 def test_appearance_service_preloads_the_selected_fonts(app, db):
-    _set_site_settings(font_sans="ibm-plex-sans", font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans="ibm-plex-sans", font_mono="jetbrains-mono", backdrop="grid")
     service = AppearanceService()
 
     preloads = service.get_context()["appearance_preload_fonts"]
@@ -553,11 +619,11 @@ def test_settings_page_lists_the_appearance_choices(authenticated_client, db):
 
 
 def test_settings_appearance_stores_the_choices(authenticated_client, db):
-    _set_site_settings(font_sans="inter", font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans="inter", font_mono="jetbrains-mono", backdrop="grid")
 
     response = authenticated_client.post(
         "/admin/settings/appearance",
-        data={"font_sans": "ibm-plex-sans", "font_mono": "fira-code", "backdrop": "waves"},
+        data={"font_sans": "ibm-plex-sans", "font_mono": "fira-code", "backdrop": "circuit-bloom"},
         follow_redirects=True,
     )
 
@@ -565,15 +631,15 @@ def test_settings_appearance_stores_the_choices(authenticated_client, db):
     settings = SiteSettings.get_instance()
     assert settings.font_sans == "ibm-plex-sans"
     assert settings.font_mono == "fira-code"
-    assert settings.backdrop == "waves"
+    assert settings.backdrop == "circuit-bloom"
 
 
 def test_settings_appearance_rejects_an_unknown_font(authenticated_client, db):
-    _set_site_settings(font_sans="inter", font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans="inter", font_mono="jetbrains-mono", backdrop="grid")
 
     response = authenticated_client.post(
         "/admin/settings/appearance",
-        data={"font_sans": "comic-sans", "font_mono": "jetbrains-mono", "backdrop": "default"},
+        data={"font_sans": "comic-sans", "font_mono": "jetbrains-mono", "backdrop": "grid"},
         follow_redirects=True,
     )
 
@@ -585,14 +651,14 @@ def test_settings_appearance_rejects_an_unknown_font(authenticated_client, db):
 def test_settings_appearance_requires_authentication(client, db):
     response = client.post(
         "/admin/settings/appearance",
-        data={"font_sans": "inter", "font_mono": "jetbrains-mono", "backdrop": "default"},
+        data={"font_sans": "inter", "font_mono": "jetbrains-mono", "backdrop": "grid"},
     )
 
     assert response.status_code in (302, 401, 403)
 
 
 def test_the_public_page_carries_the_appearance_css(client, db):
-    _set_site_settings(font_sans="ibm-plex-sans", font_mono="jetbrains-mono", backdrop="default")
+    _set_site_settings(font_sans="ibm-plex-sans", font_mono="jetbrains-mono", backdrop="grid")
 
     response = client.get("/")
     body = response.get_data(as_text=True)
