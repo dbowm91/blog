@@ -255,6 +255,42 @@ The server renders flashes as `.flash-container > .flash > .flash-message`.
 the final DOM may contain either representation. Tests must assert the
 user-visible message, not one specific node.
 
+### Editor Field Header Row
+
+A field's label, its hint and the field's own action share **one** row:
+`.form-label-row` in `forms.css` is a flex row with `align-items: center`, and
+the action sits next to the label it belongs to.
+
+An action must never be pushed onto a line of its own below the control it
+changes. That was the original defect: the AI suggestion buttons rendered as
+a stacked row under their inputs, disconnected from the fields they acted on.
+`forms.css` owns the row because it owns the field structure; `admin.css` owns
+the AI button that sits inside it.
+
+### Native Form Controls
+
+One rule sizes every checkbox and radio: `input[type="checkbox"]` in
+`forms.css`. Do not add a second one in `admin.css` — a control that appears
+at two sizes in two sheets is the defect this replaced.
+
+Native widgets (the checkbox mark, the select arrow, the date picker
+indicator, the file picker's button) are drawn by the browser, not by the
+theme. `base.css` declares `color-scheme: dark` on `:root` and
+`color-scheme: light` under `[data-color-scheme="light"]`, so the browser
+draws them for the active theme instead of falling back to the operating
+system's own light-mode rendering. The file picker's `::file-selector-button`
+is restyled in `forms.css` so it reads as one of the editor's own buttons.
+
+### Editor Image Preview
+
+`#image-preview-img` hides itself with a **real** `style="display:none"`
+attribute. It must not be produced by a Jinja string literal containing
+quotes: `{{ ' style="display:none"' if not img }}` is HTML-escaped into
+`style=&#34;display:none&#34;`, the browser cannot parse that as a
+declaration, and the element renders as a broken image. Write the attribute
+as a conditional attribute instead:
+`{% if not img %} style="display:none"{% endif %}`.
+
 ### Theme Tokens
 
 The theme runtime owns colour. Static CSS consumes theme tokens and must not use
@@ -324,8 +360,8 @@ element's base rule therefore owns its breakpoint override too:
 | `layout.css` | `.container`, `.content-layout`, `.sidebar`, `.sidebar-title`, the navbar and `.nav-links` |
 | `public.css` | `.hero`, `.posts-list`, `.post-card`, `.post-full`, `.post-hero`, `.post-toc`, `.share-bar`, `.tldr`, `.tag`, `.tag-more`, `.post-footer-tags`, `.author-card`, `.related-*`, `.archive-*`, `.search-form` |
 | `projects.css` | `.projects-*` directory and `.project-*` landing page structures |
-| `forms.css` | the form controls, including their iOS-zoom font sizes |
-| `admin.css` | the admin surfaces, including `.post-list-*` and `.editor-form` |
+| `forms.css` | the form controls, including their iOS-zoom font sizes, and the field header row (`.form-label-row`) |
+| `admin.css` | the admin surfaces, including `.post-list-*`, `.editor-form` and the AI authoring controls |
 | `prism.css` | the Prism `.token.*` colours, and nothing else |
 
 `base.css` loads before all of them, so it may only override a rule for an

@@ -388,6 +388,7 @@ def register_editor_routes(admin):
             is_ai_assist_available,
             suggest_summary,
             suggest_tags,
+            suggest_title,
         )
 
         request.max_content_length = 70 * 1024
@@ -412,7 +413,7 @@ def register_editor_routes(admin):
         except UnicodeEncodeError:
             return jsonify({"error": "Invalid request."}), 400
         if (
-            action not in {"summary", "tags"}
+            action not in {"summary", "tags", "title"}
             or not isinstance(title, str)
             or len(title) > 200
             or len(title_bytes) > 800
@@ -434,6 +435,17 @@ def register_editor_routes(admin):
         try:
             if action == "summary":
                 suggestion = suggest_summary(
+                    title=title,
+                    body=body,
+                    api_key=config.ai.api_key,
+                    model=config.ai.model,
+                    provider=config.ai.provider,
+                    base_url=config.ai.base_url,
+                    timeout_seconds=config.ai.timeout_seconds,
+                )
+                return jsonify({"suggestion": suggestion})
+            if action == "title":
+                suggestion = suggest_title(
                     title=title,
                     body=body,
                     api_key=config.ai.api_key,

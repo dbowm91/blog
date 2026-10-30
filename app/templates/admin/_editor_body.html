@@ -1,8 +1,10 @@
 {% macro markdown_editor(value='', label='Body', hint='Markdown formatting supported', placeholder='Write in Markdown...', error=None) %}
 {% set described_by = 'body-hint' + (' body-error' if error else '') %}
 <div class="form-group">
-    <label for="body">{{ label }}</label>
-    <span id="body-hint" class="label-hint">{{ hint }}</span>
+    <div class="form-label-row">
+        <label for="body">{{ label }}</label>
+        <span id="body-hint" class="label-hint">{{ hint }}</span>
+    </div>
     <div class="editor-split" id="editor-split">
         <div class="editor-textarea-wrapper">
             <div class="editor-toolbar" role="toolbar" aria-label="Markdown formatting and editing history" aria-controls="body">

@@ -163,6 +163,59 @@ def test_ai_suggestions_require_review_and_merge_tags(browser, app_server, app) 
 
 
 @requires_frontend_build
+def test_ai_title_suggestion_requires_review(browser, app_server, app) -> None:
+    from app.config.model import AiConfig
+
+    typed_config = app.config["DEVLOG_CONFIG"]
+    app.config["DEVLOG_CONFIG"] = replace(
+        typed_config,
+        ai=AiConfig(model="e2e-test-model", api_key="e2e-only-not-a-real-provider-key"),
+    )
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    requests: list[dict] = []
+    try:
+        page.goto(f"{app_server}/admin/login")
+        page.fill('input[name="username"]', "admin")
+        page.fill('input[name="password"]', "test-password-123")
+        page.click('button[type="submit"]')
+        page.wait_for_url("**/admin/")
+
+        def fulfill_title(route):
+            requests.append({"payload": route.request.post_data_json})
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"suggestion": "A sharper headline for the draft"}),
+            )
+
+        page.route("**/admin/ai-assist", fulfill_title)
+        page.goto(f"{app_server}/admin/new")
+        page.fill("#title", "Current unsaved headline")
+        page.fill("#body", "Current unsaved Markdown body.")
+
+        page.get_by_role("button", name="Suggest title").click()
+        page.get_by_text("Suggestion: A sharper headline for the draft").wait_for()
+        assert page.locator("#title").input_value() == "Current unsaved headline"
+
+        page.once("dialog", lambda dialog: dialog.dismiss())
+        page.get_by_role("button", name="Use this title").click()
+        assert page.locator("#title").input_value() == "Current unsaved headline"
+
+        page.once("dialog", lambda dialog: dialog.accept())
+        page.get_by_role("button", name="Use this title").click()
+        assert page.locator("#title").input_value() == "A sharper headline for the draft"
+
+        assert len(requests) == 1
+        assert requests[0]["payload"]["action"] == "title"
+        assert requests[0]["payload"]["title"] == "Current unsaved headline"
+        assert requests[0]["payload"]["body"] == "Current unsaved Markdown body."
+    finally:
+        app.config["DEVLOG_CONFIG"] = typed_config
+        context.close()
+
+
+@requires_frontend_build
 def test_local_model_suggestion_through_editor(browser, app_server, app) -> None:
     if os.environ.get("RUN_LOCAL_AI_E2E") != "1":
         pytest.skip("set RUN_LOCAL_AI_E2E=1 to call the configured local model")

@@ -228,7 +228,7 @@ Origin: repository source review of the current Pages, navigation, themes, Markd
 
 Roadmap: [`ai_authoring_roadmap.md`](ai_authoring_roadmap.md)
 
-Operator request: optional **AI write TL;DR** and **AI suggest tags** on the post new/edit editor, with candidate generation followed by conditional existing-tag semantic reconciliation. The code and deterministic/browser acceptance tests are implemented; no migrations, automatic publishing, public AI, or AI calls unless an operator explicitly configures a model. The default is off; a local OpenAI-compatible model works without an API key.
+Operator request: optional **AI write TL;DR** and **AI suggest tags** on the post new/edit editor, with candidate generation followed by conditional existing-tag semantic reconciliation. A third action, **AI suggest title**, was added later to the same editor; the shipped behaviour is in `architecture/`, not here. The code and deterministic/browser acceptance tests are implemented; no migrations, automatic publishing, public AI, or AI calls unless an operator explicitly configures a model. The default is off; a local OpenAI-compatible model works without an API key.
 
 | Phase | File | Status |
 |---|---|---|

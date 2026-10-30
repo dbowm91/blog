@@ -13,6 +13,7 @@ input[type="tel"],
 input[type="datetime-local"],
 input[type="date"],
 input[type="time"],
+input[type="file"],
 textarea,
 select {
     padding: 10px 14px;
@@ -35,6 +36,7 @@ input[type="tel"]:focus,
 input[type="datetime-local"]:focus,
 input[type="date"]:focus,
 input[type="time"]:focus,
+input[type="file"]:focus,
 textarea:focus,
 select:focus {
     outline: none;
@@ -45,6 +47,20 @@ select:focus {
 input::placeholder,
 textarea::placeholder {
     color: var(--text-dim);
+}
+
+/* --- Checkboxes and radios ---
+   The browser's own control is kept: it is the accessible, keyboard-correct
+   widget and it draws the mark for the active colour scheme. This sheet owns
+   the size, the accent and the hit area for every checkbox and radio on the
+   site, so the same control never appears at two different sizes. */
+input[type="checkbox"],
+input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
 /* --- Search / filter input ---
@@ -95,11 +111,41 @@ textarea::placeholder {
     color: var(--text-dim);
 }
 
+/* --- Field header row ---
+   A field's label, its hint and the field's own action share one line, so an
+   action never floats on a row of its own below the control it belongs to. */
+.form-label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: 6px;
+}
+
+.form-label-row label {
+    margin-bottom: 0;
+}
+
+/* An action in a header row sits next to the label it belongs to, separated
+   from the label and its hint by a wider gap than the row's own. */
+.form-label-row > .btn {
+    margin-left: var(--space-sm);
+}
+
 .form-help {
     color: var(--text-caption);
     font-size: 0.85rem;
     margin-top: var(--space-xs);
     margin-bottom: var(--space-md);
+}
+
+/* A quiet note attached to a form — the editor's AI disclosure and any other
+   explanatory line that sits under a control. */
+.form-hint {
+    margin: 0 0 var(--space-md);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-dim);
 }
 
 .form-group input[type="text"],
@@ -132,6 +178,32 @@ textarea::placeholder {
 .form-group input[type="file"] {
     padding: 8px;
     cursor: pointer;
+}
+
+/* The picker button inside the file control is drawn by the browser. It
+   follows the colour scheme but not the theme's surfaces, so it is restyled
+   here to read as one of the editor's own buttons. */
+.form-group input[type="file"]::file-selector-button,
+input[type="file"]::file-selector-button {
+    margin-right: var(--space-sm-md);
+    padding: 6px var(--space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-caption);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition),
+        color var(--transition);
+}
+
+.form-group input[type="file"]::file-selector-button:hover,
+input[type="file"]::file-selector-button:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-dim);
+    color: var(--text);
 }
 
 .form-group textarea {
@@ -194,13 +266,6 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-
-.form-checkbox input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
-    cursor: pointer;
 }
 
 .form-checkbox label {

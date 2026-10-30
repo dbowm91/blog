@@ -117,6 +117,7 @@ def test_ai_controls_render_when_configured(enabled_ai) -> None:
     response = enabled_ai.get("/admin/new")
     public = enabled_ai.application.test_client().get("/")
     assert response.status_code == 200
+    assert b'data-ai-action="title"' in response.data
     assert b'data-ai-action="summary"' in response.data
     assert b'data-ai-action="tags"' in response.data
     assert b"current unsaved title and Markdown body" in response.data
@@ -172,6 +173,35 @@ def test_invalid_action_does_not_call_provider(enabled_ai, monkeypatch) -> None:
     response = enabled_ai.post(
         "/admin/ai-assist",
         json={"action": "publish", "title": "T", "body": "Some text"},
+    )
+    assert response.status_code == 400
+    outbound.assert_not_called()
+
+
+def test_title_action_returns_one_plain_text_suggestion(enabled_ai, monkeypatch) -> None:
+    outbound = Mock(return_value=_provider_response('{"suggestion":"A sharper headline"}'))
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+
+    response = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "title", "title": "Current headline", "body": "Draft body."},
+    )
+
+    assert response.status_code == 200
+    assert response.json == {"suggestion": "A sharper headline"}
+    sent_source = outbound.call_args.kwargs["json"]["messages"][1]["content"]
+    assert "Current headline" in sent_source
+    assert "Draft body." in sent_source
+
+
+def test_title_action_does_not_reach_the_provider_when_the_body_is_empty(
+    enabled_ai, monkeypatch
+) -> None:
+    outbound = Mock()
+    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    response = enabled_ai.post(
+        "/admin/ai-assist",
+        json={"action": "title", "title": "T", "body": "   "},
     )
     assert response.status_code == 400
     outbound.assert_not_called()
@@ -545,6 +575,31 @@ def test_summary_rejects_html_and_oversize_output(monkeypatch) -> None:
     )
     with pytest.raises(ai_assist.ProviderError):
         ai_assist.suggest_summary(title="Title", body="Body", api_key="secret", model="model")
+
+
+def test_title_rejects_html_and_oversize_output(monkeypatch) -> None:
+    monkeypatch.setattr(ai_assist, "_complete", lambda **kwargs: '{"suggestion":"<b>bad</b>"}')
+    with pytest.raises(ai_assist.ProviderError):
+        ai_assist.suggest_title(title="Title", body="Body", api_key="secret", model="model")
+    monkeypatch.setattr(
+        ai_assist,
+        "_complete",
+        lambda **kwargs: json.dumps({"suggestion": "x" * (ai_assist.MAX_TITLE_CHARS + 1)}),
+    )
+    with pytest.raises(ai_assist.ProviderError):
+        ai_assist.suggest_title(title="Title", body="Body", api_key="secret", model="model")
+
+
+def test_title_suggestion_is_a_single_line_of_plain_text(monkeypatch) -> None:
+    monkeypatch.setattr(
+        ai_assist,
+        "_complete",
+        lambda **kwargs: json.dumps({"suggestion": "  A sharper\nheadline  "}),
+    )
+    assert (
+        ai_assist.suggest_title(title="Title", body="Body", api_key="secret", model="model")
+        == "A sharper headline"
+    )
 
 
 def test_transient_provider_failure_retries_then_succeeds(enabled_ai, monkeypatch) -> None:
