@@ -50,6 +50,26 @@ def test_debug_report_only_csp_allows_the_same_embed_and_media_sources(app):
     assert "media-src 'self'" in report_only
 
 
+def test_the_report_only_csp_declares_report_uri_as_its_own_directive(app):
+    """``report-uri`` is a directive, not a source expression.
+
+    Nested inside ``connect-src`` the browser reads the two tokens as invalid
+    source expressions, ignores them and never emits the directive, so the
+    reports the policy asks for never arrive.
+    """
+    previous_debug = app.debug
+    app.debug = True
+    try:
+        response = app.test_client().get("/media/download/not-an-attachment")
+    finally:
+        app.debug = previous_debug
+
+    report_only = response.headers.get("Content-Security-Policy-Report-Only", "")
+    assert "report-uri /csp-violation;" in report_only
+    assert "connect-src 'self' report-uri" not in report_only
+    assert "connect-src 'self';" in report_only
+
+
 def test_hsts_conditional_debug(client):
     """Test HSTS is present in non-debug mode."""
     response = client.get("/")

@@ -87,9 +87,18 @@ The stored key *is* the family key, so `SiteSettings.font_sans` holds either
 
 ## The Backdrop
 
-A backdrop is a large, single-colour graphic behind the page. Three ship with
-the site in `app/static/img/backdrops/`: `default` (a disc and a concentric
-ring), `grid` (blueprint grid) and `waves` (flowing bands).
+A backdrop is a large, single-colour graphic behind the page. Eight ship with
+the site in `app/static/img/backdrops/`: `grid` (blueprint grid), `neural-mesh`
+(a network graph around a solid core), `circuit-bloom` (a chip die with pins
+and traces), `circuit-tree` (a tree drawn with circuit traces), `nexus` (a
+network hub), `hex-core` (a hexagon in corner brackets), `quantum-orb` (a
+solid sphere with orbit rings), `lattice` (a diamond mesh) and `signal` (an
+equaliser waveform).
+
+The blueprint grid is the default: `DEFAULT_BACKDROP` in
+`app/appearance/service.py` names it, `SiteSettings.backdrop` defaults to it,
+and the migration `default_blueprint_grid_backdrop` moves a stored value from
+one of the retired keys onto it.
 
 The graphic supplies only a shape. The colour comes from the theme at runtime:
 
@@ -111,6 +120,12 @@ top of it.
 A backdrop is drawn with `mask-size: cover`, so the shape has to survive being
 cropped. The bundled graphics keep their forms inside the central 1600×1000
 viewBox and away from the edges.
+
+The tint is deliberately faint — the accent mixed into the background at a low
+alpha — so a graphic drawn with hairline strokes disappears. A bundled
+backdrop therefore uses heavy strokes and large filled forms: it has to read
+as a shape at the tint the theme produces, not only when the SVG is opened on
+its own.
 
 ### Custom Backdrops
 

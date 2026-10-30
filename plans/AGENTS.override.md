@@ -211,7 +211,7 @@ Origin: repository source review of the current Pages, navigation, themes, Markd
 
 | Phase | File | Status |
 |---|---|---|
-| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | **Implemented**; Project ORM/admin, `/projects`, themed layout presets |
+| 01 | [Project foundation and landing](project_pages_phase_01_foundation.md) | **Implemented**; Project ORM/admin, `/projects`, themed layout presets, rebuilt landing layouts and product-page options with a structured `Project.features` list |
 | 02 | [Navigation and home selection](project_pages_phase_02_navigation_home.md) | **Implemented**; configurable Projects menu, direct-link deduplication, Page/Project homepage, `/posts` |
 | 03 | [Local documentation](project_pages_phase_03_local_docs.md) | **Partial**; local authoring/viewer and assets implemented; browser/accessibility gates open |
 | 04 | [Repository documentation sync](project_pages_phase_04_repository_docs.md) | **Partial**; bounded snapshot sync implemented with a database-backed cross-worker lease; scheduler/image import gates open |

@@ -1,4 +1,4 @@
-{% from "projects/_project_macros.html" import project_links, project_hero, project_screenshots %}
+{% from "projects/_project_macros.html" import project_links, project_hero, project_features, project_screenshots, project_cta %}
 
 <article class="project-landing project-landing-product">
     <header class="project-hero">
@@ -10,13 +10,19 @@
             {{ project_links(project) }}
         </div>
         <div class="project-hero-media">
-            {{ project_hero(project) }}
+            {{ project_hero(project, framed=True) }}
         </div>
     </header>
 
-    <div class="prose project-body">
+    {{ project_features(project) }}
+
+    {% if project.body %}
+    <div class="prose project-body project-body-centered">
         {{ project.body | markdown_safe | safe }}
     </div>
+    {% endif %}
 
     {{ project_screenshots(project) }}
+
+    {{ project_cta(project) }}
 </article>

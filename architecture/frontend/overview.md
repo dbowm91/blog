@@ -54,6 +54,24 @@ the seams. Those seams are where the defects live, so each has a named owner:
 | Editor Media and Attachment pickers | `admin/media-picker.js` + `admin/editor.js` | Shared by post/page Markdown editors; use the author-protected categorized catalog/upload API and shared CSRF helper. Media inserts inline images or controlled video markup; Attachment always inserts a forced-download link. Insertions dispatch input and structural history events and preserve the editor selection/focus contract |
 | Breakpoint visibility | one stylesheet per breakpoint | A media query adds no specificity: the sheet that owns an element's base rule owns its breakpoint override too |
 | Stylesheet order | `app/templates/base.html` | `main.js` must not import a stylesheet, or dev and production diverge |
+| Project landing column | `app/static/css/projects.css` | The landing page is one column; the breadcrumb, the header, the prose and the gallery share its left edge. `projects.css` overrides the centred prose measure for `.project-body` only, so the title and the body line up |
+
+## Project Landing Layouts
+
+`app/templates/projects/_layout_<style>.html` holds one layout each, and
+`projects/landing.html` picks the one named by the project's `landing_style`.
+The style is a layout identifier, never a theme identifier.
+
+| Layout | Shape | Notes |
+|---|---|---|
+| `product` | Hero band, feature grid, centred prose, gallery, closing call to action | The product-page layout; the hero image renders in a window frame |
+| `showcase` | Header, full-width framed hero, feature grid, centred prose, gallery, closing call to action | Leads with the visual |
+| `documentation` | Header, body in the main column, resources in a sticky rail | The rail reuses the `.project-docs-main` / `.project-docs-rail` grid the documentation pages use, so the body never lands in the rail column |
+| `minimal` | Header, prose, gallery | A document column; the prose is left-aligned with the title |
+| `terminal` | Header, body inside a terminal window, gallery | The body fills the window rather than holding the prose measure |
+
+Every layout renders the project's feature grid, and every layout renders a
+configured hero image. A layout never drops a field the administrator set.
 
 `app/static/AGENTS.override.md` documents each contract with its rationale.
 `tests/test_css_contracts.py` and `tests/test_frontend_contracts.py` enforce the

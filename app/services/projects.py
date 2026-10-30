@@ -26,8 +26,18 @@ from app.models import Project
 
 logger = logging.getLogger(__name__)
 
-LANDING_STYLES: tuple[str, ...] = ("product", "documentation", "minimal", "terminal")
+LANDING_STYLES: tuple[str, ...] = ("product", "showcase", "documentation", "minimal", "terminal")
 DEFAULT_LANDING_STYLE = "minimal"
+
+# The labels the project editor shows in the landing-layout picker. The stored
+# value stays the layout name; only the picker speaks in sentences.
+LANDING_STYLE_LABELS: dict[str, str] = {
+    "product": "Product page",
+    "showcase": "Product showcase",
+    "documentation": "Documentation",
+    "minimal": "Minimal",
+    "terminal": "Terminal",
+}
 
 MAX_TITLE_LENGTH = 200
 MAX_SUMMARY_LENGTH = 500
@@ -37,6 +47,9 @@ MAX_REPO_URL_LENGTH = 512
 MAX_HERO_IMAGE_LENGTH = 256
 MAX_HERO_IMAGE_ALT_LENGTH = 256
 MAX_SCREENSHOTS = 6
+MAX_FEATURES = 6
+MAX_FEATURE_TITLE_LENGTH = 120
+MAX_FEATURE_TEXT_LENGTH = 400
 
 # A repository link is a plain https URL. Anything else is rejected rather
 # than rendered, so a project page cannot smuggle in a javascript:, data: or
@@ -54,6 +67,22 @@ class ProjectValidationError(ValueError):
     def __init__(self, messages: Iterable[str]) -> None:
         self.messages: tuple[str, ...] = tuple(messages)
         super().__init__("; ".join(self.messages))
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectFeature:
+    """One entry of a project's feature list.
+
+    A feature is a title and an optional supporting text. It is the unit the
+    product-page layouts render as a card.
+    """
+
+    title: str
+    text: str = ""
+
+    def to_dict(self) -> dict[str, str]:
+        """Return the mapping stored in the ``features`` column."""
+        return {"title": self.title, "text": self.text}
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +104,7 @@ class ProjectPayload:
     hero_image: Optional[str]
     hero_image_alt: Optional[str]
     screenshots: tuple[str, ...]
+    features: tuple[ProjectFeature, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +121,7 @@ class ProjectDirectoryEntry:
     hero_image: Optional[str]
     hero_image_alt: Optional[str]
     screenshot_count: int
+    thumbnail_key: Optional[str] = None
 
     @property
     def url(self) -> str:
@@ -260,6 +291,12 @@ def validate_project_form(form: Any) -> ProjectPayload:
         messages.append(f"A project can carry at most {MAX_SCREENSHOTS} screenshots.")
         screenshots = screenshots[:MAX_SCREENSHOTS]
 
+    features = _parse_features(form.get("features"))
+    if len(features) > MAX_FEATURES:
+        messages.append(f"A project can carry at most {MAX_FEATURES} features.")
+        features = features[:MAX_FEATURES]
+    features = _fit_features(features, messages)
+
     try:
         sort_order = int(str(form.get("sort_order") or "0").strip() or "0")
     except (TypeError, ValueError):
@@ -288,6 +325,7 @@ def validate_project_form(form: Any) -> ProjectPayload:
         hero_image=hero_image,
         hero_image_alt=hero_image_alt,
         screenshots=tuple(screenshots),
+        features=tuple(features),
     )
 
 
@@ -324,6 +362,72 @@ def _parse_screenshot_keys(raw: Any) -> list[str]:
                     keys.append(filename.strip())
         return keys
     return []
+
+
+def _parse_features(raw: Any) -> list[ProjectFeature]:
+    """Return the submitted feature entries.
+
+    Two shapes are accepted. A text input carries one feature per line as
+    ``Title | Description``; the separator is optional, so a line without one
+    becomes a title with no description. A JSON body carries a list of
+    ``{"title": ..., "text": ...}`` mappings.
+
+    An entry without a title is dropped: a feature card needs a title, and a
+    half-typed line in the editor should not become an empty card.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        raw = raw.replace("\r\n", "\n").splitlines()
+    if not isinstance(raw, (list, tuple)):
+        return []
+
+    features: list[ProjectFeature] = []
+    for entry in raw:
+        if isinstance(entry, dict):
+            title = entry.get("title")
+            text = entry.get("text")
+            title = title.strip() if isinstance(title, str) else ""
+            text = text.strip() if isinstance(text, str) else ""
+        elif isinstance(entry, str):
+            title, text = _split_feature_line(entry)
+        else:
+            continue
+        if not title:
+            continue
+        features.append(ProjectFeature(title=title, text=text))
+    return features
+
+
+def _split_feature_line(line: str) -> tuple[str, str]:
+    """Split a ``Title | Description`` line into its two halves."""
+    value = line.strip()
+    if not value:
+        return "", ""
+    title, separator, text = value.partition("|")
+    if not separator:
+        return value, ""
+    return title.strip(), text.strip()
+
+
+def _fit_features(features: list[ProjectFeature], messages: list[str]) -> list[ProjectFeature]:
+    """Truncate over-long feature fields and report each truncation."""
+    fitted: list[ProjectFeature] = []
+    for feature in features:
+        title = feature.title
+        text = feature.text
+        if len(title) > MAX_FEATURE_TITLE_LENGTH:
+            messages.append(
+                f"A feature title must be {MAX_FEATURE_TITLE_LENGTH} characters or fewer."
+            )
+            title = title[:MAX_FEATURE_TITLE_LENGTH]
+        if len(text) > MAX_FEATURE_TEXT_LENGTH:
+            messages.append(
+                f"A feature description must be {MAX_FEATURE_TEXT_LENGTH} characters or fewer."
+            )
+            text = text[:MAX_FEATURE_TEXT_LENGTH]
+        fitted.append(ProjectFeature(title=title, text=text))
+    return fitted
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +543,7 @@ def get_project(project_id: int) -> Optional[Project]:
 
 def project_directory_entry(project: Project) -> ProjectDirectoryEntry:
     """Project a project into the shape the directory renders."""
+    screenshots = project.screenshot_keys
     return ProjectDirectoryEntry(
         id=project.id,
         title=project.title,
@@ -449,13 +554,25 @@ def project_directory_entry(project: Project) -> ProjectDirectoryEntry:
         nav_label=project.nav_label,
         hero_image=project.hero_image,
         hero_image_alt=project.hero_image_alt,
-        screenshot_count=len(project.screenshot_keys),
+        screenshot_count=len(screenshots),
+        thumbnail_key=project.hero_image or (screenshots[0] if screenshots else None),
     )
 
 
 def project_nav_label(project: Project) -> str:
     """Return the label a project carries in the navigation."""
     return (project.nav_label or "").strip() or project.title
+
+
+def resolve_landing_style(project: Project) -> str:
+    """Return the landing layout a project renders with.
+
+    A project whose stored layout is not one of the presets falls back to the
+    default, so a template never has to know a layout name that no longer
+    exists.
+    """
+    style = (project.landing_style or "").strip()
+    return style if style in LANDING_STYLES else DEFAULT_LANDING_STYLE
 
 
 # ---------------------------------------------------------------------------
@@ -503,8 +620,13 @@ __all__ = [
     "DEFAULT_LANDING_STYLE",
     "GITHUB_HOSTS",
     "LANDING_STYLES",
+    "LANDING_STYLE_LABELS",
+    "MAX_FEATURES",
+    "MAX_FEATURE_TEXT_LENGTH",
+    "MAX_FEATURE_TITLE_LENGTH",
     "MAX_SCREENSHOTS",
     "ProjectDirectoryEntry",
+    "ProjectFeature",
     "ProjectPayload",
     "ProjectThemeScope",
     "ProjectValidationError",
@@ -519,6 +641,7 @@ __all__ = [
     "normalize_optional",
     "project_directory_entry",
     "project_nav_label",
+    "resolve_landing_style",
     "resolve_project_theme_scope",
     "resolve_theme_name",
     "validate_project_form",

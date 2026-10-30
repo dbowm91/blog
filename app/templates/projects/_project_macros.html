@@ -8,10 +8,39 @@
     {% endif %}
 {% endmacro %}
 
-{% macro project_hero(project) %}
+{% macro project_hero(project, framed=False) %}
     {% set hero_url = project.hero_image | media_url %}
     {% if hero_url %}
-    <img class="project-hero-image" src="{{ hero_url }}" alt="{{ project.hero_image_alt | default(project.title, true) | escape }}" loading="lazy">
+        {% if framed %}
+        <div class="project-hero-frame">
+            <div class="project-hero-frame-bar" aria-hidden="true">
+                <span class="project-hero-frame-dot"></span>
+                <span class="project-hero-frame-dot"></span>
+                <span class="project-hero-frame-dot"></span>
+            </div>
+            <img class="project-hero-image" src="{{ hero_url }}" alt="{{ project.hero_image_alt | default(project.title, true) | escape }}" loading="lazy">
+        </div>
+        {% else %}
+        <img class="project-hero-image" src="{{ hero_url }}" alt="{{ project.hero_image_alt | default(project.title, true) | escape }}" loading="lazy">
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{% macro project_features(project) %}
+    {% set items = project.feature_items %}
+    {% if items %}
+    <section class="project-features" aria-label="Features">
+        <ul class="project-feature-grid">
+            {% for feature in items %}
+            <li class="project-feature">
+                <h3 class="project-feature-title">{{ feature.title }}</h3>
+                {% if feature.text %}
+                <p class="project-feature-text">{{ feature.text }}</p>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
     {% endif %}
 {% endmacro %}
 
@@ -28,5 +57,19 @@
         {% endif %}
         {% endfor %}
     </ul>
+    {% endif %}
+{% endmacro %}
+
+{% macro project_cta(project) %}
+    {% if project.repo_url or project.docs_enabled or project.releases_enabled %}
+    <section class="project-cta" aria-label="Get started">
+        <div class="project-cta-copy">
+            <h2 class="project-cta-title">Get started</h2>
+            {% if project.summary %}
+            <p class="project-cta-text">{{ project.summary }}</p>
+            {% endif %}
+        </div>
+        {{ project_links(project) }}
+    </section>
     {% endif %}
 {% endmacro %}

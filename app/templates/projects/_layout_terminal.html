@@ -1,4 +1,4 @@
-{% from "projects/_project_macros.html" import project_links, project_hero, project_screenshots %}
+{% from "projects/_project_macros.html" import project_links, project_hero, project_features, project_screenshots %}
 
 <article class="project-landing project-landing-terminal">
     <header class="project-header">
@@ -9,12 +9,20 @@
         {{ project_links(project) }}
     </header>
 
+    {% if project.hero_image %}
+    <div class="project-hero-media project-hero-media-full">
+        {{ project_hero(project) }}
+    </div>
+    {% endif %}
+
     <div class="project-terminal" role="group" aria-label="Project command summary">
         <p class="project-terminal-prompt"><span class="project-terminal-prompt-user">$</span> <span class="project-terminal-prompt-command">devlog project show {{ project.slug }}</span></p>
         <div class="prose project-body project-terminal-body">
             {{ project.body | markdown_safe | safe }}
         </div>
     </div>
+
+    {{ project_features(project) }}
 
     {{ project_screenshots(project) }}
 </article>

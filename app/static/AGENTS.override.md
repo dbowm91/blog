@@ -217,6 +217,11 @@ The `.prose` typography is owned by `base.css`. The admin live preview renders
 in `public.css` are missing in the preview. `tests/test_css_contracts.py`
 enforces that `base.css` owns them and `public.css` does not.
 
+The media rules follow the same rule: `.prose video` and `.prose iframe` live in
+`base.css`, so an uploaded video and an embedded frame look the same in the
+live preview and on the published page. Both are capped at the reading measure
+so a wide element cannot break the column.
+
 ### Reading Measure
 
 The prose column's measure is `max-width: 34em` on `.prose`, owned by `base.css`
@@ -227,6 +232,25 @@ breakpoint; a pixel cap would change the character count with it.
 `public.css` must not set a width or a max-width on `.post-body`. The measure
 narrows the text, never the page: the hero image keeps the full width of the
 tile and the table of contents stays full tile width.
+
+### Project Landing Column
+
+`projects.css` owns the project landing page and the project directory. A
+landing page is one column: the breadcrumb, the header, the prose and the
+gallery share that column's left edge, so the title and the body line up.
+
+The one exception `projects.css` makes to the prose contract is
+`.project-body`: it keeps the `34em` measure from `base.css` but sets
+`margin-inline: 0`, because the centred measure is the post tile's
+arrangement. A project page has no tile, and a centred column beside a
+flush-left title reads as a stray inset. The product layouts centre the
+measure again through `.project-body-centered`, because there the hero above
+is a wide band.
+
+The documentation layout reuses the `.project-docs-main` / `.project-docs-rail`
+grid the documentation pages use. A landing template that introduces its own
+sidebar class name leaves the body outside the grid's main column, and the
+body lands in the narrow rail instead.
 
 ### Placeholder Image
 

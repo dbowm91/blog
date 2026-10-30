@@ -2,6 +2,8 @@
    Every colour here is a theme token; a project that scopes a theme
    overrides those tokens on `.project-scope` and nothing else. */
 
+/* --- Directory --- */
+
 .projects-index-heading {
     font-size: 1.75rem;
     font-weight: 600;
@@ -17,10 +19,40 @@
 }
 
 .projects-index-item {
-    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
+    transition: border-color var(--transition);
+}
+
+.projects-index-item:hover {
+    border-color: var(--text-dim);
+}
+
+.projects-index-media {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+}
+
+.projects-index-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.projects-index-copy {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: var(--space-lg);
 }
 
 .projects-index-title {
@@ -39,6 +71,22 @@
     margin-bottom: var(--space-sm-md);
 }
 
+.projects-index-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm-md);
+    margin-top: auto;
+}
+
+.projects-index-count {
+    color: var(--text-caption);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 .projects-index-repo {
     font-size: 0.9rem;
     color: var(--accent-text);
@@ -48,13 +96,39 @@
     color: var(--text-secondary);
 }
 
+/* --- Landing page shell --- */
+
 .project-scope {
     display: block;
+}
+
+/* The project page is one column, centred in the container. The narrow
+   layouts keep a document-like measure; the product layouts open up to a
+   canvas wide enough for a hero band and a feature grid. */
+.project-page {
+    margin-inline: auto;
+    padding-block: var(--space-lg) var(--space-3xl);
+}
+
+.project-page-minimal,
+.project-page-terminal {
+    max-width: 38rem;
+}
+
+.project-page-documentation {
+    max-width: 64rem;
+}
+
+.project-page-product,
+.project-page-showcase {
+    max-width: 65rem;
 }
 
 .project-landing {
     display: block;
 }
+
+/* --- Shared landing parts --- */
 
 .project-header {
     margin-bottom: var(--space-lg);
@@ -75,26 +149,57 @@
 }
 
 .project-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
     margin-bottom: var(--space-md);
 }
 
+/* The prose keeps the reading measure from `base.css`, but it is left-aligned
+   in the project column so the title above it and the text below it share an
+   edge. The centred measure is the post tile's arrangement: a project page
+   has no tile, and a centred column beside a flush-left title reads as a
+   stray inset rather than as a design. */
 .project-body {
-    margin-bottom: var(--space-lg);
+    margin-inline: 0;
 }
+
+/* The product layouts centre the measure instead. The hero above them is a
+   wide band, so a centred column reads as deliberate there. */
+.project-body-centered {
+    margin-inline: auto;
+}
+
+.project-preview-banner {
+    padding: var(--space-sm-md) var(--space-md);
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent-dim);
+    color: var(--text);
+}
+
+/* --- Hero --- */
 
 .project-hero {
     display: grid;
-    gap: var(--space-lg);
+    gap: var(--space-xl);
     align-items: center;
-    margin-bottom: var(--space-xl);
+    margin-bottom: var(--space-2xl);
 }
 
 .project-hero-copy {
     order: 1;
+    min-width: 0;
 }
 
 .project-hero-media {
     order: 2;
+    min-width: 0;
+}
+
+.project-hero-media-full {
+    margin-bottom: var(--space-lg);
 }
 
 .project-hero-image {
@@ -106,12 +211,86 @@
     background: var(--bg-elevated);
 }
 
+/* The framed hero reads as a window: a title bar above the image, so the
+   product page looks like the product rather than like a picture of it. */
+.project-hero-frame {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-elevated);
+}
+
+.project-hero-frame-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px var(--space-md);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+}
+
+.project-hero-frame-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+}
+
+.project-hero-frame .project-hero-image {
+    border: none;
+    border-radius: 0;
+}
+
+.project-showcase-hero {
+    margin-bottom: var(--space-2xl);
+}
+
+/* --- Feature grid --- */
+
+/* The feature grid is the product page's middle band: one card per feature,
+   three across on a wide canvas and one on a narrow one. */
+.project-features {
+    margin-bottom: var(--space-2xl);
+}
+
+.project-feature-grid {
+    list-style: none;
+    display: grid;
+    gap: var(--space-lg);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin: 0;
+    padding: 0;
+}
+
+.project-feature {
+    padding: var(--space-lg);
+    background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.project-feature-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+.project-feature-text {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* --- Gallery --- */
+
 .project-screenshots {
     list-style: none;
     display: grid;
     gap: var(--space-md);
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    margin-top: var(--space-lg);
+    margin: var(--space-lg) 0 0;
+    padding: 0;
 }
 
 .project-screenshot img {
@@ -123,14 +302,41 @@
     background: var(--bg-elevated);
 }
 
-.project-preview-banner {
-    padding: var(--space-sm-md) var(--space-md);
-    margin-bottom: var(--space-lg);
-    border: 1px solid var(--accent);
-    border-radius: var(--radius);
-    background: var(--accent-dim);
-    color: var(--text);
+/* --- Closing call to action --- */
+
+/* The closing band repeats the project's own links, so the page ends on the
+   call to action rather than on the last paragraph of the body. */
+.project-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+    padding: var(--space-xl);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
 }
+
+.project-cta-title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.project-cta-text {
+    color: var(--text-secondary);
+    margin: 0;
+    max-width: 34em;
+}
+
+.project-cta .project-links {
+    margin-bottom: 0;
+}
+
+/* --- Documentation layout --- */
 
 .project-docs-layout {
     display: grid;
@@ -166,6 +372,37 @@
     list-style: none;
     margin: var(--space-sm) 0 0;
     padding: 0;
+}
+
+.project-docs-heading {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-caption);
+    padding-block: var(--space-xs);
+}
+
+.project-docs-list {
+    list-style: none;
+    margin: var(--space-sm) 0 0;
+    padding: 0;
+}
+
+.project-docs-item {
+    margin-block: var(--space-xs);
+}
+
+.project-docs-item a {
+    color: var(--text-secondary);
+    display: block;
+    padding: var(--space-xs);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.project-docs-item a:hover {
+    color: var(--accent-text);
 }
 
 .project-docs-nav-item {
@@ -247,6 +484,8 @@
     margin-top: var(--space-lg);
 }
 
+/* --- Terminal layout --- */
+
 .project-terminal {
     padding: var(--space-md);
     border: 1px solid var(--border);
@@ -271,14 +510,17 @@
     color: var(--text-secondary);
 }
 
+/* The terminal body is the command's output, so it fills the window rather
+   than holding the prose measure. */
 .project-terminal-body {
     margin-bottom: 0;
+    margin-inline: 0;
     max-width: none;
 }
 
 @media (min-width: 768px) {
     .project-hero {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
     .project-docs-layout {
@@ -293,7 +535,7 @@
     .project-docs-rail {
         grid-column: 2;
         position: sticky;
-        top: var(--space-lg);
+        top: 80px;
     }
 }
 
@@ -304,5 +546,13 @@
 
     .project-summary {
         font-size: 1rem;
+    }
+
+    .project-feature-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .project-screenshots {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

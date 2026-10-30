@@ -14,6 +14,7 @@ from app.routes.public.projects import render_project
 from app.services import projects as project_service
 from app.services.projects import (
     LANDING_STYLES,
+    LANDING_STYLE_LABELS,
     MAX_SCREENSHOTS,
     ProjectValidationError,
 )
@@ -141,6 +142,7 @@ def new_project() -> ResponseReturnValue:
             project=None,
             errors=None,
             landing_styles=LANDING_STYLES,
+            landing_style_labels=LANDING_STYLE_LABELS,
             themes=_theme_choices(),
         )
 
@@ -151,6 +153,7 @@ def new_project() -> ResponseReturnValue:
             project=None,
             errors=errors,
             landing_styles=LANDING_STYLES,
+            landing_style_labels=LANDING_STYLE_LABELS,
             themes=_theme_choices(),
         ), 400
 
@@ -170,6 +173,7 @@ def new_project() -> ResponseReturnValue:
         hero_image=payload.hero_image,
         hero_image_alt=payload.hero_image_alt,
         screenshots=list(payload.screenshots),
+        features=[feature.to_dict() for feature in payload.features],
     )
     db.session.add(project)
 
@@ -220,6 +224,7 @@ def edit_project(project_id: int) -> ResponseReturnValue:
             project=project,
             errors=None,
             landing_styles=LANDING_STYLES,
+            landing_style_labels=LANDING_STYLE_LABELS,
             themes=_theme_choices(),
         )
 
@@ -230,6 +235,7 @@ def edit_project(project_id: int) -> ResponseReturnValue:
             project=project,
             errors=errors,
             landing_styles=LANDING_STYLES,
+            landing_style_labels=LANDING_STYLE_LABELS,
             themes=_theme_choices(),
         ), 400
 
@@ -249,6 +255,7 @@ def edit_project(project_id: int) -> ResponseReturnValue:
     project.hero_image = payload.hero_image
     project.hero_image_alt = payload.hero_image_alt
     project.screenshots = list(payload.screenshots)
+    project.features = [feature.to_dict() for feature in payload.features]
 
     if payload.slug and payload.slug != project.slug:
         project.slug = project_service.generate_unique_project_slug(
