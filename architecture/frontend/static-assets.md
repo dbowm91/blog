@@ -619,12 +619,13 @@ the upstream sources for each family.
 ### Page Backdrops
 
 `app/static/img/backdrops/` holds the bundled page graphics: `grid.svg`
-(blueprint grid, the default), `neural-mesh.svg` (a network graph around a
-solid core) and `circuit-bloom.svg` (a chip die with pins and traces). Each one
-supplies a shape only, in a single colour. The colour is a theme-derived tint
-emitted per scheme as `--backdrop-tint`, and the graphic is applied through
-`mask-image`, so an operator's uploaded SVG matches the theme whatever colour
-it was drawn in. See [Appearance Layer](appearance.md).
+(blueprint grid, the default), `neural-mesh.svg`, `circuit-bloom.svg`,
+`circuit-tree.svg`, `nexus.svg`, `hex-core.svg`, `quantum-orb.svg`,
+`lattice.svg` and `signal.svg`. Each one supplies a shape only, in a single
+colour. The colour is a theme-derived tint emitted per scheme as
+`--backdrop-tint`, and the graphic is applied through `mask-image`, so an
+operator's uploaded SVG matches the theme whatever colour it was drawn in. See
+[Appearance Layer](appearance.md).
 
 ### Syntax Highlighting Themes
 

@@ -87,10 +87,15 @@ The stored key *is* the family key, so `SiteSettings.font_sans` holds either
 
 ## The Backdrop
 
-A backdrop is a large, single-colour graphic behind the page. Three ship with
+A backdrop is a large, single-colour graphic behind the page. Eight ship with
 the site in `app/static/img/backdrops/`: `grid` (blueprint grid), `neural-mesh`
-(a network graph around a solid core) and `circuit-bloom` (a chip die with
-pins and traces). The blueprint grid is the default: `DEFAULT_BACKDROP` in
+(a network graph around a solid core), `circuit-bloom` (a chip die with pins
+and traces), `circuit-tree` (a tree drawn with circuit traces), `nexus` (a
+network hub), `hex-core` (a hexagon in corner brackets), `quantum-orb` (a
+solid sphere with orbit rings), `lattice` (a diamond mesh) and `signal` (an
+equaliser waveform).
+
+The blueprint grid is the default: `DEFAULT_BACKDROP` in
 `app/appearance/service.py` names it, `SiteSettings.backdrop` defaults to it,
 and the migration `default_blueprint_grid_backdrop` moves a stored value from
 one of the retired keys onto it.

@@ -332,8 +332,8 @@ See [architecture/core/themes.md](architecture/core/themes.md).
 The theme system owns colour. The appearance layer (`app/appearance/`) owns the typeface and the page backdrop — the questions the theme registry does not answer. It mirrors the theme mechanism exactly: registry → service → `SiteSettings` → admin UI → runtime CSS, so there is one customisation mechanism, not two.
 
 - Ten families ship locally (4 sans, 6 mono), including one Nerd Font (`meslo-nerd-font`) whose `unicode-range` names the powerline and devicons blocks in the Private Use Area. `app/static/css/base.css` declares every `@font-face`.
-- Three backdrops ship in `app/static/img/backdrops/`: `grid` (blueprint grid, the default), `neural-mesh` and `circuit-bloom`.
-- The backdrop SVG supplies **shape only** — it is applied through `mask-image`, so its own fill is irrelevant.
+- Eight backdrops ship in `app/static/img/backdrops/`: `grid` (blueprint grid, the default), `neural-mesh`, `circuit-bloom`, `circuit-tree`, `nexus`, `hex-core`, `quantum-orb`, `lattice` and `signal`.
+- The backdrop SVG supplies **shape only** — it is applied through `mask-image`, so its own fill is irrelevant. A mask keeps only the alpha channel, so a dark shape drawn over a light one is opaque and invisible: a bundled graphic is one colour, and any detail is cut by leaving the space empty rather than by drawing a dark fill.
 - The tint is deliberately faint, so a bundled graphic needs heavy strokes and large filled forms to read at all.
 - Uploaded SVGs are sanitised before storage (`app/appearance/svg.py`).
 - Panels are translucent via `color-mix(in srgb, var(--bg-surface) 94%, transparent)` with a plain `var(--bg-surface)` fallback first.

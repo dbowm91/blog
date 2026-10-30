@@ -211,9 +211,17 @@ def test_backdrop_registry_lists_bundled_backdrops():
 
     keys = [b.key for b in registry.list_backdrops()]
 
-    assert "grid" in keys
-    assert "neural-mesh" in keys
-    assert "circuit-bloom" in keys
+    assert keys == [
+        "grid",
+        "neural-mesh",
+        "circuit-bloom",
+        "circuit-tree",
+        "nexus",
+        "hex-core",
+        "quantum-orb",
+        "lattice",
+        "signal",
+    ]
 
 
 def test_the_retired_backdrop_keys_are_gone():

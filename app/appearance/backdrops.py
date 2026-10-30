@@ -27,6 +27,12 @@ BUNDLED_BACKDROPS: tuple[tuple[str, str, str], ...] = (
     ("grid", "Blueprint Grid", "grid.svg"),
     ("neural-mesh", "Neural Mesh", "neural-mesh.svg"),
     ("circuit-bloom", "Circuit Bloom", "circuit-bloom.svg"),
+    ("circuit-tree", "Circuit Tree", "circuit-tree.svg"),
+    ("nexus", "Nexus", "nexus.svg"),
+    ("hex-core", "Hex Core", "hex-core.svg"),
+    ("quantum-orb", "Quantum Orb", "quantum-orb.svg"),
+    ("lattice", "Lattice", "lattice.svg"),
+    ("signal", "Signal", "signal.svg"),
 )
 
 
