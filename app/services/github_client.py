@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
-import requests
+from app import http_client
 
 GITHUB_API_ROOT = "https://api.github.com"
 GITHUB_MEDIA_TYPE = "application/vnd.github+json"
@@ -68,7 +68,7 @@ class GitHubApiClient:
     def __init__(
         self,
         *,
-        session: requests.Session | None = None,
+        session: http_client.Client | None = None,
         connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
         read_timeout: float = DEFAULT_READ_TIMEOUT,
         max_response_bytes: int = DEFAULT_RESPONSE_LIMIT,
@@ -85,13 +85,18 @@ class GitHubApiClient:
             raise ValueError("GitHub path segment limit must be positive")
         if max_retries < 0 or max_retries > MAX_RETRIES:
             raise ValueError("GitHub retries must be between zero and two")
-        self.session = session or requests.Session()
+        self._owns_session = session is None
+        self.session = session or http_client.Client()
         self.timeout = (connect_timeout, read_timeout)
         self.max_response_bytes = max_response_bytes
         self.max_path_segments = max_path_segments
         self.max_retries = max_retries
         self.retry_base_seconds = max(0.0, retry_base_seconds)
         self.sleep = sleep
+
+    def close(self) -> None:
+        if self._owns_session:
+            self.session.close()
 
     def get_json(
         self,
@@ -119,7 +124,7 @@ class GitHubApiClient:
                     allow_redirects=False,
                     stream=True,
                 )
-            except requests.RequestException as exc:
+            except http_client.RequestException as exc:
                 if attempt < self.max_retries:
                     self.sleep(self.retry_base_seconds * (2**attempt))
                     continue
@@ -190,7 +195,7 @@ class GitHubApiClient:
             encoded.append(quote(segment, safe=""))
         return "/".join(encoded)
 
-    def _read_limited(self, response: requests.Response) -> bytes:
+    def _read_limited(self, response: http_client.Response) -> bytes:
         content_length = response.headers.get("Content-Length")
         if content_length:
             try:
@@ -209,13 +214,13 @@ class GitHubApiClient:
                 if total > self.max_response_bytes:
                     raise GitHubApiError("GitHub API response exceeded the configured size limit")
                 chunks.append(chunk)
-        except requests.RequestException as exc:
+        except http_client.RequestException as exc:
             raise GitHubApiError("GitHub API response could not be read") from exc
         return b"".join(chunks)
 
     @staticmethod
     def _result(
-        response: requests.Response,
+        response: http_client.Response,
         data: Any | None,
         *,
         not_modified: bool,

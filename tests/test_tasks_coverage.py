@@ -14,7 +14,7 @@ import types
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests
+from app.http_client import RequestException
 from celery.exceptions import MaxRetriesExceededError, Retry
 from PIL import Image
 
@@ -224,7 +224,7 @@ def test_deliver_single_webhook_task_retries_an_http_error(db, webhook_pair):
 
     with (
         patch("app.utils.is_safe_webhook_url", return_value=(True, "URL is safe")),
-        patch("requests.post", return_value=response),
+        patch("app.tasks.http_client.post", return_value=response),
     ):
         with pytest.raises(Retry):
             deliver_single_webhook_task.apply(args=(event_id, webhook_id))
@@ -244,7 +244,7 @@ def test_deliver_single_webhook_task_retries_a_failed_request(db, webhook_pair):
 
     with (
         patch("app.utils.is_safe_webhook_url", return_value=(True, "URL is safe")),
-        patch("requests.post", side_effect=requests.RequestException("connection reset")),
+        patch("app.tasks.http_client.post", side_effect=RequestException("connection reset")),
     ):
         with pytest.raises(Retry):
             deliver_single_webhook_task.apply(args=(event_id, webhook_id))
@@ -264,7 +264,7 @@ def test_deliver_single_webhook_task_handles_exhausted_retries(db, webhook_pair)
 
     with (
         patch("app.utils.is_safe_webhook_url", return_value=(True, "URL is safe")),
-        patch("requests.post", side_effect=MaxRetriesExceededError("no retries left")),
+        patch("app.tasks.http_client.post", side_effect=MaxRetriesExceededError("no retries left")),
     ):
         result = deliver_single_webhook_task.apply(args=(event_id, webhook_id))
 
@@ -281,7 +281,7 @@ def test_deliver_single_webhook_task_reraises_a_retry(db, webhook_pair):
 
     with (
         patch("app.utils.is_safe_webhook_url", return_value=(True, "URL is safe")),
-        patch("requests.post", side_effect=Retry("try again later")),
+        patch("app.tasks.http_client.post", side_effect=Retry("try again later")),
     ):
         with pytest.raises(Retry):
             deliver_single_webhook_task.apply(args=(event.id, webhook.id))

@@ -9,6 +9,7 @@ from celery.exceptions import MaxRetriesExceededError, Retry
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from app import http_client
 from app.webhooks import sign_webhook_payload
 
 if TYPE_CHECKING:
@@ -251,7 +252,6 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
     This task handles delivery to a single webhook with independent retry logic.
     Failed deliveries will be retried up to 3 times with exponential backoff.
     """
-    import requests
     from app.extensions import db
     from app.models import Webhook, WebhookEvent
     from app.config import WEBHOOK_TIMEOUT
@@ -302,26 +302,29 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
         }
 
         try:
-            response = requests.post(
+            response = http_client.post(
                 webhook.url,
                 json=payload,
                 headers=headers,
                 timeout=WEBHOOK_TIMEOUT,
                 allow_redirects=False,  # Prevent redirect-based SSRF
             )
-            event.delivery_attempts += 1
+            try:
+                event.delivery_attempts += 1
 
-            if response.status_code < 400:
-                event.successful_deliveries += 1
-                db.session.commit()
-                _update_delivery_status(event, db)
-                return True
-            else:
-                # HTTP error - retry
+                if response.status_code < 400:
+                    event.successful_deliveries += 1
+                    db.session.commit()
+                    _update_delivery_status(event, db)
+                    return True
                 logger.warning("Webhook %s returned HTTP %d", webhook.name, response.status_code)
                 db.session.commit()
-                raise self.retry(exc=requests.RequestException(f"HTTP {response.status_code}"))
-        except requests.RequestException as e:
+                raise self.retry(
+                    exc=http_client.RequestException(f"HTTP {response.status_code}")
+                )
+            finally:
+                response.close()
+        except http_client.RequestException as e:
             event.delivery_attempts += 1
             db.session.commit()
             raise self.retry(exc=e)

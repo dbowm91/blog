@@ -88,7 +88,7 @@ class TestDeliverWebhook:
 
         with (
             patch("app.utils.is_safe_webhook_url") as mock_ssrf,
-            patch("requests.post") as mock_post,
+            patch("app.webhooks.http_client.post") as mock_post,
         ):
             mock_ssrf.return_value = (True, "")
             mock_post.return_value = mock_response
@@ -137,7 +137,7 @@ class TestDeliverWebhook:
 
         with (
             patch("app.utils.is_safe_webhook_url") as mock_ssrf,
-            patch("requests.post") as mock_post,
+            patch("app.webhooks.http_client.post") as mock_post,
         ):
             mock_ssrf.return_value = (True, "")
             mock_post.return_value = mock_response
@@ -152,11 +152,11 @@ class TestDeliverWebhook:
     def test_deliver_webhook_request_exception(self):
         """Test webhook delivery with request exception."""
         from app.webhooks import deliver_webhook
-        from requests.exceptions import RequestException
+        from app.http_client import RequestException
 
         with (
             patch("app.utils.is_safe_webhook_url") as mock_ssrf,
-            patch("requests.post") as mock_post,
+            patch("app.webhooks.http_client.post") as mock_post,
         ):
             mock_ssrf.return_value = (True, "")
             mock_post.side_effect = RequestException("Connection refused")
@@ -177,7 +177,7 @@ class TestDeliverWebhook:
 
         with (
             patch("app.utils.is_safe_webhook_url") as mock_ssrf,
-            patch("requests.post") as mock_post,
+            patch("app.webhooks.http_client.post") as mock_post,
         ):
             mock_ssrf.return_value = (True, "")
             mock_post.return_value = mock_response
@@ -296,7 +296,7 @@ class TestWebhookEventDeliveryStatus:
         mock_response.status_code = 200
 
         with patch("app.utils.is_safe_webhook_url", return_value=(True, "")):
-            with patch("requests.post", return_value=mock_response):
+            with patch("app.webhooks.http_client.post", return_value=mock_response):
                 from app.tasks import deliver_webhook_task
 
                 deliver_webhook_task(event_id)

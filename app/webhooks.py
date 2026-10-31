@@ -5,7 +5,7 @@ import hmac
 import json
 import logging
 from typing import Optional, Dict, Any, Tuple, TYPE_CHECKING
-from requests.exceptions import RequestException
+from app import http_client
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -58,7 +58,6 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> T
         DeprecationWarning,
         stacklevel=2,
     )
-    import requests
     from app.utils import is_safe_webhook_url
 
     is_safe, reason = is_safe_webhook_url(webhook_url)
@@ -72,15 +71,18 @@ def deliver_webhook(webhook_url: str, payload: Dict[str, Any], secret: str) -> T
     }
 
     try:
-        response = requests.post(
+        response = http_client.post(
             webhook_url,
             json=payload,
             headers=headers,
             timeout=WEBHOOK_TIMEOUT,
             allow_redirects=False,
         )
-        return response.status_code < 400, f"HTTP {response.status_code}"
-    except requests.RequestException as e:
+        try:
+            return response.status_code < 400, f"HTTP {response.status_code}"
+        finally:
+            response.close()
+    except http_client.RequestException as e:
         return False, str(e)
 
 
@@ -109,7 +111,7 @@ def create_webhook_event(
         from app.tasks import deliver_webhook_task
 
         deliver_webhook_task.delay(event_id)
-    except (RequestException, ValueError, OSError) as e:
+    except (http_client.RequestException, ValueError, OSError) as e:
         logger.error("Failed to queue webhook event %d for delivery: %s", event_id, e)
 
     return event_id

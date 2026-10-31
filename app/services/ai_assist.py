@@ -10,7 +10,7 @@ import time
 from typing import Any
 from urllib.parse import urlparse
 
-import requests
+from app import http_client
 from flask import has_request_context, session
 from sqlalchemy import and_, func, or_, select
 
@@ -73,7 +73,7 @@ def _provider_session_id() -> str:
     return value
 
 
-def _read_bounded_response(response: requests.Response) -> bytes:
+def _read_bounded_response(response: http_client.Response) -> bytes:
     chunks: list[bytes] = []
     size = 0
     for chunk in response.iter_content(chunk_size=8192):
@@ -223,10 +223,10 @@ def _complete(
         headers["x-opencode-session"] = _provider_session_id()
 
     for attempt in range(MAX_PROVIDER_ATTEMPTS):
-        response: requests.Response | None = None
+        response: http_client.Response | None = None
         retry = False
         try:
-            response = requests.post(
+            response = http_client.post(
                 endpoint,
                 headers=headers,
                 json=payload.copy(),
@@ -322,7 +322,7 @@ def _complete(
                         retry = True
                 if not retry:
                     return content
-        except requests.RequestException as exc:
+        except http_client.RequestException as exc:
             logger.warning(
                 "AI provider request failed",
                 extra={

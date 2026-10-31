@@ -179,6 +179,7 @@ def _sync_project_docs(
     project = db.session.get(Project, project_id)
     if project is None:
         raise ProjectDocsSyncError("Project not found")
+    api = client
     try:
         if not project.github_owner or not project.github_repository:
             raise ProjectDocsSyncError("Configure a public GitHub repository before syncing")
@@ -192,7 +193,7 @@ def _sync_project_docs(
         ref = (project.github_docs_ref or "HEAD").strip()
         if not ref or len(ref) > 256 or any(ord(char) < 32 for char in ref):
             raise ProjectDocsSyncError("GitHub documentation ref is invalid")
-        api = client or GitHubApiClient(max_path_segments=MAX_CONTENT_PATH_SEGMENTS)
+        api = api or GitHubApiClient(max_path_segments=MAX_CONTENT_PATH_SEGMENTS)
         _require_path_capacity(api)
         previous = (
             db.session.get(ProjectDocsSnapshot, project.active_docs_snapshot_id)
@@ -312,3 +313,6 @@ def _sync_project_docs(
         if isinstance(exc, (GitHubApiError, ProjectDocsSyncError)):
             raise ProjectDocsSyncError(str(exc)) from exc
         raise ProjectDocsSyncError("A concurrent documentation sync conflicted") from exc
+    finally:
+        if client is None and api is not None:
+            api.close()

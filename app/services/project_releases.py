@@ -97,6 +97,7 @@ def _sync_project_releases(
     project = db.session.get(Project, project_id)
     if project is None:
         raise ProjectDocsSyncError("Project not found")
+    api = client
     try:
         if not project.github_owner or not project.github_repository:
             raise ProjectDocsSyncError(
@@ -108,7 +109,7 @@ def _sync_project_releases(
             )
         except ValueError as exc:
             raise ProjectDocsSyncError(str(exc)) from exc
-        api = client or GitHubApiClient()
+        api = api or GitHubApiClient()
         fingerprint = _release_config_fingerprint(
             owner, repository, project.releases_include_prereleases
         )
@@ -260,6 +261,9 @@ def _sync_project_releases(
         if isinstance(exc, (GitHubApiError, ProjectDocsSyncError)):
             raise ProjectDocsSyncError(str(exc)) from exc
         raise ProjectDocsSyncError("Release metadata sync conflicted") from exc
+    finally:
+        if client is None and api is not None:
+            api.close()
     return list(
         db.session.execute(
             select(ProjectRelease)

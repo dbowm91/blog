@@ -209,7 +209,7 @@ def test_author_cannot_request_ai_for_another_authors_post(
         original_config, ai=AiConfig(model="test-model", api_key="test-private-key")
     )
     provider = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", provider)
+    monkeypatch.setattr(ai_assist.http_client, "post", provider)
 
     _login(author_client, "author1")
     response = author_client.post(

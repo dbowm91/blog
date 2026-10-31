@@ -135,6 +135,7 @@ def test_local_model_route_end_to_end(enabled_ai) -> None:
             provider="openai_compatible",
             model=os.environ.get("AI_E2E_MODEL", "google/gemma-4-e2b"),
             base_url=os.environ.get("AI_E2E_BASE_URL", "http://127.0.0.1:1234/v1"),
+            api_key=os.environ.get("AI_E2E_API_KEY", ""),
             timeout_seconds=180,
         ),
     )
@@ -157,7 +158,7 @@ def test_local_model_route_end_to_end(enabled_ai) -> None:
 
 def test_endpoint_fails_closed_without_key(disabled_ai, monkeypatch) -> None:
     outbound = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     response = disabled_ai.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "T", "body": "Some text"},
@@ -168,7 +169,7 @@ def test_endpoint_fails_closed_without_key(disabled_ai, monkeypatch) -> None:
 
 def test_invalid_action_does_not_call_provider(enabled_ai, monkeypatch) -> None:
     outbound = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     response = enabled_ai.post(
         "/admin/ai-assist",
         json={"action": "publish", "title": "T", "body": "Some text"},
@@ -179,7 +180,7 @@ def test_invalid_action_does_not_call_provider(enabled_ai, monkeypatch) -> None:
 
 def test_oversized_input_is_rejected_before_provider(enabled_ai, monkeypatch) -> None:
     outbound = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     response = enabled_ai.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "T", "body": "x" * (64 * 1024 + 1)},
@@ -200,7 +201,7 @@ def test_ai_rate_limit_is_unlimited_by_default(enabled_ai, monkeypatch) -> None:
             '{"suggestion":"A concise factual summary."}'
         )
     )
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     try:
         responses = [
             enabled_ai.post(
@@ -234,7 +235,7 @@ def test_configured_ai_rate_limit_is_enforced(enabled_ai, monkeypatch) -> None:
             '{"suggestion":"A concise factual summary."}'
         )
     )
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     try:
         responses = [
             enabled_ai.post(
@@ -256,7 +257,7 @@ def test_api_key_header_does_not_authenticate_editor_route(client, monkeypatch) 
     original_api_key = app.config.get("API_KEY")
     app.config["API_KEY"] = "test-legacy-api-key"
     outbound = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     response = client.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "T", "body": "Some text"},
@@ -269,7 +270,7 @@ def test_api_key_header_does_not_authenticate_editor_route(client, monkeypatch) 
 
 def test_malformed_json_does_not_call_provider(enabled_ai, monkeypatch) -> None:
     outbound = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     response = enabled_ai.post(
         "/admin/ai-assist",
         data="{not valid JSON",
@@ -284,7 +285,7 @@ def test_csrf_is_required_for_ai_endpoint(app, enabled_ai, monkeypatch) -> None:
     with enabled_ai.session_transaction() as flask_session:
         flask_session["csrf_tokens"] = ["valid-csrf-token"]
     outbound = Mock(return_value=_provider_response('{"suggestion":"Safe summary"}'))
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
 
     denied = enabled_ai.post(
         "/admin/ai-assist",
@@ -311,7 +312,7 @@ def test_local_compatible_provider_works_without_api_key(enabled_ai, monkeypatch
         ai=AiConfig(model="local-model", api_key=""),
     )
     post = Mock(return_value=_provider_response('{"suggestion":"A local summary."}'))
-    monkeypatch.setattr(ai_assist.requests, "post", post)
+    monkeypatch.setattr(ai_assist.http_client, "post", post)
 
     response = enabled_ai.post(
         "/admin/ai-assist",
@@ -336,7 +337,7 @@ def test_provider_request_uses_local_compatible_endpoint_and_long_timeout(
             '{"suggestion":"A concise factual summary."}'
         )
     )
-    monkeypatch.setattr(ai_assist.requests, "post", post)
+    monkeypatch.setattr(ai_assist.http_client, "post", post)
     first = enabled_ai.post(
         "/admin/ai-assist",
         json={"action": "summary", "title": "Title", "body": "Current unsaved text."},
@@ -381,7 +382,7 @@ def test_chat_content_text_parts_are_extracted(enabled_ai, monkeypatch) -> None:
             ]
         }
     )
-    monkeypatch.setattr(ai_assist.requests, "post", Mock(return_value=response))
+    monkeypatch.setattr(ai_assist.http_client, "post", Mock(return_value=response))
 
     result = enabled_ai.post(
         "/admin/ai-assist",
@@ -407,7 +408,7 @@ def test_truncated_chat_completion_retries_with_larger_token_budget(
     )
     complete = _provider_response('{"suggestion":"A concise factual summary."}')
     outbound = Mock(side_effect=[truncated, complete])
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
 
     result = enabled_ai.post(
@@ -430,7 +431,7 @@ def test_invalid_model_value_retries_once(enabled_ai, monkeypatch) -> None:
             _provider_response('{"suggestion":"A concise factual summary."}'),
         ]
     )
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
 
     result = enabled_ai.post(
@@ -453,7 +454,7 @@ def test_invalid_model_json_retries_once_without_logging_content(
             _provider_response('{"suggestion":"A concise factual summary."}'),
         ]
     )
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
 
     result = enabled_ai.post(
@@ -498,7 +499,7 @@ def test_responses_model_uses_responses_endpoint_and_parses_output_text(
     response.iter_content.return_value = iter([json.dumps(response_payload).encode()])
     response.close.return_value = None
     post = Mock(return_value=response)
-    monkeypatch.setattr(ai_assist.requests, "post", post)
+    monkeypatch.setattr(ai_assist.http_client, "post", post)
 
     result = ai_assist._complete(
         api_key="test-key",
@@ -552,7 +553,7 @@ def test_transient_provider_failure_retries_then_succeeds(enabled_ai, monkeypatc
     success = _provider_response('{"suggestion":"A concise factual summary."}')
     outbound = Mock(side_effect=[retry_after, success])
     sleep = Mock()
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", sleep)
 
     result = enabled_ai.post(
@@ -574,7 +575,7 @@ def test_empty_local_completion_is_retried(enabled_ai, monkeypatch) -> None:
             _provider_response('{"suggestion":"A concise factual summary."}'),
         ]
     )
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
 
     response = enabled_ai.post(
@@ -590,7 +591,7 @@ def test_empty_local_completion_is_retried(enabled_ai, monkeypatch) -> None:
 def test_provider_failure_is_retried_and_sanitized(enabled_ai, monkeypatch) -> None:
     response = _provider_response("private upstream detail", status_code=429)
     outbound = Mock(return_value=response)
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
     result = enabled_ai.post(
         "/admin/ai-assist",
@@ -604,7 +605,7 @@ def test_provider_failure_is_retried_and_sanitized(enabled_ai, monkeypatch) -> N
 
 def test_nontransient_provider_error_is_not_retried(enabled_ai, monkeypatch) -> None:
     outbound = Mock(return_value=_provider_response("private detail", status_code=401))
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
 
     response = enabled_ai.post(
         "/admin/ai-assist",
@@ -619,8 +620,8 @@ def test_nontransient_provider_error_is_not_retried(enabled_ai, monkeypatch) -> 
 
 
 def test_provider_timeout_retries_and_displays_reachability_error(enabled_ai, monkeypatch) -> None:
-    outbound = Mock(side_effect=ai_assist.requests.Timeout)
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    outbound = Mock(side_effect=ai_assist.http_client.TimeoutException)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
     response = enabled_ai.post(
         "/admin/ai-assist",
@@ -894,11 +895,11 @@ def test_tag_second_pass_timeout_falls_back_without_mutation(
     outbound = Mock(
         side_effect=[
             _provider_response('{"tags":["Python","Flask","Web Security"]}'),
-            ai_assist.requests.Timeout,
-            ai_assist.requests.Timeout,
+            ai_assist.http_client.TimeoutException,
+            ai_assist.http_client.TimeoutException,
         ]
     )
-    monkeypatch.setattr(ai_assist.requests, "post", outbound)
+    monkeypatch.setattr(ai_assist.http_client, "post", outbound)
     monkeypatch.setattr(ai_assist.time, "sleep", Mock())
     tags_before = db.session.execute(select(Tag.id)).all()
     result = ai_assist.suggest_tags(
