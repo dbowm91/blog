@@ -319,9 +319,7 @@ def deliver_single_webhook_task(self: Any, webhook_event_id: int, webhook_id: in
                     return True
                 logger.warning("Webhook %s returned HTTP %d", webhook.name, response.status_code)
                 db.session.commit()
-                raise self.retry(
-                    exc=http_client.RequestException(f"HTTP {response.status_code}")
-                )
+                raise self.retry(exc=http_client.RequestException(f"HTTP {response.status_code}"))
             finally:
                 response.close()
         except http_client.RequestException as e:
