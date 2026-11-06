@@ -1,0 +1,169 @@
+services:
+  blog:
+    build: .
+    restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: "DevLog Blog"
+      org.opencontainers.image.description: "Flask blog CMS with admin dashboard, newsletter scheduling, and FTS5 search"
+    expose:
+      - "5000"
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI:-}
+      # Set to "production" to enable Redis caching (default: development)
+      - FLASK_ENV=${FLASK_ENV:-production}
+      # SMTP configuration (also used by APScheduler for newsletter)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}  # String "true" is truthy in Flask
+      # Redis for Celery broker and Flask-Caching
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      # Flask-Caching (defaults to REDIS_URL, override if needed)
+      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-redis://redis:6379/0}
+      # Celery configuration (defaults to REDIS_URL, override if needed)
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      # Enable APScheduler in exactly ONE container (default: disabled)
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
+      # Health check endpoint secret (optional, for detailed health info)
+      - HEALTH_CHECK_SECRET=${HEALTH_CHECK_SECRET:-}
+      # Metrics endpoint configuration
+      - METRICS_SECRET=${METRICS_SECRET:-}
+      - ENABLE_METRICS=${ENABLE_METRICS:-false}
+      # API key for REST API authentication
+      - API_KEY=${API_KEY:-}
+      # Number of proxies (for ProxyFix middleware, default: 1)
+      - PROXY_COUNT=${PROXY_COUNT:-1}
+      # Public base URL clients use (scheme + host). Every absolute link,
+      # feed entry, email link and preview image is built from this. Leave
+      # unset and they fall back to http://localhost:5000, which resolves
+      # against off-server clients (phones, unfurlers, feed readers) and
+      # fails to load. Set to the front-door URL, e.g. the Synvoid endpoint.
+      - BASE_URL=${BASE_URL:-}
+    volumes:
+      # BLOG_DATA_VOLUME lets a test job bind-mount a host directory here so
+      # the container and the test process share one database file. The
+      # default is the named volume.
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data
+      - blog_config:/etc/devlog
+      - blog_logs:/var/log/devlog
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    profiles:
+      - production
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # APScheduler runs in the blog container when ENABLE_SCHEDULER=true.
+  # Set ENABLE_SCHEDULER=true on exactly ONE container to prevent duplicate jobs.
+  celery:
+    build: .
+    restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: "DevLog Celery Worker"
+      org.opencontainers.image.description: "Async task worker for newsletters, backups, and scheduled jobs"
+    # Single concurrency to prevent duplicate newsletter sends and webhook deliveries
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=1
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - PYTHONPATH=/home/blog
+    volumes:
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data
+      - blog_config:/etc/devlog
+      - blog_logs:/var/log/devlog
+    depends_on:
+      redis:
+        condition: service_healthy
+      # The blog container applies the schema on start; wait for it so the
+      # worker never starts against an empty database.
+      blog:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    profiles:
+      - production
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    profiles:
+      - production
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      blog:
+        condition: service_healthy
+    profiles:
+      - reverse-proxy
+
+  backup:
+    build: .
+    restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: "DevLog Backup"
+      org.opencontainers.image.description: "Database and file backup service"
+    volumes:
+      # Read-write: SQLite needs to read the -wal/-shm sidecar files to take a
+      # consistent snapshot of a WAL database.
+      - ${BLOG_DATA_VOLUME:-blog_data}:/data
+      - ./backups:/backups
+    working_dir: /home/blog
+    entrypoint: ["python3", "backup.py", "--dir", "/backups"]
+    environment:
+      # Required for backup.py to import app.services:
+      - PYTHONPATH=/home/blog
+      # SECRET_KEY needed for Flask app config when importing app modules
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      # BACKUP_ENCRYPTION_KEY for encrypted backups (loaded from config.toml in app)
+      # WEBHOOK_ENCRYPTION_KEY for webhook secrets (loaded from config.toml in app)
+    profiles:
+      - backup
+
+volumes:
+  blog_data:
+    name: blog_data
+  blog_config:
+    name: blog_config
+  blog_logs:
+    name: blog_logs

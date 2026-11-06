@@ -1,0 +1,195 @@
+config_version = 1
+
+# =============================================================================
+# DevLog Configuration Reference
+# =============================================================================
+#
+# This file is a template. scripts/setup-dev.sh copies it to config.toml if absent.
+# config.toml is gitignored — only this file is committed.
+#
+# Precedence chain (highest wins):
+#   1. Environment variables (e.g. SECRET_KEY, ADMIN_PASSWORD)
+#   2. config.toml
+#   3. Defaults below (which match the dataclass defaults in app/config/model.py)
+#
+# Secret fields MUST be set via environment variables, not this file.
+# See .env.example for required variables.
+
+[app]
+title = "DevLog"
+description = "A place for thoughts on code"
+posts_per_page = 10
+max_viewed_posts = 100
+session_lifetime_hours = 24
+session_ip_binding = "warn"       # "warn", "enforce", or "off"
+tag_cache_ttl_seconds = 60
+dashboard_per_page = 20
+subscribers_per_page = 50
+media_per_page = 50
+media_max_files = 1000
+max_upload_size = 10485760        # bytes (default: 10 MB)
+export_batch_size = 500
+fts_result_limit = 100
+page_view_buffer_size = 0
+token_enumeration_delay = 0.1    # seconds
+login_failure_delay = 0.05       # seconds (minimum 0.1 enforced at runtime)
+preview_token_expiry_days = 7
+analytics_days_min = 7
+analytics_days_max = 365
+
+[admin]
+username = "admin"
+# password is read from ADMIN_PASSWORD environment variable
+
+[server]
+host = "0.0.0.0"
+port = 5000
+debug = false
+
+[author]
+name = ""
+role = ""
+avatar = ""
+
+[site]
+# Public URL clients use to reach the blog (scheme + host, no trailing path).
+# Every absolute link, feed entry, email link and preview image is built from
+# this. The localhost default is for local development only: leave it unchanged
+# in production and off-server clients (phones, link unfurlers, feed readers)
+# will resolve those URLs against themselves and fail to load them.
+base_url = "http://localhost:5000"
+cdn_url = ""
+related_posts_count = 3
+
+[email]
+smtp_host = ""
+smtp_port = 587
+smtp_user = ""                   # read from environment variables
+smtp_password = ""               # read from environment variables
+from_address = "blog@example.com"
+smtp_timeout = 30                # seconds
+
+[newsletter]
+send_time = "08:00"
+confirmation_expiry_hours = 1
+max_retry_attempts = 5
+
+[comments]
+min_length = 3
+max_length = 5000
+rate_limit_per_ip = "5 per minute"
+rate_limit_per_post = "3 per minute"
+notify_pending = false
+spam_words = ""
+
+[themes]
+# Bundled themes require no configuration. To use custom themes,
+# set external_dir to a directory containing .toml theme files.
+external_dir = ""
+allow_external = true
+strict_validation = false
+default_dark = "Catppuccin Mocha"
+default_light = "Catppuccin Latte"
+default_scheme = "system"        # "system", "dark", or "light"
+
+[paths]
+# data_dir = ""
+# log_dir = ""
+# runtime_dir = ""
+# database_path = ""
+# uploads_dir = ""
+# themes_dir = ""
+# backups_dir = ""
+# exports_dir = ""
+
+# =============================================================================
+# Infrastructure
+# =============================================================================
+
+[database]
+# Default: SQLite at data/devlog.sqlite3 (relative to the working directory).
+# Override with the SQLALCHEMY_DATABASE_URI env var, set uri here for
+# PostgreSQL/MySQL, or point DEVLOG_DATA_DIR at a different data directory.
+uri = ""
+pool_size = 10
+max_overflow = 20
+pool_recycle = 3600              # seconds
+
+[redis]
+# CACHE_REDIS_URL and RATE_LIMIT_URL fall back to this url if not set.
+url = "redis://localhost:6379/0"
+# Override individually (fall back to url above):
+cache_url = ""
+rate_limit_url = ""
+
+[celery]
+# Broker falls back to Redis url if not set.
+broker_url = ""
+
+[scheduler]
+# Enable APScheduler on exactly ONE container. Disabled by default to avoid
+# duplicate jobs in multi-replica deployments.
+enabled = false
+
+[storage]
+backend = "local"                # "local" or "s3"
+s3_bucket = ""
+s3_region = ""
+s3_access_key = ""               # read from environment variables
+s3_secret_key = ""               # read from environment variables
+s3_endpoint = ""
+s3_public_url = ""
+
+# =============================================================================
+# Security & Observability
+# =============================================================================
+
+[health]
+# Required in production for detailed health checks. Set via
+# HEALTH_CHECK_SECRET environment variable.
+check_secret = ""
+
+[metrics]
+enabled = false
+# Required in production when enabled. Set via METRICS_SECRET environment
+# variable.
+secret = ""
+
+[backup]
+data_backup_dir = "backups"
+# Set via BACKUP_ENCRYPTION_KEY environment variable for encrypted backups.
+encryption_key = ""
+
+[security]
+max_failed_attempts = 5
+lockout_duration_minutes = 15
+
+[webhook]
+timeout = 10                    # seconds
+# Set via WEBHOOK_ENCRYPTION_KEY environment variable.
+encryption_key = ""
+
+[logging]
+level = "INFO"
+
+[search]
+provider = "sqlite"
+# provider-specific config as a TOML table, e.g.:
+# [search.config]
+# index_path = "search_index"
+config = {}
+
+[ai]
+# AI is disabled until a model is explicitly configured; no provider is contacted by default.
+# For a local OpenAI-compatible server (for example, LM Studio), set model to its model ID.
+provider = "openai_compatible"
+base_url = "http://127.0.0.1:1234/v1"
+model = ""
+timeout_seconds = 180
+# Unlimited by default; optional Flask-Limiter syntax can be configured for a specific deployment.
+# The application deliberately does not impose a low default quota; provider-side quotas remain authoritative.
+rate_limit_per_user = ""
+# Optional for compatible endpoints that require authentication; set AI_API_KEY in the environment/.env.
+api_key = ""
+# For OpenCode Go, set provider = "opencode_go", select a Go model, and set OPENCODE_GO_API_KEY.
+# timeout_seconds can be lowered for remote services; credentials must never go in this file.

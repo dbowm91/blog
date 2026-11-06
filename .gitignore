@@ -1,0 +1,45 @@
+# Secrets and operator environment — never commit.
+.env
+.env.backup.*
+*.log
+*-token.txt
+*-key.txt
+config.toml
+config.toml.backup.*
+
+# Runtime data, databases, uploads, logs, backups.
+data/
+instance/
+synvoid-data/
+synvoid-logs/
+logs/
+backups/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+app/static/uploads/
+media/
+
+# Separate repository (SynVoid WAF/reverse proxy) and live operator config.
+synvoid/
+synvoid-config/
+synvoid-admin-token.txt
+synvoid-ipc-key.txt
+
+# Build and test artefacts.
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+node_modules/
+app/static/dist/
+dist/
+build/
+*.egg-info
+.venv/
+venv/
