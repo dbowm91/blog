@@ -540,6 +540,17 @@ def validate_security(config: DevLogConfig) -> list[Finding]:
 
     parsed = urlparse(config.site.base_url)
     base_is_https = parsed.scheme == "https"
+    base_host = (parsed.hostname or "").lower()
+    if production and base_host in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                code="security.base_url_localhost",
+                field="site.base_url",
+                message="base_url points at localhost in production; absolute links, feeds and preview images will not resolve off-server",
+                remediation="Set [site] base_url (or the BASE_URL environment variable) to the public URL clients use",
+            )
+        )
     if base_is_https and not config.session_cookie_secure:
         severity = Severity.ERROR if production else Severity.WARNING
         findings.append(

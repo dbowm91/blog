@@ -266,6 +266,32 @@ Sitemap: {BASE_URL}/sitemap.xml
             status=302, headers={"Location": url_for("static", filename="img/favicon.svg")}
         )
 
+    @public.route("/csp-violation", methods=["POST"])
+    @limiter.limit("30 per minute")
+    def csp_violation() -> ResponseReturnValue:
+        """Receive Content-Security-Policy violation reports.
+
+        Browsers POST these automatically; they carry no CSRF token (see
+        should_skip_csrf) and cause no state change. Oversized bodies are
+        rejected to keep the telemetry channel cheap.
+        """
+        if request.content_length and request.content_length > 64 * 1024:
+            return jsonify({"error": "payload too large"}), 413
+        # Browsers send reports as application/csp-report, not
+        # application/json, so parse regardless of mimetype. silent=True keeps
+        # malformed bodies a tolerated no-op instead of a 400.
+        report = request.get_json(silent=True, force=True)
+        detail = report.get("csp-report", report) if isinstance(report, dict) else {}
+        if not isinstance(detail, dict):
+            detail = {}
+        logger.info(
+            "csp_violation directive=%s blocked=%s document=%s",
+            detail.get("violated-directive"),
+            detail.get("blocked-uri"),
+            detail.get("document-uri"),
+        )
+        return ("", 204)
+
     @public.route("/health")
     @limiter.limit("60 per minute")
     def health_check() -> ResponseReturnValue:

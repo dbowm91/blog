@@ -52,6 +52,11 @@ role = ""
 avatar = ""
 
 [site]
+# Public URL clients use to reach the blog (scheme + host, no trailing path).
+# Every absolute link, feed entry, email link and preview image is built from
+# this. The localhost default is for local development only: leave it unchanged
+# in production and off-server clients (phones, link unfurlers, feed readers)
+# will resolve those URLs against themselves and fail to load them.
 base_url = "http://localhost:5000"
 cdn_url = ""
 related_posts_count = 3
