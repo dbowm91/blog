@@ -202,6 +202,11 @@ If `SESSION_IP_BINDING` is not set or set to any value other than `"enforce"` or
 - **Route**: `GET /admin/media` — paginated media manager, filterable by type and search
 - **Route**: `GET /admin/media/items` — author/admin-authenticated JSON catalog for editor pickers
 - **Route**: `POST /admin/media/upload` — author/admin-authenticated, CSRF-protected image/video/other upload; form `category` selects the validation/storage policy; JSON clients send `Accept: application/json`
+- **Route**: `POST /admin/media/chunked/init` — author/admin-authenticated, CSRF-protected; opens a resumable upload session for a video or other file and returns the chunk plan
+- **Route**: `PUT /admin/media/chunked/<upload_id>/<index>` — author/admin-authenticated, CSRF-protected; stores one chunk. Rate limited to 600 requests per minute per user so fast links do not trip the default limit
+- **Route**: `GET /admin/media/chunked/<upload_id>` — author/admin-authenticated; reports which chunks are already on disk so a transfer can resume
+- **Route**: `POST /admin/media/chunked/<upload_id>/complete` — author/admin-authenticated, CSRF-protected; reassembles the chunks and stores the file
+- **Route**: `DELETE /admin/media/chunked/<upload_id>` — author/admin-authenticated, CSRF-protected; drops an abandoned session
 - **Route**: `POST /admin/media/delete/<filename>`
 - **Purpose**: Manage all uploaded files as Images, Videos, or Other
 - **Features**: PNG/JPEG/GIF/WebP image processing; MP4/WebM signature validation without image processing; arbitrary files in the Other category and safe download-only links. The shared post/page editor uses distinct Media and Attachment pickers over the same categorized catalog; Media inserts inline images or controlled video markup, while Attachment always inserts a forced-download Markdown link.

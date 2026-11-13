@@ -16,6 +16,10 @@ services:
       - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI:-}
       # Set to "production" to enable Redis caching (default: development)
       - FLASK_ENV=${FLASK_ENV:-production}
+      # Plain-HTTP local testing needs DEBUG=true together with
+      # SESSION_COOKIE_SECURE=false; the app refuses to boot with an
+      # insecure cookie outside debug mode.
+      - DEBUG=${DEBUG:-false}
       # SMTP configuration (also used by APScheduler for newsletter)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_USER=${SMTP_USER:-}
@@ -83,6 +87,7 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - DEBUG=${DEBUG:-false}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_HOST=${SMTP_HOST:-}

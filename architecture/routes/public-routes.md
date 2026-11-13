@@ -184,6 +184,11 @@ homepage target.
 - **Route**: `GET /metrics`
 - **Purpose**: Prometheus-compatible metrics endpoint
 
+### CSP Violation Reports
+- **Route**: `POST /csp-violation`
+- **Purpose**: Receives browser-generated Content-Security-Policy violation reports and logs the violated directive, blocked URI, and document URI. Parses `application/csp-report` bodies that Flask would otherwise ignore, tolerates a malformed body, rejects payloads over 64 KiB, and answers `204`.
+- **Auth**: None. The endpoint is CSRF-exempt (browsers cannot attach a session token to a report) and changes no state. It is rate limited to 30 requests per minute.
+
 ### Favicon
 - **Route**: `GET /favicon.ico`
 - **Purpose**: Redirects to SVG favicon

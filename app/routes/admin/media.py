@@ -17,17 +17,24 @@ from flask import (
     url_for,
 )
 from flask.typing import ResponseReturnValue
+from flask_login import current_user
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
+from app import limiter
 from app.config import MAX_UPLOAD_SIZE, MEDIA_MAX_FILES, MEDIA_PER_PAGE
 from app.routes.admin import admin, admin_required, author_required
+from app.routes.admin.helpers import chunked as chunked_uploads
 from app.routes.admin.helpers.media import classify_file_info, upload_media_file
 
 
 _MEDIA_CACHE: dict[str, Any] = {"files": None, "timestamp": 0}
 _MEDIA_CACHE_LOCK = threading.Lock()
 _MEDIA_CACHE_TTL = 30
+
+
+def _chunked_user_key() -> str:
+    return f"chunked-user:{current_user.get_id() or 'unknown'}"
 
 
 def _invalidate_media_cache() -> None:
@@ -183,6 +190,77 @@ def upload_media() -> ResponseReturnValue:
         return jsonify({"item": response_item}), 201
     flash(f"Uploaded {response_item['display_name']}.", "success")
     return redirect(url_for("admin.media", category=category))
+
+
+@admin.route("/media/chunked/init", methods=["POST"])
+@author_required
+def chunked_init() -> ResponseReturnValue:
+    data = request.get_json(silent=True) or {}
+    session, error = chunked_uploads.create_session(
+        data.get("filename", ""),
+        data.get("size", 0),
+        data.get("category", ""),
+    )
+    if error or not session:
+        return jsonify({"error": error or "Upload could not be started."}), 400
+    return jsonify(session), 201
+
+
+@admin.route("/media/chunked/<upload_id>", methods=["GET"])
+@author_required
+def chunked_status(upload_id: str) -> ResponseReturnValue:
+    found = chunked_uploads.get_session(upload_id)
+    if found is None:
+        return jsonify({"error": "Unknown or expired upload."}), 404
+    session_dir, meta = found
+    return (
+        jsonify(
+            {
+                "upload_id": upload_id,
+                "filename": meta["filename"],
+                "size": meta["size"],
+                "category": meta["category"],
+                "chunk_size": meta["chunk_size"],
+                "total_chunks": meta["total_chunks"],
+                "received": chunked_uploads.received_mask(session_dir, meta),
+            }
+        ),
+        200,
+    )
+
+
+@admin.route("/media/chunked/<upload_id>/<int:index>", methods=["PUT"])
+@author_required
+@limiter.limit("600 per minute", key_func=_chunked_user_key, override_defaults=True)
+def chunked_put(upload_id: str, index: int) -> ResponseReturnValue:
+    request.max_content_length = chunked_uploads.CHUNK_SIZE + 1024 * 1024
+    try:
+        data = request.get_data()
+    except RequestEntityTooLarge:
+        limit_mb = chunked_uploads.CHUNK_SIZE // (1024 * 1024)
+        return jsonify({"error": f"Chunk exceeds the {limit_mb}MB limit."}), 413
+    received, error = chunked_uploads.write_chunk(upload_id, index, data)
+    if error or received is None:
+        return jsonify({"error": error or "Chunk could not be stored."}), 400
+    return jsonify({"index": index, "received": received}), 200
+
+
+@admin.route("/media/chunked/<upload_id>/complete", methods=["POST"])
+@author_required
+def chunked_complete(upload_id: str) -> ResponseReturnValue:
+    item, error = chunked_uploads.finalize_upload(upload_id)
+    if error or not item:
+        return jsonify({"error": error or "Upload failed."}), 400
+    _invalidate_media_cache()
+    return jsonify({"item": item}), 201
+
+
+@admin.route("/media/chunked/<upload_id>", methods=["DELETE"])
+@author_required
+def chunked_abort(upload_id: str) -> ResponseReturnValue:
+    if not chunked_uploads.abort_session(upload_id):
+        return jsonify({"error": "Unknown or expired upload."}), 404
+    return jsonify({"aborted": True}), 200
 
 
 @admin.route("/media/delete/<path:filename>", methods=["POST"])

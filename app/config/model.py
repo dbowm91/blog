@@ -104,6 +104,7 @@ class AppConfig:
     media_per_page: int = 50
     media_max_files: int = 1000
     max_upload_size: int = 10485760
+    chunked_upload_max_size: int = 1073741824
     export_batch_size: int = 500
     fts_result_limit: int = 100
     page_view_buffer_size: int = 0
