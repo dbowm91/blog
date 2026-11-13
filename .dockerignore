@@ -14,8 +14,15 @@ venv
 .venv
 env
 .env
+.env.backup.*
+config.toml
+config.toml.backup.*
+*-token.txt
+*-key.txt
 instance
+data
 logs
+*.log
 *.db
 *.db-journal
 *.db-wal
@@ -28,6 +35,11 @@ htmlcov
 .ruff_cache
 node_modules
 backups
+synvoid/
+synvoid-config/
+synvoid-data/
+synvoid-logs/
+synvoid.log
 app/static/uploads
 .skills
 .opencode

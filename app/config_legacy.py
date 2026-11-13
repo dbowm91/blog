@@ -178,6 +178,7 @@ if _typed_config is not None:
     MEDIA_PER_PAGE = _c.app.media_per_page
     MEDIA_MAX_FILES = _c.app.media_max_files
     MAX_UPLOAD_SIZE = _c.app.max_upload_size
+    CHUNKED_UPLOAD_MAX_SIZE = _c.app.chunked_upload_max_size
     EXPORT_BATCH_SIZE = _c.app.export_batch_size
     FTS_RESULT_LIMIT = _c.app.fts_result_limit
     PAGE_VIEW_BUFFER_SIZE = _c.app.page_view_buffer_size
@@ -257,6 +258,7 @@ else:
     MEDIA_PER_PAGE = int(_env("MEDIA_PER_PAGE", "50"))
     MEDIA_MAX_FILES = int(_env("MEDIA_MAX_FILES", "1000"))
     MAX_UPLOAD_SIZE = int(_env("MAX_UPLOAD_SIZE", "10485760"))
+    CHUNKED_UPLOAD_MAX_SIZE = int(_env("CHUNKED_UPLOAD_MAX_SIZE", "1073741824"))
     EXPORT_BATCH_SIZE = int(_env("EXPORT_BATCH_SIZE", "500"))
     FTS_RESULT_LIMIT = int(_env("FTS_RESULT_LIMIT", "100"))
     PAGE_VIEW_BUFFER_SIZE = int(_env("PAGE_VIEW_BUFFER_SIZE", "0"))

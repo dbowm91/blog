@@ -38,6 +38,17 @@ jobs:
       - name: Type check with mypy
         run: mypy app/ devlog_cli/
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run build
+
       - name: Run tests with coverage
         env:
           ADMIN_PASSWORD: test-password-123

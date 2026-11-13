@@ -79,6 +79,15 @@ class StorageBackend(ABC):
     def save(self, filename: str, data: bytes) -> str:
         """Save data to storage, return the stored filename."""
 
+    def save_path(self, filename: str, path: str) -> str:
+        """Save the file at ``path`` to storage without loading it into RAM.
+
+        The default implementation reads the file and delegates to
+        :meth:`save`; backends stream from disk when they can.
+        """
+        with open(path, "rb") as f:
+            return self.save(filename, f.read())
+
     @abstractmethod
     def load(self, filename: str) -> Optional[bytes]:
         """Load data from storage, return bytes or None."""
@@ -115,6 +124,10 @@ class LocalStorageBackend(StorageBackend):
         filepath = os.path.join(self.base_dir, filename)
         with open(filepath, "wb") as f:
             f.write(data)
+        return filename
+
+    def save_path(self, filename: str, path: str) -> str:
+        os.replace(path, os.path.join(self.base_dir, filename))
         return filename
 
     def load(self, filename: str) -> Optional[bytes]:
@@ -234,6 +247,21 @@ class S3StorageBackend(StorageBackend):
                 params["ContentType"] = "application/octet-stream"
                 params["ContentDisposition"] = "attachment"
             self.client.put_object(**params)
+            return filename
+        except (ClientError, BotoCoreError) as e:
+            logger.error("S3 save failed: %s", e)
+            raise
+
+    def save_path(self, filename: str, path: str) -> str:
+        try:
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            extra = {"ContentType": content_type}
+            if filename.endswith(".attachment"):
+                extra = {
+                    "ContentType": "application/octet-stream",
+                    "ContentDisposition": "attachment",
+                }
+            self.client.upload_file(path, self.bucket, filename, ExtraArgs=extra)
             return filename
         except (ClientError, BotoCoreError) as e:
             logger.error("S3 save failed: %s", e)

@@ -51,6 +51,7 @@ max_viewed_posts = 100
 session_lifetime_hours = 24
 session_ip_binding = "warn"
 max_upload_size = 10485760  # 10MB
+chunked_upload_max_size = 1073741824  # 1GB
 ...
 
 [admin]
@@ -169,6 +170,7 @@ The database URI has a longer chain, resolved by `_resolve_database_uri()` in
 | `SESSION_LIFETIME_HOURS` | - | `24` | Session timeout |
 | `SESSION_IP_BINDING` | - | `warn` | IP binding mode: `off`, `warn`, `enforce` |
 | `MAX_UPLOAD_SIZE` | - | `10485760` | Max upload size in bytes |
+| `CHUNKED_UPLOAD_MAX_SIZE` | - | `1073741824` | Max total size of a chunked upload in bytes |
 | `MAX_VIEWED_POSTS` | - | `100` | Number of recent posts to track for "You've read" feature |
 | `TAG_CACHE_TTL_SECONDS` | - | `60` | Cache TTL for tag counts |
 | `DASHBOARD_PER_PAGE` | - | `20` | Posts per page in admin dashboard |

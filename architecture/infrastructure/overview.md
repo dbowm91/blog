@@ -72,7 +72,7 @@ All five subsystems connect through Celery queues. Each queue isolates workload 
 
 ### Health Check ↔ All Subsystems
 
-The `/health` endpoint (`app/routes/public/meta.py:188`) is the single integration point that observes all subsystems:
+The `/health` endpoint (`app/routes/public/meta.py:295`) is the single integration point that observes all subsystems:
 
 | Check | Source | Critical? |
 |-------|--------|-----------|

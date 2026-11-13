@@ -16,6 +16,10 @@ services:
       - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI:-}
       # Set to "production" to enable Redis caching (default: development)
       - FLASK_ENV=${FLASK_ENV:-production}
+      # Plain-HTTP local testing needs DEBUG=true together with
+      # SESSION_COOKIE_SECURE=false; the app refuses to boot with an
+      # insecure cookie outside debug mode.
+      - DEBUG=${DEBUG:-false}
       # SMTP configuration (also used by APScheduler for newsletter)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_USER=${SMTP_USER:-}
@@ -38,6 +42,12 @@ services:
       - API_KEY=${API_KEY:-}
       # Number of proxies (for ProxyFix middleware, default: 1)
       - PROXY_COUNT=${PROXY_COUNT:-1}
+      # Public base URL clients use (scheme + host). Every absolute link,
+      # feed entry, email link and preview image is built from this. Leave
+      # unset and they fall back to http://localhost:5000, which resolves
+      # against off-server clients (phones, unfurlers, feed readers) and
+      # fails to load. Set to the front-door URL, e.g. the Synvoid endpoint.
+      - BASE_URL=${BASE_URL:-}
     volumes:
       # BLOG_DATA_VOLUME lets a test job bind-mount a host directory here so
       # the container and the test process share one database file. The
@@ -77,6 +87,7 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - DEBUG=${DEBUG:-false}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_HOST=${SMTP_HOST:-}

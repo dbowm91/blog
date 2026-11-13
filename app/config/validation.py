@@ -39,6 +39,7 @@ SECTION_FIELD_TYPES: dict[str, dict[str, type | tuple[type, ...]]] = {
         "media_per_page": int,
         "media_max_files": int,
         "max_upload_size": int,
+        "chunked_upload_max_size": int,
         "export_batch_size": int,
         "fts_result_limit": int,
         "page_view_buffer_size": int,
@@ -167,6 +168,7 @@ NUMERIC_RANGES: dict[str, tuple[int, int]] = {
     "app.media_per_page": (1, 1000),
     "app.media_max_files": (1, 100_000),
     "app.max_upload_size": (1, 1_073_741_824),
+    "app.chunked_upload_max_size": (1, 1_073_741_824),
     "app.export_batch_size": (1, 10_000),
     "app.fts_result_limit": (1, 10_000),
     "app.analytics_days_min": (1, 365),
@@ -540,6 +542,17 @@ def validate_security(config: DevLogConfig) -> list[Finding]:
 
     parsed = urlparse(config.site.base_url)
     base_is_https = parsed.scheme == "https"
+    base_host = (parsed.hostname or "").lower()
+    if production and base_host in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                code="security.base_url_localhost",
+                field="site.base_url",
+                message="base_url points at localhost in production; absolute links, feeds and preview images will not resolve off-server",
+                remediation="Set [site] base_url (or the BASE_URL environment variable) to the public URL clients use",
+            )
+        )
     if base_is_https and not config.session_cookie_secure:
         severity = Severity.ERROR if production else Severity.WARNING
         findings.append(

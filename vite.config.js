@@ -13,19 +13,6 @@ export default defineConfig({
         main: resolve(__dirname, 'app/static/js/main.js'),
         prism: resolve(__dirname, 'app/static/js/prism.js'),
       },
-      output: {
-        manualChunks(id) {
-          if (id.includes('/shared/utils.js')) {
-            return 'shared';
-          }
-          if (id.includes('/admin/editor.js')) {
-            return 'admin';
-          }
-          if (id.includes('/public/search.js')) {
-            return 'public';
-          }
-        },
-      },
     },
   },
   plugins: [],

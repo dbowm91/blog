@@ -39,8 +39,14 @@ def should_skip_csrf() -> bool:
     API-key authenticated requests (blueprint "api") are exempt from CSRF.
     They are protected by token secrecy, HTTPS, scopes, and audit logging
     instead of browser-session CSRF tokens.
+
+    CSP violation reports (POST /csp-violation) are exempt as well. Browsers
+    generate these automatically and cannot attach a session CSRF token; the
+    endpoint is unauthenticated telemetry that causes no state change.
     """
     if request.blueprint == "api":
+        return True
+    if request.path == "/csp-violation":
         return True
     return False
 

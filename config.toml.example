@@ -28,6 +28,7 @@ subscribers_per_page = 50
 media_per_page = 50
 media_max_files = 1000
 max_upload_size = 10485760        # bytes (default: 10 MB)
+chunked_upload_max_size = 1073741824  # bytes (default: 1 GB, chunked video/attachment uploads)
 export_batch_size = 500
 fts_result_limit = 100
 page_view_buffer_size = 0
@@ -52,6 +53,11 @@ role = ""
 avatar = ""
 
 [site]
+# Public URL clients use to reach the blog (scheme + host, no trailing path).
+# Every absolute link, feed entry, email link and preview image is built from
+# this. The localhost default is for local development only: leave it unchanged
+# in production and off-server clients (phones, link unfurlers, feed readers)
+# will resolve those URLs against themselves and fail to load them.
 base_url = "http://localhost:5000"
 cdn_url = ""
 related_posts_count = 3
