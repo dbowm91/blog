@@ -238,21 +238,11 @@ Operator request: optional **AI write TL;DR** and **AI suggest tags** on the pos
 
 **Implementation order: 01 → 02 → 03.** Blank model means absent buttons and no provider requests; explicitly configured local compatible models need no key. Post Save remains the sole persistence step. The current [OpenCode Go documentation](https://opencode.ai/v2/docs/console/go/) says Go is designed for coding agents making similar requests; editorial summarization/classification is not shown as an allowed use. Do not enable that adapter for editorial drafts unless OpenCode explicitly permits it. This Go-specific gate does not block the local-compatible provider. Rate limiting remains unlimited by default, with optional per-user configuration; the rationale is in `architecture/services/overview.md`. Hosted AI CI and unrelated general-CI baseline failures are tracked separately in the roadmap. Keep this entry Active only while the OpenCode Go usage restriction needs follow-up.
 
-### Media Library and Inline Authoring — Phase 03 open
-
-Roadmap: [`media_authoring_roadmap.md`](media_authoring_roadmap.md)
-
-Origin: operator request on 2026-10-28 to categorize all media, support inline image/video insertion and arbitrary-file attachments from the editors, and add safe Markdown HTML/embed blocks.
-
-| Phase | File | Status |
-|---|---|---|
-| 01 | [`media_authoring_phase_01_library_and_uploads.md`](media_authoring_phase_01_library_and_uploads.md) | **Implemented.** Categorized inventory, type-specific uploads, author/admin media APIs, and forced downloads. |
-| 02 | [`media_authoring_phase_02_markdown_and_embeds.md`](media_authoring_phase_02_markdown_and_embeds.md) | **Implemented.** Safe inline video/YouTube embed block, shared sanitizer, aligned CSP, and shared feed renderer. |
-| 03 | [`media_authoring_phase_03_editor_pickers.md`](media_authoring_phase_03_editor_pickers.md) | **Open — not started.** Separate Media and Attachment controls with upload and Markdown insertion. |
-
-Run phases in order: Phase 01 establishes trustworthy media classification, upload APIs, and download URLs; Phase 02 defines what the shared Markdown renderer can safely emit; Phase 03 consumes those contracts in both post and page editors. The series must remain Active until each phase has an evidence-backed completion record and the shipped behavior is documented in `architecture/`.
-
 ## Historical Plans
+
+### Media Library and Inline Authoring (2026-10-28)
+
+Phases 01–03 are implemented. Design and validation evidence: [roadmap](media_authoring_roadmap.md), [Phase 01](media_authoring_phase_01_library_and_uploads.md), [Phase 02](media_authoring_phase_02_markdown_and_embeds.md), and [Phase 03](media_authoring_phase_03_editor_pickers.md). Shipped contracts: [admin routes](../architecture/routes/admin-routes.md), [storage](../architecture/infrastructure/storage.md), and [frontend](../architecture/frontend/overview.md).
 
 The **Frontend Corrective** series (2026-10-23) closed 50 findings across the public
 site, admin dashboard, stylesheet layer, and JavaScript module layer. It is the

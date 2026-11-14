@@ -185,21 +185,7 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
     from app.models import User
     from tests.conftest import TEST_PASSWORD
 
-    user = User(username="regular", is_admin=False)
-    user.set_password(TEST_PASSWORD)
-    db.session.add(user)
-    db.session.commit()
-
-    # Login as admin first to create the session, then check non-admin access
-    # Actually, we can't log in as non-admin (blocked by login check).
-    # Instead, manually log in via login_user and test access.
-    with app.test_request_context():
-        from flask_login import login_user
-
-        login_user(user)
-        # This won't work outside request context for client tests.
-    # We'll test via a different approach: create an admin, log in,
-    # then set is_admin=False on the user and try accessing routes.
+    # Authenticate an admin, then demote it to test existing-session permissions.
     admin = User(username="admin2", is_admin=True)
     admin.set_password(TEST_PASSWORD)
     db.session.add(admin)
@@ -212,7 +198,6 @@ def test_non_admin_gets_403_on_admin_routes(app, db, client):
             "password": TEST_PASSWORD,
         },
     )
-    # Demote user to non-admin
     admin.is_admin = False
     db.session.commit()
 

@@ -35,7 +35,7 @@ BUNDLED_DIR = REPO_ROOT / "app" / "themes" / "bundled"
 CONTRAST_FLOOR = 4.5
 
 # The eight themes whose code surface was indistinguishable from the card
-# surface. Phase 02 repaired them in the catalogue.
+# surface.
 REPAIRED_CODE_SURFACE = (
     "Flexor Dark",
     "Noctis Lilac",

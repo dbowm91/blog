@@ -1751,7 +1751,7 @@
 
 .hidden { display: none !important; }
 
-/* --- Phase 8: User management & backup --- */
+/* --- User management & backup --- */
 .pw-input {
     width: 150px;
 }
@@ -1776,7 +1776,7 @@
     gap: 0.5rem;
 }
 
-/* --- 5B.2: Bulk operation progress bar --- */
+/* --- Bulk operation progress bar --- */
 .bulk-progress-bar {
     height: 4px;
     background: var(--border);
@@ -1799,7 +1799,7 @@
     display: block;
 }
 
-/* --- 5B.4: Stat card accent borders --- */
+/* --- Stat card accent borders --- */
 .stat-card-accent-views {
     border-left: 3px solid var(--accent);
 }
@@ -1816,7 +1816,7 @@
     border-left: 3px solid var(--coral);
 }
 
-/* --- Item 13: Admin Footer --- */
+/* --- Admin footer --- */
 .admin-footer {
     padding: 16px 0;
     border-top: 1px solid var(--border);

@@ -9,9 +9,6 @@ from app.utils import utc_now, UTCDateTime
 from app.services.backup import resolve_backup_dir
 
 
-# --- Phase 8.1: Timezone-aware datetimes ---
-
-
 class TestTimezoneAwareDatetimes:
     def test_utc_now_returns_aware(self):
         """utc_now() returns a timezone-aware datetime."""
@@ -85,9 +82,6 @@ class TestTimezoneAwareDatetimes:
         assert post.published_at < now
 
 
-# --- Phase 8.2: FTS search ---
-
-
 class TestFTSSearch:
     def test_search_finds_post_by_title(self, client, db, sample_post):
         """Search finds a post by title content."""
@@ -126,9 +120,6 @@ class TestFTSSearch:
         # The draft post body contains "zzquniquezz" but it's unpublished.
         # The LIKE fallback filters by published=True, so the draft card shouldn't appear.
         assert b"Draft Only Post" not in response.data
-
-
-# --- Phase 8.3: Multi-admin support ---
 
 
 class TestMultiAdmin:
@@ -298,9 +289,6 @@ class TestMultiAdmin:
             follow_redirects=True,
         )
         assert b"8 characters" in response.data
-
-
-# --- Phase 8.4: Backup/restore ---
 
 
 class TestBackupRestore:

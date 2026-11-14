@@ -36,9 +36,7 @@ COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 MIN_TEXT_CONTRAST = 4.5
 
-# Runtime tokens that no stylesheet rule consumes. They are kept for backward
-# compatibility with the Phase 09 legacy alias contract, so every one of them
-# must name its rationale.
+# Unused runtime tokens remain as legacy aliases; each needs a rationale.
 DEAD_TOKEN_ALLOW_LIST: dict[str, str] = {
     "--coral-dim": "legacy alias of --blog-coral-dim; no public surface uses it",
     "--info-bg": "legacy alias of --blog-info-bg; --purple-dim carries the same value",
