@@ -21,15 +21,15 @@ formula it derives the value from.
 | `--blog-surface-default` | Content surface (cards, prose area, post body) | `[buffer].background` | D | `#161b22` | `--bg-surface` |
 | `--blog-surface-elevated` | Elevated surface (modals, title bars, dropdowns) | `[buffer].background_title_bar` | D | `#1c2128` | `--bg-elevated` |
 | `--blog-surface-hover` | Hovered surface (card hover, row hover) | `shift_lightness(surface-default, ±0.06)` | DER | `#21262d` | `--bg-hover` |
-| `--blog-surface-active` | Active/pressed surface (button active, selected row) | `shift_lightness(surface-default, ±0.12)` | DER | `#161b22` | — |
+| `--blog-surface-active` | Active/pressed surface (button active, selected row) | `shift_lightness(surface-default, ±0.12)` | DER | `#161b22` | None |
 | `--blog-navbar-bg` | Navbar / top bar background (translucent for blur) | `bg-page` at 0.85 alpha | DER | `rgba(13,17,23,0.85)` | `--navbar-bg` |
 | `--blog-overlay-bg` | Modal/overlay dimming layer | fixed | DER | `rgba(0,0,0,0.5)` | `--overlay-bg` |
 | **Borders** | | | | | |
 | `--blog-border-primary` | Main structural border (cards, inputs, dividers) | `[general].border` | D | `#30363d` | `--border` |
-| `--blog-border-subtle` | Subtle/secondary border (separators, horizontal rules) | `[general].horizontal_rule` | D | `#30363d` | — |
-| `--blog-border-strong` | Strong emphasis border (active input, focus container) | `shift_lightness(border-primary, ±0.10)` | DER | `#484f58` | — |
-| `--blog-border-focus` | Focus ring / outline color | `= accent` | DER | `#58a6ff` | — |
-| `--blog-navbar-border` | Border below/around navbar | `= border-primary` | DER | `#30363d` | — |
+| `--blog-border-subtle` | Subtle/secondary border (separators, horizontal rules) | `[general].horizontal_rule` | D | `#30363d` | None |
+| `--blog-border-strong` | Strong emphasis border (active input, focus container) | `shift_lightness(border-primary, ±0.10)` | DER | `#484f58` | None |
+| `--blog-border-focus` | Focus ring / outline color | `= accent` | DER | `#58a6ff` | None |
+| `--blog-navbar-border` | Border below/around navbar | `= border-primary` | DER | `#30363d` | None |
 | **Text** | | | | | |
 | `--blog-text-primary` | Primary body text | `[text].primary` | D | `#e6edf3` | `--text` |
 | `--blog-text-secondary` | Secondary/emphasized text (bylines, strong inline) | `[buffer].topic` | D | `#c9d1d9` | `--text-secondary` |
@@ -37,18 +37,18 @@ formula it derives the value from.
 | `--blog-text-dim` | Dimmest text (anchors, inactive labels) | `[buffer].timestamp` | D | `#7d8590` | `--text-dim`, `--text-dim-strong` |
 | `--blog-text-caption` | Caption text a reader must read (metadata, share label, footer) | muted moved toward the primary until it clears 4.5:1 | DER | `#9aa4ae` | `--text-caption` |
 | `--blog-text-on-accent` | Text on accent-coloured fills (buttons, badges) | foreground selected against `accent` | DER | `#ffffff` | `--text-on-accent` |
-| `--blog-text-on-success` | Text on success-coloured fills | foreground selected against `success-bg` | DER | `#ffffff` | — |
-| `--blog-text-on-error` | Text on error-coloured fills | foreground selected against `error-bg` | DER | `#ffffff` | — |
-| `--blog-text-on-warning` | Text on warning-coloured fills | foreground selected against `warning-bg` | DER | `#000000` | — |
-| `--blog-text-on-info` | Text on info-coloured fills | foreground selected against `info-bg` | DER | `#000000` | — |
-| `--blog-text-link` | Link text colour | `[buffer].url` | D | `#58a6ff` | — |
-| `--blog-text-link-hover` | Link hover colour | `= accent-hover` | DER | `#79c0ff` | — |
+| `--blog-text-on-success` | Text on success-coloured fills | foreground selected against `success-bg` | DER | `#ffffff` | None |
+| `--blog-text-on-error` | Text on error-coloured fills | foreground selected against `error-bg` | DER | `#ffffff` | None |
+| `--blog-text-on-warning` | Text on warning-coloured fills | foreground selected against `warning-bg` | DER | `#000000` | None |
+| `--blog-text-on-info` | Text on info-coloured fills | foreground selected against `info-bg` | DER | `#000000` | None |
+| `--blog-text-link` | Link text colour | `[buffer].url` | D | `#58a6ff` | None |
+| `--blog-text-link-hover` | Link hover colour | `= accent-hover` | DER | `#79c0ff` | None |
 | **Accent** | | | | | |
 | `--blog-accent` | Primary accent / brand colour (links, buttons, highlights) | `[text].tertiary` | D | `#58a6ff` | `--accent` |
 | `--blog-accent-hover` | Accent hover state | `shift_lightness(accent, ±0.10)` | DER | `#79c0ff` | `--accent-hover` |
 | `--blog-accent-dim` | Subtle accent background (badges, active nav items) | `accent` at 0.10 alpha | DER | `rgba(88,166,255,0.1)` | `--accent-dim` |
-| `--blog-accent-link` | Accent used for interactive links | `= accent` | DER | `#58a6ff` | — |
-| `--blog-accent-focus-ring` | Focus ring colour | `= accent` | DER | `#58a6ff` | — |
+| `--blog-accent-link` | Accent used for interactive links | `= accent` | DER | `#58a6ff` | None |
+| `--blog-accent-focus-ring` | Focus ring colour | `= accent` | DER | `#58a6ff` | None |
 | `--blog-accent-text` | Accent used as text on an accent-tinted chip | accent moved until it clears 4.5:1 on the chip it tints | DER | `#79c0ff` | `--accent-text` |
 | **States** | | | | | |
 | `--blog-success-fg` | Success foreground (checkmarks, positive indicators) | `[text].success` | D | `#3fb950` | `--green` |
@@ -60,16 +60,16 @@ formula it derives the value from.
 | `--blog-info-fg` | Foreground drawn on the info fill | foreground selected against `info-bg` | DER | `#a371f7` | `--purple`, `--amber`, `--info-fg` |
 | `--blog-info-bg` | Informational background (subtle info fill) | `rgba(163,113,247,0.15)` over `bg-page` | DER | `rgba(163,113,247,0.15)` | `--purple-dim`, `--info-bg` |
 | **Inputs / Code** | | | | | |
-| `--blog-input-bg` | Input / text field background | `[buffer].background_text_input` | D | `#0d1117` | — |
-| `--blog-input-border` | Input border | `= border-primary` | DER | `#30363d` | — |
-| `--blog-input-text` | Text inside inputs | `= text-primary` | DER | `#e6edf3` | — |
+| `--blog-input-bg` | Input / text field background | `[buffer].background_text_input` | D | `#0d1117` | None |
+| `--blog-input-border` | Input border | `= border-primary` | DER | `#30363d` | None |
+| `--blog-input-text` | Text inside inputs | `= text-primary` | DER | `#e6edf3` | None |
 | `--blog-code-bg` | Inline code and code block background | `[buffer].background_text_input` | D | `#161b22` | `--code-bg` |
-| `--blog-code-border` | Code block border | `= border-subtle` | DER | `#30363d` | — |
-| `--blog-code-text` | Code text colour | `= text-primary` | DER | `#e6edf3` | — |
-| `--blog-selection-bg` | Text selection highlight | `[buffer].selection` | D | `#30363d` | — |
+| `--blog-code-border` | Code block border | `= border-subtle` | DER | `#30363d` | None |
+| `--blog-code-text` | Code text colour | `= text-primary` | DER | `#e6edf3` | None |
+| `--blog-selection-bg` | Text selection highlight | `[buffer].selection` | D | `#30363d` | None |
 | **Navbar / Chrome** | | | | | |
-| `--blog-navbar-text` | Navbar link/text colour | `= text-primary` | DER | `#e6edf3` | — |
-| `--blog-navbar-text-muted` | Navbar muted/secondary text | `= text-muted` | DER | `#8b949e` | — |
+| `--blog-navbar-text` | Navbar link/text colour | `= text-primary` | DER | `#e6edf3` | None |
+| `--blog-navbar-text-muted` | Navbar muted/secondary text | `= text-muted` | DER | `#8b949e` | None |
 | **Overlays** | | | | | |
 | `--blog-shadow-color` | Box shadow / drop shadow colour | fixed per theme polarity | DER | `rgba(0,0,0,0.35)` | `--shadow-color` |
 | **Miscellaneous** | | | | | |
@@ -84,7 +84,7 @@ The "Emergency default" column is the value in `EMERGENCY_DEFAULT` in
 `app/themes/model.py`. It is the palette the site falls back to when the theme
 service fails. Note that the emergency fallback's *emitted CSS* comes from
 `translate_halloy_theme()` applied to an emergency Halloy theme, not from
-`EMERGENCY_DEFAULT` itself — see
+`EMERGENCY_DEFAULT` itself. See
 [Theme architecture](../../architecture/core/themes.md#notes-and-gotchas).
 
 ---
@@ -144,7 +144,7 @@ dark when the background luminance is below 0.5.
 accent-dim = RGBA(accent, alpha=0.10)
 ```
 
-The accent colour at 0.10 alpha. It is *not* composited over the surface — the
+The accent colour at 0.10 alpha. It is *not* composited over the surface. The
 alpha channel is preserved so the stylesheet can composite it at use time.
 
 ### state-bg (success-bg, error-bg)
@@ -206,11 +206,11 @@ text-caption = mix(text-muted, text-primary, w)   # smallest w that clears 4.5:1
 ```
 
 The caption role replaces `text-muted` wherever a reader has to read the text.
-It is derived, never authored: the muted colour is moved toward the primary
-colour until it clears 4.5:1 against `bg-page`, `surface-default` and
-`surface-elevated` — the page, a card and an elevated panel. When the primary
-itself is below the floor, the muted colour is mixed toward white (dark
-themes) or black (light themes) instead.
+It is derived, not authored. The muted colour moves toward the primary colour
+until it clears 4.5:1 against `bg-page`, `surface-default`, and
+`surface-elevated`, which represent the page, a card, and an elevated panel.
+If the primary colour is below that threshold, the muted colour moves toward
+white in dark themes or black in light themes.
 
 ### accent-text
 
@@ -239,9 +239,9 @@ text-on-info    = foreground_selected(info-bg, min_ratio=4.5)
 otherwise black if it does; if neither reaches the threshold it picks whichever
 has the higher ratio and the diagnostics report the shortfall.
 
-`warning-fg` and `info-fg` are the same computation against `warning-bg` and
-`info-bg`, so they are the *foreground drawn on* those fills — not a warning hue
-in their own right.
+`warning-fg` and `info-fg` use the same computation against `warning-bg` and
+`info-bg`. They are the *foregrounds drawn on* those fills, not warning or info
+hues in their own right.
 
 ### shadow-color
 
@@ -350,7 +350,7 @@ def get_bundled_themes_dir():
 | Package data declaration | `pyproject.toml` `[tool.setuptools.package-data]` | `"app.themes.bundled" = ["*.toml"]` |
 | Source distribution inclusion | `MANIFEST.in` | `recursive-include app/themes/bundled *.toml` |
 | Wheel inclusion | automatic via package-data | Verified by `scripts/verify_theme_package.py` |
-| Editable install | automatic via package-data | — |
+| Editable install | automatic via package-data | None |
 
 ### Wheel-installable requirements
 
@@ -459,8 +459,8 @@ These tokens have no direct Halloy equivalent:
 
 ## See Also
 
-- [Supported Halloy theme schema](supported-schema.md) — the parser input contract
-- [Cache freshness contract](cache-contract.md) — how translated themes are cached
-- [Theme operator guide](operator-guide.md) — operator-facing commands
-- [Theme architecture](../../architecture/core/themes.md) — the module reference
+- [Supported Halloy theme schema](supported-schema.md): the parser input contract
+- [Cache freshness contract](cache-contract.md): how translated themes are cached
+- [Theme operator guide](operator-guide.md): operator-facing commands
+- [Theme architecture](../../architecture/core/themes.md): the module reference
   for `app/themes/`

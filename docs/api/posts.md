@@ -32,7 +32,7 @@ GET /api/posts
 |-----------|------|---------|-------------|
 | `page` | int | 1 | Page number |
 | `per_page` | int | 20 | Items per page, capped at 100 |
-| `published` | bool | — | Filter by published status |
+| `published` | bool | None | Filter by published status |
 
 There is no free-text search parameter on this endpoint. Use the site's search
 route for that.
@@ -43,6 +43,7 @@ route for that.
 {
   "posts": [ { "...": "post object" } ],
   "total": 42,
+  "pages": 3,
   "page": 1,
   "per_page": 20
 }
@@ -113,9 +114,10 @@ POST /api/posts
 }
 ```
 
-Returns `201` with the created post. Returns `400` for a missing or invalid
-field, `409` on a slug collision, and `503` when the search index cannot be
-updated (the post is rolled back).
+Returns `201` with the created post. A duplicate requested slug is made unique
+by appending a number. Returns `400` for a missing or invalid field, `409` for
+a database constraint conflict at commit, and `503` if the search index is
+unavailable. The post is rolled back on `503`.
 
 ## Update Post
 
@@ -168,6 +170,6 @@ Returns `404` when the post does not exist.
 
 ## See Also
 
-- [OpenAPI specification](../openapi.yaml) — the full machine-readable spec
-- [API routes](../../architecture/routes/api-routes.md) — scope matching and the
+- [OpenAPI specification](../openapi.yaml): the full machine-readable spec
+- [API routes](../../architecture/routes/api-routes.md): scope matching and the
   `require_api_key` decorator

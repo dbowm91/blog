@@ -75,10 +75,10 @@ All color values are strings. No boolean, integer, or array values appear in any
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `background` | hex color | yes | — | Page background color. Every theme sets this. |
-| `border` | hex color | yes | — | General border color. |
-| `horizontal_rule` | hex color | yes | — | Color for `<hr>` or horizontal rule separators. |
-| `unread_indicator` | hex color | yes | — | Color for unread message indicators. |
+| `background` | hex color | yes | None | Page background color. Every theme sets this. |
+| `border` | hex color | yes | None | General border color. |
+| `horizontal_rule` | hex color | yes | None | Color for `<hr>` or horizontal rule separators. |
+| `unread_indicator` | hex color | yes | None | Color for unread message indicators. |
 
 All 50 catalog files provide all 4 fields. No optional fields were observed.
 
@@ -86,11 +86,11 @@ All 50 catalog files provide all 4 fields. No optional fields were observed.
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `primary` | hex color | yes | — | Primary body text color. |
-| `secondary` | hex color | yes | — | Secondary or muted text color. |
-| `tertiary` | hex color | yes | — | Tertiary or accent text color. |
-| `success` | hex color | yes | — | Success state text color. |
-| `error` | hex color | yes | — | Error state text color. |
+| `primary` | hex color | yes | None | Primary body text color. |
+| `secondary` | hex color | yes | None | Secondary or muted text color. |
+| `tertiary` | hex color | yes | None | Tertiary or accent text color. |
+| `success` | hex color | yes | None | Success state text color. |
+| `error` | hex color | yes | None | Error state text color. |
 
 All 50 catalog files provide all 5 fields. No optional fields were observed.
 
@@ -98,19 +98,19 @@ All 50 catalog files provide all 5 fields. No optional fields were observed.
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `action` | hex color | yes | — | Action message text color. |
-| `background` | hex color | yes | — | Message buffer background. |
-| `background_text_input` | hex color | yes | — | Text input field background in buffer. |
-| `background_title_bar` | hex color | yes | — | Title bar background in buffer. |
-| `border` | hex color | yes | — | Buffer border color. Some themes use `#00000000` (fully transparent). |
-| `border_selected` | hex color | yes | — | Border color for selected buffer. |
-| `code` | hex color | yes | — | Inline code text color. |
-| `highlight` | hex color | yes | — | Highlighted text or background color. |
-| `nickname` | hex color | yes | — | Nickname text color. |
-| `selection` | hex color | yes | — | Selection highlight color. |
-| `timestamp` | hex color | yes | — | Timestamp text color. |
-| `topic` | hex color | yes | — | Channel topic text color. |
-| `url` | hex color | yes | — | URL link text color. |
+| `action` | hex color | yes | None | Action message text color. |
+| `background` | hex color | yes | None | Message buffer background. |
+| `background_text_input` | hex color | yes | None | Text input field background in buffer. |
+| `background_title_bar` | hex color | yes | None | Title bar background in buffer. |
+| `border` | hex color | yes | None | Buffer border color. Some themes use `#00000000` (fully transparent). |
+| `border_selected` | hex color | yes | None | Border color for selected buffer. |
+| `code` | hex color | yes | None | Inline code text color. |
+| `highlight` | hex color | yes | None | Highlighted text or background color. |
+| `nickname` | hex color | yes | None | Nickname text color. |
+| `selection` | hex color | yes | None | Selection highlight color. |
+| `timestamp` | hex color | yes | None | Timestamp text color. |
+| `topic` | hex color | yes | None | Channel topic text color. |
+| `url` | hex color | yes | None | URL link text color. |
 
 All 50 catalog files provide all 13 fields. No optional fields were observed.
 
@@ -120,27 +120,25 @@ This section is nested inside `[buffer]` using TOML dotted-key syntax.
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `default` | hex color | yes | — | Default server message text color. Present in all 50 themes. |
-| `join` | hex color | no | — | Join message color. Present in 5 themes. |
-| `part` | hex color | no | — | Part message color. Present in 3 themes. |
-| `quit` | hex color | no | — | Quit message color. Present in 3 themes. |
-| `monitored_online` | hex color | no | — | Monitored user online color. Present in 2 themes. |
-| `monitored_offline` | hex color | no | — | Monitored user offline color. Present in 2 themes. |
-| `standard_reply_fail` | hex color | no | — | Standard reply fail color. Present in 2 themes. |
-| `standard_reply_warn` | hex color | no | — | Standard reply warn color. Present in 2 themes. |
-| `standard_reply_note` | hex color | no | — | Standard reply note color. Present in 2 themes. |
+| `default` | hex color | yes | None | Default server message text color. Present in all 50 themes. |
+| `join` | hex color | no | None | Join message color. Present in 5 themes. |
+| `part` | hex color | no | None | Part message color. Present in 3 themes. |
+| `quit` | hex color | no | None | Quit message color. Present in 3 themes. |
+| `monitored_online` | hex color | no | None | Monitored user online color. Present in 2 themes. |
+| `monitored_offline` | hex color | no | None | Monitored user offline color. Present in 2 themes. |
+| `standard_reply_fail` | hex color | no | None | Standard reply fail color. Present in 2 themes. |
+| `standard_reply_warn` | hex color | no | None | Standard reply warn color. Present in 2 themes. |
+| `standard_reply_note` | hex color | no | None | Standard reply note color. Present in 2 themes. |
 
-**Parser behaviour:** the `default` key is the only required key. The other keys
-are optional. They are parsed and stored but not consumed by the translator, and
-they are accepted silently — no warning is logged, because they are valid Halloy
-schema fields that the translator simply does not use. See "Defaults and
-tolerance" below.
+**Parser behavior:** `default` is the only required key. The other keys are
+optional. They are stored but not used by the translator. No warning is logged
+because these are valid Halloy fields. See "Defaults and tolerance" below.
 
 **Distribution across the catalog:**
 
 | Key set | Count | Files |
 |---------|-------|-------|
-| `default` only | 45 | — |
+| `default` only | 45 | None |
 | `default`, `join` | 2 | `Dark Green.toml`, `plum.toml` |
 | `default`, `join`, `part`, `quit` | 1 | `base16-atelier-forest-light.toml` |
 | All 9 keys | 2 | `Discord.toml`, `Discord (80_ Saturation).toml` |
@@ -149,10 +147,10 @@ tolerance" below.
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `background` | hex color | yes | — | Primary button background. |
-| `background_hover` | hex color | yes | — | Primary button hover background. |
-| `background_selected` | hex color | yes | — | Primary button selected background. |
-| `background_selected_hover` | hex color | yes | — | Primary button selected+hover background. |
+| `background` | hex color | yes | None | Primary button background. |
+| `background_hover` | hex color | yes | None | Primary button hover background. |
+| `background_selected` | hex color | yes | None | Primary button selected background. |
+| `background_selected_hover` | hex color | yes | None | Primary button selected+hover background. |
 
 All 50 catalog files provide all 4 fields. No optional fields were observed.
 
@@ -160,10 +158,10 @@ All 50 catalog files provide all 4 fields. No optional fields were observed.
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `background` | hex color | yes | — | Secondary button background. |
-| `background_hover` | hex color | yes | — | Secondary button hover background. |
-| `background_selected` | hex color | yes | — | Secondary button selected background. |
-| `background_selected_hover` | hex color | yes | — | Secondary button selected+hover background. |
+| `background` | hex color | yes | None | Secondary button background. |
+| `background_hover` | hex color | yes | None | Secondary button hover background. |
+| `background_selected` | hex color | yes | None | Secondary button selected background. |
+| `background_selected_hover` | hex color | yes | None | Secondary button selected+hover background. |
 
 All 50 catalog files provide all 4 fields. No optional fields were observed.
 
@@ -223,9 +221,9 @@ treated as spaces, so `my-theme.toml` becomes `My Theme`.
 
 | Character class | Reason |
 |---|---|
-| `/` and `\` | Path separators — traversal risk. |
+| `/` and `\` | Path separators that could allow traversal. |
 | `..` | Directory traversal component. |
-| Control characters (U+0000–U+001F, U+007F) | Non-printable, injection risk. |
+| Control characters (U+0000 through U+001F and U+007F) | Non-printable and unsafe. |
 | Empty names | No filename to resolve. |
 | Absolute paths | Rejected by `os.path.isabs()`. |
 | Names exceeding 200 characters | `_MAX_THEME_NAME_LEN` in `app/themes/resources.py`. The longest catalog filename is `black but with important highlights.toml` (40 characters). |
@@ -260,8 +258,8 @@ extra `buffer.server_messages` keys (`join`, `part`, `quit`, `monitored_online`,
 `monitored_offline`, `standard_reply_fail`, `standard_reply_warn`,
 `standard_reply_note`).
 
-Fields added by a future Halloy version are tolerated: unknown keys are parsed
-and stored without raising an error, and no warning is logged.
+Unknown keys are tolerated, but whether they are retained depends on their
+location. See the table below.
 
 ### Behavior for unknown sections or fields
 
@@ -274,10 +272,9 @@ and stored without raising an error, and no warning is logged.
 
 ### Behavior for `[buffer.server_messages]` extras
 
-Extra keys in `[buffer.server_messages]` beyond `default` are parsed and stored in
-the model but not consumed by the translator. They are accepted silently — no
-warning is logged, because they are valid Halloy schema fields that the
-translator simply does not use.
+Extra keys in `[buffer.server_messages]` beyond `default` are parsed and stored
+in the model, but the translator does not use them. No warning is logged because
+these are valid Halloy fields.
 
 ---
 
@@ -357,9 +354,9 @@ traceability and future migration, and is exported as `SCHEMA_VERSION` from
 | `ferra.toml` | `#00000000` |
 | `plum.toml` | `#00000000`, `#242424B4`, `#27273DE2`, `#C5B15CAA` |
 
-Note: 22 of these 26 files use only `#00000000` (fully transparent). The remaining
-4 files — `Cyber Red.toml`, `Noctis Lilac.toml`, `Tokyo Night Storm.toml` and
-`plum.toml` — use non-trivial alpha values.
+Note: 22 of these 26 files use only `#00000000` (fully transparent). The other
+four use non-trivial alpha values: `Cyber Red.toml`, `Noctis Lilac.toml`,
+`Tokyo Night Storm.toml`, and `plum.toml`.
 
 ### Filename edge cases in catalog
 
@@ -393,8 +390,8 @@ supported unless confirmed by catalog inspection.
 
 ## See Also
 
-- [BlogTheme token contract](blog-theme-contract.md) — what the translator emits
+- [BlogTheme token contract](blog-theme-contract.md): what the translator emits
   from this schema
-- [Theme operator guide](operator-guide.md) — installing and validating themes
-- [Theme architecture](../../architecture/core/themes.md) — the module reference
+- [Theme operator guide](operator-guide.md): installing and validating themes
+- [Theme architecture](../../architecture/core/themes.md): the module reference
   for `app/themes/`

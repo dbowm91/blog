@@ -1,441 +1,218 @@
 # Installation
 
-Complete installation guide for DevLog blog CMS.
+This guide covers first-time setup, configuration, and common operator tasks. For production deployment details, see the [deployment guide](../DEPLOY.md).
 
-## Quick Install (Recommended)
+## Choose an installation method
 
-Install DevLog from a release with one command:
+| Method | Best for | Requirements |
+|---|---|---|
+| Native system | A Linux host running DevLog as a service | Python 3.12 or newer; elevated permissions for system paths |
+| Native user | A single-user install without system-wide files | Python 3.12 or newer |
+| Docker | Container-based deployments | Docker Engine and Docker Compose |
+| Local development | Working from a source checkout | Python 3.12 or newer and Git; Node.js is needed to build frontend assets |
+
+## Native installation
+
+### System install
+
+The installer defaults to the system scope. It needs permission to write under `/opt` and `/usr/local`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | sudo bash -s -- --native --system
 ```
 
-This downloads the latest verified release, installs it to `/opt/devlog/`, and creates a `devlog` launcher at `/usr/local/bin/devlog`. Then run onboarding:
-
-```bash
-sudo devlog onboard run --mode native --scope system --profile native-production
-```
-
-A system install needs root — onboarding writes `/etc/devlog/config.toml` and
-`/var/lib/devlog`. A `--user` install writes into your own home directory and
-needs neither root nor `--scope system`.
-
-`--scope` matters: without it, onboarding falls back to the development layout
-and writes `config.toml` and `data/` into the current working directory instead
-of the install prefix. Use `--scope user` for a user-scope install.
-
-### Service account (system installs only)
-
-The systemd units run as an unprivileged `devlog` account. Nothing creates
-that account for you, so create it **before** onboarding — onboarding then
-hands the data and log directories to it:
+The systemd service runs as the unprivileged `devlog` account. The installer does not create that account. Create it if it does not already exist:
 
 ```bash
 sudo useradd --system --home-dir /var/lib/devlog --shell /usr/sbin/nologin devlog
 ```
 
-Onboarding creates `/var/lib/devlog`, `/var/lib/devlog/backups` and
-`/var/log/devlog` and gives them to the service account when it runs as root.
-`/run/devlog` is created by systemd itself at every start
-(`RuntimeDirectory=devlog`). If the account is missing, onboarding warns and
-the service cannot start — `devlog doctor --check fs.service_account` reports
-it.
-
-### Install Options
+Then create the configuration and administrator account:
 
 ```bash
-# Install to user paths (~/.local/share/devlog)
-curl -fsSL ... | bash -s -- --native --user
-
-# Install a specific version
-curl -fsSL ... | bash -s -- --native --version 1.2.0
-
-# Install and run onboarding immediately (requires TTY)
-curl -fsSL ... | bash -s -- --native --onboard
-
-# Docker mode (no host Python required)
-curl -fsSL ... | bash -s -- --docker
+sudo devlog onboard run --mode native --scope system --profile native-production
 ```
 
-See `scripts/install.sh --help` for all options.
+### User install
 
-### Installation Layout
-
-Native system install:
-
-```
-/opt/devlog/releases/X.Y.Z/venv/    # Versioned release with venv
-/opt/devlog/current -> /opt/devlog/releases/X.Y.Z  # Symlink to active release
-/usr/local/bin/devlog -> /opt/devlog/current/venv/bin/devlog  # Launcher
-```
-
-User install (`--user`):
-
-```
-~/.local/share/devlog/releases/X.Y.Z/venv/
-~/.local/share/devlog/current -> ~/.local/share/devlog/releases/X.Y.Z
-~/.local/bin/devlog -> ~/.local/share/devlog/current/venv/bin/devlog
-```
-
-The user-scope prefix is `${XDG_DATA_HOME:-~/.local/share}/devlog` and the launcher is
-`${XDG_BIN_HOME:-~/.local}/bin/devlog`. In both scopes the `current` symlink sits at the
-**prefix root**, not inside `releases/`.
-
-### Supply Chain Safety
-
-The installer verifies SHA-256 checksums before installation. Artifacts are downloaded over HTTPS from GitHub Releases. See `scripts/check_release_artifacts.py` for artifact verification.
-
-The release publishes a wheel, an sdist and a Docker bundle (`docker-bundle-<version>.tar.gz`,
-containing `docker-compose.yml`, `Dockerfile`, `.env.example` and `nginx/`). `checksums.txt`
-covers every published artefact, so the installer skips the manifest entries it did not
-download for this run — a mismatch on an artefact that *was* fetched still aborts the
-install. Verification is skipped entirely only when `checksums.txt` itself is absent from
-the release.
-
-## Prerequisites
-
-- Python 3.12+
-- Node.js 20 (for local development; Docker builds handle this automatically)
-- SQLite (bundled with Python)
-- Git
-
-## Docker Production
-
-### Via Installer
+A user install does not need root. The launcher is placed in `${XDG_BIN_HOME:-~/.local}/bin`; add that directory to `PATH` if `devlog` is not found.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --docker
-cd /opt/devlog
-devlog onboard run --mode docker
-docker compose --profile production up -d
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | bash -s -- --native --user
+devlog onboard run --mode native --scope user --profile native-production
 ```
 
-### Via Git Clone
+Use an explicit `--scope` when running onboarding. If omitted, onboarding uses development paths in the current working directory. See [filesystem layout](filesystem-layout.md) for the paths used by each mode.
+
+## Docker installation
+
+Docker requires `SECRET_KEY` and `ADMIN_PASSWORD` in `.env`. Copy the template, set strong secret values, and configure Redis for the Compose service. The template's `REDIS_URL` value points to localhost, so change it for Docker:
 
 ```bash
-git clone https://github.com/dbowm91/blog.git /opt/blog
-cd /opt/blog
 cp .env.example .env
-# Edit .env: set SECRET_KEY and ADMIN_PASSWORD
-docker compose --profile production up -d --build
 ```
 
-Docker builds frontend assets (Vite) automatically inside the container. No local Node.js installation required.
+Set these values in `.env`:
 
-The app binds to `127.0.0.1:5000` (localhost only). For public access, terminate TLS with a host-level reverse proxy (Caddy, nginx, Traefik) and proxy to `http://127.0.0.1:5000`.
+```dotenv
+SECRET_KEY=<strong-random-secret>
+ADMIN_PASSWORD=<strong-admin-password>
+REDIS_URL=redis://redis:6379/0
+BASE_URL=https://blog.example.com
+```
 
-> **Local HTTP testing:** Set `SESSION_COOKIE_SECURE=false` in your `.env` when testing at `http://localhost:5000`, otherwise admin login cookies will not persist. The app refuses to start with that setting unless debug mode is on, so run the local server with `DEBUG=true` as well — it enables the Werkzeug debugger, so keep it bound to `127.0.0.1`. Never use `SESSION_COOKIE_SECURE=false` in production behind HTTPS.
+`BASE_URL` should be the public URL when deploying behind a reverse proxy. Keep `.env` private.
 
-### Docker Compose Profiles
-
-All services require explicit profiles:
-
-| Profile | Services | Port |
-|---------|----------|------|
-| `production` | blog, celery, redis | `127.0.0.1:5000` |
-| `reverse-proxy` | nginx | 80/443 |
-| `backup` | backup service | — |
+### From a source checkout
 
 ```bash
+git clone https://github.com/dbowm91/blog.git
+cd blog
+cp .env.example .env
+```
+
+After editing `.env`, build the images, run onboarding once to create the configuration and administrator, then start the services:
+
+```bash
+docker compose --profile production build
+docker compose --profile production run --rm blog \
+  devlog onboard run --mode docker --profile docker-production
 docker compose --profile production up -d
-docker compose --profile production --profile reverse-proxy up -d
 ```
 
-## Local Development
+Open <http://localhost:5000/admin/login>. The app listens on `127.0.0.1:5000`. Put a TLS-enabled reverse proxy in front of it before exposing it publicly.
+
+### From the release installer
+
+The installer places the Docker bundle in `/opt/devlog` and copies `.env.example` to `.env` if the file does not exist. Run it with elevated permissions, edit `.env` as above, then initialize and start DevLog:
 
 ```bash
-git clone https://github.com/dbowm91/blog.git /opt/blog
-cd /opt/blog
+curl -fsSL https://raw.githubusercontent.com/dbowm91/blog/main/scripts/install.sh | sudo bash -s -- --docker
+cd /opt/devlog
+docker compose --profile production build
+docker compose --profile production run --rm blog \
+  devlog onboard run --mode docker --profile docker-production
+docker compose --profile production up -d
+```
+
+The Compose file has no default profile. The `production` profile starts the app, Redis, and the Celery worker. The optional `reverse-proxy` and `backup` profiles are documented in the [deployment guide](../DEPLOY.md).
+
+Scheduled publishing, newsletters, and other scheduled jobs are disabled by default. To enable them, set `ENABLE_SCHEDULER=true` on exactly one app container.
+
+## Local development
+
+```bash
+git clone https://github.com/dbowm91/blog.git
+cd blog
 ./scripts/setup-dev.sh
+FLASK_APP=run:app venv/bin/python -m flask create-admin
 venv/bin/python run.py
 ```
 
-This creates a virtual environment, generates secure credentials, and loads the `.env` file.
+The setup script creates a virtual environment, generates local credentials, installs dependencies, and applies database migrations. `create-admin` prompts for the first administrator account. Open <http://localhost:5000/admin/login> after the server starts.
 
-## CLI Installation
+For plain HTTP testing, set both `DEBUG=true` and `SESSION_COOKIE_SECURE=false` in `.env`. Debug mode enables the Werkzeug debugger. Use it only on a local machine and do not expose the server publicly. For production, keep secure cookies enabled and use HTTPS.
 
-DevLog provides a standalone `devlog` CLI for operator tasks. The installer creates a launcher automatically. For manual installation:
+## Onboarding
 
-```bash
-pip install .
-devlog --help
-devlog --version
-```
-
-For development (editable install with dev dependencies):
+Onboarding creates or updates configuration, runtime directories, database schema, and the initial administrator. Always provide the correct install mode and scope:
 
 ```bash
-pip install -e '.[dev]'
+devlog onboard run --mode native --scope system --profile native-production
+devlog onboard run --mode native --scope user --profile native-production
+devlog onboard run --mode docker --profile docker-production
 ```
 
-Global options:
+Docker mode ignores `--scope`. Do not omit `--scope` for native installs, because omission selects the development layout rather than detecting the installation.
 
-```bash
-devlog --json version       # JSON output
-devlog --verbose config --help  # Verbose help
-devlog --quiet db status    # Minimal output
-```
-
-Command groups: `config`, `admin`, `db`, `data`, `media`, `themes`, `backup`,
-`onboard`, `paths`, `deploy`.
-
-Top-level commands: `version`, `doctor`, `start`, `stop`, `restart`, `status`,
-`logs`.
-
-See [the CLI reference](../architecture/deployment/cli.md) for every command and
-option.
-
-## Onboarding System
-
-The `devlog onboard` command provides first-run and reconfiguration onboarding:
-
-### Interactive Onboarding
-
-```bash
-devlog onboard run
-```
-
-This guides you through:
-1. Mode selection (native or Docker)
-2. Deployment profile (development, native-production, docker-production, minimal, full)
-3. Site configuration (title, description, base URL)
-4. Admin user creation
-5. Newsletter and scheduler settings
-6. Redis and storage configuration
-7. Theme selection
-
-### Non-Interactive Onboarding
-
-For automated deployments (CI, Docker, scripts):
+For unattended native setup, provide the administrator password through a protected file instead of a command-line argument:
 
 ```bash
 devlog onboard run \
   --non-interactive \
   --mode native \
+  --scope system \
   --profile native-production \
   --admin-password-file /path/to/password.txt \
-  --site-url https://blog.example.com \
-  --admin-username admin
+  --admin-username admin \
+  --site-url https://blog.example.com
 ```
 
-Password must be provided via `--admin-password-file` in non-interactive mode. Never pass passwords as CLI arguments.
+### Previewing onboarding
 
-### Dry Run
-
-Preview what onboarding would do without making changes:
+`--dry-run` skips configuration and environment-file writes, but path resolution still creates the configuration and data directories. It is not a no-change filesystem operation.
 
 ```bash
-devlog onboard run --dry-run
-devlog onboard run --dry-run --json
+devlog onboard run --mode native --scope system --profile native-production --dry-run
 ```
 
-### Plan
-
-Show the onboarding plan without applying:
-
-```bash
-devlog onboard plan --mode native --profile development
-devlog onboard plan --mode docker --profile docker-production --json
-```
-
-### Detect Installation State
-
-Check if an installation already exists:
-
-```bash
-devlog onboard detect
-devlog --json onboard detect
-```
-
-### Resume Interrupted Onboarding
-
-If onboarding was interrupted (e.g., power failure, Ctrl+C), resume from where it left off:
-
-```bash
-devlog onboard resume
-devlog onboard resume --data-path /path/to/data
-```
-
-The resume command reads metadata from the data directory to determine the last completed step and continues from there.
-
-### What Onboarding Writes
-
-Onboarding is not additive. Two behaviours matter when re-running it against an
-existing installation:
-
-- **The `.env` file is rewritten from a fixed key set.** `write_env_file()` emits
-  `SECRET_KEY`, `ADMIN_PASSWORD`, `HEALTH_CHECK_SECRET`, `METRICS_SECRET` and,
-  when applicable, `SMTP_PASSWORD`, `BACKUP_ENCRYPTION_KEY`, `S3_ACCESS_KEY` and
-  `S3_SECRET_KEY`. A key you added by hand is not in that set and is dropped on the
-  next run. Keep extra settings in `config.toml`, or re-add them afterwards.
-- **Progress is recorded in `onboarding-metadata.json`** in the data directory. This
-  is a different file from the `.devlog-installation.json` that the filesystem
-  layout uses to describe an installed instance.
+Re-running onboarding rewrites `.env` from a fixed set of supported keys. Keep custom environment settings in `config.toml` or re-add them after onboarding. Progress metadata is stored separately as `onboarding-metadata.json` in the data directory.
 
 ## Configuration
 
-### Typed Configuration System
+DevLog reads non-secret settings from `config.toml`. Environment variables take precedence, then `config.toml`, then built-in defaults. Keep secrets such as `SECRET_KEY`, `ADMIN_PASSWORD`, and SMTP credentials in the environment or `.env`, not in `config.toml`.
 
-DevLog uses a typed configuration system at `app/config/` with 24 frozen dataclasses
-(`DevLogConfig` plus 23 section classes):
-
-```bash
-devlog config check                    # Validate configuration
-devlog config show --effective         # Show resolved values with sources
-devlog config explain email.smtp_host  # Explain one field (section.field)
-devlog config paths                    # Show config file locations
-devlog config init                     # Generate config.toml from defaults
-devlog config migrate                  # Migrate config to latest version
-```
-
-### Configuration Precedence
-
-1. Environment variables (highest priority)
-2. `config.toml`
-3. Defaults (lowest priority)
-
-Secret fields never carry their value in `config.toml`. Section-level secrets
-(`smtp_password`, `smtp_user`, the check secrets, the encryption keys, the S3 keys) are
-written as empty strings, and the top-level `secret_key` and `admin_password` are left out
-of the file entirely. They must be supplied by the environment or the env file.
-
-### Environment Variables
-
-Key environment variables:
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `SECRET_KEY` | Flask session signing | — (required) |
-| `ADMIN_PASSWORD` | Admin user password | — (required) |
-| `DATABASE_URL` | Database URI | `sqlite:///<cwd>/data/devlog.sqlite3` |
-| `REDIS_URL` | Redis connection | `redis://localhost:6379/0` |
-| `SERVER_PORT` | HTTP listen port | `5000` |
-| `SESSION_COOKIE_SECURE` | Secure cookies | `true` |
-| `ENABLE_SCHEDULER` | APScheduler jobs | `false` |
-| `ENABLE_METRICS` | Metrics endpoint | `false` |
-
-`DATABASE_URL` is only the fallback: `SQLALCHEMY_DATABASE_URI` takes precedence over
-it, and `DEVLOG_DATABASE_PATH` selects a SQLite file directly. `DEVLOG_DATABASE_PATH`
-outranks `DEVLOG_DATA_DIR`, but not `SQLALCHEMY_DATABASE_URI` or `DATABASE_URL`.
-
-### config.toml
-
-The `config.toml` file provides typed configuration:
-
-```toml
-version = 1
-
-[app]
-title = "My Blog"
-description = "A place for thoughts on code"
-
-[site]
-base_url = "https://blog.example.com"
-
-[server]
-host = "127.0.0.1"
-port = 5000
-
-[email]
-smtp_host = "smtp.example.com"
-smtp_port = 587
-```
-
-See `config.toml.example` for all available options.
-
-## Database
-
-### Migrations
+Useful commands:
 
 ```bash
-flask db upgrade          # Apply pending migrations
-flask db downgrade       # Rollback last migration
-flask db history         # Show migration history
-flask db current         # Show current revision
+devlog config check
+devlog config show --effective
+devlog config explain email.smtp_host
+devlog config paths
 ```
 
-Or via CLI:
+See [`config.toml.example`](../config.toml.example) for the available settings.
+
+## Database and backups
+
+SQLite is the default and recommended production database for a single server. PostgreSQL and other non-SQLite databases are experimental; SQLite-specific search and integrity checks are unavailable for them.
 
 ```bash
-devlog db status         # Migration status
-devlog db check          # Database integrity check
-devlog db migrate        # Run pending migrations
-devlog db rebuild-search # Rebuild FTS5 search index
+devlog db status
+devlog db check
+devlog db migrate
+devlog db rebuild-search
 ```
 
-### Backup and Restore
+Create and inspect backups with:
 
 ```bash
-devlog backup create           # Create backup
-devlog backup verify BACKUP   # Verify backup integrity
-devlog backup inspect BACKUP  # Show backup details
+devlog backup create
+devlog backup verify /path/to/backup
+devlog backup inspect /path/to/backup
 ```
 
-Encrypted backups require `BACKUP_ENCRYPTION_KEY` in `.env`.
-
-## Frontend Build
-
-Production releases include pre-built frontend assets in the wheel. Native production installation does not require Node.js.
-
-For local development, build frontend assets:
-
-```bash
-npm install
-npm run dev        # Development with hot reload
-npm run build      # Production build
-```
-
-Docker builds handle this automatically via the multi-stage `Dockerfile`.
+Encrypted backups require `BACKUP_ENCRYPTION_KEY`. See the [backup guide](../architecture/services/backup.md) for details.
 
 ## Themes
 
-DevLog ships with 50 Halloy-compatible themes:
-
-```bash
-devlog themes list                          # List available themes
-devlog themes validate "Catppuccin Mocha"   # Validate a theme file or name
-devlog themes inspect "Catppuccin Mocha"    # Show theme details
-```
-
-Themes are selected in the admin dashboard at `/admin/settings`.
+Use **Settings > Theme** in the admin dashboard to choose dark and light themes, preview changes, and set the default color scheme. For custom themes, see the [theme operator guide](themes/operator-guide.md).
 
 ## Troubleshooting
 
-### Admin Login Cookies Not Persisting
+### Admin login does not keep the session
 
-Set `SESSION_COOKIE_SECURE=false` in `.env` when testing at `http://localhost:5000`. The server also needs `DEBUG=true` to start with that setting — without it, startup fails with `RuntimeError: SESSION_COOKIE_SECURE must be True in production`.
+For local HTTP testing only, set `DEBUG=true` and `SESSION_COOKIE_SECURE=false`. Do not use this setting in production. Use HTTPS for a public site.
 
-### Search Not Working
+### Search is unavailable or stale
 
-FTS5 initialization fails silently. Check database integrity:
-
-```bash
-devlog db check
-```
-
-### Scheduler Not Running
-
-Set `ENABLE_SCHEDULER=true` in `.env`. Only one container should run the scheduler:
+Rebuild the SQLite full-text search index:
 
 ```bash
-docker compose --profile production up -d  # Set ENABLE_SCHEDULER=true on one container only
+devlog db rebuild-search
 ```
 
-### Port Already in Use
+### Scheduled jobs do not run
 
-Change the port in `config.toml` under `[server]`, or via the `SERVER_PORT`
-environment variable:
+Set `ENABLE_SCHEDULER=true` on exactly one app container. Enabling it on multiple containers can run jobs more than once.
 
-```bash
-SERVER_PORT=8080 python run.py
-```
+### Port 5000 is already in use
 
-## See Also
+Set `SERVER_PORT` in the environment or change `port` under `[server]` in `config.toml`.
 
-- [Filesystem layout](filesystem-layout.md) — where each mode keeps its state
-- [Migration from a repository-local layout](migration-from-checkout.md) — moving a
-  checkout to a production layout
-- [Operator CLI reference](../architecture/deployment/cli.md) — every `devlog` command
-- [Installation architecture](../architecture/deployment/installation.md) — how the
-  installer and onboarding fit together
+## Further reading
 
+- [Filesystem layout](filesystem-layout.md)
+- [Migration planning from a checkout](migration-from-checkout.md)
+- [Operator CLI reference](../architecture/deployment/cli.md)
+- [Deployment guide](../DEPLOY.md)

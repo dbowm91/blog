@@ -77,13 +77,13 @@ UID/GID is fixed at 1000:1000 (`blog:blog`).
 
 Paths are resolved via `RuntimePaths.for_mode(mode)` or `RuntimePaths.resolve(mode, ...)` with explicit overrides. Each path carries a `PathProvenance` indicating its source:
 
-- `explicit` — CLI/config override
-- `metadata` — installation metadata
-- `env_var` — `DEVLOG_*` environment variable
-- `system_default` — FHS system path
-- `xdg_default` — XDG base directory
-- `docker_default` — Docker container path
-- `development_fallback` — repository-local default
+- `explicit`: CLI/config override
+- `metadata`: installation metadata
+- `env_var`: `DEVLOG_*` environment variable
+- `system_default`: FHS system path
+- `xdg_default`: XDG base directory
+- `docker_default`: Docker container path
+- `development_fallback`: repository-local default
 
 ## Environment Variable Overrides
 
@@ -161,10 +161,10 @@ Paths are categorized for backup/uninstall policy (see `app/filesystem/lifecycle
 
 ## See Also
 
-- [Filesystem architecture](../architecture/core/filesystem.md) — the module-by-module
+- [Filesystem architecture](../architecture/core/filesystem.md): the module-by-module
   reference for `app/filesystem/`
-- [Migration from a repository-local layout](migration-from-checkout.md) — the
+- [Migration from a repository-local layout](migration-from-checkout.md): the
   operator workflow for moving an existing checkout
-- [Typed configuration](../architecture/core/configuration.md) — how `[paths]`
+- [Typed configuration](../architecture/core/configuration.md): how `[paths]`
   interacts with the rest of the config system
 

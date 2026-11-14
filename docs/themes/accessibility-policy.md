@@ -4,7 +4,7 @@ This document defines the accessibility requirements, exception classification, 
 
 ## 1. Mandatory Accessibility Requirements
 
-DevLog targets WCAG 2.1 Level AA for all bundled themes. The following success criteria and project-level thresholds are the mandatory policy for the bundled catalog and for any external theme an operator chooses to install:
+DevLog targets WCAG 2.1 Level AA for all bundled themes. The following thresholds define the bundled catalog policy. The runtime diagnostic CLI can also report contrast findings for external themes, but those themes are operator-managed and are not assigned the bundled catalog's eligibility tiers.
 
 | Category | WCAG Criterion | Threshold | Notes |
 |----------|---------------|-----------|-------|
@@ -200,18 +200,10 @@ between runs.
 
 ## 6. Scope
 
-This policy applies to:
-- All themes in the bundled catalog (`app/themes/bundled/`)
-- All themes validated by the accessibility diagnostic tooling (`app/themes/diagnostics.py`)
-- All themes offered through the admin theme selector
-
-This policy does not apply to:
-- External themes installed by operators (outside the bundled catalog)
-- Custom CSS overrides applied on top of bundled themes
-- Themes in development or testing states
+This tier policy governs the bundled catalog and its release checks. External themes can be checked by the runtime accessibility command, but are not assigned bundled eligibility tiers. With `devlog themes accessibility --strict`, the command returns a nonzero exit status for external themes with unexpected mandatory failures. Custom CSS overrides are outside the theme checks.
 
 ## See Also
 
-- [Theme operator guide](operator-guide.md) — the commands that report eligibility
-- [BlogTheme token contract](blog-theme-contract.md) — the tokens the checks compare
-- [Theme architecture](../../architecture/core/themes.md) — the module reference for `app/themes/`
+- [Theme operator guide](operator-guide.md): the commands that report eligibility
+- [BlogTheme token contract](blog-theme-contract.md): the tokens the checks compare
+- [Theme architecture](../../architecture/core/themes.md): the module reference for `app/themes/`

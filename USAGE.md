@@ -60,8 +60,8 @@ body and only appears when the post has at least three of them.
 
 **Excerpt:**
 The **Summary** field holds the excerpt used in listings, feeds and share
-cards. There is no in-body divider — the excerpt is a separate field in the
-editor, capped at 500 characters.
+cards. The Summary is a separate field, not a divider in the post body, and
+is capped at 500 characters.
 
 **Code Blocks:**
 ````markdown
@@ -105,7 +105,7 @@ For a saved post, the **Preview** link opens the full post preview at
 
 **Optional AI suggestions:** AI is opt-in and unavailable by default: `model` is blank, the editor controls are hidden, and no AI provider is contacted until an operator configures a model. To enable a local OpenAI-compatible server such as LM Studio, set its model ID and endpoint in `[ai]`; local-compatible providers need no API key. For compatible servers requiring authentication, set `AI_API_KEY` outside `config.toml`. To use OpenCode Go, set `provider = "opencode_go"`, choose a supported model, and supply `OPENCODE_GO_API_KEY` through the server environment or `.env`. AI actions send the current unsaved title and Markdown body only after an explicit click. Review suggestions before applying; nothing is saved until the normal post save. Local requests allow a longer response timeout, transient upstream failures are retried once, and a clear error appears if the configured server cannot be reached.
 
-**AI request limits:** There is no application-side AI rate limit by default. Provider-managed quotas are the appropriate control for hosted providers; a low application quota such as 12/hour blocks ordinary editorial work while doing little to prevent provider abuse. Requests are already bounded in size, output, timeout, and number of provider calls per action; local model operators can configure their own controls. Optional per-user limits remain available through `ai.rate_limit_per_user` or `AI_RATE_LIMIT_PER_USER` for deployments with a specific need. If a future product preset adds a default ceiling, it should be at least 1,000 requests per user per hour—effectively unreachable in ordinary human use and negligible in cost for these bounded calls—not a restrictive per-author throttle. See [AI authoring architecture](architecture/services/overview.md#optional-ai-authoring).
+**AI request limits:** There is no application-side AI rate limit by default. Requests are bounded by size, output, timeout, and provider calls per action. Use provider quotas for hosted services. Optional per-user limits are available through `ai.rate_limit_per_user` or `AI_RATE_LIMIT_PER_USER`. See [AI authoring architecture](architecture/services/overview.md#optional-ai-authoring).
 
 **Note:** If you see an "IntegrityError" message, a slug collision occurred. The system will auto-generate a new unique slug.
 
@@ -125,10 +125,10 @@ From `/admin/`:
 
 1. Check the box next to each post you want to modify
 2. Select a bulk action from the dropdown:
-   - **Publish** — Publish selected drafts
-   - **Unpublish** — Take selected posts offline
-   - **Unschedule** — Clear the scheduled publication time
-   - **Delete** — Permanently remove (with confirmation)
+   - **Publish**: Publish selected drafts
+   - **Unpublish**: Take selected posts offline
+   - **Unschedule**: Clear the scheduled publication time
+   - **Delete**: Permanently remove (with confirmation)
 3. Click **Apply**
 
 ### Scheduled Publishing
@@ -145,14 +145,6 @@ The scheduler checks every 5 minutes for posts with `scheduled_publish_at` in th
 - Clock icon = Scheduled
 - Green dot = Published
 - Gray dot = Draft
-
-### Short URLs
-
-Each post gets a short URL: `/s/<code>` where `<code>` is a base62-encoded post ID.
-
-- Find the short URL in the post edit page
-- Useful for sharing on Twitter/character-limited platforms
-- Short codes never change, even if the slug does
 
 ---
 
@@ -175,7 +167,7 @@ Go to `/admin/tags` to see all tags with post counts.
 
 1. Go to `/admin/tags`
 2. Edit the name in the inline field next to the tag
-3. Click **Rename** — the slug is regenerated from the new name
+3. Click **Rename**. The slug is regenerated from the new name
 
 **Note:** Changing a tag's slug may break existing links to posts filtered by that tag.
 
@@ -208,9 +200,9 @@ Post series let you group related posts into ordered collections with sequential
 1. Go to `/admin/series`
 2. Click **+ New Series**
 3. Enter:
-   - **Series Name** — Display name (e.g., "Flask Tutorials")
-   - **Slug** — URL-friendly version (auto-generated if empty)
-   - **Description** — Optional summary
+   - **Series Name**: Display name (e.g., "Flask Tutorials")
+   - **Slug**: URL-friendly version (auto-generated if empty)
+   - **Description**: Optional summary
 4. Click **Create Series**
 5. Add posts to a series from the series page:
    - Go to `/admin/series/<id>/posts` (**Manage Posts** on the series list)
@@ -437,19 +429,20 @@ Or set via environment variables: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`.
 
 ### Sending a Newsletter
 
-The daily digest is sent automatically by the scheduler — there is no manual
+The daily digest is sent automatically by the scheduler. There is no manual
 "send to all subscribers" button. From the dashboard you can:
 
-- **Preview Newsletter** — renders the newsletter email with the 3 most recent
+- **Preview Newsletter**: renders the newsletter email with the 3 most recent
   published posts, without sending anything
-- **Test Newsletter** — sends the same 3 posts to an address you choose
+- **Test Newsletter**: sends the same 3 posts to an address you choose
   (defaults to the configured `from_address`)
 
 To include a specific post in the next digest, publish it and leave
 `newsletter_sent_at` empty. The dashboard shows a **Reset NL** button on posts
 that were already sent, which clears the flag so they go out again.
 
-Progress is logged to `logs/blog.log`.
+Progress is logged to the application log. Development defaults to `logs/blog.log`.
+Docker writes to `/var/log/devlog/blog.log` in the mounted `blog_logs` volume.
 
 ### Subscriber Confirmation Flow
 
@@ -476,7 +469,7 @@ Every newsletter email includes an unsubscribe link of the form:
 
 Clicking the link:
 - Marks subscriber as unsubscribed
-- Shows success message (same message for valid/invalid tokens—prevents enumeration)
+- Shows the same success message for valid and invalid tokens, preventing enumeration
 
 ### Newsletter Templates
 
@@ -490,12 +483,12 @@ The newsletter email template is in `app/templates/email/newsletter.html`. Custo
 
 The dashboard at `/admin/` shows:
 
-- **Stat cards** — Total Views, Published Posts, Total Shares, Subscribers (and Scheduled & Ready when there are scheduled posts)
-- **Traffic (30 days)** — Page views over the last 30 days
-- **Top Shares (30 days)** — Most-shared posts over the last 30 days
-- **Trending (30 days)** — Posts with the most views over the last 30 days
-- **Recent Posts** — Latest published posts, with bulk actions
-- **Newsletter actions** — Preview Newsletter, Test Newsletter, + New Post
+- **Stat cards**: Total Views, Published Posts, Total Shares, Subscribers (and Scheduled & Ready when there are scheduled posts)
+- **Traffic (30 days)**: Page views over the last 30 days
+- **Top Shares (30 days)**: Most-shared posts over the last 30 days
+- **Trending (30 days)**: Posts with the most views over the last 30 days
+- **Recent Posts**: Latest published posts, with bulk actions
+- **Newsletter actions**: Preview Newsletter, Test Newsletter, + New Post
 
 ### Backup and Restore
 
@@ -512,15 +505,15 @@ The dashboard at `/admin/` shows:
 
 **Warning:** Restoring overwrites all current data.
 
-**Backup location:** `<data_dir>/backups/` — the directory next to the
-database (`/var/lib/devlog/backups` in system scope,
-`~/.local/share/devlog/backups` in user scope, `./data/backups` in
-development).
+**Backup location:** Backups are stored in `<data_dir>/backups/`, beside the
+database. Defaults are `/var/lib/devlog/backups` in system scope,
+`~/.local/share/devlog/backups` in user scope, and `./data/backups` in
+development.
 
-**Backup database path:** every backup path resolves the database from the
-configured URI (`<data_dir>/devlog.sqlite3` by default) and writes to the
-directory above — the admin **Create Backup** button, the APScheduler daily
-backup and `devlog backup create` alike.
+**Backup database path:** Every backup uses the database from the configured
+URI (`<data_dir>/devlog.sqlite3` by default) and writes to that directory. This
+applies to the admin **Create Backup** button, the APScheduler daily backup,
+and `devlog backup create`.
 
 **Backup encryption:**
 ```bash
@@ -553,9 +546,9 @@ Create static pages (accessible at `/page/<slug>`):
 1. Go to `/admin/pages`
 2. Click **New Page**
 3. Enter:
-   - **Title** — Page title
-   - **Slug** — URL slug (auto-generated if empty)
-   - **Content** — Markdown content
+   - **Title**: Page title
+   - **Slug**: URL slug (auto-generated if empty)
+   - **Content**: Markdown content
 4. Toggle **Published** as needed
 5. Click **Create Page** (or **Save Changes** when editing)
 
@@ -715,12 +708,12 @@ record_page_view(post_id=1, referrer="https://twitter.com/")
 When a visitor shares a post via the share buttons, a `ShareEvent` is recorded.
 
 **Share platforms:**
-- `twitter` — Twitter/X
-- `facebook` — Facebook
-- `linkedin` — LinkedIn
-- `hackernews` — Hacker News
-- `reddit` — Reddit
-- `link` — Copy link (the **Copy** button) or the short `/s/<code>` URL
+- `twitter`: Twitter/X
+- `facebook`: Facebook
+- `linkedin`: LinkedIn
+- `hackernews`: Hacker News
+- `reddit`: Reddit
+- `link`: Copy link (the **Copy** button) or the short `/s/<code>` URL
 
 Only those six values are accepted by `/api/track-share`; anything else is
 rejected with `400`.
@@ -838,7 +831,7 @@ View active sessions at `/admin/sessions`:
 
 Sessions auto-expire after 24 hours of inactivity (configurable via `SESSION_LIFETIME_HOURS`).
 
-**IP Binding:** If your IP changes, a warning is logged. The session isn't invalidated (allows for mobile users switching networks).
+**IP binding:** The default `warn` mode logs a warning if your IP changes but keeps the session active. Set `SESSION_IP_BINDING` to `off` to ignore IP changes or `enforce` to invalidate the session and require login again. Enforcement may interrupt users who switch networks.
 
 ---
 
@@ -933,9 +926,9 @@ links use the application's forced-download route. See [S3 Storage](#s3-storage)
 flask cleanup-orphaned-images
 ```
 
-This removes images not referenced by any post. The standalone CLI equivalent
-is `devlog media cleanup --apply` — without `--apply` it only reports what
-would be removed.
+This removes images not referenced by any post. The standalone command is
+`devlog media cleanup --apply`. Without `--apply`, it only reports what would
+be removed.
 
 ### How Image Uploads Work
 
@@ -997,19 +990,19 @@ export S3_PUBLIC_URL=https://cdn.example.com      # Custom CDN URL
 - With `S3_PUBLIC_URL` set, URLs are built from that CDN base; otherwise the
   S3 virtual-hosted URL (`https://<bucket>.s3.<region>.amazonaws.com/<key>`)
   is used
-- URLs are not signed — a private bucket needs a CDN or a public-read policy
+- URLs are not signed: a private bucket needs a CDN or a public-read policy
 
 ### Storage Backend Detection
 
 The app auto-detects storage backend from `STORAGE_BACKEND`:
-- `local` (default) — Local filesystem
-- `s3` — S3-compatible storage
+- `local` (default): Local filesystem
+- `s3`: S3-compatible storage
 
 ### Local Storage Fallback
 
 If `STORAGE_BACKEND=s3` but `S3_BUCKET`, `S3_ACCESS_KEY` or `S3_SECRET_KEY`
 is missing, the app logs a warning at startup and falls back to local storage
-at `app/static/uploads/`. This decision is made once, at startup — it is not a
+at `app/static/uploads/`. This decision is made once, at startup: it is not a
 runtime retry when S3 becomes unreachable.
 
 ### Migration from Local to S3
@@ -1017,8 +1010,8 @@ runtime retry when S3 becomes unreachable.
 1. Configure S3 environment variables
 2. Restart the app
 3. New uploads go to S3
-4. Existing local uploads remain in place — copy them across if you want them
-   served from S3
+4. Existing local uploads remain in place. Copy them to S3 if you want them
+   served from there.
 
 ---
 
@@ -1095,9 +1088,9 @@ The analytics system (page views, share events) works identically with or withou
 ### Search Features
 
 - **Full-text search** via SQLite FTS5
-- **Prefix matching** — searching "Py" matches "Python"
-- **Did you mean?** — suggestions for typos
-- **Highlighted matches** — search terms highlighted in results
+- **Prefix matching**: searching "Py" matches "Python"
+- **Did you mean?**: suggestions for typos
+- **Highlighted matches**: search terms highlighted in results
 
 ### Rebuilding the Search Index
 
